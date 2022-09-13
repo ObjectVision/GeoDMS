@@ -66,10 +66,10 @@
       <Message>RoboCopying %(Identity) into $(TargetDir)gdaldata</Message>
       <Outputs>$(TargetDir)gdaldata\LICENSE.TXT</Outputs>
     </CustomBuild>
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\data\proj.db">
+    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\proj.db">
       <FileType>Document</FileType>
       <Command>
-			ROBOCOPY C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\data $(TargetDir)proj4data /v /fft /E /njh /njs /xf *.cmake
+			ROBOCOPY C:\dev\vcpkg\installed\$(Platform)-windows\share\proj $(TargetDir)proj4data /v /fft /E /njh /njs /xf *.cmake
 			IF %ErrorLevel%==2 EXIT 0
 			IF %ErrorLevel%==1 EXIT 0
 			IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
