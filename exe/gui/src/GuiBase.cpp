@@ -6,7 +6,7 @@
 #include <Windows.h>
 #include "TicInterface.h"
 
-bool GuiState::ShowDemoWindow			    = false;
+bool GuiState::ShowDemoWindow			    = false; 
 bool GuiState::ShowOptionsWindow		    = false;
 bool GuiState::ShowDetailPagesOptionsWindow = false;
 bool GuiState::ShowEventLogOptionsWindow    = false;

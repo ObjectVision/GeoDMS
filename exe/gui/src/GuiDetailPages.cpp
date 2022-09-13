@@ -341,7 +341,7 @@ void GuiDetailPages::UpdateProperties()
 
 void GuiDetailPages::Update(bool* p_open)
 {
-    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_AlwaysHorizontalScrollbar))
     {
         ImGui::End();
         return;
@@ -378,10 +378,10 @@ void GuiDetailPages::Update(bool* p_open)
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
 
-            AddProperty(P_EXPR_NAME);
+            //AddProperty(P_EXPR_NAME);
 
 
-            /*if (m_State.GetCurrentItem())
+            if (m_State.GetCurrentItem())
             {
                 if (m_State.GetCurrentItem()->IsFailed())
                 {
@@ -399,7 +399,7 @@ void GuiDetailPages::Update(bool* p_open)
                     m_GeneralBuff.InterpretBytes(); // Create detail page from html stream
                     m_GeneralBuff.Reset();
                 }
-            }*/
+            }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
