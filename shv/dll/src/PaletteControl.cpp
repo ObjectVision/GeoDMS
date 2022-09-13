@@ -218,7 +218,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		else if (m_Layer->GetLayerClass() == GraphicPolygonLayer::GetStaticClass())
 			labelTxt = "OOO";
 		else if (m_Layer->GetLayerClass() == GridLayer::GetStaticClass())
-			labelTxt = "[][][]";
+			labelTxt = CharPtr(u8"□□□");
 		if (!labelTxt.empty())
 			column->SetTheme(Theme::CreateValue(AN_LabelText, labelTxt).get(), nullptr);
 	}
