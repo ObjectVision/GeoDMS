@@ -1,0 +1,329 @@
+#include <imgui.h>
+#include <imgui_internal.h>
+#include "ShvDllInterface.h"
+#include "TicInterface.h"
+#include "ClcInterface.h"
+#include "GeoInterface.h"
+#include "StxInterface.h"
+#include "RtcInterface.h"
+
+#include "dbg/Debug.h"
+#include "dbg/DebugLog.h"
+#include "dbg/DmsCatch.h"
+#include "ptr/AutoDeletePtr.h"
+#include "utl/Environment.h"
+#include "utl/splitPath.h"
+#include "utl/Environment.h"
+
+#include "AbstrDataItem.h"
+#include "AbstrDataObject.h"
+#include "AbstrUnit.h"
+#include "DataLocks.h"
+#include "GuiMenu.h"
+
+#include <codecvt>
+
+void GuiMenuComponent::Update(std::vector<GuiView>& TableViewsPtr, std::vector<GuiView>& MapViewsPtr)
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        m_FileComponent.Update();
+        m_EditComponent.Update();
+        m_ViewComponent.Update();
+        m_ToolsComponent.Update();
+        m_WindowComponent.Update(TableViewsPtr, MapViewsPtr);
+        m_HelpComponent.Update();
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+GuiMenuFileComponent::GuiMenuFileComponent()
+{
+    m_fileDialog.SetTitle("Open Configuration File");
+    m_fileDialog.SetTypeFilters({ ".dms" });
+    GetRecentAndPinnedFiles();
+}
+
+GuiMenuFileComponent::~GuiMenuFileComponent()
+{
+    SetRecentAndPinnedFiles();
+}
+
+void GuiMenuFileComponent::GetRecentAndPinnedFiles()
+{
+    m_PinnedFiles = GetGeoDmsRegKeyMultiString("PinnedFiles"); // TODO: check if cfg files still exist
+    m_RecentFiles = GetGeoDmsRegKeyMultiString("RecentFiles");
+    CleanRecentAndPinnedFiles();
+}
+
+void GuiMenuFileComponent::SetRecentAndPinnedFiles() 
+{
+    SetGeoDmsRegKeyMultiString("PinnedFiles", m_PinnedFiles);
+    SetGeoDmsRegKeyMultiString("RecentFiles", m_RecentFiles);
+}
+
+void GuiMenuFileComponent::CleanRecentAndPinnedFiles()
+{
+    // recent files
+    int i = 0;
+    auto it_rf = m_RecentFiles.begin();
+    while (true)
+    {
+        it_rf = m_RecentFiles.begin();
+        for (i = 0; i < m_RecentFiles.size(); i++)
+        {
+            if (!std::filesystem::exists(m_RecentFiles.at(i)))
+            {
+                m_RecentFiles.erase(it_rf+i);
+                it_rf = m_RecentFiles.begin();
+                i = 0;
+                break;
+            }
+        }
+        if (m_RecentFiles.empty() || it_rf+i == m_RecentFiles.end())
+            break;
+    }
+
+    // pinned files
+    auto it_pf = m_PinnedFiles.begin();
+    while (true)
+    {
+        it_pf = m_PinnedFiles.begin();
+        for (i = 0; i < m_PinnedFiles.size(); i++)
+        {
+            if (!std::filesystem::exists(m_PinnedFiles.at(i)))
+            {
+                m_PinnedFiles.erase(it_pf+i);
+                it_pf = m_RecentFiles.begin();
+                i = 0;
+                break;
+            }
+        }
+        if (m_PinnedFiles.empty() || it_pf+i == m_PinnedFiles.end())
+            break;
+    }
+    SetRecentAndPinnedFiles();
+}
+
+Int32 GuiMenuFileComponent::ConfigIsInRecentFiles(std::string cfg)
+{
+    auto it = std::find(m_RecentFiles.begin(), m_RecentFiles.end(), cfg);
+    if (it == m_RecentFiles.end())
+        return -1;
+    return it - m_RecentFiles.begin();
+}
+
+void GuiMenuFileComponent::UpdateRecentFilesByCurrentConfiguration()
+{
+    auto ind = ConfigIsInRecentFiles(m_State.configFilenameManager._Get());
+    auto it = m_RecentFiles.begin();
+    if (ind != -1) // in recent files
+        m_RecentFiles.erase(it+ind);
+
+    it = m_RecentFiles.begin(); // renew iterator
+    m_RecentFiles.insert(it, m_State.configFilenameManager._Get());
+    SetRecentAndPinnedFiles();
+}
+
+void GuiMenuFileComponent::Update()
+{
+    m_fileDialog.Display();
+
+    if (m_fileDialog.HasSelected())
+    {
+        m_State.configFilenameManager.Set(m_fileDialog.GetSelected().string());
+        UpdateRecentFilesByCurrentConfiguration();
+        CleanRecentAndPinnedFiles();
+        m_fileDialog.ClearSelected();
+    }
+
+    if (ImGui::BeginMenu("File"))
+    {
+        if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
+            m_fileDialog.Open();
+
+        if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
+        {
+            m_State.MainEvents.Add(ReopenCurrentConfiguration);
+        }
+        if (ImGui::MenuItem("Open Demo Config")) 
+        {
+            //s_GuiState.DMSConfigurationFileName = "C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms";
+            //s_GuiState.root = DMS_CreateTreeFromConfiguration(s_GuiState.DMSConfigurationFileName.c_str());
+            //AutoDeletePtr<TreeItem> cfg = DMS_CreateTreeFromConfiguration(s_GuiState.DMSConfigurationFileName.c_str());
+            m_State.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
+            UpdateRecentFilesByCurrentConfiguration();
+            CleanRecentAndPinnedFiles();
+        }
+        ImGui::Separator();
+        int ind = 1;
+        for (auto& rfn : m_RecentFiles)
+        {
+            if (ImGui::MenuItem((std::to_string(ind) + " " + rfn).c_str()))
+            {
+                m_State.configFilenameManager.Set(rfn);
+                UpdateRecentFilesByCurrentConfiguration();
+                CleanRecentAndPinnedFiles();
+            }
+            ind++;
+        }
+
+        ImGui::Separator();
+        if (ImGui::MenuItem("Exit")) {}
+        ImGui::EndMenu();
+    }
+}
+
+void GuiMenuEditComponent::Update()
+{
+    if (ImGui::BeginMenu("View"))
+    {
+        if (ImGui::MenuItem("Dear ImGui Demo Window"))
+            m_State.ShowDemoWindow = true;
+        if (ImGui::MenuItem("Config Source", "Ctrl+E")) {}
+        if (ImGui::MenuItem("Definition", "Ctrl+Alt+E")) {}
+        if (ImGui::MenuItem("Classification and Palette", "Ctrl+Alt+C")) {}
+        ImGui::Separator();
+        if (ImGui::MenuItem("Update Treeitem", "Ctrl+U")) {}
+        if (ImGui::MenuItem("Update Subtree", "Ctrl+T")) {}
+        if (ImGui::MenuItem("Invalidate Treeitem", "Ctrl+I")) {}
+        ImGui::EndMenu();
+    }
+}
+
+void GuiMenuViewComponent::Update()
+{
+    if (ImGui::BeginMenu("Edit"))
+    {
+        ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
+        if (ImGui::MenuItem("Default")) {}
+        if (ImGui::MenuItem("Map", "Ctrl+M")) {}
+        if (ImGui::MenuItem("Table", "Ctrl+D")) 
+        {
+            m_State.ShowTableviewWindow = true;
+        }
+        if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Process Schemes"))
+        {
+            ImGui::MenuItem("Subitems");
+            ImGui::MenuItem("Suppliers");
+            ImGui::MenuItem("Expression");
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Source Descr variant"))
+        {
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+        if (ImGui::MenuItem("Treeview", "Alt+0")) 
+        {
+            m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+        }
+        if (ImGui::MenuItem("Detail Pages", "Alt+1")) 
+        {
+            m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+        }
+        if (ImGui::MenuItem("Eventlog", "Alt+2")) 
+        {
+            m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+        }
+        if (ImGui::MenuItem("Toolbar", "Alt+3")) 
+        {
+            m_State.ShowToolbar = !m_State.ShowToolbar;
+        }
+        if (ImGui::MenuItem("Current Item bar", "Alt+4")) 
+        {
+            m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
+        }
+        if (ImGui::MenuItem("Hidden Items", "Alt+5")) {}
+        ImGui::PopItemFlag();
+        ImGui::EndMenu();
+    }
+
+}
+
+void GuiMenuToolsComponent::Update()
+{
+    if (ImGui::BeginMenu("Tools"))
+    {
+        if (ImGui::MenuItem("Options", "Ctrl+Alt+O")) 
+        {
+            m_State.ShowOptionsWindow = true;
+        }
+        if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) {}
+        ImGui::EndMenu();
+    }
+}
+
+void GuiMenuWindowComponent::Update(std::vector<GuiView>& TableViewsPtr, std::vector<GuiView>& MapViewsPtr)
+{
+    if (ImGui::BeginMenu("Window"))
+    {
+        if (ImGui::MenuItem("Tile Horizontal", "Ctrl+Alt+W")) {}
+        if (ImGui::MenuItem("Tile Vertical", "Ctrl+Alt+V")) {}
+        if (ImGui::MenuItem("Cascade", "Shift+Ctrl+W")) {}
+        if (ImGui::MenuItem("Close", "Ctrl+W")) {}
+        if (ImGui::MenuItem("Close All", "Ctrl+L")) {}
+        if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
+        ImGui::Separator();
+
+        for (auto& view : TableViewsPtr)
+        {
+            if (!view.IsPopulated())
+                continue;
+
+            if (ImGui::Button(view.GetViewName().c_str()))
+            {
+                view.SetDoView(!view.DoView());
+            }
+            
+            ImGui::SameLine();
+            ImGui::PushID(view.GetViewName().c_str()); // unique id
+            //ImGui::PushStyleColor();
+            if (ImGui::Button(ICON_RI_CLOSE_FILL))
+            {
+                view.Close(false);
+            }
+            ImGui::PopID();
+        }
+
+        for (auto& view : MapViewsPtr)
+        {
+            if (!view.IsPopulated())
+                continue;
+
+            if (ImGui::Button(view.GetViewName().c_str()))
+            {
+                view.SetDoView(!view.DoView());
+            }
+
+            ImGui::SameLine();
+            ImGui::PushID(view.GetViewName().c_str()); // unique id
+            if (ImGui::Button(ICON_RI_CLOSE_FILL))
+            {
+                view.Close(false);
+            }
+            ImGui::PopID();
+        }
+
+        ImGui::Separator();
+        ImGui::EndMenu();
+    }
+}
+
+void GuiMenuHelpComponent::Update()
+{
+    if (ImGui::BeginMenu("Help"))
+    {
+        if (ImGui::MenuItem("About...")) {}
+        if (ImGui::MenuItem("Online")) {}
+        ImGui::Separator();
+        if (ImGui::MenuItem("Copyright Notice")) {}
+        if (ImGui::MenuItem("Disclaimer")) {}
+        if (ImGui::MenuItem("Data Source Reference")) {}
+        ImGui::EndMenu();
+    }
+}

@@ -1,0 +1,70 @@
+Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems. 
+
+This folder contains the C++ and Delphi source code to compile the GeoDMS.
+
+Documentation on installing and using the Geographic Data & Model Server software can be found at:
+http://www.ObjectVision.nl/geodms/
+
+
+See readme-dms.txt for technical info about compiling the GeoDMS
+
+
+The contained code is (c) Object Vision BV, unless stated otherwise, 
+
+
+This open source software; you can use, redistribute, and/or
+modify it under the terms of the GNU General Public License version 2 
+(the License) as published by the Free Software Foundation
+on the condition that this readme file is provided and all copyright 
+notices in the source code are preserved.
+
+See LICENSE.TXT for terms of distribution or look at our web site:
+http://www.objectvision.nl/geodms/software/license-and-disclaimer
+or alternatively at: http://www.gnu.org/copyleft/gpl.html
+
+You can use, redistribute and/or modify this library source code file
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details. However, specific warranties might be
+granted by an additional written contract for support, assistance and/or development
+
+*******************************
+additional guidelines and notes
+*******************************
+
+Additional to the terms of the license, we request you to apply the following
+guidelines (these additional requests are not limiting your rights under the terms of the license):
+- An appropriate copyright notice that an interactive program/web-site
+  containing or using the GeoDMS in a start splash-screen/page and/or about-box (if any), is:
+  "This software/web-site is using the Geographic Data & Model Server (GeoDMS)
+   Copyright (c) 2006-2012 Object Vision BV.
+   For documentation, source code, and license rights, see:
+   http://www.objectVision.nl/geodms/
+   The GeoDMS is licensed WITHOUT ANY WARRANTY. Specific warranties can be granted
+   by an additional written contract for support, assistance and/or development"
+- Before distributing the GeoDMS library and/or work containing it to others, 
+  pease check at our web-site to see if any newer version has been made available.
+- We would like to be notified when you make any modification to the source code 
+  and would like to receive your modifications: mhilferink@ObjectVision.nl
+- In case of bug-fixes and small additions, we might or might not use the contributors
+  improvements in a possible future version of the DMS without notification of
+  the contributors modification, however when the contributor distributes the DMS source code 
+  with its modifications directly, it should give a prominent notification as described in article 2a of the license.
+- In case of larger additions, the contributor will be attributed as the author of these additions
+  and a copyright notice will remain in the contributed source code if this contribution is included in our distribution. 
+- When you have made a product that uses the GeoDMS, you can distribute it under
+  the same GPL License conditions. We would like to hear from you and 
+  receive a copy of your product including its source code. 
+  You will remain the author of this product, and any major modifications to the GeoDMS; 
+  Object Vision will remain the author of the included GeoDMS source code.
+
+Object Vision BV
+p/a CIMO - Vrije Universiteit
+De Boelelaan 1085 
+1081 HV  AMSTERDAM - the Netherlands
+t: +31-20-598.9083
+w: www.ObjectVision.Nl/
+e: mhilferink@objectvision.nl
+

@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6C8C307F-5FE6-4905-A828-1A8E0AE5003D}</ProjectGuid>
+    <ProjectName>Sym</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Debug'" Label="PropertySheets">
+    <Import Project="..\..\DmsDebug.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
+    <Import Project="..\..\DmsRelease.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>../../rtc/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DMSYM_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Assoc.cpp" />
+    <ClCompile Include="src\Lispeval.cpp" />
+    <ClCompile Include="src\LispRef.cpp" />
+    <ClCompile Include="src\Parser.cpp" />
+    <ClCompile Include="src\Prolog.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Assoc.h" />
+    <ClInclude Include="src\Lispeval.h" />
+    <ClInclude Include="src\LispList.h" />
+    <ClInclude Include="src\LispRef.h" />
+    <ClInclude Include="src\Parser.h" />
+    <ClInclude Include="src\Prolog.h" />
+    <ClInclude Include="src\RewriteRules.h" />
+    <ClInclude Include="src\SymBase.h" />
+    <ClInclude Include="src\SymInterface.h" />
+    <ClInclude Include="src\SymPCH.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
+      <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

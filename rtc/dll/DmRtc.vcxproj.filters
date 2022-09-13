@@ -1,0 +1,1019 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Actor Update Mechanism">
+      <UniqueIdentifier>{13631957-8f42-4582-a5d1-4f31d9900af7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Compiler &amp; Platform Files">
+      <UniqueIdentifier>{cb5c1dee-5a19-4486-9aa6-2153333d197c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Debug Files">
+      <UniqueIdentifier>{06b0d1f1-f23c-40c2-96fd-3ce783af335f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="General">
+      <UniqueIdentifier>{77edd867-f8cd-4229-8d6e-f76251d6a2f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Geometry">
+      <UniqueIdentifier>{5119733a-1c2c-4a25-b2fa-dc7b138445e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Import Dll Management">
+      <UniqueIdentifier>{cbfcdd25-7589-45e6-b946-c00b0fc32ce2}</UniqueIdentifier>
+      <Extensions>*.cpp; *.h</Extensions>
+    </Filter>
+    <Filter Include="Interface Files">
+      <UniqueIdentifier>{eb48dfce-bc0b-4716-b5e1-ac6f8620e74c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Mathematic Utilities">
+      <UniqueIdentifier>{b2919c5b-1517-4b4f-8c17-899042cde8e7}</UniqueIdentifier>
+      <Extensions>cpp</Extensions>
+    </Filter>
+    <Filter Include="Memory">
+      <UniqueIdentifier>{0649fa74-5419-4d3c-91a9-1fd52fffc597}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Meta Class Information">
+      <UniqueIdentifier>{74144228-5808-405d-b1a9-c4c45a4b8245}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Serialization">
+      <UniqueIdentifier>{70a2930a-63bc-412d-8e22-2a2c66549d8f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Set oriented functions&amp;classes">
+      <UniqueIdentifier>{3cdcb962-e252-45e7-9326-45308d6727ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Smart Pointers">
+      <UniqueIdentifier>{edbe7401-3cec-4d9b-92db-f4dade4dc223}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility Files">
+      <UniqueIdentifier>{65be1250-817b-4da3-af3a-d8ac0639179b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="XMLFiles">
+      <UniqueIdentifier>{9c78e240-2b12-40d7-9854-8f213ec123a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Threading">
+      <UniqueIdentifier>{72a43169-a77b-4075-bc21-6516821c51df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ipolygon">
+      <UniqueIdentifier>{438168a6-191d-4376-98bc-1c0783b6de2f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\act\Actor.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\ActorEnums.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\ActorSet.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\InvalidationBlock.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\TriggerOperator.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\UpdateMark.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cpc\CompChar.h">
+      <Filter>Compiler &amp; Platform Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cpc\EndianConversions.h">
+      <Filter>Compiler &amp; Platform Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cpc\transform.h">
+      <Filter>Compiler &amp; Platform Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cpc\Types.h">
+      <Filter>Compiler &amp; Platform Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DbgInterface.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\Check.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\CheckPtr.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\debug.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\DebugCast.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\DebugContext.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\DebugLog.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\DebugReporter.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\DmsCatch.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\SeverityType.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\TraceToConsole.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dllimp\RunDllProc.h">
+      <Filter>Import Dll Management</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Area.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\BaseBounds.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\BitValue.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\CalcWidth.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Centroid.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\CentroidOrMid.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\color.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\ConversionBase.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Conversions.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\ConvertFunctor.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Couple.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\DynamicPoint.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\ElemTraits.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\GeoDist.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Geometry.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\GeoSequence.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\IndexRange.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\IsInside.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\iterrange.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\iterrangefuncs.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\MinMax.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\mpf.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Pair.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Point.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\PointOrder.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Range.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\RangeIndex.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\RndPoint.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Round.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SelectPoint.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SequenceArray.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SequenceTraits.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SizeCalculator.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SpatialIndex.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\StringArray.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\StringBounds.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Transform.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\Undefined.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\AbstrValue.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\Class.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\CompositeCast.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\DoubleLinkedList.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\PropDef.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\PropdefEnums.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\register.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\ValueClass.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\ValueClassID.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\ValueComposition.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\ValueWrap.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\AbstrSequenceProvider.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\AllocData.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\HeapSequenceProvider.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\LockedSequenceObj.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\ManagedAllocData.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\MappedSequenceProvider.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\MyAllocator.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\SeqLock.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\SequenceObj.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mth\BigInt.h">
+      <Filter>Mathematic Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mth\Mathlib.h">
+      <Filter>Mathematic Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PropDefInterface.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\AutoDeletePtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\IterCast.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\OLEPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\OwningPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\PersistentSharedObj.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\PtrBase.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedArray.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedArrayPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedBase.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedStr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\StaticPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\WeakPtr.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RtcBase.h">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RtcInterface.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RtcPCH.h">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RtcTypeLists.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rtctypemodel.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RtcVersion.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\AsString.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\BaseStreamBuff.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\BinaryStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\FileCreationMode.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\FileMapHandle.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\FileStreamBuff.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\FormattedStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\MapStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\MoreStreamBuff.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\PairStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\PointStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\PolyStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\RangeStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\SafeFileWriter.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\SequenceArrayStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\StreamException.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\StreamTraits.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\StringStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\ValueTypeStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\VectorStream.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\BitVector.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\Cache.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\CompareFirst.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\FileView.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\IndexedStrings.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\QuickContainers.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\rangefuncs.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\SetOper.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\StackUtil.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\StaticQuickAssoc.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\Token.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\VectorFunc.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\VectorMap.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\VectorMultiMap.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\StreamBuffInterface.h">
+      <Filter>Interface Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\Environment.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\IncrementalLock.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\Instantiate.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\mySPrintF.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\Quotes.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\Registry.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\splitPath.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\StackProtector.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\StringFunc.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\swap.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\swapper.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\TypeInfoOrdering.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\TypeListOper.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xct\DmsException.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xml\XmlConst.h">
+      <Filter>XMLFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xml\XMLOut.h">
+      <Filter>XMLFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xml\XmlParser.h">
+      <Filter>XMLFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\OwningPtrArray.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\case.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\tiledata.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\InterestHolders.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\RectCopy.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\MemGuard.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\grid.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\CheckedCalc.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\OwningPtrSizedArray.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\HeapSequenceProvider.ipp">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mem\ManagedAllocData.ipp">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\DoubleLinkedList.inc">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\ActorVisitor.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\DebugOutStream.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\SeqVector.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\Resource.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\SupplInterest.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Parallel.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cs_lock_map.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\interestretaincontext.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\VersionComponent.h" />
+    <ClInclude Include="src\geo\Undef_xx.h" />
+    <ClInclude Include="src\LockLevels.h" />
+    <ClInclude Include="src\mem\FixedAlloc.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\SupplierVisitFlag.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\Timer.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\SingleLinkedList.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_with_holes_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_sort_adaptor.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_simplify.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_set_view.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_set_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_set_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_set_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_formation.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_arbitrary_formation.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_90_with_holes_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_90_touch.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_90_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_45_with_holes_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_45_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\scoped_exit.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\IndexCompare.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\PointIndexBuffer.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_45_formation.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_45_set_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_45_set_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_45_set_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_45_set_view.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_45_touch.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_90_set_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_90_set_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\polygon_90_set_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\polygon_90_set_view.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\property_merge.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\property_merge_45.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\any.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\actorlock.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\boolean_op.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\BoostPolygon.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\box.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\iterator_points_to_compact.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\iterator_geometry_to_set.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\iterator_compact_to_points.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\isotropy.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\interval_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\interval_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\interval_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\OwningPtrReservedArray.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\minkowski.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\neighbouriter.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\point_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\point_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\point_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\max_cover.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\rectangle_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\rectangle_formation.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\rectangle_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\rectangle_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\segment_utils.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\segment_traits.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\segment_data.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\segment_concept.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\scan_arbitrary.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\voronoi_structures.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\voronoi_robust_fpt.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\voronoi_predicates.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\voronoi_geometry_type.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\voronoi_diagram.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\detail\voronoi_ctypes.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\voronoi_builder.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\voronoi.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\ResourceArray.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\heapelem.h">
+      <Filter>Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\set\DataCompare.h">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\gtl.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\SourceLocation.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\ReadValue.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\gmp_override.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ser\format.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xct\ErrMsg.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ipolygon\transform.hpp">
+      <Filter>ipolygon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\act\MainThread.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utl\Encodes.h">
+      <Filter>Utility Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xml\PropWriter.h">
+      <Filter>XMLFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbg\UnitTesting.h">
+      <Filter>Debug Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mci\Object.h">
+      <Filter>Meta Class Information</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\SharedObj.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ptr\LifetimeProtector.h">
+      <Filter>Smart Pointers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geo\DataPtrTraits.h" />
+    <ClInclude Include="src\geo\IsNotUndef.h" />
+    <ClInclude Include="src\ASync.h" />
+    <ClInclude Include="src\RtcGeneratedVersion.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\act\Actor.cpp">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\ActorSet.cpp">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\InvalidationBlock.cpp">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\TriggerOperator.cpp">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\UpdateMark.cpp">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbg\DebugContext.cpp">
+      <Filter>Debug Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbg\DebugReporter.cpp">
+      <Filter>Debug Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbg\DebugStream.cpp">
+      <Filter>Debug Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dllimp\RunDllProc.cpp">
+      <Filter>Import Dll Management</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gen\General.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\BaseBounds.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\iterrangefuncs.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\PointOrder.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\SequenceArray.cpp">
+      <Filter>Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mci\persistent.cpp">
+      <Filter>Meta Class Information</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mci\PropDef.cpp">
+      <Filter>Meta Class Information</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mci\ValueWrap.cpp">
+      <Filter>Meta Class Information</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mth\BigInt.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mth\Mathlib.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ptr\SharedStr.cpp">
+      <Filter>Smart Pointers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\BaseStreamBuff.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\FileMapHandle.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\FileStreamBuff.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\FormattedStream.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\MoreStreamBuff.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\PolyStream.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\SafeFileWriter.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\StringStream.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="src\set\Token.cpp">
+      <Filter>Set oriented functions&amp;classes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\Case.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\Environment.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\mySPrintF.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\quotes.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\Registry.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\TypeInfoOrdering.cpp">
+      <Filter>Utility Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xct\DmsException.cpp">
+      <Filter>Debug Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xml\XmlConst.cpp">
+      <Filter>XMLFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xml\XMLOut.cpp">
+      <Filter>XMLFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xml\XmlParser.cpp">
+      <Filter>XMLFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\MemGuard.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ptr\SharedObjBase.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\ActorEnums.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mem\HeapSequenceProvider.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\encodes.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RtcMain.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\MainThread.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\set\IndexedStrings.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mem\FixedAlloc.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utl\SourceLocation.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\mci\SingleLinkedList.inc">
+      <Filter>Meta Class Information</Filter>
+    </None>
+    <None Include="src\act\ActorEnums.txt">
+      <Filter>Actor Update Mechanism</Filter>
+    </None>
+    <None Include="src\geo\SequenceArray.txt">
+      <Filter>Geometry</Filter>
+    </None>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,451 @@
+<html>
+	<head>
+		<title>Export Settings</title>
+	
+	<style type="text/css">
+		body {background-color: silver}
+		body {font-family: Tahoma}
+		body {font-size: 12}
+		td {font-family: Tahoma}
+		td {font-size: 12}
+	</style>
+	
+	<script language="javascript">
+	
+	var sWidthMap  = "map window width"
+	var sHeightMap = "map window height"
+	var sScaleDenomMap = "based on map window"
+	var sScaleDenomDWS = "based on world extent of 1 paper dot" 
+	var sScaleDenom
+	var sDwsc
+	var iA4_1 = 210
+	var iA4_2 = 297
+	var iA3_1 = 297
+	var iA3_2 = 420
+	var iA2_1 = 420
+	var iA2_2 = 594
+	var iA1_1 = 594
+	var iA1_2 = 841
+	var iA0_1 = 841
+	var iA0_2 = 1189
+	var iWidth
+	var iheight
+	var iOrgWidth
+	var iOrgHeight
+
+	function init()
+	{
+		SetDefaultValues()
+	}
+		
+	function SetDefaultValues()
+	{
+		<!-- sectie size -->
+		
+		document.Exp.orientation.value = "po";
+		document.Exp.orientation[0].checked = true;
+		document.Exp.orientation[1].checked = false;
+		
+		document.Exp.top.value = 2;
+		document.Exp.bottom.value = 2;
+		document.Exp.left.value = 1.5;
+		document.Exp.right.value = 1.5;
+		
+		iOrgWidth = "<%String(ExportSettings/width)%>";
+		iOrgHeight = "<%String(ExportSettings/height)%>";
+		
+		document.Exp.width.value =  iOrgWidth
+		document.Exp.height.value =  iOrgHeight
+
+		if(document.Exp.width.value == "null")
+		{
+			document.Exp.size.value = "MW";
+			document.Exp.tmp_width.value = sWidthMap;
+		}
+		else
+		{
+			document.Exp.size.value = "UD";
+			document.Exp.tmp_width.value = document.Exp.width.value;
+			document.Exp.tmp_width.disabled = false;
+		}
+		
+		if(document.Exp.height.value == "null")
+		{
+			document.Exp.tmp_height.value = sHeightMap;			
+		}
+		else
+		{
+			document.Exp.tmp_height.value = document.Exp.height.value;
+			document.Exp.tmp_height.disabled = false;
+		}
+		
+		<!-- sectie Scale-->
+		sScaleDenom = "<%String(ExportSettings/ScaleDenom)%>";
+
+		document.Exp.ScaleDenom.value = sScaleDenom;	
+		
+		if(sScaleDenom == "null")
+		{
+			document.Exp.ScaleMode.value = "MW";
+			document.Exp.tmp_ScaleDenom.value = sScaleDenomMap;
+		}
+		if(sScaleDenom != "null")
+		{
+			document.Exp.ScaleMode.value = "SC";
+			document.Exp.tmp_ScaleDenom.value = sScaleDenom;
+			document.Exp.tmp_ScaleDenom.disabled = false;			
+		}
+		
+		<!-- quality-->
+		document.Exp.dpi.value = <%String(ExportSettings/DPI)%> ;
+		document.Exp.ViewFactor.value = <%String(ExportSettings/ViewFactor)%>;
+		document.Exp.NrSubDotsPerDot.value = <%String(ExportSettings/NrSubDotsPerDot)%>;
+		
+	}
+		
+	function ChangePaperSize(sSelSize)
+	{
+		EnableControls(sSelSize)
+		SetPageWidthHeight(sSelSize)			
+	}
+
+	function EnableControls(sSelSize)
+	{
+		switch(sSelSize)
+		{
+			case "MW":
+				document.Exp.orientation[0].disabled=true;
+				document.Exp.orientation[1].disabled=true;
+				document.Exp.top.disabled=true;
+				document.Exp.bottom.disabled=true;
+				document.Exp.left.disabled=true;
+				document.Exp.right.disabled=true;
+				document.Exp.tmp_width.disabled=true;
+				document.Exp.tmp_height.disabled=true;
+				break;
+			
+			case "UD":
+				document.Exp.orientation[0].disabled=true;
+				document.Exp.orientation[1].disabled=true;
+				document.Exp.top.disabled=true;
+				document.Exp.bottom.disabled=true;
+				document.Exp.left.disabled=true;
+				document.Exp.right.disabled=true;
+				document.Exp.tmp_width.disabled=false;
+				document.Exp.tmp_height.disabled=false;
+				break;
+			
+			default:
+				document.Exp.orientation[0].disabled=false;
+				document.Exp.orientation[1].disabled=false;
+				document.Exp.top.disabled=false;
+				document.Exp.bottom.disabled=false;
+				document.Exp.left.disabled=false;
+				document.Exp.right.disabled=false;
+				document.Exp.tmp_width.disabled=true;
+				document.Exp.tmp_height.disabled=true;
+				break;
+		}
+	}
+	function SetPageWidthHeight(sSelSize)
+	{
+		switch(sSelSize)
+		{
+			case "A4":
+				if(document.Exp.orientation[0].checked)
+				{
+					document.Exp.PageWidth.value =  iA4_1;					
+					document.Exp.Pageheight.value = iA4_2;
+				}
+				else
+				{
+					document.Exp.PageWidth.value = iA4_2;
+					document.Exp.Pageheight.value = iA4_1;
+				}
+				ChangeMargins()
+				break;
+				
+			case "A3":
+				if(document.Exp.orientation[0].checked)
+				{
+					document.Exp.PageWidth.value =  iA3_1;					
+					document.Exp.Pageheight.value = iA3_2;
+				}
+				else
+				{
+					document.Exp.PageWidth.value = iA3_2;
+					document.Exp.Pageheight.value = iA3_1;
+				}
+				ChangeMargins()
+				break;
+				
+			case "A2":
+				if(document.Exp.orientation[0].checked)
+				{
+					document.Exp.PageWidth.value =  iA2_1;					
+					document.Exp.Pageheight.value = iA2_2;
+				}
+				else
+				{
+					document.Exp.PageWidth.value = iA2_2;
+					document.Exp.Pageheight.value = iA2_1;
+				}
+				ChangeMargins()
+				break;
+				
+			case "A1":
+				if(document.Exp.orientation[0].checked)
+				{
+					document.Exp.PageWidth.value = iA1_1;					
+					document.Exp.Pageheight.value = iA1_2;
+				}
+				else
+				{
+					document.Exp.PageWidth.value = iA1_2;
+					document.Exp.Pageheight.value = iA1_1;
+				}
+				ChangeMargins()
+				break;
+				
+			case "A0":
+				if(document.Exp.orientation[0].checked)
+				{
+					document.Exp.PageWidth.value =  iA0_1;					
+					document.Exp.Pageheight.value = iA0_2;
+				}
+				else
+				{
+					document.Exp.PageWidth.value = iA0_2;
+					document.Exp.Pageheight.value = iA0_1;
+				}
+				ChangeMargins()
+				break;
+				
+			case "UD":
+				if(iOrgWidth == "null")
+				{
+					document.Exp.width.value = "20";
+				}
+				else
+				{
+					document.Exp.width.value = iOrgWidth;
+				}
+				document.Exp.tmp_width.value = document.Exp.width.value;
+				
+				if(iOrgHeight == "null")
+				{
+					document.Exp.height.value = "15";
+				}
+				else
+				{
+					document.Exp.height.value = iOrgHeight;
+				}
+				document.Exp.tmp_height.value =document.Exp.height.value;
+				break;
+				
+			default:
+				document.Exp.width.value = "null";
+				document.Exp.tmp_width.value = sWidthMap;
+				document.Exp.height.value = "null";
+				document.Exp.tmp_height.value = sHeightMap;
+				break;
+			}	
+	}
+	function ChangeWidth()
+	{
+		document.Exp.width.value = document.Exp.tmp_width.value;
+	}
+	function ChangeHeight()
+	{
+		document.Exp.height.value = document.Exp.tmp_height.value;
+	}
+	function ChangeMargins()	
+	{
+		var wi;
+		var he;  	
+		wi = 0.1 * document.Exp.PageWidth.value - document.Exp.right.value  - document.Exp.left.value;
+		he = 0.1 * document.Exp.Pageheight.value - document.Exp.top.value  - document.Exp.bottom.value;
+		document.Exp.width.value = wi.toFixed(1);
+		document.Exp.height.value = he.toFixed(1);
+		document.Exp.tmp_width.value = document.Exp.width.value;
+		document.Exp.tmp_height.value = document.Exp.height.value;
+	}
+	
+	function ChangeScaleMode(sSelScaleMode)
+	{
+		switch(sSelScaleMode)
+		{
+			case "SC":
+			if(sScaleDenom == "null")
+			{
+				sScaleDenom = 20000;
+			}
+			document.Exp.tmp_ScaleDenom.value = sScaleDenom;
+			document.Exp.ScaleDenom.value = document.Exp.tmp_ScaleDenom.value;
+			document.Exp.tmp_ScaleDenom.disabled = false;
+			break;
+		
+			case "MW":
+			document.Exp.tmp_ScaleDenom.value = sScaleDenomMap;
+			document.Exp.ScaleDenom.value = "null";
+			document.Exp.tmp_ScaleDenom.disabled = true;
+			break;
+			
+			default:
+			document.Exp.tmp_ScaleDenom.value = sSelScaleMode;
+			document.Exp.ScaleDenom.value = sSelScaleMode;
+			document.Exp.tmp_ScaleDenom.disabled = true;
+			break;
+		}
+
+	}
+	function ChangeScaleDenom()
+	{
+			document.Exp.ScaleDenom.value =	document.Exp.tmp_ScaleDenom.value;
+			sScaleDenom = document.Exp.ScaleDenom.value;
+	}
+	</script>
+	</head>
+	<body onload="init()">
+		<FORM NAME = "Exp" ACTION = "DMSPost" METHOD = "POST">
+		<INPUT NAME = "DMSPOST" TYPE = "Hidden" />
+			<FIELDSET> 
+				<LEGEND style='font-size:12.0pt;font-family:Tahoma'>Size </LEGEND>
+				<table border="0">
+					<tr>
+						<td>Paper size</td><td colspan = "3">Orientation</td><td colspan = "4">Margins(cm)</td>
+					</tr>
+					<tr>
+						<td>
+							<SELECT NAME ="size" id = "sizeid" onchange="ChangePaperSize(this.value)">
+								<OPTION VALUE ="MW" id= "MW"> map window size</OPTION>
+								<OPTION VALUE ="A4" id= "A4"> A4 (21   *  29.7 cm) </OPTION>
+								<OPTION VALUE ="A3" id= "A3"> A3 (29.7 *  42   cm) </OPTION>
+								<OPTION VALUE ="A2" id= "A2"> A2 (42   *  59.4 cm) </OPTION>
+								<OPTION VALUE ="A1" id= "A1"> A1 (59,4 *  84.1 cm) </OPTION>
+								<OPTION VALUE ="A0" id= "A0"> A0 (84,1 * 118.9 cm) </OPTION>
+								<OPTION VALUE ="UD" id= "UD"> user defined</OPTION>
+							</SELECT>
+						</td>
+						<td>
+							<input type="radio" name ="orientation" value = "po" DISABLED onclick="ChangePaperSize(document.Exp.size.value)" />
+						</td>	
+							<td><img src="<%String(ExportSettings/DocData)%>/img/portrait.jpg" alt=""></td><td>portrait</td>
+							<td>top:    </td><td><INPUT DISABLED Name ="top"    Type = "TEXT" SIZE = "2" onchange="ChangeMargins()" /></td> 
+							<td>bottom: </td><td><INPUT DISABLED Name ="bottom" Type = "TEXT" SIZE = "2" onchange="ChangeMargins()" /></td>	
+					</tr>
+					<tr>
+						<td></td>
+						<td>
+							<input type="radio" name ="orientation" value = "la" DISABLED onclick="ChangePaperSize(document.Exp.size.value)" />
+						</td>
+						<td><img src="<%String(ExportSettings/DocData)%>/img/landscape.jpg" alt=""></td><td>landscape &nbsp;</td>
+						<td>left:   </td><td><INPUT DISABLED Name ="left"  Type = "TEXT" SIZE = "2" onchange="ChangeMargins()" /></td> 
+						<td>right:  </td><td><INPUT DISABLED Name ="right" Type = "TEXT" SIZE = "2" onchange="ChangeMargins()" /> </td> 
+					</tr>
+				</table>
+				
+				<BR>
+				
+				<table border="0">
+					<tr>
+						<td>width: </td>
+						<td>
+							<INPUT DISABLED Name ="tmp_width" Type = "TEXT" SIZE = "16" style="text-align:right" onchange="ChangeWidth()"/> cm
+						</td>
+					</tr>
+					<tr>
+						<td>height: </td>
+						<td>
+							<INPUT DISABLED Name ="tmp_height" Type = "TEXT" SIZE = "16" style="text-align:right" onchange="ChangeHeight()"/> cm
+						</td>
+					</tr>
+				</table>
+				<BR>
+				<INPUT DISABLED Name ="PageWidth"  SIZE = "16" TYPE = "Hidden"/>
+				<INPUT          Name ="width"      SIZE = "16" TYPE = "Hidden"/>
+				<INPUT DISABLED Name ="Pageheight" SIZE = "16" TYPE = "Hidden"/>
+				<INPUT          Name ="height"     SIZE = "16" TYPE = "Hidden"/>
+			</FIELDSET> 
+			
+			<BR>
+			
+			<FIELDSET><LEGEND style='font-size:12.0pt;font-family:Tahoma'> Scale </LEGEND>
+				<table border="0">
+					<tr>
+						<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+							<SELECT NAME ="ScaleMode" onclick="ChangeScaleMode(this.value)" >
+								<OPTION VALUE ="SC">user defined scale</OPTION>
+								<OPTION VALUE ="MW">based on map window</OPTION>
+
+								<OPTION VALUE ="7000">1 to &nbsp;&nbsp;&nbsp;&nbsp;7.000</OPTION>
+								<OPTION VALUE ="20000">1 to &nbsp;&nbsp;20.000</OPTION>
+								<OPTION VALUE ="50000">1 to &nbsp;&nbsp;50.000</OPTION>
+								<OPTION VALUE ="150000">1 to 150.000</OPTION>
+								<OPTION VALUE ="500000">1 to 500.000</OPTION>
+							</SELECT>
+						</td>
+					<tr>
+						 <td>1 to: <INPUT DISABLED Name ="tmp_ScaleDenom" Type = "TEXT" SIZE = "17" style="text-align:right" onchange ="ChangeScaleDenom()"/> 
+						</td>
+					
+					<td><INPUT Name ="ScaleDenom" SIZE = "15" TYPE = "Hidden" style="text-align:right"  /></td>
+					</tr>
+				</table>
+			</FIELDSET>
+			
+			<BR>
+			<FIELDSET> <LEGEND style='font-size:12.0pt;font-family:Tahoma'>Quality</LEGEND>
+				<BR><I>Increasing the print quality increases the number of resulting files.</I><BR><BR>
+				<table border="0">
+					<tr>
+						<td>Dots per inch (dpi)</td><td>&nbsp;&nbsp;View distance factor,<BR>&nbsp;&nbsp;paper compared to screen</td><td>&nbsp;&nbsp;Subdots per paper dot</td>
+					</tr>
+					<tr>
+						<td><CENTER><img src ="<%String(ExportSettings/DocData)%>/img/dpi.jpg"></CENTER></td>
+						<td><CENTER><img src ="<%String(ExportSettings/DocData)%>/img/distSP.jpg"></CENTER></td>
+						<td><CENTER><img src ="<%String(ExportSettings/DocData)%>/img/SubDots.jpg"></CENTER></td>
+					</tr>
+					<tr>
+						<td>					
+							<SELECT NAME ="dpi" Style = "width =25mm">
+								<OPTION VALUE = "96"> 96 * 96 (screen resolution assumed by Windos with small Fonts)</OPTION>
+								<OPTION VALUE = "120"> 120 * 120 (screen resolution assumed by Windos with medium Fonts)</OPTION>
+								<OPTION VALUE = "127"> 127 * 127 (screen resolution assumed by the GeoDMS, 0.2[mm] per pixel)</OPTION>
+								<OPTION VALUE = "144"> 144 * 144 (screen resolution assumed by Windos with large Fonts</OPTION>
+								<OPTION VALUE = "192"> 192 * 192</OPTION>
+								<OPTION VALUE = "300"> 300 * 300</OPTION>
+								<OPTION VALUE = "600"> 600 * 600</OPTION>
+							</SELECT>
+						</td>
+						<td>
+							<CENTER>
+				 			<SELECT NAME ="ViewFactor" Style = "width =25mm; text-align=right ">
+								<OPTION VALUE ="0.2">20% of the distance to a screen (10 cm)</OPTION>
+								<OPTION VALUE ="0.6">60% of the distance to a screen (30 cm)</OPTION>
+								<OPTION VALUE ="1">1x distance to a screen (50 cm)</OPTION>
+								<OPTION VALUE ="2">2x distance to a screen (1m)</OPTION>
+								<OPTION VALUE ="4">4x distance to a screen (2m)</OPTION>
+								<OPTION VALUE ="8">8x distance to a screen (4m)</OPTION>
+							</SELECT>
+							</CENTER>
+						</td>
+						<td>
+ 							<CENTER>
+							<SELECT NAME ="NrSubDotsPerDot" Style = "width =25mm; text-align=right">
+								<OPTION VALUE ="1">1</OPTION>
+								<OPTION VALUE ="2">2</OPTION>
+								<OPTION VALUE ="4">4</OPTION>
+								<OPTION VALUE ="8">8</OPTION>
+								<OPTION VALUE ="16">16</OPTION>
+							</SELECT>
+							</CENTER>
+						</td>
+					 </tr>
+				</table>
+			</FIELDSET>
+			<BR>
+			<BR><INPUT NAME ="Save" TYPE = SUBMIT VALUE ="Save Settings" />
+		</FORM>
+	</BODY>
+</HTML>

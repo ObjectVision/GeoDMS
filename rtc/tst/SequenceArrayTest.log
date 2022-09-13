@@ -1,0 +1,15 @@
+
+Logging started for SequenceArrayTest.log
+{ SequenceArrayTester::main
+   { struct DblPolygonVec::TestSequentialFillWithPushBack
+   } struct DblPolygonVec::TestSequentialFillWithPushBack (10 secs)
+   { struct sequence_array<struct DblPoint>::TestSequentialFillWithPushBack
+   } struct sequence_array<struct DblPoint>::TestSequentialFillWithPushBack (2 secs)
+   { struct DblPolygonVec::TestSequentialFillWithResize
+   } struct DblPolygonVec::TestSequentialFillWithResize (9 secs)
+   { struct sequence_array<struct DblPoint>::TestSequentialFillWithResize
+   } struct sequence_array<struct DblPoint>::TestSequentialFillWithResize (3 secs)
+   { struct sequence_array<struct DblPoint>::TestSequentialFillWithResize
+   } struct sequence_array<struct DblPoint>::TestSequentialFillWithResize (0 secs)
+} SequenceArrayTester::main (24 secs)
+Logging ended for SequenceArrayTest.log

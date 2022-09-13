@@ -1,0 +1,10 @@
+/distr
+/bin
+/obj
+.vs
+*.user
+imgui.ini
+__history
+Thumbs.db
+/filelist*.txt
+todo*.txt

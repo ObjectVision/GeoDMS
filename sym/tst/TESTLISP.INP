@@ -1,0 +1,180 @@
+(
+/* Basic definition of boolean functions */
+
+[false                      FAIL  	]
+[true                       ()    	]
+[ELSE                       ()    	]
+[(Not _x)       			      (CASE [_x   false]
+				   				                [ELSE true ])]
+
+[(Const _a)                 (IsNumb _a) ]
+[(Const Half)               true	      ]
+[(Const Pi)                 true        ]
+[(Const (_f  _x))           (And (Func _f)(Const _x))]
+[(Const (_f _a _b))  		    (And (Func _f)(And(Const _a)(Const _b)))]
+
+[(Func Log)					true]
+[(Func Neg)					true]
+[(Func Sqr)					true]
+[(Func Sqrt)				true]
+[(Func Mul)					true]
+[(Func Add)					true]
+[(Func Div)					true]
+
+[(And _x _y)        (CASE [_x   _y] [ELSE FAIL])]
+[(Or  _x _y)        (CASE [_x true] [ELSE _y  ])]
+
+[(Mul _a 1)                 _a]
+[(Mul 1 _a)                 _a]
+[(Mul 0 _a)                 0]
+[(Mul _a 0)                 0]
+
+[(Mul _a (Div _b _a))       _b]
+[(Mul (Div _b _a) _a)       _b]
+[(Mul (Sqrt _x) (Sqrt _x))  _x]
+[(Div (Mul _a _b) _a)       _b]
+[(Div (Mul _b _a) _a)       _b]
+[(Div _a 1)                 _a]
+[(Div (Mul _x (Sqrt _s)) _s) (Div _x (Sqrt _s))]
+[(Sqr _a)                   (Mul _a _a)]
+
+[(Add _a _a)                (Mul 2 _a)]
+[(Add 0 _a)                 _a]
+[(Add _a 0)                 _a]
+
+[(Sub _a 0)                 _a]
+[(Sub 0 _a)                 (Neg _a)]
+
+[(Dif _x _x)                1     ]
+[(Dif (Mul _a _b) _x)       (Add (Mul _a (Dif _b _x))
+								                 (Mul (Dif _a _x) _b) ) ]
+[(Dif (Add _a _b) _x)       (Add (Dif _a _x) (Dif _b _x)) ]
+[(Dif (Div _t _n) _x)       (Div (Sub (Mul (Dif _t _x) _n) (Mul _t (Dif _n _x)))
+								                 (Sqr _n))]
+[(Dif (Sqr _a) _x)          (Mul (Mul 2 _a) (Dif _a _x))]
+[(Dif (Sin _x) _x)          (Cos _x)]
+[(Dif (Cos _x) _x)          (Neg (Sin _x))]
+[(Dif (Exp _x) _x)          (Exp _x)]
+[(Dif (Log _x) _x)          (Div 1 _x)]
+[(Dif (Neg _x) _x)          (Neg 1)]
+[(Dif (Sqrt _x) _x)         (Div Half (Sqrt _x))]
+[(Dif (_f _g) _x)           (Mul (Dif (_f _g) _g) (Dif _g _x))]
+[(Dif _n _x)                (CASE [(Const _n) 0] [ELSE (Dif _n _x)])]
+
+/*
+
+[(Int _x _x)                (Mul Half (Sqr x))]
+[(Int (Add _a _b) _x)       (Add (Int _a _x)(Int _b _x))]
+[(Int (Mul _a _d) _x)       (Sub (Mul _a (Int _d _x))
+							                   (Int (Mul (Dif _a _x) (Int _d _x)) _x))]
+[(Int _n _x)                (Mul _n _x)       ]
+*/
+
+[(Log (Mul _a _b))          (Add (Log _a) (Log _b))]
+[(Exp (Add _a _b))          (Mul (Exp _a) (Exp _b))]
+
+[((L _x ())      _a)        ()]
+[((L _x [_f _g]) _a)        [((L _x _f) _a) ((L _x _g) _a)]]
+[((L _x _x) _a)             _a]
+[((L _x _n) _a)             _n]
+
+[(Df (L _x _f))             (L _x (Dif _f _x))]
+
+[(Inv Exp)                  Log]
+[(Inv Log)                  Exp]
+
+[(Sol _x _x)                0]
+[(Sol 0  _x)                ()]
+[(Sol (Add _x _y) _v)       (Sol (Sub _x (Neg _y)) _v)]
+[(Sol (Sub _x _y) _x)       _y ]
+[(Sol (Sub (_f _g) _y) _x)  (Sol (Sub _g ((Inv _f) _y))_x)]
+[(Sol (Sub(Mul _n _e)_y)_x) (Sol (Sub _e (Div _y _n)) _x) ]
+[(Sol (Mul _a _b) _x)       (Or (Sol _a _x) (Sol _b _x))]
+
+[(ArgMax _f)                (Sol ((Df _f) arg) arg)]
+[(Max _f)                   (_f (ArgMax _f))]
+
+[(Neg (Neg _x))             _x]
+[(Div (Neg _x) _y)          (Neg (Div _x _y))]
+[(Div _x (Neg _y))          (Neg (Div _x _y))]
+[(Mul (Neg _x) _y)          (Neg (Mul _x _y))]
+[(Mul _x (Neg _y))          (Neg (Mul _x _y))]
+[(Add _x (Neg _y))          (Sub _x _y)]
+[(Add (Neg _x) _y)          (Sub _y _x)]
+
+[GE                         (Dif (Dif (Sqr (Sqr x)) x) x)]
+[GT                         (Int (Mul Half x) x)]
+[GS                         (Sol (Sub (Log x) 2) x)]
+[GM                         (Sol (Mul 3 (Sub x 2)) x)]
+[GMM                        (Max (L x (Mul x (Add x 6))))]
+
+[(Div 6 2) 3]
+[(Div 4 2) 2]
+[(Sub 6 3) 3]
+[(Sub 9 5) 4]
+[(Sqrt 1) 1]
+[(Sqrt 4) 2]
+
+[fn                         (L x (Div (Exp (Neg(Mul Half (Sqr x))))
+								                 (Sqrt (Mul 2 Pi))))]
+[(fnn _Mu _Sigma)           (L x (fn (Div (Sub x _Mu) (Sqrt _Sigma))))]
+
+[(Eq _a _a)                 ()      ]
+
+[(IsM (_O _a _b) _S)        (And (ClosedOper _O _S)
+									          (And (IsM _a _S)
+									               (IsM _b _S)))]
+[(ClosedOper Mul Real)      ()	 	]
+[(ClosedOper Add Real)      ()		]
+[(IsM _x Real)              (IsInt _x)]
+
+[(Multi _X )                FAIL]
+[(Multi _X _h )             _h]
+[[Multi [_X [_h _t]]]       (_X _h [Multi [_X _t]])]
+
+[[MakeOr ()]                FAIL]
+[[MakeOr [_h ()]]           _h]
+[[MakeOr [_h _t]]           (Or _h [MakeOr _t])]
+
+[[MakeAnd ()]                ()]
+[[MakeAnd [_h ()]]           _h]
+[[MakeAnd [_h _t]]           (And _h [MakeAnd _t])]
+)
+
+GE
+
+Unreachable.
+(Multi Or x y)  = [Multi [Or [x [y ()]]]] = (Or x [Multi [Or [y ()]]])
+= (Or x (Multi Or y))
+(CASE (x) [() (Multi Or y)  ])
+
+Notes on [].
+(c) = [c ()]
+(b c) = [b (c)] = [b [c ()]]
+(a b c) = [a (b c)] = [a [b [c ()]]]
+
+therefore:
+(MakeAnd) = [MakeAnd ()] = ()
+(MakeAnd a) = [MakeAnd [a ()]] = (And a [MakeAnd ()]) = (And a ())
+(MakeAnd a b) = [MakeAnd [a [b ()]]
+   = (And a [MakeAnd [b ()]])
+   = (And a (And b ()))
+
+((Sub _x (Neg _y))          (Add _x _y))
+((Sub (Neg _x) _y)          (Neg (Add _x _y)))
+
+Extentions:
+1. FreeVar passing
+   a. test on no double naming in Lisp mode
+   b. deal with double binding (_x = _y)
+2. Pre-compilation until Heads have become symbols.
+3. Prolog Mode
+   a. Valid Stopping condition
+   b. List with processed Prolog goals
+4. better interface of Prolog processor towards Lisp mode
+5. Binary search on environment lists
+6. Stopping condition for Lisp mode with alternating strings
+7. No pre evaluation of list elements.
+
+
+

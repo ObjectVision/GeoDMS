@@ -1,0 +1,98 @@
+/***************************************************************************
+ *
+ * File:      sequence_array.h
+ * Module:    RunTimeComponent
+ * Author:    Maarten Hilferink
+ *
+ ***************************************************************************
+
+sequence_array<T> is (nearly) compatible with std::vector<std::vector<T> >
+but has a faster memory management strategy.
+
+Rationale:
+
+I often worked with vectors of sequences, two examples:
+
+1. typedef std::pair<double, double> dpoint;
+   typedef std::vector<dpoint> dpolygon;   // point sequence
+   typedef std::vector<dpolygon> dpolygon_array; // point sequence array
+
+2. typedef std::basic_string<char> String;  // char sequence
+   typedef std::vector<String> StringArray; // char sequence array
+
+When working with vector-based sequence arrays (as above),
+the memory management strategy is not efficient
+due to the many allocations/deallocations of the individual sequences.
+Especially the destruction of such vector based sequence arrays
+often takes unneccesary and annoying amount of time.
+
+The memory allocation of sequences by sequence_array<T> 
+offers two advantages above using a vector of vectors:
+1. A sequence_array specific memory pool for the sequences from which 
+   sequences are allocated to avoid individual heap (de)allocations
+	for each sequence
+2. Not providing synchronization on such memory allocation
+   (note that common implementations of vector also don't provide
+	thread safety anyway
+
+sequence_array<T> uses an internal
+    DataVectorType m_Data;
+for sequential storage of sequences of T (the memory pool)
+and an additional
+    std::vector<std::pair<DataVectorType::iterator, DataVectorType::iterator> > m_Seqs;
+for identifying allocated sequences.
+
+DataVectorType is defined as std::vector<T> for elementary types T and simple structures thereof,
+and can be defined as sequece_array<U> when T is a collection of U in order to support
+arrays of arrays of sequcences of U (three dimensional) and higher dimensional equivalents.
+
+sequence_array offers:
+	typedef iterator, 
+	typedef const_iterator, 
+	typedef reference,
+	typedef const_reference
+with interfaces nearly compatibe with
+	std::vector<T>*, 
+	const std::vector<T>*, 
+	vector<T>&, resp. 
+	const vector<T>&.
+(the sequences however don't have a reserve() member function,
+only a resize() resulting in reallocation in m_Data if they grow
+AND [are not the last sequence in m_Data
+or insufficent reserved space after m_Data.end() is available] )
+
+The storage m_Data grows with the familiar doubling strategy
+as sequences are inserted or re-allocated due to calls to their resize() mf.
+m_Seqs is adjusted when m_Data has grown by re-allocation.
+
+Destruction of a sequence_array only requires two calls to delete[].
+(assuming that T::~T() doesn't do additional things).
+
+sequence_array minimizes the pollution of the heap with varying sized
+arrays.
+
+Users benefit most when the total size and number of the sequences is known in advance, 
+and provided to a sequence_array by the member-functions reserve() and data_reserve().
+
+At this point, my implementation is not ready for inclusion in boost for the following reasons:
+- it is dependent on other headers in my pre-boost facilities library
+- it is not yet in boost style
+- lack of required peer review in order to get sufficient quality and general purpose usability.
+(however, it does work fine after having solved some problems in the DMS, our product).
+- open design issues
+
+I specifically would like to hear from you on the following design issues:
+- I am considering to change the definition of the above mentioned m_Seqs to:
+    std::vector<std::pair<size_t, size_t> > m_Seqs;
+where m_Seqs[i].first and second are offsets of the start and end of sequence i relative to m_Data.begin().
+This avoids adjustment when m_Data grows, for a small const access-time penalty.
+- At this point, the destruction of abandoned elements in m_Data
+ (= elements not being part anymore of a reallocated sequence),
+ is deferrred to the destruction or re-allocation of m_Data.
+- the last sequence in m_Data now gets special treatment when it is resized and sufficient reserved
+space is available after m_Data.end(). This special treatment saves an order of complexity
+when the last sequence often grows, but adds a constant cost to the re-allocation administration.
+- generalization to sequece_array arrays (3 levels deep) or higher dimensions.
+
+*/
+

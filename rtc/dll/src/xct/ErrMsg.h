@@ -1,0 +1,77 @@
+//<HEADER> 
+/*
+Data & Model Server (DMS) is a server written in C++ for DSS applications. 
+Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+
+Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+
+Documentation on using the Data & Model Server software can be found at:
+http://www.ObjectVision.nl/DMS/
+
+See additional guidelines and notes in srv/dms/Readme-srv.txt 
+
+This library is free software; you can use, redistribute, and/or
+modify it under the terms of the GNU General Public License version 2 
+(the License) as published by the Free Software Foundation,
+provided that this entire header notice and readme-srv.txt is preserved.
+
+See LICENSE.TXT for terms of distribution or look at our web site:
+http://www.objectvision.nl/DMS/License.txt
+or alternatively at: http://www.gnu.org/copyleft/gpl.html
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details. However, specific warranties might be
+granted by an additional written contract for support, assistance and/or development
+*/
+//</HEADER>
+#pragma once
+
+#if !defined(__RTC_XCT_ERRMSG_H)
+#define __RTC_XCT_ERRMSG_H
+
+#include "ptr/SharedStr.h"
+#include "ptr/SharedPtr.h"
+#include "ptr/WeakPtr.h"
+#include "ptr/PersistentSharedObj.h"
+#include "utl/SourceLocation.h"
+
+struct FormattedOutStream;
+struct OutStreamBase;
+
+struct ErrMsg {
+
+	ErrMsg() {}
+	RTC_CALL explicit ErrMsg(WeakStr msg, const Object* ptr = nullptr);
+	explicit ErrMsg(CharPtr msg, const Object* ptr = nullptr) : ErrMsg(SharedStr(msg), ptr) {}
+
+	RTC_CALL void TellWhere(const Object* ptr);
+
+	RTC_CALL void TellExtra(CharPtr msg);
+	RTC_CALL void TellExtra(CharPtrRange msg);
+
+	template <class ...Args>
+	void TellExtraF(CharPtr fmt, Args&& ...args)
+	{
+		TellExtra(mgFormat2string(fmt, std::forward<Args>(args)...).c_str());
+	}
+
+	const SharedStr& Why() const { return m_Why;  }
+	RTC_CALL SharedStr GetAsText() const;
+
+private:
+	SharedStr GetFullName() const { return m_FullName; }
+	SharedStr GetSourceName() const;
+
+	SharedStr m_Why, m_FullName;
+	WeakPtr<const Class> m_Class;
+	SharedPtr<const SourceLocation> m_Location;
+
+	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& value);
+	friend RTC_CALL OutStreamBase&      operator <<(OutStreamBase&      str, const ErrMsg& value);
+	friend bool IsDefaultValue(const ErrMsg& msg) { return msg.m_Why.empty() && msg.m_Location.is_null(); }
+};
+
+#endif // __RTC_XCT_ERRMSG_H
+

@@ -1,0 +1,208 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{EDE22514-D90D-4600-AA3C-F2E149E57A4E}</ProjectGuid>
+    <ProjectName>Tic</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Debug'" Label="PropertySheets">
+    <Import Project="..\..\DmsDebug.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
+    <Import Project="..\..\DmsRelease.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../rtc/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DMTIC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Aspect.cpp" />
+    <ClCompile Include="src\CalcDestroyer.cpp" />
+    <ClCompile Include="src\DedicatedAttrs.cpp" />
+    <ClCompile Include="src\ExprRewrite.cpp" />
+    <ClCompile Include="src\ItemLocks.cpp" />
+    <ClCompile Include="src\LispContextHandle.cpp" />
+    <ClCompile Include="src\OperationContext.cpp" />
+    <ClCompile Include="src\SessionData.cpp" />
+    <ClCompile Include="src\stg\AbstrStoragemanager.cpp" />
+    <ClCompile Include="src\stg\AbstrStreamManager.cpp" />
+    <ClCompile Include="src\stg\AsmUtil.cpp" />
+    <ClCompile Include="src\stg\StorageClass.cpp" />
+    <ClCompile Include="src\stg\StorageInterface.cpp" />
+    <ClCompile Include="src\AbstrCalculator.cpp" />
+    <ClCompile Include="src\AbstrDataItem.cpp" />
+    <ClCompile Include="src\AbstrDataObject.cpp" />
+    <ClCompile Include="src\AbstrUnit.cpp" />
+    <ClCompile Include="src\attr_Interface.cpp" />
+    <ClCompile Include="src\CopyTreeContext.cpp" />
+    <ClCompile Include="src\DataArray.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="src\DataController.cpp" />
+    <ClCompile Include="src\DataItemClass.cpp" />
+    <ClCompile Include="src\DataLockContainers.cpp" />
+    <ClCompile Include="src\DataLocks.cpp" />
+    <ClCompile Include="src\DataStoreManager.cpp" />
+    <ClCompile Include="src\DisplayValue.cpp" />
+    <ClCompile Include="src\Explain.cpp" />
+    <ClCompile Include="src\ExtLockMgr.cpp" />
+    <ClCompile Include="src\FreeDataManager.cpp" />
+    <ClCompile Include="src\LispTreeType.cpp" />
+    <ClCompile Include="src\Metric.cpp" />
+    <ClCompile Include="src\MoreDataControllers.cpp" />
+    <ClCompile Include="src\Operator.cpp" />
+    <ClCompile Include="src\OperGroups.cpp" />
+    <ClCompile Include="src\Param.cpp" />
+    <ClCompile Include="src\SourceDescr.cpp" />
+    <ClCompile Include="src\StateChangeNotification.cpp" />
+    <ClCompile Include="src\SupplCache.cpp" />
+    <ClCompile Include="src\TicInterface.cpp" />
+    <ClCompile Include="src\TreeItem.cpp" />
+    <ClCompile Include="src\TreeItemClass.cpp" />
+    <ClCompile Include="src\TreeItemContextHandle.cpp" />
+    <ClCompile Include="src\TreeItemFlags.cpp" />
+    <ClCompile Include="src\TreeItemProps.cpp" />
+    <ClCompile Include="src\TreeItemSet.cpp" />
+    <ClCompile Include="src\TreeItemUtils.cpp" />
+    <ClCompile Include="src\Unit.cpp" />
+    <ClCompile Include="src\UnitClass.cpp" />
+    <ClCompile Include="src\UsingCache.cpp" />
+    <ClCompile Include="src\Xml\XmlTreeOut.cpp" />
+    <ClCompile Include="src\Xml\XmlTreeParser.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\aspect.h" />
+    <ClInclude Include="src\calcdestroyer.h" />
+    <ClInclude Include="src\dedicatedattrs.h" />
+    <ClInclude Include="src\Explain.h" />
+    <ClInclude Include="src\ExprRewrite.h" />
+    <ClInclude Include="src\ItemContext.h" />
+    <ClInclude Include="src\ItemLocks.h" />
+    <ClInclude Include="src\LispContextHandle.h" />
+    <ClInclude Include="src\MetaInfo.h" />
+    <ClInclude Include="src\OperationContext.h" />
+    <ClInclude Include="src\OperationContext.ipp" />
+    <ClInclude Include="src\ParallelTiles.h" />
+    <ClInclude Include="src\Projection.h" />
+    <ClInclude Include="src\propfuncs.h" />
+    <ClInclude Include="src\stg\AbstrStorageManager.h" />
+    <ClInclude Include="src\stg\AsmUtil.h" />
+    <ClInclude Include="src\stg\StorageClass.h" />
+    <ClInclude Include="src\stg\StorageInterface.h" />
+    <ClInclude Include="src\AbstrCalculator.h" />
+    <ClInclude Include="src\AbstrDataItem.h" />
+    <ClInclude Include="src\AbstrDataObject.h" />
+    <ClInclude Include="src\stg\AbstrStreamManager.h" />
+    <ClInclude Include="src\AbstrUnit.h" />
+    <ClInclude Include="src\CheckedDomain.h" />
+    <ClInclude Include="src\CopyTreeContext.h" />
+    <ClInclude Include="src\DataArray.h" />
+    <ClInclude Include="src\DataCheckMode.h" />
+    <ClInclude Include="src\DataController.h" />
+    <ClInclude Include="src\DataItemClass.h" />
+    <ClInclude Include="src\DataLockContainers.h" />
+    <ClInclude Include="src\DataLocks.h" />
+    <ClInclude Include="src\datastoremanager.h" />
+    <ClInclude Include="src\DataStoreManagerCaller.h" />
+    <ClInclude Include="src\DC_Ptr.h" />
+    <ClInclude Include="src\DisplayValue.h" />
+    <ClInclude Include="src\FreeDataManager.h" />
+    <ClInclude Include="src\ItemUpdate.h" />
+    <ClInclude Include="src\LispTreeType.h" />
+    <ClInclude Include="src\Metric.h" />
+    <ClInclude Include="src\MoreDataControllers.h" />
+    <ClInclude Include="src\OperArgPolicy.h" />
+    <ClInclude Include="src\Operator.h" />
+    <ClInclude Include="src\OperGroups.h" />
+    <ClInclude Include="src\OperPolicy.h" />
+    <ClInclude Include="src\Param.h" />
+    <ClInclude Include="src\SessionData.h" />
+    <ClInclude Include="src\StateChangeNotification.h" />
+    <ClInclude Include="src\StoredPropDef.h" />
+    <ClInclude Include="src\SupplCache.h" />
+    <ClInclude Include="src\TicBase.h" />
+    <ClInclude Include="src\TicInterface.h" />
+    <ClInclude Include="src\TicPCH.h" />
+    <ClInclude Include="src\TicPropDefConst.h" />
+    <ClInclude Include="src\TileAccess.h" />
+    <ClInclude Include="src\TileArrayImpl.h" />
+    <ClInclude Include="src\tilechannel.h" />
+    <ClInclude Include="src\TiledRangeData.h" />
+    <ClInclude Include="src\TiledRangeDataImpl.h" />
+    <ClInclude Include="src\TiledUnit.h" />
+    <ClInclude Include="src\TileFunctorImpl.h" />
+    <ClInclude Include="src\TileIter.h" />
+    <ClInclude Include="src\TreeItem.h" />
+    <ClInclude Include="src\TreeItemClass.h" />
+    <ClInclude Include="src\TreeItemContextHandle.h" />
+    <ClInclude Include="src\TreeItemDualref.h" />
+    <ClInclude Include="src\treeitemflags.h" />
+    <ClInclude Include="src\TreeItemProps.h" />
+    <ClInclude Include="src\TreeItemSet.h" />
+    <ClInclude Include="src\treeitemutils.h" />
+    <ClInclude Include="src\Unit.h" />
+    <ClInclude Include="src\UnitClass.h" />
+    <ClInclude Include="src\UnitClassReg.h" />
+    <ClInclude Include="src\UnitProcessor.h" />
+    <ClInclude Include="src\UsingCache.h" />
+    <ClInclude Include="src\valuefiller.h" />
+    <ClInclude Include="src\Xml\XmlTreeOut.h" />
+    <ClInclude Include="src\Xml\XmlTreeParser.h" />
+    <ClInclude Include="src\TileLock.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\DataArray.ipp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
+      <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\sym\dll\DmSym.vcxproj">
+      <Project>{6c8c307f-5fe6-4905-a828-1a8e0ae5003d}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="NatvisFile.natvis" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

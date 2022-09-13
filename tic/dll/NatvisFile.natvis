@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+	<Type Name="TreeItem">  
+		<DisplayString>{md_FullName}</DisplayString> 
+	</Type>  
+	<Type Name="DataController">  
+		<DisplayString>{md_sKeyExpr}</DisplayString> 
+	</Type>  
+	<Type Name="SharedStr">  
+		<DisplayString>{m_Ptr->m_Data,s}</DisplayString> 
+	</Type>  
+	<Type Name="WeakStr">  
+		<DisplayString>{m_Ptr->m_Data,s}</DisplayString> 
+	</Type>  
+	
+	<Type Name="SharedPtr&lt;*&gt;">
+		<DisplayString>{*m_Ptr}</DisplayString>
+		<Expand>
+			<ExpandedItem>m_Ptr</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="Point&lt;*&gt;">
+		<DisplayString>({first}; {second})</DisplayString>
+	</Type>
+	<Type Name="WeakPtr&lt;*&gt;">
+		<DisplayString>{*m_Ptr}</DisplayString>
+		<Expand>
+			<ExpandedItem>m_Ptr</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="InterestPtr&lt;*&gt;">
+		<DisplayString>{*m_Item}</DisplayString>
+		<Expand>
+			<ExpandedItem>m_Item</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="DcRefListElem">
+		<DisplayString>Arg1 {m_DC}</DisplayString>
+		<Expand>
+			<LinkedListItems>
+				<HeadPointer>m_DC</HeadPointer>
+				<NextPointer>m_Next.m_Ptr</NextPointer>
+				<ValueNode>m_Ptr</ValueNode>
+			</LinkedListItems>
+		</Expand>
+	</Type>
+	<Type Name="AbstrOperGroup">
+		<DisplayString>{m_OperName}</DisplayString>
+	</Type>
+	<Type Name="OwningPtr&lt;*&gt;">
+		<DisplayString>{*m_Ptr}</DisplayString>
+		<Expand>
+			<ExpandedItem>*m_Ptr</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="rtc::any::Any">
+		<DisplayString>{m_Wrapper}</DisplayString>
+		<Expand>
+			<ExpandedItem>m_Wrapper</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="OwningPtrSizedArray&lt;*&gt;">
+		<DisplayString>size={m_Size}</DisplayString>
+		<Expand>
+			<ArrayItems>
+				<Size>m_Size</Size>
+				<ValuePointer>m_Ptr</ValuePointer>
+			</ArrayItems>
+		</Expand>
+	</Type>
+	<Type Name="single_linked_list&lt;*&gt;">
+		<DisplayString>SubItems {m_FirstSub}</DisplayString>
+		<Expand>
+			<LinkedListItems>
+				<HeadPointer>m_FirstSub</HeadPointer>
+				<NextPointer>m_Next</NextPointer>
+				<ValueNode>this</ValueNode>
+			</LinkedListItems>
+		</Expand>
+	</Type>
+	<Type Name="actor_flag_set">
+		<DisplayString>{m_DW}</DisplayString>
+	</Type>
+	<Type Name="treeitem_flag_set">
+		<DisplayString>{m_DW}</DisplayString>
+	</Type>
+
+
+	<!--
+	std::mutex stuff, thanks to riv, 2019: https://stackoverflow.com/questions/55918497/how-to-see-locking-thread-of-stdmutex-in-visual-studio/55922384#55922384
+	-->
+  
+	<Type Name="std::_Mutex_base">
+		<Expand>
+			<Item Name="[thread_id]">*(long*)((char*)&amp;_Mtx_storage+sizeof(_Mtx_storage)-8)</Item>
+			<Item Name="[count]">*(int*)((char*)&amp;_Mtx_storage+sizeof(_Mtx_storage)-4)</Item>
+		</Expand>    
+	</Type>
+	<Type Name="std::mutex">
+		<DisplayString>mutex</DisplayString>
+		<Expand>
+			<ExpandedItem>(_Mutex_base*)this</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="std::timed_mutex">
+		<DisplayString>timed_mutex</DisplayString>
+		<Expand>
+			<Item Name="[locked]">_My_locked</Item>
+		</Expand>
+	</Type>
+	<Type Name="std::recursive_mutex">
+		<DisplayString>recursive_mutex</DisplayString>
+		<Expand>
+			<ExpandedItem>(_Mutex_base*)this</ExpandedItem>
+		</Expand>
+	</Type>
+	<Type Name="std::recursive_timed_mutex">
+		<DisplayString>recursive_timed_mutex</DisplayString>
+		<Expand>
+			<Item Name="[locked]">_My_locked</Item>
+			<Item Name="[owner]">_My_owner</Item>
+		</Expand>
+	</Type>
+	<Type Name="std::shared_mutex">
+		<DisplayString>shared_mutex</DisplayString>
+		<Expand>
+			<Item Name="[locked]">_My_locked</Item>
+			<Item Name="[owner]">_My_owner</Item>
+		</Expand>
+	</Type>
+	<Type Name="std::shared_timed_mutex">
+		<DisplayString>shared_timed_mutex</DisplayString>
+		<Expand>
+			<Item Name="[locked]">_My_locked</Item>
+			<Item Name="[owner]">_My_owner</Item>
+		</Expand>
+	</Type>
+</AutoVisualizer>

@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{def099e3-ed0e-467f-913f-23ae11d32789}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Geo Header Files">
+      <UniqueIdentifier>{b4d39853-3211-411f-9d16-d7fc202966db}</UniqueIdentifier>
+      <Extensions>h</Extensions>
+    </Filter>
+    <Filter Include="Ipp Files">
+      <UniqueIdentifier>{2d81605b-4bf8-442b-9bea-299ee7882842}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\bi_graph.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpatialAnalyzer.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Potential.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GeoBase.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GeoPCH.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GeoInterface.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\UseIpp.h">
+      <Filter>Ipp Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IppiUtils.h">
+      <Filter>Ipp Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IppBase.h">
+      <Filter>Ipp Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\minkowski.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PolyOper.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TreeBuilder.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Dijkstra.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpatialBase.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpatialInterface.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Canyon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Connect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Dijkstra.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DiscrAlloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IpfAlloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Mandlebrot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nth_element.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperDistrict.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperPolygon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperPot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Point.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SpatialAnalyzer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TraceBack.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Voronoi.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RegCount.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ConnectedParts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RasterMerge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GeoInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\UseIpp.cpp">
+      <Filter>Ipp Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Potential.cpp">
+      <Filter>Ipp Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostPolygon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PolyOper.cpp" />
+    <ClCompile Include="src\GridDist.cpp" />
+    <ClCompile Include="src\Perimeter.cpp" />
+    <ClCompile Include="src\BoostGeometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

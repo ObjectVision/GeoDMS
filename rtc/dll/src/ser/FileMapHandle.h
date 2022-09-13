@@ -1,0 +1,140 @@
+//<HEADER> 
+/*
+Data & Model Server (DMS) is a server written in C++ for DSS applications. 
+Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+
+Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+
+Documentation on using the Data & Model Server software can be found at:
+http://www.ObjectVision.nl/DMS/
+
+See additional guidelines and notes in srv/dms/Readme-srv.txt 
+
+This library is free software; you can use, redistribute, and/or
+modify it under the terms of the GNU General Public License version 2 
+(the License) as published by the Free Software Foundation,
+provided that this entire header notice and readme-srv.txt is preserved.
+
+See LICENSE.TXT for terms of distribution or look at our web site:
+http://www.objectvision.nl/DMS/License.txt
+or alternatively at: http://www.gnu.org/copyleft/gpl.html
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details. However, specific warranties might be
+granted by an additional written contract for support, assistance and/or development
+*/
+//</HEADER>
+#pragma once
+
+#if !defined(__RTC_SER_FILEMAPHANDLE_H)
+#define __RTC_SER_FILEMAPHANDLE_H
+
+#include "cpc/Types.h"
+#include "ser/FileCreationMode.h"
+struct SafeFileWriterArray;
+
+// the following define should clean-up resources of Closed FileMap Handles by Closing the file
+#define DMS_CLOSING_UNMAP
+
+#define UNDEFINED_FILE_SIZE UNDEFINED_VALUE(dms::filesize_t)
+
+//  -----------------------------------------------------------------------
+
+
+struct FileHandle
+{
+	RTC_CALL FileHandle();
+	RTC_CALL ~FileHandle();
+
+	RTC_CALL void OpenRw (WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool retry = true, bool deleteOnClose = false);
+	RTC_CALL void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry, bool mayBeEmpty = false );
+	RTC_CALL void CloseFile();
+	RTC_CALL void DropFile (WeakStr fileName);
+
+	bool IsOpen  () const { return m_hFile;    }
+
+	dms::filesize_t GetFileSize() const { return m_FileSize; }
+	void  SetFileSize(dms::filesize_t sz) { m_FileSize = sz; }
+
+protected:
+	void ReadFileSize(CharPtr handleName);
+
+	HANDLE      m_hFile;
+	dms::filesize_t  m_FileSize;
+
+	bool m_IsTmp    : 1;
+
+MG_DEBUG_DATA_CODE(
+	FileCreationMode m_FCM : 3;
+)
+
+};
+
+struct FileMapHandle : FileHandle
+{
+	RTC_CALL FileMapHandle();
+	RTC_CALL ~FileMapHandle();
+
+	void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
+	{
+		dms_assert(!IsMapped());
+		dms_assert(m_ViewData == 0); // only non-zero when file is open
+		FileHandle::OpenRw(fileName, sfwa, requiredNrBytes, rwMode, isTmp);
+	}
+
+	void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry )
+	{
+		dms_assert(!IsMapped()); // only non-zero when file is open
+		dms_assert(m_ViewData == nullptr); // only non-zero when file is open
+		FileHandle::OpenForRead(fileName, sfwa, throwOnError, doRetry);
+	}
+
+	RTC_CALL void realloc(dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa);
+
+	bool IsMapped() const { return m_hFileMap; }
+	bool IsUsable() const { return IsMapped() || (GetFileSize() == 0); }
+
+	RTC_CALL void CloseFMH();
+	RTC_CALL void Drop (WeakStr fileName);
+	RTC_CALL void Unmap();
+	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
+
+	char*   DataBegin()       { dms_assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData); }
+	char*   DataEnd  ()       { dms_assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData) + GetFileSize(); }
+	CharPtr DataBegin() const { dms_assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
+	CharPtr DataEnd  () const { dms_assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData) + GetFileSize(); }
+
+private:
+	void CloseView(bool drop);
+
+	HANDLE      m_hFileMap;
+	void*       m_ViewData;
+};
+
+struct MappedConstFileMapHandle : FileMapHandle
+{
+	MappedConstFileMapHandle(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry)
+	{
+		OpenForRead(fileName, sfwa, throwOnError, doRetry);
+		dms_assert(IsOpen() || !throwOnError);
+		if (IsOpen())
+			Map(dms_rw_mode::read_only, fileName, sfwa);
+	}
+	~MappedConstFileMapHandle()
+	{
+		if (IsMapped())
+			Unmap();
+	}
+
+	void CloseMCFMH()
+	{
+		Unmap();
+		CloseFMH();
+	}
+};
+
+//  -----------------------------------------------------------------------
+
+#endif // __RTC_SER_FILEMAPHANDLE_H

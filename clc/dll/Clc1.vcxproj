@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}</ProjectGuid>
+    <RootNamespace>clc1</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Debug'" Label="PropertySheets">
+    <Import Project="..\..\DmsDebug.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
+    <Import Project="..\..\DmsRelease.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../stgimpl/dll/src;../../clc/dll/include;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DMCLC1_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link />
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src1\AnyAll.cpp" />
+    <ClCompile Include="src1\CalcClassBreaks.cpp" />
+    <ClCompile Include="src1\CalcFactory.cpp" />
+    <ClCompile Include="src1\ClassBreak.cpp" />
+    <ClCompile Include="src1\Clc1Interface.cpp" />
+    <ClCompile Include="src1\Cumulate.cpp" />
+    <ClCompile Include="src1\ExprCalculator.cpp" />
+    <ClCompile Include="src1\FileOper.cpp" />
+    <ClCompile Include="src1\ForEach.cpp" />
+    <ClCompile Include="src1\GetStatistics.cpp" />
+    <ClCompile Include="src1\ID.cpp" />
+    <ClCompile Include="src1\Index.cpp" />
+    <ClCompile Include="src1\IndexGetterCreator.cpp" />
+    <ClCompile Include="src1\Invert.cpp" />
+    <ClCompile Include="src1\JoinEqualValues.cpp" />
+    <ClCompile Include="src1\lookup.cpp" />
+    <ClCompile Include="src1\Loop.cpp" />
+    <ClCompile Include="src1\Modus.cpp" />
+    <ClCompile Include="src1\Overlay.cpp" />
+    <ClCompile Include="src1\PCount.cpp" />
+    <ClCompile Include="src1\Ramp.cpp" />
+    <ClCompile Include="src1\random.cpp" />
+    <ClCompile Include="src1\ReadData.cpp" />
+    <ClCompile Include="src1\RLookup.cpp" />
+    <ClCompile Include="src1\Sort.cpp" />
+    <ClCompile Include="src1\SubItem.cpp" />
+    <ClCompile Include="src1\Subset.cpp" />
+    <ClCompile Include="src1\Union.cpp" />
+    <ClCompile Include="src1\Unique.cpp" />
+    <ClCompile Include="src1\UnitCreators.cpp" />
+    <ClCompile Include="src2\OperAttrVar.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\res\RewriteExpr.lsp">
+      <FileType>Document</FileType>
+      <Command>COPY %(Identity) $(TargetDir)</Command>
+      <Message>Copying RewriteExpr.lsp into Target Folder</Message>
+      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
+      <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\sym\dll\DmSym.vcxproj">
+      <Project>{6c8c307f-5fe6-4905-a828-1a8e0ae5003d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
+      <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
+      <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\AggrBinStructNum.h" />
+    <ClInclude Include="include\AggrFunc.h" />
+    <ClInclude Include="include\AggrFuncNum.h" />
+    <ClInclude Include="include\AggrUniStruct.h" />
+    <ClInclude Include="include\AggrUniStructNum.h" />
+    <ClInclude Include="include\AggrUniStructString.h" />
+    <ClInclude Include="include\AttrBinStruct.h" />
+    <ClInclude Include="include\AttrTerStruct.h" />
+    <ClInclude Include="include\AttrUniStruct.h" />
+    <ClInclude Include="include\AttrUniStructNum.h" />
+    <ClInclude Include="include\AttrUniStructStr.h" />
+    <ClInclude Include="include\BoostBlas.h" />
+    <ClInclude Include="include\CalcFactory.h" />
+    <ClInclude Include="include\CastedUnaryAttrOper.h" />
+    <ClInclude Include="include\ClcBase.h" />
+    <ClInclude Include="include\ClcInterface.h" />
+    <ClInclude Include="include\ClcPch.h" />
+    <ClInclude Include="include\composition.h" />
+    <ClInclude Include="include\ConstOper.h" />
+    <ClInclude Include="include\dms_transform.h" />
+    <ClInclude Include="include\ExprCalculator.h" />
+    <ClInclude Include="include\funclist.h" />
+    <ClInclude Include="include\IndexAssigner.h" />
+    <ClInclude Include="include\IndexGetterCreator.h" />
+    <ClInclude Include="include\Invert.h" />
+    <ClInclude Include="include\InvertedRel.h" />
+    <ClInclude Include="include\lookup.h" />
+    <ClInclude Include="include\makeCululative.h" />
+    <ClInclude Include="include\OperAcc.h" />
+    <ClInclude Include="include\OperAccBin.h" />
+    <ClInclude Include="include\OperAccUni.h" />
+    <ClInclude Include="include\OperAccUniNum.h" />
+    <ClInclude Include="include\OperAttrBin.h" />
+    <ClInclude Include="include\OperAttrTer.h" />
+    <ClInclude Include="include\OperAttrUni.h" />
+    <ClInclude Include="include\OperRelUni.h" />
+    <ClInclude Include="include\OperUnit.h" />
+    <ClInclude Include="include\PartitionTypes.h" />
+    <ClInclude Include="include\pCount.h" />
+    <ClInclude Include="include\Prototypes.h" />
+    <ClInclude Include="include\RemoveAdjacentsAndSpikes.h" />
+    <ClInclude Include="include\rlookup.h" />
+    <ClInclude Include="include\UnitCreators.h" />
+    <ClInclude Include="include\UnitGroup.h" />
+    <ClInclude Include="include\CalcClassBreaks.h" />
+    <ClInclude Include="include\ValueGetter.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
