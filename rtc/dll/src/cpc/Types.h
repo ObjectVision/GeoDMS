@@ -109,7 +109,8 @@ typedef          __int64 Int64;
 typedef UInt8       DimType;
 typedef char        Char;
 typedef Char const* CharPtr;
-typedef UInt32      SecsSince1970;
+using SecsSince1970 = UInt32;
+using ClockTicks = UInt32;
 using strpos_t = UInt32;
 using decpos_t = UInt8;
 //  -----------------------------------------------------------------------

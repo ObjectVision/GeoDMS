@@ -199,9 +199,9 @@ protected:
 	double RunningTime() const;
 
 private:
-	CharPtr        m_ClassName;
-	CharPtr        m_FuncName;
-	SecsSince1970  m_StartTime;
+	CharPtr    m_ClassName;
+	CharPtr    m_FuncName;
+	ClockTicks m_StartTime;
 };
 
 /********** helper funcs  **********/

@@ -286,7 +286,9 @@ void CDebugContextHandle::GenerateDescription()
 
 double CDebugContextHandle::RunningTime() const
 {
-	return double(clock() - m_StartTime ) / CLOCKS_PER_SEC;
+	ClockTicks currTime = clock();
+	assert(currTime >= m_StartTime);
+	return double(currTime - m_StartTime ) / CLOCKS_PER_SEC;
 }
 
 void CDebugContextHandle::LogTime(CharPtr action)
