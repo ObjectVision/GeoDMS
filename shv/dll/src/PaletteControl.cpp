@@ -214,11 +214,11 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 	{
 		SharedStr labelTxt;
 		if (m_Layer->GetLayerClass() == GraphicArcLayer::GetStaticClass())
-			labelTxt = "~~~";
+			labelTxt = CharPtr(u8"⚊ ⚊");
 		else if (m_Layer->GetLayerClass() == GraphicPolygonLayer::GetStaticClass())
-			labelTxt = "OOO";
+			labelTxt = CharPtr(u8"⚪ ⚪");
 		else if (m_Layer->GetLayerClass() == GridLayer::GetStaticClass())
-			labelTxt = CharPtr(u8"□□□");
+			labelTxt = CharPtr(u8"⬜ ⬜");
 		if (!labelTxt.empty())
 			column->SetTheme(Theme::CreateValue(AN_LabelText, labelTxt).get(), nullptr);
 	}
