@@ -891,7 +891,6 @@ public:
 
 					if (nrPointsHere > 1)
 					{
-						UInt32 segmentID = 0;
 						segment *= DistType(dist);
 						UInt32 nrRemainingPoints = nrPointsHere;
 						while (--nrRemainingPoints)
@@ -904,7 +903,7 @@ public:
 								prevLoc = currLoc;
 							}
 							if (resSub4)
-								ri4.Write(++segmentID);
+								ri4.Write(segmentID++);
 						}
 					}
 
@@ -913,7 +912,6 @@ public:
 				}
 				carry = length - dist * nrPointsHere;
 				currIndex += nrPointsHere;
-				segmentID = 0;
 			}
 		}
 		dms_assert(currIndex == nrPoints);
@@ -1303,7 +1301,7 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		dms_assert(args.size() == 3);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
@@ -1407,10 +1405,12 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 			const Arg2Type* polyData,
 			tile_id t, tile_id u, bool isFirstPolyTile,
 			const SpatialIndexType* spIndexPtr,
-			const typename Arg2Type::locked_cseq_t& polyTileData
+			const typename Arg2Type::locked_cseq_t& polyTileData,
+			const typename Arg3Type::locked_cseq_t& rankTileData
 		) : m_ResObj(resObj)
 			, m_PointData(pointData->GetDataRead(t))
-			, m_PolyData(polyTileData)
+			, m_PolyTileData(polyTileData)
+			, m_RankTileData(rankTileData)
 			, m_PointTileID(t)
 			, m_PolyTileID(u)
 			, m_SpIndexPtr(spIndexPtr)
@@ -1418,8 +1418,8 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 		{}
 		AbstrDataObject* m_ResObj;
 		typename Arg1Type::locked_cseq_t m_PointData;
-		typename Arg2Type::locked_cseq_t m_PolyData;
-		typename Arg3Type::locked_cseq_t m_RankData;
+		typename Arg2Type::locked_cseq_t m_PolyTileData;
+		typename Arg3Type::locked_cseq_t m_RankTileData;
 		tile_id                   m_PointTileID, m_PolyTileID;
 		bool                      m_IsFirstPolyTile;
 		const SpatialIndexType* m_SpIndexPtr;
@@ -1435,10 +1435,10 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 			point_in_ranked_polygon(
 				composite_cast<DataArray<E>*>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID),
 				m_Data->m_PointData,
-				m_Data->m_PolyData,
+				m_Data->m_PolyTileData,
 				(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),
 				m_Data->m_SpIndexPtr,
-				m_Data->m_RankData,
+				m_Data->m_RankTileData,
 				m_Data->m_IsFirstPolyTile
 			);
 		}
@@ -1491,14 +1491,15 @@ public:
 		bool mustInitPointTile, const ResourceHandle& pointBoxDataHandle, const ResourceHandle& spIndexHandle, const ResourceHandle& polyTileHandle) const override
 	{
 		const Arg1Type* pointData = const_array_cast<PointType>(pointDataA);
-		const Arg2Type* polyData = const_array_cast<PolygonType>(polyDataA);
+		const Arg2Type* polyData  = const_array_cast<PolygonType>(polyDataA);
+		const Arg3Type* rankData  = const_array_cast<RankingType>(rankDataA);
 		dms_assert(pointData);
 		dms_assert(polyData);
 
 		const BoxArrayType& boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
 		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(spIndexHandle);
 
-		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, spIndexPtr, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle));
+		DispatcherData data(res, pointData, polyData, t, u, mustInitPointTile, spIndexPtr, GetAs<typename Arg2Type::locked_cseq_t>(polyTileHandle), rankData->GetDataRead(u));
 
 		Dispatcher disp; disp.m_Data = &data;
 		resVU->InviteUnitProcessor(disp);
