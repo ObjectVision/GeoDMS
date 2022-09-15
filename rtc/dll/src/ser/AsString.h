@@ -138,13 +138,25 @@ inline bool AsCharArray(WeakStr value, char* buffer, SizeT bufLen, FormattingFla
 inline bool AsCharArray(const SharedStr& value, char* buffer, SizeT bufLen, FormattingFlags ff) { return AsCharArray(typesafe_cast<WeakStr>(value), buffer, bufLen, ff); }
 inline bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags ff)
 {
-	SizeT size = value.size();
-	buffer = fast_copy(value.begin(), value.begin() + Min<SizeT>(size, bufLen), buffer);
+	SizeT size;
+	CharPtr valueBegin;
+	if (!value.IsDefined())
+	{
+		size = UNDEFINED_VALUE_STRING_LEN;
+		valueBegin = UNDEFINED_VALUE_STRING;
+	}
+	else
+	{
+		size = value.size();
+		valueBegin = value.begin();
+	}
+	buffer = fast_copy(valueBegin, valueBegin + Min<SizeT>(size, bufLen), buffer);
 	if (size >= bufLen)
 		return false;
 	*buffer = char(0);
 	return true;
 }
+
 
 template <class T>
 inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlags ff)
