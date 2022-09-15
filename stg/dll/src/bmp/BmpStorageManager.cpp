@@ -98,8 +98,8 @@ struct InitBmpDefaultPalette
 {
 	InitBmpDefaultPalette()
 	{
-		for (PALETTE_SIZE c=0; c!=CI_NODATA; c++)
-			g_BmpDefaultPalette[c] =
+		for (PALETTE_SIZE c=1; c!=(CI_NODATA+1); c++)
+			g_BmpDefaultPalette[ c-1 ] =
 				CombineRGB(
 					255-(c%3)*127, 
 					255-(c%5)*63, 

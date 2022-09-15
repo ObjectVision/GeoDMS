@@ -689,7 +689,15 @@ DmsColor DataItemColumn::GetOrgColor(SizeT recNo, AspectNr a) const
 	auto theme = GetEnabledTheme(a);
 	if (theme && !theme->IsFailed())
 		return theme->GetValueGetter()->GetColorValue(recNo);
-
+/*
+	auto textTheme = GetEnabledTheme(AN_LabelText);
+	if (textTheme)
+	{
+		auto ta = textTheme->GetThemeAttr();
+		if (ta)
+			return ta->IsDefined(recNo) ? UNDEFINED_VALUE(DmsColor) : DmsColor(200, 200, 200);
+	}
+	*/
 	return UNDEFINED_VALUE(DmsColor);
 }
 
@@ -802,7 +810,6 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 
 	if (! m_FontArray || m_FontIndexCache->GetLastSubPixelFactor() != subPixelFactor)
 	{
-
 		UInt32 cellHeight = m_ElemSize.y;
 		if (HasBorder())
 			cellHeight -= 2*BORDERSIZE;

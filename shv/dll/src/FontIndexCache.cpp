@@ -197,7 +197,6 @@ void FontIndexCache::AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const
 			angle = angleValueGetter->GetNumericValue(i);
 
 		AddKey(fontSize, worldSize, fontNameID, angle);
-
 	}
 }
 

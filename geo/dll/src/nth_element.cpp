@@ -664,7 +664,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 		Float64 rr = r;
 		rr *= (N - 1);
 
-		UInt32 pos = rr;
+		SizeT pos = rr;
 		if(pos < N)
 		{
 			auto
@@ -766,7 +766,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 			}
 		}
 		V resValue;
-		for (UInt32 i = 0; i != nrP; ++i)
+		for (SizeT i = 0; i != nrP; ++i)
 		{
 			dms_assert(cumul2[i] == cumul[i] + partCount[i]);
 			dms_assert(cumul2[i] == ((i+1<nrP) ? cumul[i+1] : cumulativeN) );

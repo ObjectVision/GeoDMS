@@ -319,8 +319,10 @@ bool XdbImp::ReadHeader()
 	if (!IsOpen()) 
 		return false;
 
-	// Read rec-count from first line
-	fscanf(*this, "%d %d", &nrows, &nrheaderlines);
+	// Read nrRows from first line
+	auto nrFieldsRead = fscanf(*this, "%d %d", &nrows, &nrheaderlines);
+	MG_CHECK(nrFieldsRead == 2);
+
 	DBG_TRACE(("nrows:         %d", nrows));
 	DBG_TRACE(("nrheaderlines: %d", nrheaderlines));
 	
