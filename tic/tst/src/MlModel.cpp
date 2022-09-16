@@ -213,7 +213,7 @@ struct MlModel
 
     value_type GetL   ()                             const { return m_Likelihood; }
 	value_type GetLk (param_index k)                 const { return -m_Score[k]; }
-	value_type GetHkk(param_index k, param_index kk) const { return m_Fisher[SizeT(k) * m_DataProvider.NrK()) + kk]; }
+	value_type GetHkk(param_index k, param_index kk) const { return m_Fisher[SizeT(k) * m_DataProvider.NrK() + kk]; }
 
 private:
 	const Dataprovider& m_DataProvider;
