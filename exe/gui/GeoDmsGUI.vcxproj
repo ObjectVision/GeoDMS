@@ -174,7 +174,9 @@
     <ClCompile Include="src\GuiToolbar.cpp" />
     <ClCompile Include="src\GuiTreeview.cpp" />
     <ClCompile Include="src\GuiView.cpp" />
-    <ClCompile Include="src\imgui_demo.cpp" />
+    <ClCompile Include="src\imgui_demo.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
