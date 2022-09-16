@@ -46,8 +46,9 @@ inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 	dms_assert(IsDefined(range));           // caller must provide a definedrange
 	dms_assert(IsIncluding(range, loc));    // caller must shield out-of-range
 
+	assert(loc >= range.first);
 	SizeT index = (loc - range.first);   
-	dms_assert(index < Cardinality(range)); // Postcondition
+	assert(index < Cardinality(range)); // Postcondition
 	return index;
 }
 
