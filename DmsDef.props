@@ -39,7 +39,7 @@
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <DelayLoadDLLs>gdal304.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>gdal.dll</DelayLoadDLLs>
     </Link>
     <Midl>
       <MkTypLibCompatible>true</MkTypLibCompatible>
