@@ -67,6 +67,7 @@ public:
 	Int32     GetOrdinalValue (entity_id entityIndex) const;
 	UInt32    GetCardinalValue(entity_id entityIndex) const;
 	SharedStr GetStringValue  (entity_id entityIndex, GuiReadLock& lock) const;
+	TextInfo  GetTextInfo     (entity_id entityIndex, GuiReadLock& lock) const;
 	SharedStr GetDisplayValue (entity_id entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const;
 
 	virtual entity_id GetClassIndex(entity_id entityID) const= 0;

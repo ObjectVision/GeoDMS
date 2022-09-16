@@ -128,6 +128,7 @@ public:
 	TIC_CALL virtual void GetAbstrValue   (SizeT index, AbstrValue& valueHolder) const=0;
 	TIC_CALL virtual void SetAbstrValue   (SizeT index, const AbstrValue& valueHolder)=0;
 	TIC_CALL virtual void SetNull         (SizeT index) = 0;
+	TIC_CALL virtual bool IsNull          (SizeT index) const = 0;
 	TIC_CALL virtual bool   AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SizeT  AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SharedStr AsString (SizeT index, GuiReadLock& lockHolder) const=0;

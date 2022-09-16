@@ -170,7 +170,7 @@ private:
 
 	COLORREF  GetColor   (SizeT recNo, AspectNr a) const;
 	DmsColor  GetOrgColor(SizeT recNo, AspectNr a) const;
-	SharedStr GetText    (SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const;
+	TextInfo  GetText    (SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const;
 	WCHAR     GetSymbol  (SizeT recNo) const;
 	HFONT     GetFont    (SizeT recNo, FontRole fr, Float64 subPixelFactor) const;
 

@@ -40,6 +40,10 @@ class AbstrUnit;
 class AbstrValue;
 #include "ptr/InterestHolders.h"
 
+struct TextInfo {
+	SharedStr m_Text;
+	bool      m_Grayed;
+};
 
 //----------------------------------------------------------------------
 // used modules and forward class references

@@ -110,6 +110,7 @@ struct DataArrayBase : AbstrDataObject
 	TICTOC_CALL void GetAbstrValue(SizeT index, AbstrValue& valueHolder)    const override;
 	TICTOC_CALL void SetAbstrValue(SizeT index, const AbstrValue& valueHolder)   override;
 	TICTOC_CALL void        SetNull      (SizeT index)                                  override;
+	TICTOC_CALL bool        IsNull       (SizeT index) const                            override;
 	TICTOC_CALL SizeT       GetNrNulls   () const                                       override;
 
 	TICTOC_CALL bool        AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const override;

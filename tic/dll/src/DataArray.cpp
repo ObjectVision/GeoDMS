@@ -549,6 +549,14 @@ void DataArrayBase<V>::SetNull(SizeT index)
 }
 
 template <class V>
+bool DataArrayBase<V>::IsNull(SizeT index) const
+{
+	tile_loc tl = GetTiledLocation(index);
+	auto data = GetTile(tl.first);
+	return !IsDefined(data[tl.second]);
+}
+
+template <class V>
 SizeT DataArrayBase<V>::GetNrNulls() const
 {
 	SizeT count = 0;

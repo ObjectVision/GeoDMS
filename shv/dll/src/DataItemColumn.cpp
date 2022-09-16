@@ -613,16 +613,18 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 		);
 	}
 	else
+	{
+		auto textInfo = GetText(recNo, isActive ? -1 : MAX_TEXTOUT_SIZE, locks);
 		DrawEditText(
-			d.GetDC(), 
+			d.GetDC(),
 			elemExtents,
-			GetFont   (recNo, FR_Label, d.GetSubPixelFactor()),
-			GetColor  (recNo, AN_LabelTextColor),
+			GetFont(recNo, FR_Label, d.GetSubPixelFactor()),
+			textInfo.m_Grayed ? RGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor),
 			bkClr,
-			GetText(recNo, isActive ? -1 : MAX_TEXTOUT_SIZE, locks).c_str(),
+			textInfo.m_Text.c_str(),
 			isActive
 		);
-
+	}
 	if (isActive)
 	{
 		if (HasElemBorder())
@@ -689,15 +691,7 @@ DmsColor DataItemColumn::GetOrgColor(SizeT recNo, AspectNr a) const
 	auto theme = GetEnabledTheme(a);
 	if (theme && !theme->IsFailed())
 		return theme->GetValueGetter()->GetColorValue(recNo);
-/*
-	auto textTheme = GetEnabledTheme(AN_LabelText);
-	if (textTheme)
-	{
-		auto ta = textTheme->GetThemeAttr();
-		if (ta)
-			return ta->IsDefined(recNo) ? UNDEFINED_VALUE(DmsColor) : DmsColor(200, 200, 200);
-	}
-	*/
+
 	return UNDEFINED_VALUE(DmsColor);
 }
 
@@ -743,7 +737,7 @@ WCHAR DataItemColumn::GetSymbol(SizeT recNo) const
 	return theme->GetValueGetter()->GetOrdinalValue(recNo);
 }
 
-SharedStr DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const
+TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& locks) const
 {
 	SharedDataItem activeTextAttr = GetActiveTextAttr();
 	if (!activeTextAttr)
@@ -751,9 +745,15 @@ SharedStr DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& lo
 		auto theme = GetEnabledTheme(AN_LabelText);
 		dms_assert(theme);
 		if (theme->IsFailed())
-			return theme->GetFailReason().GetAsText();
+			return TextInfo{ theme->GetFailReason().GetAsText(), true };
 		GuiReadLock dummy;
-		return theme->GetValueGetter()->GetStringValue(recNo, dummy);
+		return theme->GetValueGetter()->GetTextInfo(recNo, dummy);
+	}
+	auto  refObj = activeTextAttr->GetRefObj();
+	if (refObj->IsNull(recNo))
+	{
+		static SharedStr undefinedStr(UNDEFINED_VALUE_STRING);
+		return TextInfo(undefinedStr, true);
 	}
 	if (m_State.Get(DIC_RelativeDisplay))
 	{
@@ -761,11 +761,11 @@ SharedStr DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& lo
 		Float64 total = GetColumnTotal();
 		if (total != 0)
 		{
-			Float64 relValue = activeTextAttr->GetRefObj()->GetValueAsFloat64(recNo) /  total;
-			return mySSPrintF("%lg %%", 100.0* relValue);
+			Float64 relValue = refObj->GetValueAsFloat64(recNo) /  total;
+			return TextInfo{ mySSPrintF("%lg %%", 100.0 * relValue), false };
 		}
 	}
-	return DisplayValue(activeTextAttr, recNo, false, m_DisplayInterest, maxLen, locks);
+	return TextInfo{ DisplayValue(activeTextAttr, recNo, false, m_DisplayInterest, maxLen, locks), false };
 }
 
 SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const

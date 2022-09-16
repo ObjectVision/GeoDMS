@@ -198,6 +198,29 @@ SharedStr AbstrThemeValueGetter::GetStringValue(SizeT entityIndex, GuiReadLock& 
 	return m_PaletteAttr->GetRefObj()->AsString(classIndex, lock);
 }
 
+TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock) const
+{
+	if (!m_PaletteAttr)
+	{
+		if (auto cvg = dynamic_cast<const ConstValueGetter<SharedStr>*>(this))
+			return TextInfo{ cvg->m_Value, false };
+	}
+	dms_assert(m_PaletteAttr);
+	entity_id classIndex = GetClassIndex(entityIndex);
+	if (!IsDefined(classIndex))
+	{
+		static auto undefinedText = SharedStr("null class");
+		return TextInfo{ undefinedText, true };
+	}
+	auto refObj = m_PaletteAttr->GetRefObj();
+	if (refObj->IsNull(classIndex))
+	{
+		static auto undefinedText = SharedStr("null");
+		return TextInfo{ undefinedText, true };
+	}
+	return TextInfo{ refObj->AsString(classIndex, lock), false };
+}
+
 SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const
 {
 	dms_assert(m_PaletteAttr);
