@@ -97,6 +97,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			using boost::spirit::alnum_p;
 			using boost::spirit::as_lower_d;
 			using boost::spirit::uint_p;
+			using boost::spirit::hex_p;
 			using boost::spirit::strict_ureal_p;
 
 			//-----------------------------------------------------------------
@@ -260,7 +261,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
  			suffix
 				=	lexeme_d[itemName_p]
-					[([&](auto _1, auto _2) { cp.ProdSuffix(_1, _2);})];
+					[([&](auto first, auto last) { cp.ProdSuffix(first, last);})];
 
 			exprList 
 				= epsilon_p[([&](...) { cp.StartExprList();})]
@@ -282,13 +283,14 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 					
 			identifier
 				= (lexeme_d[ +DOT || +(!SLASH >> itemName_p) ] - as_lower_d[keywords])
-				[([&](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})];
+				[([&](auto first, auto last) { cp.ProdIdentifier(first, last);})];
 
 			unsignedInteger
-				= uint_p[([&](auto _1) { cp.ProdUInt32(_1);})];
+				= (uint_p[([&](auto u32) { cp.ProdUInt32(u32);})])
+			| (PERCENT >> (hex_p[([&](auto u32) { cp.ProdUInt32(u32); })]));
 
 			unsignedReal
-				= strict_ureal_p[([&](auto _1) { cp.ProdFloat64(_1);})];
+				= strict_ureal_p[([&](auto f64) { cp.ProdFloat64(f64);})];
 
 			bool_literal
 				= as_lower_d[TRUE][([&](...) { cp.ProdNullaryOper(token::true_);})]
@@ -308,7 +310,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			exprList, 
 			nonEmptyExprList,
 			functionCallOrIdentifier, identifier, // dots, 
-			unsignedInteger, unsignedReal, bool_literal;
+			unsignedInteger, /*hexInteger, */ unsignedReal, bool_literal;
 	};
 };
 
