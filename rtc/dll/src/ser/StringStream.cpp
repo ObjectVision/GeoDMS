@@ -217,7 +217,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 	ar >> len;
 	if (len)
 	{
-		SharedCharArray* sca =SharedCharArray::CreateUninitialized(len+1); sca->back() = char(0);
+		SharedCharArray* sca =SharedCharArray::CreateUninitialized(SizeT(len)+1); sca->back() = char(0);
 		str.assign(sca);
 		ar.Buffer().ReadBytes(sca->begin(), len);
 	}

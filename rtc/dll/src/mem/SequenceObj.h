@@ -84,7 +84,8 @@ public:
 
 	sequence_obj() {}
 	sequence_obj(provider_t* provider) : m_Provider(provider) {}
-	sequence_obj(sequence_obj&& rhs) :	sequence_obj()
+	sequence_obj(sequence_obj&& rhs) noexcept
+		:	sequence_obj()
 	{
 		operator =(std::move(rhs));
 	}
@@ -93,7 +94,7 @@ public:
 		MGD_CHECKDATA(!IsLocked());
 		Reset();
 	}
-	void operator = (sequence_obj&& rhs) 
+	void operator = (sequence_obj&& rhs)  noexcept
 	{
 		Reset();
 
@@ -107,7 +108,7 @@ public:
 #endif
 
 	}
-	void swap(sequence_obj<V>& rhs) { m_Data.swap(rhs.m_Data); m_Provider.swap(rhs.m_Provider); MG_DEBUG_DATA_CODE(std::swap(md_IsLocked, rhs.md_IsLocked); ) }
+	void swap(sequence_obj<V>& rhs) noexcept { m_Data.swap(rhs.m_Data); m_Provider.swap(rhs.m_Provider); MG_DEBUG_DATA_CODE(std::swap(md_IsLocked, rhs.md_IsLocked); ) }
 
 	SizeT Size    () const { return m_Provider ? m_Provider->Size    (m_Data) : 0; }
 	SizeT Capacity() const { return m_Provider ? m_Provider->Capacity(m_Data) : 0; }

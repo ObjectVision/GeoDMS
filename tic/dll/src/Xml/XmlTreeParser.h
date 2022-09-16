@@ -46,7 +46,7 @@ protected: // override XmlParser
 	virtual bool ReadElemCallback(XmlElement& element);
 
 private:
-	TreeItem* m_CurrItem;
+	TreeItem* m_CurrItem = nullptr;
 
 	UInt32 m_CurrItemLevel;
 	UInt32 m_CurrElemLevel;

@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 #include "act/any.h"
+#include <optional>
 
 template <typename Func>
 struct scoped_exit {
@@ -50,24 +51,21 @@ private:
 template <typename Func>
 struct movable_scoped_exit {
 	movable_scoped_exit() 
-	:	m_Active(false)
 	{}
 	movable_scoped_exit(Func&& f) : m_Func(std::move(f)) {}
-	~movable_scoped_exit() { if (m_Active) m_Func(); }
+	~movable_scoped_exit() { if (m_Func) (*m_Func)(); }
 
 	movable_scoped_exit(movable_scoped_exit&& rhs)
-	:	m_Active(rhs.m_Active)
-	,	m_Func(std::move(rhs.m_Func))
+	:	m_Func(std::move(rhs.m_Func))
 	{
-		rhs.m_Active = false;
+		assert(!rhs.m_Func);
 	}
 	movable_scoped_exit(const movable_scoped_exit&) = delete;
 	void operator = (const movable_scoped_exit&) = delete;
 	void operator = (movable_scoped_exit&&) = delete;
 
 protected:
-	bool m_Active = true;
-	Func m_Func;
+	std::optional<Func> m_Func;
 };
 
 template <typename Func>
@@ -75,7 +73,7 @@ struct releasable_scoped_exit : movable_scoped_exit<Func>
 {
 	using movable_scoped_exit<Func>::movable_scoped_exit;
 
-	void release() { this->m_Active = false; }
+	void release() { this->m_Func.reset(); }
 };
 
 

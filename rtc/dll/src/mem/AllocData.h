@@ -50,11 +50,12 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 		: base_type(first, last)
 		, m_Capacity(cap) {}
 
-	alloc_data(alloc_data&& rhs) : alloc_data()
+	alloc_data(alloc_data&& rhs) noexcept
+		: alloc_data()
 	{
 		this->operator =(rhs);
 	}
-	alloc_data& operator = (alloc_data&& rhs)
+	alloc_data& operator = (alloc_data&& rhs) noexcept
 	{
 		static_cast<base_type*>(this)->operator=( std::move<base_type&>(rhs) );
 		m_Capacity = rhs.m_Capacity;
@@ -64,7 +65,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	}
 	size_type capacity() const { return m_Capacity; }
 
-	void swap(alloc_data<V>& oth)
+	void swap(alloc_data<V>& oth) noexcept
 	{
 		base_type::swap(oth);
 		omni::swap(m_Capacity, oth.m_Capacity);

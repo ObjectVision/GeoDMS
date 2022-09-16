@@ -1040,8 +1040,7 @@ SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPt
 
 	char stackBuffer[DEFAULT_BUFFER_SIZE];
 	char* buf  = stackBuffer;
-	SizeT size = DEFAULT_BUFFER_SIZE;
-
+	DWORD size = DEFAULT_BUFFER_SIZE;
 
 	while (true)
 	{

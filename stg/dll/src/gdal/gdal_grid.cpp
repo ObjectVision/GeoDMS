@@ -610,7 +610,7 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 	auto height = poBand->GetYSize();
 
 	typedef UInt32 color_type;
-	vector_resize(buffer, width*height);
+	vector_resize(buffer, Cardinality(IPoint(width, height) ));
 
 	GDAL_ErrorFrame x;
 	auto resultCode = poBand->RasterIO(GF_Read,

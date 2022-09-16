@@ -393,8 +393,8 @@ struct StrnType: Couple<CharPtr>
 	StrnType(CharPtr b, CharPtr e): Couple<CharPtr>(b, e) {}
 	StrnType(const StrnType& oth) : Couple<CharPtr>(oth)  {}
 
-	UInt32 size () const { return second - first;  }
-	bool   empty() const { return first == second; } 
+	SizeT size () const { return second - first;  }
+	bool  empty() const { return first == second; } 
 
 	bool operator < (const StrnType& rhs) const
 	{
@@ -444,7 +444,7 @@ struct MakeStrnFunc
 
 	StrnObj* operator()(const StrnType& v) const
 	{ 
-		UInt32 len = v.size();
+		auto len = v.size();
 		dms_assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
 		char *b = new char[len+1], 
 		     *e = b+len;

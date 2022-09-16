@@ -117,7 +117,7 @@ IndexedStringsBase::~IndexedStringsBase()
 void IndexedStringsBase::reserve(index_type sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	m_Vec.reserve(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	m_Vec.reserve_data(sz*4 MG_DEBUG_ALLOCATOR_SRC_PARAM); // estimated lowerbound of total stringlengths
+	m_Vec.reserve_data(SizeT(sz)*4 MG_DEBUG_ALLOCATOR_SRC_PARAM); // estimated lowerbound of total stringlengths
 }
 
 //  -----------------------------------------------------------------------

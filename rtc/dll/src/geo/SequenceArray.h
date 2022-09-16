@@ -642,11 +642,11 @@ public:
 	{}
 
 	RTC_CALL sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth = 0);
-	sequence_array(sequence_array<T>&& rhs) { swap(rhs); }
+	sequence_array(sequence_array<T>&& rhs) noexcept { swap(rhs); }
 
 	void operator =(const sequence_array<T>& src) { assign(src, 0); }
 	RTC_CALL void assign(const sequence_array<T>& src, data_size_type expectedGrowth);
-	RTC_CALL void swap(sequence_array<T>& rhs);
+	RTC_CALL void swap(sequence_array<T>& rhs) noexcept;
 
 	//=======================================
 	// sequence_array collection modification
@@ -811,8 +811,6 @@ public:
 protected:
 	template<typename Initializer> void allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc);
 
-//	template <typename CIter>
-//	void allocateSequenceRange(seq_iterator seqPtr, CIter first, CIter last)
 	RTC_CALL void allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last);
 
 private:
@@ -820,8 +818,6 @@ private:
 	void abandon(data_size_type first, data_size_type last);
 	template<typename Initializer> void appendInitializer(size_type n, Initializer&& init);
 
-//	template <typename InputIterator>
-//	void appendRange(InputIterator first, InputIterator last)
 	RTC_CALL void appendRange(const_data_iterator first, const_data_iterator last);
 
 	RTC_CALL data_size_type calcActualDataSize() const;
@@ -833,14 +829,13 @@ private:
 	RTC_CALL void checkConsecutiveness() const;
 #endif
 
-	seq_vector_t   m_Indices;    // for identifying allocated sequences
-	data_vector_t  m_Values;    // for sequential storage of sequences of T (the memory pool)
-	data_size_type m_ActualDataSize; // no of elements in allocated sequences (not abandoned elements)
+	seq_vector_t   m_Indices;            // for identifying allocated sequences
+	data_vector_t  m_Values;             // for sequential storage of sequences of T (the memory pool)
+	data_size_type m_ActualDataSize = 0; // no of elements in allocated sequences (not abandoned elements)
 
 	friend struct SA_ConstReference<T>;
 	friend struct SA_Reference<T>;
 	friend struct SA_Iterator<T>;
-//REMOVE	friend void swap(sequence_array<T>& lhs, typename sequence_array<T>& rhs) { lhs.swap(brhs); }
 };
 
 

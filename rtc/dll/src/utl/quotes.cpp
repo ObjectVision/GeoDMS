@@ -40,9 +40,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 //================= size funcs
 
-static int sizeSingleQuouteMiddle(CharPtr str)
+static SizeT sizeSingleQuouteMiddle(CharPtr str)
 {
-	int result = 0;
+	SizeT result = 0;
 	
 	while (true)
 	{
@@ -59,10 +59,10 @@ static int sizeSingleQuouteMiddle(CharPtr str)
 	}
 }
 
-static int sizeSingleQuouteMiddle(CharPtr begin, CharPtr end)
+static SizeT sizeSingleQuouteMiddle(CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	int result = 0;
+	SizeT result = 0;
 	
 	while (begin!=end)
 	{
@@ -80,9 +80,9 @@ static int sizeSingleQuouteMiddle(CharPtr begin, CharPtr end)
 	return result;
 }
 
-static int sizeDoubleQuouteMiddle(CharPtr str)
+static SizeT sizeDoubleQuouteMiddle(CharPtr str)
 { 
-	int result = 0;
+	SizeT result = 0;
 	
 	while (true)
 	{
@@ -99,10 +99,10 @@ static int sizeDoubleQuouteMiddle(CharPtr str)
 	}
 }
 
-static int sizeDoubleQuouteMiddle(CharPtr begin, CharPtr end)
+static SizeT sizeDoubleQuouteMiddle(CharPtr begin, CharPtr end)
 { 
 	dms_assert(end || !begin);
-	int result = 0;
+	SizeT result = 0;
 	
 	while (begin!=end)
 	{
@@ -444,9 +444,9 @@ void DoubleQuote(struct FormattedOutStream& os, CharPtr begin, CharPtr end)
 // "\'\'" is counted as one
 // '\\' is skipped in counting, even before '\0' or end
 
-UInt32 _SingleUnQuoteMiddleSize(CharPtr str)
+SizeT _SingleUnQuoteMiddleSize(CharPtr str)
 {
-	UInt32 c = 0;
+	SizeT c = 0;
 	while (true)  
 	{
 		switch (*str++) 
@@ -468,10 +468,10 @@ exit:
 	return c;
 }
 
-UInt32 _SingleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
+SizeT _SingleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	UInt32 c = 0;
+	SizeT c = 0;
 	while (begin != end)    // stop at end
 	{
 		switch (*begin++) 
@@ -562,7 +562,7 @@ exit:
 
 SharedStr SingleUnQuoteMiddle(CharPtr str)
 {
-	UInt32 sz = _SingleUnQuoteMiddleSize(str);
+	auto sz = _SingleUnQuoteMiddleSize(str);
 	if (!sz)
 		return SharedStr();
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
@@ -598,9 +598,9 @@ SharedStr SingleUnQuoteMiddle(CharPtr begin, CharPtr end)
 	return result;
 }
 
-UInt32 _DoubleUnQuoteMiddleSize(CharPtr str)
+SizeT _DoubleUnQuoteMiddleSize(CharPtr str)
 {
-	UInt32 c = 0;
+	SizeT c = 0;
 	while (true)
 	{
 		switch (*str++)
@@ -615,11 +615,11 @@ UInt32 _DoubleUnQuoteMiddleSize(CharPtr str)
 	}
 }
 
-UInt32 _DoubleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
+SizeT _DoubleUnQuoteMiddleSize(CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
 
-	UInt32 c = 0;
+	SizeT c = 0;
 	while (begin != end)
 	{
 		switch (*begin++)

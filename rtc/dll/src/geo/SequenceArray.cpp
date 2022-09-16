@@ -383,7 +383,7 @@ void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expe
 }
 
 template <typename T>
-void sequence_array<T>::swap(sequence_array<T>& rhs)
+void sequence_array<T>::swap(sequence_array<T>& rhs) noexcept
 {
 	m_Values.swap(rhs.m_Values);
 	m_Indices.swap(rhs.m_Indices);

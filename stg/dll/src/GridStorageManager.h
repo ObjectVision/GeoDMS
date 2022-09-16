@@ -330,7 +330,7 @@ namespace Grid {
 				typename OwningPtrSizedArray<T>::pointer
 					pixelPtr = pixels,
 					pixelPtrEnd = pixels + currViewPortSize.X(),
-					stripBufferRow = stripBuffer.begin() + (currRowInGrid - readRectInGrid.first.Row())*stripWidth;
+					stripBufferRow = stripBuffer.begin() + SizeT(currRowInGrid - readRectInGrid.first.Row())*stripWidth;
 				MG_CHECK(stripBufferRow + stripWidth <= stripBuffer.begin() + stripBufferSize);
 				typename OwningPtr<UInt32>::pointer stripBuffOffsetPtr = stripBuffOffsets.begin();
 

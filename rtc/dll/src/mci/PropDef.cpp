@@ -224,6 +224,7 @@ TokenID GetCpyModeID(cpy_mode m)
 		TokenID("expr", (st_tag*)nullptr),
 		TokenID("all", (st_tag*)nullptr)
 	};
+	assert(m >= 0);
 	return cpyModeID[int(m)];
 }
 

@@ -117,8 +117,7 @@ struct reader_base
 {
 	FilePtrHandle m_FH;
 
-	double m_NoDataInFile;
-//	bool   m_DoSubstitution;
+	double m_NoDataInFile = UNDEFINED_VALUE(double);
 
 	UInt32 m_GridPos = 0;
 

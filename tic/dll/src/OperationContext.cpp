@@ -1232,7 +1232,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 			,	allInterests
 			,	!doASync, context
 		);
-		dms_assert(!argRefs.size()); // moved in ?
+		assert(!argRefs.size()); // moved in ?
 
 		dms_assert(!SuspendTrigger::DidSuspend() || !doASync || !IsMultiThreaded2());
 

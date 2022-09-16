@@ -72,7 +72,7 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 		fast_copy(first, last, begin());
 	}
 
-	OwningPtrSizedArray(OwningPtrSizedArray&& oth)
+	OwningPtrSizedArray(OwningPtrSizedArray&& oth) noexcept
 	{
 		swap(oth);
 	}
@@ -97,9 +97,9 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 
 	void clear() { OwningPtrSizedArray empty; swap(empty); }
 
-	void swap (OwningPtrSizedArray<T>& oth) { base_type::swap(oth); std::swap(m_Size, oth.m_Size); }
+	void swap (OwningPtrSizedArray<T>& oth) noexcept { base_type::swap(oth); std::swap(m_Size, oth.m_Size); }
 
-	void operator = (OwningPtrSizedArray<T>&& rhs) { clear(); swap(rhs); }
+	void operator = (OwningPtrSizedArray<T>&& rhs) noexcept { clear(); swap(rhs); }
 	reference       operator [](SizeT i)       { dms_assert(i < size()); return begin()[i]; }
 	const_reference operator [](SizeT i) const { dms_assert(i < size()); return begin()[i]; }
 

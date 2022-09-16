@@ -1,2 +1,2 @@
 #define DMS_VERSION_MAJOR 8 
-#define DMS_VERSION_MINOR 36 
+#define DMS_VERSION_MINOR 37 

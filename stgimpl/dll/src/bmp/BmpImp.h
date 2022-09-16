@@ -81,8 +81,8 @@ private:
 	mutable rowsize_t m_RowSize;
 	filepos_t m_ColorsOffset;
 
-	mutable row_t     m_InternRowNumber;
-	mutable filepos_t m_InternRowFilePointer;
+	mutable row_t     m_InternRowNumber = 0;
+	mutable filepos_t m_InternRowFilePointer = 0;
 
 	filepos_t GetRowsOffset() const;
 	rowsize_t GetRowSize() const;
