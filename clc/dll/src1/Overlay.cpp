@@ -180,19 +180,14 @@ struct OverlayLayerVisitorBase : UnitProcessor
 		}
 		m_AtomicRegionFactor *= nrRegions;
 	}
-	OverlayLayerVisitorBase()
-		:	m_PartitioningInfo(nullptr)
-		,	m_AtomicRegionFactor(1)
-		,	m_CanContainNulls(false)
-	{}
 
-	const overlay_partitioning_info_t* m_PartitioningInfo;
-	overlay_recode_info_t*             m_RecodeInfo;
+	const overlay_partitioning_info_t* m_PartitioningInfo = nullptr;
+	overlay_recode_info_t*             m_RecodeInfo = nullptr;
 
-	tile_id                            m_NrTiles;
+	tile_id                            m_NrTiles = 0;
 	SharedPtr<DataArray<ProdID>>       m_ProdIdMapDO;
-	mutable ProdID                     m_AtomicRegionFactor;
-	mutable bool                       m_CanContainNulls;
+	mutable ProdID                     m_AtomicRegionFactor = 1;
+	mutable bool                       m_CanContainNulls = false;
 };
 
 struct OverlayLayerVisitor :  boost::mpl::fold<typelists::domain_ints, OverlayLayerVisitorBase, VisitorImpl<Unit<_2>, _1> >::type

@@ -44,12 +44,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrCmd.h"
 
 MenuItem::MenuItem()
-	:	m_Flags(0)
 {}
 
 MenuItem::MenuItem(WeakStr caption)
 	: m_Caption(caption)
-	, m_Flags(0)
 {}
 
 MenuItem::MenuItem(WeakStr caption, OwningPtr<AbstrCmd> cmd, GraphicObject* host, UInt32 flags)

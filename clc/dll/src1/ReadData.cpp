@@ -68,7 +68,7 @@ struct NumberReaderBase : UnitProcessor
 		dms_assert(m_Count != -1);
 
 		auto seq = mutable_array_cast<E>(*m_ResPtr)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
-		E elem;
+		auto elem = E();
 
 		dms_assert(m_Offset           <= seq.size());
 		dms_assert(m_Count            <= seq.size());

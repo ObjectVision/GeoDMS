@@ -87,9 +87,9 @@ void RectOper(TGridBase<R, Ux> dst, TGridBase<const T, Ux> src, Point<signed_typ
 	Ux nrCols = _Width (overlapRect); dms_assert(nrCols);
 	Ux nrRows = _Height(overlapRect); dms_assert(nrRows);
 
-	typename ptr_type<const T>::type srcPtr = src.begin() + overlapRect.first.Row() * srcWidth + overlapRect.first.Col();
+	typename ptr_type<const T>::type srcPtr = src.begin() + SizeT(overlapRect.first.Row()) * srcWidth + overlapRect.first.Col();
 	overlapRect -= displacement;
-	typename ptr_type<R>::type dstPtr = dst.begin() + overlapRect.first.Row() * dstWidth + overlapRect.first.Col();
+	typename ptr_type<R>::type dstPtr = dst.begin() + SizeT(overlapRect.first.Row() * dstWidth) + overlapRect.first.Col();
 
 	for (Ux r=0; r!=nrRows; ++r, srcPtr += srcWidth, dstPtr += dstWidth)
 		rowOper(srcPtr, srcPtr+nrCols, dstPtr);

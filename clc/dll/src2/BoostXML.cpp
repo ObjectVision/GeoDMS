@@ -78,17 +78,9 @@ struct Entity; // forward decl
 
 struct Element : SharedBase
 {
-	Element()
-		: m_EntityIndex(UNDEFINED_VALUE(entity_index))
-	{}
+	Element() {}
 
-	Element(
-//		TreeItemDualRef& resultHolder, 
-		Entity* parent, 
-//		TreeItem* container, 
-		entity_index entityIndex,
-		TreeItem* item
-		)
+	Element(Entity* parent, entity_index entityIndex, TreeItem* item)
 		:	m_Parent(parent)
 		,	m_EntityIndex(entityIndex)
 	{
@@ -102,8 +94,8 @@ struct Element : SharedBase
 
 	SharedStr GetName() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(m_DmsFullName.begin()+1, m_DmsFullName.send()); }
 
-	Entity*      m_Parent;
-	entity_index m_EntityIndex;
+	Entity*      m_Parent = nullptr;
+	entity_index m_EntityIndex = UNDEFINED_VALUE(entity_index);
 	SharedStr    m_DmsFullName;
 };
 

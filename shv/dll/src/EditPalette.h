@@ -170,7 +170,7 @@ private:
 
 
 	mutable ValueCountPairContainer     m_SortedUniqueValueCache;
-	mutable UInt32                      m_NrValues;
+	mutable UInt32                      m_NrValues = 0;
 };
 
 //----------------------------------------------------------------------

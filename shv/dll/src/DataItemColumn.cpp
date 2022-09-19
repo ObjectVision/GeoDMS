@@ -135,14 +135,15 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
 
 		case AggrMethod::modus:
-			if (vc->IsSigned() || !vc->IsIntegral())
+			if (!vc->IsIntegral())
 				return false;
+			[[fallthrough]];
 		case AggrMethod::sum:
 		case AggrMethod::mean:
 		case AggrMethod::sd:
 			if (!vc->IsNumeric())
 				return false;
-
+			[[fallthrough]];
 		case AggrMethod::min:
 		case AggrMethod::max:
 		case AggrMethod::asItemList:

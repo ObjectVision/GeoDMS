@@ -225,6 +225,9 @@ void ThemeSet::SetTheme(Theme* theme, TreeItem* context)
 	dms_assert(aNr < AN_AspectCount);
 	dms_assert((1 << aNr) & m_PossibleAspects); // PRECONDITION
 
+	if (aNr < 0 || aNr > AN_AspectCount)
+		return;
+
 	m_Themes[aNr] = theme->shared_from_this();
 
 	if (context)

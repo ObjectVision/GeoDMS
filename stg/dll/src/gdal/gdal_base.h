@@ -108,12 +108,12 @@ struct CplString
 
 struct FieldInfo
 {
-	bool	    isWritten;   // don't write DataItems twice
-	bool	    isGeometry;  // DataItem is geometry field
+	int         field_index   = -1; // cache for usage in inner-loop
+	bool	    isWritten :1  = false;   // don't write DataItems twice
+	bool	    isGeometry:1  = false;  // DataItem is geometry field
+	bool        doWrite   :1  = false;     // user issued interest for writing this Dataitem
 	SharedStr   name;        // name of DataItem
 	SharedStr launderedName; // gdal could launder the name of DataItem
-	bool        doWrite;     // user issued interest for writing this Dataitem
-	int         field_index = -1; // cache for usage in inner-loop
 
 	SharedDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
 };
