@@ -34,18 +34,11 @@ guidelines (these additional requests are not limiting your rights under the ter
 - An appropriate copyright notice that an interactive program/web-site
   containing or using the GeoDMS in a start splash-screen/page and/or about-box (if any), is:
   "This software/web-site is using the Geographic Data & Model Server (GeoDMS)"
-- Before distributing the GeoDMS library and/or work containing it to others, 
+- Before distributing the GeoDMS library, and/or work containing it, to others, 
   please check if any newer version has been made available and/or refer to the most up to date github repository.
 - We would like to be notified when you make any modification to the source code 
   and would like to receive your modifications as pull-request
-- In case of bug-fixes and small additions, we might or might not use the contributors
-  improvements in a possible future version of the DMS without notification of
-  the contributors modification, however when the contributor distributes the DMS source code 
-  with its modifications directly, it should give a prominent notification as described in article 2a of the license.
-- In case of larger additions, the contributor will be attributed as the author of these additions
-  and a copyright notice will remain in the contributed source code if this contribution is included in our distribution. 
-- When you have made a product that uses the GeoDMS, you can distribute it under
-  the same GPL License conditions. We would like to hear from you and 
+- When you have made a product that uses the GeoDMS, we would like to hear from you and 
   receive a copy of your product including its source code. 
   You will remain the author of this product, and any major modifications to the GeoDMS; 
   Object Vision will remain the author of the included GeoDMS source code.
