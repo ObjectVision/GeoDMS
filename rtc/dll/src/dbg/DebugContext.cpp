@@ -66,9 +66,6 @@ void ProgressMsg(CharPtr msg)
 	dms_assert(IsMainThread());
 	if (s_clientFunc)
 		(*s_clientFunc)(s_cientHandle, msg);
-#if defined(MG_DEBUG)
-	reportD(ST_MinorTrace, msg);
-#endif
 }
 
 /********** AbstrContextHandle **********/
