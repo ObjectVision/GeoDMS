@@ -469,6 +469,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	XML_Table xmlTable(*xmlOutStrPtr);
 	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
 
+#if defined(MG_DEBUG)
 	if (!self->InTemplate())
 	{
 		UInt32 nc = DMS_TreeItem_GetProgressState(self);
@@ -480,6 +481,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			).c_str()
 		);
 	}
+#endif
+
 	if (self->IsFailed())
 	{
 		xmlTable.NameValueRow("FailState", FailStateName(self->GetFailType()));
