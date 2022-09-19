@@ -35,6 +35,7 @@ class GuiIcon
 {
 public:
     GuiIcon(std::string relativeIconPath);
+    ~GuiIcon();
     GLuint GetImage();
     int GetWidth();
     int GetHeight();

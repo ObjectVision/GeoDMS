@@ -17,6 +17,12 @@ GuiIcon::GuiIcon(std::string relativeIconPath)
     LoadTextureFromFile((exePath +relativeIconPath).c_str());
 }
 
+GuiIcon::~GuiIcon()
+{
+    if (m_Image)
+        glDeleteTextures(1, &m_Image);
+}
+
 GLuint GuiIcon::GetImage()
 {
     return m_Image;
