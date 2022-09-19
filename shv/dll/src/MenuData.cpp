@@ -58,7 +58,7 @@ MenuItem::MenuItem(WeakStr caption, OwningPtr<AbstrCmd> cmd, GraphicObject* host
 {
 }
 
-MenuItem::MenuItem(MenuItem&& rhs)
+MenuItem::MenuItem(MenuItem&& rhs) noexcept
 	:	m_Caption(std::move(rhs.m_Caption))
 	,	m_Cmd(std::move(rhs.m_Cmd))
 	,	m_Host(std::move(rhs.m_Host))
