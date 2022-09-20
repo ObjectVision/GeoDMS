@@ -578,7 +578,7 @@ namespace Explain { // local defs
 			}
 			catch (...) 
 			{
-				m_LastError = catchException(true);
+				m_LastErrorPtr = catchException(true);
 			}
 			return true; // don't come back
 		}
@@ -609,10 +609,10 @@ namespace Explain { // local defs
 			}
 			GetSupplDescr(studyObject);
 
-			if (!IsDefaultValue(m_LastError))
+			if (m_LastErrorPtr && !IsDefaultValue(*m_LastErrorPtr))
 			{
 				NewLine(m_OutStream);
-				m_OutStream << m_LastError;
+				m_OutStream << *m_LastErrorPtr;
 			}
 		}
 
@@ -651,7 +651,7 @@ namespace Explain { // local defs
 		}
 		OutStreamBase&  m_OutStream;
 		bool            m_bShowHidden;;
-		ErrMsg          m_LastError;
+		ErrMsgPtr       m_LastErrorPtr;
 	};
 } // end of anonymous namespace
 
@@ -709,7 +709,8 @@ TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* s
 		}
 		catch (...) {
 			auto result = catchException(true);
-			*xmlOutStrPtr << "Error occured during EplainAttrValue: " << result;
+			if (result)
+				*xmlOutStrPtr << "Error occured during EplainAttrValue: " << *result;
 		}
 
 	DMS_CALL_END
@@ -737,7 +738,8 @@ TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* s
 		}
 		catch (...) {
 			auto result = catchException(true);
-			*xmlOutStrPtr << "Error occured during EplainGridValue: " << result;
+			if (result)	
+				*xmlOutStrPtr << "Error occured during EplainGridValue: " << *result;
 		}
 
 	DMS_CALL_END

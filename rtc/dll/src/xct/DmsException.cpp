@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/SeverityType.h"
 #include "geo/IterRangeFuncs.h"
 #include "mci/Object.h"
+#include "ptr/PersistentSharedObj.h"
 #include "ser/DebugOutStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
@@ -53,19 +54,19 @@ granted by an additional written contract for support, assistance and/or develop
 
 THREAD_LOCAL UInt32    g_DumpContextCount = 0;
 
-THREAD_LOCAL ErrMsg g_TopmostUnrollingErrMsg;
-ErrMsg g_LastHandledErrMsg;
+THREAD_LOCAL ErrMsgPtr g_TopmostUnrollingErrMsgPtr;
+ErrMsgPtr g_LastHandledErrMsgPtr;
 
-ErrMsg SetUnrollingErrMsg(ErrMsg msg)
+ErrMsgPtr SetUnrollingErrMsgPtr(ErrMsgPtr msg)
 {
-	std::swap( g_TopmostUnrollingErrMsg, msg );
+	std::swap( g_TopmostUnrollingErrMsgPtr, msg );
 	return msg;
 }
 
-void SetLastHandledErrMsg(const ErrMsg& msg)
+void SetLastHandledErrMsg(ErrMsgPtr msg)
 {
 	if (IsMainThread())
-		g_LastHandledErrMsg = msg;
+		g_LastHandledErrMsgPtr = msg;
 }
 
 const UInt32 g_MaxNrContexts = 10;
@@ -139,7 +140,7 @@ RTC_CALL bool HasItemName(WeakStr msg)
 
 #include "utl/SourceLocation.h"
 
-ErrMsg::ErrMsg(WeakStr msg, const Object* ptr)
+ErrMsg::ErrMsg(WeakStr msg, const PersistentSharedObj* ptr)
 	:	m_Why(msg)
 {
 	TellWhere(ptr);
@@ -161,16 +162,23 @@ void ErrMsg::TellExtra(CharPtrRange msg)
 	m_Why += msg;
 }
 
-void ErrMsg::TellWhere(const Object* ptr)
+void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 {
-	if (m_Location)
+	leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
+	tellWhere(ptr);
+}
+
+void ErrMsg::tellWhere(const PersistentSharedObj* ptr)
+{
+	if (m_Where)
 		return;
 
 	if (!ptr)
 		return;
 
-	m_Location = ptr->GetLocation();
-	if (!m_Location)
+	m_Where = ptr;
+	auto location = ptr->GetLocation();
+	if (!location)
 		return;
 
 	auto pso = dynamic_cast<const PersistentSharedObj*>(ptr);
@@ -182,17 +190,46 @@ void ErrMsg::TellWhere(const Object* ptr)
 	dms_assert(m_Class);
 }
 
+void ErrMsg::forgetWhere(const PersistentSharedObj* ptr)
+{
+	if (m_Where == ptr)
+		m_Where = nullptr;
+}
+
+SharedPtr<const PersistentSharedObj> ErrMsg::GetWhere() const
+{
+	leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
+
+	return m_Where;
+}
+
+SharedPtr<const SourceLocation> ErrMsg::GetLocation() const
+{ 
+	auto where = GetWhere();
+	if (!where)
+		return {};
+	return where->GetLocation();
+}
+
 SharedStr ErrMsg::GetSourceName() const
 {
-	if (!m_Location)
+	auto where = GetWhere();
+	if (!where)
 		return {};
-	return m_Location->GetSourceName(m_FullName, m_Class);
+
+	auto location = GetLocation();
+	if (!location)
+		return where->GetSourceName();
+
+	return location->GetSourceName(m_FullName, m_Class);
 }
 
 SharedStr ErrMsg::GetAsText() const
 {
 	dms_assert(!HasItemName(m_Why));
-	if (m_Location.is_null())
+
+	auto location = GetLocation();
+	if (!location)
 		return m_Why;
 	return mgFormat2SharedStr("%s\n%s", m_Why, GetSourceName());
 }
@@ -202,23 +239,24 @@ OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 	dms_assert(!HasItemName(obj.m_Why));
 	osb.WriteValue(obj.m_Why.c_str());
 	osb.WriteValue("\n");
-	if (obj.m_Location)
+	auto where = obj.GetWhere();
+	if (where)
 	{
-		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + obj.GetFullName()).c_str());
+		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + where->GetFullName()).c_str());
 		osb.WriteValue(obj.GetSourceName().c_str());
 	}
 	return osb;
 }
 
 
-DmsException::DmsException(const ErrMsg& msg)
-	:	ErrMsg(msg)
-	,	m_PrevUnrollingErrMsg(SetUnrollingErrMsg(msg))
+DmsException::DmsException(ErrMsgPtr msg)
+	:	ErrMsgPtr(msg)
+	,	m_PrevUnrollingErrMsgPtr(SetUnrollingErrMsgPtr(msg))
 {
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
 
-	if (ach && !HasContext(msg.Why()))
-		TellExtra(GenerateContext().c_str()); // TODO: straighten out
+	if (ach && !HasContext(msg->Why()))
+		msg->TellExtra(GenerateContext().c_str()); // TODO: straighten out
 
 	dms_check_not_debugonly; 
 }
@@ -226,7 +264,7 @@ DmsException::DmsException(const ErrMsg& msg)
 DmsException::~DmsException()
 {
 	SetLastHandledErrMsg(*this);
-	SetUnrollingErrMsg(m_PrevUnrollingErrMsg);
+	SetUnrollingErrMsgPtr(m_PrevUnrollingErrMsgPtr);
 }
 
 #if defined(MG_DEBUG)
@@ -240,7 +278,7 @@ static int sd_ThrowItemErrorCount = 0;
 #endif
 
 
-[[noreturn]] RTC_CALL void DmsException::throwMsg(const ErrMsg& msg)
+[[noreturn]] RTC_CALL void DmsException::throwMsg(ErrMsgPtr msg)
 {
 #if defined(MG_COUNT_EXCEPTIONS)
 	sd_ThrowItemErrorCount++;
@@ -252,7 +290,7 @@ static int sd_ThrowItemErrorCount = 0;
 
 [[noreturn]] RTC_CALL void DmsException::throwMsgD(WeakStr str)
 {
-	throwMsg(ErrMsg{ str });
+	throwMsg(std::make_shared<ErrMsg>(str ));
 }
 
 [[noreturn]] RTC_CALL void DmsException::throwMsgD(CharPtr msg)
@@ -261,7 +299,7 @@ static int sd_ThrowItemErrorCount = 0;
 }
 
 namespace {
-	SharedStr memoryAllocFailurewMsg("memory allocation failed, no recovery possible"); // keep it simple, we cannot affort much anymore
+	SharedStr memoryAllocFailureMsg("memory allocation failed, no recovery possible"); // keep it simple, we cannot affort much anymore
 }
 
 //----------------------------------------------------------------------
@@ -269,7 +307,7 @@ namespace {
 //----------------------------------------------------------------------
 
 MemoryAllocFailure::MemoryAllocFailure()
-	: DmsException(ErrMsg{ memoryAllocFailurewMsg })
+	: DmsException(std::make_shared<ErrMsg>(memoryAllocFailureMsg))
 {}
 
 //----------------------------------------------------------------------
@@ -350,7 +388,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	DmsException::throwMsgF("Error: %s", msg);
 }
 
-[[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const Object* obj, CharPtr method)
+[[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const PersistentSharedObj* obj, CharPtr method)
 {
 	obj->throwItemErrorF("Illegal Abstract %s called at %s", method, ErrLoc(sourceFile, line, true));
 }
@@ -407,7 +445,7 @@ TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc)
 // should be called from a catch (...) block
 //----------------------------------------------------------------------
 
-ErrMsg catchExceptionImpl(bool rethrowCancelation)
+ErrMsgPtr catchExceptionImpl(bool rethrowCancelation)
 {
 	try {
  		throw; // dispatch caught exception based on its type
@@ -420,28 +458,28 @@ ErrMsg catchExceptionImpl(bool rethrowCancelation)
 	{
 		if (rethrowCancelation)
 			throw;
-		return ErrMsg{ SharedStr("Task cancelation")};
+		return std::make_shared<ErrMsg>( SharedStr("Task cancelation") );
 	}
 	catch (const std::exception& x)
 	{
-		return ErrMsg{ SharedStr(x.what()) };
+		return std::make_shared<ErrMsg>( SharedStr(x.what()) );
 	}
 	catch (...)
 	{
-		return ErrMsg{ SharedStr("Unknown Error") };
+		return std::make_shared<ErrMsg>(SharedStr("Unknown Error") );
 	}
 }
 
-RTC_CALL ErrMsg catchException(bool rethrowCancelation)
+RTC_CALL ErrMsgPtr catchException(bool rethrowCancelation)
 {
 	auto result = catchExceptionImpl(rethrowCancelation);
 	return result;
 }
 
-RTC_CALL ErrMsg catchAndReportException()
+RTC_CALL ErrMsgPtr catchAndReportException()
 {
 	auto result = catchException(false);
-	reportD(ST_Warning, "\n", result.GetAsText().c_str());
+	reportD(ST_Warning, "\n", result->GetAsText().c_str());
 	return result;
 }
 
@@ -450,9 +488,9 @@ RTC_CALL void catchAndProcessException()
 	if (s_cppTrFunc)
 	{
 		dms_assert(IsMainThread());
-		static ErrMsg msg;
-		msg = catchException(false);
-		s_cppTrFunc(msg.Why().c_str()); // may throw a Borland Structured Exception
+		static ErrMsgPtr msgPtr; // static to avoid the need to destroy when a Structured Exception will be thrown.
+		msgPtr = catchException(false);
+		s_cppTrFunc(msgPtr->Why().c_str()); // may throw a Borland Structured Exception
 	}
 }
 
@@ -467,7 +505,7 @@ SharedStr GetLastErrorMsgStr()
 	if (!IsMainThread())
 		return {};
 
-	return g_LastHandledErrMsg.Why();
+	return g_LastHandledErrMsgPtr->Why();
 }
 
 extern "C" RTC_CALL CharPtr DMS_CONV DMS_GetLastErrorMsg()
@@ -475,13 +513,13 @@ extern "C" RTC_CALL CharPtr DMS_CONV DMS_GetLastErrorMsg()
 	return GetLastErrorMsgStr().c_str();
 }
 
-ErrMsg GetUnrollingErrorMsg()
+ErrMsgPtr GetUnrollingErrorMsgPtr()
 {
 	if (std::uncaught_exceptions() > 0)
 	{
-		return g_TopmostUnrollingErrMsg;
+		return g_TopmostUnrollingErrMsgPtr;
 	}
-	return ErrMsg("No exception was thrown during the last operation");
+	return {};
 }
 
 //----------------------------------------------------------------------

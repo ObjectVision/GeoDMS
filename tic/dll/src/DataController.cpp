@@ -133,7 +133,7 @@ void TreeItemDualRef::DoInvalidate() const
 	Actor::DoInvalidate();
 }
 
-void TreeItemDualRef::DoFail(ErrMsg msg, FailType ft) const
+void TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 	if (IsNew())
 		GetNew()->DoFail(msg, ft);

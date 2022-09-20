@@ -1304,7 +1304,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_ParseResult_GetFailReasonAsIString(AbstrCalc
 
 		MG_PRECONDITION(self);
 	
-		return IString::Create(self->GetHolder()->GetFailReason().Why());
+		return IString::Create(self->GetHolder()->GetFailReason()->Why());
 
 	DMS_CALL_END
 	return IString::Create(GetLastErrorMsgStr());

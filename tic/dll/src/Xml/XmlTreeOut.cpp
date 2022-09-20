@@ -92,7 +92,7 @@ SharedStr GetStrRange(const AbstrUnit* unit)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 unbounded:
 	return SharedStr("unbounded");
@@ -125,7 +125,7 @@ SharedStr GetTileStrRange(const AbstrUnit* unit, tile_id t)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 unbounded:
 	return SharedStr("unbounded");
@@ -143,7 +143,7 @@ SharedStr GetStrCount(const AbstrUnit* unit)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 }
 
@@ -158,7 +158,7 @@ SharedStr GetTileStrCount(const AbstrUnit* unit, tile_id t)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 }
 
@@ -197,7 +197,8 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			catch (...)
 			{
 				auto err = catchException(true);
-				xmlTable.NameErrRow(METRIC_NAME, err);
+				if (err)
+				xmlTable.NameErrRow(METRIC_NAME, *err);
 			}
 		}
 	}
@@ -482,8 +483,13 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	}
 	if (self->IsFailed())
 	{
-		xmlTable.NameValueRow("FailState", FailStateName(self->GetFailType()));
-		xmlTable.NameErrRow("FailReason", self->GetFailReason());
+		auto ft = self->GetFailType();
+		auto fr = self->GetFailReason();
+		if (fr)
+		{
+			xmlTable.NameValueRow("FailState", FailStateName(ft));
+			xmlTable.NameErrRow("FailReason", *fr);
+		}
 	}
 	if (self->InTemplate())
 	{
@@ -661,7 +667,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 		} catch (...)
 		{
 			auto err = catchException(true);
-			*xmlOutStrPtr << err;
+			if (!err)
+				*xmlOutStrPtr << "unrecognized error";
+			else
+				*xmlOutStrPtr << *err;
 		}
 
 	DMS_CALL_END_NOTHROW
@@ -690,7 +699,8 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 			if (showAll)
 			{
 				auto err = catchException(true);
-				xmlTable.NameErrRow(pd->GetName().c_str(), err);
+				if (err)
+					xmlTable.NameErrRow(pd->GetName().c_str(), *err);
 			}
 			canBeIndirect = false;
 		}
@@ -724,7 +734,8 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 				catch (...)
 				{
 					auto err = catchException(true);
-					xmlTable.NameErrRow("EvaluationErr", err);
+					if (err)
+						xmlTable.NameErrRow("EvaluationErr", *err);
 					break;
 				}
 			}

@@ -114,7 +114,10 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 		return pendingStr;
 	}
 returnFail:
-	return adi->GetFailReason().Why();
+	auto fr = adi->GetFailReason();
+	if (!fr)
+		return {};
+	return fr->Why();
 }
 
 SharedStr DisplayValue(const AbstrUnit* au, const AbstrValue* valuePtr, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock)

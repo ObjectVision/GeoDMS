@@ -140,7 +140,7 @@ template<typename ...Args>
 
 [[noreturn]] RTC_CALL void throwPreconditionFailed(CharPtr sourceFile, int line, CharPtr msg);
 [[noreturn]] RTC_CALL void throwCheckFailed       (CharPtr sourceFile, int line, CharPtr msgFormat);
-[[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, const Object* obj, CharPtr method);
+[[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, const PersistentSharedObj* obj, CharPtr method);
 [[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, CharPtr method);
 [[noreturn]] RTC_CALL void throwNYI               (CharPtr sourceFile, int line, CharPtr method);
 

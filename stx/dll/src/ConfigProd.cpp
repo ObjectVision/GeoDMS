@@ -596,5 +596,5 @@ void ConfigProd::throwSemanticError(CharPtr msg)
 	while (!curr && i--)
 		curr = m_stackContexts[i];
 
-	PersistentSharedObj::throwItemErrorF(curr, "Semantic error %s", msg);
+	Object::throwItemErrorF(curr, "Semantic error %s", msg);
 }

@@ -193,7 +193,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, UnifyMode um, Sh
 		);
 
 	if (um & UM_Throw)
-		throw DmsException(ErrMsg{msg});
+		throwItemError(msg);
 
 	dms_assert(resultMsg);
 	*resultMsg = msg;
@@ -448,7 +448,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 }
 

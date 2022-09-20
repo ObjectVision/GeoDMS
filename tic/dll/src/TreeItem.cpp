@@ -2524,7 +2524,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 			catch (...)
 			{
 				auto err = catchException(false);
-				Fail(err.Why(), FR_Validate);
+				DoFail(err, FR_Validate);
 				return AVS_Ready;
 			}
 		}
@@ -2878,7 +2878,7 @@ garbage_t TreeItem::DropValue()
 	return garbageCan;
 }
 
-TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsg& failReason, FailType& ft) const // noexcept
+TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const // noexcept
 {
 	dms_assert(IsMainThread());
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
@@ -2937,10 +2937,10 @@ SharedStr TreeItem::GetSourceName() const
 	);
 }
 
-void TreeItem::DoFail(ErrMsg msg, FailType ft) const
+void TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 	if (!IsCacheItem())
-		msg.TellWhere(this);
+		msg->TellWhere(this);
 
 	Actor::DoFail(msg, ft);
 
@@ -3008,7 +3008,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 
 		if (!WasFailed()) {
 			auto err = catchException(true);
-			err.TellExtraF("while reading data from %s"
+			err->TellExtraF("while reading data from %s"
 			,	DMS_TreeItem_GetAssociatedFilename(this)
 			);
 			DoFail(err, FR_Data);

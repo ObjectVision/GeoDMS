@@ -560,7 +560,7 @@ void Actor::UpdateSupplMetaInfo() const
 
 #include "act/ActorVisitor.h"
 
-TimeStamp Actor::DetermineLastSupplierChange(ErrMsg& failReason, FailType& failType) const //noexcept
+TimeStamp Actor::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& failType) const //noexcept
 {
 	// ===== collect change information from suppliers
 
@@ -710,7 +710,7 @@ void Actor::DetermineState() const
 	m_LastGetStateTS = UpdateMarker::LastTS(); // avoid missing WasFailed(US_Determine) within DetermineLastSupplierChange();
 
 retry_from_here_after_invalidation:
-	ErrMsg failReason;
+	ErrMsgPtr failReason;
 	FailType failType = FR_None;
 	TimeStamp lastSupplierChange = UpdateMarker::tsBereshit;
 	{	
@@ -740,7 +740,10 @@ retry_from_here_after_invalidation:
 	}
 	dms_assert(m_LastChangeTS);
 	if (failType)
+	{
+		dms_assert(failReason);
 		DoFail(failReason, failType);
+	}
 }
 
 #if defined(MG_DEBUG_DATA)
@@ -780,11 +783,8 @@ extern "C" RTC_CALL void DMS_CONV DMS_Actor_Resume()
 //----------------------------------------------------------------------
 // FailType
 //----------------------------------------------------------------------
-
-namespace {
-	leveled_critical_section sc_FailSection(item_level_type(0), ord_level_type::FailSection, "FailSection");
-	static_quick_assoc<const Actor*, ErrMsg> s_ActorFailReasonAssoc;
-}
+leveled_critical_section sc_FailSection(item_level_type(0), ord_level_type::FailSection, "FailSection");
+static_quick_assoc<const Actor*, ErrMsgPtr> s_ActorFailReasonAssoc;
 
 void Actor::ClearFail() const 
 {
@@ -792,21 +792,22 @@ void Actor::ClearFail() const
 	{
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 
+		auto errMsgPtr = s_ActorFailReasonAssoc.GetExisting(this);
+		errMsgPtr->forgetWhere(this);
 		s_ActorFailReasonAssoc.eraseExisting(this);
 		m_State.ClearFailed();
 	}
 }
 
-ErrMsg Actor::GetFailReason() const
+ErrMsgPtr Actor::GetFailReason() const
 {
 	dms_assert(WasFailed()); // Catch in debug
 
 	leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
-	static ErrMsg nkfMsg("No Known Failure");
-	return s_ActorFailReasonAssoc.GetExistingOrDefault(this, nkfMsg);
+	return s_ActorFailReasonAssoc.GetExistingOrDefault(this, ErrMsgPtr());
 }
 
-void Actor::DoFail(ErrMsg msg, FailType ft) const
+void Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 	dms_assert(ft != FR_None);
 	SupplInterestListPtr supplInterestWaste;
@@ -816,9 +817,12 @@ void Actor::DoFail(ErrMsg msg, FailType ft) const
 		if (GetFailType() && GetFailType() <= ft)
 			return;
 
-		dms_assert(msg.Why().IsDefined() && !msg.Why().empty());
+		dms_assert(msg->Why().IsDefined() && !msg->Why().empty());
+
+		msg->tellWhere(this);
 		s_ActorFailReasonAssoc.assoc(this, msg);
 		m_State.SetFailure(ft);
+
 
 		// data generation is no longer needed
 		if (ft <= FR_Data)
@@ -831,10 +835,10 @@ void Actor::DoFail(ErrMsg msg, FailType ft) const
 void Actor::ThrowFail() const
 {
 	dms_assert(WasFailed());
-	throwItemError(GetFailReason());
+	DmsException::throwMsg(GetFailReason());
 }
 
-void Actor::ThrowFail(const ErrMsg& why, FailType ft) const
+void Actor::ThrowFail(ErrMsgPtr why, FailType ft) const
 {
 	DoFail(why, ft);
 	ThrowFail();
@@ -842,7 +846,7 @@ void Actor::ThrowFail(const ErrMsg& why, FailType ft) const
 
 void Actor::ThrowFail(SharedStr str, FailType ft) const
 {
-	ThrowFail(ErrMsg{ str, this }, ft);
+	ThrowFail(std::make_shared<ErrMsg>( str, this ), ft);
 }
 
 void Actor::ThrowFail(CharPtr str, FailType ft) const
@@ -873,7 +877,7 @@ void Actor::Fail(WeakStr why, FailType ft) const
 	dms_assert((ft & AF_FailedMask) == ft); // Syntax
 	dms_assert(ft);                 // PRE
 
-	DoFail(ErrMsg{ why, this }, ft);
+	DoFail(std::make_shared<ErrMsg>( why, this ), ft);
 
 	dms_assert(WasFailed()); // follows from PRE2 and m_State.SetBits
 }
@@ -967,7 +971,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 	}
 	catch (const DmsException& x)
 	{
-		Fail(x.AsErrMsg().Why(), FR_MetaInfo);
+		DoFail(x.AsErrMsg(), FR_MetaInfo);
 		throw;
 	}
 

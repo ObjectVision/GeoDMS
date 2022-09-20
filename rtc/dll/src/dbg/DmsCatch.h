@@ -46,8 +46,8 @@ granted by an additional written contract for support, assistance and/or develop
 // Exceptions
 //----------------------------------------------------------------------
 
-RTC_CALL ErrMsg catchException(bool rethrowCancelation);
-RTC_CALL ErrMsg catchAndReportException();
+RTC_CALL ErrMsgPtr catchException(bool rethrowCancelation);
+RTC_CALL ErrMsgPtr catchAndReportException();
 RTC_CALL void catchAndProcessException();
 
 

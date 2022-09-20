@@ -84,7 +84,7 @@ protected:
 	virtual void IncDataInterestCount() const;
 	garbage_t DecDataInterestCount() const;
 	void DoInvalidate () const override;
-	void DoFail(ErrMsg msg, FailType ft) const override;
+	void DoFail(ErrMsgPtr msg, FailType ft) const override;
 
 	friend struct data_swapper;
 	friend struct InterestReporter;

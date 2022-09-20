@@ -52,6 +52,15 @@ public:
 	RTC_CALL SharedStr GetRelativeName(const PersistentSharedObj* context) const;
 	RTC_CALL SharedStr GetFindableName(const PersistentSharedObj* subItem) const;
 
+	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const { Object::throwItemError(this, msgStr); }
+	[[noreturn]] void throwItemError(CharPtr msg) const { Object::throwItemError(this, SharedStr(msg)); }
+
+	template<typename ...Args>
+	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {
+		Object::throwItemErrorF(this, msg, std::forward<Args>(args)...);
+	}
+
+
 	DECL_ABSTR(RTC_CALL, Class);
 };
 

@@ -746,7 +746,10 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 		auto theme = GetEnabledTheme(AN_LabelText);
 		dms_assert(theme);
 		if (theme->IsFailed())
-			return TextInfo{ theme->GetFailReason().GetAsText(), true };
+		{
+			auto fr = theme->GetFailReason(); if (!fr) return TextInfo({}, true);
+			return TextInfo{ fr->GetAsText(), true };
+		}
 		GuiReadLock dummy;
 		return theme->GetValueGetter()->GetTextInfo(recNo, dummy);
 	}

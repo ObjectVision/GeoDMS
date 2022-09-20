@@ -39,14 +39,18 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct FormattedOutStream;
 struct OutStreamBase;
+struct Actor;
+class Class;
 
 struct ErrMsg {
 
 	ErrMsg() {}
-	RTC_CALL explicit ErrMsg(WeakStr msg, const Object* ptr = nullptr);
-	explicit ErrMsg(CharPtr msg, const Object* ptr = nullptr) : ErrMsg(SharedStr(msg), ptr) {}
+	RTC_CALL explicit ErrMsg(WeakStr msg, const PersistentSharedObj* ptr = nullptr);
+	explicit ErrMsg(CharPtr msg, const PersistentSharedObj* ptr = nullptr) : ErrMsg(SharedStr(msg), ptr) {}
 
-	RTC_CALL void TellWhere(const Object* ptr);
+	RTC_CALL void TellWhere(const PersistentSharedObj* ptr);
+	RTC_CALL void tellWhere(const PersistentSharedObj* ptr);
+	RTC_CALL void forgetWhere(const PersistentSharedObj* ptr);
 
 	RTC_CALL void TellExtra(CharPtr msg);
 	RTC_CALL void TellExtra(CharPtrRange msg);
@@ -60,18 +64,27 @@ struct ErrMsg {
 	const SharedStr& Why() const { return m_Why;  }
 	RTC_CALL SharedStr GetAsText() const;
 
+	SharedPtr<const PersistentSharedObj> GetWhere() const;
+	SharedPtr<const SourceLocation>      GetLocation() const;
+
 private:
 	SharedStr GetFullName() const { return m_FullName; }
 	SharedStr GetSourceName() const;
 
 	SharedStr m_Why, m_FullName;
 	WeakPtr<const Class> m_Class;
-	SharedPtr<const SourceLocation> m_Location;
+	const PersistentSharedObj* m_Where = nullptr;
+//	SharedPtr<const SourceLocation> m_Location;
 
 	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& value);
 	friend RTC_CALL OutStreamBase&      operator <<(OutStreamBase&      str, const ErrMsg& value);
-	friend bool IsDefaultValue(const ErrMsg& msg) { return msg.m_Why.empty() && msg.m_Location.is_null(); }
+	friend bool IsDefaultValue(const ErrMsg& msg) { return msg.m_Why.empty() && msg.m_Where == nullptr; }
 };
+
+extern leveled_critical_section sc_FailSection;
+
+using ErrMsgPtr = std::shared_ptr<ErrMsg>;
+
 
 #endif // __RTC_XCT_ERRMSG_H
 

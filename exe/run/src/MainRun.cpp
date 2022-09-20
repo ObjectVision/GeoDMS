@@ -113,7 +113,9 @@ int main2(int argc, char** argv)
 		DMS_TreeItem_Update(item);
 		if (item->IsFailed())
 		{
-			std::cerr << std::endl << "Failure: " << item->GetFailReason().GetAsText();
+			auto fr = item->GetFailReason();
+			if (fr)
+				std::cerr << std::endl << "Failure: " << fr->GetAsText();
 			result = 1;
 		}
 

@@ -218,7 +218,7 @@ LispRef CreateLispSign(const TreeItem* self)
 	}
 	catch (const DmsException& x)
 	{
-		SharedStr msg = x.AsErrMsg().Why();
+		SharedStr msg = x.AsErrMsg()->Why();
 		return List2<LispRef>(LispRef("Error"), LispRef(msg.begin(), msg.send()));
 	}
 }
@@ -241,7 +241,7 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 	}
 	catch (const DmsException& x)
 	{
-		SharedStr msg = x.AsErrMsg().Why();
+		SharedStr msg = x.AsErrMsg()->Why();
 		result = LispRef(LispRef(msg.begin(), msg.send()), result);
 		result = LispRef(LispRef(GetTokenID("Error")), result); // TOOD G8: move to token::
 	};

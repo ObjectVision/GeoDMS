@@ -808,7 +808,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFailReasonAsIString(const TreeIt
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetFailReason");
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 		
-		return IString::Create(self->GetFailReason().Why());
+		return IString::Create(self->GetFailReason()->Why());
 
 	DMS_CALL_END
 	return nullptr;
