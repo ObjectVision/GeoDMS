@@ -1039,7 +1039,7 @@ struct InterestReporter : DebugReporter
 
 #if defined(MG_DEBUG_DCDATA)
 		auto dc = dynamic_cast<const DataController*>(focusItem);
-		reportF(SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
+		reportF(ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
 			focusItem->GetInterestCount(),
 			YesNo(ti ? ti->GetKeepDataState() : false),
 			YesNo(focusItem->DoesHaveSupplInterest()),
@@ -1203,10 +1203,10 @@ struct InterestReporter : DebugReporter
 				reducedInterestCount += ii.second;
 			}
 
-		reportF(SeverityTypeID::ST_MajorTrace, "#Items with interest: %d", DemandManagement::sd_InterestSet.size());
-		reportF(SeverityTypeID::ST_MajorTrace, "sum #Interest:        %d", totalInterestCount);
-		reportF(SeverityTypeID::ST_MajorTrace, "#reduced interest:    %d", reducedInterest);
-		reportF(SeverityTypeID::ST_MajorTrace, "sum reduced #Interest:%d", reducedInterestCount);
+		reportF(ST_MajorTrace, "#Items with interest: %d", DemandManagement::sd_InterestSet.size());
+		reportF(ST_MajorTrace, "sum #Interest:        %d", totalInterestCount);
+		reportF(ST_MajorTrace, "#reduced interest:    %d", reducedInterest);
+		reportF(ST_MajorTrace, "sum reduced #Interest:%d", reducedInterestCount);
 
 /* Too much, leave it for now
 * 

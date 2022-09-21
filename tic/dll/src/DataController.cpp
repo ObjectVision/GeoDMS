@@ -209,8 +209,8 @@ namespace {
 	{
 
 #if defined(MG_DEBUG_LISP_TREE)
-		reportD(SeverityTypeID::ST_MinorTrace, "===CreateDC===");
-		reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
+		reportD(ST_MinorTrace, "===CreateDC===");
+		reportD(ST_MinorTrace, AsString(keyExpr).c_str());
 		dms_assert(IsExpr(keyExpr));
 #endif
 
@@ -224,7 +224,7 @@ namespace {
 			{
 				head = keyExpr.Right().Left();
 #if defined(MG_DEBUG_LISP_TREE)
-				reportF(SeverityTypeID::ST_MinorTrace, "head=%s", AsString(head).c_str());
+				reportF(ST_MinorTrace, "head=%s", AsString(head).c_str());
 #endif
 				dms_assert(head.IsSymb());
 
@@ -333,8 +333,8 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 		return nullptr;
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportD(SeverityTypeID::ST_MinorTrace, "===GetDataController===");
-	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
+	reportD(ST_MinorTrace, "===GetDataController===");
+	reportD(ST_MinorTrace, AsString(keyExpr).c_str());
 #endif
 	dms_assert(!keyExpr.EndP()); // entry condition
 

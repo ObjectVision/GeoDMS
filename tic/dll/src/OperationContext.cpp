@@ -1300,7 +1300,7 @@ void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 task_status OperationContext::Join()
 {
 	if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
-		reportF(SeverityTypeID::ST_Warning, "OperationContext(%s)::Join called from Active Context %s"
+		reportF(ST_Warning, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);

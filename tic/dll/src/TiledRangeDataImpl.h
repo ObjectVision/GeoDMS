@@ -93,7 +93,7 @@ struct RegularTileRangeDataBase : TiledRangeData<V>
 			);
 
 #if defined(MG_DEBUG_LISP_TREE)
-		reportD(SeverityTypeID::ST_MinorTrace, AsString(result).c_str());
+		reportD(ST_MinorTrace, AsString(result).c_str());
 #endif
 		return result;
 	}
