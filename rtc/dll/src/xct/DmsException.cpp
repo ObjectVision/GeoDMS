@@ -170,22 +170,15 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 
 void ErrMsg::tellWhere(const PersistentSharedObj* ptr)
 {
-	if (m_Where)
-		return;
-
 	if (!ptr)
 		return;
-
+	if (m_Where)
+	{
+		if (m_Where->GetLocation() || !ptr->GetLocation())
+			return;
+	}
 	m_Where = ptr;
-	auto location = ptr->GetLocation();
-	if (!location)
-		return;
-
-	auto pso = dynamic_cast<const PersistentSharedObj*>(ptr);
-	if (pso)
-		m_FullName = pso->GetPrefixedFullName();
-	else
-		m_FullName = SharedStr(ptr->GetID());
+	m_FullName = ptr->GetPrefixedFullName();
 	m_Class = ptr->GetCurrentObjClass();
 	dms_assert(m_Class);
 }
