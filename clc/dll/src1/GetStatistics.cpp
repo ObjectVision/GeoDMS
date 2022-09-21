@@ -257,7 +257,9 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 				}
 				if (di->IsFailed(FR_Data))
 				{
-					os << "\nProcessing statistics failed because:\n\n" << di->GetFailReason();
+					auto fr = di->GetFailReason();
+					if (fr)
+						os << "\nProcessing statistics failed because:\n\n" << *fr;
 					goto finally;
 				}
 				dms_assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
@@ -325,7 +327,8 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 			catch (...)
 			{
 				auto err = catchException(true);
-				os << err;
+				if (err)
+					os << *err;
 			}
 		finally:
 			os << "\n" << char(0);

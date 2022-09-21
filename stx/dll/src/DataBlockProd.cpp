@@ -145,7 +145,7 @@ void DataBlockProd::Commit()
 
 void DataBlockProd::throwSemanticError(CharPtr msg)
 {
-	PersistentSharedObj::throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
+	Object::throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
 }
 
 // ============================= ConfigProd

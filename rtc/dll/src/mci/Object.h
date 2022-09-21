@@ -64,6 +64,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/SharedStr.h"
 struct ErrMsg;
 struct SourceLocation;
+using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 
 //----------------------------------------------------------------------
 // Macro's for RunTimeTypeInfo (introspection) and dynamic creation
@@ -183,23 +184,14 @@ public:
 
 public:
 	//	====================== Why here, TODO G8 move to separate header
-	[[noreturn]] static RTC_CALL void throwItemError(const ErrMsg& msg);
+	[[noreturn]] static RTC_CALL void throwItemError(ErrMsgPtr msgPtr);
 
-	[[noreturn]] static RTC_CALL void throwItemError(const Object* self, WeakStr msgStr);
-	[[noreturn]] static RTC_CALL void throwItemError(const Object* self, CharPtr msg);
+	[[noreturn]] static RTC_CALL void throwItemError(const PersistentSharedObj* self, WeakStr msgStr);
+	[[noreturn]] static RTC_CALL void throwItemError(const PersistentSharedObj* self, CharPtr msg);
 
 	template<typename ...Args>
-	[[noreturn]] static void throwItemErrorF(const Object* self, CharPtr msg, Args&&... args) {
+	[[noreturn]] static void throwItemErrorF(const PersistentSharedObj* self, CharPtr msg, Args&&... args) {
 		throwItemError(self, mgFormat2SharedStr(msg, std::forward<Args>(args)...));
-	}
-
-
-	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const { throwItemError(this, msgStr); }
-	[[noreturn]] void throwItemError(CharPtr msg) const { throwItemError(this, SharedStr(msg)); }
-
-	template<typename ...Args>
-	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {
-		throwItemErrorF(this, msg, std::forward<Args>(args)...);
 	}
 
 	DECL_ABSTR(RTC_CALL, Class);

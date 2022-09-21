@@ -49,6 +49,7 @@ struct ActorVisitor;
 struct SupplInterestListPtr;
 
 struct ErrMsg;
+using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 
 //  -----------------------------------------------------------------------
 //  struct Actor interface
@@ -97,7 +98,7 @@ struct Actor : PersistentSharedObj
 
 	RTC_CALL void TriggerEvaluation() const;
 
-	RTC_CALL ErrMsg GetFailReason() const;
+	RTC_CALL ErrMsgPtr GetFailReason() const;
 	RTC_CALL void ClearFail() const;
 
 	//	Calculates and retrieves the time of last change in this or its suppliers.
@@ -117,7 +118,7 @@ struct Actor : PersistentSharedObj
 	//	Override this method to identify suppliers.
 	RTC_CALL virtual ActorVisitState VisitSuppliers    (SupplierVisitFlag svf, const ActorVisitor& visitor) const;
 
-	[[noreturn]] RTC_CALL void ThrowFail(const ErrMsg& why, FailType ft) const;
+	[[noreturn]] RTC_CALL void ThrowFail(ErrMsgPtr why, FailType ft) const;
 	[[noreturn]] RTC_CALL void ThrowFail(SharedStr str, FailType ft) const;
 	[[noreturn]] RTC_CALL void ThrowFail(CharPtr str, FailType ft) const;
 	[[noreturn]] RTC_CALL void ThrowFail(const Actor* src, FailType ft) const;
@@ -140,7 +141,7 @@ protected:
 	RTC_CALL virtual bool MustApplyImpl() const;
 
 	RTC_CALL virtual ActorVisitState DoUpdate(ProgressState ps);
-	RTC_CALL virtual void DoFail(ErrMsg msg, FailType ft) const;
+	RTC_CALL virtual void DoFail(ErrMsgPtr msg, FailType ft) const;
 
 	//	Override this method to implement reset behaviour. For example:
 	//	aMapView->InvalidateLayer(this).
@@ -152,7 +153,7 @@ protected:
 	//	Collect change information from suppliers or a change triggered by specific
 	//	derivation. Extend this method to implement specific validity checking. For
 	//	example: compare current file-stamp with last.
-	RTC_CALL virtual TimeStamp DetermineLastSupplierChange(ErrMsg& failReason, FailType& failType) const; // noexcept;
+	RTC_CALL virtual TimeStamp DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& failType) const; // noexcept;
 
 	RTC_CALL void InvalidateAt(TimeStamp invalidate_ts) const;
 

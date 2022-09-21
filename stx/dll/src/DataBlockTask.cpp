@@ -120,8 +120,9 @@ struct DataArrayOperator : TernaryOperator
 			SharedStr strAtProblemLoc = problemlocAsString(dataBlock.begin(), dataBlock.end(), &*problem.where);
 
 			auto err = problem.descriptor;
-			err.TellExtra(strAtProblemLoc.c_str());
-			resultHolder->throwItemError(err);
+			dms_assert(err);
+			err->TellExtra(strAtProblemLoc.c_str());
+			resultHolder->throwItemError(err->Why());
 		}
 	}
 private:

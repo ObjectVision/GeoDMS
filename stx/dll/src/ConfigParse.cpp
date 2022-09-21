@@ -281,8 +281,8 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 
 		position_t  problemLoc = problem.where.get_position();
 
-		ErrMsg descr = problem.descriptor;
-		descr.TellExtraF(
+		ErrMsgPtr descr = problem.descriptor;
+		descr->TellExtraF(
 			"%s(%d,%d) at\n%s",
 			"ConfigParse FromString", problemLoc.line, problemLoc.column,
 			strAtProblemLoc.c_str()
@@ -322,9 +322,9 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
 		position_t  problemLoc = problem.where.get_position();
-		ErrMsg descr = problem.descriptor;
+		ErrMsgPtr descr = problem.descriptor;
 
-		descr.TellExtraF("%s(%d,%d) at\n%s",
+		descr->TellExtraF("%s(%d,%d) at\n%s",
 			fileName, problemLoc.line, problemLoc.column, 
 			strAtProblemLoc.c_str()
 		);

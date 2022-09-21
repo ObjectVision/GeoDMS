@@ -92,7 +92,7 @@ SharedStr GetStrRange(const AbstrUnit* unit)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 unbounded:
 	return SharedStr("unbounded");
@@ -125,7 +125,7 @@ SharedStr GetTileStrRange(const AbstrUnit* unit, tile_id t)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 unbounded:
 	return SharedStr("unbounded");
@@ -143,7 +143,7 @@ SharedStr GetStrCount(const AbstrUnit* unit)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 }
 
@@ -158,7 +158,7 @@ SharedStr GetTileStrCount(const AbstrUnit* unit, tile_id t)
 	}
 	catch (const DmsException& x)
 	{
-		return x.AsErrMsg().Why();
+		return x.AsErrMsg()->Why();
 	}
 }
 
@@ -197,7 +197,8 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			catch (...)
 			{
 				auto err = catchException(true);
-				xmlTable.NameErrRow(METRIC_NAME, err);
+				if (err)
+				xmlTable.NameErrRow(METRIC_NAME, *err);
 			}
 		}
 	}
@@ -278,7 +279,7 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 
 // ********** XML_ItemBody                                             *********
 
-XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item)
+XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFullName)
 	:	XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
@@ -286,7 +287,15 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item)
 	XML_OutElement xmlElemH2(out, "H2");
 	XML_OutElement xmlElemA (out, "A");
 	out.WriteAttr("href", ItemUrl(item).c_str());
-	out << item->GetName().c_str();
+	if (showFullName)
+	{
+		if (item->GetTreeParent())
+			out << item->GetFullName().c_str();
+		else
+			out << "#ROOT";
+	}
+	else
+		out << item->GetName().c_str();
 }
 
 // *****************************************************************************
@@ -470,6 +479,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	XML_Table xmlTable(*xmlOutStrPtr);
 	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
 
+#if defined(MG_DEBUG)
 	if (!self->InTemplate())
 	{
 		UInt32 nc = DMS_TreeItem_GetProgressState(self);
@@ -481,10 +491,17 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			).c_str()
 		);
 	}
+#endif
+
 	if (self->IsFailed())
 	{
-		xmlTable.NameValueRow("FailState", FailStateName(self->GetFailType()));
-		xmlTable.NameErrRow("FailReason", self->GetFailReason());
+		auto ft = self->GetFailType();
+		auto fr = self->GetFailReason();
+		if (fr)
+		{
+			xmlTable.NameValueRow("FailState", FailStateName(ft));
+			xmlTable.NameErrRow("FailReason", *fr);
+		}
 	}
 	if (self->InTemplate())
 	{
@@ -662,7 +679,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 		} catch (...)
 		{
 			auto err = catchException(true);
-			*xmlOutStrPtr << err;
+			if (!err)
+				*xmlOutStrPtr << "unrecognized error";
+			else
+				*xmlOutStrPtr << *err;
 		}
 
 	DMS_CALL_END_NOTHROW
@@ -691,7 +711,8 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 			if (showAll)
 			{
 				auto err = catchException(true);
-				xmlTable.NameErrRow(pd->GetName().c_str(), err);
+				if (err)
+					xmlTable.NameErrRow(pd->GetName().c_str(), *err);
 			}
 			canBeIndirect = false;
 		}
@@ -725,7 +746,8 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 				catch (...)
 				{
 					auto err = catchException(true);
-					xmlTable.NameErrRow("EvaluationErr", err);
+					if (err)
+						xmlTable.NameErrRow("EvaluationErr", *err);
 					break;
 				}
 			}
@@ -755,10 +777,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 }
 
 
-void ExploreCell(const TreeItem* subItem, XML_Table::Row& xmlRow)
+void ExploreCell(const TreeItem* subItem, XML_Table::Row& xmlRow, bool showFullPath = false)
 {
 	xmlRow.ClickableCell(
-		subItem->GetName().c_str(),
+		showFullPath ? subItem->GetFullName().c_str() : subItem->GetName().c_str(),
 		mySSPrintF("dms:dp.explore:%s", subItem->GetFullName().c_str()).c_str()
 	);
 }
@@ -767,27 +789,52 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 {
 	dms_assert(subItem);
 	dms_assert(subItem->GetTreeParent());
-
+	auto parent = subItem->GetTreeParent();
 	if (viewHidden || !subItem->GetTSF(TSF_InHidden))
 	{
 		XML_Table::Row xmlRow(xmlTable);
 			ExploreCell(subItem, xmlRow);
-			xmlRow.ValueCell( subItem->GetTreeParent()->GetFullName().c_str() );
-			if (IsDataItem(subItem))
-			{
-				try {
-					xmlRow.ValueCell( AsDataItem(subItem)->GetAbstrDomainUnit()->GetDisplayName       ().c_str() );
-					xmlRow.ValueCell( AsDataItem(subItem)->GetAbstrValuesUnit()->GetFormattedMetricStr().c_str() );
+			if (parent->GetTreeParent())
+				xmlRow.ValueCell( mySSPrintF("in %s", parent->GetFullName()).c_str());
+			try {
+				if (IsDataItem(subItem))
+				{
+					auto adi = AsDataItem(subItem);
+					if (adi->HasVoidDomainGuarantee())
+						xmlRow.ValueCell(
+							mySSPrintF("param: %s %s"
+								, adi->GetAbstrValuesUnit()->GetDisplayName()
+								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
+							).c_str()
+						);
+					else
+						xmlRow.ValueCell( 
+							mySSPrintF("attr: %s -> %s %s"
+								, adi->GetAbstrDomainUnit()->GetDisplayName()
+								, adi->GetAbstrValuesUnit()->GetDisplayName()
+								, adi->GetAbstrValuesUnit()->GetFormattedMetricStr()
+							).c_str() 
+						);
 				}
-				catch (...) {}
+				if (IsUnit(subItem))
+				{
+					auto au = AsUnit(subItem);
+					xmlRow.ValueCell(
+						mySSPrintF("unit<%s> %s"
+							, au->GetValueType()->GetName()
+							, au->GetFormattedMetricStr()
+						).c_str()
+					);
+				}
 			}
+			catch (...) {}
 	}
 }
 
 void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
 {
 	dms_assert(self);
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self, true);
 	dms_assert(xmlOutStrPtr);
 	{
 		XML_Table    xmlTable   (*xmlOutStrPtr);
@@ -795,13 +842,15 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 		{
 			XML_Table::Row xmlRow(xmlTable);
 				xmlRow.ValueCell( callingRole );
-				ExploreCell(calledBy, xmlRow);
+				ExploreCell(calledBy, xmlRow, true);
 		}
 
 		TreeItemSetType::iterator itemPtr = doneItems.lower_bound(self);
 		if (itemPtr != doneItems.end() && *itemPtr == self)
+		{
+			dms_assert(calledBy);
 			goto omit_repetition;
-
+		}
 		doneItems.insert(itemPtr, self);
 
 		for (const TreeItem* subItem = self->GetFirstVisibleSubItem(); subItem; subItem = subItem->GetNextVisibleItem())
@@ -816,22 +865,29 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 			dms_assert(!self->GetTreeParent());
 			return;
 		}
-		while (true)
+		while (i)
 		{
-			if (!--i)
+			auto us = uc->GetUsing(--i);
+			if (!us)
+				continue;
+			CharPtr role = "is used by";
+			if (us == self->GetTreeParent())
 			{
-				dms_assert(!self->GetTreeParent() || self->GetTreeParent() == uc->GetUsing(i));
-				break;
+				role = "is parent of";
+				if (i)
+					role = "is parent and used by";
 			}
-			TreeItem_XML_DumpExploreThisAndParents(uc->GetUsing(i), xmlOutStrPtr, viewHidden, doneItems, self, "is used by");
+			TreeItem_XML_DumpExploreThisAndParents(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
 		}
 	}
+	else
 	{
 		const TreeItem* parent = self->GetTreeParent();
 		if (parent)
 			TreeItem_XML_DumpExploreThisAndParents(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
-		return;
 	}
+	return;
+
 omit_repetition:
 	// here we are outside the scope of xmlTable
 	(*xmlOutStrPtr) << "(repetition of sub items omitted)";

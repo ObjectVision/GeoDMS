@@ -2686,7 +2686,7 @@ public:
 
 		if (!htpInfo.m_PriceUnit)
 		{
-			res->DoFail(ErrMsg("No suitability maps"), FR_Data);
+			res->Fail("No suitability maps", FR_Data);
 			isFeasible = false;
 		}
 		else

@@ -71,10 +71,10 @@ struct assertive_parser_creator
 	ErrorDescrT m_Descr;
 };
 
-const assertive_parser_creator<typename assertion_type_traits<ErrMsg>::type>
+const assertive_parser_creator<typename assertion_type_traits<ErrMsgPtr>::type>
 inline assert_d(CharPtr descriptor)
 {
-	return assertive_parser_creator<typename assertion_type_traits<ErrMsg>::type>(ErrMsg{ SharedStr(descriptor) });
+	return assertive_parser_creator<typename assertion_type_traits<ErrMsgPtr>::type>(std::make_shared<ErrMsg>( SharedStr(descriptor) ));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -146,9 +146,7 @@ template <typename ErrorArgT>
 inline syntaxError_gen // <typename assertion_type_traits<ErrorArgT>::type>
 syntaxError(ErrorArgT errMsg) 
 { 
-	return syntaxError_gen( // <typename assertion_type_traits<ErrorArgT>::type>
-		error_descr_t(errMsg)
-	);
+	return std::make_shared<ErrMsg>(errMsg);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

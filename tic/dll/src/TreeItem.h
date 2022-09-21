@@ -270,7 +270,7 @@ public:
 //	override Actor callbacks
 
 	TIC_CALL void SetProgress(ProgressState ps) const override;
-	TIC_CALL void DoFail(ErrMsg msg, FailType ft) const override;
+	TIC_CALL void DoFail(ErrMsgPtr msg, FailType ft) const override;
 	TIC_CALL void AssertPropChangeRights(CharPtr changeWhat) const override;
 	TIC_CALL void AssertDataChangeRights(CharPtr changeWhat) const override;
 
@@ -371,7 +371,7 @@ public:
 	TIC_CALL ActorVisitState DoUpdate(ProgressState ps) override;
 	TIC_CALL void DoInvalidate  () const override;
 
-	TIC_CALL TimeStamp DetermineLastSupplierChange(ErrMsg& failReason, FailType& ft) const /*noexcept*/ override;
+	TIC_CALL TimeStamp DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const /*noexcept*/ override;
 
 private:
 	bool _CheckResultObjType(const TreeItem* refItem) const;

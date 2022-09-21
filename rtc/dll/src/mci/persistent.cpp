@@ -451,19 +451,19 @@ SharedStr PersistentSharedObj::GetSourceName() const
 		);
 }
 
-void Object::throwItemError(const ErrMsg& msg)
+void Object::throwItemError(ErrMsgPtr msg)
 {
 	DmsException::throwMsg(msg);
 }
 
-void Object::throwItemError(const Object* self, WeakStr msgStr)
+void Object::throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
 { 
-	throwItemError(ErrMsg{ msgStr, self }); 
+	throwItemError(std::make_shared<ErrMsg>( msgStr, self ) ); 
 }
 
-void  Object::throwItemError(const Object* self, CharPtr msg)
+void  Object::throwItemError(const PersistentSharedObj* self, CharPtr msg)
 {
-	throwItemError(ErrMsg{ SharedStr(msg), self });
+	throwItemError(self, SharedStr(msg));
 }
 
 void Object::XML_Dump(OutStreamBase* xmlOutStr) const

@@ -152,7 +152,8 @@ struct SystemContextHandle : AbstrContextHandle
 			catch (...)
 			{
 				auto err = catchException(true);
-				fos << "MetaInfo generation caused " << err.GetAsText();
+				if (err)
+					fos << "MetaInfo generation caused " << err->GetAsText();
 			}
 		}
 		return true;

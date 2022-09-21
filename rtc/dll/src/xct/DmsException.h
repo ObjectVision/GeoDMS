@@ -41,24 +41,24 @@ enum ExceptionContextState {
 	ECS_SE,
 };
 
-struct DmsException : private ErrMsg
+struct DmsException : private ErrMsgPtr
 {
-	[[noreturn]] static RTC_CALL void throwMsg(const ErrMsg& msg);
+	[[noreturn]] static RTC_CALL void throwMsg(ErrMsgPtr msg);
 	[[noreturn]] static RTC_CALL void throwMsgD(WeakStr);
 	[[noreturn]] static RTC_CALL void throwMsgD(CharPtr);
 
 	template <class ...Args>
 	[[noreturn]] static void throwMsgF(CharPtr fmt, Args&& ...args) { throwMsgD(mgFormat2SharedStr(fmt, std::forward<Args>(args)...)); }
 
-	const ErrMsg& AsErrMsg() const { return *this;  }
-	using ErrMsg::GetAsText;
+	ErrMsgPtr AsErrMsg() const { return *this;  }
 
+	auto GetAsText() const { return get()->GetAsText(); }
 
 	RTC_CALL virtual ~DmsException();
 
-	RTC_CALL DmsException(const ErrMsg& msg);
+	RTC_CALL DmsException(ErrMsgPtr msg);
 
-	ErrMsg m_PrevUnrollingErrMsg;
+	ErrMsgPtr m_PrevUnrollingErrMsgPtr;
 };
 
 //----------------------------------------------------------------------
@@ -81,6 +81,6 @@ RTC_CALL bool HasContext(WeakStr msg);
 RTC_CALL SharedStr GetErrorContext(WeakStr msg);
 RTC_CALL SharedStr GetErrorBody   (WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
-RTC_CALL ErrMsg    GetUnrollingErrorMsg();
+RTC_CALL ErrMsgPtr GetUnrollingErrorMsgPtr();
 
 #endif // __RTC_XCT_DMSEXCEPTION_H

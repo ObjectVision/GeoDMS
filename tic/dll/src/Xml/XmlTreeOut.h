@@ -68,7 +68,7 @@ inline SharedStr ItemUrl(const TreeItem* item)
 
 struct XML_ItemBody : XML_OutElement
 {
-	XML_ItemBody(OutStreamBase& out, const TreeItem* item);
+	XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFullName = false);
 };
 
 void NewLine(OutStreamBase& out);

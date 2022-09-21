@@ -754,8 +754,11 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 {
 	if (WasFailed())
 	{
-		SubMenu subMenu(med.m_MenuData, mySSPrintF("See FailReason Level %d of %s", GetFailType(), GetDynamicClass()->GetName().c_str()));
-		SharedStr failReason = GetFailReason().GetAsText();
+		auto ft = GetFailType();
+		auto fr = GetFailReason(); if (!fr) return;
+
+		SubMenu subMenu(med.m_MenuData, mySSPrintF("See FailReason Level %d of %s", ft, GetDynamicClass()->GetName().c_str()));
+		SharedStr failReason = fr->GetAsText();
 		CharPtr
 			bol = failReason.begin(),
 			eos = failReason.send();

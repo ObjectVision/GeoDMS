@@ -109,7 +109,7 @@ typedef const char                                             char_t;
 typedef text_position                                          position_t;
 typedef boost::spirit::position_iterator<char_t*, position_t>  iterator_t;
 typedef boost::spirit::parse_info<iterator_t>                  parse_info_t;
-typedef ErrMsg                                                 error_descr_t;
+typedef ErrMsgPtr                                              error_descr_t;
 typedef boost::spirit::parser_error<error_descr_t, iterator_t> parser_error_t;
 
 #endif //!defined( __STX_TEXTPOSITION_H)

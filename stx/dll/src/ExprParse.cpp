@@ -83,8 +83,8 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 		SharedStr strAtProblemLoc = problemlocAsString(exprBegin, exprEnd, &*problem.where);
 
 		position_t  problemLoc = problem.where.get_position();
-		ErrMsg descr = problem.descriptor;
-		descr.TellExtraF("CalculationRule(%d, %d) at\n%s", 
+		ErrMsgPtr descr = problem.descriptor;
+		descr->TellExtraF("CalculationRule(%d, %d) at\n%s", 
 			problemLoc.line, problemLoc.column, 
 			strAtProblemLoc.c_str()
 		);

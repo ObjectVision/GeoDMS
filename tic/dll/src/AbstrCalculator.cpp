@@ -787,7 +787,17 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			if (auto vc = ValueClass::FindByScriptName(symbID))
 				argRef.emplace<SharedTreeItem>(UnitClass::Find(vc)->CreateDefault()); // unitName -> [UnitName []] ofwel unitName().
 			else
-				argRef.emplace<SharedTreeItem>(ac->FindItem(symbID));
+			{
+				auto foundItem = ac->FindItem(symbID);
+				if (!foundItem)
+				{
+					auto msg = SharedStr(symbID.AsStrRange());
+					holder->Fail(mySSPrintF("Cannot find %s", msg), FR_MetaInfo);
+				}
+				else
+					argRef.emplace<SharedTreeItem>(foundItem);
+			}
+			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FR_MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
 		else {
@@ -1294,7 +1304,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_ParseResult_GetFailReasonAsIString(AbstrCalc
 
 		MG_PRECONDITION(self);
 	
-		return IString::Create(self->GetHolder()->GetFailReason().Why());
+		return IString::Create(self->GetHolder()->GetFailReason()->Why());
 
 	DMS_CALL_END
 	return IString::Create(GetLastErrorMsgStr());
