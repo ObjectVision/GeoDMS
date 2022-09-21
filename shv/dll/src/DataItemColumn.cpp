@@ -753,6 +753,9 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 		GuiReadLock dummy;
 		return theme->GetValueGetter()->GetTextInfo(recNo, dummy);
 	}
+	if (activeTextAttr->WasFailed(FR_Data))
+		return TextInfo{ activeTextAttr->GetFailReason()->Why(), true };
+
 	auto  refObj = activeTextAttr->GetRefObj();
 	if (refObj->IsNull(recNo))
 	{

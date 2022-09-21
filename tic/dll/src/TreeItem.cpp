@@ -3498,7 +3498,7 @@ bool TreeItem::CommitDataChanges() const
 		const AbstrStorageManager* sm = storageHolder->GetStorageManager();
 		dms_assert(sm); // guaranteed by IsStorable();
 
-		if (hasCalculator || IsDataReady(this))
+		if (hasCalculator || IsDataReady(this) && !GetCurrRangeItem()->WasFailed(FR_Committed))
 		{
 			DBG_START("TreeItem", "CommitDataChanges", false);
 			DBG_TRACE(("self = %s", GetSourceName().c_str()));
@@ -3507,6 +3507,7 @@ bool TreeItem::CommitDataChanges() const
 			dms_assert(interestHolder); // Commit is Called from DoUpdate
 			if (	(IsCalculatingOrReady(GetCurrRangeItem()) || PrepareDataUsage(DrlType::Suspendible))
 				&&	WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) 
+				&& !GetCurrRangeItem()->WasFailed(FR_Committed)
 				&&	DoWriteItem(sm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
 			)
 			// DoReadDataItem also for calling CreateResultingTreeItem(true, false) for TreeItems without storage ??
@@ -3521,7 +3522,7 @@ bool TreeItem::CommitDataChanges() const
 					if (GetInterestCount() < 2)
 						ReportSuspension();
 				}
-				else if (!WasFailed())
+				else if (!WasFailed(FR_Committed))
 					Fail(
 						mySSPrintF("Unable to commit data to storage %s", 
 							DMS_TreeItem_GetAssociatedFilename(this)
@@ -3529,7 +3530,8 @@ bool TreeItem::CommitDataChanges() const
 					,	FR_Committed
 					);
 				dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Committed));
-				return false; // suspended or failed, try again later
+				if (SuspendTrigger::DidSuspend())
+					return false; // suspended or failed, try again later
 			}
 		}
 	}

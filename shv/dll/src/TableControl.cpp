@@ -264,7 +264,7 @@ SizeT TableControl::NrRows() const
 	dms_assert(!SuspendTrigger::DidSuspend());
 	auto rowEntity = GetRowEntity();
 	if (!rowEntity)
-		return 0;
+		return 8;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());
 	return const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(rowEntity) ? rowEntity->GetCount() : UNDEFINED_VALUE(SizeT);
@@ -523,11 +523,16 @@ void TableControl::GoUp(bool shift, UInt32 c)
 
 void TableControl::GoDn(bool shift, UInt32 c)
 {
-	if (!m_Rows.IsDefined()) return;
+	if (!m_Rows.IsDefined()) 
+		return;
 	dms_assert(m_Rows.IsDefined() && m_Cols.IsDefined());
 
+	SizeT nrRows = NrRows();
+	if (!nrRows || !IsDefined(nrRows))
+		return;
+
 	SelChangeInvalidator sci(this);
-	m_Rows.GoRight(shift, c, NrRows()-1);
+	m_Rows.GoRight(shift, c, nrRows-1);
 	if (!shift) m_Cols.Close();
 	sci.ProcessChange(true);
 }
