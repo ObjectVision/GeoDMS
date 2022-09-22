@@ -224,7 +224,8 @@ redo:
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
 		}
-		if (nextChar == '.')
+		if (nextChar == '.' && !(m_Flags & reader_flags::commaAsDecimalSeparator)
+			|| (nextChar == ',' && (m_Flags & reader_flags::commaAsDecimalSeparator)))
 		{
 			m_NextToken.push_back(nextChar);
 			nextChar = ReadChar();
@@ -372,7 +373,7 @@ CharPtrRange FormattedInpStream::NextWord()
 		else
 			
 			while (nextChar 
-				&& (!isspace(UChar(nextChar)) || !(m_Flags & reader_flags::stringsWithSpaces))
+				&& (nextChar != ' ' || (m_Flags & reader_flags::stringsWithSpaces))
 				&& !IsFieldSeparator(nextChar))
 			{
 				m_NextToken.push_back(nextChar);
