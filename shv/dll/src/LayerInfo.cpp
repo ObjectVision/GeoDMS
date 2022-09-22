@@ -98,7 +98,7 @@ LayerInfo::LayerInfo(WeakStr descr)
 	,	m_LayerClass(nullptr)
 	,	m_Descr(descr)
 {
-	reportD(ST_MajorTrace, "LayerInfo: ", m_Descr.c_str());
+	reportD(SeverityTypeID::ST_MajorTrace, "LayerInfo: ", m_Descr.c_str());
 }
 
 LayerInfo::LayerInfo(

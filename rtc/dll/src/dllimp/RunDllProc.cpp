@@ -255,7 +255,7 @@ RTC_CALL bool DMS_CONV DMS_ReduceResources()
 				result = false;
 	}
 	if (!result)
-		reportD(ST_MajorTrace, "Not all resource holders were able to return the requested resources.\n"
+		reportD(SeverityTypeID::ST_MajorTrace, "Not all resource holders were able to return the requested resources.\n"
 		                      "This may cause problems during the execution of the external module.");
 	return result;
 }

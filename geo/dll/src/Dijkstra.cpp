@@ -104,19 +104,19 @@ struct NetworkInfo {
 			}
 		}
 		if (!nrV)
-			reportD(ST_Warning, "no nodes in network");
+			reportD(SeverityTypeID::ST_Warning, "no nodes in network");
 		if (!nrE)
-			reportD(ST_Warning, "no edges in network");
+			reportD(SeverityTypeID::ST_Warning, "no edges in network");
 
 		if (!nrOrgZones)
-			reportD(ST_Warning, "no OrgZones related to network");
+			reportD(SeverityTypeID::ST_Warning, "no OrgZones related to network");
 		if (!nrDstZones)
-			reportD(ST_Warning, "no DstZones related to network");
+			reportD(SeverityTypeID::ST_Warning, "no DstZones related to network");
 
 		if (!nrX)
-			reportD(ST_Warning, "no startpoints to relate OrgZones to network nodes");
+			reportD(SeverityTypeID::ST_Warning, "no startpoints to relate OrgZones to network nodes");
 		if (!nrY)
-			reportD(ST_Warning, "no endpoints to relate network nodes to DstZones");
+			reportD(SeverityTypeID::ST_Warning, "no endpoints to relate network nodes to DstZones");
 	}
 
 	NodeType  nrV;
@@ -950,7 +950,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				// ===================== report nrOrgZones every 5 seconds
 				zoneCount++;
 				if (processTimer.PassedSecs(5))
-					reportF(ST_MajorTrace, "DijkstraMatr %s %d of %d sources: resulted in %u od-pairs", actionMsg, zoneCount, ni.nrOrgZones, resultCount);
+					reportF(SeverityTypeID::ST_MajorTrace, "DijkstraMatr %s %d of %d sources: resulted in %u od-pairs", actionMsg, zoneCount, ni.nrOrgZones, resultCount);
 				&returnTokenOnExit;
 			}
 		));
@@ -968,7 +968,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	if (OperationContext::CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
-	reportF(ST_MajorTrace, "DijkstraMatr %s all %d sources: resulted in %u od-pairs", actionMsg, ni.nrOrgZones, resultCount);
+	reportF(SeverityTypeID::ST_MajorTrace, "DijkstraMatr %s all %d sources: resulted in %u od-pairs", actionMsg, ni.nrOrgZones, resultCount);
 
 	return resultCount;
 }

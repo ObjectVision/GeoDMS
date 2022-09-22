@@ -1589,7 +1589,7 @@ protected:
 						}
 					}
 				);
-				reportF(ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
 			}
 
 			StoreRes(res, res1, res2, resData);

@@ -402,7 +402,7 @@ protected:
 		dms_assert(args.size() >= 2);
 		if (args.size() > 2 && !resultHolder)
 			// throwErrorD("poly2grid", "Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
-			reportD(ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
+			reportD(SeverityTypeID::ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
 		const AbstrDataItem* polyAttr            = AsDataItem(args[0]); // can be segmented
 		const AbstrUnit*     gridDomainUnit      = AsUnit    (args[1]); // can be tiled
 

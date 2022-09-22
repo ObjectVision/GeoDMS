@@ -948,7 +948,7 @@ void DataItemColumn::GotoRow(SizeT row)
 	auto tc = GetTableControl().lock(); if (!tc) return;
 	if (row >= tc->NrRows())
 	{
-		reportF(ST_Warning, "ViewColumn.GotoRow: row %s not available", row);
+		reportF(SeverityTypeID::ST_Warning, "ViewColumn.GotoRow: row %s not available", row);
 		return;
 	}
 	SelChangeInvalidator sci(tc.get());
@@ -988,7 +988,7 @@ namespace {
 void DataItemColumn::FindNextValue(SharedStr searchText)
 {
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	reportF(ST_Warning, "ViewColumn.FindNext %.80s", searchText);
+	reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext %.80s", searchText);
 	auto aa = this->GetActiveAttr();
 	DataReadLock lock(aa);
 	visit<typelists::fields>(GetActiveTextAttr()->GetAbstrValuesUnit(),
@@ -1009,7 +1009,7 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 					return;
 				}
 			} while (row != currRow);
-			reportF(ST_Warning, "ViewColumn.FindNext: failed finding value %.80s", AsString(searchValue));
+			reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value %.80s", AsString(searchValue));
 		}
 	);
 }

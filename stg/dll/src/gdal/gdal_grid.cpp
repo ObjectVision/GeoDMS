@@ -631,7 +631,7 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 	GDALDatasetHandle dsHnd = (GDALDataset*)GDALOpen(fileName, GA_ReadOnly);
 	if (!dsHnd)
 	{
-		reportD(ST_Warning, "Failed to open wmts tile, likely due to a corrupted download, delete the file for redownload.");
+		reportD(SeverityTypeID::ST_Warning, "Failed to open wmts tile, likely due to a corrupted download, delete the file for redownload.");
 		return WPoint();
 	}
 

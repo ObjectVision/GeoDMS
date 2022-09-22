@@ -175,7 +175,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 	}
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(ST_MinorTrace, "AbstrUnit::GetAsLispRef -> %s", AsString(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> %s", AsString(result).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	// add range or tile spec to keyExpr
@@ -183,7 +183,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		result = GetRangeDataAsLispRef(m_RangeDataPtr, result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(ST_MinorTrace, "-> %s", AsString(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result).c_str());
 	dms_assert(IsExpr(result));
 #endif
 

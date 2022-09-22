@@ -311,7 +311,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_ReportError(CharPtr msg)
 {
 	DMS_CALL_BEGIN
 
-		DebugOutStream::scoped_lock lock(g_DebugStream, ST_Error);
+		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_Error);
 		*g_DebugStream << msg;
 
 	DMS_CALL_END
@@ -321,7 +321,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 {
 	DMS_CALL_BEGIN
 
-		DebugOutStream::scoped_lock lock(g_DebugStream, ST_DispError);
+		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_DispError);
 		*g_DebugStream << msg;
 
 	DMS_CALL_END
@@ -355,7 +355,7 @@ RTC_CALL void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 
 RTC_CALL void ReportSuspension()
 {
-	reportD(ST_MinorTrace, "Suspension that might result in the recalculation of intermediate results");	
+	reportD(SeverityTypeID::ST_MinorTrace, "Suspension that might result in the recalculation of intermediate results");
 }
 
 SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
@@ -472,7 +472,7 @@ RTC_CALL ErrMsgPtr catchException(bool rethrowCancelation)
 RTC_CALL ErrMsgPtr catchAndReportException()
 {
 	auto result = catchException(false);
-	reportD(ST_Warning, "\n", result->GetAsText().c_str());
+	reportD(SeverityTypeID::ST_Warning, "\n", result->GetAsText().c_str());
 	return result;
 }
 
@@ -719,7 +719,7 @@ void DebugOnlyLock::CheckNoLocks()
 
 RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
-	reportF_without_cancellation_check(ST_MajorTrace, "check failure: %s\n%s(%u)", msg, fileName, line);
+	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: %s\n%s(%u)", msg, fileName, line);
 #if defined(MG_DEBUG)
 	__debugbreak();
 #endif
@@ -729,7 +729,7 @@ RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 
 RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
-	reportF_without_cancellation_check(ST_MajorTrace, "assertion failure: %s\n%s(%u)", msg, fileName, line);
+	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "assertion failure: %s\n%s(%u)", msg, fileName, line);
 
 #if defined(MG_DEBUG)
 	__debugbreak();

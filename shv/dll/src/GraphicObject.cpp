@@ -600,7 +600,7 @@ void GraphicObject::SetActive(bool newState)
 {
 #if defined(MG_DEBUG)
 	if (newState == IsActive())
-		reportF(ST_Warning, "SetActive(%d) called on %sactive object", newState, IsActive() ? "" : "non-");
+		reportF(SeverityTypeID::ST_Warning, "SetActive(%d) called on %sactive object", newState, IsActive() ? "" : "non-");
 #endif
 
 	m_State.Set(GOF_Active, newState);

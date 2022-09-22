@@ -142,7 +142,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_MapViews.at(freeViewInd).ResetView(tvsMapView, "MapView#" + std::to_string(freeViewInd + 1));
         else if (m_MapViewsCursor >= m_MaxViews)
         {
-            reportF(ST_Warning, "Maximum number of Mapview windows %d reached.", m_MaxViews);
+            reportF(SeverityTypeID::ST_Warning, "Maximum number of Mapview windows %d reached.", m_MaxViews);
             break;
         }
         else
@@ -162,7 +162,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_TableViews.at(freeViewInd).ResetView(tvsTableView, "TableView#" + std::to_string(freeViewInd + 1));
         else if (m_TableViewsCursor >= m_MaxViews)
         {
-            reportF(ST_Warning, "Maximum number of TableView windows %d reached.", m_MaxViews);
+            reportF(SeverityTypeID::ST_Warning, "Maximum number of TableView windows %d reached.", m_MaxViews);
             break;
         }
         else

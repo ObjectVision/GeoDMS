@@ -275,14 +275,14 @@ void TreeItemAdmLock::Report()
 	SizeT n = s_TreeItems->size();
 	if(n)
 	{
-		reportF_without_cancellation_check(ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
+		reportF_without_cancellation_check(SeverityTypeID::ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
 
 		TreeItemSetType::iterator i = s_TreeItems->begin();
 		TreeItemSetType::iterator e = s_TreeItems->end();
 		while (i!=e)
 		{
 			const TreeItem* ti = *i++;
-			reportF_without_cancellation_check(ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
+			reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
 				ti->GetDynamicClass()->GetName(), 
 				ti->GetRefCount(), 
 				ti->IsCacheItem(), 
@@ -943,7 +943,7 @@ void TreeItem::AssertDataChangeRights(CharPtr changeWhat) const
 	if ((! IsEndogenous()) || s_MakeEndoLockCount)
 		return;
 	if (! UpdateMarker::HasActiveChangeSource() )
-		reportF(ST_Warning, "Changing the %s of endogenous item %s", changeWhat, GetSourceName().c_str());
+		reportF(SeverityTypeID::ST_Warning, "Changing the %s of endogenous item %s", changeWhat, GetSourceName().c_str());
 }
 
 SharedPtr<const AbstrCalculator> TreeItem::GetCalculator() const
@@ -2987,7 +2987,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 
 	try
 	{
-		reportF(ST_MajorTrace, "Read %s(%s)"
+		reportF(SeverityTypeID::ST_MajorTrace, "Read %s(%s)"
 		,		storageParent->GetStorageManager()->GetNameStr().c_str()
 		,		GetFullName().c_str()
 		);	
@@ -3862,7 +3862,7 @@ garbage_t TreeItem::StopInterest() const noexcept
 	}
 	catch(...)
 	{
-		reportF(ST_Warning, "%s uncaught exception ", GetSourceName());
+		reportF(SeverityTypeID::ST_Warning, "%s uncaught exception ", GetSourceName());
 	}
 	s_DataStoreManagerUsageCounter.unlock_shared();
 

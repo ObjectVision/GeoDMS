@@ -423,7 +423,7 @@ public:
 
 		AbstrDataItem* resAtomicRegionGrid = AsDataItem(resAtomicRegions->GetSubTreeItemByID(t_UnionData));
 
-		reportD(ST_MajorTrace, "overlay started");
+		reportD(SeverityTypeID::ST_MajorTrace, "overlay started");
 		DoOverlay<ResID>(resAtomicRegionGrid, IterRange<const overlay_partitioning_info_t*>(&partitionInfo), resAtomicRegions);
 
 		return true;

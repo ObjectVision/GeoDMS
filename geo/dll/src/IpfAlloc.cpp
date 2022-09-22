@@ -484,7 +484,7 @@ public:
 		if (!mustCalc)
 			return true;
 
-		reportD(ST_MajorTrace, "IpfAlloc: Prepare started");
+		reportD(SeverityTypeID::ST_MajorTrace, "IpfAlloc: Prepare started");
 /*
 		if (!Prepare(
 			gridDomain, atomicRegionUnit, atomicRegionMapA,
@@ -496,11 +496,11 @@ public:
 			return false;
 		}
 */
-		reportD(ST_MajorTrace, "IpfAlloc: Prepare completed with status ", strStatus.c_str());
+		reportD(SeverityTypeID::ST_MajorTrace, "IpfAlloc: Prepare completed with status ", strStatus.c_str());
 
 		bool isFeasible = (strStatus == "OK");
 
-		reportD(ST_MajorTrace, "IpfAlloc: Solve started");
+		reportD(SeverityTypeID::ST_MajorTrace, "IpfAlloc: Solve started");
 
 		DataWriteLock lockResLanduse(resLanduse, dms_rw_mode::write_only_mustzero);
 

@@ -64,7 +64,7 @@ void FileSystemStorageManager::DropStream(const TreeItem* item, CharPtr path)
 {
 	dms_assert(item);
 
-	reportF(ST_MajorTrace, "Drop  fss(%s,%s)", GetNameStr().c_str(), path);
+	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss(%s,%s)", GetNameStr().c_str(), path);
 
 	DSM::GetSafeFileWriterArray(item)->OpenOrCreate(
 		GetFullFileName(path).c_str(), 
@@ -94,7 +94,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 	dms_assert(!m_IsReadOnly);
 
-	reportF(ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
+	reportF(SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
 
 	SharedStr fullName = GetFullFileName(path); 
 	SafeFileWriterArray* sfwa = DSM::GetSafeFileWriterArray(smi.StorageHolder());
@@ -115,7 +115,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 std::unique_ptr<InpStreamBuff> FileSystemStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 {
-	reportF(ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
+	reportF(SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
 
 	dms_assert(IsOpen());
 

@@ -1364,7 +1364,7 @@ void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
 template <typename S, typename AR, typename AT>
 void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
 {
-	reportF(ST_MajorTrace, "DiscrAlloc: Prepare created alloc structs for "
+	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: Prepare created alloc structs for "
 		"%u cells, %u landuse types, %u (min-max) claims, %u unique partitionings, "
 		"%u atomic regions, %u unique regions, and %u priority queues",
 		htpInfo.GetN(), 
@@ -1449,7 +1449,7 @@ void InsertWinnerInResultAndReallocQueues(htp_info_t<S, AR, AT>& htpInfo, AR ar,
 			<	ph.m_TargetClaim->m_ShadowPrice)   // Gb
 		{
 			DBG_START("DiscrAlloc", "InsertWinnerInResultAndReallocQueues", true);
-			reportF(ST_Warning, 
+			reportF(SeverityTypeID::ST_Warning,
 				"Problem defending cell %u from %s$%s against %s$%s ",
 					i,
 					htpInfo.GetClaimRangeStr( htpInfo.m_Claims[currNode] ).c_str(), AsString(ph.m_SourceClaim->m_ShadowPrice).c_str(),
@@ -1522,7 +1522,7 @@ UInt32 FindMstDown(
 #if defined(MG_DEBUG)
 	if (htpInfo.m_TreeBuilder.empty() && htpInfo.CanReportFindMstDown() )
 	{
-		reportF(ST_MajorTrace, "FindMstDown: no adjustments possible for %s",	
+		reportF(SeverityTypeID::ST_MajorTrace, "FindMstDown: no adjustments possible for %s",
 				htpInfo.GetClaimRangeStr( htpInfo.m_Claims[rootClaimID] ) .c_str()
 		);
 	}
@@ -1619,7 +1619,7 @@ UInt32 FindMstUp(
 #if defined(MG_DEBUG)
 	if (htpInfo.m_TreeBuilder.empty())
 	{
-		reportF(ST_MajorTrace, "FindMstUp: no adjustments possible for %s", 
+		reportF(SeverityTypeID::ST_MajorTrace, "FindMstUp: no adjustments possible for %s",
 				htpInfo.GetClaimRangeStr( htpInfo.m_Claims[rootClaimID] ).c_str()
 		);
 	}
@@ -1828,14 +1828,14 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 #if defined(MG_DEBUG)
 		if (ph.m_TargetClaim->Overflow())
 		{
-			reportF(ST_MajorTrace, "UpdateSplitterDown: Realloc.Target %s has overflow", 
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Target %s has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_TargetClaim ).c_str()
 			);
 		}
 
 		if (ph.m_SourceClaim->Overflow())
 		{
-			reportF(ST_MajorTrace, "UpdateSplitterDown: Realloc.Source %s has overflow", 
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterDown: Realloc.Source %s has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_SourceClaim ).c_str()
 			);
 		}
@@ -1979,7 +1979,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 #if defined(MG_DEBUG)
 		if (ph.m_SourceClaim->Overflow())
 		{
-			reportF(ST_MajorTrace, "UpdateSplitterUp: Realloc.Source %s has overflow", 
+			reportF(SeverityTypeID::ST_MajorTrace, "UpdateSplitterUp: Realloc.Source %s has overflow",
 				htpInfo.GetClaimRangeStr( *ph.m_SourceClaim ).c_str()
 			);
 		}
@@ -2096,7 +2096,7 @@ bool CheckAllClaims(const htp_info_t<S, AR, AT>& htpInfo, SharedStr* resultPtr)
 					AsString(claimIter->m_ShadowPrice).c_str()
 				);
 			
-			reportF(ST_MajorTrace, "CheckAllClaims failed: %s", claimResult.c_str());
+			reportF(SeverityTypeID::ST_MajorTrace, "CheckAllClaims failed: %s", claimResult.c_str());
 			if (resultPtr)
 				(*resultPtr) += claimResult;
 		}
@@ -2119,7 +2119,7 @@ void DiscrAllocCellsBegin(htp_info_t<S, AR, AT>& htpInfo, UInt32 nextI)
 
 		++claimIter;
 	}
-	reportF(ST_MajorTrace, "DiscrAlloc %u: claims for %u cells: min=%u; max=%u", 
+	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc %u: claims for %u cells: min=%u; max=%u",
 		htpInfo.GetN(), nextI,
 		sumMinClaim,
 		sumMaxClaim
@@ -2144,7 +2144,7 @@ void DiscrAllocEnd(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI)
 
 		++claimIter;
 	}
-	reportF(ST_MajorTrace, "DiscrAllocCells %u:  %u cells completed: price adjustments range from %s to %s", 
+	reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells %u:  %u cells completed: price adjustments range from %s to %s",
 		htpInfo.GetN(), currI,
 		AsString(minPriceDiff).c_str(),
 		AsString(maxPriceDiff).c_str()
@@ -2198,7 +2198,7 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 		if (highestBidder == UNDEFINED_VALUE(UInt32) )
 		{
 			if (++htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
-				reportF(ST_MajorTrace, 
+				reportF(SeverityTypeID::ST_MajorTrace,
 					"DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
 					htpInfo.m_CurrPI, htpInfo.m_Threshold
 				); 
@@ -2221,7 +2221,7 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 				dms_assert(claim.m_Count > claim.m_ClaimRange.second);
 				SizeT excess = claim.m_Count - claim.m_ClaimRange.second;
 				if (PowerOf2(excess)) // only report power of 2 excess to limit quadratic behaviour of event log listbox and errors after 1000000 lines
-					reportF(ST_MajorTrace, 
+					reportF(SeverityTypeID::ST_MajorTrace,
 						"DiscrAlloc Warning: UpdateSplitterDown(%s) failed; now %u allocated",
 						htpInfo.GetClaimRangeStr( claim ).c_str(),
 						claim.m_Count
@@ -2234,13 +2234,13 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 		}
 
 		if (currI % rapFreq==0) 
-			reportF(ST_MajorTrace, 
+			reportF(SeverityTypeID::ST_MajorTrace,
 				"DiscrAllocCells %u: Progress %u/%u; %u calls to UpdateSplitterDown",
 				N, currI, nextI, d_nrSplits
 			); 
 	}
 	dms_assert(htpInfo.m_CurrPI >= htpInfo.m_N);
-	reportF(ST_MajorTrace, 
+	reportF(SeverityTypeID::ST_MajorTrace,
 		"DiscrAllocCells %u: %u cells completed with %u calls to UpdateSplitterDown",
 		N, currI, d_nrSplits
 	); 
@@ -2263,7 +2263,7 @@ void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
 			++count;
 		}
 		if (!ok)
-			reportF(ST_MajorTrace, 
+			reportF(SeverityTypeID::ST_MajorTrace,
 				"DiscrAlloc Warning: UpdateSplitterUp(%s) failed; only %u allocated",
 				htpInfo.GetClaimRangeStr( *claimIter ).c_str(),
 				claimIter->m_Count
@@ -2271,7 +2271,7 @@ void DiscrAllocMinClaims(htp_info_t<S, AR, AT>& htpInfo)
 		++claimIter;
 	}
 
-	reportF(ST_MajorTrace, 
+	reportF(SeverityTypeID::ST_MajorTrace,
 		"DiscrAllocMinClaims completed with %u calls to UpdateSplitterUp",
 		count
 	); 
@@ -2437,7 +2437,7 @@ void Solve(htp_info_t<S, AR, AT>& htpInfo, S threshold, AbstrDataObject* resPric
 	UInt32* atomicRegionCountPtr = begin_ptr(atomicRegionCount);
 	while (htpInfo.m_StepSize > 1)
 	{
-		reportF(ST_MajorTrace, "DiscrAlloc: SolveScaled per %u cells", htpInfo.m_StepSize);
+		reportF(SeverityTypeID::ST_MajorTrace, "DiscrAlloc: SolveScaled per %u cells", htpInfo.m_StepSize);
 
 		UInt32 nextI = htpInfo.GetNrSteps();
 		
@@ -2691,7 +2691,7 @@ public:
 		}
 		else
 		{
-			reportD(ST_MajorTrace, "DiscrAlloc.Prepare started");
+			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
 			PrepareClaims(htpInfo);
 			PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
@@ -2714,7 +2714,7 @@ public:
 
 			if (isFeasible)
 			{
-				reportD(ST_MajorTrace, "DiscrAlloc.Solve started with suitability container ", GetItem(args[2])->GetFullName().c_str());
+				reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Solve started with suitability container ", GetItem(args[2])->GetFullName().c_str());
 				S threshold = GetTheCurrValue<S>(GetItem(args[9]));
 
 				PrepareTileLock(htpInfo);
@@ -2722,7 +2722,7 @@ public:
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
-					reportF(ST_MajorTrace, "%d units%s without land use type suitability above the threshold and therefore unallocated"
+					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s without land use type suitability above the threshold and therefore unallocated"
 						, htpInfo.m_NrBelowThreshold
 						, htpInfo.m_NrBelowThreshold > NR_BELOW_THRESHOLD_NOTIFICATIONS ? ", of which only the first 5 were reported," : ""
 							
@@ -2794,7 +2794,7 @@ public:
 			htpInfo.m_ResultDataLock.Commit();
 		}
 
-		reportD(ST_MajorTrace, strStatus.c_str() );
+		reportD(SeverityTypeID::ST_MajorTrace, strStatus.c_str() );
 
 		dms_assert(!strStatus.empty() || res->WasFailed(FR_Data));
 //		DataWriteLock resStatusLock(resStatus, dms_rw_mode::write_only_mustzero);

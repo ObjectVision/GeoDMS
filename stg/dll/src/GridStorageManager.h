@@ -71,7 +71,7 @@ void CheckValueCount(CharPtr loc, Iter iter, SizeT sz)
 		if (*iter++ != std::iterator_traits<Iter>::value_type())
 			count++;
 	}
-	reportF(ST_MajorTrace, "CheckValueCount(%1%): %2%/%3%", loc, count, szCopy);
+	reportF(SeverityTypeID::ST_MajorTrace, "CheckValueCount(%1%): %2%/%3%", loc, count, szCopy);
 }
 #else
 

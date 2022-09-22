@@ -856,7 +856,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear M
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
-		reportF(ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles), ", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+		reportF(SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles), ", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	switch (adi->GetValueComposition())

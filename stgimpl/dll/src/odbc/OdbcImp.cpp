@@ -557,7 +557,7 @@ void TDatabase::Open()
 			);
 		}
 	}
-	reportD(ST_MinorTrace, "Opened connection as ", m_ConnectionString.c_str());
+	reportD(SeverityTypeID::ST_MinorTrace, "Opened connection as ", m_ConnectionString.c_str());
 }
 
 CharPtr TDatabase::GetConnectionStr()

@@ -79,7 +79,7 @@ namespace {
 			while (i!=e)
 			{
 				const TreeItem* ti = *i++;
-				reportF(ST_MajorTrace, "%s Leak: %s (%d,%d) %s", 
+				reportF(SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
 					m_ObjName,
 					ti->GetDynamicClass()->GetName(), 
 					ti->GetRefCount(), 
@@ -87,7 +87,7 @@ namespace {
 					ti->GetFullName().c_str());
 			}
 
-			reportF(ST_Error, "%s Leak of %d TreeItems. See EventLog for details.", 
+			reportF(SeverityTypeID::ST_Error, "%s Leak of %d TreeItems. See EventLog for details.",
 				m_ObjName,
 				n
 			);

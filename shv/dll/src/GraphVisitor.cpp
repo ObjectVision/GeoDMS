@@ -858,7 +858,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort*  vp)
 	{
 		FormattedOutStream out(&strBuff, FormattingFlags::ThousandSeparator);
 		out << "X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << char(0);
-		dv->SendStatusText(ST_MinorTrace, &*buffer.begin());
+		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, &*buffer.begin());
 	}
 	buffer.clear();
 	if (r_EventInfo.m_EventID & EID_COPYCOORD )

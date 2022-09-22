@@ -232,7 +232,7 @@ namespace wms {
 		void report(CharPtr what, bool alive)
 		{
 			#if defined(MG_DEBUG_WMS)
-				report(ST_MajorTrace, what, "OK", alive);
+				report(SeverityTypeID::ST_MajorTrace, what, "OK", alive);
 			#endif
 		}
 
@@ -298,15 +298,15 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		MG_DEBUGCODE(reportD(ST_MajorTrace, "STARTED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-			MG_DEBUGCODE(reportD(ST_MajorTrace, "SUSPENDED: GetIOC()"); )
+			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		MG_DEBUGCODE(reportD(ST_MajorTrace, "STOPPED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
@@ -443,8 +443,8 @@ namespace wms {
 
 	void TileLoader::report(SeverityTypeID st, CharPtr what, CharPtr msg, bool alive)
 	{
-		if (st == ST_Error)
-			st = ST_Warning;
+		if (st == SeverityTypeID::ST_Error)
+			st = SeverityTypeID::ST_Warning;
 
 		reportF(st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
 			, what 
@@ -463,11 +463,11 @@ namespace wms {
 		if (!ec)
 		{
 			#if defined(MG_DEBUG_WMS)
-				report(ST_MajorTrace, what, "OK", true);
+				report(SeverityTypeID::ST_MajorTrace, what, "OK", true);
 			#endif
 			return false;
 		}
-		report(ST_Warning, what, ec.message().c_str(), true);
+		report(SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
 
 		auto owner = m_Owner.lock();
 		if (owner)
@@ -668,10 +668,10 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 		return GVS_Continue;
 
 	const wms::tile_matrix& tm = m_TMS[m_ZoomLevel];
-	grid_coord_key key = tm.GridCoordKey();
+	grid_coord_key gcKey = tm.GridCoordKey();
 	ViewPort* vp = d.GetViewPortPtr();
 	dms_assert(vp);
-	GridCoordPtr drawGridCoords = vp->GetOrCreateGridCoord(key);
+	GridCoordPtr drawGridCoords = vp->GetOrCreateGridCoord(gcKey);
 
 	if (vp == GetViewPort())
 		m_GridCoord = drawGridCoords; // cache only if vp owns this GridLayer
@@ -711,10 +711,10 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 			if (tileRelRect.empty())
 				continue;
 
-			wms::tile_id key(m_ZoomLevel, tp);
-			if (!m_TileCache->LoadTile(this, key))
+			wms::tile_id wmsTileKey(m_ZoomLevel, tp);
+			if (!m_TileCache->LoadTile(this, wmsTileKey))
 			{
-				m_TileCache->PushTileLoad(key);
+				m_TileCache->PushTileLoad(wmsTileKey);
 				for (;;) {
 					auto result = m_TileCache->RunTileLoads(this, d.IsSuspendible());
 					if (d.IsSuspendible())
@@ -722,14 +722,14 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 					wms::ProcessPendingTasks();
 					if (result == GVS_Ready && !wms::TileLoader::s_InstanceCount)
 					{
-						if (!IsFileOrDirAccessible(m_TileCache->FileName(key)))
+						if (!IsFileOrDirAccessible(m_TileCache->FileName(wmsTileKey)))
 							goto nextTile;
 						break;
 					}
 				}
 			}
 			try {
-				auto result = gdalReader.ReadGridData(m_TileCache->FileName(key).c_str(), rasterBuffer);
+				auto result = gdalReader.ReadGridData(m_TileCache->FileName(wmsTileKey).c_str(), rasterBuffer);
 				if (result==WPoint())
 				{
 					goto nextTile;

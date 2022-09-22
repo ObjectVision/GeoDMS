@@ -921,7 +921,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 	bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
 	if (isPivotedForLogging)
-		reportF(ST_MajorTrace, "IncInterestCount %s", GetInterestCount());
+		reportF(SeverityTypeID::ST_MajorTrace, "IncInterestCount %s", GetInterestCount());
 #endif
 	dbg_assert( !SuspendTrigger::DidSuspend() );
 	{
@@ -1005,7 +1005,7 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 	DynamicIncrementalLock<> incInterestCountDetector(sd_DecInterestCount);
 	bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
 	if (isPivotedForLogging)
-		reportF(ST_MajorTrace, "DecInterestCount %s", GetInterestCount());
+		reportF(SeverityTypeID::ST_MajorTrace, "DecInterestCount %s", GetInterestCount());
 #endif
 
 	dms_assert(m_InterestCount);
@@ -1146,7 +1146,7 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 #if defined(MG_DEBUG)
 		else
 		{
-			reportD_without_cancellation_check(ST_MinorTrace, "Concurrent MoveSupplInterest happening");
+			reportD_without_cancellation_check(SeverityTypeID::ST_MinorTrace, "Concurrent MoveSupplInterest happening");
 		}
 #endif
 		dms_assert( !self->DoesHaveSupplInterest() ) ; // POSTCONDITION
@@ -1207,7 +1207,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
 	if (isPivotedForLogging)
-		reportF(ST_MajorTrace, "DupInterestCount %s", GetInterestCount());
+		reportF(SeverityTypeID::ST_MajorTrace, "DupInterestCount %s", GetInterestCount());
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
 
 	SharedPtr<const Actor> result = this;

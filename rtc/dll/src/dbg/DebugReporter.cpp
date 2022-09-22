@@ -95,7 +95,7 @@ void ReportCount() // TODO RECOMPILE G8: include in DbgInterface.h
 	{
 		auto serializedDebugOutput = std::scoped_lock(debugOutputSection);
 		debugCounter++;
-		reportF(ST_MajorTrace, "GetKeyExprImpl debugCounter=%d", debugCounter);
+		reportF(SeverityTypeID::ST_MajorTrace, "GetKeyExprImpl debugCounter=%d", debugCounter);
 	}
 }
 #endif

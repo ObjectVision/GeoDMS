@@ -63,7 +63,7 @@ namespace {
 				resultHolder = CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), Unit<ERRORLEVEL>::GetStaticClass()->CreateDefault());
 			else
 			{
-				reportD(ST_Warning, "Obsolete function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
+				reportD(SeverityTypeID::ST_Warning, "Obsolete function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
 				resultHolder = TreeItem::CreateCacheRoot();
 			}
 		}
@@ -74,7 +74,7 @@ namespace {
 	{
 //		DMS_ReduceResources();
 		Wait(100);
-		reportF(ST_MinorTrace, "exec_ec: %s %s", moduleName ? moduleName : "", cmdLine.c_str());
+		reportF(SeverityTypeID::ST_MinorTrace, "exec_ec: %s %s", moduleName ? moduleName : "", cmdLine.c_str());
 		auto errorCode = ExecuteChildProcess(moduleName, cmdLine.begin());
 
 		if constexpr (returnValue)

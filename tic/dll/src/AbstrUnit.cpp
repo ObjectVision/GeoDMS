@@ -205,7 +205,7 @@ bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	AbstrStorageManager* sm = smi->StorageManager();
 
-	reportF(ST_MajorTrace, "%s IS PROVIDED TO %s",
+	reportF(SeverityTypeID::ST_MajorTrace, "%s IS PROVIDED TO %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()
 	);	

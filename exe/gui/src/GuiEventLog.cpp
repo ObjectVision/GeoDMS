@@ -69,13 +69,13 @@ void GuiEventLog::Update(bool* p_open)
     // TODO: display items starting from the bottom
     if (ImGui::SmallButton("Test SeverityTypeID messages"))
     {
-        AddLog(ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
-        AddLog(ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
-        AddLog(ST_Warning, "ST_Warning: this is a warning message.");
-        AddLog(ST_Error, "ST_Error: this is an error message.");
-        AddLog(ST_FatalError, "ST_FatalError: this is a fatal error message.");
-        AddLog(ST_DispError, "ST_DispError: this is a disp error message.");
-        AddLog(ST_Nothing, "ST_Nothing: this is a nothing message.");
+        AddLog(SeverityTypeID::ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
+        AddLog(SeverityTypeID::ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
+        AddLog(SeverityTypeID::ST_Warning, "ST_Warning: this is a warning message.");
+        AddLog(SeverityTypeID::ST_Error, "ST_Error: this is an error message.");
+        AddLog(SeverityTypeID::ST_FatalError, "ST_FatalError: this is a fatal error message.");
+        AddLog(SeverityTypeID::ST_DispError, "ST_DispError: this is a disp error message.");
+        AddLog(SeverityTypeID::ST_Nothing, "ST_Nothing: this is a nothing message.");
     }
 
 
@@ -172,37 +172,37 @@ ImColor GuiEventLog::ConvertSeverityTypeIDToColor(SeverityTypeID st)
     ImColor color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
     switch (st)
     {
-    case ST_MinorTrace:
+    case SeverityTypeID::ST_MinorTrace:
     {
         color = ImVec4(46.0f/255.0f, 139.0f/255.0f, 87.0f/255.0f, 1.0f);
         break;
     }
-    case ST_MajorTrace:
+    case SeverityTypeID::ST_MajorTrace:
     {
         color = ImVec4(60.0f/255.0f, 179.0f/255.0f, 113.0f/255.0f, 1.0f);
         break;
     }
-    case ST_Warning:
+    case SeverityTypeID::ST_Warning:
     {
         color = ImVec4(255.0f/255.0f, 140.0f/255.0f, 0.0f/255.0f, 1.0f);
         break;
     }
-    case ST_Error:
+    case SeverityTypeID::ST_Error:
     {
         color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
         break;
     }
-    case ST_FatalError:
+    case SeverityTypeID::ST_FatalError:
     {
         color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
         break;
     }
-    case ST_DispError:
+    case SeverityTypeID::ST_DispError:
     {
         color = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
         break;
     }
-    case ST_Nothing:
+    case SeverityTypeID::ST_Nothing:
     {
         break;
     }
@@ -221,17 +221,17 @@ bool GuiEventLog::EventFilter(SeverityTypeID st)
 {
     switch (st)
     {
-    case ST_MinorTrace:
+    case SeverityTypeID::ST_MinorTrace:
         return m_State.m_OptionsEventLog.ShowMessageTypeMinorTrace;
-    case ST_MajorTrace:
+    case SeverityTypeID::ST_MajorTrace:
         return m_State.m_OptionsEventLog.ShowMessageTypeMajorTrace;
-    case ST_Warning:
+    case SeverityTypeID::ST_Warning:
         return m_State.m_OptionsEventLog.ShowMessageTypeWarning;
-    case ST_Error:
-    case ST_DispError:
-    case ST_FatalError:
+    case SeverityTypeID::ST_Error:
+    case SeverityTypeID::ST_DispError:
+    case SeverityTypeID::ST_FatalError:
         return m_State.m_OptionsEventLog.ShowMessageTypeError;
-    case ST_Nothing:
+    case SeverityTypeID::ST_Nothing:
         return m_State.m_OptionsEventLog.ShowMessageTypeNothing;
     }
     return true;
@@ -242,7 +242,7 @@ void GuiEventLog::AddLog(SeverityTypeID st, std::string msg)
     if (m_Items.size() > m_MaxLogLines) // TODO: delete first n m_Items and shift items from n+1 to end n places back
     {
         m_Items.clear();
-        m_Items.push_back(std::pair(ST_Nothing, "Log cleanup."));
+        m_Items.push_back(std::pair(SeverityTypeID::ST_Nothing, "Log cleanup."));
     }
     m_Items.push_back(std::pair(st, msg));
 };

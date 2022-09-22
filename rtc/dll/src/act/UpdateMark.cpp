@@ -102,7 +102,7 @@ namespace UpdateMarker {
 
 	void  ReportActiveContext(CharPtr callerFunc)
 	{
-		reportF(ST_MajorTrace, "%s called during %s(%s) for TimeFrame %u and DetermineChangeLockCount %u (Last %s TimeFrame = %u)",
+		reportF(SeverityTypeID::ST_MajorTrace, "%s called during %s(%s) for TimeFrame %u and DetermineChangeLockCount %u (Last %s TimeFrame = %u)",
 			callerFunc,
 			g_CurrChangedContext,
 			g_CurrChangedActor ? g_CurrChangedActor->GetSourceName().c_str() : "",
@@ -113,7 +113,7 @@ namespace UpdateMarker {
 		);
 
 		for (auto& changeSource: s_ChangeSources)
-			reportF(ST_MinorTrace, "ts %d was caused by %s", changeSource.first, changeSource.second);
+			reportF(SeverityTypeID::ST_MinorTrace, "ts %d was caused by %s", changeSource.first, changeSource.second);
 //		dms_check(0);
 	}
 
@@ -239,7 +239,7 @@ ChangeSourceLock::~ChangeSourceLock()
 			impl::bCommitted = false;
 			MG_DEBUG_TS_SOURCE_CODE(
 				s_ChangeSources[impl::tsLast] = cause;
-				reportF(ST_MinorTrace, "ts %d is caused by %s", impl::tsLast.load(), cause);
+				reportF(SeverityTypeID::ST_MinorTrace, "ts %d is caused by %s", impl::tsLast.load(), cause);
 			)
 		}
 	}

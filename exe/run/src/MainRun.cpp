@@ -143,7 +143,7 @@ int main2(int argc, char** argv)
 void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
 {
 	dms_assert(clientHandle == nullptr);
-	if (st < ST_MajorTrace)
+	if (st < SeverityTypeID::ST_MajorTrace)
 		return;
 
 	std::cout << msg << std::endl;

@@ -62,7 +62,7 @@ GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key, GPoint clientSi
 		,	m_SubPixelFactor(-1.0)
 {
 #if defined(MG_DEBUG_COORD)
-	reportF(ST_MajorTrace, "GridCoord::GridCoord(%s)", AsString(key).c_str());
+	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::GridCoord(%s)", AsString(key).c_str());
 #endif
 	Init(clientSize, w2vTr);
 }
@@ -70,7 +70,7 @@ GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key, GPoint clientSi
 GridCoord::~GridCoord()
 {
 #if defined(MG_DEBUG_COORD)
-	reportF(ST_MajorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
+	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
 #endif
 	auto owner = m_Owner.lock();
 	if (owner)
@@ -218,7 +218,7 @@ void GridCoord::Update(Float64 subPixelFactor)
 
 
 #if defined(MG_DEBUG_COORD)
-	reportF(ST_MajorTrace, "GridCoord::Update(%s)", AsString(m_Key).c_str());
+	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::Update(%s)", AsString(m_Key).c_str());
 #endif
 
 	CalcGridNrs(m_GridCols, m_LinedCols, m_GridOrigin.Col(), m_GridCellSize.Col(), subPixelFactor, gridSize.Col(), viewSize.x);

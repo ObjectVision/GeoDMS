@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 // The priority of an error is given by the following classification:
 
-enum SeverityTypeID {
+enum class SeverityTypeID {
 	ST_MinorTrace = 0,
 	ST_MajorTrace = 1,
 	ST_Warning    = 2,

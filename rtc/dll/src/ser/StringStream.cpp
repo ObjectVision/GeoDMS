@@ -99,12 +99,12 @@ IStringComponentLock::~IStringComponentLock()
 	std::size_t n = s_AllocatedStrings->size();
 	if (n)
 	{
-		reportF(ST_MajorTrace, "Memory Leak of %I64u IStrings", (UInt64)n);
+		reportF(SeverityTypeID::ST_MajorTrace, "Memory Leak of %I64u IStrings", (UInt64)n);
 
 		IStringSet::iterator i = s_AllocatedStrings->begin();
 		IStringSet::iterator e = s_AllocatedStrings->end();
 		while (i!=e)
-			reportD(ST_MajorTrace, "MemoLeak: IString ", (*i));
+			reportD(SeverityTypeID::ST_MajorTrace, "MemoLeak: IString ", (*i));
 	}
 	s_AllocatedStrings.reset();
 }

@@ -279,7 +279,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 
 			const TreeItem* templ = FindName(optTempl, optTemplNames, i, "template");
 			if (optExprs && !templ->_GetExprStr().empty())
-				reportF(ST_Warning,
+				reportF(SeverityTypeID::ST_Warning,
 					"%s: this template has calculation rule '%s'\n"
 					"which conflicts with the explicit given expressions for the item domain set %s;\n"
 					"this is considered as a potential error",

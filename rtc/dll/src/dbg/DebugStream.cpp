@@ -143,7 +143,7 @@ namespace { // DebugOutStreamBuff is local
 
 	struct DebugOutStreamBuff : VectorOutStreamBuff
 	{
-		DebugOutStreamBuff() : m_Severity(ST_MinorTrace) {}
+		DebugOutStreamBuff() : m_Severity(SeverityTypeID::ST_MinorTrace) {}
 
 		bool LineEmpty() const
 		{
@@ -168,10 +168,10 @@ namespace { // DebugOutStreamBuff is local
 			if (!s_nrRtcStreamLocks)
 				return;
 
-			dms_assert(m_Severity != ST_Nothing); // tests precondition that DebugOutStream::scoped_lock was obtained
+			dms_assert(m_Severity != SeverityTypeID::ST_Nothing); // tests precondition that DebugOutStream::scoped_lock was obtained
 			if (LineEmpty())
 			{
-				Byte severityCode = (m_Severity+1);
+				Byte severityCode = Byte(m_Severity)+1;
 				VectorOutStreamBuff::WriteBytes(&severityCode, 1);
 			}
 			VectorOutStreamBuff::WriteBytes(data, size);
@@ -203,16 +203,16 @@ namespace { // DebugOutStreamBuff is local
 			{
 				dms_assert(e[-1]==0); // guaranteed by caller to have a completed Line.
 				SeverityTypeID st = SeverityTypeID((*i++)-1);
-				dms_assert(st <= ST_DispError);
-				if (e - i >= 1024000 && (st < ST_MajorTrace || st == ST_MajorTrace && printedLines > 16)) // filter out large trace sections
-					if (st <= ST_MinorTrace)
+				dms_assert(st <= SeverityTypeID::ST_DispError);
+				if (e - i >= 1024000 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
+					if (st <= SeverityTypeID::ST_MinorTrace)
 						++minorSkipCount;
 					else
 						++majorSkipCount;
 				else
 				{
 					if (minorSkipCount || majorSkipCount) {
-						MsgDispatch(majorSkipCount ? ST_MajorTrace : ST_MinorTrace, mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount)).c_str());
+						MsgDispatch(majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace, mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount)).c_str());
 						minorSkipCount = majorSkipCount = 0;
 					}
 					MsgDispatch(st, &(i[0]));
@@ -287,7 +287,7 @@ DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st 
 DebugOutStream::scoped_lock::~scoped_lock()
 {
 	m_Str->NewLine();
-	MG_DEBUGCODE( m_Str->SetSeverity( ST_Nothing ); )
+	MG_DEBUGCODE( m_Str->SetSeverity(SeverityTypeID::ST_Nothing ); )
 }
 
 // *****************************************************************************
@@ -307,7 +307,8 @@ DebugOutStream::scoped_lock::~scoped_lock()
 			CCrtLog() 
 			{
 				DMS_RegisterMsgCallback(CrtMsgCallback, typesafe_cast<ClientHandle>(this));
-				*g_DebugStream << ST_MajorTrace << "\nCRT logging started\n" << char(0);
+				DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
+				*g_DebugStream << "\nCRT logging started\n" << char(0);
 			}
 			~CCrtLog() 
 			{
@@ -317,11 +318,11 @@ DebugOutStream::scoped_lock::~scoped_lock()
 		private:
 			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
 			{
-				if (st >= ST_MinorTrace) // ST_MinorTrace, ST_MajorTrace, ST_Warning, ST_Error, ST_FatalError
+				if (st >= SeverityTypeID::ST_MinorTrace) // ST_MinorTrace, ST_MajorTrace, ST_Warning, ST_Error, ST_FatalError
 				{
 					//	level usd to be _CRT_ERROR, but Delphi is already taking care of MsgBox
-					if (st >= ST_Error) // ST_Error, ST_FatalError
-						_RPT0(_CRT_WARN, (st==ST_FatalError)?"\nFatalError":"Error");
+					if (st >= SeverityTypeID::ST_Error) // ST_Error, ST_FatalError
+						_RPT0(_CRT_WARN, (st== SeverityTypeID::ST_FatalError)?"\nFatalError":"Error");
 
 					_RPT0(_CRT_WARN, "\n");
 					SizeT n = StrLen(msg);
@@ -334,7 +335,7 @@ DebugOutStream::scoped_lock::~scoped_lock()
 					}
 					_RPT1(_CRT_WARN, "%s", msg);
 					Wait(MG_WAIT_PER_MSG);
-					if (st >= ST_Warning)
+					if (st >= SeverityTypeID::ST_Warning)
 					{
 //						_CrtDbgBreak();
 					}
@@ -415,10 +416,10 @@ namespace { // local defs
 		char buf[bufSize];
 		_snprintf(buf, bufSize, "Memory Allocation failed for %I64u bytes", (UInt64)size);
 
-		reportD(ST_Warning, buf);
+		reportD(SeverityTypeID::ST_Warning, buf);
 		if (!CoalesceHeap(size, g_MyNewExceptionHandlerCount-1))
 			throwErrorF("Memory", "allocation failed for %I64u bytes and no heap cleanup possible.", (UInt64)size);
-		reportD(ST_MajorTrace, "Try again after heap cleanup");
+		reportD(SeverityTypeID::ST_MajorTrace, "Try again after heap cleanup");
 		return true;
 	}
 
@@ -519,7 +520,7 @@ CDebugLog::CDebugLog(WeakStr name)
 	if (isOpened) 
 		DMS_RegisterMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 
-	DebugOutStream::scoped_lock lock(g_DebugStream, isOpened ? ST_MajorTrace : ST_Warning);
+	DebugOutStream::scoped_lock lock(g_DebugStream, isOpened ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_Warning);
 	if (!isOpened) 
 		*g_DebugStream << "Unable to open debug output file " << name.c_str();
 	else
@@ -535,7 +536,7 @@ CDebugLog::CDebugLog(WeakStr name)
 CDebugLog::~CDebugLog() 
 {
 	{
-		DebugOutStream::scoped_lock lock(g_DebugStream, ST_MajorTrace);
+		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
 
 		// Display operating system-style date and time. 
 		char dateBuff[128], timeBuff[128];

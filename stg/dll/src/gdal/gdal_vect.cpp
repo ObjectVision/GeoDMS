@@ -586,7 +586,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			else if (dynamic_cast<OGRMultiLineString*>(geo))
 			{
 				if (!i && !firstIndex) // only report once
-					reportD(ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
+					reportD(SeverityTypeID::ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
 				AddMultiLineString<PolygonType>(dataElemRef, static_cast<OGRMultiLineString*>(geo));
 			}
 		}
@@ -1469,7 +1469,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	SizeT featureIndex = 0, tileFeatureIndex = 0;
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
 	{
-		reportF(ST_MajorTrace, "gdalwrite.vect, tile %u of %u tiles of layer %s",
+		reportF(SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, tile %u of %u tiles of layer %s",
 			t+1, adu->GetNrTiles(), layername);
 
 		GDAL_TransactionFrame transaction_frame(this->m_hDS);

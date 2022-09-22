@@ -167,7 +167,7 @@ class  PersistentSharedObj;
 struct IString;
 struct Undefined;
 
-enum   SeverityTypeID;
+enum   class SeverityTypeID;
 enum   ValueClassID;
 enum   class ValueComposition;
 enum   class dms_rw_mode;

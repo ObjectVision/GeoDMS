@@ -375,7 +375,7 @@ void RunOperationContexts()
 	void reportOC(CharPtr source, OperationContext* ocPtr)
 	{
 		auto item = ocPtr->GetResult();
-		reportF_without_cancellation_check(ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
+		reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
 	}
 	auto reportRemaingOcOnExit = make_scoped_exit([]()
 		{
@@ -1300,7 +1300,7 @@ void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 task_status OperationContext::Join()
 {
 	if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
-		reportF(ST_Warning, "OperationContext(%s)::Join called from Active Context %s"
+		reportF(SeverityTypeID::ST_Warning, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);

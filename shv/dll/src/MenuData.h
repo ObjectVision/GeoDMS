@@ -55,7 +55,7 @@ struct ObjCountMonitor
 	~ObjCountMonitor()                          { ++s_Destroy; Report("Destruct "); }
 	static void Report(CharPtr action)
 	{
-		reportF(ST_MinorTrace, "%s %s Def %d Cpy %d Del %d Rem %d", action, typeid(T).name(), s_defCtor, s_cpyCtor, s_Destroy, s_defCtor+s_cpyCtor-s_Destroy);
+		reportF(SeverityTypeID::ST_MinorTrace, "%s %s Def %d Cpy %d Del %d Rem %d", action, typeid(T).name(), s_defCtor, s_cpyCtor, s_Destroy, s_defCtor+s_cpyCtor-s_Destroy);
 	}
 	static UInt32 s_defCtor;
 	static UInt32 s_cpyCtor;

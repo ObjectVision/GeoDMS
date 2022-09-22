@@ -134,7 +134,7 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 			if (++retryCounter > 10)
 				break;
 			UInt32 nrWaitSecs = (1 << retryCounter);
-			reportF(ST_MajorTrace,
+			reportF(SeverityTypeID::ST_MajorTrace,
 				"WindowsSystemError %s:\nErrorCode %d: %s\nWaiting %d seconds before retry #%d", 
 				mySSPrintF(format, fileName).c_str(),
 				lastErr, 
@@ -435,10 +435,10 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '2': SetRegStatusFlag(RSF_MultiThreading2, newValue); break;
 		case '3': SetRegStatusFlag(RSF_MultiThreading3, newValue); break;
 		default: 
-			reportF(ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
-	reportF(ST_MajorTrace, "Recognised command line option %s %s", (newValue ? "Set" : "Clear"), param[2]);
+	reportF(SeverityTypeID::ST_MajorTrace, "Recognised command line option %s %s", (newValue ? "Set" : "Clear"), param[2]);
 	return true;
 }
 
@@ -881,14 +881,14 @@ bool BreakingReport(CharPtr funcStr, CharPtr fileName)
 	bool mustBreak = (lastError != 32 && lastError != 5);
 	if (mustBreak)
 	{
-		reportF(ST_MajorTrace, "Failure in %s(%s) because %s"
+		reportF(SeverityTypeID::ST_MajorTrace, "Failure in %s(%s) because %s"
 		,	funcStr
 		,	fileName
 		,	platform::GetSystemErrorText(lastError).c_str()
 		);
 		return true;
 	}
-	reportF(ST_MajorTrace, "Retry %s(%s) after waiting 1 sec because %s"
+	reportF(SeverityTypeID::ST_MajorTrace, "Retry %s(%s) after waiting 1 sec because %s"
 	,	funcStr
 	,	fileName
 	,	platform::GetSystemErrorText(lastError).c_str()

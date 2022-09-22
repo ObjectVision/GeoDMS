@@ -119,7 +119,7 @@ void Report(const AbstrDataItem* adi, CharPtr func)
 		return; // don't report on transient MappedFiling
 #endif defined(MG_REPORT_ALL_CACHE_TRANSACTIONS)
 
-	reportF(ST_MajorTrace, "%s: %s", 
+	reportF(SeverityTypeID::ST_MajorTrace, "%s: %s",
 		adi->GetSourceName().c_str()
 	,	func
 	);
@@ -513,7 +513,7 @@ void DataStoreManager::RegisterExternalTS(const FileDateTime& fdt, TimeStamp int
 	if ((assocPtr != m_Ft2TsMap.end()) && (assocPtr->first == fdt))
 	{
 		if (assocPtr->second != internalTS)
-			reportF(ST_Error, "External FileDateTime %s was already registered at TimeStamp 0x%x which conflict with current registration of 0x%x",
+			reportF(SeverityTypeID::ST_Error, "External FileDateTime %s was already registered at TimeStamp 0x%x which conflict with current registration of 0x%x",
 				AsDateTimeString(fdt).c_str(),
 				assocPtr->second,
 				internalTS

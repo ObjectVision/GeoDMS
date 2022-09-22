@@ -152,7 +152,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr).c_str()));
 
 	if (og->IsObsolete())
-		reportF(ST_Warning, "obsolete operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "obsolete operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
 
 	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
 	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call

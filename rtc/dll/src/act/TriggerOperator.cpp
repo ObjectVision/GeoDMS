@@ -251,7 +251,7 @@ namespace DemandManagement {
 		dms_assert(s_CurrFence == this);
 		for (auto i = m_TempTargets.begin(), e=m_TempTargets.end(); i!=e; ++i)
 		{
-			reportF(ST_MajorTrace, "IncInterest %u broke through Fence %s", i->second, i->first->GetSourceName().c_str());
+			reportF(SeverityTypeID::ST_MajorTrace, "IncInterest %u broke through Fence %s", i->second, i->first->GetSourceName().c_str());
 		}
 		s_CurrFence = m_PrevFence;
 	}
@@ -335,7 +335,7 @@ namespace DemandManagement {
 	{
 		if (!g_IncInterestDetectorCount)
 			return;
- 		reportD(ST_MajorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
+ 		reportD(SeverityTypeID::ST_MajorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
 //		dms_assert(0);
 	}
 
@@ -450,7 +450,7 @@ namespace SuspendTrigger {
 		SizeT oldErrorCount = s_ReportedErrorCount;
 		s_ReportedErrorCount = 0;
 		if (oldErrorCount > s_MaxReportedErrorCount)
-			reportF(ST_MajorTrace, "Skipped %I64u warnings.....", UInt64(oldErrorCount - s_MaxReportedErrorCount));
+			reportF(SeverityTypeID::ST_MajorTrace, "Skipped %I64u warnings.....", UInt64(oldErrorCount - s_MaxReportedErrorCount));
 	}
 
 	void DoSuspend() noexcept

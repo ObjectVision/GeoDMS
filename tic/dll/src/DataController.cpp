@@ -209,8 +209,8 @@ namespace {
 	{
 
 #if defined(MG_DEBUG_LISP_TREE)
-		reportD(ST_MinorTrace, "===CreateDC===");
-		reportD(ST_MinorTrace, AsString(keyExpr).c_str());
+		reportD(SeverityTypeID::ST_MinorTrace, "===CreateDC===");
+		reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 		dms_assert(IsExpr(keyExpr));
 #endif
 
@@ -224,7 +224,7 @@ namespace {
 			{
 				head = keyExpr.Right().Left();
 #if defined(MG_DEBUG_LISP_TREE)
-				reportF(ST_MinorTrace, "head=%s", AsString(head).c_str());
+				reportF(SeverityTypeID::ST_MinorTrace, "head=%s", AsString(head).c_str());
 #endif
 				dms_assert(head.IsSymb());
 
@@ -277,7 +277,7 @@ DataControllerMap::~DataControllerMap()
 			while (i!=e)
 			{
 				const DataController* dcPtr = (*i++).second;
-				reportF(ST_MajorTrace, "MemoryLeak DataController(%d, %d, %d): %s", 
+				reportF(SeverityTypeID::ST_MajorTrace, "MemoryLeak DataController(%d, %d, %d): %s",
 					c++, 
 					dcPtr->GetRefCount(), 
 					dcPtr->GetInterestCount(), 
@@ -288,7 +288,7 @@ DataControllerMap::~DataControllerMap()
 					#endif
 				);
 			}			
-			reportF(ST_Error, "MemoryLeak of %u DataControllers. See EventLog for details.", n);
+			reportF(SeverityTypeID::ST_Error, "MemoryLeak of %u DataControllers. See EventLog for details.", n);
 		}
 	#endif
 	dms_assert(!size());
@@ -333,8 +333,8 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 		return nullptr;
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportD(ST_MinorTrace, "===GetDataController===");
-	reportD(ST_MinorTrace, AsString(keyExpr).c_str());
+	reportD(SeverityTypeID::ST_MinorTrace, "===GetDataController===");
+	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 #endif
 	dms_assert(!keyExpr.EndP()); // entry condition
 

@@ -81,11 +81,11 @@ granted by an additional written contract for support, assistance and/or develop
 SeverityTypeID gdalSeverity(CPLErr st)
 {
 	switch(st) {
-		case CE_None:    return ST_Nothing;
-		case CE_Debug:   return ST_MinorTrace;
-		case CE_Warning :return ST_Warning;
-		case CE_Failure: return ST_Error;
-		case CE_Fatal:   return ST_FatalError;
+		case CE_None:    return SeverityTypeID::ST_Nothing;
+		case CE_Debug:   return SeverityTypeID::ST_MinorTrace;
+		case CE_Warning :return SeverityTypeID::ST_Warning;
+		case CE_Failure: return SeverityTypeID::ST_Error;
+		case CE_Fatal:   return SeverityTypeID::ST_FatalError;
 		default: throwIllegalAbstract(MG_POS, "gdalSeverity");
 	}
 }
@@ -126,11 +126,11 @@ namespace gdalComponentImpl
 			fullFileName = ConvertDmsFileNameAlways(DelimitedConcat(GetExeDir().c_str(), DelimitedConcat(subFolder, fileName).c_str()));
 
 			MG_DEBUGCODE(
-				reportF_without_cancellation_check(ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
 			
 			)
 			if (!IsFileOrDirAccessible(fullFileName))
-				reportF_without_cancellation_check(ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
 		}
 		return fullFileName.c_str();
 	}

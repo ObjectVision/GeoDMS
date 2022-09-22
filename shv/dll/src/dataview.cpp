@@ -1224,7 +1224,7 @@ SharedStr DataView::GetCaption() const
 
 void DataView::OnCaptionChanged() const
 {
-	SendStatusText(ST_MajorTrace, GetCaption().c_str());
+	SendStatusText(SeverityTypeID::ST_MajorTrace, GetCaption().c_str());
 }
 
 // ============   Painting
@@ -1667,7 +1667,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 	while (first != last)
 	{
 		UInt32 i = *first++;
-		reportF(ST_MajorTrace, "At %s %s go to item %s"
+		reportF(SeverityTypeID::ST_MajorTrace, "At %s %s go to item %s"
 			, mo->GetDynamicClass()->GetName()
 			, mo->GetFullName()
 			, i
@@ -1677,7 +1677,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		auto n = mo->NrEntries();
 		if (i > n)
 		{
-			reportF(ST_MajorTrace, "exit because object has only %s sub-objects", n);
+			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only %s sub-objects", n);
 			return;
 		}
 		auto sgo = mo->GetEntry(i - 1);
@@ -1685,12 +1685,12 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		auto smo = dynamic_cast<MovableObject*>(sgo);
 		if (!smo)
 		{
-			reportD(ST_MajorTrace, "exit because object is not a movable");
+			reportD(SeverityTypeID::ST_MajorTrace, "exit because object is not a movable");
 			return;
 		}
 		mo = smo->shared_from_this();
 	}
-	reportF(ST_MajorTrace, "Activate %s %s!"
+	reportF(SeverityTypeID::ST_MajorTrace, "Activate %s %s!"
 		, mo->GetDynamicClass()->GetName()
 		, mo->GetFullName()
 	);
@@ -1727,20 +1727,20 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 
 		UInt32 level = menuData[result].m_Level;
 
-		reportF(ST_MajorTrace, "At %s with level %s go to  the %s-th item", menuData[result].m_Caption, level, i);
+		reportF(SeverityTypeID::ST_MajorTrace, "At %s with level %s go to  the %s-th item", menuData[result].m_Caption, level, i);
 
 		while (--i)
 		{
 			while (true) {
 				if (++result >= menuData.size())
 				{
-					reportD(ST_MajorTrace, "exit at end of menu");
+					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
 					return;
 				}
 				UInt32 currLevel = menuData[result].m_Level;
 				if (currLevel < level)
 				{
-					reportD(ST_MajorTrace, "exit at end of sub-menu");
+					reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
 					return;
 				}
 				if (currLevel == level)
@@ -1755,17 +1755,17 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 		{
 			if (++result >= menuData.size())
 			{
-				reportD(ST_MajorTrace, "exit at end of menu");
+				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of menu");
 				return;
 			}
 			if (menuData[result].m_Level < level)
 			{
-				reportD(ST_MajorTrace, "exit at end of sub-menu");
+				reportD(SeverityTypeID::ST_MajorTrace, "exit at end of sub-menu");
 				return;
 			}
 		}
 	}
-	reportF(ST_MajorTrace, "Execute %s", menuData[result].m_Caption);
+	reportF(SeverityTypeID::ST_MajorTrace, "Execute %s", menuData[result].m_Caption);
 	menuData[result].Execute();
 }
 
@@ -1773,7 +1773,7 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 
 void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 {
-	reportF(ST_MajorTrace, "OnCopyDataPost with cmd %d", cmd);
+	reportF(SeverityTypeID::ST_MajorTrace, "OnCopyDataPost with cmd %d", cmd);
 
 	//SharedArrayPtr<UInt32> intArray(SharedArray<UInt32>::Create(first, last));
 
