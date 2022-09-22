@@ -62,6 +62,8 @@ struct DerivedBoolVisitor : ActorVisitor
 	DerivedBoolVisitor(BoolLambda&& rhs) : lfunc(std::move(rhs)) {}
 	ActorVisitState operator() (const Actor* self) const override
 	{
+		if (!self)
+			return AVS_Ready;
 		return lfunc(self) ? AVS_Ready : AVS_SuspendedOrFailed;
 	}
 	BoolLambda lfunc;
