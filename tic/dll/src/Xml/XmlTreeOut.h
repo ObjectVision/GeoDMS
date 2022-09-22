@@ -56,7 +56,7 @@ struct SafeFileWriterArray;
 
 inline SharedStr ItemUrl(CharPtr itemName)
 {
-	return mySSPrintF("dms:dp.general:%s", itemName);
+	return mySSPrintF("dms:dp.general:%s", *itemName ? itemName : "/");
 }
 
 inline SharedStr ItemUrl(const TreeItem* item)

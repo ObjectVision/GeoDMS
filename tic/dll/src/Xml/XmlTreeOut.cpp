@@ -291,7 +291,7 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFu
 		if (item->GetTreeParent())
 			out << item->GetFullName().c_str();
 		else
-			out << "#ROOT";
+			out << "(ROOT)";
 	}
 	else
 		out << item->GetName().c_str();
@@ -895,6 +895,8 @@ omit_repetition:
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden)
 {
 	DMS_CALL_BEGIN
+
+		* xmlOutStrPtr << "items visible from here per namespace in search order";
 
 		TreeItemSetType doneItems;
 		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, doneItems, nullptr, "");
