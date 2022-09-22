@@ -277,7 +277,7 @@ struct FreeStackAllocator
 		SizeT nrFreed = freestack.size();
 		SizeT nrUncommitted = inner.nrUncommitedBlocks;
 		SizeT nrAllocatedBytes = inner.BLOCK_SIZE * nrAllocated;
-		reportF(SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
+		reportF(ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.BLOCK_SIZE, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
 		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, inner.BLOCK_SIZE * nrFreed, inner.BLOCK_SIZE * nrUncommitted);
 	}
@@ -471,13 +471,13 @@ void ReportFixedAllocStatus()
 
 #if defined(MG_CACHE_ALLOC)
 
-	reportD(SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
+	reportD(ST_MajorTrace, "ReportFixedAllocStatus");
 
 	FreeStackAllocSummary cumulBytes;
 	for (const auto& fsa : GetFreeStackAllocatorArray())
 		cumulBytes = cumulBytes + fsa.ReportStatus();
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
+	reportF(ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
 		, std::get<0>(cumulBytes) >> 10
 		, std::get<1>(cumulBytes) >> 10
 		, std::get<2>(cumulBytes) >> 10
@@ -598,26 +598,26 @@ void ReportAllocs()
 	BlockCount_type i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;
-	reportD(SeverityTypeID::ST_MinorTrace, "All Registered Memory Blocks");
+	reportD(ST_MinorTrace, "All Registered Memory Blocks");
 	for (auto& registeredAlloc : reg.map)
 	{
 		SizeT sz = registeredAlloc.second.second;
-		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first.c_str());
+		reportF(ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first.c_str());
 		fequencyCounts[sz]++;
 	}
 
 	SizeT cumulSize = 0;
-	reportD(SeverityTypeID::ST_MinorTrace, "Frequency counts per size:");
+	reportD(ST_MinorTrace, "Frequency counts per size:");
 	i = 0;
 	for (auto& freq : fequencyCounts)
 	{
 		SizeT sz = freq.first;
 		SizeT cnt = freq.second;
 		SizeT totalSz = sz * cnt;
-		reportF(SeverityTypeID::ST_MajorTrace, "#%.5d Size %x(%d) count %d total %x(%d)", i++, sz, sz, cnt, totalSz, totalSz);
+		reportF(ST_MajorTrace, "#%.5d Size %x(%d) count %d total %x(%d)", i++, sz, sz, cnt, totalSz, totalSz);
 		cumulSize += totalSz;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %x(%d)", cumulSize, cumulSize);
+	reportF(ST_MajorTrace, "Total Size = %x(%d)", cumulSize, cumulSize);
 
 	ReportFixedAllocStatus();
 }

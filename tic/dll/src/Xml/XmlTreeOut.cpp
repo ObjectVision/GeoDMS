@@ -225,6 +225,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 	WriteCdf(xmlTable, unit);
 
+
 	xmlTable.NameValueRow("NrElements", GetStrCount(currRangeUnit.get_ptr()).c_str());
 
 	if (!currRangeUnit->IsTiled())

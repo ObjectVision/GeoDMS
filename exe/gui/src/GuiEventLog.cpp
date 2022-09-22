@@ -69,13 +69,13 @@ void GuiEventLog::Update(bool* p_open)
     // TODO: display items starting from the bottom
     if (ImGui::SmallButton("Test SeverityTypeID messages"))
     {
-        AddLog(SeverityTypeID::ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
-        AddLog(SeverityTypeID::ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
-        AddLog(SeverityTypeID::ST_Warning, "ST_Warning: this is a warning message.");
-        AddLog(SeverityTypeID::ST_Error, "ST_Error: this is an error message.");
-        AddLog(SeverityTypeID::ST_FatalError, "ST_FatalError: this is a fatal error message.");
-        AddLog(SeverityTypeID::ST_DispError, "ST_DispError: this is a disp error message.");
-        AddLog(SeverityTypeID::ST_Nothing, "ST_Nothing: this is a nothing message.");
+        AddLog(ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
+        AddLog(ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
+        AddLog(ST_Warning, "ST_Warning: this is a warning message.");
+        AddLog(ST_Error, "ST_Error: this is an error message.");
+        AddLog(ST_FatalError, "ST_FatalError: this is a fatal error message.");
+        AddLog(ST_DispError, "ST_DispError: this is a disp error message.");
+        AddLog(ST_Nothing, "ST_Nothing: this is a nothing message.");
     }
 
 
@@ -242,7 +242,7 @@ void GuiEventLog::AddLog(SeverityTypeID st, std::string msg)
     if (m_Items.size() > m_MaxLogLines) // TODO: delete first n m_Items and shift items from n+1 to end n places back
     {
         m_Items.clear();
-        m_Items.push_back(std::pair(SeverityTypeID::ST_Nothing, "Log cleanup."));
+        m_Items.push_back(std::pair(ST_Nothing, "Log cleanup."));
     }
     m_Items.push_back(std::pair(st, msg));
 };

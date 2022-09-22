@@ -713,7 +713,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	LispRef result = (m_CalcRole == CalcRole::Checker && m_Holder == supplier) ? supplier->GetKeyExprImpl() : supplier->GetCheckedKeyExpr();
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "result=%s", AsString(result).c_str());
+	reportF(ST_MinorTrace, "result=%s", AsString(result).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	if (result.EndP())
