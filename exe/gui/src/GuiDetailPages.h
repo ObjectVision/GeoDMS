@@ -40,35 +40,7 @@ public:
     }
 };
 
-
-class HTMLGuiComponentFactory : public OutStreamBuff
-{
-public:
-    HTMLGuiComponentFactory();
-    virtual ~HTMLGuiComponentFactory();
-
-    void WriteBytes(const Byte* data, streamsize_t size) override;
-    void InterpretBytes();
-
-    streamsize_t CurrPos() const override;
-    bool AtEnd() const override { return false; }
-    void Reset();
-private:
-    void InterpretTag();
-    bool IsOpenTag(UInt32 ind);
-    std::string GetHrefFromTag();
-
-    std::vector<char>             m_Buff;
-    int                           m_refIndex;
-    HTMLParserState               m_ParserState;
-    std::map<HTMLTagType, UInt16> m_OpenTags;
-    Tag                           m_Tag;
-    std::string                   m_Text;
-    UInt16                        m_ColumnIndex;
-    GuiState                      m_State;
-};
-
-enum PropertyTypes
+enum PropertyNames
 {
     P_NAME_NAME = 0,               // "name"
     P_FULLNAME_NAME = 1,        // "FullName"      
@@ -125,15 +97,50 @@ enum PropertyTypes
     P_METRIC_NAME = 52,         // "Metric"
     P_PROJECTION_NAME = 53,         // "Projection"
     P_VALUETYPE_NAME = 54,     // "ValueType"
-    P_ISPASSOR_NAME  = 55   // "IsPassor"
+    P_ISPASSOR_NAME = 55   // "IsPassor"
 };
 
-struct Property
+enum PropertyEntryType
 {
-    PropertyTypes type;
-    std::string   name;
-    std::string   value;
-    //bool          is_ref;
+    PET_SEPARATOR,
+    PET_TEXT,
+    PET_LINK,
+    PET_HEADING
+};
+
+struct PropertyEntry
+{
+    PropertyEntryType   type;
+    std::string         text;
+};
+
+class HTMLGuiComponentFactory : public OutStreamBuff
+{
+public:
+    HTMLGuiComponentFactory();
+    virtual ~HTMLGuiComponentFactory();
+
+    void WriteBytes(const Byte* data, streamsize_t size) override;
+    void InterpretBytes(bool direct_draw, std::vector<std::vector<PropertyEntry>>& properties);
+
+    streamsize_t CurrPos() const override;
+    bool AtEnd() const override { return false; }
+    void Reset();
+private:
+    bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
+    std::string CleanStringFromHtmlEncoding(std::string text_in);
+    void InterpretTag(bool direct_draw, std::vector<std::vector<PropertyEntry>>& properties);
+    bool IsOpenTag(UInt32 ind);
+    std::string GetHrefFromTag();
+
+    std::vector<char>             m_Buff;
+    int                           m_refIndex;
+    HTMLParserState               m_ParserState;
+    std::map<HTMLTagType, UInt16> m_OpenTags;
+    Tag                           m_Tag;
+    std::string                   m_Text;
+    UInt16                        m_ColumnIndex;
+    GuiState                      m_State;
 };
 
 class GuiDetailPages : GuiBaseComponent
@@ -141,10 +148,11 @@ class GuiDetailPages : GuiBaseComponent
 public:
 	void Update(bool* p_open);
 private:
-    std::string PropertyTypeToPropertyName(PropertyTypes pt);
-    void AddProperty(PropertyTypes pt);
-    void UpdateProperties();
-	GuiState                m_State;
-    HTMLGuiComponentFactory m_GeneralBuff;
-    std::vector<Property>   m_Properties;
+    //std::string PropertyTypeToPropertyName(PropertyTypes pt);
+    //void AddProperty(PropertyTypes pt);
+    void UpdateGeneralProperties();
+	GuiState                                m_State;
+    HTMLGuiComponentFactory                 m_GeneralBuff;
+    std::vector<std::vector<PropertyEntry>> m_GeneralProperties;
+    UInt16                                  m_ColumnIndex;
 };
