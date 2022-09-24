@@ -2,6 +2,7 @@
 #include <imgui_internal.h>
 #include "GuiDetailPages.h"
 #include "TicInterface.h"
+#include "ClcInterface.h"
 #include "Xml/XMLOut.h"
 
 #include "TreeItemProps.h"
@@ -77,7 +78,6 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 {
     std::string href = "";
 
-    auto test = m_Tag.text.substr(9, 14);
     if (m_Tag.text.substr(9, 14) == "dms:dp.general")
         href = m_Tag.text.substr(24, m_Tag.text.length() - 26);
         
@@ -124,6 +124,7 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
         if (direct_draw)
             ImGui::Text(m_Text.c_str());
 
+        m_Tag.href.clear();
         properties.emplace_back();
         properties.back().emplace_back(PET_HEADING, m_Text);
         m_Text.clear();
@@ -166,6 +167,7 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
                     ImGui::PopID();
                 }
                 properties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
+                m_Tag.href.clear();
             }
             else
             {
@@ -297,20 +299,97 @@ void GuiDetailPages::UpdateGeneralProperties()
     m_GeneralProperties.clear();
     if (m_State.GetCurrentItem()->IsFailed())
     {
-        auto xmlOut = XML_OutStream_Create(&m_GeneralBuff, OutStreamBase::ST_HTM, "", NULL);
+        auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
         auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut, true);
 
-        m_GeneralBuff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
-        m_GeneralBuff.Reset();
+        m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
+        m_Buff.Reset();
     }
     else
     {
         InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem();
-        auto xmlOut = XML_OutStream_Create(&m_GeneralBuff, OutStreamBase::ST_HTM, "", NULL);
+        auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
         auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut, true);
-        m_GeneralBuff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
-        m_GeneralBuff.Reset();
+        m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
+        m_Buff.Reset();
     }
+}
+
+void GuiDetailPages::UpdateAllProperties()
+{
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem();
+    auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut, true);
+    m_Buff.InterpretBytes(false, m_AllProperties); // Create detail page from html stream
+    m_Buff.Reset();
+}
+
+void GuiDetailPages::UpdateExploreProperties()
+{
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem();
+    auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    DMS_TreeItem_XML_DumpExplore(m_State.GetCurrentItem(), xmlOut, true);
+    m_Buff.InterpretBytes(false, m_ExploreProperties); // Create detail page from html stream
+    m_Buff.Reset();
+}
+
+void GuiDetailPages::UpdateStatistics()
+{
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem();
+    m_Statistics = DMS_NumericDataItem_GetStatistics(m_State.GetCurrentItem(), nullptr);
+    int i = 0;
+}
+
+void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& properties)
+{
+    int button_index = 0;
+    ImGui::BeginTable(" ", 6, ImGuiTableFlags_ScrollX | ImGuiTableFlags_NoHostExtendY); // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
+    for (auto& row : properties)
+    {
+        ImGui::TableNextRow();
+        m_ColumnIndex = 0;
+        for (auto& col : row)
+        {
+            ImGui::TableSetColumnIndex(m_ColumnIndex);
+            if (col.type == PET_HEADING)
+            {
+                ImGui::Text(col.text.c_str());
+            }
+            else if (col.type == PET_LINK)
+            {
+
+                ImGui::PushID(button_index++);
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
+                if (ImGui::Button(col.text.c_str()))
+                {
+                    auto item = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(col.text.c_str()));
+                    if (item)
+                    {
+                        m_State.SetCurrentItem(item);
+                        m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                        m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                    }
+                }
+                ImGui::PopID();
+                ImGui::PopStyleColor(2);
+            }
+            else if (col.type == PET_TEXT)
+            {
+                ImGui::Text(col.text.c_str());
+            }
+            else if (col.type == PET_SEPARATOR)
+            {
+                ImGui::Separator();
+                m_ColumnIndex++;
+                ImGui::TableSetColumnIndex(m_ColumnIndex);
+                ImGui::Separator();
+            }
+            m_ColumnIndex++;
+        }
+    }
+    ImGui::EndTable();
 }
 
 void GuiDetailPages::Update(bool* p_open)
@@ -327,6 +406,9 @@ void GuiDetailPages::Update(bool* p_open)
         //UpdateGeneralProperties(); //TODO: change to focus window based (ie. general, statistics, explore, properties, etc)
         //int i = 0;
         m_GeneralProperties.clear();
+        m_AllProperties.clear();
+        m_ExploreProperties.clear();
+        m_Statistics.clear();
     }
 
     // window specific options button
@@ -343,8 +425,7 @@ void GuiDetailPages::Update(bool* p_open)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    int button_index = 0;
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_FittingPolicyResizeDown))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))//ImGuiTabBarFlags_FittingPolicyResizeDown))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
@@ -352,62 +433,45 @@ void GuiDetailPages::Update(bool* p_open)
             {
                 if (m_GeneralProperties.empty())
                     UpdateGeneralProperties();
-
-                ImGui::BeginTable(" ", 6, ImGuiTableFlags_ScrollX|ImGuiTableFlags_NoHostExtendY); // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
-                for (auto& row : m_GeneralProperties)
-                {
-                    ImGui::TableNextRow();
-                    m_ColumnIndex = 0;
-                    for (auto& col : row)
-                    {
-                        ImGui::TableSetColumnIndex(m_ColumnIndex);
-                        if (col.type == PET_HEADING)
-                        {
-                            ImGui::Text(col.text.c_str());
-                        }
-                        else if (col.type == PET_LINK)
-                        {
-
-                            ImGui::PushID(button_index++);
-
-                            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-                            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f/255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-                            if (ImGui::Button(col.text.c_str()))
-                            {
-                                auto item = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(col.text.c_str()));
-                                if (item)
-                                {
-                                    m_State.SetCurrentItem(item);
-                                    m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                                    m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                                }
-                            }
-                            ImGui::PopID();
-                            ImGui::PopStyleColor(2);
-
-                            //ImGui::Text(col.text.c_str());
-                        }
-                        else if (col.type == PET_TEXT)
-                        {
-                            ImGui::Text(col.text.c_str());
-                        }
-                        else if (col.type == PET_SEPARATOR)
-                        {
-                            //ImGui::EndTable();
-                            ImGui::Separator();
-                            m_ColumnIndex++;
-                            ImGui::TableSetColumnIndex(m_ColumnIndex);
-                            ImGui::Separator();
-                            //ImGui::BeginTable(" ", 6, ImGuiTableFlags_ScrollX, ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8));
-                        }
-                        m_ColumnIndex++;
-                    }
-                }
-                ImGui::EndTable();
+                DrawProperties(m_GeneralProperties);
             }
             ImGui::EndTabItem();
         }
+
+        if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
+        {
+            if (m_State.GetCurrentItem())
+            {
+                if (m_AllProperties.empty())
+                    UpdateAllProperties();
+                DrawProperties(m_AllProperties);
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
+        {
+            if (m_State.GetCurrentItem())
+            {
+                if (m_ExploreProperties.empty())
+                    UpdateExploreProperties();
+                DrawProperties(m_ExploreProperties);
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
+        {
+            if (m_State.GetCurrentItem())
+            {
+                if (m_Statistics.empty())
+                    UpdateStatistics();
+                ImGui::InputTextMultiline("##statistics", const_cast<char*>(m_Statistics.c_str()), m_Statistics.size(), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
+            }
+            ImGui::EndTabItem();
+        }
+
         ImGui::EndTabBar();
+
     }
 
     ImGui::End();

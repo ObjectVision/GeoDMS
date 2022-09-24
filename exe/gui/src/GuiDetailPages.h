@@ -151,8 +151,15 @@ private:
     //std::string PropertyTypeToPropertyName(PropertyTypes pt);
     //void AddProperty(PropertyTypes pt);
     void UpdateGeneralProperties();
+    void UpdateAllProperties();
+    void UpdateExploreProperties();
+    void UpdateStatistics();
+    void DrawProperties(std::vector<std::vector<PropertyEntry>> &properties);
 	GuiState                                m_State;
-    HTMLGuiComponentFactory                 m_GeneralBuff;
+    HTMLGuiComponentFactory                 m_Buff;
     std::vector<std::vector<PropertyEntry>> m_GeneralProperties;
+    std::vector<std::vector<PropertyEntry>> m_AllProperties;
+    std::vector<std::vector<PropertyEntry>> m_ExploreProperties;
+    std::string                             m_Statistics;
     UInt16                                  m_ColumnIndex;
 };
