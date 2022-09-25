@@ -370,6 +370,7 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
                         m_State.SetCurrentItem(item);
                         m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                        m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
                 }
                 ImGui::PopID();
@@ -403,8 +404,6 @@ void GuiDetailPages::Update(bool* p_open)
     if (m_State.DetailPagesEvents.HasEvents()) // new current item
     {
         m_State.DetailPagesEvents.Pop();
-        //UpdateGeneralProperties(); //TODO: change to focus window based (ie. general, statistics, explore, properties, etc)
-        //int i = 0;
         m_GeneralProperties.clear();
         m_AllProperties.clear();
         m_ExploreProperties.clear();
