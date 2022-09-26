@@ -20,7 +20,7 @@ void GuiToolbar::Update(bool* p_open)
         return;
     }
    
-    auto im = GetIcon(GV_save).GetImage();
+    //auto im = GetIcon(GV_save).GetImage();
 
     ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) {}; ImGui::SameLine();
