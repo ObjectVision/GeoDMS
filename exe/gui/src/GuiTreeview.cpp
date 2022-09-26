@@ -140,7 +140,7 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
     {
         if (nextSubItem->m_State.GetProgress() < PS_MetaInfo && !nextSubItem->m_State.IsUpdatingMetaInfo())
         {
-            DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, nextSubItem, nullptr);
+            //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, nextSubItem, nullptr);
             nextSubItem->UpdateMetaInfo();
         }     
 
@@ -153,11 +153,11 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         auto status = DMS_TreeItem_GetProgressState(nextSubItem);
         auto failed = nextSubItem->IsFailed();
 
-        //if (status == NotificationCode::NC2_Invalidated || failed) // ti not ready
-        //{
-        //    nextSubItem = nextSubItem->GetNextItem();
-        //    continue;
-        //}
+        if (status == NotificationCode::NC2_Invalidated || failed) // ti not ready
+        {
+            nextSubItem = nextSubItem->GetNextItem();
+            continue;
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));//IM_COL32(255, 0, 102, 255));//;
         // set TreeView icon
@@ -170,7 +170,6 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         else                                                  { SetTreeViewIcon(GuiTextureID::TV_unit_transparant); }
         ImGui::SameLine(); // icon same line as TreeNode
 
-        //auto treeItemIsOpen = ImGui::TreeNodeEx(nextSubItem->GetName().c_str(), nextSubItem->HasSubItems() ? useFlags : useFlags | ImGuiTreeNodeFlags_Leaf);
         auto treeItemIsOpen = ImGui::TreeNodeEx(nextSubItem->GetName().c_str(), nextSubItem->_GetFirstSubItem() ? useFlags : useFlags | ImGuiTreeNodeFlags_Leaf);
         
         // keyboard focus event

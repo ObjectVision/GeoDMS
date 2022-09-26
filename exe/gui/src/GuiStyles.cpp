@@ -63,30 +63,30 @@ static std::vector<GuiIcon> s_GuiTextureIcons;
 void InitializeGuiTextures()
 {
     // order is important, GuiTextureID enum act as index to singleton
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_container.bmp"));        // TV_container
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_container_table.bmp"));  // TV_container_table
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_globe.bmp"));            // TV_globe
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_palette.bmp"));          // TV_palette
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_table.bmp"));            // TV_table
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_unit_transparant.bmp")); // TV_unit_transparant
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\TV_unit_white.bmp"));       // TV_unit_white
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\GV_save.bmp"));             // tableview save icon
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\GV_copy.bmp"));             // tableview copy icon
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\GV_vcopy.bmp"));            // tableview copy visible icon
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\GV_group_by.bmp"));          // tableview group by icon 
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_toggle_layout_1.bmp"));          
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_toggle_layout_2.bmp"));         
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_toggle_layout_3.bmp"));          
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_toggle_palette.bmp"));         
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_toggle_scalebar.bmp"));
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_zoom_active_layer.bmp"));       
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_zoom_all_layers.bmp"));           
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_zoom_selected.bmp"));       
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_zoomin_button.bmp"));         
-    s_GuiTextureIcons.emplace_back(GuiIcon("misc\\icons\\MV_zoomout_button.bmp"));                                                    
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_container.bmp");        // TV_container
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_container_table.bmp");  // TV_container_table
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_globe.bmp");            // TV_globe
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_palette.bmp");          // TV_palette
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_table.bmp");            // TV_table
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_unit_transparant.bmp"); // TV_unit_transparant
+    s_GuiTextureIcons.emplace_back("misc\\icons\\TV_unit_white.bmp");       // TV_unit_white
+    s_GuiTextureIcons.emplace_back("misc\\icons\\GV_save.bmp");             // tableview save icon
+    s_GuiTextureIcons.emplace_back("misc\\icons\\GV_copy.bmp");             // tableview copy icon
+    s_GuiTextureIcons.emplace_back("misc\\icons\\GV_vcopy.bmp");            // tableview copy visible icon
+    s_GuiTextureIcons.emplace_back("misc\\icons\\GV_group_by.bmp");          // tableview group by icon 
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_layout_1.bmp");          
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_layout_2.bmp");         
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_layout_3.bmp");          
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_palette.bmp");         
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_scalebar.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoom_active_layer.bmp");       
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoom_all_layers.bmp");           
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoom_selected.bmp");       
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoomin_button.bmp");         
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoomout_button.bmp");                                                    
 }
 
-GuiIcon GetIcon(GuiTextureID id)
+GuiIcon& GetIcon(GuiTextureID id)
 {
     return s_GuiTextureIcons.at(id);
 }

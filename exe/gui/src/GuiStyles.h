@@ -36,6 +36,20 @@ class GuiIcon
 public:
     GuiIcon(std::string relativeIconPath);
     ~GuiIcon();
+
+    GuiIcon(GuiIcon&& src)
+    {
+        operator = (std::move(src));
+    }
+
+    void operator = (GuiIcon&& src)
+    {
+        std::swap(m_Image, src.m_Image);
+
+        m_Width = src.m_Width;
+        m_Height = src.m_Height;
+    }
+
     GLuint GetImage();
     int GetWidth();
     int GetHeight();
@@ -50,7 +64,7 @@ private:
 };
 
 void InitializeGuiTextures();
-GuiIcon GetIcon(GuiTextureID id);
+GuiIcon& GetIcon(GuiTextureID id);
 void SetDmsWindowIcon(GLFWwindow* window);
 void SetGuiFont(std::string font_filename);
 
