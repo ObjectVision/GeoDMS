@@ -87,7 +87,6 @@ struct ExprProdBase
 
 	void StartExprList() {}
 	void CloseExprList() {}
-
 };
 
 struct EmptyExprProd : ExprProdBase

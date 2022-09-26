@@ -71,7 +71,7 @@ struct AbstrDataBlockProd : private boost::noncopyable
 	// data collection support
 	row_id              m_nIndexValue = 0;
 
-	ValueClassID        m_eAssignmentDomainType;     // type of interval or selector value
+	ValueClassID        m_eAssignmentDomainType = VT_Unknown;     // type of interval or selector value
 
 	Range<Float64>      m_FloatInterval;
 	Range<DPoint>       m_DPointInterval;
@@ -80,12 +80,12 @@ struct AbstrDataBlockProd : private boost::noncopyable
 	// basicValue elements
 	ValueClassID        m_eValueType = VT_Unknown;   // type of basicValue
 	StringProd          m_StringVal;
-	bool                m_BoolVal;
+	bool                m_BoolVal = false;
 	DPoint              m_DPointVal;
-	Float64             m_FloatVal;
-	Int32               m_IntValAsInt32;  // the read integer or UNDEFINED(Int32)  if out of range(Int32)
-	UInt32              m_IntValAsUInt32; // the read integer or UNDEFINED(UInt32) if out of range(UInt32)
-	bool                m_bSignIsPlus;
+	Float64             m_FloatVal = 0.0;
+	Int32               m_IntValAsInt32 = 0;  // the read integer or UNDEFINED(Int32)  if out of range(Int32)
+	UInt32              m_IntValAsUInt32 = 0; // the read integer or UNDEFINED(UInt32) if out of range(UInt32)
+	bool                m_bSignIsPlus = false;
 
 protected:
 	[[noreturn]] virtual void throwSemanticError(CharPtr msg)=0;

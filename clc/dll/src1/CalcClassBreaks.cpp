@@ -740,7 +740,7 @@ struct JenksFisher
 	std::unique_ptr<SizeT[]>  m_CB;
 	SizeT*                 m_CBPtr;
 
-	SizeT                  m_NrCompletedRows;
+	SizeT                  m_NrCompletedRows = 0;
 #if defined(MG_REPORT_SSM_COUNT)
 	UInt64 md_SsmCounter;
 #endif
