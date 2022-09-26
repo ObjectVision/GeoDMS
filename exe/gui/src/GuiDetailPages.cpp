@@ -424,7 +424,7 @@ void GuiDetailPages::Update(bool* p_open)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))//ImGuiTabBarFlags_FittingPolicyResizeDown))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {

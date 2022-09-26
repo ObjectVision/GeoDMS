@@ -226,6 +226,9 @@ public:
 
 	static StringStateManager configFilenameManager;
 
+	// jump to letter in TreeView
+	static std::pair<std::string, std::string> m_JumpLetter;
+
 	// sparse dms tree
 	static GuiSparseTree m_SparseTree;
 

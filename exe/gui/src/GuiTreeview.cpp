@@ -85,6 +85,48 @@ void GuiTreeViewComponent::UpdateStateAfterItemClick(TreeItem* nextSubItem)
     m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
 }
 
+bool GuiTreeViewComponent::IsAlphabeticalKeyJump(TreeItem* nextItem, bool looped = false)
+{
+    static bool loop;
+    static bool passedCurrentItem;
+
+    //auto test = std::string(nextItem->GetName().c_str());
+    //auto test2 = std::string(nextItem->GetName().c_str()).substr(0, 1);
+
+    if (looped)
+    {
+        loop = true;
+        passedCurrentItem = false;
+        return false;
+    }
+
+    if (nextItem == m_State.GetCurrentItem())
+    {
+        passedCurrentItem = true;
+        return false;
+    }
+
+    
+
+    if (loop && !passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == m_State.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == m_State.m_JumpLetter.second))
+    {
+        m_State.m_JumpLetter.first.clear();
+        m_State.m_JumpLetter.second.clear();
+        loop = false;
+        return true;
+    }
+    
+    if (!loop && passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0,1).c_str() == m_State.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == m_State.m_JumpLetter.second))
+    {
+        m_State.m_JumpLetter.first.clear();
+        m_State.m_JumpLetter.second.clear();
+        passedCurrentItem = false;
+        return true;
+    }
+
+    return false;
+}
+
 bool IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
 {
     if (!descendant)
@@ -195,6 +237,14 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
                 m_TemporaryJumpItem = nullptr;
             }
 
+            // alphabetical letter jump
+            if ((!m_State.m_JumpLetter.first.empty() && !m_State.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(nextSubItem))
+            {
+                UpdateStateAfterItemClick(nextSubItem);
+                ImGui::SetScrollHereY();
+                m_TemporaryJumpItem = nullptr;
+            }
+
             if (nextSubItem->m_State.GetProgress() >= PS_MetaInfo)
                 CreateBranch(nextSubItem);
             ImGui::TreePop();
@@ -225,6 +275,9 @@ bool GuiTreeViewComponent::CreateTree()
         ImGui::TreePop();
     }
     ImGui::PopStyleColor();
+
+    if (!m_State.m_JumpLetter.first.empty() && !m_State.m_JumpLetter.second.empty()) // alphabetical jumpletter present, but not acted upon yet
+        IsAlphabeticalKeyJump(nullptr, true);
 
     return true;
 }
