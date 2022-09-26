@@ -411,6 +411,9 @@ void GuiMainComponent::Update()
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar);
 
+    if (m_State.ShowDetailPagesWindow)
+        m_DetailPages.Update(&m_State.ShowDetailPagesWindow);
+
     if (m_State.ShowTreeviewWindow)
         m_TreeviewComponent.Update(&m_State.ShowTreeviewWindow);
 
@@ -442,16 +445,13 @@ void GuiMainComponent::Update()
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
-    if (m_State.ShowDetailPagesWindow)
-        m_DetailPages.Update(&m_State.ShowDetailPagesWindow); // ShowDetailPagesWindow(&m_State.ShowDetailsPagesWindow);
-
     // option windows
     if (m_State.ShowOptionsWindow)
         ShowOptionsWindow(&m_State.ShowOptionsWindow);
 
     if (m_State.ShowEventLogOptionsWindow)
         ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
-
+    
     ImGui::End();
 
     SuspendTrigger::Resume();
