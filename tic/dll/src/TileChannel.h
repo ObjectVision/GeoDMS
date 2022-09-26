@@ -147,6 +147,10 @@ struct abstr_tile_write_channel
 			GetNextTile();
 		}
 	}
+	void WriteUInt32(UInt32 value)
+	{
+		FillWithUInt32Values(1, value);
+	}
 
 	explicit operator bool() const { return m_TileFunctor; }
 	bool IsEndOfTile() const

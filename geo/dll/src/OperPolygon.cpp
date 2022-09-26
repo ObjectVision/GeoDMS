@@ -775,6 +775,7 @@ class DynaPointOperator : public AbstrDynaPointOperator
 	typedef DataArray<PointType>       Arg2Type;
 	typedef DataArray<DistType>        Arg3Type;
 	typedef DataArray<PointType>       ResultSub1Type; // Point
+	typedef DataArray<PointType>       ResultSub2Type; // NextPoint
 	typedef AbstrDataItem              ResultSub3Type; // SequenceNr (nr_OrgEntity)
 	typedef DataArray<UInt32>          ResultSub4Type; // Ordinal
 
@@ -812,109 +813,133 @@ public:
 		bool withEnds = (this->m_CreateFlags & TableCreateFlags::DoIncludeEndPoints);
 		bool withNextPoints = (resSub2 != nullptr);
 		bool extraStartPoint = (withEnds && !withNextPoints);
+
 		SizeT nrPoints = 0;
-		Float64 carry = dist;
+		Float64 carry = 0;
+		bool isFirstPoint = true;
 		for (; i1 != e1; ++i2, ++i1)
 		{
+			if (!isFirstPoint)
+				if (i2[-1] != *i1)
+					isFirstPoint = true;
 			PointType segment = *i2 - *i1;
 			Float64 segmLength = sqrt(Norm<Float64>(segment));
-			Float64 length = segmLength + carry;
-			SizeT nrPointsHere = length / dist;
-			carry = length - dist * nrPointsHere;
-			if (withEnds)
+			if (isFirstPoint)
 			{
-				if (!withNextPoints)
-					++nrPointsHere;
-				if (carry)
-				{
-					++nrPointsHere;
-					carry = 0;
-				}
+				if (!resSub2)
+					nrPoints++;
+			}
+			SizeT nrPointsHere = (segmLength+carry) / dist;
+			dms_assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
+			carry += (segmLength - dist * nrPointsHere);
+			dms_assert(carry >= 0);
+
+			if (withEnds && carry)
+			{
+				++nrPointsHere;
+				carry = 0;
 			}
 			nrPoints += nrPointsHere;
+			isFirstPoint = false;
 		}
-
 		resDomain->SetCount(nrPoints);
 
 		// ==== calc point locations and segmentsId
 		dms_assert(resSub1);
-		carry = dist;
 		locked_tile_write_channel<PointType> ri1(resSub1);
 		locked_tile_write_channel<PointType> ri2(resSub2);
 		locked_abstr_tile_write_channel      ri3(resSub3);
 		locked_tile_write_channel<UInt32>    ri4(resSub4);
 
-//		dms_assert(resData1.size() == nrPoints);
 //		PointType* ri1 = resData1.begin();
-		SizeT nrOrgEntity = 0, currIndex = 0;
+		SizeT nrOrgEntity = 0, currPointIndex = 0;
 //		UInt32 ri3 = 0;
-		if (b1 != e1)
+
+		carry = 0;
+		isFirstPoint = true;
+		DPoint prevLoc;
+		for (i1 = b1, i2 = b2; i1 != e1; ++nrOrgEntity, ++i2, ++i1)
 		{
-			PointType prevLoc = *b1; 
-			for (i1 = b1, i2 = b2; i1 != e1; ++nrOrgEntity, ++i2, ++i1)
+			UInt32 ordinalID = 0;
+			if (!isFirstPoint)
+				if (i2[-1] != *i1)
+					isFirstPoint = true;
+			DPoint segment = *i2 - *i1;
+			Float64 segmLengthOrg = sqrt(Norm<Float64>(segment));
+			Float64 segmLength = segmLengthOrg;
+			if (isFirstPoint)
 			{
-				PointType segment = *i2 - *i1;
-				Float64 segmLength = sqrt(Norm<Float64>(segment));
-				Float64 length = segmLength + carry;
-				SizeT nrPointsHere = length / dist;
-				UInt32 segmentID = 0;
-				if (withEnds)
+				if (resSub2)
+					prevLoc = *i1;
+				else
 				{
-					if (!withNextPoints)
-					{
-						++nrPointsHere;
-						ri1.Write(prevLoc);
-						dms_assert(!resSub2);
-						if (resSub4)
-							ri4.Write(segmentID++);
-					}
-					if (carry)
-					{
-						++nrPointsHere;
-						carry = 0;
-					}
-				}
-				if (nrPointsHere)
-				{
-					segment /= DistType(segmLength); // norm
-					PointType currLoc = *i1;
-					dms_assert(carry <= dist);
-					currLoc += segment * DistType(dist - carry);
-					ri1.Write(currLoc);
-					if (resSub2)
-					{
-						ri2.Write(prevLoc);
-						prevLoc = currLoc;
-					}
-					if (resSub4)
-						ri4.Write(segmentID++);
-
-					if (nrPointsHere > 1)
-					{
-						segment *= DistType(dist);
-						UInt32 nrRemainingPoints = nrPointsHere;
-						while (--nrRemainingPoints)
-						{
-							currLoc += segment;
-							ri1.Write(nrRemainingPoints==1 && withEnds ? *i2 : currLoc);
-							if (resSub2)
-							{
-								ri2.Write(prevLoc);
-								prevLoc = currLoc;
-							}
-							if (resSub4)
-								ri4.Write(segmentID++);
-						}
-					}
-
+					ri1.Write(*i1);
 					if (resSub3)
-						ri3.FillWithUInt32Values(nrPointsHere, nrOrgEntity);
+						ri3.WriteUInt32(nrOrgEntity);
+					if (resSub4)
+						ri4.Write(ordinalID++);
+					currPointIndex++;
 				}
-				carry = length - dist * nrPointsHere;
-				currIndex += nrPointsHere;
 			}
+			SizeT nrPointsHere = (segmLength +carry) / dist;
+			dms_assert(segmLength+carry >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
+
+			if (nrPointsHere)
+			{
+				segment /= segmLengthOrg; // norm
+				DPoint currLoc = *i1;
+				dms_assert(carry <= dist);
+				currLoc += segment * (dist - carry);
+				ri1.Write(currLoc);
+				if (resSub2)
+				{
+					ri2.Write(prevLoc);
+					prevLoc = currLoc;
+				}
+				if (resSub3)
+					ri3.FillWithUInt32Values(nrPointsHere, nrOrgEntity);
+				if (resSub4)
+					ri4.Write(ordinalID++);
+
+				if (nrPointsHere > 1)
+				{
+					segment *= dist;
+					UInt32 nrRemainingPoints = nrPointsHere;
+					while (--nrRemainingPoints)
+					{
+						currLoc += segment;
+						ri1.Write(currLoc);
+						if (resSub2)
+						{
+							ri2.Write(prevLoc);
+							prevLoc = currLoc;
+						}
+						if (resSub4)
+							ri4.Write(ordinalID++);
+					}
+				}
+			}
+
+			carry += (segmLength - dist * nrPointsHere);
+			dms_assert(carry >= 0);
+
+			if (withEnds)
+			{
+				if (carry)
+				{
+					ri1.Write(*i2);
+					if (resSub2)
+						ri2.Write(prevLoc);
+					ri3.WriteUInt32(nrOrgEntity);
+					ri4.Write(ordinalID++);
+					++nrPointsHere;
+					carry = 0;
+				}
+			}
+			currPointIndex += nrPointsHere;
+			isFirstPoint = false;
 		}
-		dms_assert(currIndex == nrPoints);
+		dms_assert(currPointIndex == nrPoints);
 		if (resSub1) { dms_assert(ri1.IsEndOfChannel());  ri1.Commit(); }
 		if (resSub2) { dms_assert(ri2.IsEndOfChannel());  ri2.Commit(); }
 		if (resSub3) { dms_assert(ri3.IsEndOfChannel());  ri3.Commit(); }

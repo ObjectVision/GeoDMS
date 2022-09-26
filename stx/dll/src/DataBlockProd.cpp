@@ -81,11 +81,10 @@ void DataBlockProd::DoArrayAssignment()
 
 	SizeT i = m_nIndexValue++;
 	if (i >= m_ElemCount)
-		adi->throwItemErrorF("DoArrayAssignment: Index %d out of range of domain %s", 
-			i, 
-			domain->GetName().c_str()
-		);
-
+	{
+		auto errMsg = mySSPrintF("DoArrayAssignment: Index %d out of range of domain %s", i, domain->GetName().c_str());
+		adi->throwItemError(errMsg);
+	}
 	SizeT tileLocalIndex = i;
 	tile_loc currTileLocation = checked_cast<const AbstrUnit*>(domain->GetCurrUltimateItem())->GetTiledRangeData()->GetTiledLocation(tileLocalIndex);
 	tile_id currTileID = currTileLocation.first;
