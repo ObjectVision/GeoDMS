@@ -159,7 +159,7 @@ void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int ac
         return;
 
     // unmodified key press for step to in TreeView
-    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z)
+    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z &&!(mods==GLFW_MOD_CONTROL) &&!(mods == GLFW_MOD_ALT)&&!(mods == GLFW_MOD_SHIFT))
     {
         m_State.m_JumpLetter = GLFWKeyToLetter(key);
     }

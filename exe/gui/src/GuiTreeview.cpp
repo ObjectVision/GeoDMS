@@ -219,6 +219,14 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         if (ImGui::IsItemClicked() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) // item is clicked
             UpdateStateAfterItemClick(nextSubItem);
 
+        // alphabetical letter jump
+        if ((!m_State.m_JumpLetter.first.empty() && !m_State.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(nextSubItem))
+        {
+            UpdateStateAfterItemClick(nextSubItem);
+            ImGui::SetScrollHereY();
+            m_TemporaryJumpItem = nullptr;
+        }
+
         if (treeItemIsOpen)
         {
             // drop event
@@ -231,14 +239,6 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
 
             // jump event
             if (m_TemporaryJumpItem && m_TemporaryJumpItem == nextSubItem)
-            {
-                UpdateStateAfterItemClick(nextSubItem);
-                ImGui::SetScrollHereY();
-                m_TemporaryJumpItem = nullptr;
-            }
-
-            // alphabetical letter jump
-            if ((!m_State.m_JumpLetter.first.empty() && !m_State.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(nextSubItem))
             {
                 UpdateStateAfterItemClick(nextSubItem);
                 ImGui::SetScrollHereY();
