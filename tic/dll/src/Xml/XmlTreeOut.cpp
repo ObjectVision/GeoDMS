@@ -697,23 +697,21 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 			exprRow.ValueCell("CLASS");
 			exprRow.ValueCell(cls->GetName().c_str());
 	}
-	const AbstrPropDef* pd = cls->GetLastPropDef();
-	while (pd)
+	for (const AbstrPropDef* pd = cls->GetLastPropDef(); pd; pd = pd->GetPrevPropDef())
 	{
 		SharedStr result;
 		bool firstValue = true;
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
+			if (!showAll && !pd->HasNonDefaultValue(self))
+				continue;
 			result = pd->GetValueAsSharedStr(self);
 		}
 		catch (...)
 		{
-			if (showAll)
-			{
-				auto err = catchException(true);
-				if (err)
-					xmlTable.NameErrRow(pd->GetName().c_str(), *err);
-			}
+			auto err = catchException(true);
+			if (err)
+				xmlTable.NameErrRow(pd->GetName().c_str(), *err);
 			canBeIndirect = false;
 		}
 		while (true)
@@ -752,7 +750,6 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 				}
 			}
 		}
-		pd = pd->GetPrevPropDef();
 	}
 }
 
