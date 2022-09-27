@@ -16,9 +16,9 @@ public:
 private:
 	void GetRecentAndPinnedFiles();
 	void SetRecentAndPinnedFiles();
-	void CleanRecentAndPinnedFiles();
-	void UpdateRecentFilesByCurrentConfiguration();
-	Int32 ConfigIsInRecentFiles(std::string cfg);
+	void CleanRecentOrPinnedFiles(std::vector<std::string>& m_Files);
+	void UpdateRecentOrPinnedFilesByCurrentConfiguration(std::vector<std::string>& m_Files);
+	Int32 ConfigIsInRecentOrPinnedFiles(std::string cfg, std::vector<std::string>& m_Files);
 	void AddPinnedFile(std::string PinnedFile);
 	void RemovePinnedFile(std::string PinnedFile);
 	GuiState			     m_State;
