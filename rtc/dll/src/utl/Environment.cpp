@@ -263,6 +263,17 @@ exit:
 	return result;
 }
 
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw)
+{
+	try {
+		RegistryHandleLocalMachineRW regLM;
+		auto result = regLM.WriteDWORD(key, dw);
+	}
+	catch (...) {}
+
+	return true;
+}
+
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings)
 {
 	try {

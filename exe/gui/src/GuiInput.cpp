@@ -114,6 +114,40 @@ static ImGuiKey GLFWKeyToImGuiKey(int key)
     }
 }
 
+std::pair<std::string, std::string> GLFWKeyToLetter(int key)
+{
+    switch (key)
+    {
+    case GLFW_KEY_A: return {"a", "A"};
+    case GLFW_KEY_B: return {"b", "B" };
+    case GLFW_KEY_C: return {"c", "C" };
+    case GLFW_KEY_D: return {"d", "D" };
+    case GLFW_KEY_E: return {"e", "E" };
+    case GLFW_KEY_F: return {"f", "F" };
+    case GLFW_KEY_G: return {"g", "G"};
+    case GLFW_KEY_H: return {"h", "H"};
+    case GLFW_KEY_I: return {"i", "I"};
+    case GLFW_KEY_J: return {"j", "J"};
+    case GLFW_KEY_K: return {"k", "K"};
+    case GLFW_KEY_L: return {"l", "L"};
+    case GLFW_KEY_M: return {"m", "M"};
+    case GLFW_KEY_N: return {"n", "N"};
+    case GLFW_KEY_O: return {"o", "O"};
+    case GLFW_KEY_P: return {"p", "P"};
+    case GLFW_KEY_Q: return {"q", "Q"};
+    case GLFW_KEY_R: return {"r", "R"};
+    case GLFW_KEY_S: return {"s", "S"};
+    case GLFW_KEY_T: return {"t", "T"};
+    case GLFW_KEY_U: return {"u", "U"};
+    case GLFW_KEY_V: return {"v", "V"};
+    case GLFW_KEY_W: return {"w", "W"};
+    case GLFW_KEY_X: return {"x", "X"};
+    case GLFW_KEY_Y: return {"y", "Y"};
+    case GLFW_KEY_Z: return {"z", "Z"};
+    default:return {"", ""};
+    }
+}
+
 void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (action == GLFW_PRESS || action == GLFW_REPEAT) // Pass down key event to ImGui io state
@@ -123,6 +157,12 @@ void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int ac
 
     if (!(action == GLFW_PRESS))
         return;
+
+    // unmodified key press for step to in TreeView
+    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z &&!(mods==GLFW_MOD_CONTROL) &&!(mods == GLFW_MOD_ALT)&&!(mods == GLFW_MOD_SHIFT))
+    {
+        m_State.m_JumpLetter = GLFWKeyToLetter(key);
+    }
 
 	switch (key)
 	{

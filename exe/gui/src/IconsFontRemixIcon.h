@@ -8,3 +8,4 @@
 #define ICON_RI_CLOSE_FILL "\xEE\xAE\x98" // U+EB98
 #define ICON_RI_TOOLS      "\xEF\x88\x9B" // U+F21B
 #define ICON_RI_SETTINGS   "\xEF\x83\xA6" // U+F0E6
+#define ICON_RI_PINN_ON    "\xEF\x80\xB7" // U+F037

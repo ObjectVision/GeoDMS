@@ -193,7 +193,7 @@ bool RegistryHandle::WriteMultiString(CharPtr name, std::vector<std::string> str
 	RegSetValueEx(m_Key, name, NULL, REG_MULTI_SZ, &reg_value[0], reg_value.size());
 	return true;
 }
-
+  
 DWORD RegistryHandle::ReadDWORD(CharPtr name) const
 {
 	RegDataType regDataType;
@@ -202,6 +202,13 @@ DWORD RegistryHandle::ReadDWORD(CharPtr name) const
 		throwErrorF("RegistryHandle.ReadDWORD", "key '%s' has a non DWORD type", name);
 	return regData;
 }
+
+bool RegistryHandle::WriteDWORD(CharPtr name, DWORD dw) const
+{
+	RegSetValueEx(m_Key, name, NULL, REG_DWORD, (const BYTE*)& dw, sizeof(dw));
+	return true;
+}
+
 //  -----------------------------------------------------------------------
 
 RegistryHandleCurrentUserRO::RegistryHandleCurrentUserRO()

@@ -10,6 +10,7 @@ private:
 	bool CreateBranch(TreeItem* branch);
 	bool CreateTree();
 	void UpdateStateAfterItemClick(TreeItem* nextSubItem);
+	bool IsAlphabeticalKeyJump(TreeItem* nextItem, bool looped);
 	GuiState	m_State;
 	
 	TreeItem*   m_TemporaryJumpItem = nullptr;

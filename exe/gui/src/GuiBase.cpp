@@ -26,6 +26,8 @@ TreeItem* GuiState::m_CurrentItem = nullptr;
 
 StringStateManager GuiState::configFilenameManager;
 
+std::pair<std::string, std::string> GuiState::m_JumpLetter;
+
 GuiSparseTree GuiState::m_SparseTree;
 OptionsEventLog GuiState::m_OptionsEventLog;
 

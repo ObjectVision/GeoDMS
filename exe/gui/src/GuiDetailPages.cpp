@@ -424,7 +424,7 @@ void GuiDetailPages::Update(bool* p_open)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))//ImGuiTabBarFlags_FittingPolicyResizeDown))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
@@ -438,7 +438,7 @@ void GuiDetailPages::Update(bool* p_open)
         }
 
         if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
-        {
+        { // HAS NON DEFAULT VALUES
             if (m_State.GetCurrentItem())
             {
                 if (m_AllProperties.empty())
