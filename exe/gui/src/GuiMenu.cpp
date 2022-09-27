@@ -52,7 +52,7 @@ GuiMenuFileComponent::~GuiMenuFileComponent()
 
 void GuiMenuFileComponent::GetRecentAndPinnedFiles()
 {
-    m_PinnedFiles = GetGeoDmsRegKeyMultiString("PinnedFiles"); // TODO: check if cfg files still exist
+    m_PinnedFiles = GetGeoDmsRegKeyMultiString("PinnedFiles");
     m_RecentFiles = GetGeoDmsRegKeyMultiString("RecentFiles");
     CleanRecentOrPinnedFiles(m_PinnedFiles);
     CleanRecentOrPinnedFiles(m_RecentFiles);
@@ -138,6 +138,7 @@ void GuiMenuFileComponent::Update()
         m_fileDialog.ClearSelected();
     }
 
+    ImGui::SetNextItemOpen(true);
     if (ImGui::BeginMenu("File"))
     {
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
@@ -149,9 +150,6 @@ void GuiMenuFileComponent::Update()
         }
         if (ImGui::MenuItem("Open Demo Config")) 
         {
-            //s_GuiState.DMSConfigurationFileName = "C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms";
-            //s_GuiState.root = DMS_CreateTreeFromConfiguration(s_GuiState.DMSConfigurationFileName.c_str());
-            //AutoDeletePtr<TreeItem> cfg = DMS_CreateTreeFromConfiguration(s_GuiState.DMSConfigurationFileName.c_str());
             m_State.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
             UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
             CleanRecentOrPinnedFiles(m_RecentFiles);
@@ -308,7 +306,6 @@ void GuiMenuViewComponent::Update()
         ImGui::PopItemFlag();
         ImGui::EndMenu();
     }
-
 }
 
 void GuiMenuToolsComponent::Update()

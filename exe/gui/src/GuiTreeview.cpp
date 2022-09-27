@@ -90,9 +90,6 @@ bool GuiTreeViewComponent::IsAlphabeticalKeyJump(TreeItem* nextItem, bool looped
     static bool loop;
     static bool passedCurrentItem;
 
-    //auto test = std::string(nextItem->GetName().c_str());
-    //auto test2 = std::string(nextItem->GetName().c_str()).substr(0, 1);
-
     if (looped)
     {
         loop = true;
@@ -105,8 +102,6 @@ bool GuiTreeViewComponent::IsAlphabeticalKeyJump(TreeItem* nextItem, bool looped
         passedCurrentItem = true;
         return false;
     }
-
-    
 
     if (loop && !passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == m_State.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == m_State.m_JumpLetter.second))
     {

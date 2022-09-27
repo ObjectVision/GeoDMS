@@ -51,6 +51,7 @@ public:
 	std::vector<std::string>	ReadMultiString(CharPtr name) const;
 	bool						WriteMultiString(CharPtr name, std::vector<std::string> strings) const;
 	DWORD						ReadDWORD (CharPtr name) const;
+	bool						WriteDWORD(CharPtr name, DWORD dw) const;
 
 protected:
 	RegistryHandle(HKEY key);

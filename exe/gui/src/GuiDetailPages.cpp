@@ -438,7 +438,7 @@ void GuiDetailPages::Update(bool* p_open)
         }
 
         if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
-        {
+        { // HAS NON DEFAULT VALUES
             if (m_State.GetCurrentItem())
             {
                 if (m_AllProperties.empty())
