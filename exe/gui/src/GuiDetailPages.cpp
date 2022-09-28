@@ -319,7 +319,7 @@ void GuiDetailPages::UpdateAllProperties()
 {
     InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem();
     auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
-    auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut, true);
+    auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut, false);
     m_Buff.InterpretBytes(false, m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
