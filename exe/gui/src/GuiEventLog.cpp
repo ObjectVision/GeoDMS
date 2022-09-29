@@ -48,11 +48,14 @@ void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
 void GuiEventLog::Update(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
-    if (!ImGui::Begin("EventLog", p_open))
+    if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
+
+    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+        SetKeyboardFocusToThisHwnd();
 
     // window specific options button
     auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();

@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -44,18 +45,14 @@ void GuiTreeViewComponent::Update(bool* p_open)
         m_TemporaryJumpItem = m_State.GetCurrentItem();
     }
 
-    if (!ImGui::Begin("Treeview", p_open, NULL))
+    if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
   
-    // focus window when clicked
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetWindowContentRegionMin(), ImGui::GetWindowContentRegionMax()))
-    {
-        auto glfw_window = glfwGetCurrentContext();
-        glfwFocusWindow(glfw_window);
-    }
+    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+        SetKeyboardFocusToThisHwnd();
 
     if (m_State.GetRoot())
         CreateTree();

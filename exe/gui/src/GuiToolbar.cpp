@@ -20,7 +20,9 @@ void GuiToolbar::Update(bool* p_open)
         return;
     }
    
-    //auto im = GetIcon(GV_save).GetImage();
+    // focus window when clicked
+    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+        SetKeyboardFocusToThisHwnd();
 
     ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) 

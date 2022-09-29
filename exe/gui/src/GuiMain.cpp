@@ -265,7 +265,7 @@ int GuiMainComponent::MainLoop()
     UInt32 UpdateFrameCounter = frames_to_update;
 
     // Main loop
-    while (!glfwWindowShouldClose(m_Window))
+    while (!glfwWindowShouldClose(m_Window)) // memory leaks: 6 up to this point
     {      
         if (m_State.configFilenameManager.HasNew())
         {

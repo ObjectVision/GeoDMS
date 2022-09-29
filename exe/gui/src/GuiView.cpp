@@ -80,7 +80,7 @@ bool GuiView::IsDocked() // test if the MapViewWindow is docked inside the ImGui
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
-    auto window = ImGui::FindWindowByName(m_ViewName.c_str());
+    auto window = ImGui::GetCurrentWindow();//ImGui::FindWindowByName(m_ViewName.c_str()); // GetCurrentWindow
     if (window)
         return mainWindow == (HWND)window->Viewport->PlatformHandleRaw;
     return false; // TODO: this does not make sense.
@@ -341,7 +341,7 @@ void GuiView::Update()
     }
 
     // handle events
-    EventQueue* eventQueuePtr = nullptr;
+    EventQueue* eventQueuePtr = nullptr; // TODO: memory leak.
     switch (m_ViewStyle) 
     {
     case ViewStyle::tvsMapView:
@@ -416,6 +416,12 @@ void GuiView::Update()
     {
         SetParent(m_HWND, m_HWNDParent); // set new parent on dock/undock
         UpdateWindowPosition(true);
+    }
+
+    // If m_HWND is focused, focus imgui window as well
+    if (GetFocus() == m_HWND)
+    {
+        ImGui::FocusWindow(ImGui::GetCurrentWindow());
     }
 
     // update window

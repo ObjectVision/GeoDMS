@@ -6,7 +6,7 @@
 void ShowOptionsWindow(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(800,400), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None))
+    if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None|ImGuiWindowFlags_NoDocking))
     {
         if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None))
         {
@@ -40,7 +40,6 @@ void ShowOptionsWindow(bool* p_open)
 
                 if (ImGui::Checkbox("3: Pipelined Tile Operations", &pp3))
                     SetGeoDmsRegKeyDWord("StatusFlags", pp3 ? flags|=RSF_MultiThreading3 : flags &= ~RSF_MultiThreading3);
-
                 
                 ImGui::Separator();
 
@@ -58,13 +57,11 @@ void ShowOptionsWindow(bool* p_open)
                 }
                 ImGui::SameLine();
                 ImGui::Text("%%");
-                //ImGui::InputInt("Treshold for Memory Flushing Wait Procedure", );
-                //extern "C" RTC_CALL UInt32 DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-                //extern "C" RTC_CALL void   DMS_CONV RTC_SetRegDWord(RegDWordEnum i, DWORD dw);
 
+                static bool tracelog_file = GetRegStatusFlags() & RSF_TraceLogFile;
+                if (ImGui::Checkbox("TraceLogFile", &tracelog_file))
+                    SetGeoDmsRegKeyDWord("StatusFlags", tracelog_file ? flags |= RSF_TraceLogFile : flags &= ~RSF_TraceLogFile);
 
-                static bool tracelog_file = false;
-                ImGui::Checkbox("TraceLogFile", &tracelog_file);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Configuration"))

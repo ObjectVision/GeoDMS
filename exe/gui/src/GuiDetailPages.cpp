@@ -395,11 +395,14 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
 
 void GuiDetailPages::Update(bool* p_open)
 {
-    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_AlwaysAutoResize))
+    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
+
+    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+        SetKeyboardFocusToThisHwnd();
 
     if (m_State.DetailPagesEvents.HasEvents()) // new current item
     {
@@ -434,38 +437,55 @@ void GuiDetailPages::Update(bool* p_open)
                     UpdateGeneralProperties();
                 DrawProperties(m_GeneralProperties);
             }
+            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
         { // HAS NON DEFAULT VALUES
+            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
+
             if (m_State.GetCurrentItem())
             {
                 if (m_AllProperties.empty())
                     UpdateAllProperties();
                 DrawProperties(m_AllProperties);
             }
+            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
         {
+            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
+
             if (m_State.GetCurrentItem())
             {
                 if (m_ExploreProperties.empty())
                     UpdateExploreProperties();
                 DrawProperties(m_ExploreProperties);
             }
+            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
         {
+            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
+
             if (m_State.GetCurrentItem())
             {
                 if (m_Statistics.empty())
                     UpdateStatistics();
                 ImGui::InputTextMultiline("##statistics", const_cast<char*>(m_Statistics.c_str()), m_Statistics.size(), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
             }
+            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
+                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
         }
 
