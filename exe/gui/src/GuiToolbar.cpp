@@ -23,7 +23,15 @@ void GuiToolbar::Update(bool* p_open)
     //auto im = GetIcon(GV_save).GetImage();
 
     ImGui::SameLine();
-    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) {}; ImGui::SameLine();
+    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) 
+    {
+        /*auto view = GetActiveView();
+        if (view)
+            view->SendMessage(WM_COMMAND, ToolButtonID::TB_Copy, 0, nullptr);
+        // TODO: access eventhandler directly (also for treeview)*/
+    };
+    
+    ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_copy).GetImage(), ImVec2(GetIcon(GV_copy).GetWidth(), GetIcon(GV_copy).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_vcopy).GetImage(), ImVec2(GetIcon(GV_vcopy).GetWidth(), GetIcon(GV_vcopy).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_group_by).GetImage(), ImVec2(GetIcon(GV_group_by).GetWidth(), GetIcon(GV_group_by).GetHeight()))) {}; ImGui::SameLine();
