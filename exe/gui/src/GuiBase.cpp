@@ -1,10 +1,15 @@
 #include <filesystem>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include "GuiBase.h"
 #include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
 #include <Windows.h>
 #include "TicInterface.h"
+
+#include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 bool GuiState::ShowDemoWindow			    = false; 
 bool GuiState::ShowOptionsWindow		    = false;
@@ -12,14 +17,14 @@ bool GuiState::ShowDetailPagesOptionsWindow = false;
 bool GuiState::ShowEventLogOptionsWindow    = false;
 bool GuiState::ShowOpenFileWindow		    = false;
 bool GuiState::ShowConfigSource			    = false;
-bool GuiState::ShowTreeviewWindow		    = true;
+bool GuiState::ShowTreeviewWindow = true;
 bool GuiState::ShowMapviewWindow		    = false;
-bool GuiState::ShowTableviewWindow		    = true;
-bool GuiState::ShowDetailPagesWindow	    = true;
-bool GuiState::ShowEventLogWindow		    = true;
+bool GuiState::ShowTableviewWindow = false;//true;
+bool GuiState::ShowDetailPagesWindow = true;
+bool GuiState::ShowEventLogWindow = true;
 bool GuiState::ShowToolbar                  = false;
-bool GuiState::ShowCurrentItemBar           = true;
-bool GuiState::MapViewIsActive			    = true;
+bool GuiState::ShowCurrentItemBar = true;
+bool GuiState::MapViewIsActive = false;// true;
 bool GuiState::TableViewIsActive		    = false;
 TreeItem* GuiState::m_Root = nullptr;
 TreeItem* GuiState::m_CurrentItem = nullptr;
@@ -145,4 +150,10 @@ bool MouseHooversOptionsIconInWindowHeader()
     auto rect_min = ImVec2(window_clip_rect_max.x - 35, window_clip_rect_min.y);
     auto rect_max = ImVec2(window_clip_rect_max.x - 20, window_clip_rect_min.y + 15);
     return ImGui::IsMouseHoveringRect(rect_min, rect_max);
+}
+
+void SetKeyboardFocusToThisHwnd()
+{
+    auto window = ImGui::GetCurrentWindow();
+    SetFocus((HWND)window->Viewport->PlatformHandleRaw);
 }
