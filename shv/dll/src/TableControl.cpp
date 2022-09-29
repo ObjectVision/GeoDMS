@@ -1132,7 +1132,10 @@ void TableControl::UpdateTableIndex()
 	if (attr)
 	{
 		m_fd_Index = CreateIndex(attr);
-		m_IndexAttr = AsDataItem(m_fd_Index->GetOld());
+		if (m_fd_Index)
+			m_IndexAttr = AsDataItem(m_fd_Index->GetOld());
+		else
+			m_IndexAttr = {};
 	} else {
 		m_fd_Index = {};
 		m_IndexAttr = {};
