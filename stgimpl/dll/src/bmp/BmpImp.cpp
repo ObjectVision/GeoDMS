@@ -521,7 +521,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 //
 //  Returns : Boolean (TRUE on success, FALSE on failure).
 //
-Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
+[[nodiscard]] Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
 {
 	if (! rows)
 		return TRUE;
@@ -543,7 +543,8 @@ Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
 
 	cur_read = 0;
 	cur_pos = -1;
-	ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+	if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+		return false;
         
 	for(;;)
 	{
@@ -557,7 +558,8 @@ Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
 				((cur_read - cur_pos) < 5)
 			)
 		{
-			ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+			if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+				return false;
 		}
 
 		if (c[cur_pos] == RLE_ESCAPE)
@@ -592,7 +594,8 @@ Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
 						)
 					{
 						cur_pos++;
-						ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+						if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+							return false;
 						cur_pos--;
 					}
 
@@ -638,7 +641,7 @@ Boolean BmpImp::SkipCodedRle8Rows(row_t rows) const
 //
 //  Returns : Boolean (TRUE on success, FALSE on failure).
 //
-Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
+[[nodiscard]] Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
 {
     // set filepointer to proper position
 	dms_assert(m_InternRowFilePointer != 0); // must be set before.
@@ -657,7 +660,8 @@ Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
 
 	cur_read = 0;
 	cur_pos = -1;
-	ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+	if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+		return false;
         
 	for(;;)
 	{
@@ -671,12 +675,13 @@ Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
 			((cur_read - cur_pos) < 5)
 		)
 		{
-			ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+			if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+				return false;
 		}
 
 		if (c[cur_pos] == RLE_ESCAPE)
 		{
-						cur_pos++;
+			cur_pos++;
             bytesRead++;
 
             switch (c[cur_pos])
@@ -705,7 +710,8 @@ Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
 					)
 					{
 						cur_pos++;
-						ReadBuf(c.begin(), buf_width, cur_read, cur_pos);
+						if (!ReadBuf(c.begin(), buf_width, cur_read, cur_pos))
+							return false;
 						cur_pos--;
 					}
 
@@ -756,11 +762,12 @@ Boolean BmpImp::GetCodedRle8Row(UByte *buf) const
 //
 //  Returns : Boolean (TRUE on success, FALSE on failure).
 //
-Boolean BmpImp::ReadBuf(UByte *buf, DWORD width, DWORD &read, DWORD &pos) const
+[[nodiscard]] Boolean BmpImp::ReadBuf(UByte *buf, DWORD width, DWORD &read, DWORD &pos) const
 {
 	if (0 == read)
 	{
-		ReadFile(m_FH, buf, width, &read, NULL);
+		if (!ReadFile(m_FH, buf, width, &read, NULL))
+			return false;
 	}
 	else
 	{
@@ -774,12 +781,14 @@ Boolean BmpImp::ReadBuf(UByte *buf, DWORD width, DWORD &read, DWORD &pos) const
 				buf[cnt] = buf[cnt + pos];
 			}
 
-			ReadFile(m_FH, buf + total, width-total, &read, NULL);
+			if (!ReadFile(m_FH, buf + total, width - total, &read, NULL))
+				return false;
 			read += total;
 		}
 		else
 		{
-			ReadFile(m_FH, buf, width, &read, NULL);
+			if (!ReadFile(m_FH, buf, width, &read, NULL))
+				return false;
 		}
 	}
 

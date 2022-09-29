@@ -132,7 +132,7 @@ struct reader_base
 	}
 	void Init(const AsciiImp& imp)
 	{
-		m_FH             = imp;
+		m_FH = imp; // copy the FilePtr of imp.
 		m_NoDataInFile   = imp.NoDataInFile();
 
 		dms_assert(m_GridPos == 0);

@@ -93,9 +93,9 @@ private:
 
 private:
 	Boolean GetRle8Row(row_t rowNr, UByte* inpBuf) const;
-	Boolean GetCodedRle8Row(UByte*) const;
-	Boolean SkipCodedRle8Rows(row_t) const;
-	Boolean ReadBuf(UByte *, DWORD, DWORD & read, DWORD & pos) const;
+	[[nodiscard]] Boolean GetCodedRle8Row(UByte*) const;
+	[[nodiscard]] Boolean SkipCodedRle8Rows(row_t) const;
+	[[nodiscard]] Boolean ReadBuf(UByte*, DWORD, DWORD& read, DWORD& pos) const;
 
 	Boolean SetRle8Row (row_t rowNr, UByte* outBuf);
 	Boolean SetCodedRow(row_t rowNr, UByte* outBuf);
