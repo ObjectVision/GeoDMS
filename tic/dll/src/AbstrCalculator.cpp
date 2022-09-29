@@ -365,7 +365,10 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 	TokenID supplRefID = GetLispExprOrg().GetSymbID();
 	auto foundItem = FindItem(supplRefID);
 	if (!foundItem)
-		throwDmsErrF("cannot find %s", supplRefID.GetStr().c_str());
+	{
+		auto errMsg = mySSPrintF("cannot find %s", supplRefID.GetStr().c_str());
+		throwDmsErrD(errMsg.c_str());
+	}
 	return foundItem;
 }
 
