@@ -205,6 +205,9 @@ void GuiView::InitDataView(TreeItem* currentItem)
     m_ViewIndex = m_Views.size();
     m_Views.emplace_back(currentItem->GetName().c_str(), m_ViewStyle, SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load));
     Close(true);
+    m_AddCurrentItem = true;
+
+
     //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }
 
@@ -236,13 +239,13 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         return WindowState::UNINITIALIZED;
     }
 
-    m_Views.at(m_ViewIndex).m_DataView; //m_DataView->ResetHWnd(m_HWND);
+    //m_Views.at(m_ViewIndex).m_DataView; //m_DataView->ResetHWnd(m_HWND);
 
-    if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, currentItem) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(currentItem)) //!m_ActiveItems.contains(currentItem))
+    /*if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, currentItem) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(currentItem)) //!m_ActiveItems.contains(currentItem))
     {
         //m_ActiveItems.add(currentItem);
         SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, currentItem, false);
-    }
+    }*/
 
     SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
     UpdateWindow(m_HWND);
@@ -418,6 +421,13 @@ void GuiView::Update()
     {
         SetParent(m_HWND, m_HWNDParent); // set new parent on dock/undock
         UpdateWindowPosition(true);
+    }
+
+    // add current item
+    if (m_AddCurrentItem)
+    {
+        SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
+        m_AddCurrentItem = false;
     }
 
     // If m_HWND is focused, focus imgui window as well
