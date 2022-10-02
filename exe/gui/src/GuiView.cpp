@@ -380,7 +380,7 @@ void GuiView::Update()
             auto droppedTreeItem = reinterpret_cast<const char*>(payload->Data);
             if (droppedTreeItem)
             {
-                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()) && m_Views.at(m_ViewIndex).m_ActiveItems.contains(m_State.GetCurrentItem()))//!m_ActiveItems.contains(m_State.GetCurrentItem()))
+                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(m_State.GetCurrentItem()))//!m_ActiveItems.contains(m_State.GetCurrentItem()))
                 {
                     m_Views.at(m_ViewIndex).m_ActiveItems.add(m_State.GetCurrentItem()); //m_ActiveItems.add(m_State.GetCurrentItem());
                     SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
