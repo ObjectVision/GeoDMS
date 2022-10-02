@@ -29,32 +29,21 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     if (event == GuiEvents::UpdateCurrentItem) // update current item
     {
-        if (m_DataView && !m_ActiveItems.contains(currentItem))
+        /*if (m_DataView && !m_ActiveItems.contains(currentItem))
         {
             m_ActiveItems.clear();
             Close(false);
-        }
-        m_IsPopulated = true;
-
-
-        /*auto status = DMS_TreeItem_GetProgressState(currentItem);
-        if (IsDataItem(currentItem) && (status == NotificationCode::NC2_Committed || status == NotificationCode::NC2_DataReady)) // TODO: also check if map viewable
-        {
-            //m_ActiveItems.clear();
-            //auto adi = AsDataItem(currentItem);
-            //m_ActiveItems.add(adi);
-            //m_ActiveItems.add(currentItem);
-
-            //SHV_DataView_AddItem(m_DataView, currentItem, false);
         }*/
+
+        m_IsPopulated = true;
     }
     if (event == GuiEvents::UpdateCurrentAndCompatibleSubItems)
     {
-        if (m_DataView && !m_DataView->DoesContain(currentItem))
+        /*if (m_DataView && !m_DataView->DoesContain(currentItem))
         {
             m_ActiveItems.clear();
             Close(false);
-        }
+        }*/
 
         m_IsPopulated = true;
     }
@@ -64,7 +53,7 @@ WindowState GuiView::UpdateParentWindow()
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow  = glfwGetWin32Window(glfw_window);
-    auto window      = ImGui::FindWindowByName(m_ViewName.c_str());
+    auto window      = ImGui::GetCurrentWindow(); //ImGui::FindWindowByName(m_ViewName.c_str());
     //auto window = ImGui::GetCurrentWindow();
     if (!window || !(HWND)window->Viewport->PlatformHandleRaw)
         return WindowState::UNINITIALIZED;
@@ -188,6 +177,11 @@ void GuiView::RegisterMapViewAreaWindowClass(HINSTANCE instance)
     RegisterClassEx(&wndClassData);
 }
 
+void GuiView::SetViewIndex(int index)
+{
+    m_ViewIndex = index;
+}
+
 void GuiView::InitDataView(TreeItem* currentItem)
 {
     if (!currentItem)
@@ -198,12 +192,15 @@ void GuiView::InitDataView(TreeItem* currentItem)
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-    m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
+    m_Views.emplace_back(currentItem->GetName().c_str(), m_ViewStyle, SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load));
+    m_ViewIndex++;
+    Close(true);
+    //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }
 
 WindowState GuiView::InitWindow(TreeItem* currentItem)
 {
-    dms_assert(m_DataView);
+    dms_assert(m_ViewIndex<m_Views.size());
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
     HINSTANCE instance = GetInstance(m_HWNDParent);
@@ -221,7 +218,7 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         m_HWNDParent,                                                   // handle to parent
         (HMENU)NULL,                                                    // no menu
         instance,                                                       // instance owning this window 
-        m_DataView                                       
+        m_Views.at(m_ViewIndex).m_DataView //m_DataView                                       
     );
 
     if (!m_HWND)
@@ -229,15 +226,15 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         return WindowState::UNINITIALIZED;
     }
 
-    m_DataView->ResetHWnd(m_HWND);
+    m_Views.at(m_ViewIndex).m_DataView; //m_DataView->ResetHWnd(m_HWND);
 
-    if (SHV_DataView_CanContain(m_DataView, currentItem) && !m_ActiveItems.contains(currentItem))
+    if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, currentItem) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(currentItem)) //!m_ActiveItems.contains(currentItem))
     {
         //m_ActiveItems.add(currentItem);
-        SHV_DataView_AddItem(m_DataView, currentItem, false);
+        SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, currentItem, false);
     }
 
-    SHV_DataView_Update(m_DataView);
+    SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
     UpdateWindow(m_HWND);
     UpdateWindowPosition(true);
     return WindowState::CHANGED;
@@ -245,12 +242,14 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
 
 void GuiView::Close(bool keepDataView=true)
 {
-    if (!keepDataView && m_DataView)
+    if (!keepDataView && !m_Views.empty() && m_Views.at(m_ViewIndex).m_DataView)
     {
-        SHV_DataView_Destroy(m_DataView);
-        m_ActiveItems.clear();
-        m_DataView = nullptr;
+        SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
+        m_Views.erase(m_Views.begin()+m_ViewIndex);
+        //m_ActiveItems.clear();
+        //m_DataView = nullptr;
         m_IsPopulated = false;
+        m_ViewIndex = -1;
     }
     if (m_HWND)
     {
@@ -326,14 +325,7 @@ void GuiView::ResetView(ViewStyle vs, std::string vn)
 void GuiView::Update()
 {
     // Open window
-    if (!ImGui::Begin(m_ViewName.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar))
-    {
-        Close(true);
-        ImGui::End();
-        return;
-    }
-
-    if (CloseWindowOnMimimumSize())
+    if (!ImGui::Begin("DMSView", &m_DoView, ImGuiWindowFlags_NoScrollbar) || CloseWindowOnMimimumSize() || m_Views.empty())
     {
         Close(true);
         ImGui::End();
@@ -342,7 +334,7 @@ void GuiView::Update()
 
     // handle events
     EventQueue* eventQueuePtr = nullptr; // TODO: memory leak.
-    switch (m_ViewStyle) 
+    switch (m_Views.at(m_ViewIndex).m_ViewStyle)
     {
     case ViewStyle::tvsMapView:
         eventQueuePtr = &m_State.MapViewEvents;
@@ -378,10 +370,10 @@ void GuiView::Update()
             auto droppedTreeItem = reinterpret_cast<const char*>(payload->Data);
             if (droppedTreeItem)
             {
-                if (SHV_DataView_CanContain(m_DataView, m_State.GetCurrentItem()) && !m_ActiveItems.contains(m_State.GetCurrentItem()))
+                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()) && m_Views.at(m_ViewIndex).m_ActiveItems.contains(m_State.GetCurrentItem()))//!m_ActiveItems.contains(m_State.GetCurrentItem()))
                 {
-                    m_ActiveItems.add(m_State.GetCurrentItem());
-                    SHV_DataView_AddItem(m_DataView, m_State.GetCurrentItem(), false);
+                    m_Views.at(m_ViewIndex).m_ActiveItems.add(m_State.GetCurrentItem()); //m_ActiveItems.add(m_State.GetCurrentItem());
+                    SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
                 }
             }
         }
@@ -398,13 +390,13 @@ void GuiView::Update()
     }
 
     // init View window
-    if (!m_DataView)
-        InitDataView(m_State.GetCurrentItem());
+    //if (!m_Views.at(m_ViewIndex).m_DataView)
+    //    InitDataView(m_State.GetCurrentItem());
 
     if (!m_HWND)
         InitWindow(m_State.GetCurrentItem());
 
-    if (!m_DataView || !m_HWND || !m_HWNDParent || !IsWindow(m_HWNDParent) || !IsWindow(m_HWND)) // final check
+    if (!m_Views.at(m_ViewIndex).m_DataView || !m_HWND || !m_HWNDParent || !IsWindow(m_HWNDParent) || !IsWindow(m_HWND)) // final check
     {
         Close(true);
         ImGui::End();
@@ -425,8 +417,8 @@ void GuiView::Update()
     }
 
     // update window
-    auto result = SHV_DataView_Update(m_DataView);
-    m_DataView->UpdateView();
+    auto result = SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
+    m_Views.at(m_ViewIndex).m_DataView->UpdateView();
     auto hide = ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
     UpdateWindowPosition(hide);
 

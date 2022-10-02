@@ -23,7 +23,7 @@
 
 #include <codecvt>
 
-void GuiMenuComponent::Update(std::vector<GuiView>& TableViewsPtr, std::vector<GuiView>& MapViewsPtr)
+void GuiMenuComponent::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMainMenuBar())
     {
@@ -31,7 +31,7 @@ void GuiMenuComponent::Update(std::vector<GuiView>& TableViewsPtr, std::vector<G
         m_EditComponent.Update();
         m_ViewComponent.Update();
         m_ToolsComponent.Update();
-        m_WindowComponent.Update(TableViewsPtr, MapViewsPtr);
+        m_WindowComponent.Update(ViewPtr);
         m_HelpComponent.Update();
 
         ImGui::EndMainMenuBar();
@@ -321,7 +321,7 @@ void GuiMenuToolsComponent::Update()
     }
 }
 
-void GuiMenuWindowComponent::Update(std::vector<GuiView>& TableViewsPtr, std::vector<GuiView>& MapViewsPtr)
+void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMenu("Window"))
     {
@@ -333,7 +333,22 @@ void GuiMenuWindowComponent::Update(std::vector<GuiView>& TableViewsPtr, std::ve
         if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
         ImGui::Separator();
 
-        for (auto& view : TableViewsPtr)
+        int index = 0;
+        for (auto& view : ViewPtr.m_Views)
+        {
+            ImGui::PushID(index);
+            if (ImGui::Button(view.m_Name.c_str()))
+            {
+                ViewPtr.SetDoView(!ViewPtr.DoView());
+                ViewPtr.SetViewIndex(index);
+            }
+            ImGui::PopID();
+            index++;
+        }
+
+
+        // TODO: add ViewPtr available views
+        /*for (auto& view : TableViewsPtr)
         {
             if (!view.IsPopulated())
                 continue;
@@ -370,7 +385,7 @@ void GuiMenuWindowComponent::Update(std::vector<GuiView>& TableViewsPtr, std::ve
                 view.Close(false);
             }
             ImGui::PopID();
-        }
+        }*/
 
         ImGui::Separator();
         ImGui::EndMenu();

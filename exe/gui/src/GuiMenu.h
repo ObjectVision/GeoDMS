@@ -56,7 +56,7 @@ private:
 class GuiMenuWindowComponent : GuiBaseComponent
 {
 public:
-	void Update(std::vector<GuiView>& TableViewsPtr, std::vector<GuiView>& MapViewsPtr);
+	void Update(GuiView& ViewPtr);
 
 private:
 	GuiState			      m_State;
@@ -76,7 +76,7 @@ private:
 class GuiMenuComponent : GuiBaseComponent
 {
 public:
-	void Update(std::vector<GuiView> & TableViewsPtr, std::vector<GuiView>& MapViewsPtr);
+	void Update(GuiView& ViewPtr);
 	GuiMenuFileComponent	  m_FileComponent;
 
 private:

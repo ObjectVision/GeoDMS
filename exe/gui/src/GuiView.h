@@ -12,6 +12,22 @@ enum WindowState
 	CHANGED       = 1
 };
 
+class View
+{
+public:
+	View(std::string n, ViewStyle vs, DataView* dv)
+	{
+		m_Name = n;
+		m_ViewStyle = vs;
+		m_DataView = std::move(dv);
+	}
+
+	std::string m_Name;
+	ViewStyle m_ViewStyle;
+	GuiTreeItemsHolder m_ActiveItems;
+	DataView* m_DataView;
+};
+
 class GuiView : GuiBaseComponent 
 {
 public:
@@ -29,9 +45,12 @@ public:
 	void SetViewStyle(ViewStyle vs);
 	void SetViewName(std::string vn);
 	std::string GetViewName();
+	void InitDataView(TreeItem* currentItem);
+	void SetViewIndex(int index);
+	std::vector<View> m_Views;
+	int m_ViewIndex = -1;
 
 private:
-	void InitDataView(TreeItem* currentItem);
 	WindowState InitWindow(TreeItem* currentItem);
 	WindowState UpdateParentWindow();
 	bool CloseWindowOnMimimumSize();
@@ -40,13 +59,13 @@ private:
 	void RegisterMapViewAreaWindowClass(HINSTANCE instance);
 	bool IsDocked();
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
-	GuiTreeItemsHolder m_ActiveItems;
+	//GuiTreeItemsHolder m_ActiveItems;
 	GuiState	m_State;
 	bool m_DoView = true;
 	bool		m_IsPopulated = true;
-	HWND		m_HWND       = nullptr; // Should be a childwindow of the window the MapView is currently in.
+	HWND		m_HWND       = nullptr;
 	HWND		m_HWNDParent = nullptr;
 	mutable ViewStyle	m_ViewStyle = tvsUndefined;
 	mutable std::string m_ViewName = "";
-	DataView*	m_DataView   = nullptr;
+	//DataView*	m_DataView   = nullptr;
 };

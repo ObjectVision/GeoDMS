@@ -32,8 +32,8 @@
 
 GuiMainComponent::GuiMainComponent()
 {
-    m_MapViews.reserve(m_MaxViews);
-    m_TableViews.reserve(m_MaxViews);
+    //m_MapViews.reserve(m_MaxViews);
+    //m_TableViews.reserve(m_MaxViews);
 
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
@@ -42,14 +42,14 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    for (auto& view : m_TableViews)
-        view.Close(false);
+    //for (auto& view : m_TableViews)
+    //    view.Close(false);
 
-    for (auto& view : m_MapViews)
-        view.Close(false);
+    //for (auto& view : m_MapViews)
+    //    view.Close(false);
 
-    m_TableViews.clear();
-    m_MapViews.clear();
+    //m_TableViews.clear();
+    //m_MapViews.clear();
     m_ItemsHolder.clear();
     m_State.clear();
 
@@ -137,7 +137,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case OpenNewMapViewWindow:
     {
-        auto freeViewInd = GetFreeViewIndex(m_MapViews);
+        /*auto freeViewInd = GetFreeViewIndex(m_MapViews);
         if (freeViewInd < m_MapViews.size())
             m_MapViews.at(freeViewInd).ResetView(tvsMapView, "MapView#" + std::to_string(freeViewInd + 1));
         else if (m_MapViewsCursor >= m_MaxViews)
@@ -152,12 +152,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_MapViews.back().SetViewStyle(tvsMapView);
             m_MapViewsCursor++;
             break;
-        }
+        }*/
+        m_View.SetViewStyle(tvsMapView);
+        m_View.SetViewName("View");
+        m_View.InitDataView(m_State.GetCurrentItem());
         break;
     }
     case OpenNewTableViewWindow:
     {
-        auto freeViewInd = GetFreeViewIndex(m_TableViews);
+        /*auto freeViewInd = GetFreeViewIndex(m_TableViews);
         if (freeViewInd < m_TableViews.size())
             m_TableViews.at(freeViewInd).ResetView(tvsTableView, "TableView#" + std::to_string(freeViewInd + 1));
         else if (m_TableViewsCursor >= m_MaxViews)
@@ -167,12 +170,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         }
         else
         {
-            m_TableViews.emplace_back(std::move(GuiView()));
+            m_TableViews.emplace_back();
             m_TableViews.back().SetViewName("TableView#" + std::to_string(m_TableViews.size()));
             m_TableViews.back().SetViewStyle(tvsTableView);
             m_TableViewsCursor++;
             break;
-        }
+        }*/
+        m_View.SetViewStyle(tvsTableView);
+        m_View.SetViewName("View");
+        m_View.InitDataView(m_State.GetCurrentItem());
         break;
     }
     }
@@ -180,6 +186,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
 void GuiMainComponent::CloseCurrentConfig()
 {
+    m_View.Close(false);
+
+    /*
     // close the views
     for (auto& view : m_MapViews)
     {
@@ -189,7 +198,7 @@ void GuiMainComponent::CloseCurrentConfig()
     for (auto& view : m_TableViews)
     {
         view.Close(false);
-    }
+    }*/
 
     m_ItemsHolder.clear();
     m_State.clear();
@@ -403,7 +412,7 @@ void GuiMainComponent::Update()
     }
 
     // Update all GeoDMSGui components
-    m_MenuComponent.Update(m_TableViews, m_MapViews);
+    m_MenuComponent.Update(m_View);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItemComponent.Update();
@@ -420,7 +429,15 @@ void GuiMainComponent::Update()
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow);
 
-    for (auto& view : m_MapViews)
+    if (m_View.IsPopulated())
+    {
+        if (m_View.DoView())
+            m_View.Update();
+        else
+            m_View.Close(true);
+    }
+
+    /*for (auto& view : m_MapViews)
     {
         if (!view.IsPopulated())
             continue;
@@ -440,7 +457,7 @@ void GuiMainComponent::Update()
             view.Update();
         else
             view.Close(true);
-    }
+    }*/
 
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
