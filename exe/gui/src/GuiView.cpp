@@ -27,7 +27,9 @@
 
 void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
-    if (event == GuiEvents::UpdateCurrentItem) // update current item
+    switch (event)
+    {
+    case UpdateCurrentItem: // update current item
     {
         /*if (m_DataView && !m_ActiveItems.contains(currentItem))
         {
@@ -36,8 +38,9 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
         }*/
 
         m_IsPopulated = true;
+        break;
     }
-    if (event == GuiEvents::UpdateCurrentAndCompatibleSubItems)
+    case UpdateCurrentAndCompatibleSubItems:
     {
         /*if (m_DataView && !m_DataView->DoesContain(currentItem))
         {
@@ -46,6 +49,13 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
         }*/
 
         m_IsPopulated = true;
+        break;
+    }
+    case OpenInMemoryDataView:
+    {
+        Close(true);
+        break;
+    }
     }
 }
 
@@ -192,8 +202,8 @@ void GuiView::InitDataView(TreeItem* currentItem)
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
+    m_ViewIndex = m_Views.size();
     m_Views.emplace_back(currentItem->GetName().c_str(), m_ViewStyle, SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load));
-    m_ViewIndex++;
     Close(true);
     //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }

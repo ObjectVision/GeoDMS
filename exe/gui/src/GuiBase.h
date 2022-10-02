@@ -42,7 +42,8 @@ enum GuiEvents
 	ReopenCurrentConfiguration = 3,
 	OpenNewMapViewWindow = 4,
 	OpenNewTableViewWindow = 5,
-	OpenNewConfiguration = 6
+	OpenNewConfiguration = 6,
+	OpenInMemoryDataView = 7
 };
 
 class GuiTreeItemsHolder

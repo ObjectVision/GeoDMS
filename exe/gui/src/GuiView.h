@@ -19,7 +19,7 @@ public:
 	{
 		m_Name = n;
 		m_ViewStyle = vs;
-		m_DataView = std::move(dv);
+		m_DataView = dv;
 	}
 
 	std::string m_Name;

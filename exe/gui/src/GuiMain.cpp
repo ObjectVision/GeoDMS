@@ -50,6 +50,13 @@ GuiMainComponent::~GuiMainComponent()
 
     //m_TableViews.clear();
     //m_MapViews.clear();
+
+    for (auto& view : m_View.m_Views)
+    {
+        SHV_DataView_Destroy(view.m_DataView);
+        view.m_ActiveItems.clear();
+    }
+
     m_ItemsHolder.clear();
     m_State.clear();
 

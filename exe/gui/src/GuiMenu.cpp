@@ -339,8 +339,12 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
             ImGui::PushID(index);
             if (ImGui::Button(view.m_Name.c_str()))
             {
-                ViewPtr.SetDoView(!ViewPtr.DoView());
+                ViewPtr.SetDoView(true);
                 ViewPtr.SetViewIndex(index);
+                if (view.m_ViewStyle==tvsMapView)
+                    m_State.MapViewEvents.Add(OpenInMemoryDataView);
+                else if (view.m_ViewStyle==tvsTableView)
+                    m_State.TableViewEvents.Add(OpenInMemoryDataView);
             }
             ImGui::PopID();
             index++;
