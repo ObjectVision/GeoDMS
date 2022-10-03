@@ -301,9 +301,9 @@ void GuiDetailPages::UpdateGeneralProperties()
     {
         auto xmlOut = XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
         auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut, true);
-
         m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
         m_Buff.Reset();
+        delete xmlOut;
     }
     else
     {
@@ -312,6 +312,7 @@ void GuiDetailPages::UpdateGeneralProperties()
         auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut, true);
         m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
         m_Buff.Reset();
+        delete xmlOut;
     }
 }
 
@@ -322,6 +323,7 @@ void GuiDetailPages::UpdateAllProperties()
     auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut, false);
     m_Buff.InterpretBytes(false, m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
+    delete xmlOut;
 }
 
 void GuiDetailPages::UpdateExploreProperties()
@@ -331,6 +333,7 @@ void GuiDetailPages::UpdateExploreProperties()
     DMS_TreeItem_XML_DumpExplore(m_State.GetCurrentItem(), xmlOut, true);
     m_Buff.InterpretBytes(false, m_ExploreProperties); // Create detail page from html stream
     m_Buff.Reset();
+    delete xmlOut;
 }
 
 void GuiDetailPages::UpdateStatistics()
