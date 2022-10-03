@@ -425,7 +425,7 @@ void GuiMainComponent::Update()
         m_CurrentItemComponent.Update();
     
     if (m_State.ShowToolbar)
-        m_Toolbar.Update(&m_State.ShowToolbar);
+        m_Toolbar.Update(&m_State.ShowToolbar, m_View);
 
     if (m_State.ShowDetailPagesWindow)
         m_DetailPages.Update(&m_State.ShowDetailPagesWindow);

@@ -27,6 +27,9 @@ void GuiMenuComponent::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMainMenuBar())
     {
+        if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+            SetKeyboardFocusToThisHwnd();
+
         m_FileComponent.Update();
         m_EditComponent.Update();
         m_ViewComponent.Update();

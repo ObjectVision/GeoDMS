@@ -12,7 +12,7 @@ GuiToolbar::GuiToolbar()
     m_Buf.resize(1024);
 }
 
-void GuiToolbar::Update(bool* p_open)
+void GuiToolbar::Update(bool* p_open, GuiView& view)
 {
     if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_HorizontalScrollbar))
     {
