@@ -356,7 +356,6 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
             }
             else if (col.type == PET_LINK)
             {
-
                 ImGui::PushID(button_index++);
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));

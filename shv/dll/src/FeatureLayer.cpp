@@ -1033,9 +1033,7 @@ bool DrawPoints(
 				fontIndices = nullptr;
 
 			WCHAR defaultSymbol = 0x0023;
-			auto colorTheme = layer->GetTheme(AN_SymbolColor);
-			DmsColor defaultColor = colorTheme ? colorTheme->GetColorAspectValue() : layer->GetDefaultPointColor();
-
+			DmsColor defaultColor = layer->GetDefaultPointColor();
 			WeakPtr<const AbstrThemeValueGetter> symbolIdGetter;
 			if (layer->GetEnabledTheme(AN_SymbolIndex))
 			{
