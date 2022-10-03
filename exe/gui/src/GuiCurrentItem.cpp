@@ -31,7 +31,7 @@ void GuiCurrentItemComponent::Update()
         if (m_State.CurrentItemBarEvents.HasEvents()) // new current item
         {
             m_State.CurrentItemBarEvents.Pop();
-            m_Buf.assign(m_Buf.size(), 0);
+            //m_Buf.assign(m_Buf.size(), 0);
             auto tmpPath = m_State.GetCurrentItem() ? m_State.GetCurrentItem()->GetFullName() : SharedStr("");
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
@@ -48,8 +48,6 @@ void GuiCurrentItemComponent::Update()
                 }
             }
         }
-
-        ImGui::Text("Text", "Text");
 
         ImGui::EndMenuBar();
     }

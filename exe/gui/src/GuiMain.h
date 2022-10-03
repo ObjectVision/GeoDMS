@@ -36,8 +36,7 @@ private:
 	GuiToolbar              m_Toolbar;
 	GuiEventLog		        m_EventLog;
 	GuiView					m_View; // single view
-	//std::vector<GuiView>    m_TableViews;
-	//std::vector<GuiView>    m_MapViews;
+	GuiOptions				m_Options;
 	int		                m_MaxViews = 2;
 	int                     m_TableViewsCursor = 0;
 	int						m_MapViewsCursor = 0;

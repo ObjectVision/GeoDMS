@@ -192,6 +192,11 @@ void GuiView::SetViewIndex(int index)
     m_ViewIndex = index;
 }
 
+HWND GuiView::GetHWND()
+{
+    return m_HWND;
+}
+
 void GuiView::InitDataView(TreeItem* currentItem)
 {
     if (!currentItem)

@@ -24,15 +24,25 @@ void GuiToolbar::Update(bool* p_open, GuiView& view)
     if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
         SetKeyboardFocusToThisHwnd();
 
-    ImGui::SameLine();
-    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) 
+
+    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoom_all_layers).GetImage(), ImVec2(GetIcon(MV_zoom_all_layers).GetWidth(), GetIcon(MV_zoom_all_layers).GetHeight())))
     {
+        // OnCommand(ToolButtonID::TB_ZoomAllLayers);
+        // GetContents()->OnCommand(TB_ZoomAllLayers);
+        //if (!view.m_Views.empty())
+        SendMessage(view.GetHWND(), WM_COMMAND, ToolButtonID::TB_ZoomAllLayers, 0);
+    };
+    
+    //ImGui::SameLine();
+    //if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) 
+    //{
         /*auto view = GetActiveView();
         if (view)
             view->SendMessage(WM_COMMAND, ToolButtonID::TB_Copy, 0, nullptr);
         // TODO: access eventhandler directly (also for treeview)*/
-    };
+    //};
     
+    /*
     ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_copy).GetImage(), ImVec2(GetIcon(GV_copy).GetWidth(), GetIcon(GV_copy).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_vcopy).GetImage(), ImVec2(GetIcon(GV_vcopy).GetWidth(), GetIcon(GV_vcopy).GetHeight()))) {}; ImGui::SameLine();
@@ -43,18 +53,11 @@ void GuiToolbar::Update(bool* p_open, GuiView& view)
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_toggle_palette).GetImage(), ImVec2(GetIcon(MV_toggle_palette).GetWidth(), GetIcon(MV_toggle_palette).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_toggle_scalebar).GetImage(), ImVec2(GetIcon(MV_toggle_scalebar).GetWidth(), GetIcon(MV_toggle_scalebar).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoom_active_layer).GetImage(), ImVec2(GetIcon(MV_zoom_active_layer).GetWidth(), GetIcon(MV_zoom_active_layer).GetHeight()))) {}; ImGui::SameLine();
-    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoom_all_layers).GetImage(), ImVec2(GetIcon(MV_zoom_all_layers).GetWidth(), GetIcon(MV_zoom_all_layers).GetHeight()))) 
-    {
-        // OnCommand(ToolButtonID::TB_ZoomAllLayers);
-        // GetContents()->OnCommand(TB_ZoomAllLayers);
-        
-        
-    }; 
     ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoom_selected).GetImage(), ImVec2(GetIcon(MV_zoom_selected).GetWidth(), GetIcon(MV_zoom_selected).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoomin).GetImage(), ImVec2(GetIcon(MV_zoomin).GetWidth(), GetIcon(MV_zoomin).GetHeight()))) {}; ImGui::SameLine();
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(MV_zoomout).GetImage(), ImVec2(GetIcon(MV_zoomout).GetWidth(), GetIcon(MV_zoomout).GetHeight()))) {}; ImGui::SameLine();
-
+    */
 
     ImGui::End();
 

@@ -47,6 +47,9 @@ public:
 	std::string GetViewName();
 	void InitDataView(TreeItem* currentItem);
 	void SetViewIndex(int index);
+	HWND GetHWND();
+
+
 	std::vector<View> m_Views;
 	int m_ViewIndex = -1;
 

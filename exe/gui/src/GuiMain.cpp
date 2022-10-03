@@ -268,7 +268,7 @@ int GuiMainComponent::Init()
 int GuiMainComponent::MainLoop()
 {
     ImGuiIO& io = ImGui::GetIO();
- 
+
     // state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + DMS_GetVersion()).c_str()); // default window title
@@ -306,7 +306,7 @@ int GuiMainComponent::MainLoop()
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
 
         // update all gui components
         Update(); 
@@ -471,7 +471,7 @@ void GuiMainComponent::Update()
 
     // option windows
     if (m_State.ShowOptionsWindow)
-        ShowOptionsWindow(&m_State.ShowOptionsWindow);
+        m_Options.Update(&m_State.ShowOptionsWindow);
 
     if (m_State.ShowEventLogOptionsWindow)
         ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);

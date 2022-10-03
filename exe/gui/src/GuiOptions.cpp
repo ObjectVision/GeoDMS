@@ -3,10 +3,17 @@
 #include "utl/Environment.h"
 
 
-void ShowOptionsWindow(bool* p_open)
+GuiOptions::GuiOptions()
 {
-    ImGui::SetNextWindowSize(ImVec2(800,400), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None|ImGuiWindowFlags_NoDocking))
+    m_LocalDataDirPath.resize(2048);
+    m_SourceDataDirPath.resize(2048);
+    m_Editor.resize(2048);
+}
+
+void GuiOptions::Update(bool* p_open)
+{
+    ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking))
     {
         if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None))
         {
@@ -19,6 +26,13 @@ void ShowOptionsWindow(bool* p_open)
             if (ImGui::BeginTabItem("Advanced"))
             {
                 ImGui::Text("Paths");
+                ImGui::Text("LocalDataDir:"); ImGui::SameLine(); 
+                if (ImGui::InputText("##LocalDataDir", reinterpret_cast<char*> (&m_LocalDataDirPath[0]), m_LocalDataDirPath.size(), ImGuiInputTextFlags_EnterReturnsTrue))
+                {
+                    std::string LocalDataDir = {m_LocalDataDirPath.begin(), m_LocalDataDirPath.end()};
+                    int i = 0;
+                }
+                //GetLocalDataDir
                 ImGui::Separator();
                 ImGui::Text("External Programs");
                 ImGui::Separator();
@@ -30,17 +44,17 @@ void ShowOptionsWindow(bool* p_open)
                 static DWORD flags = GetRegStatusFlags();
 
                 if (ImGui::Checkbox("0: Suspend View Updates to Favor GUI", &pp0))
-                    SetGeoDmsRegKeyDWord("StatusFlags", pp0? flags|=RSF_SuspendForGUI: flags &=~RSF_SuspendForGUI);
+                    SetGeoDmsRegKeyDWord("StatusFlags", pp0 ? flags |= RSF_SuspendForGUI : flags &= ~RSF_SuspendForGUI);
 
                 if (ImGui::Checkbox("1: Tile/Segment Tasks", &pp1))
-                    SetGeoDmsRegKeyDWord("StatusFlags", pp1 ? flags|=RSF_MultiThreading1 : flags &= ~RSF_MultiThreading1);
+                    SetGeoDmsRegKeyDWord("StatusFlags", pp1 ? flags |= RSF_MultiThreading1 : flags &= ~RSF_MultiThreading1);
 
                 if (ImGui::Checkbox("2: Multiple Operations Simultaneously", &pp2))
-                    SetGeoDmsRegKeyDWord("StatusFlags", pp2 ? flags|=RSF_MultiThreading2 : flags &= ~RSF_MultiThreading2);
+                    SetGeoDmsRegKeyDWord("StatusFlags", pp2 ? flags |= RSF_MultiThreading2 : flags &= ~RSF_MultiThreading2);
 
                 if (ImGui::Checkbox("3: Pipelined Tile Operations", &pp3))
-                    SetGeoDmsRegKeyDWord("StatusFlags", pp3 ? flags|=RSF_MultiThreading3 : flags &= ~RSF_MultiThreading3);
-                
+                    SetGeoDmsRegKeyDWord("StatusFlags", pp3 ? flags |= RSF_MultiThreading3 : flags &= ~RSF_MultiThreading3);
+
                 ImGui::Separator();
 
                 static int treshold_mem_flush = 100; // RTC_GetRegDWord(RegDWordEnum i);
@@ -50,7 +64,7 @@ void ShowOptionsWindow(bool* p_open)
                 {
                     if (treshold_mem_flush > 100)
                         treshold_mem_flush = 100;
-                    else if (treshold_mem_flush<50)
+                    else if (treshold_mem_flush < 50)
                         treshold_mem_flush = 50;
 
                     //RTC_SetRegDWord(RegDWordEnum i, DWORD dw);
