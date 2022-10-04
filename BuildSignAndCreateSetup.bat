@@ -2,7 +2,7 @@ echo on
 cls
 
 set DMS_VERSION_MAJOR=8
-set DMS_VERSION_MINOR=39
+set DMS_VERSION_MINOR=40
 
 set DMS_VERSION_MINOR_PAD=0%DMS_VERSION_MINOR%
 
@@ -21,28 +21,29 @@ REM CHOICE /M "Rebuild all Release x64 (requires start from Tools..Cmd line)?"
 REM if ErrorLevel 2 set MS_VERB=build
 set MS_VERB=build
 
+msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
 
 REM svn update ..\tst
 
-CHOICE /M "compiled and ..\tst updated? Execute the R64-fast-release-test?"
-if ErrorLevel 2 goto :afterR64FastTest
+CHOICE /M "compiled and ..\tst updated? Ready to execute the R64-fast-debug-test?"
+if ErrorLevel 2 goto :afterD64FastTest
 
 cd ..\tst\batch
 Call sync_src.bat
-Call fast.bat R64 off
+Call fast.bat D64 off
 cd %geodms_rootdir%
 echo on
 
-:afterR64FastTest
-CHOICE /M "Execute the R64-unit-release-test?"
-if ErrorLevel 2 goto :afterR64UnitTest
+:afterD64FastTest
+CHOICE /M "Ready to execute the D64-unit-release-test?"
+if ErrorLevel 2 goto :afterD64UnitTest
 
 cd ..\tst\batch
-Call unit.bat R64 off
+Call unit.bat D64 off
 cd %geodms_rootdir%
 echo on
-:afterR64UnitTest
+:afterD64UnitTest
 
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe
 REM CHOICE /M  "Sign binaries? No running instances that lock them?"

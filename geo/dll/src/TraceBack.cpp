@@ -88,8 +88,8 @@ struct TraceBackOperator : QuaternaryOperator
 		dms_assert(flowUnit);
 
 		du->UnifyDomain( checked_domain<LinkType>(arg2A), UM_Throw);
-		du->UnifyDomain( arg3A->GetAbstrValuesUnit(),           UM_Throw);
-		vu->UnifyDomain( arg2A->GetAbstrValuesUnit(),           UM_Throw);
+		vu->UnifyDomain( arg3A->GetAbstrValuesUnit(),     UM_Throw);
+		vu->UnifyDomain( arg2A->GetAbstrValuesUnit(),     UM_Throw);
 		vu->UnifyDomain( checked_domain<LinkType>(arg3A), UM_Throw);
 		vu->UnifyDomain( checked_domain<LinkType>(arg4A), UM_Throw);
 

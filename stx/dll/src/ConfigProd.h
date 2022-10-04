@@ -54,7 +54,7 @@ enum SignatureType {
 
 struct ConfigProd : AbstrDataBlockProd
 {
-	EmptyExprProd m_ExprProd;
+	EmptyExprProd m_ExprProd = {};
 
 	ConfigProd(TreeItem* context);
 	~ConfigProd();

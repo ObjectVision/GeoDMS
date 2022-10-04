@@ -126,16 +126,26 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 			{
 				dms_assert(candidate);
 
-				if (! candidate->IsCacheItem())
-				if (IsDataItem(candidate) && AsDataItem(candidate)->GetAbstrDomainUnit()->GetValueType()->IsIntegral()) // no 2d raster domain
-				{
-					candidate->UpdateMetaInfo();
-					const AbstrUnit* candidateValuesUnit = AsDataItem(candidate)->GetAbstrValuesUnit();
-					if (valuesUnit->UnifyValues(candidateValuesUnit, UM_AllowDefaultLeft, nullptr)) // metric and value-type compatible
-					if (!candidateValuesUnit->GetValueType()->IsIntegral() || IsClassBreakAttr(candidate) || valuesUnit->UnifyDomain(candidateValuesUnit, UnifyMode()) )
-						if (callback(clientHandle, candidate))
-								++count;
-				}
+				if (candidate->IsCacheItem())
+					return;
+				if (!IsDataItem(candidate))
+					return;
+				auto adi = AsDataItem(candidate);
+				auto candidateDomainUnit = adi->GetAbstrDomainUnit();
+				const AbstrUnit* candidateValuesUnit = adi->GetAbstrValuesUnit();
+				auto domainValueType = candidateDomainUnit->GetValueType();
+				if (domainValueType->GetNrDims() != 1) // no 2d raster domain
+					return;
+				if (domainValueType->GetBitSize() > 8 && candidateValuesUnit->GetValueType()->IsIntegral()) // no big palettes unless candidate is base grid
+					return;
+
+				candidate->UpdateMetaInfo();
+				if (valuesUnit->UnifyValues(candidateValuesUnit, UM_AllowDefaultLeft, nullptr)) // metric and value-type compatible
+				if (!candidateValuesUnit->GetValueType()->IsIntegral() // base grid ?
+					|| IsClassBreakAttr(candidate) // class breaks ?
+					|| valuesUnit->UnifyDomain(candidateValuesUnit, UnifyMode()) ) // rlookup possible ?
+					if (callback(clientHandle, candidate))
+							++count;
 			};
 	
 		TreeItemSetType doneItems;
@@ -152,9 +162,16 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 		auto newF =
 			[&doneItems, &f](const Actor* aCandidate)->void
 		{
-			auto candidate = debug_cast<const TreeItem*>(aCandidate);
-			if (candidate && IsNewItem(candidate, doneItems))
-				f(candidate);
+			try {
+				auto candidate = debug_cast<const TreeItem*>(aCandidate);
+				if (candidate && IsNewItem(candidate, doneItems))
+					f(candidate);
+			}
+			catch (const concurrency::task_canceled&)
+			{
+				throw;
+			}
+			catch (...) {}
 		};
 
 		VisitConstVisibleSubTrees( context, MakeDerivedProcVistor(std::move(newF)) );

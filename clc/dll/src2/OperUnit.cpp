@@ -586,8 +586,8 @@ public:
 			T lb = GetTheCurrValue<T>(args[1]);
 			T ub = GetTheCurrValue<T>(args[2]);
 
-			MG_CHECK2(IsDefined(lb), "Error in range-operator: lowerBound (arg2) is UNDEFINED");
-			MG_CHECK2(IsDefined(ub), "Error in range-operator: upperBound (arg3) is UNDEFINED");
+			MG_USERCHECK2(IsDefined(lb), "Error in range-operator: lowerBound (arg2) is UNDEFINED");
+			MG_USERCHECK2(IsDefined(ub), "Error in range-operator: upperBound (arg3) is UNDEFINED");
 
 			Range<T> bounds(lb, ub);
 			auto arg1Unit = dynamic_cast<const Unit<T>*>(arg1);
