@@ -71,5 +71,10 @@ struct OwningPtr : ptr_base<T, movable>
 	OwningPtr(const OwningPtr<T>& oth) = delete;
 };
 
+template<typename T, typename ...Args>
+OwningPtr<T> MakeOwned(Args&& ...args) 
+{
+	return new T(std::forward<Args>(args));
+}
 
 #endif // __RTC_PTR_OWNINGPTR_H

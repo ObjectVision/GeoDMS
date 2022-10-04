@@ -233,8 +233,44 @@ struct FuncWrapper
 	Func m_Func;
 };
 
+
 template <typename Func>
 FuncWrapper<Func> MakeFuncWrapper(Func&& f) { return FuncWrapper<Func>(std::move(f)); }
+
+struct ActivateUniqueValuesPaletteCmd : AbstrCmd
+{
+	ActivateUniqueValuesPaletteCmd(Theme* theme)
+		: m_Theme(theme)
+	{}
+
+	GraphVisitState DoLayer(GraphicLayer* gl) override
+	{
+		AspectNr aNr = m_Theme->GetAspectNr();
+		auto adi = m_Theme->GetThemeAttr();
+		auto paletteDomain = adi->GetAbstrValuesUnit();
+//		const AbstrUnit* domain = m_Classification->GetAbstrDomainUnit();
+
+		SharedDataItemInterestPtr palette = FindAspectAttr(aNr, adi, paletteDomain, gl->GetLayerClass());
+		if (!palette) {
+			auto dv = gl->GetDataView().lock(); if (!dv) return GVS_Handled;
+			palette = CreatePaletteData(dv.get(), paletteDomain, aNr, false, false, nullptr, nullptr);
+		}
+		dms_assert(palette);
+		gl->ChangeTheme(
+			Theme::Create(
+				aNr,
+				m_Theme->GetThemeAttr(),
+				nullptr,
+				palette
+			).get()
+		);
+		gl->Invalidate();
+		return GVS_Handled;
+	}
+
+private:
+	Theme* m_Theme;
+};
 
 void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLayer* layer)
 {
@@ -243,17 +279,20 @@ void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLa
 	const AbstrDataItem* themeAttr      = classifiedTheme->GetThemeAttr();
 	dms_assert(themeAttr);
 
+	menuData.emplace_back(mySSPrintF("Unique Values of %s", themeAttr->GetFullName()).c_str()
+		, MakeOwned<ActivateUniqueValuesPaletteCmd>(classifiedTheme)
+		, layer
+		, 0
+		);
+
 	// get all available classifications
 	auto funcWrapper = MakeFuncWrapper( [&menuData, classifiedTheme, classification, layer] (const TreeItem* supplier)->bool
 		{
 			const AbstrDataItem* adi = AsDataItem(supplier);
-			menuData.push_back(
-				MenuItem(
-					adi->GetFullName(), 
-					new ActivateClassificationCmd(adi, classifiedTheme), 
-					layer, 
-					(adi == classification) ? MF_CHECKED : 0
-				)
+			menuData.emplace_back(adi->GetFullName()
+			,	MakeOwned<ActivateClassificationCmd>(adi, classifiedTheme)
+			,	layer
+			,	(adi == classification) ? MF_CHECKED : 0
 			);
 			return true;
 		}
@@ -285,6 +324,7 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 		if ((*themePtr) && (*themePtr) != GetActiveTheme()) 
 			if ((*themePtr)->GetClassification()  && GetActiveTheme()->GetThemeAttr() )
 				classifiedThemes.push_back(themePtr->get());
+
 	if (classifiedThemes.size())
 	{
 		SubMenu subMenu(menuData, SharedStr("Classify with"));
