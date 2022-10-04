@@ -27,13 +27,19 @@ enum GuiTextureID
     MV_zoom_active_layer = 16,
     MV_zoom_all_layers = 17,
     MV_zoom_selected = 18,
-    MV_zoomin = 19,
-    MV_zoomout = 20,
+    MV_zoomin_button = 19,
+    MV_zoomout_button = 20,
     MV_table_show_first_selected = 21,
     MV_table_select_row = 22,
     MV_select_all = 23,
     MV_select_none = 24,
-    MV_show_selected_features = 25
+    MV_show_selected_features = 25,
+    MV_toggle_needle = 26,
+    MV_select_object = 27,
+    MV_select_rect = 28,
+    MV_select_circle = 29,
+    MV_select_poly = 30,
+    MV_select_district = 31
 };
 
 class GuiIcon

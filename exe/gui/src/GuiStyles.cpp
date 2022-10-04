@@ -89,6 +89,13 @@ void InitializeGuiTextures()
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_all.bmp");
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_none.bmp");
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_show_selected_features.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_toggle_needle.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_object.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_rect.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_circle.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_poly.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_district.bmp");
+    
 }
 
 GuiIcon& GetIcon(GuiTextureID id)
