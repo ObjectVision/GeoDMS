@@ -83,7 +83,12 @@ void InitializeGuiTextures()
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoom_all_layers.bmp");           
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoom_selected.bmp");       
     s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoomin_button.bmp");         
-    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoomout_button.bmp");                                                    
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_zoomout_button.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_table_show_first_selected.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_table_select_row.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_all.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_select_none.bmp");
+    s_GuiTextureIcons.emplace_back("misc\\icons\\MV_show_selected_features.bmp");
 }
 
 GuiIcon& GetIcon(GuiTextureID id)

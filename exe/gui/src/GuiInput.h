@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <GL/glew.h>
 #include <GLFW/glfw3.h> // See https://www.glfw.org/docs/latest/input_guide.html#input_key
 
 #include "GuiBase.h"
