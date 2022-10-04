@@ -2109,45 +2109,6 @@ void TreeItem::UpdateMetaInfoImpl() const
 }	// end of recursion protected area
 
 // ======================================================
-/* 
-MetaInfo TreeItem::GetMetaInfo(metainfo_policy_flags mpf) const
-{
-	dms_assert(!WasFailed(FR_MetaInfo));
-	DetermineState();
-	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
-	dms_assert( m_LastGetStateTS == UpdateMarker::GetLastTS() || HasConfigData() || InTemplate() || IsPassor() );
-	dms_assert(!GetTreeParent() || GetTreeParent()->Was(PS_MetaInfo) || GetTreeParent()->WasFailed(FR_MetaInfo));
-	if (HasCalculator())
-	{
-//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
-		const AbstrCalculator* calc = mc_Calculator;
-		if (!calc)
-		{
-			dms_assert(!WasFailed(FR_MetaInfo));
-			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
-			return LispRef{}; // let Unit::GetMetaInfo finish this
-		}
-
-		auto metaInfo = calc->GetMetaInfo();
-		return metaInfo;
-	}
-
-	if (mpf & metainfo_policy_flags::recursive_check)
-		throwItemError("Invalid Recursion in integrityCheck Evaluation");
-
-	dms_assert(!IsCacheItem());
-
-	if (mpf & metainfo_policy_flags::subst_never)
-		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
-
-	if (IsLoadable())
-//		return CreateLispTree(this, false); // will result in a SymbDC
-//	if (IsUnit(this) || IsDerivable())
-		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false)};
-
-	return MetaFuncCurry{}; // not as variant 2, as that would create an infinite recursion from GetOrgDC
-}
-*/
 
 namespace diagnostic_tests {
 	bool TreeParenMetaInfoReadyOrFailed(const TreeItem* self)

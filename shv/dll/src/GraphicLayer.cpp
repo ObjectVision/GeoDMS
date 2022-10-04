@@ -279,8 +279,8 @@ void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLa
 	const AbstrDataItem* themeAttr      = classifiedTheme->GetThemeAttr();
 	dms_assert(themeAttr);
 
-	menuData.emplace_back(mySSPrintF("Unique Values of %s", themeAttr->GetFullName()).c_str()
-		, MakeOwned<ActivateUniqueValuesPaletteCmd>(classifiedTheme)
+	menuData.emplace_back(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
+		, MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(classifiedTheme)
 		, layer
 		, 0
 		);
@@ -290,7 +290,7 @@ void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLa
 		{
 			const AbstrDataItem* adi = AsDataItem(supplier);
 			menuData.emplace_back(adi->GetFullName()
-			,	MakeOwned<ActivateClassificationCmd>(adi, classifiedTheme)
+			,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
 			,	layer
 			,	(adi == classification) ? MF_CHECKED : 0
 			);
