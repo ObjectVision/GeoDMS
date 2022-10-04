@@ -137,15 +137,17 @@ void GuiToolbar::Update(bool* p_open, GuiView& view)
     if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
         SetKeyboardFocusToThisHwnd();
 
-    if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsTableView)
+    if (!view.m_Views.empty())
     {
-        ShowTableViewButtons(view);
+        if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsTableView)
+        {
+            ShowTableViewButtons(view);
+        }
+        else if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsMapView)
+        {
+            ShowMapViewButtons(view);
+        }
     }
-    else if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsMapView)
-    {
-        ShowMapViewButtons(view);
-    }
-
     
     //ImGui::SameLine();
     //if (ImGui::ImageButton((void*)(intptr_t)GetIcon(GV_save).GetImage(), ImVec2(GetIcon(GV_save).GetWidth(), GetIcon(GV_save).GetHeight()))) 
