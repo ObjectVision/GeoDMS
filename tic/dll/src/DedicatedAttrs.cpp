@@ -152,9 +152,16 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 		auto newF =
 			[&doneItems, &f](const Actor* aCandidate)->void
 		{
-			auto candidate = debug_cast<const TreeItem*>(aCandidate);
-			if (candidate && IsNewItem(candidate, doneItems))
-				f(candidate);
+			try {
+				auto candidate = debug_cast<const TreeItem*>(aCandidate);
+				if (candidate && IsNewItem(candidate, doneItems))
+					f(candidate);
+			}
+			catch (const concurrency::task_canceled&)
+			{
+				throw;
+			}
+			catch (...) {}
 		};
 
 		VisitConstVisibleSubTrees( context, MakeDerivedProcVistor(std::move(newF)) );
