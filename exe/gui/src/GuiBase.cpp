@@ -154,6 +154,6 @@ bool MouseHooversOptionsIconInWindowHeader()
 
 void SetKeyboardFocusToThisHwnd()
 {
-    //auto window = ImGui::GetCurrentWindow();
-    //SetFocus((HWND)window->Viewport->PlatformHandleRaw);
+    auto window = ImGui::GetCurrentWindow();
+    SetFocus((HWND)window->Viewport->PlatformHandleRaw);
 }

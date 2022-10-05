@@ -437,9 +437,7 @@ void GuiView::Update()
 
     // If m_HWND is focused, focus imgui window as well
     if (GetFocus() == m_HWND)
-    {
         ImGui::FocusWindow(ImGui::GetCurrentWindow());
-    }
 
     // update window
     auto result = SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);

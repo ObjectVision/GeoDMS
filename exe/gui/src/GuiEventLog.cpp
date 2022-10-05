@@ -54,7 +54,7 @@ void GuiEventLog::Update(bool* p_open)
         return;
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     // window specific options button

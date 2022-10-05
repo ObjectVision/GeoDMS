@@ -399,7 +399,7 @@ void GuiDetailPages::Update(bool* p_open)
         return;
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     if (m_State.DetailPagesEvents.HasEvents()) // new current item

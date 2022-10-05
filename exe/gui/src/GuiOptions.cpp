@@ -15,6 +15,9 @@ void GuiOptions::Update(bool* p_open)
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking))
     {
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            SetKeyboardFocusToThisHwnd();
+
         if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_None))
         {
             if (ImGui::BeginTabItem("GUI"))
