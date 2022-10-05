@@ -239,58 +239,57 @@ FuncWrapper<Func> MakeFuncWrapper(Func&& f) { return FuncWrapper<Func>(std::move
 
 struct ActivateUniqueValuesPaletteCmd : AbstrCmd
 {
-	ActivateUniqueValuesPaletteCmd(Theme* theme)
-		: m_Theme(theme)
-	{}
+	ActivateUniqueValuesPaletteCmd(AspectNr a, const AbstrDataItem* themeAttr)
+		: m_AspectNr(a)
+		, m_ThemeAttr(themeAttr)
+	{
+		dms_assert(themeAttr);
+	}
 
 	GraphVisitState DoLayer(GraphicLayer* gl) override
 	{
-		AspectNr aNr = m_Theme->GetAspectNr();
-		auto adi = m_Theme->GetThemeAttr();
-		auto paletteDomain = adi->GetAbstrValuesUnit();
-//		const AbstrUnit* domain = m_Classification->GetAbstrDomainUnit();
+		dms_assert(m_ThemeAttr);
+		auto paletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
 
-		SharedDataItemInterestPtr palette = FindAspectAttr(aNr, adi, paletteDomain, gl->GetLayerClass());
+		SharedDataItemInterestPtr palette = FindAspectAttr(m_AspectNr, m_ThemeAttr, paletteDomain, gl->GetLayerClass());
 		if (!palette) {
 			auto dv = gl->GetDataView().lock(); if (!dv) return GVS_Handled;
-			palette = CreatePaletteData(dv.get(), paletteDomain, aNr, false, false, nullptr, nullptr);
+			palette = CreatePaletteData(dv.get(), paletteDomain, m_AspectNr, false, false, nullptr, nullptr);
 		}
-		dms_assert(palette);
 		gl->ChangeTheme(
-			Theme::Create(
-				aNr,
-				m_Theme->GetThemeAttr(),
-				nullptr,
-				palette
-			).get()
+			Theme::Create(m_AspectNr, m_ThemeAttr, nullptr, palette).get()
 		);
 		gl->Invalidate();
 		return GVS_Handled;
 	}
 
 private:
-	Theme* m_Theme;
+	AspectNr m_AspectNr;
+	SharedPtr<const AbstrDataItem> m_ThemeAttr;
 };
 
-void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLayer* layer)
+void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedTheme, const AbstrDataItem* themeAttr, GraphicLayer* layer)
 {
-	const AbstrDataItem* classification = classifiedTheme->GetClassification();
-	dms_assert(classification);
-	const AbstrDataItem* themeAttr      = classifiedTheme->GetThemeAttr();
-	dms_assert(themeAttr);
+	const AbstrDataItem* classification = classifiedTheme ? classifiedTheme->GetClassification() : nullptr;
+	if (classifiedTheme && classifiedTheme->GetThemeAttr())
+		themeAttr = classifiedTheme->GetThemeAttr();
+
+	if (!themeAttr)
+		return;
 
 	menuData.push_back(
 		MenuItem(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
-		,	MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(classifiedTheme)
+			, MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(a, themeAttr)
 		,	layer
 		,	0
 		)
 	);
 
-	// get all available classifications
+		// get all available classifications
 	auto funcWrapper = MakeFuncWrapper( [&menuData, classifiedTheme, classification, layer] (const TreeItem* supplier)->bool
 		{
 			const AbstrDataItem* adi = AsDataItem(supplier);
+			dms_assert(adi);
 			menuData.push_back(
 				MenuItem(adi->GetFullName()
 				,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
@@ -302,7 +301,7 @@ void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLa
 		}
 	);
 
-	UInt32 count = DMS_DataItem_VisitClassBreakCandidates(themeAttr, funcWrapper.Callback, funcWrapper.Handle());
+	DMS_DataItem_VisitClassBreakCandidates(themeAttr, funcWrapper.Callback, funcWrapper.Handle());
 }
 
 void GraphicLayer::FillLcMenu(MenuData& menuData)
@@ -319,28 +318,31 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 			) 
 		);
 
-	std::vector<Theme*> classifiedThemes;
+	std::vector<AspectNr> classifialbeAspects;
 
-	if (GetActiveTheme() && GetActiveTheme()->GetClassification() && GetActiveTheme()->GetThemeAttr())
-		classifiedThemes.push_back( GetActiveTheme().get() );
+	const AbstrDataItem* themeAttr = nullptr;
+	if (GetActiveTheme())
+		themeAttr = GetActiveTheme()->GetThemeAttr();
 
-	for (auto themePtr = m_Themes + AN_OrderBy; themePtr != m_Themes + AN_AspectCount; ++themePtr)
-		if ((*themePtr) && (*themePtr) != GetActiveTheme()) 
-			if ((*themePtr)->GetClassification()  && GetActiveTheme()->GetThemeAttr() )
-				classifiedThemes.push_back(themePtr->get());
+	if (themeAttr)
+		classifialbeAspects.push_back( GetActiveTheme().get()->GetAspectNr() );
 
-	if (classifiedThemes.size())
+	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
+		if (m_Themes[a] && m_Themes[a] != GetActiveTheme())
+			classifialbeAspects.push_back(a);
+
+	auto aspectSet = GetLayerClass()->GetPossibleAspects();
+	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
+		if (!m_Themes[a] && ((1 <<a) & aspectSet))
+			classifialbeAspects.push_back(a);
+
+	if (classifialbeAspects.size())
 	{
-		SubMenu subMenu(menuData, SharedStr("Classify with"));  // SUBMENU
-		if (classifiedThemes.size() == 1)
-			AddClassificationMenu(menuData, classifiedThemes[0], this);
-		else
+		SubMenu subMenu(menuData, SharedStr("Classify ..."));  // SUBMENU
+		for (AspectNr a: classifialbeAspects)
 		{
-			for (UInt32 i = 0; i!= classifiedThemes.size(); ++i)
-			{
-				SubMenu aspectSubMenu(menuData, SharedStr(AspectArray[classifiedThemes[i]->GetAspectNr()].name));
-				AddClassificationMenu(menuData, classifiedThemes[i], this);
-			}
+			SubMenu aspectSubMenu(menuData, SharedStr(AspectArray[a].name));
+			AddClassificationMenu(menuData, a, m_Themes[a].get(), themeAttr, this);
 		}
 	}
 

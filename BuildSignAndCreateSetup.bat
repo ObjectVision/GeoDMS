@@ -36,7 +36,7 @@ cd %geodms_rootdir%
 echo on
 
 :afterD64FastTest
-CHOICE /M "Ready to execute the D64-unit-release-test?"
+CHOICE /M "Ready to execute the D64-unit-debug-test?"
 if ErrorLevel 2 goto :afterD64UnitTest
 
 cd ..\tst\batch
@@ -89,7 +89,7 @@ if %ErrorLevel% == 1 pause
 
 
 cd ..\tst\batch
-Call fast.bat %GeoDmsVersion% off
+REM Call fast.bat %GeoDmsVersion% off
 Call unit.bat %GeoDmsVersion% off
 cd %geodms_rootdir%
 echo on

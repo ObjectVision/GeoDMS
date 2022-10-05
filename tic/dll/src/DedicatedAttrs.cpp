@@ -140,6 +140,7 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 					return;
 
 				candidate->UpdateMetaInfo();
+				valuesUnit->UpdateMetaInfo();
 				if (valuesUnit->UnifyValues(candidateValuesUnit, UM_AllowDefaultLeft, nullptr)) // metric and value-type compatible
 				if (!candidateValuesUnit->GetValueType()->IsIntegral() // base grid ?
 					|| IsClassBreakAttr(candidate) // class breaks ?

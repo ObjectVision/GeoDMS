@@ -800,25 +800,25 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 			if (bothSigns)
 			{
 				DmsColor white = STG_Bmp_GetDefaultColor(CI_BACKGROUND);
-				UInt32 i = 0;
+				SizeT i = 0;
 				for (; i != nrNegative; ++i)
 					lock->SetValue<UInt32>(i, InterpolateColor(firstColor, white, nrNegative, i));
 				if (hasZero)
 					lock->SetValue<UInt32>(i++, white);
-				UInt32 nrNonPositive = i;
-				UInt32 nrPositive = n - nrNonPositive;
+				SizeT nrNonPositive = i;
+				SizeT nrPositive = n - nrNonPositive;
 				for (; i != n; ++i)
 					lock->SetValue<UInt32>(i, InterpolateColor(white, lastColor, nrPositive, i - nrNonPositive + 1));
 			}
 			else
 			{
-				for (UInt32 i = 0; i != n; ++i)
+				for (SizeT i = 0; i != n; ++i)
 					lock->SetValue<UInt32>(i, InterpolateColor(firstColor, lastColor, max(n-1,1), i));
 			}
 		}
 		else 
 		{
-			for (UInt32 i = 0; i != n; ++i)
+			for (SizeT i = 0; i != n; ++i)
 				lock->SetValue<UInt32>(i, STG_Bmp_GetDefaultColor(i % CI_NRCOLORS) );
 		}
 		lock.Commit();
@@ -826,7 +826,6 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 	}
 	return result.get_ptr();
 }
-#define SYSTEM_LABELTEXT_LIMIT 1000
 
 SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr)
 {
@@ -836,23 +835,20 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 	if (!result)
 	{
 		SizeT n = paletteDomain->GetCount();
-		if (n < SYSTEM_LABELTEXT_LIMIT)
-		{
-			SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
-			TreeItem_SetDialogType(newResult, GetAspectNameID(aNr) );
+		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
+		TreeItem_SetDialogType(newResult, GetAspectNameID(aNr) );
 
-			newResult->DisableStorage();
+		newResult->DisableStorage();
 //			newResult->SetConfigData();
-			newResult->UpdateMetaInfo();
-			result = newResult.get_ptr();
-			DataWriteLock lock(newResult);
+		newResult->UpdateMetaInfo();
+		result = newResult.get_ptr();
+		DataWriteLock lock(newResult);
 
-			auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
-			for (SizeT i = 0; i != n; ++i)
-				resultData[i] = AsString(i);
+		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
+		for (SizeT i = 0; i != n; ++i)
+			resultData[i] = AsString(i);
 
-			lock.Commit();
-		}
+		lock.Commit();
 	}
 	return result;
 }

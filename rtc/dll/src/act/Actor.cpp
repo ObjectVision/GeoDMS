@@ -480,10 +480,11 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 		if (SuspendTrigger::MustSuspend())
 			updateRes = AVS_SuspendedOrFailed;
 		else
-			// ===========================
+		{
 			updateRes = const_cast<Actor*>(this)->DoUpdate(ps);
-			// ===========================
-
+			if (WasFailed(FR_Data))
+				updateRes = AVS_SuspendedOrFailed;
+		}
 
 		MG_DEBUGCODE( dms_assert( lts == UpdateMarker::LastTS() ); )
 		if (updateRes != AVS_SuspendedOrFailed) // DoUpdate can change m_LastState (to valid or failed) and thereby unlock itself
