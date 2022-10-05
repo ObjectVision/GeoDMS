@@ -57,7 +57,7 @@
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
-#include "../src/GuiStyles.h"
+//#include "../src/GuiStyles.h"
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -866,8 +866,8 @@ static void ImGui_ImplGlfw_CreateWindow(ImGuiViewport* viewport)
 #if GLFW_HAS_FOCUS_ON_SHOW
     glfwWindowHint(GLFW_FOCUS_ON_SHOW, false);
  #endif
-    //glfwWindowHint(GLFW_DECORATED, (viewport->Flags & ImGuiViewportFlags_NoDecoration) ? false : true); 
-    glfwWindowHint(GLFW_DECORATED, true); // always decorate
+    glfwWindowHint(GLFW_DECORATED, (viewport->Flags & ImGuiViewportFlags_NoDecoration) ? false : true); 
+    //glfwWindowHint(GLFW_DECORATED, true); // always decorate
 #if GLFW_HAS_WINDOW_TOPMOST
     glfwWindowHint(GLFW_FLOATING, (viewport->Flags & ImGuiViewportFlags_TopMost) ? true : false);
 #endif
@@ -876,7 +876,7 @@ static void ImGui_ImplGlfw_CreateWindow(ImGuiViewport* viewport)
     vd->WindowOwned = true;
 
     // set window dms icon
-    SetDmsWindowIcon(vd->Window);
+    //SetDmsWindowIcon(vd->Window);
 
     viewport->PlatformHandle = (void*)vd->Window;
 #ifdef _WIN32

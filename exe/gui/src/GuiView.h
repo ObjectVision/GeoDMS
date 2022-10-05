@@ -19,7 +19,8 @@ public:
 	{
 		m_Name = n;
 		m_ViewStyle = vs;
-		m_DataView = dv;
+		m_DataView = dv; //use SharedFromThis on DataView
+		//auto test = dv->shared_from_this();
 	}
 
 	std::string m_Name;
@@ -50,7 +51,7 @@ public:
 	HWND GetHWND();
 
 
-	std::vector<View> m_Views;
+	std::vector<View> m_Views; 
 	int m_ViewIndex = -1;
 
 private:
