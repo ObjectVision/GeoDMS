@@ -279,20 +279,24 @@ void AddClassificationMenu(MenuData& menuData, Theme* classifiedTheme, GraphicLa
 	const AbstrDataItem* themeAttr      = classifiedTheme->GetThemeAttr();
 	dms_assert(themeAttr);
 
-	menuData.emplace_back(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
-		, MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(classifiedTheme)
-		, layer
-		, 0
-		);
+	menuData.push_back(
+		MenuItem(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
+		,	MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(classifiedTheme)
+		,	layer
+		,	0
+		)
+	);
 
 	// get all available classifications
 	auto funcWrapper = MakeFuncWrapper( [&menuData, classifiedTheme, classification, layer] (const TreeItem* supplier)->bool
 		{
 			const AbstrDataItem* adi = AsDataItem(supplier);
-			menuData.emplace_back(adi->GetFullName()
-			,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
-			,	layer
-			,	(adi == classification) ? MF_CHECKED : 0
+			menuData.push_back(
+				MenuItem(adi->GetFullName()
+				,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
+				,	layer
+				,	(adi == classification) ? MF_CHECKED : 0
+				)
 			);
 			return true;
 		}
@@ -327,7 +331,7 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 
 	if (classifiedThemes.size())
 	{
-		SubMenu subMenu(menuData, SharedStr("Classify with"));
+		SubMenu subMenu(menuData, SharedStr("Classify with"));  // SUBMENU
 		if (classifiedThemes.size() == 1)
 			AddClassificationMenu(menuData, classifiedThemes[0], this);
 		else
