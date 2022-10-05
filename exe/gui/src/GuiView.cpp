@@ -212,7 +212,7 @@ void GuiView::InitDataView(TreeItem* currentItem)
     Close(true);
     m_AddCurrentItem = true;
 
-
+    m_IsPopulated = true;
     //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }
 

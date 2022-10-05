@@ -66,7 +66,7 @@ private:
 	//GuiTreeItemsHolder m_ActiveItems;
 	GuiState	m_State;
 	bool m_DoView = true;
-	bool		m_IsPopulated = true;
+	bool		m_IsPopulated = false;
 	bool		m_AddCurrentItem = false;
 	HWND		m_HWND       = nullptr;
 	HWND		m_HWNDParent = nullptr;
