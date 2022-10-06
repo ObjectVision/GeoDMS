@@ -10,3 +10,4 @@ Thumbs.db
 todo*.txt
 /enc_temp_folder
 /bin.old
+*.exe

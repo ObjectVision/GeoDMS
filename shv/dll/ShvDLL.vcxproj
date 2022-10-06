@@ -246,6 +246,12 @@
       <Message>Copying dms.ttf into Target Folder</Message>
       <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
     </CustomBuild>
+    <CustomBuild Include="..\..\res\GeoDmsGui.exe">
+      <FileType>Document</FileType>
+      <Command>COPY %(Identity) $(TargetDir)</Command>
+      <Message>Copying GeoDmsGui.exe into Target Folder</Message>
+      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

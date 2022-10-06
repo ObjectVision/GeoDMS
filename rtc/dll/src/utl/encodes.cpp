@@ -55,8 +55,6 @@ SharedStr to_utf(CharPtr first, CharPtr last)
 	return SharedStr(result.c_str());
 }
 
-//std::string s_from_utf_locale = "usascii";
-
 SharedStr from_utf(CharPtr first, CharPtr last)
 {
 	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale()); // s_from_utf_locale);
