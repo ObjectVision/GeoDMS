@@ -559,23 +559,17 @@ namespace Grid {
 		IPoint displacement = Round<4>(vpi.Offset());
 		entireRect += displacement; // corner zero based for TiffImp
 
-		IRect*  segmentationInfoPtr;
-		tile_id segmentationInfoCount;
+		IRect*  segmentationInfoPtr = nullptr;
+		tile_id segmentationInfoCount = trd->GetNrTiles();
 		std::unique_ptr<IRect[]> segmentationInfoCopy;
-		if (trd->GetNrTiles() > 1)
+		if (segmentationInfoCount >= 1)
 		{
-			segmentationInfoCount = trd->GetNrTiles();
 			segmentationInfoCopy.reset(new IRect[segmentationInfoCount]);
 			for (tile_id t = 0; t != segmentationInfoCount; ++t)
 				segmentationInfoCopy.get()[t] = ThrowingConvert<IRect>(trd->GetTileRangeAsI64Rect(t)) + displacement; // translate to TiffImp coordinates
 			segmentationInfoPtr = segmentationInfoCopy.get();
 		}
-		else
-		{
-			segmentationInfoPtr = &entireRect;
-			segmentationInfoCount = 1;
-		}
-
+		
 		// complete rows (don't cache)
 		const AbstrDataObject* ado = adi->GetRefObj();
 		switch (streamType->GetValueClassID())
