@@ -212,7 +212,7 @@ void GuiView::InitDataView(TreeItem* currentItem)
     Close(true);
     m_AddCurrentItem = true;
 
-
+    m_IsPopulated = true;
     //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }
 
@@ -437,9 +437,7 @@ void GuiView::Update()
 
     // If m_HWND is focused, focus imgui window as well
     if (GetFocus() == m_HWND)
-    {
         ImGui::FocusWindow(ImGui::GetCurrentWindow());
-    }
 
     // update window
     auto result = SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
