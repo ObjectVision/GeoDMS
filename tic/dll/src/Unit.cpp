@@ -161,12 +161,28 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		{
 			if (!IsDefaultUnit())
 			{
-				// BaseUnit( Left('%FullName%', 0),  ) provides a unique domain and projection identity with compatible metric
-				auto fullName = this->GetFullName();
+				LispRef baseUnitMetricExpr;
+				auto format = GetFormat();
+				if (format)
+				{
+					// BaseUnit( 'format', result ) provides a format specific identity
+					auto formatStr = format.AsStrRange();
+					baseUnitMetricExpr = LispRef(formatStr.m_CharPtrRange.first, formatStr.m_CharPtrRange.second);
+				}
+				else
+				{
+					// BaseUnit( Left('%FullName%', 0), result ) provides a unique domain and projection identity with compatible metric
+					auto fullName = this->GetFullName();
+					baseUnitMetricExpr = ExprList(token::left
+						, LispRef(fullName.begin(), fullName.send())
+						, ExprList(token::UInt32, LispRef(Number(0.0)))
+					);
+				}
 				result = ExprList(token::BaseUnit
-					, ExprList(token::left, LispRef(fullName.begin(), fullName.send()), ExprList(token::UInt32, LispRef(Number(0.0))))
+					, baseUnitMetricExpr
 					, result
 				);
+
 #if defined(MG_DEBUG)
 				auto resultStr2 = AsString(result);
 #endif
