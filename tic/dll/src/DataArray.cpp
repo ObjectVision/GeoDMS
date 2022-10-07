@@ -552,6 +552,8 @@ template <class V>
 bool DataArrayBase<V>::IsNull(SizeT index) const
 {
 	tile_loc tl = GetTiledLocation(index);
+	if (!IsDefined(tl.first))
+		return true;
 	auto data = GetTile(tl.first);
 	return !IsDefined(data[tl.second]);
 }

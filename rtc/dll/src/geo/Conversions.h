@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/Geometry.h"
 #include "geo/Round.h"
 #include "geo/SequenceArray.h"
+#include "geo/Undefined.h"
 #include "ser/AsString.h"
 #include "ser/FormattedStream.h"
 
@@ -85,7 +86,7 @@ inline Dst Convert4(const Bool& val, const Dst* dummy, const ExceptFunc* dummyFu
 struct ok_func
 {
 	template <typename T>
-	bool operator() (const T&) { return true; }
+	bool operator() (T ) const { return true; }
 };
 
 template <typename T>
@@ -188,49 +189,72 @@ struct DefaultConvertFunc
 };
 
 template <typename T, typename U, typename CheckDefFunc, typename CheckMinFunc, typename CheckMaxFunc, typename ExceptFunc, typename ConvertFunc>
-struct NumericConverter
+struct NumericDefinedConverter // throws on undefined values
 {
 	U operator ()(const T& val) const
 	{
-		return	CheckDefFunc()(val)
-			&&	CheckMinFunc()(val)
-			&&	CheckMaxFunc()(val)
-			?	ConvertFunc ()(val)
-			:	ExceptFunc().apply<U>(val);
+		if (!definedF(val) || !minF(val) || !maxF(val))
+			return exceptF.apply<U>(val);
+		return convF(val);
 	}
+	CheckDefFunc definedF;
+	CheckMinFunc minF;
+	CheckMaxFunc maxF;
+	ConvertFunc  convF;
+	ExceptFunc   exceptF;
 };
 
-template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
-struct NumericConverter<T, U, ok_func, ok_func, ok_func, ExceptFunc, ConvertFunc>
+template <typename T, typename U, typename CheckMinFunc, typename CheckMaxFunc, typename ExceptFunc, typename ConvertFunc>
+struct NumericNonnullConverter // converts undefined values
 {
-	U operator ()(typename param_type<T>::type val) const
+	U operator ()(const T& val) const
 	{
-		return ConvertFunc()(val);
+		if (!minF(val) || !maxF(val))
+			return exceptF.apply<U>(val);
+		return convF(val);
 	}
+	CheckMinFunc minF;
+	CheckMaxFunc maxF;
+	ConvertFunc  convF;
+	ExceptFunc   exceptF;
+};
+
+template <typename T, typename U, typename CheckDefFunc, typename CheckMinFunc, typename CheckMaxFunc, typename ExceptFunc, typename ConvertFunc>
+struct NumericCheckedConverter // converts undefined values
+{
+	U operator ()(const T& val) const
+	{
+		if (!definedF(val))
+			return UNDEFINED_VALUE(U);
+		if (!minF(val) || !maxF(val))
+			return exceptF.apply<U>(val);
+		return convF(val);
+	}
+	CheckDefFunc definedF;
+	CheckMinFunc minF;
+	CheckMaxFunc maxF;
+	ConvertFunc  convF;
+	ExceptFunc   exceptF;
 };
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
 Convert4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
 {
-	return NumericConverter<
-		T, U 
-	,	typename check_def_mf<T, U>::type
-	,	typename check_min_mf<T, U>::type
-	,	typename check_max_mf<T, U>::type
-	,	ExceptFunc
-	,	ConvertFunc
-	>()(val);
+	using CDefF = typename check_def_mf<T, U>::type;
+	using CMinF = typename check_min_mf<T, U>::type;
+	using CMaxF = typename check_max_mf<T, U>::type;
+	if constexpr (has_undefines<U>::value)
+		return NumericCheckedConverter<T, U, CDefF, CMinF, CMaxF, ExceptFunc, ConvertFunc>()(val);
+	else
+		return NumericDefinedConverter<T, U, CDefF, CMinF, CMaxF, ExceptFunc, ConvertFunc>()(val);
 }
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
 ConvertNonNull4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
 {
-	return NumericConverter<T, U
-		, ok_func, typename check_min_mf<T, U>::type, typename check_max_mf<T, U>::type
-		, ExceptFunc, ConvertFunc
-	>()(val);
+	return NumericNonnullConverter<T, U, typename check_min_mf<T, U>::type, typename check_max_mf<T, U>::type, ExceptFunc, ConvertFunc>()(val);
 }
 
 //template <bit_size_t N, typename Block, typename U>

@@ -65,6 +65,7 @@ inline Void    UndefinedValue(const Void*)    { return Void(); }
 inline UInt64  UndefinedValue(const UInt64*)  { return 0xFFFFFFFFFFFFFFFFui64; }  // 2^64-1 = 4294967295
 inline UInt32  UndefinedValue(const UInt32*)  { return 0xFFFFFFFF; }  // 2^32-1 = 4294967295
 inline Int32   UndefinedValue(const long*)    { return 0x80000000; }
+inline UInt32  UndefinedValue(const unsigned long*) { return 0xFFFFFFFF; }
 inline UInt16  UndefinedValue(const UInt16*)  { return 0xFFFF; }      // 2^16-1 = 65535
 inline UInt8   UndefinedValue(const UInt8*)   { return 0xFF; }        // 2^08-1 =  255
 inline Int8    UndefinedValue(const Int8*)    { return Int8(0x80); }  // 2^07   = -128
