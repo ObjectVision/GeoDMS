@@ -538,6 +538,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
 	GetExprOrSourceDescrRow(xmlTable, self);
+
+#if defined(MG_DEBUG)
 	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
 	{
 		auto c = self->GetCalculator();
@@ -556,6 +558,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
 		}
 	}
+#endif
 
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
