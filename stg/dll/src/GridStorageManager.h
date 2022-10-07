@@ -261,6 +261,8 @@ namespace Grid {
 		if (viewPort2Grid.IsNonScaling() && nrbits_of_v<T> == imp.GetNrBitsPerPixel())
 		{
 			IPoint offset = Round<4>(viewPort2Grid.Offset());
+			if (!IsDefined(offset))
+				throwErrorD("GridStorageManager", "Unknown offset of viewPort");
 			ReadTiles<T>(imp, viewPort2Grid.GetViewPortOrigin() + offset, viewPort2Grid.GetViewPortSize(), defaultColor, pixels);
 			return;
 		}

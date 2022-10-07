@@ -320,11 +320,11 @@ bool XdbImp::ReadHeader()
 		return false;
 
 	// Read nrRows from first line
-	auto nrFieldsRead = fscanf(*this, "%d %d", &nrows, &nrheaderlines);
+	auto nrFieldsRead = fscanf(*this, "%u %u", &nrows, &nrheaderlines);
 	MG_CHECK(nrFieldsRead == 2);
 
-	DBG_TRACE(("nrows:         %d", nrows));
-	DBG_TRACE(("nrheaderlines: %d", nrheaderlines));
+	DBG_TRACE(("nrows:         %u", nrows));
+	DBG_TRACE(("nrheaderlines: %u", nrheaderlines));
 	
 	// Read structs until end of file
 	ColDescriptions.reserve(100);
@@ -366,11 +366,11 @@ bool XdbImp::WriteHeader()
 		return false;
 
 	// Write rec-count to first line
-	fprintf(*this, "%d %d\n", nrows, nrheaderlines);
+	fprintf(*this, "%u %u\n", nrows, nrheaderlines);
 
 	// Write the column descriptions
 	for (UInt32 i=0; i<ColDescriptions.size(); i++)
-		fprintf(*this, "%s %d %d\n"
+		fprintf(*this, "%s %u %d\n"
 			,	ColDescriptions[i].m_Name.c_str()
 			,	ColWidth(i)
 			,	ColDescriptions[i].m_Type
@@ -499,7 +499,8 @@ bool XdbImp::AppendColumn
 	{
 		DBG_TRACE(("new file"));
 		if (rows <= 0) return false;
-		Create(m_FileName, sfwa, m_DatExtension, true);
+		if (!Create(m_FileName, sfwa, m_DatExtension, true))
+			return false;
 		Close();
 		nrows = rows;
 	}
@@ -591,8 +592,10 @@ bool XdbImp::AppendColumn
 	// Swap files
 	if (copyMade)
 	{
-		remove(m_DatFileName.c_str());
-		rename(tmpDatFile.c_str(), m_DatFileName.c_str());
+		if (remove(m_DatFileName.c_str()))
+			return false;
+		if (rename(tmpDatFile.c_str(), m_DatFileName.c_str()))
+			return false;
 	}
 
 	// Reopen

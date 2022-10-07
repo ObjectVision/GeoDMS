@@ -74,13 +74,13 @@ public:
 	STGIMPL_CALL ~XdbImp();
 
 	// read/write functions
-	STGIMPL_CALL bool Open       (WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL bool OpenForRead(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL bool Create     (WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool Open       (WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool OpenForRead(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool Create     (WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
 
-	STGIMPL_CALL bool ReadColumn (      void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL bool WriteColumn(const void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL bool AppendColumn(CharPtr name, SafeFileWriterArray* sfwa, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool ReadColumn (      void* data, recno_t cnt, column_index col_index);
+	STGIMPL_CALL [[nodiscard]] bool WriteColumn(const void* data, recno_t cnt, column_index col_index);
+	STGIMPL_CALL [[nodiscard]] bool AppendColumn(CharPtr name, SafeFileWriterArray* sfwa, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
 	STGIMPL_CALL void Close();
 
 	// info functions
@@ -111,7 +111,7 @@ public:
 
 private:
 	// helper functions
-	bool ReadHeader();                      // read from .xdb
+	[[nodiscard]] bool ReadHeader();                      // read from .xdb
 	bool WriteHeader();                     // write to .xdb
 	void Clear();                           // reset all
 	bool SetFileName(WeakStr xdb_name, CharPtr datExtension, bool saveColInfo);             // extension swap

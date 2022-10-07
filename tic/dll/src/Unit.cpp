@@ -902,12 +902,12 @@ IRect GeoUnitAdapterI<U>::GetTileRangeAsIRect(tile_id t) const
 template <class U>
 void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd )
 {
-	this->SetRange(
-		typename U::range_t(
-			Convert<typename U::value_t>(shp2dms_order<Int32>(colBegin, rowBegin))
-		,	Convert<typename U::value_t>(shp2dms_order<Int32>(colEnd,   rowEnd  ))
-		)
-	);
+	auto range = ThrowingConvert<typename U::range_t>(
+			IRect(
+				shp2dms_order<Int32>(colBegin, rowBegin)
+			,	shp2dms_order<Int32>(colEnd, rowEnd)
+			)
+		);
 }
 
 template <class U>

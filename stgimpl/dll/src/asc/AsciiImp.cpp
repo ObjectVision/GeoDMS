@@ -656,8 +656,8 @@ bool AsciiImp::WriteHeader()
 	//		m_dYllCorner     300000
 	//		m_dCellSize      500
 	//		NODATA_value  -9999	
-	fprintf( GetFP(), "%s %ld\n", "ncols       ", m_NrCols);
-	fprintf( GetFP(), "%s %ld\n", "nrows       ", m_NrRows );
+	fprintf( GetFP(), "%s %u\n", "ncols       ", m_NrCols);
+	fprintf( GetFP(), "%s %u\n", "nrows       ", m_NrRows );
 	fprintf( GetFP(), "%s %lf\n", "xllcorner    ", m_dXllCorner );
 	fprintf( GetFP(), "%s %lf\n", "yllcorner    ", m_dYllCorner );
 	fprintf( GetFP(), "%s %lf\n", "cellsize     ", m_dCellSize );
