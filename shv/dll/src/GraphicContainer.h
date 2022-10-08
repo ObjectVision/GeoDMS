@@ -94,8 +94,6 @@ public:
 	virtual void RemoveEntry(ElemType* g);
 	void MoveEntry(ElemType* g, this_type* dst, gr_elem_index pos);
 
-	void MakeExclusive(const ElemType* selected);
-
 protected:
 	void SaveOrder();
 
