@@ -143,8 +143,7 @@ public:
 
 	bool IsVisible          () const { return  m_State.Get(GOF_IsVisible);        }
 	bool AllVisible         () const { return  m_State.Get(GOF_AllVisible);       }
-	bool IsExclusive        () const { return  m_State.Get(GOF_Exclusive);        }
-    bool IsActive           () const { return  m_State.Get(GOF_Active);           }
+	bool IsActive           () const { return  m_State.Get(GOF_Active);           }
 	bool IsDrawn            () const { return  m_State.Get(GOF_IsDrawn);          }
 	bool IsUpdated          () const { return  m_State.Get(GOF_IsUpdated);        }
 	bool IgnoreActivation   () const { return  m_State.Get(GOF_IgnoreActivation); }

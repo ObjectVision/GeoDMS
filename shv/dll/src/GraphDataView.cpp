@@ -159,7 +159,7 @@ public:
 					if (IsDataItem(topographicItem)) {
 						LayerInfo topoLayerInfo = GetLayerInfo(AsDataItem(topographicItem));
 						if (topoLayerInfo.IsComplete()) {
-							topoLayer = currSet->CreateLayer(AsDataItem(topographicItem), topoLayerInfo, dv.get(), false, m_Result ? m_Result->IsExclusive() : false);
+							topoLayer = currSet->CreateLayer(AsDataItem(topographicItem), topoLayerInfo, dv.get(), false);
 						}
 					}
 					else if (topographicItem->GetConstSubTreeItemByID(GetTokenID_mt("layer"))) // Layer is necessary in the geodms layer file
@@ -216,9 +216,6 @@ public:
 			ls->SetActiveEntry(m_Result.get());
 
 			layerWasAdded = true;
-			if (m_Result->IsExclusive())
-				ls->MakeExclusive(m_Result.get());
-
 			if	(	m_Result->GetActiveTheme()
 				&&	m_Result->GetActiveTheme()->GetPaletteDomain()
 				)

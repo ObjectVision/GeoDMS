@@ -254,7 +254,7 @@ void AddIndicatedAspects(GraphicLayer* layer, const AbstrDataItem* viewItem, con
 		layer->DisableAspectGroup(AG_Brush);
 }
 
-std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewItem, const LayerInfo& featureInfo, DataView* dv, bool foreground, bool foregroundIsExclusive)
+std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewItem, const LayerInfo& featureInfo, DataView* dv, bool foreground)
 {
 	dms_assert(viewItem);
 	dms_assert(featureInfo.m_LayerClass);
@@ -294,28 +294,19 @@ std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewIte
 		result->ConnectSelectionsTheme( dv );
 	else
 	{
-		bool wasExclusive = result->IsExclusive();
 		result->SetTopographic();
 		dms_assert(result->DetailsVisible());
 		result->ToggleDetailsVisibility(); // make palette invisible
 		dms_assert(result->IsVisible());
 
-		if (wasExclusive && foregroundIsExclusive)
+		const TreeItem* bdvp = viewItem->GetConstSubTreeItemByID(GetTokenID_mt("BackgroundDefaultVisibility"));
+
+		FencedInterestRetainContext allowInterestIncrease;
+
+		if (bdvp && IsDataItem(bdvp) && AsDataItem(bdvp)->HasVoidDomainGuarantee() && !AsDataItem(bdvp)->LockAndGetValue<Bool>(0))
 		{
 			result->SetIsVisible(false);
 			dms_assert(! result->IsVisible());
-		}
-		else 
-		{
-			const TreeItem* bdvp = viewItem->GetConstSubTreeItemByID(GetTokenID_mt("BackgroundDefaultVisibility"));
-
-			FencedInterestRetainContext allowInterestIncrease;
-
-			if (bdvp && IsDataItem(bdvp) && AsDataItem(bdvp)->HasVoidDomainGuarantee() && !AsDataItem(bdvp)->LockAndGetValue<Bool>(0))
-			{
-				result->SetIsVisible(false);
-				dms_assert(! result->IsVisible());
-			}
 		}
 	}
 	// moved from AddLayerCmd::DoLayerSet
