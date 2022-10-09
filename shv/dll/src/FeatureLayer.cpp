@@ -675,6 +675,8 @@ void FeatureLayer::SelectPoint(const CrdPoint& worldPnt, EventID eventID)
 			featureItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID()
 		);
 	}
+	if (SuspendTrigger::DidSuspend())
+		return;
 
 	InvalidationBlock lock(this);
 	if (SelectFeatureIndex(featureIndex, eventID))

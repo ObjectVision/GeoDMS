@@ -244,7 +244,7 @@ void GuiMenuFileComponent::Update()
 
 void GuiMenuEditComponent::Update()
 {
-    if (ImGui::BeginMenu("View"))
+    if (ImGui::BeginMenu("Edit"))
     {
         if (ImGui::MenuItem("Dear ImGui Demo Window"))
             m_State.ShowDemoWindow = true;
@@ -261,7 +261,7 @@ void GuiMenuEditComponent::Update()
 
 void GuiMenuViewComponent::Update()
 {
-    if (ImGui::BeginMenu("Edit"))
+    if (ImGui::BeginMenu("View"))
     {
         ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
         if (ImGui::MenuItem("Default")) {}

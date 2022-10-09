@@ -112,10 +112,10 @@ struct LispRef : SharedPtrWrap<LispPtr>
 	operator ptr_type() const { return ptr_type(get_ptr()); }
 
 	SYM_CALL LispRef(Number v);	                  // Makes a LispRef to NumbObj
-	SYM_CALL LispRef(CharPtr s, ChroID c= 0);	 // Makes a LispRef to SymbObj with tokenStr s and Chro c
+	SYM_CALL LispRef(CharPtr s, ChroID c= 0);	  // Makes a LispRef to SymbObj with tokenStr s and Chro c
 	SYM_CALL LispRef(TokenID  t, ChroID c= 0);	  // Makes a LispRef to SymbObj with tokenID  t and Chro c
 	SYM_CALL LispRef(CharPtr begin, CharPtr end); // Makes a LispRef to StrnObj
-	SYM_CALL LispRef(LispPtr head, LispPtr tail);	// Makes a LispRef to ListObj
+	SYM_CALL LispRef(LispPtr head, LispPtr tail); // Makes a LispRef to ListObj
 
 //	static constants
 	static const LispRef s_null;

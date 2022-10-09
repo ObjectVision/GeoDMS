@@ -96,8 +96,18 @@ private:
 
 // =======================================
 
-struct MenuData : std::vector<MenuItem>
+struct MenuData : private std::vector<MenuItem>
 {
+	using std::vector<MenuItem>::const_iterator;
+
+	using std::vector<MenuItem>::size;
+	using std::vector<MenuItem>::empty;
+	using std::vector<MenuItem>::begin;
+	using std::vector<MenuItem>::end;
+	using std::vector<MenuItem>::back;
+	using std::vector<MenuItem>::pop_back;
+	using std::vector<MenuItem>::operator [];
+
 	MenuData()
 		:	m_CurrLevel(0)
 	{}

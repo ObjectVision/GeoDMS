@@ -50,12 +50,12 @@ void GuiTreeViewComponent::Update(bool* p_open)
         ImGui::End();
         return;
     }
-  
-    if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
-        SetKeyboardFocusToThisHwnd();
 
     if (m_State.GetRoot())
         CreateTree();
+
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
 
     ImGui::End();
 }

@@ -161,12 +161,28 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		{
 			if (!IsDefaultUnit())
 			{
-				// BaseUnit( Left('%FullName%', 0),  ) provides a unique domain and projection identity with compatible metric
-				auto fullName = this->GetFullName();
+				LispRef baseUnitMetricExpr;
+				auto format = GetFormat();
+				if (format)
+				{
+					// BaseUnit( 'format', result ) provides a format specific identity
+					auto formatStr = format.AsStrRange();
+					baseUnitMetricExpr = LispRef(formatStr.m_CharPtrRange.first, formatStr.m_CharPtrRange.second);
+				}
+				else
+				{
+					// BaseUnit( Left('%FullName%', 0), result ) provides a unique domain and projection identity with compatible metric
+					auto fullName = this->GetFullName();
+					baseUnitMetricExpr = ExprList(token::left
+						, LispRef(fullName.begin(), fullName.send())
+						, ExprList(token::UInt32, LispRef(Number(0.0)))
+					);
+				}
 				result = ExprList(token::BaseUnit
-					, ExprList(token::left, LispRef(fullName.begin(), fullName.send()), ExprList(token::UInt32, LispRef(Number(0.0))))
+					, baseUnitMetricExpr
 					, result
 				);
+
 #if defined(MG_DEBUG)
 				auto resultStr2 = AsString(result);
 #endif
@@ -886,12 +902,11 @@ IRect GeoUnitAdapterI<U>::GetTileRangeAsIRect(tile_id t) const
 template <class U>
 void GeoUnitAdapter<U>::SetRangeAsIPoint(Int32 rowBegin, Int32  colBegin, Int32  rowEnd, Int32  colEnd )
 {
-	this->SetRange(
-		typename U::range_t(
-			Convert<typename U::value_t>(shp2dms_order<Int32>(colBegin, rowBegin))
-		,	Convert<typename U::value_t>(shp2dms_order<Int32>(colEnd,   rowEnd  ))
-		)
-	);
+	auto topLeft = shp2dms_order<Int32>(colBegin, rowBegin);
+	auto bottomRight = shp2dms_order<Int32>(colEnd, rowEnd);
+	auto iRange = IRect(topLeft, bottomRight);
+	auto range = ThrowingConvert<typename U::range_t>(iRange);
+	this->SetRange(range);
 }
 
 template <class U>

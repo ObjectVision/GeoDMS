@@ -306,20 +306,6 @@ void GraphicContainer<ElemType>::DoUpdateView()
 	}
 }
 
-template <typename ElemType>
-void GraphicContainer<ElemType>::MakeExclusive(const ElemType* selected)
-{
-	dms_assert(selected && selected->IsExclusive() );
-
-	gr_elem_index n = NrEntries();
-	while (n)
-	{
-		GraphicObject* oth = GetEntry(--n);
-		if (oth && oth != selected && oth->IsExclusive() && oth->IsVisible())
-			oth->SetIsVisible(false);
-	}
-}
-
 #include "MovableObject.h"
 #include "ScalableObject.h"
 

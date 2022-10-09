@@ -32,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __CLC_OPERRELUNI_H
 
 #include <algorithm>
+#include <execution>
 #include <map>
 #include <set>
 
@@ -113,6 +114,9 @@ InIt indexed_upperbound(InIt first, InIt last, vIt beginData, const V& value)
 //                         UNARY RELATIONAL FUNCTIONS
 // *****************************************************************************
 
+template <typename V>
+using execution_policy = std::conditional_t < sizeof(V) < 4, std::execution::sequenced_policy, std::execution::parallel_policy >;
+
 template<typename IndexIter, typename ConstDataIter>
 void make_index(
 		IndexIter resDataBegin, 
@@ -120,15 +124,13 @@ void make_index(
 		ConstDataIter unsortedDataBegin
 	)
 {
-	typedef std::iterator_traits<IndexIter>::value_type IndexValue;
+	using IndexValue = typename std::iterator_traits<IndexIter>::value_type ;
 
 	fill_id(resDataBegin, resDataEnd);
-	std::stable_sort(
-		resDataBegin, 
-		resDataEnd, 
-		IndexCompareOper<ConstDataIter, IndexValue>(
-			unsortedDataBegin
-		)
+	std::stable_sort(execution_policy<IndexValue>(),
+		resDataBegin,
+		resDataEnd,
+		IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin)
 	);
 }
 

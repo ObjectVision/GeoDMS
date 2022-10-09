@@ -285,15 +285,6 @@ bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 	{
 		m_LayerElem->ToggleVisibility();
 
-		if (m_LayerElem->IsVisible()
-			&& m_LayerElem->IsExclusive()
-			&& !(med.GetEventInfo().m_EventID & EID_SHIFTKEY)
-			)
-		{
-			auto parentSet = std::static_pointer_cast<LayerSet>(m_LayerElem->GetOwner().lock());
-			if (parentSet)
-				parentSet->MakeExclusive(m_LayerElem);
-		}
 		return true; // cancel further processing of this mouse event.
 	}
 	else if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)

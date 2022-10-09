@@ -67,7 +67,7 @@ public:
 
 	void ShuffleEntry  (ScalableObject* focalEntry, ElemShuffleCmd esc);
 
-	std::shared_ptr<GraphicLayer> CreateLayer (const AbstrDataItem* viewItem, const LayerInfo& info, DataView* dv, bool foreground, bool foregroundIsExclusive = false);
+	std::shared_ptr<GraphicLayer> CreateLayer (const AbstrDataItem* viewItem, const LayerInfo& info, DataView* dv, bool foreground);
 	std::shared_ptr<LayerSet>     CreateSubset(CharPtr caption);
 
 	const GraphicLayer* GetActiveLayer() const;

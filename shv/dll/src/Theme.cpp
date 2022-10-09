@@ -34,6 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/ActorVisitor.h"
 #include "dbg/Debug.h"
+#include "mci/ValueClass.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -371,7 +372,8 @@ void Theme::CheckConsistency() const
 
 SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domain, AspectNr aNr, bool ramp, bool always, const Float64* first, const Float64* last)
 {
-	dms_assert(domain && !domain->IsCacheItem());
+	dms_assert(domain);
+	dms_assert(!domain->IsCacheItem());
 	AspectType at = AspectArray[aNr].aspectType;
 	const UnitClass* uc = nullptr;
 	switch (at)
@@ -379,7 +381,7 @@ SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domai
 		case AT_Numeric:  uc = Unit<Float32>::GetStaticClass(); break;
 		case AT_Ordinal:  uc = Unit<UInt16 >::GetStaticClass(); break;
 		case AT_Cardinal: uc = Unit<UInt32 >::GetStaticClass(); break;
-		case AT_Color:   return CreateSystemColorPalette(dv, domain, aNr, ramp, always, false, first, last);
+		case AT_Color:   return CreateSystemColorPalette(dv, domain, aNr, ramp, always, domain->GetValueType()->GetBitSize() == 1, first, last);
 		case AT_Text:    return CreateSystemLabelPalette(dv, domain, aNr);
 	}
 	return nullptr;

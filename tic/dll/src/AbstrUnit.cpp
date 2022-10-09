@@ -326,12 +326,15 @@ TokenID AbstrUnit::GetFormat () const
 {
 	if (GetTSF(USF_HasFormat))
 		return s_FormatAssoc.GetExisting(this);
+	auto m = GetMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+		return TokenID(m->m_BaseUnits.begin()->first);
 	return TokenID::GetEmptyID();
 }
 
 SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
 {
-	const UnitMetric* m = GetMetric();
+	auto m = GetMetric();
 	if (m) 
 		return m->AsString(ff);
 	return SharedStr();

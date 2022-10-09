@@ -42,19 +42,22 @@ granted by an additional written contract for support, assistance and/or develop
 #include <boost/locale.hpp>
 //================= size funcs
 
-std::string s_to_utf_locale = "cp1250";
+const auto& GetCp1250Locale()
+{
+	static boost::locale::generator gen;
+	static auto usLocale = gen("cp1250");
+	return usLocale;
+}
 
 SharedStr to_utf(CharPtr first, CharPtr last)
 {
-	std::string result = boost::locale::conv::to_utf<char>(first, last, s_to_utf_locale); // , boost::locale::conv::default_method);
+	std::string result = boost::locale::conv::to_utf<char>(first, last, GetCp1250Locale()); //  s_to_utf_locale); // , boost::locale::conv::default_method);
 	return SharedStr(result.c_str());
 }
 
-std::string s_from_utf_locale = "usascii";
-
 SharedStr from_utf(CharPtr first, CharPtr last)
 {
-	std::string result = boost::locale::conv::from_utf<char>(first, last, s_from_utf_locale);
+	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale()); // s_from_utf_locale);
 	return SharedStr(result.c_str());
 }
 

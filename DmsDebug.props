@@ -8,6 +8,9 @@
     <LinkIncremental>true</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgConfiguration>Debug</VcpkgConfiguration>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <Midl>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

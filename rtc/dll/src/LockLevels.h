@@ -88,7 +88,7 @@ enum class ord_level_type : UInt32
 	// level c+2
 	TileAccessMap = highest_of(ThreadMessing, CountSection) + 1, // can be used in SymbObjSection and in CountSection
 	IndexedString = CountSection + 1,
-	LispObjCache = CountSection + 1,
+	LispObjCache = IndexedString + 1,
 	MoveSupplInterest = FailSection + 1,
 
 	// level c+3
