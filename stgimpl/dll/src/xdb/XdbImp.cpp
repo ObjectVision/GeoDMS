@@ -592,8 +592,7 @@ bool XdbImp::AppendColumn
 	// Swap files
 	if (copyMade)
 	{
-		if (remove(m_DatFileName.c_str()))
-			return false;
+		remove(m_DatFileName.c_str());
 		if (rename(tmpDatFile.c_str(), m_DatFileName.c_str()))
 			return false;
 	}

@@ -213,11 +213,8 @@ void CommitFile(WeakStr srcName, SafeFileWriterArray* sfwa, WeakStr tmpFile)
 {
 	SharedStr dosFileName = ConvertDmsFileName( sfwa->GetWorkingFileName(srcName, FCM_CreateAlways) );
 
-	auto r = remove(dosFileName.c_str());
-	if (r)
-		throwErrorF("std", "%d (%s) in CommitFile.remove old file", r, strerror(r));
-
-	r = rename(ConvertDmsFileName(sfwa->GetWorkingFileName(tmpFile, FCM_CreateAlways)).c_str(), dosFileName.c_str());
+	remove(dosFileName.c_str());
+	auto r = rename(ConvertDmsFileName(sfwa->GetWorkingFileName(tmpFile, FCM_CreateAlways)).c_str(), dosFileName.c_str());
 	if (r)
 		throwErrorF("std", "%d (%s) in CommitFile.rename working filename to intended filename", r, strerror(r));
 }
