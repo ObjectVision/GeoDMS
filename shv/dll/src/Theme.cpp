@@ -174,8 +174,9 @@ const AbstrUnit* Theme::GetThemeEntityUnit() const
 		return GetThemeAttr()->GetAbstrDomainUnit();
 	if (GetClassification())
 		return GetClassification()->GetAbstrValuesUnit();
-	dms_assert(GetPaletteAttr());
-	return GetPaletteAttr()->GetAbstrDomainUnit();
+	if (GetPaletteAttr())
+		return GetPaletteAttr()->GetAbstrDomainUnit();
+	return Unit<Void>::GetStaticClass()->CreateDefault();
 }
 
 const AbstrUnit* Theme::GetThemeValuesUnit() const
@@ -303,9 +304,11 @@ SharedStr Theme::GetTextAspectValue() const
 	dms_assert(IsAspectParameter());
 	dms_assert(AspectArray[m_AspectNr].aspectType == AT_Text);
 
-	dms_assert(GetThemeAttr()->GetDataRefLockCount() > 0);
-
-	return GetThemeAttr()->GetValue<SharedStr>(0);
+	dms_assert(!GetThemeAttr() || GetThemeAttr()->GetDataRefLockCount() > 0);
+	if (GetThemeAttr())
+		return GetThemeAttr()->GetValue<SharedStr>(0);
+	GuiReadLock dummy;
+	return m_ValueGetterPtr->GetStringValue(0, dummy);
 }
 
 //	override virtuals of Actor

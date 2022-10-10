@@ -168,11 +168,14 @@ DmsColor AbstrThemeValueGetter::GetColorValue(entity_id entityIndex) const
 
 Int32 AbstrThemeValueGetter::GetOrdinalValue(SizeT entityIndex) const
 {
-	dms_assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(Int32);
+
+	if (!m_PaletteAttr)
+		return classIndex;
 	return m_PaletteAttr->GetRefObj()->GetValueAsInt32(classIndex);
+
 }
 
 UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const

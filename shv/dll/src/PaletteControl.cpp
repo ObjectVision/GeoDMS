@@ -166,6 +166,12 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 					case AN_BrushColor : value = &fLayer->GetDefaultBrushColor(); break;
 					case AN_PenColor   : value = &fLayer->GetDefaultArcColor(); break;
 					case AN_SymbolColor: value = &fLayer->GetDefaultPointColor(); break;
+					case AN_SymbolFont : 
+						column->SetTheme(Theme::CreateValue(AN_SymbolFont, SharedStr(defFontNames[FR_Symbol])).get(), nullptr);
+						continue;
+					case AN_SymbolIndex:
+						column->SetTheme(Theme::CreateValue(AN_SymbolIndex, UInt32(defSymbol)).get(), nullptr);
+						continue;
 					default: continue;
 				}
 				if (a == AN_BrushColor)
