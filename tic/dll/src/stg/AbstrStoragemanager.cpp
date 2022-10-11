@@ -442,7 +442,7 @@ SharedStr AbstrStorageManager::Expand(const TreeItem* configStore, SharedStr sto
 SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, SharedStr storageName)
 {
 	dms_assert(configStore);
-	storageName = AbstrCalculator::EvaluatePossibleStringExpr(configStore, storageName, CalcRole::Calculator);
+	storageName = AbstrCalculator::EvaluatePossibleStringExpr(configStore, storageName, CalcRole::Other);
 	if (storageName.empty() || !strncmp(storageName.begin(), "http:", 5) || !strncmp(storageName.begin(), "https:", 6))
 		return storageName;
 
