@@ -17,14 +17,14 @@ bool GuiState::ShowDetailPagesOptionsWindow = false;
 bool GuiState::ShowEventLogOptionsWindow    = false;
 bool GuiState::ShowOpenFileWindow		    = false;
 bool GuiState::ShowConfigSource			    = false;
-bool GuiState::ShowTreeviewWindow = true;
+bool GuiState::ShowTreeviewWindow = false; // true
 bool GuiState::ShowMapviewWindow		    = false;
-bool GuiState::ShowTableviewWindow = false;//true;
-bool GuiState::ShowDetailPagesWindow = true;
-bool GuiState::ShowEventLogWindow = true;
+bool GuiState::ShowTableviewWindow = false;
+bool GuiState::ShowDetailPagesWindow = false; // true
+bool GuiState::ShowEventLogWindow = false; // true
 bool GuiState::ShowToolbar                  = false;
-bool GuiState::ShowCurrentItemBar = true;
-bool GuiState::MapViewIsActive = false;// true;
+bool GuiState::ShowCurrentItemBar = false; // true
+bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;
 TreeItem* GuiState::m_Root = nullptr;
 TreeItem* GuiState::m_CurrentItem = nullptr;
@@ -132,7 +132,7 @@ ImVec2 SetCursorPosToOptionsIconInWindowHeader()
 {
     auto oldCursosPos = ImGui::GetCursorPos();
     auto window_size = ImGui::GetWindowSize();
-    ImGui::SetCursorPos(ImVec2(window_size.x - 38, 7)); // TODO: hardcoded offsets, do these scale with different screen resolutions?
+    ImGui::SetCursorPos(ImVec2(window_size.x - 38, 6)); // TODO: hardcoded offsets, do these scale with different screen resolutions?
     return oldCursosPos;
 }
 

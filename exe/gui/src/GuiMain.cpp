@@ -240,6 +240,10 @@ int GuiMainComponent::Init()
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
+    // windows always create their own viewport
+    io.ConfigViewportsNoAutoMerge = true;
+    io.ConfigDockingTransparentPayload = true;
+
     // setup Dear ImGui style
     ImGui::StyleColorsLight();
     //ImGui::StyleColorsDark();
@@ -309,7 +313,7 @@ int GuiMainComponent::MainLoop()
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
 
         // update all gui components
-        Update(); 
+        Update();
 
         // rendering
         ImGui::Render();
@@ -321,8 +325,6 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Update and Render additional Platform Windows
-        // (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
-        //  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
             GLFWwindow* backup_current_context = glfwGetCurrentContext();
@@ -336,7 +338,6 @@ int GuiMainComponent::MainLoop()
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
-    //ImGui_ImplOpenGL2_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
