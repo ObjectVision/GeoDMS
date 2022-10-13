@@ -156,7 +156,7 @@ void ExprProd::ProdUInt32WithoutSuffix()
 	m_Result.repl_back1(
 			List2<LispRef>(
 				uint32Head
-			,	LispRef(Number(Convert<UInt32>(value)))
+			,	m_Result.back()
 			)
 		);
 }
@@ -220,6 +220,11 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 	ValueClassID vt = GetValueType(suffixToken);
 	if (vt != VT_Unknown)
 	{
+		if (vt == VT_Float64 && m_Result.back().IsNumb())
+			return;
+		if (vt == VT_UInt64 && m_Result.back().IsUI64())
+			return;
+
 		vc = ValueClass::FindByValueClassID(vt);
 		dms_assert(vc);
 		suffixToken = vc->GetID();
@@ -235,10 +240,6 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 		m_Result.repl_back1(List2<LispRef>(LispRef(suffixToken), m_Result.back()));
 		return;
 	}
-	if (vt == VT_Float64 && m_Result.back().IsNumb())
-		return;
-	if (vt == VT_UInt64 && m_Result.back().IsUI64())
-		return;
 
 	m_Result.repl_back1(slConvertedLispExpr(LispRef(m_Result.back()), LispRef(suffixToken)));
 }
