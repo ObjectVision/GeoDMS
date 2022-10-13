@@ -47,7 +47,15 @@ struct NumbDC : DataController
 	NumbDC(LispPtr keyExpr): DataController(keyExpr) {}
 
 	SharedTreeItem MakeResult() const override;
-	FutureData CalcResult(Explain::Context* context) const override;
+};
+
+struct UI64DC : DataController
+{
+	typedef DataController base_type;
+
+	UI64DC(LispPtr keyExpr) : DataController(keyExpr) {}
+
+	SharedTreeItem MakeResult() const override;
 };
 
 struct StringDC : DataController
@@ -57,8 +65,6 @@ struct StringDC : DataController
 	StringDC(LispPtr keyExpr): DataController(keyExpr) {}
 
 	SharedTreeItem MakeResult() const override;
-	FutureData CalcResult(Explain::Context* context) const override;
-
 };
 
 // *****************************************************************************
