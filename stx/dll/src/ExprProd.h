@@ -52,7 +52,7 @@ struct ExprProd
 	void ProdStringValue();
 	void ProdFunctionCall();
 	void ProdIdentifier(iterator_t first, iterator_t last);
-	void ProdUInt32(UInt32 n);
+	void ProdUInt64(UInt64 n);
 	void ProdFloat64(Float64 x);
 	void ProdUInt32WithoutSuffix();
 	void ProdSuffix    (iterator_t first, iterator_t last);
@@ -81,7 +81,7 @@ struct ExprProdBase
 	void ProdNullaryOper(TokenID id) {}
 	void ProdStringValue() {}
 	void ProdFunctionCall() {}
-	void ProdUInt32(UInt32 n) {}
+	void ProdUInt64(UInt64 n) {}
 	void ProdFloat64(Float64 x) {}
 	void ProdUInt32WithoutSuffix() {}
 

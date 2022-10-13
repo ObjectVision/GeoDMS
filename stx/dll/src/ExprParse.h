@@ -63,6 +63,10 @@ auto const itemNameFirstChar_p = itennameFirstChar_parser();
 auto const itemNameNextChar_p = itemNameFirstChar_p | boost::spirit::digit_p;
 auto const itemName_p = itemNameFirstChar_p >> *itemNameNextChar_p;
 
+
+auto const uint64_p = boost::spirit::uint_parser<UInt64>();
+auto const hex64_p = boost::spirit::uint_parser<UInt64, 16>();
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  Our expr grammar
@@ -286,8 +290,8 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 				[([&](auto first, auto last) { cp.ProdIdentifier(first, last);})];
 
 			unsignedInteger
-				= (uint_p[([&](auto u32) { cp.ProdUInt32(u32);})])
-			| (PERCENT >> (hex_p[([&](auto u32) { cp.ProdUInt32(u32); })]));
+				= (uint64_p[([&](auto u64) { cp.ProdUInt64(u64);})])
+			| (PERCENT >> (hex64_p[([&](auto u64) { cp.ProdUInt64(u64); })]));
 
 			unsignedReal
 				= strict_ureal_p[([&](auto f64) { cp.ProdFloat64(f64);})];

@@ -841,15 +841,6 @@ SharedTreeItem StringDC::MakeResult() const
 	return m_Data;
 }
 
-auto StringDC::CalcResult(Explain::Context* context) const -> FutureData
-{
-	FutureData resultHolder(this);
-	dms_assert(GetInterestCount());
-
-	MakeResult();
-	return resultHolder;
-}
-
 // *****************************************************************************
 // Section:     NumbDC implementation
 // *****************************************************************************
@@ -869,13 +860,23 @@ SharedTreeItem NumbDC::MakeResult() const
 	return m_Data;
 }
 
-auto NumbDC::CalcResult(Explain::Context* context) const -> FutureData
-{
-	FutureData resultHolder(this);
-	dms_assert(GetInterestCount());
+// *****************************************************************************
+// Section:     UI64DC implementation
+// *****************************************************************************
 
-	MakeResult();
-	return resultHolder;
+SharedTreeItem UI64DC::MakeResult() const
+{
+	dms_assert(GetLispRef().IsUI64());
+
+	if (!m_Data)
+		const_cast<UI64DC*>(this)->SetNew(
+			CreateConstParam<UInt64>(
+				GetLispRef().GetUI64Val()
+				).get_ptr()
+		);
+
+	dms_assert(m_Data);
+	return m_Data;
 }
 
 // *****************************************************************************

@@ -446,7 +446,8 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		return b;
 	next:;
 	}
-	throwErrorF(GetName().c_str(), "Cannot find operator for these arguments:\n"
+	auto nameStr = SharedStr(GetName());
+	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"%s"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n",
 		GenerateArgClsDescription(nrArgs, argTypes).c_str()

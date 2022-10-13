@@ -61,6 +61,9 @@ struct LispPtr: WeakPtr<LispObj>
 	inline bool     IsNumb    () const;
 	inline Number   GetNumbVal() const;
 
+	inline bool     IsUI64() const;
+	inline UInt64   GetUI64Val() const;
+
 	inline bool     IsSymb    () const;
 	inline TokenStr GetSymbStr() const;
 	inline TokenStr GetSymbEnd() const;
@@ -112,6 +115,7 @@ struct LispRef : SharedPtrWrap<LispPtr>
 	operator ptr_type() const { return ptr_type(get_ptr()); }
 
 	SYM_CALL LispRef(Number v);	                  // Makes a LispRef to NumbObj
+	SYM_CALL LispRef(UInt64 u);	                  // Makes a LispRef to U64Obj
 	SYM_CALL LispRef(CharPtr s, ChroID c= 0);	  // Makes a LispRef to SymbObj with tokenStr s and Chro c
 	SYM_CALL LispRef(TokenID  t, ChroID c= 0);	  // Makes a LispRef to SymbObj with tokenID  t and Chro c
 	SYM_CALL LispRef(CharPtr begin, CharPtr end); // Makes a LispRef to StrnObj
@@ -134,6 +138,9 @@ public:
 	// query members
 	virtual bool     IsNumb()     const;
 	virtual Number   GetNumbVal() const;
+
+	virtual bool     IsUI64()     const;
+	virtual UInt64   GetUI64Val() const;
 
 	virtual bool     IsSymb()     const;
 	virtual TokenStr GetSymbStr() const;
@@ -163,6 +170,9 @@ public:
 
 inline bool     LispPtr::IsNumb    () const { return get_ptr() ? get_ptr()->IsNumb()    : false; }
 inline Number   LispPtr::GetNumbVal() const { return get_ptr() ? get_ptr()->GetNumbVal(): Number(0.0);     }
+
+inline bool     LispPtr::IsUI64    () const { return get_ptr() ? get_ptr()->IsUI64() : false; }
+inline UInt64   LispPtr::GetUI64Val() const { return get_ptr() ? get_ptr()->GetUI64Val() : 0; }
 
 inline bool     LispPtr::IsSymb    () const { return get_ptr() ? get_ptr()->IsSymb()    : false; }
 inline TokenStr LispPtr::GetSymbStr() const { return get_ptr() ? get_ptr()->GetSymbStr(): TokenID::GetEmptyTokenStr(); }

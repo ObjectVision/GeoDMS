@@ -1113,7 +1113,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				bufferValue = slSupplierExpr(substBuff, localExpr, mpf);
 			goto exit;
 		}
-		bufferValue = localExpr; // NumbDC, StrnDC
+		bufferValue = localExpr; // NumbDC, StrnDC, UI64DC
 	}
 exit:
 	return bufferValue;
