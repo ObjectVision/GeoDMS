@@ -159,29 +159,27 @@ void SetKeyboardFocusToThisHwnd()
     SetFocus((HWND)window->Viewport->PlatformHandleRaw);
 }
 
-void   SaveWindowOpenStatusFlags()
+void GuiState::SaveWindowOpenStatusFlags()
 {
-
+    UInt32 flags = 0;
+    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
+    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
 }
 
-void   LoadWindowOpenStatusFlags()
+void GuiState::LoadWindowOpenStatusFlags()
 {
-    /*try {
-        RegistryHandleLocalMachineRO reg;
-        if (reg.ValueExists("StatusFlags"))
-        {
-            g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
-            goto exit;
-        }
-    }
-    catch (...) {}
-    try {
-        RegistryHandleCurrentUserRO reg;
-        if (reg.ValueExists("StatusFlags"))
-        {
-            g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
-            goto exit;
-        }
-    }
-    catch (...) {}*/
+    auto flags = GetRegFlags("WindowOpenStatusFlags");
+
+    // update open state based on flags
+    ShowTreeviewWindow      = flags & GWOF_TreeView;
+    ShowDetailPagesWindow   = flags & GWOF_DetailPages;
+    ShowEventLogWindow      = flags & GWOF_EventLog;
+    ShowOptionsWindow       = flags & GWOF_Options;
+    ShowToolbar             = flags & GWOF_ToolBar;
+    ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
 }

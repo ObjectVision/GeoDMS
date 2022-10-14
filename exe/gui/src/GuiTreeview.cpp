@@ -184,7 +184,7 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
 
         if (status == NotificationCode::NC2_Invalidated || failed) // ti not ready
         {
-            nextSubItem = nextSubItem->GetNextItem();
+            nextSubItem = nextSubItem->GetNextItem(); // TODO: do display treeitem, but do not try to process subitems.
             continue;
         }
 

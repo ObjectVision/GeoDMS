@@ -266,6 +266,9 @@ int GuiMainComponent::Init()
     SetDmsWindowIcon(m_Window);
     SetGuiFont("misc/fonts/DroidSans.ttf");
 
+    // Load gui state
+    m_State.LoadWindowOpenStatusFlags();
+
     return 0;
 }
 
@@ -335,6 +338,8 @@ int GuiMainComponent::MainLoop()
 
         glfwSwapBuffers(m_Window);
     }
+
+    m_State.SaveWindowOpenStatusFlags();
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

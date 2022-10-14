@@ -258,6 +258,10 @@ public:
 	void SetRoot(TreeItem* root) { m_Root = root; };
 	void SetCurrentItem(TreeItem* current_item) { m_CurrentItem = current_item; };
 
+	// load and save state
+	void   SaveWindowOpenStatusFlags();
+	void   LoadWindowOpenStatusFlags();
+
 private:
 	static TreeItem* m_Root;
 	static TreeItem* m_CurrentItem;
@@ -280,5 +284,3 @@ ImVec2 SetCursorPosToOptionsIconInWindowHeader();
 void   SetClipRectToIncludeOptionsIconInWindowHeader();
 bool   MouseHooversOptionsIconInWindowHeader();
 void   SetKeyboardFocusToThisHwnd();
-void   SaveWindowOpenStatusFlags();
-void   LoadWindowOpenStatusFlags();
