@@ -532,7 +532,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 					if (flags(df & DijkstraFlag::VerboseLogging))
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "Node % accepted at impedance % ", currNode, currImp);
+						reportF(SeverityTypeID::ST_MajorTrace, "Node %1% accepted at impedance %2% ", currNode, currImp);
 					}
 
 					dh.PopNode();
