@@ -245,7 +245,7 @@ int GuiMainComponent::Init()
     io.ConfigDockingTransparentPayload = true;
 
     // setup Dear ImGui style
-    ImGui::StyleColorsLight();
+    ImGui::StyleColorsLight(); // TODO: make this a style option
     //ImGui::StyleColorsDark();
     //ImGui::StyleColorsClassic();
 

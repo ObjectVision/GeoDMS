@@ -6,6 +6,7 @@
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
 #include <Windows.h>
 #include "TicInterface.h"
+#include "utl/Environment.h"
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -17,7 +18,7 @@ bool GuiState::ShowDetailPagesOptionsWindow = false;
 bool GuiState::ShowEventLogOptionsWindow    = false;
 bool GuiState::ShowOpenFileWindow		    = false;
 bool GuiState::ShowConfigSource			    = false;
-bool GuiState::ShowTreeviewWindow = false; // true
+bool GuiState::ShowTreeviewWindow = true;// = false; // true
 bool GuiState::ShowMapviewWindow		    = false;
 bool GuiState::ShowTableviewWindow = false;
 bool GuiState::ShowDetailPagesWindow = false; // true
@@ -156,4 +157,31 @@ void SetKeyboardFocusToThisHwnd()
 {
     auto window = ImGui::GetCurrentWindow();
     SetFocus((HWND)window->Viewport->PlatformHandleRaw);
+}
+
+void   SaveWindowOpenStatusFlags()
+{
+
+}
+
+void   LoadWindowOpenStatusFlags()
+{
+    /*try {
+        RegistryHandleLocalMachineRO reg;
+        if (reg.ValueExists("StatusFlags"))
+        {
+            g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
+            goto exit;
+        }
+    }
+    catch (...) {}
+    try {
+        RegistryHandleCurrentUserRO reg;
+        if (reg.ValueExists("StatusFlags"))
+        {
+            g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
+            goto exit;
+        }
+    }
+    catch (...) {}*/
 }
