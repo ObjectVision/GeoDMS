@@ -74,6 +74,9 @@ inline LispObj::~LispObj() {}
 
 bool     LispObj::IsNumb()     const { return false; }
 Number   LispObj::GetNumbVal() const { ILLEGAL_ABSTRACT(this, "GetNumbVal");}
+bool     LispObj::IsUI64()     const { return false; }
+UInt64   LispObj::GetUI64Val() const { ILLEGAL_ABSTRACT(this, "GetUI64Val"); }
+
 
 bool     LispObj::IsSymb()     const { return false; }
 TokenStr LispObj::GetSymbStr() const { ILLEGAL_ABSTRACT(this, "GetSymbStr"); }
@@ -172,8 +175,9 @@ class NumbObj: public LispObj
 	friend struct MakeNumbFunc;
 
 private:
-	NumbObj() = delete; // REMOVE { NeverLinkThis(); }
-	NumbObj(const NumbObj&) = delete; // REMOVE { NeverLinkThis(); }
+	NumbObj() = delete;
+	NumbObj(const NumbObj&) = delete;
+	NumbObj(NumbObj&&) = delete;
 
 	NumbObj(Number v)
 		:	m_Value(v) 
@@ -234,6 +238,81 @@ LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
 void NumbObj::WriteObj(PolymorphOutStream& ar) const
 {
 	double value = m_Value;
+	ar << value;
+}
+
+/******************                               *******************/
+/****************** class UI64Obj                 *******************/
+/******************                               *******************/
+
+
+class UI64Obj : public LispObj
+{
+	friend LispRef::LispRef(UInt64 v);
+	friend struct MakeUI64Func;
+
+private:
+	UI64Obj() = delete;
+	UI64Obj(const UI64Obj&) = delete;
+	UI64Obj(UI64Obj&&) = delete;
+
+	UI64Obj(UInt64 v): m_Value(v) {}
+	~UI64Obj();
+
+	virtual bool   IsUI64()     const { return true; }
+	virtual UInt64 GetUI64Val() const { return m_Value; }
+
+	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
+	static LispObj* ReloadObj(PolymorphInpStream& ar);
+	virtual void WriteObj(PolymorphOutStream& ar) const;
+
+	UInt64 m_Value;
+
+	DECL_RTTI(SYM_CALL, LispCls);
+};
+
+/****************** ctor/dtor                         *******************/
+
+struct MakeUI64Func
+{
+	using argument_type = UInt64;
+	using result_type = LispObj*;
+
+	LispObj* operator()(UInt64 v) const
+	{
+		return new UI64Obj(v);
+	}
+};
+
+StaticCache<MakeUI64Func, DataCompareImpl<UInt64, false> > s_UI64ObjCache;
+
+LispRef::LispRef(UInt64 value)
+	: SharedPtrWrap(
+		s_UI64ObjCache(value)
+	)
+{}
+
+UI64Obj::~UI64Obj() { s_UI64ObjCache.remove(m_Value); }
+
+
+/****************** Serialization and rtti            *******************/
+
+IMPL_STATIC_LISPCLS(UI64Obj)
+
+LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
+{
+	DBG_START("UI64Obj", "ReloadObj", DBG_LOADOBJ);
+
+	UInt64 value;
+	ar >> value;
+	DBG_TRACE(("ui64 = %lf", value));
+
+	return s_UI64ObjCache(value);
+}
+
+void UI64Obj::WriteObj(PolymorphOutStream& ar) const
+{
+	UInt64 value = m_Value;
 	ar << value;
 }
 

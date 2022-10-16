@@ -30,8 +30,16 @@ struct GuiSparseTree
 	static std::mutex m_Lock; // synchronization primitive
 	GuiTreeNode m_Root;
 	std::map<TreeItem*, GuiTreeNode*> m_TreeItemToTreeNode;
+};
 
-
+enum GuiWindowOpenFlags
+{
+	GWOF_TreeView = 1,
+	GWOF_DetailPages = 2,
+	GWOF_EventLog = 4,
+	GWOF_Options = 8,
+	GWOF_ToolBar = 16,
+	GWOF_CurrentItemBar = 32,
 };
 
 enum GuiEvents
@@ -249,6 +257,10 @@ public:
 	TreeItem* GetCurrentItem() { return m_CurrentItem; }
 	void SetRoot(TreeItem* root) { m_Root = root; };
 	void SetCurrentItem(TreeItem* current_item) { m_CurrentItem = current_item; };
+
+	// load and save state
+	void   SaveWindowOpenStatusFlags();
+	void   LoadWindowOpenStatusFlags();
 
 private:
 	static TreeItem* m_Root;

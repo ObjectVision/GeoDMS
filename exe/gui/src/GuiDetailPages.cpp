@@ -488,7 +488,6 @@ void GuiDetailPages::Update(bool* p_open)
         }
 
         ImGui::EndTabBar();
-
     }
 
     ImGui::End();

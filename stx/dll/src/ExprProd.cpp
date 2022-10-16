@@ -148,21 +148,24 @@ static TokenID t_uint32 = GetTokenID_st("UInt32");
 void ExprProd::ProdUInt32WithoutSuffix()
 {
 	// (n tail) -> ((UInt32 n) tail)
-	dms_assert(m_Result.back().IsNumb());
+	dms_assert(m_Result.back().IsUI64());
+	auto value = m_Result.First().GetUI64Val();
+	if (value > UInt32(-1))
+		throwErrorF("ExprProd", "Cannot convert %u to UInt32, consider adding the suffix u64 or i64", value);
 	static LispRef uint32Head(t_uint32);
 	m_Result.repl_back1(
 			List2<LispRef>(
 				uint32Head
-			,	m_Result.First()
+			,	m_Result.back()
 			)
 		);
 }
 
-void ExprProd::ProdUInt32(UInt32 n)
+void ExprProd::ProdUInt64(UInt64 n)
 {
 	// (integerValue -> NUMBER ) >> (signature | end_p )
 	// (tail) -> (n tail)
-	m_Result.push_back(LispRef(Number(n)));
+	m_Result.push_back(LispRef(n));
 }
 
 void ExprProd::ProdFloat64(Float64 x)
@@ -209,7 +212,7 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 {
 	// (n tail) -> ((cast n) tail) or ((value n unit) tail);
 	dms_assert(first != last);
-	dms_assert(m_Result.back().IsNumb());
+	dms_assert(m_Result.back().IsNumb() || m_Result.back().IsUI64());
 
 	TokenID suffixToken = GetTokenID_mt(&*first, &*last);
 
@@ -217,6 +220,11 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 	ValueClassID vt = GetValueType(suffixToken);
 	if (vt != VT_Unknown)
 	{
+		if (vt == VT_Float64 && m_Result.back().IsNumb())
+			return;
+		if (vt == VT_UInt64 && m_Result.back().IsUI64())
+			return;
+
 		vc = ValueClass::FindByValueClassID(vt);
 		dms_assert(vc);
 		suffixToken = vc->GetID();
@@ -232,8 +240,8 @@ void ExprProd::ProdSuffix(iterator_t first, iterator_t last)
 		m_Result.repl_back1(List2<LispRef>(LispRef(suffixToken), m_Result.back()));
 		return;
 	}
-	if (vt != VT_Float64)
-		m_Result.repl_back1(slConvertedLispExpr(LispRef(m_Result.back()), LispRef(suffixToken)));
+
+	m_Result.repl_back1(slConvertedLispExpr(LispRef(m_Result.back()), LispRef(suffixToken)));
 }
 
 void ExprProd::StartExprList()

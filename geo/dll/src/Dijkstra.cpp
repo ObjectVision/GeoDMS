@@ -275,15 +275,20 @@ struct NodeZoneConnector
 		return IsDefined(m_ResImpPerDstZone[zoneID]);
 	}
 
-	ZoneType Res2DstZone(ZoneType resIndex)
+	ZoneType Res2EndPoint(ZoneType resIndex)
 	{
 		dms_assert(resIndex < ZonalResCount());
-		dms_assert(m_FoundYPerRes.size()  || resIndex < m_NetworkInfoPtr->nrDstZones);
+		dms_assert(m_FoundYPerRes.size() || resIndex < m_NetworkInfoPtr->nrDstZones);
 		dms_assert(m_FoundYPerRes.empty() || resIndex < m_FoundYPerRes.size());
-		ZoneType y = LookupOrSame(begin_ptr(m_FoundYPerRes), resIndex);
+		return LookupOrSame(begin_ptr(m_FoundYPerRes), resIndex);
+	}
+
+	ZoneType Res2DstZone(ZoneType resIndex)
+	{
+		ZoneType y = Res2EndPoint(resIndex);
 		return LookupOrSame(m_NetworkInfoPtr->endPoints.Zone_rel, y);
 	}
-	NodeType DstZone2EndNode(ZoneType dstZone)
+	ZoneType DstZone2EndPoint(ZoneType dstZone)
 	{
 		dms_assert(dstZone < m_NetworkInfoPtr->nrDstZones);
 
@@ -293,6 +298,12 @@ struct NodeZoneConnector
 
 		ZoneType y = LookupOrSame(m_FoundYPerDstZone.begin(), dstZone);
 		dms_assert(IsDefined(y) || !m_LastCommittedSrcZone);
+		return y;
+	}
+
+	NodeType DstZone2EndNode(ZoneType dstZone)
+	{
+		auto y = DstZone2EndPoint(dstZone);
 		if (!IsDefined(y))
 			return UNDEFINED_VALUE(NodeType);
 
@@ -345,6 +356,7 @@ struct ResultInfo {
 
 	ImpTypeArray  od_ImpData, od_AltLinkImp;
 	ZoneTypeArray od_SrcZoneIds, od_DstZoneIds;
+	ZoneTypeArray od_StartPointIds, od_EndPointIds;
 	LinkSeqArray od_LS; // link set
 	LinkType* node_TB;
 
@@ -518,6 +530,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					NodeType currNode = dh.Front().Value(); dms_assert(currNode < ni.nrV);
 					ImpType currImp = dh.Front().Imp();
 
+					if (flags(df & DijkstraFlag::VerboseLogging))
+					{
+						reportF(SeverityTypeID::ST_MajorTrace, "Node % accepted at impedance % ", currNode, currImp);
+					}
+
 					dh.PopNode();
 					dms_assert(currImp >= 0);
 
@@ -642,6 +659,13 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						while (c)
 							*--dstZonePtr = --c;
 					}
+					if (res.od_EndPointIds)
+					{
+						auto endPointPtr = res.od_EndPointIds + resultCountBase + zonalResultCount;
+						ZoneType c = zonalResultCount;
+						while (c)
+							*--endPointPtr = nzc.DstZone2EndPoint(--c);
+					}
 				}
 				else
 				{
@@ -665,6 +689,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							auto currPtr = res.od_DstZoneIds + resultCountBase;
 							for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
 								*currPtr++ = nzc.Res2DstZone(resIndex);
+						}
+						if (res.od_EndPointIds) {
+							auto currPtr = res.od_EndPointIds + resultCountBase;
+							for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+								*currPtr++ = nzc.Res2EndPoint(resIndex);
 						}
 					}
 				}
@@ -1261,6 +1290,13 @@ public:
 			? CreateDataItem(resultContext, GetTokenID_mt("DstZone_rel"), resultUnit, dstZones)
 			: nullptr;
 
+		AbstrDataItem* resStartPoint = flags(df & DijkstraFlag::ProdOdStartPoint_rel)
+			? CreateDataItem(resultContext, GetTokenID_mt("StartPoint_rel"), resultUnit, x)
+			: nullptr;
+		AbstrDataItem* resEndPoint = flags(df & DijkstraFlag::ProdOdEndPoint_rel)
+			? CreateDataItem(resultContext, GetTokenID_mt("EndPoint_rel"), resultUnit, y)
+			: nullptr;
+
 		if (mustCalc)
 		{
 			const ArgImpType* argLinkImp = const_array_cast<ImpType>(adiLinkImp);
@@ -1438,7 +1474,7 @@ public:
 						, nullptr
 						, resCount.begin()
 						// result area, not for counting
-						, ResultInfo<ZoneType, ImpType, MassType>{nullptr, nullptr, nullptr, nullptr
+						, ResultInfo<ZoneType, ImpType, MassType>{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
 							, sequence_traits<EdgeSeq>::seq_t::iterator()
 							, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
 							}
@@ -1460,6 +1496,8 @@ public:
 			DataWriteLock resDistLock   (resDist); // per OD
 			DataWriteLock resSrcZoneLock(resSrcZone); // per OD
 			DataWriteLock resDstZoneLock(resDstZone); // per OD
+			DataWriteLock resStartPointLock(resStartPoint); // per OD
+			DataWriteLock resEndPointLock(resEndPoint); // per OD
 			DataWriteLock resTraceBackLock(resTB); // per node
 			DataWriteLock resLinkSetLock(resLS,      dms_rw_mode::write_only_mustzero); // per OD
 
@@ -1497,7 +1535,9 @@ public:
 				, resAltLinkImp ? mutable_array_cast<ImpType >(resALWLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, resSrcZone    ? mutable_array_cast<ZoneType>(resSrcZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				, resDstZone    ? mutable_array_cast<ZoneType>(resDstZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resLS         ? mutable_array_cast<EdgeSeq >(resLinkSetLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : DataArray<EdgeSeq>::iterator()
+				, resStartPoint ? mutable_array_cast<ZoneType>(resStartPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, resEndPoint   ? mutable_array_cast<ZoneType>(resEndPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				,	resLS         ? mutable_array_cast<EdgeSeq >(resLinkSetLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : DataArray<EdgeSeq>::iterator()
 				,	resTB ? mutable_array_cast<LinkType>(resTraceBackLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,	resOrgFactor  ? mutable_array_cast<MassType>(resOFLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				,	resOrgDemand  ? mutable_array_cast<MassType>(resODLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
@@ -1526,6 +1566,8 @@ public:
 			if (resDist) resDistLock.Commit();
 			if (resSrcZone) resSrcZoneLock.Commit();
 			if (resDstZone) resDstZoneLock.Commit();
+			if (resStartPoint) resStartPointLock.Commit();
+			if (resEndPoint) resEndPointLock.Commit();
 			if (resTB) resTraceBackLock.Commit();
 			if (resLS) resLinkSetLock.Commit();
 			if (resAltLinkImp) resALWLock.Commit();

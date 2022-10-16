@@ -59,8 +59,8 @@ struct DataController : TreeItemDualRef
 	typedef LispRef DataControllerKey;
 
 	TIC_CALL FutureData CalcResultWithValuesUnits()  const;
-	virtual SharedTreeItem MakeResult()  const =0;
-	virtual FutureData CalcResult(Explain::Context* context = nullptr)  const= 0;
+	virtual SharedTreeItem MakeResult()  const = 0;
+	virtual FutureData CalcResult(Explain::Context* context = nullptr)  const;
 	TIC_CALL FutureData CalcCertainResult()  const;
 	virtual const Class* GetResultCls() const;
 	LispPtr GetLispRef()    const { return m_Key; }

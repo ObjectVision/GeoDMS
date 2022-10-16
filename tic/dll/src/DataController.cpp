@@ -248,10 +248,15 @@ namespace {
 			return new SymbDC(keyExpr, keyExpr.GetSymbID());
 		else if (keyExpr.IsStrn())
 			return new StringDC(keyExpr);
-		else
+		else if (keyExpr.IsNumb())
 		{
 			dms_assert(keyExpr.IsNumb());
 			return new NumbDC(keyExpr);
+		}
+		else
+		{
+			dms_assert(keyExpr.IsUI64());
+			return new UI64DC(keyExpr);
 		}
 	}
 }	// anonymous namespace
@@ -357,51 +362,16 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 }
 
 #include "DataLocks.h"
-/*
-bool UpdateValuesUnitsImpl(const DataController* dc, const TreeItem* curr)
+
+auto DataController::CalcResult(Explain::Context* context) const -> FutureData
 {
-	if (IsDataItem(curr) && curr->GetInterestCount())
-	{
-		const AbstrUnit* avu = AsDataItem(curr)->GetAbstrValuesUnit();
-		if (!IsCalculatingOrReady(avu->GetCurrRangeItem()))
-		{
-			if (avu->IsCacheItem())
-			{
-				dms_assert(avu->GetTSF(TSF_DSM_CrKnown));
-				return DSM::Curr()->GetDC(avu, false, false)->CalcResult().has_ptr();
-			}
-			if (!avu->PrepareDataUsageImpl(DrlType::Suspendible))
-			{
-				if (!SuspendTrigger::DidSuspend())
-				{
-					dms_assert(avu->WasFailed(FR_Data));
-					curr->Fail(avu);
-					dc->Fail(curr);
-				}
-				return false;
-			}
-		}
-	}
-	return true;
+	FutureData resultHolder(this);
+	dms_assert(GetInterestCount());
+
+	MakeResult();
+	return resultHolder;
 }
 
-bool UpdateValuesUnits(const DataController* dc, const TreeItem* ti, bool useTree)
-{
-	if (!UpdateValuesUnitsImpl(dc, ti))
-		return false;
-
-	if (!useTree)
-		return true;
-
-	const TreeItem* curr = ti; 
-	while (curr=ti->WalkConstSubTree(curr))
-	{
-		if (!UpdateValuesUnitsImpl(dc, curr))
-			return false;
-	}
-	return true;
-}
-*/
 auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: REMOVE
 {
 	dms_assert(IsMainThread());

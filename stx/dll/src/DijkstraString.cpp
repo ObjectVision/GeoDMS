@@ -131,13 +131,17 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		)
 		>> !(COLON >>
 				(
-					strlit<>("impedance"  )[AssignFlags(result, DijkstraFlag::ProdOdImpedance  )]
-				|	strlit<>("OrgZone_rel")[AssignFlags(result, DijkstraFlag::ProdOdOrgZone_rel)]
-				|	strlit<>("DstZone_rel")[AssignFlags(result, DijkstraFlag::ProdOdDstZone_rel)]
-				|	strlit<>("LinkSet")    [AssignFlags(result, DijkstraFlag::ProdOdLinkSet    )]
+					strlit<>("impedance"  )   [AssignFlags(result, DijkstraFlag::ProdOdImpedance  )]
+				|	strlit<>("OrgZone_rel")   [AssignFlags(result, DijkstraFlag::ProdOdOrgZone_rel)]
+				|	strlit<>("DstZone_rel")   [AssignFlags(result, DijkstraFlag::ProdOdDstZone_rel)]
+				|	strlit<>("StartPoint_rel")[AssignFlags(result, DijkstraFlag::ProdOdStartPoint_rel)]
+				|	strlit<>("EndPoint_rel")  [AssignFlags(result, DijkstraFlag::ProdOdEndPoint_rel)]
+				|	strlit<>("LinkSet")       [AssignFlags(result, DijkstraFlag::ProdOdLinkSet    )]
 				)
 				%	COMMA
 			);
+
+	boost::spirit::rule<>  verboseLoggingRule = strlit<>("verboseLogging")[AssignFlags(result, DijkstraFlag::VerboseLogging)];
 
 	boost::spirit::rule<>  paramRule =
 		dirRule
@@ -149,6 +153,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>> !(chlit<>(';') >> interactionRule)
 		>> !(chlit<>(';') >> tbRule)
 		>> !(chlit<>(';') >> odRule)
+		>> !(chlit<>(';') >> verboseLoggingRule)
 		;
 
 	auto info = boost::spirit::parse(str, paramRule);

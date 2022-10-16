@@ -40,9 +40,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 enum class DijkstraFlag : UInt32
 {
-	Bidirectional = 0x02,
-	Directed      = 0x00, // REMOVE
-	BidirFlag     = 0x04,
+	VerboseLogging = 0x01,
+	Bidirectional  = 0x02,
+	BidirFlag      = 0x04,
 
 	OD = 0x08, // implies: multiple sources
 
@@ -71,10 +71,6 @@ enum class DijkstraFlag : UInt32
 	DistDecay = 0x40000000,
 	DistLogit = 0x80000000,
 
-//	DMOF_OrgMass = DMOF_TripDistrData,
-//	DMOF_DstgMass = DMOF_TripDistrData,
-//	DMOF_DistDecay = DMOF_TripDistrData,
-
 	// production flags
 	ProdTraceBack = 0x20000, // only for non DMOF_OD
 	ProdOdLinkSet = 0x40000,
@@ -92,12 +88,15 @@ enum class DijkstraFlag : UInt32
 	ProdLinkFlow  = 0x10000000, // DONE ?
 	Counting      = 0x20000000,
 
+	ProdOdStartPoint_rel = 0x40000000,
+	ProdOdEndPoint_rel = 0x80000000,
+
 	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply,
 	Interaction = TripDistr | ProdLinkFlow,
 	InteractionOrMaxImp = Interaction | ProdOrgMaxImp,
 	Calc_pot_ij = ProdDstFactor | ProdDstSupply | ProdLinkFlow,
 
-	OD_Data = ProdOdOrgZone_rel | ProdOdDstZone_rel | ProdOdImpedance | ProdOdAltImpedance | ProdOdLinkSet,
+	OD_Data = ProdOdOrgZone_rel | ProdOdDstZone_rel | ProdOdStartPoint_rel | ProdOdEndPoint_rel | ProdOdImpedance | ProdOdAltImpedance | ProdOdLinkSet,
 //	TmbTB = DijkstraFlag::UseAltLinkImp | DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOdLinkSet,
 };
 

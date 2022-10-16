@@ -6,6 +6,7 @@
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
 #include <Windows.h>
 #include "TicInterface.h"
+#include "utl/Environment.h"
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -17,14 +18,14 @@ bool GuiState::ShowDetailPagesOptionsWindow = false;
 bool GuiState::ShowEventLogOptionsWindow    = false;
 bool GuiState::ShowOpenFileWindow		    = false;
 bool GuiState::ShowConfigSource			    = false;
-bool GuiState::ShowTreeviewWindow = true;
+bool GuiState::ShowTreeviewWindow = true;// = false; // true
 bool GuiState::ShowMapviewWindow		    = false;
-bool GuiState::ShowTableviewWindow = false;//true;
-bool GuiState::ShowDetailPagesWindow = true;
-bool GuiState::ShowEventLogWindow = true;
+bool GuiState::ShowTableviewWindow = false;
+bool GuiState::ShowDetailPagesWindow = false; // true
+bool GuiState::ShowEventLogWindow = false; // true
 bool GuiState::ShowToolbar                  = false;
-bool GuiState::ShowCurrentItemBar = true;
-bool GuiState::MapViewIsActive = false;// true;
+bool GuiState::ShowCurrentItemBar = false; // true
+bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;
 TreeItem* GuiState::m_Root = nullptr;
 TreeItem* GuiState::m_CurrentItem = nullptr;
@@ -132,7 +133,7 @@ ImVec2 SetCursorPosToOptionsIconInWindowHeader()
 {
     auto oldCursosPos = ImGui::GetCursorPos();
     auto window_size = ImGui::GetWindowSize();
-    ImGui::SetCursorPos(ImVec2(window_size.x - 38, 7)); // TODO: hardcoded offsets, do these scale with different screen resolutions?
+    ImGui::SetCursorPos(ImVec2(window_size.x - 38, 6)); // TODO: hardcoded offsets, do these scale with different screen resolutions?
     return oldCursosPos;
 }
 
@@ -156,4 +157,29 @@ void SetKeyboardFocusToThisHwnd()
 {
     auto window = ImGui::GetCurrentWindow();
     SetFocus((HWND)window->Viewport->PlatformHandleRaw);
+}
+
+void GuiState::SaveWindowOpenStatusFlags()
+{
+    UInt32 flags = 0;
+    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
+    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
+}
+
+void GuiState::LoadWindowOpenStatusFlags()
+{
+    auto flags = GetRegFlags("WindowOpenStatusFlags");
+
+    // update open state based on flags
+    ShowTreeviewWindow      = flags & GWOF_TreeView;
+    ShowDetailPagesWindow   = flags & GWOF_DetailPages;
+    ShowEventLogWindow      = flags & GWOF_EventLog;
+    ShowOptionsWindow       = flags & GWOF_Options;
+    ShowToolbar             = flags & GWOF_ToolBar;
+    ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
 }

@@ -446,7 +446,8 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		return b;
 	next:;
 	}
-	throwErrorF(GetName().c_str(), "Cannot find operator for these arguments:\n"
+	auto nameStr = SharedStr(GetName());
+	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"%s"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n",
 		GenerateArgClsDescription(nrArgs, argTypes).c_str()
@@ -529,9 +530,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 
 [[noreturn]] void AbstrOperGroup::throwOperError(CharPtr msg) const
 {
-	throwErrorD(
-		mySSPrintF("Operator %s", GetName().c_str()).c_str(),
-		msg
-	);
+	auto errMsg = mySSPrintF("Operator %s", GetName().c_str());
+	throwErrorD(errMsg.c_str(), msg);
 }
 

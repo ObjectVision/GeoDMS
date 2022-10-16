@@ -1034,8 +1034,8 @@ bool DrawPoints(
 			if (fontStock.SelectSingleton()) 
 				fontIndices = nullptr;
 
-			WCHAR defaultSymbol = 0x0023;
 			DmsColor defaultColor = layer->GetDefaultPointColor();
+			WCHAR defaultSymbol = defSymbol;
 			WeakPtr<const AbstrThemeValueGetter> symbolIdGetter;
 			if (layer->GetEnabledTheme(AN_SymbolIndex))
 			{
