@@ -207,9 +207,17 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         if (IsKeyboardFocused())
             UpdateStateAfterItemClick(nextSubItem);
 
+        
+
         // click event
         if (ImGui::IsItemClicked() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) // item is clicked
             UpdateStateAfterItemClick(nextSubItem);
+
+        // double click event
+        if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            m_State.MainEvents.Add(OpenNewDefaultViewWindow);
+        }
 
         // alphabetical letter jump
         if ((!m_State.m_JumpLetter.first.empty() && !m_State.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(nextSubItem))

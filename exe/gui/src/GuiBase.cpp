@@ -162,18 +162,36 @@ void SetKeyboardFocusToThisHwnd()
 void GuiState::SaveWindowOpenStatusFlags()
 {
     UInt32 flags = 0;
-    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
-    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
-    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
-    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
-    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
-    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowTreeviewWindow      ? flags |= GWOF_TreeView        : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow   ? flags |= GWOF_DetailPages     : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow      ? flags |= GWOF_EventLog        : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
+    flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
     SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
+}
+
+void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availability of registry param
+{
+    ShowTreeviewWindow      = true;
+    ShowDetailPagesWindow   = true;
+    ShowEventLogWindow      = true;
+    ShowOptionsWindow       = false;
+    ShowToolbar             = false;
+    ShowCurrentItemBar      = true;
+    SaveWindowOpenStatusFlags();
 }
 
 void GuiState::LoadWindowOpenStatusFlags()
 {
-    auto flags = GetRegFlags("WindowOpenStatusFlags");
+    bool exists = false;
+    auto flags = GetRegFlags("WindowOpenStatusFlags", exists);
+
+    if (!exists)
+    {
+        SetWindowOpenStatusFlagsOnFirstUse();
+        return;
+    }
 
     // update open state based on flags
     ShowTreeviewWindow      = flags & GWOF_TreeView;

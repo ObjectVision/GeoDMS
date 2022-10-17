@@ -188,6 +188,29 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         m_View.InitDataView(m_State.GetCurrentItem());
         break;
     }
+    case OpenNewDefaultViewWindow:
+    {
+        auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
+        switch (dvs)
+        {
+        case tvsMapView:
+        {
+            m_View.SetViewStyle(tvsMapView);
+            m_View.SetViewName("View");
+            m_View.InitDataView(m_State.GetCurrentItem());
+            break;
+        }
+        case tvsTableView:
+        {
+            m_View.SetViewStyle(tvsTableView);
+            m_View.SetViewName("View");
+            m_View.InitDataView(m_State.GetCurrentItem());
+            break;
+        }
+        }
+
+        break;
+    }
     }
 }
 

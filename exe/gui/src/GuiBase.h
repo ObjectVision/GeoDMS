@@ -51,7 +51,8 @@ enum GuiEvents
 	OpenNewMapViewWindow = 4,
 	OpenNewTableViewWindow = 5,
 	OpenNewConfiguration = 6,
-	OpenInMemoryDataView = 7
+	OpenInMemoryDataView = 7,
+	OpenNewDefaultViewWindow = 8
 };
 
 class GuiTreeItemsHolder
@@ -261,6 +262,9 @@ public:
 	// load and save state
 	void   SaveWindowOpenStatusFlags();
 	void   LoadWindowOpenStatusFlags();
+
+	// on first use
+	void   SetWindowOpenStatusFlagsOnFirstUse();
 
 private:
 	static TreeItem* m_Root;

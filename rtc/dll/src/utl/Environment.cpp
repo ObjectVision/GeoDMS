@@ -371,19 +371,32 @@ exit:
 	return (g_RegStatusFlags & ~(g_OvrStatusMask | RSF_WasRead)) | (g_OvrStatusFlags & g_OvrStatusMask);
 }
 
-RTC_CALL UInt32 GetRegFlags(std::string key)
+RTC_CALL UInt32 GetRegFlags(std::string key, bool& exists)
 {
 	UInt32 flags = 0;
 	try {
 		RegistryHandleLocalMachineRO reg;
 		if (reg.ValueExists(key.c_str()))
+		{
 			flags = reg.ReadDWORD(key.c_str());
+			exists = true;
+			return flags;
+		}
+		else
+			exists = false;
+
 	}
 	catch (...) {}
 	try {
 		RegistryHandleCurrentUserRO reg;
 		if (reg.ValueExists(key.c_str()))
+		{
 			flags = reg.ReadDWORD(key.c_str());
+			exists = true;
+			return flags;
+		}
+		else
+			exists = false;
 	}
 	catch (...) {}
 
