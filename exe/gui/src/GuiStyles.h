@@ -48,12 +48,12 @@ public:
     GuiIcon(std::string relativeIconPath);
     ~GuiIcon();
 
-    GuiIcon(GuiIcon&& src)
+    GuiIcon(GuiIcon&& src) noexcept
     {
         operator = (std::move(src));
     }
 
-    void operator = (GuiIcon&& src)
+    void operator = (GuiIcon&& src) noexcept
     {
         std::swap(m_Image, src.m_Image);
 
