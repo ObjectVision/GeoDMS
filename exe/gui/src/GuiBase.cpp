@@ -90,10 +90,10 @@ GuiBaseComponent::GuiBaseComponent(){}
 GuiBaseComponent::~GuiBaseComponent(){}
 void GuiBaseComponent::Update(){}
 
-std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname)
+std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator)
 {
     std::vector<std::string> SeparatedTreeItemFullName;
-    boost::split(SeparatedTreeItemFullName, fullname, boost::is_any_of("/"), boost::token_compress_on);
+    boost::split(SeparatedTreeItemFullName, fullname, boost::is_any_of(separator), boost::token_compress_on);
     return SeparatedTreeItemFullName;
 }
 

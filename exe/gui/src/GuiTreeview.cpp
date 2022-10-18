@@ -207,8 +207,6 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         if (IsKeyboardFocused())
             UpdateStateAfterItemClick(nextSubItem);
 
-        
-
         // click event
         if (ImGui::IsItemClicked() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) // item is clicked
             UpdateStateAfterItemClick(nextSubItem);
@@ -217,6 +215,21 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
             m_State.MainEvents.Add(OpenNewDefaultViewWindow);
+        }
+
+        // right-mouse popup menu
+        if (ImGui::BeginPopupContextItem())
+        {
+            auto base_style_color = ImGui::GetStyleColorVec4(0);
+            auto current_style_color = ImGui::GetStyleColorVec4(1);
+            ImGui::PopStyleColor(2);
+            ImGui::Text("popup menu");
+            //if (ImGui::Button("Close"))
+            //    ImGui::CloseCurrentPopup();
+            //ImGui::PushStyleColor(ImGuiCol_Text, GetColorU32(style_color));
+            ImGui::EndPopup();
+            ImGui::PushStyleColor(ImGuiCol_Text, base_style_color);
+            ImGui::PushStyleColor(ImGuiCol_Text, current_style_color);
         }
 
         // alphabetical letter jump

@@ -214,7 +214,7 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 
 			try {
 
-				os << "Statistics for " << item->GetFullName() << ":\n";
+				//os << "Statistics for " << item->GetFullName() << ":\n";
 
 				if (item->InTemplate())
 				{
@@ -240,8 +240,8 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 				
 				SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 				if (!metricStr.empty())
-				os << "\nValuesMetric " << metricStr;
-				os << "\nValuesType   " << vt->GetID();
+				os << "\nValuesMetric :" << metricStr;
+				os << "\nValuesType   :" << vt->GetID();
 
 				dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
 				if (isReady) isReady = di->PrepareData();

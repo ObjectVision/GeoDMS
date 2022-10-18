@@ -42,6 +42,7 @@ Button::Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID bu
 
 void Button::Update(GuiView& view)
 {
+    //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight())))
     {
         switch (m_Type)
@@ -76,6 +77,7 @@ void Button::Update(GuiView& view)
     {
         ImGui::SetTooltip(m_ToolTip.c_str());
     }
+    //ImGui::PopStyleColor();
 }
 
 void Button::UpdateSingle(GuiView& view)
