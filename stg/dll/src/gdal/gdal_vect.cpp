@@ -755,14 +755,14 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 
 bool GDALFieldCanBeInterpretedAsInteger(gdalVectImpl::FeaturePtr &feat, SizeT &currFieldIndex)
 {
-	if (feat && feat->IsFieldSetAndNotNull(currFieldIndex) && std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsInteger64(currFieldIndex) == 0)
+	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsInteger64(currFieldIndex) == 0))
 		return false;
 	return true;
 }
 
 bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex)
 {
-	if (feat && feat->IsFieldSetAndNotNull(currFieldIndex) && std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsDouble(currFieldIndex) == 0)
+	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsDouble(currFieldIndex) == 0))
 		return false;
 	return true;
 }
