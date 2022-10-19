@@ -48,6 +48,7 @@ public:
 	UInt32						GetData(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
 	UInt32						GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
 	SharedStr					ReadString(CharPtr name) const;
+	bool						WriteString(CharPtr name, std::string str) const;
 	std::vector<std::string>	ReadMultiString(CharPtr name) const;
 	bool						WriteMultiString(CharPtr name, std::vector<std::string> strings) const;
 	DWORD						ReadDWORD (CharPtr name) const;
@@ -59,6 +60,7 @@ protected:
 
 private:
 	std::vector<BYTE> PackVectorStringAsVectorBytes(std::vector<std::string> strings) const;
+	std::vector<BYTE> PackStringAsVectorBytes(std::string string) const;
 	HKEY m_Key;
 };
 
