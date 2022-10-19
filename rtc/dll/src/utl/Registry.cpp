@@ -147,6 +147,13 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 	return resultStr;
 }
 
+bool RegistryHandle::WriteString(CharPtr name, std::string str) const
+{
+	auto reg_value = PackStringAsVectorBytes(str);
+	RegSetValueEx(m_Key, name, NULL, REG_SZ, &reg_value[0], str.size());
+	return true;
+}
+
 std::vector<std::string> RegistryHandle::ReadMultiString(CharPtr name) const
 {
 	// get registry entry as byte array
@@ -182,6 +189,17 @@ std::vector<BYTE> RegistryHandle::PackVectorStringAsVectorBytes(std::vector<std:
 			result.push_back(c);
 		}
 		result.push_back('\0');
+	}
+	result.push_back('\0');
+	return result;
+}
+
+std::vector<BYTE> RegistryHandle::PackStringAsVectorBytes(std::string string) const
+{
+	std::vector<BYTE> result;
+	for (auto& c : string)
+	{
+		result.push_back(c);
 	}
 	result.push_back('\0');
 	return result;

@@ -42,6 +42,7 @@ Button::Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID bu
 
 void Button::Update(GuiView& view)
 {
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight())))
     {
         switch (m_Type)
@@ -76,6 +77,7 @@ void Button::Update(GuiView& view)
     {
         ImGui::SetTooltip(m_ToolTip.c_str());
     }
+    ImGui::PopStyleColor();
 }
 
 void Button::UpdateSingle(GuiView& view)
@@ -191,6 +193,7 @@ void GuiToolbar::ShowTableViewButtons(GuiView& view)
 
 void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_HorizontalScrollbar))
     {
         ImGui::End();
@@ -214,5 +217,5 @@ void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to 
     }
 
     ImGui::End();
-
+    ImGui::PopStyleVar();
 }

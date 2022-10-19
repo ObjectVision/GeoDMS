@@ -377,7 +377,7 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
-    SuspendTrigger::DoSuspend();
+    //SuspendTrigger::DoSuspend();
 
     static bool opt_fullscreen = true;
     static bool opt_padding = false;

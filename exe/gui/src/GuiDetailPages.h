@@ -154,12 +154,14 @@ private:
     void UpdateAllProperties();
     void UpdateExploreProperties();
     void UpdateStatistics();
+    void FilterStatistics();
     void DrawProperties(std::vector<std::vector<PropertyEntry>> &properties);
 	GuiState                                m_State;
     HTMLGuiComponentFactory                 m_Buff;
     std::vector<std::vector<PropertyEntry>> m_GeneralProperties;
     std::vector<std::vector<PropertyEntry>> m_AllProperties;
     std::vector<std::vector<PropertyEntry>> m_ExploreProperties;
+    std::vector<std::vector<PropertyEntry>> m_FilteredStatistics;
     std::string                             m_Statistics;
     UInt16                                  m_ColumnIndex;
 };
