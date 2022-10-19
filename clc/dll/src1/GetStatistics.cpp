@@ -174,7 +174,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 //		int lb = valuesRange.first;
 		bool useMetric = false;
 		SharedDataItemInterestPtr ipHolder;
-		streamsize_t maxLen = 20;
+		streamsize_t maxLen = 33;
 		GuiReadLock guiLock;
 
 		for (Int32 i = 0; i != binCounts.size(); ++i)
