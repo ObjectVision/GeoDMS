@@ -274,6 +274,16 @@ RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw)
 	return true;
 }
 
+RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)
+{
+	try {
+		RegistryHandleLocalMachineRW regLM;
+		auto result = regLM.WriteString(key, str);
+	}
+	catch (...) {}
+	return true;
+}
+
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings)
 {
 	try {
@@ -369,6 +379,38 @@ RTC_CALL UInt32 GetRegStatusFlags()
 	}
 exit:
 	return (g_RegStatusFlags & ~(g_OvrStatusMask | RSF_WasRead)) | (g_OvrStatusFlags & g_OvrStatusMask);
+}
+
+RTC_CALL UInt32 GetRegFlags(std::string key, bool& exists)
+{
+	UInt32 flags = 0;
+	try {
+		RegistryHandleLocalMachineRO reg;
+		if (reg.ValueExists(key.c_str()))
+		{
+			flags = reg.ReadDWORD(key.c_str());
+			exists = true;
+			return flags;
+		}
+		else
+			exists = false;
+
+	}
+	catch (...) {}
+	try {
+		RegistryHandleCurrentUserRO reg;
+		if (reg.ValueExists(key.c_str()))
+		{
+			flags = reg.ReadDWORD(key.c_str());
+			exists = true;
+			return flags;
+		}
+		else
+			exists = false;
+	}
+	catch (...) {}
+
+	return flags;
 }
 
 RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()

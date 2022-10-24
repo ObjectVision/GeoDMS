@@ -7,7 +7,15 @@ GuiOptions::GuiOptions()
 {
     m_LocalDataDirPath.resize(2048);
     m_SourceDataDirPath.resize(2048);
-    m_Editor.resize(2048);
+    m_DmsEditorPath.resize(2048);
+
+    auto tmp_ld = GetGeoDmsRegKey("LocalDataDir");
+    auto tmp_sd = GetGeoDmsRegKey("SourceDataDir");
+    auto tmp_ed = GetGeoDmsRegKey("DmsEditor");
+
+    std::copy(tmp_ld.begin(), tmp_ld.end(), m_LocalDataDirPath.begin());
+    std::copy(tmp_sd.begin(), tmp_sd.end(), m_SourceDataDirPath.begin());
+    std::copy(tmp_ed.begin(), tmp_ed.end(), m_DmsEditorPath.begin());
 }
 
 void GuiOptions::Update(bool* p_open)
@@ -33,8 +41,23 @@ void GuiOptions::Update(bool* p_open)
                 if (ImGui::InputText("##LocalDataDir", reinterpret_cast<char*> (&m_LocalDataDirPath[0]), m_LocalDataDirPath.size(), ImGuiInputTextFlags_EnterReturnsTrue))
                 {
                     std::string LocalDataDir = {m_LocalDataDirPath.begin(), m_LocalDataDirPath.end()};
-                    int i = 0;
+                    SetGeoDmsRegKeyString("LocalDataDir", LocalDataDir);
                 }
+
+                ImGui::Text("SourceDataDir:"); ImGui::SameLine();
+                if (ImGui::InputText("##SourceDataDir", reinterpret_cast<char*> (&m_SourceDataDirPath[0]), m_SourceDataDirPath.size(), ImGuiInputTextFlags_EnterReturnsTrue))
+                {
+                    std::string SourceDataDir = { m_SourceDataDirPath.begin(), m_SourceDataDirPath.end() };
+                    SetGeoDmsRegKeyString("SourceDataDir", SourceDataDir);
+                }
+
+                ImGui::Text("DmsEditor:"); ImGui::SameLine();
+                if (ImGui::InputText("##DmsEditor", reinterpret_cast<char*> (&m_DmsEditorPath[0]), m_DmsEditorPath.size(), ImGuiInputTextFlags_EnterReturnsTrue))
+                {
+                    std::string DmsEditor = { m_DmsEditorPath.begin(), m_DmsEditorPath.end() };
+                    SetGeoDmsRegKeyString("DmsEditor", DmsEditor); 
+                }
+
                 //GetLocalDataDir
                 ImGui::Separator();
                 ImGui::Text("External Programs");

@@ -113,6 +113,7 @@ enum RegStatusFlags
 };
 
 RTC_CALL UInt32 GetRegStatusFlags();
+RTC_CALL UInt32 GetRegFlags(std::string key, bool &exists);
 RTC_CALL void SetRegStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
@@ -135,6 +136,7 @@ RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
 RTC_CALL std::vector<std::string> GetGeoDmsRegKeyMultiString(CharPtr key);
 
 RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw);
+RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str);
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings);
 
 //  -----------------------------------------------------------------------

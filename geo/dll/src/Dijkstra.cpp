@@ -530,17 +530,21 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					NodeType currNode = dh.Front().Value(); dms_assert(currNode < ni.nrV);
 					ImpType currImp = dh.Front().Imp();
 
-					if (flags(df & DijkstraFlag::VerboseLogging))
-					{
-						reportF(SeverityTypeID::ST_MajorTrace, "Node % accepted at impedance % ", currNode, currImp);
-					}
-
 					dh.PopNode();
 					dms_assert(currImp >= 0);
 
 					// If alternative route from heap was faster: accept that when we are certain of it 
 					if (!dh.MarkFinal(currNode, currImp))
 						continue;
+
+					if (flags(df & DijkstraFlag::VerboseLogging))
+					{
+						reportF(SeverityTypeID::ST_MajorTrace, "Node %1% accepted at impedance %2% from link %3%"
+							, currNode, currImp
+							, (trIsUsed) ? dh.m_TraceBackDataPtr[currNode] : 0
+						);
+					}
+
 					if (trIsUsed)
 					{
 						dms_assert(dh.m_TraceBackDataPtr);

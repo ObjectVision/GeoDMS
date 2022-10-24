@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define MG_DEBUG_DIJKSTRA true
 #endif //defined(MG_DEBUG)
 
-enum class DijkstraFlag : UInt32
+enum class DijkstraFlag : UInt64
 {
 	VerboseLogging = 0x01,
 	Bidirectional  = 0x02,
@@ -88,8 +88,8 @@ enum class DijkstraFlag : UInt32
 	ProdLinkFlow  = 0x10000000, // DONE ?
 	Counting      = 0x20000000,
 
-	ProdOdStartPoint_rel = 0x40000000,
-	ProdOdEndPoint_rel = 0x80000000,
+	ProdOdStartPoint_rel = 0x100000000,
+	ProdOdEndPoint_rel = 0x200000000,
 
 	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply,
 	Interaction = TripDistr | ProdLinkFlow,
@@ -100,7 +100,7 @@ enum class DijkstraFlag : UInt32
 //	TmbTB = DijkstraFlag::UseAltLinkImp | DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOdLinkSet,
 };
 
-ENUM_FLAGS_EX(DijkstraFlag, UInt32)
+ENUM_FLAGS_EX(DijkstraFlag, UInt64)
 
 // single with 1 or several srcspec, indicating 1 zone
 // OD with all nodes as separate zones
