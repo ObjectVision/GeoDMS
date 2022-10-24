@@ -235,12 +235,12 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
 		return nullptr;
 
-	SharedStr dialogData = dialogDataPropDefPtr->GetValue(gridDataDomain);
-	if (dialogData.empty() && storageHolder != gridDataDomain)
-		dialogData = dialogDataPropDefPtr->GetValue(storageHolder);
+	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
+	if (coordRef.empty() && storageHolder != gridDataDomain)
+		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
 
 	const AbstrUnit* uBase = nullptr;
-	if (dialogData.empty())
+	if (coordRef.empty())
 	{
 		uBase = AsDynamicUnit(storageHolder);
 		if (!uBase && IsDataItem(storageHolder))
@@ -258,10 +258,21 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 	{
 		if (gridDataDomain->GetTreeParent())
 			storageHolder = gridDataDomain->GetTreeParent();
-		uBase = AsDynamicUnit(storageHolder->FindItem(dialogData));
+		auto coordItem = storageHolder->FindItem(coordRef);
+		if (!coordItem)
+			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+		if (!IsUnit(coordItem))
+		{
+			auto coordItemName = SharedStr(coordItem->GetFullName());
+			storageHolder->throwItemErrorF("DialogData reference '%s' refers to %s, but this is not a projection unit as expected", coordRef.c_str(), coordItemName.c_str());
+		}
+		uBase = AsUnit(coordItem);
 	}
 	if (uBase && uBase->GetNrDimensions() != 2)
-		uBase = nullptr;
+	{
+		auto coordItemName = SharedStr(uBase->GetFullName());
+		storageHolder->throwItemErrorF("Found coordinate base '%s' is not a geometric domain",  coordItemName.c_str());
+	}
 	if (uBase)
 	{
 		uBase->UpdateMetaInfo();
