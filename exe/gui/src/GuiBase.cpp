@@ -201,3 +201,13 @@ void GuiState::LoadWindowOpenStatusFlags()
     ShowToolbar             = flags & GWOF_ToolBar;
     ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
 }
+
+void   LoadIniFromRegistry()
+{
+
+}
+
+void   SaveIniToRegistry()
+{
+
+}

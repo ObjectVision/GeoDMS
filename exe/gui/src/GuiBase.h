@@ -288,3 +288,5 @@ ImVec2 SetCursorPosToOptionsIconInWindowHeader();
 void   SetClipRectToIncludeOptionsIconInWindowHeader();
 bool   MouseHooversOptionsIconInWindowHeader();
 void   SetKeyboardFocusToThisHwnd();
+void   LoadIniFromRegistry();
+void   SaveIniToRegistry();

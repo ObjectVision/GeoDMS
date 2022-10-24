@@ -292,6 +292,10 @@ int GuiMainComponent::Init()
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 
+    // load ini file
+    //use: io.IniFilename = NULL; to disable automatic loading ini file
+    LoadIniFromRegistry();
+
     return 0;
 }
 
