@@ -117,7 +117,7 @@ struct VirtualAllocPage
 		pagePtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, BLOCK_PAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS));
 	}
 
-	VirtualAllocPage(VirtualAllocPage&& rhs)
+	VirtualAllocPage(VirtualAllocPage&& rhs) noexcept
 		: pagePtr(rhs.pagePtr)
 		, BLOCK_PAGE_SIZE(rhs.BLOCK_PAGE_SIZE)
 	{

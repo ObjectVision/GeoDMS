@@ -292,6 +292,10 @@ int GuiMainComponent::Init()
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 
+    // load ini file
+    io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
+    LoadIniFromRegistry();
+
     return 0;
 }
 
@@ -316,8 +320,14 @@ int GuiMainComponent::MainLoop()
         if (m_State.configFilenameManager.HasNew())
         {
             CloseCurrentConfig();
-            glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + std::string(" - ") + DMS_GetVersion()).c_str());
+            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
+            auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
+
+            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
+
+            //glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
+            
             //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 
             DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
@@ -362,7 +372,9 @@ int GuiMainComponent::MainLoop()
         glfwSwapBuffers(m_Window);
     }
 
+    // Persistently store gui state in registry
     m_State.SaveWindowOpenStatusFlags();
+    SaveIniToRegistry();
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

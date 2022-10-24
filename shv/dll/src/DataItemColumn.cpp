@@ -615,7 +615,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 	}
 	else
 	{
-		auto textInfo = GetText(recNo, isActive ? -1 : MAX_TEXTOUT_SIZE, locks);
+		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		DrawEditText(
 			d.GetDC(),
 			elemExtents,

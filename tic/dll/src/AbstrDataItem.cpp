@@ -319,17 +319,31 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	auto res = debug_cast<AbstrDataItem*>(result);
 
 	// only copy unitnames when not defined
-	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit)) res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(GetAbstrDomainUnit(), this, res);
-	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit)) res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(GetAbstrValuesUnit(), this, res);
-	res->m_StatusFlags.SetValueComposition(GetValueComposition());
-/*
-	if (!InTemplate())
+	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit))
 	{
-		if (!IsDefined(res->m_tDomainUnit)) res->m_DomainUnit = GetAbstrDomainUnit();
-		if (!IsDefined(res->m_tValuesUnit)) res->m_ValuesUnit = GetAbstrValuesUnit();
-		res->InitDataItem(GetAbstrDomainUnit(), GetAbstrValuesUnit(), GetDynamicObjClass());
+		try {
+			auto adu = GetAbstrDomainUnit();
+			res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
+		}
+		catch (...)
+		{
+			CatchFail(FR_MetaInfo);
+			res->m_tDomainUnit = m_tDomainUnit;
+		}
 	}
-	*/
+	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit))
+	{
+		try {
+			auto avu = GetAbstrValuesUnit();
+			res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
+		}
+		catch (...)
+		{
+			CatchFail(FR_MetaInfo);
+			res->m_tValuesUnit = m_tValuesUnit;
+		}
+	}
+	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 }
 
 ValueComposition AbstrDataItem::GetValueComposition() const
