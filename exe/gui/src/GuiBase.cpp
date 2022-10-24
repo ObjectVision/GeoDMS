@@ -204,10 +204,17 @@ void GuiState::LoadWindowOpenStatusFlags()
 
 void   LoadIniFromRegistry()
 {
-
+    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    if (!ini_registry_contents.empty())
+    {
+        reportF(SeverityTypeID::ST_MajorTrace, "Loading GeoDMS window composition from registry.");
+        ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
+    }
 }
 
 void   SaveIniToRegistry()
 {
-
+    std::string ini_contents = ImGui::SaveIniSettingsToMemory();
+    SetGeoDmsRegKeyString("WindowComposition", ini_contents);
+    reportF(SeverityTypeID::ST_MajorTrace, "Storing GeoDMS window composition in registry.");
 }

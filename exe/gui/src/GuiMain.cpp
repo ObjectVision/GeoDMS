@@ -293,7 +293,7 @@ int GuiMainComponent::Init()
     m_State.LoadWindowOpenStatusFlags();
 
     // load ini file
-    //use: io.IniFilename = NULL; to disable automatic loading ini file
+    io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
     LoadIniFromRegistry();
 
     return 0;
@@ -366,7 +366,9 @@ int GuiMainComponent::MainLoop()
         glfwSwapBuffers(m_Window);
     }
 
+    // Persistently store gui state in registry
     m_State.SaveWindowOpenStatusFlags();
+    SaveIniToRegistry();
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
