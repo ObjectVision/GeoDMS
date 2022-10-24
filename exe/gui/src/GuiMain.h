@@ -35,7 +35,7 @@ private:
 	GuiCurrentItemComponent m_CurrentItemComponent;
 	GuiToolbar              m_Toolbar;
 	GuiEventLog		        m_EventLog;
-	GuiView					m_View; // single view
+	GuiView					m_View; // TODO: convert single view to multiview
 	GuiOptions				m_Options;
 	int		                m_MaxViews = 2;
 	int                     m_TableViewsCursor = 0;

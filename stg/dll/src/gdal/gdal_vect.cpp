@@ -753,6 +753,20 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 	}
 }
 
+bool GDALFieldCanBeInterpretedAsInteger(gdalVectImpl::FeaturePtr &feat, SizeT &currFieldIndex)
+{
+	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsInteger64(currFieldIndex) == 0))
+		return false;
+	return true;
+}
+
+bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex)
+{
+	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsDouble(currFieldIndex) == 0))
+		return false;
+	return true;
+}
+
 template <typename T>
 void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_traits<T>::seq_t data, SizeT firstIndex, SizeT size, GDALDataset* hDS)
 {
@@ -767,7 +781,7 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 
 		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		
-		if (feat && !feat->IsFieldNull(currFieldIndex) && feat->IsFieldSet(currFieldIndex))
+		if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex))
 			dataElemRef = feat->GetFieldAsInteger(currFieldIndex);
 		else
 			Assign( dataElemRef, Undefined() );
@@ -788,7 +802,7 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 
 		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
 		
-		if (feat && !feat->IsFieldNull(currFieldIndex) && feat->IsFieldSet(currFieldIndex))
+		if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex))
 			dataElemRef = feat->GetFieldAsInteger64(currFieldIndex);
 		else
 			Assign(dataElemRef, Undefined());
@@ -808,7 +822,7 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 		typename DataArray<T>::reference dataElemRef = data[i];
 
 		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		if (feat && !feat->IsFieldNull(currFieldIndex))
+		if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex))
 			dataElemRef = feat->GetFieldAsDouble(currFieldIndex);
 		else
 			Assign( dataElemRef, Undefined() );

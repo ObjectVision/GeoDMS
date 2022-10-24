@@ -90,10 +90,10 @@ GuiBaseComponent::GuiBaseComponent(){}
 GuiBaseComponent::~GuiBaseComponent(){}
 void GuiBaseComponent::Update(){}
 
-std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname)
+std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator)
 {
     std::vector<std::string> SeparatedTreeItemFullName;
-    boost::split(SeparatedTreeItemFullName, fullname, boost::is_any_of("/"), boost::token_compress_on);
+    boost::split(SeparatedTreeItemFullName, fullname, boost::is_any_of(separator), boost::token_compress_on);
     return SeparatedTreeItemFullName;
 }
 
@@ -162,18 +162,36 @@ void SetKeyboardFocusToThisHwnd()
 void GuiState::SaveWindowOpenStatusFlags()
 {
     UInt32 flags = 0;
-    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
-    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
-    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
-    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
-    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
-    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowTreeviewWindow      ? flags |= GWOF_TreeView        : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow   ? flags |= GWOF_DetailPages     : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow      ? flags |= GWOF_EventLog        : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
+    flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
     SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
+}
+
+void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availability of registry param
+{
+    ShowTreeviewWindow      = true;
+    ShowDetailPagesWindow   = true;
+    ShowEventLogWindow      = true;
+    ShowOptionsWindow       = false;
+    ShowToolbar             = false;
+    ShowCurrentItemBar      = true;
+    SaveWindowOpenStatusFlags();
 }
 
 void GuiState::LoadWindowOpenStatusFlags()
 {
-    auto flags = GetRegFlags("WindowOpenStatusFlags");
+    bool exists = false;
+    auto flags = GetRegFlags("WindowOpenStatusFlags", exists);
+
+    if (!exists)
+    {
+        SetWindowOpenStatusFlagsOnFirstUse();
+        return;
+    }
 
     // update open state based on flags
     ShowTreeviewWindow      = flags & GWOF_TreeView;
@@ -182,4 +200,21 @@ void GuiState::LoadWindowOpenStatusFlags()
     ShowOptionsWindow       = flags & GWOF_Options;
     ShowToolbar             = flags & GWOF_ToolBar;
     ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
+}
+
+void   LoadIniFromRegistry()
+{
+    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    if (!ini_registry_contents.empty())
+    {
+        reportF(SeverityTypeID::ST_MajorTrace, "Loading GeoDMS window composition from registry.");
+        ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
+    }
+}
+
+void   SaveIniToRegistry()
+{
+    std::string ini_contents = ImGui::SaveIniSettingsToMemory();
+    SetGeoDmsRegKeyString("WindowComposition", ini_contents);
+    reportF(SeverityTypeID::ST_MajorTrace, "Storing GeoDMS window composition in registry.");
 }

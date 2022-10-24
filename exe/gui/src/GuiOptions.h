@@ -13,5 +13,5 @@ private:
 	GuiState			      m_State;
 	std::vector<char>		  m_LocalDataDirPath;
 	std::vector<char>		  m_SourceDataDirPath;
-	std::vector<char>		  m_Editor;
+	std::vector<char>		  m_DmsEditorPath;
 };

@@ -174,7 +174,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 //		int lb = valuesRange.first;
 		bool useMetric = false;
 		SharedDataItemInterestPtr ipHolder;
-		streamsize_t maxLen = 20;
+		streamsize_t maxLen = 33;
 		GuiReadLock guiLock;
 
 		for (Int32 i = 0; i != binCounts.size(); ++i)
@@ -214,7 +214,7 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 
 			try {
 
-				os << "Statistics for " << item->GetFullName() << ":\n";
+				//os << "Statistics for " << item->GetFullName() << ":\n";
 
 				if (item->InTemplate())
 				{
@@ -240,8 +240,8 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 				
 				SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 				if (!metricStr.empty())
-				os << "\nValuesMetric " << metricStr;
-				os << "\nValuesType   " << vt->GetID();
+				os << "\nValuesMetric :" << metricStr;
+				os << "\nValuesType   :" << vt->GetID();
 
 				dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
 				if (isReady) isReady = di->PrepareData();

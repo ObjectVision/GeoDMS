@@ -51,7 +51,8 @@ enum GuiEvents
 	OpenNewMapViewWindow = 4,
 	OpenNewTableViewWindow = 5,
 	OpenNewConfiguration = 6,
-	OpenInMemoryDataView = 7
+	OpenInMemoryDataView = 7,
+	OpenNewDefaultViewWindow = 8
 };
 
 class GuiTreeItemsHolder
@@ -262,6 +263,9 @@ public:
 	void   SaveWindowOpenStatusFlags();
 	void   LoadWindowOpenStatusFlags();
 
+	// on first use
+	void   SetWindowOpenStatusFlagsOnFirstUse();
+
 private:
 	static TreeItem* m_Root;
 	static TreeItem* m_CurrentItem;
@@ -277,10 +281,12 @@ private:
 };
 
 // Helper functions
-std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname);
+std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/");
 TreeItem* SetJumpItemFullNameToOpenInTreeView(TreeItem* root, std::vector<std::string> SeparatedTreeItemFullName);
 std::string GetExeFilePath();
 ImVec2 SetCursorPosToOptionsIconInWindowHeader();
 void   SetClipRectToIncludeOptionsIconInWindowHeader();
 bool   MouseHooversOptionsIconInWindowHeader();
 void   SetKeyboardFocusToThisHwnd();
+void   LoadIniFromRegistry();
+void   SaveIniToRegistry();
