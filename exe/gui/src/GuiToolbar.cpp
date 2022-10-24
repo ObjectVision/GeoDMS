@@ -204,7 +204,7 @@ void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to 
     }
    
     // focus window when clicked
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))//ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     if (!view.m_Views.empty())
