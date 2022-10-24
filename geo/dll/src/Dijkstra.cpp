@@ -492,7 +492,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						resLinkFlow.resize(ni.nrE, 0);
 				}
 
-				OwningPtrSizedArray<LinkType> traceBackBuffer;
+				
 				if (res.node_TB || flags(df & DijkstraFlag::VerboseLogging))
 				{
 					dms_assert(!useTraceBack);
@@ -501,8 +501,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					dh.m_TraceBackDataPtr = res.node_TB;
 					if (!dh.m_TraceBackDataPtr)
 					{
-						traceBackBuffer.resizeSO(ni.nrV, false);
-						dh.m_TraceBackDataPtr = traceBackBuffer.begin();
+						dh.m_TraceBackBuffer.resizeSO(ni.nrV, false MG_DEBUG_ALLOCATOR_SRC_STR("Dijkstra: traceBack"));
+						dh.m_TraceBackDataPtr = dh.m_TraceBackBuffer.begin();
 					}
 					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
 				}
