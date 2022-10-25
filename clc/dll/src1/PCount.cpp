@@ -48,6 +48,7 @@ granted by an additional written contract for support, assistance and/or develop
 namespace {
 
 	CommonOperGroup cog_pcount ("pcount", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_has_any("has_any");
 	CommonOperGroup cog_pcount_uint8("pcount_uint8");
 	CommonOperGroup cog_pcount_uint16("pcount_uint16");
 	CommonOperGroup cog_pcount_uint32("pcount_uint32");
@@ -151,9 +152,99 @@ namespace {
 		};
 	};
 
+	template <typename EnumType>
+	class HasAnyOperator : public UnaryOperator
+	{
+		using enum_t = EnumType;
+		using range_t = typename Unit<enum_t>::range_t;
+		using Arg1Type = DataArray<enum_t>;   // indices vector
+		using arg_cseq_t = typename sequence_traits<enum_t>::cseq_t;
+		using ResultType = DataArray<Bool>;
+
+	public:
+		HasAnyOperator(AbstrOperGroup& og)
+			: UnaryOperator(&og,
+				ResultType::GetStaticClass(),
+				Arg1Type::GetStaticClass()
+			)
+		{}
+
+		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+		{
+			dms_assert(args.size() == 1);
+
+			const AbstrDataItem* arg1A = AsDataItem(args[0]);
+			dms_assert(arg1A);
+
+			const Unit<enum_t>* e1 = debug_cast<const Unit<enum_t>*>(arg1A->GetAbstrValuesUnit()); // LANDUSE CLASSES
+			dms_assert(e1);
+
+			if (!resultHolder)
+			{
+				SharedPtr<const AbstrUnit> resValuesUnit;
+				resValuesUnit = default_unit_creator<Bool>();
+				resultHolder = CreateCacheDataItem(e1, resValuesUnit);
+			}
+
+			if (mustCalc)
+			{
+				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+
+				const Arg1Type* arg1 = const_array_cast<enum_t>(arg1A);
+				dms_assert(arg1);
+
+				DataReadLock  arg1Lock(arg1A);
+				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+
+				tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
+				tile_id tnr = e1->GetNrTiles();
+				DataCheckMode dcm = ((tnr > 1) ? DCM_CheckRange : arg1A->GetCheckMode());
+
+				SizeT nrRes = e1->GetCount();
+				auto resObj = resLock.get();
+				auto resData = mutable_array_cast<Bool>(resObj)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
+				{
+					Concurrency::combinable<sequence_traits<Bool>::container_type> hasAnies;
+					parallel_tileloop(arg1A->GetAbstrDomainUnit()->GetNrTiles(), [nrRes, arg1, indexRange = e1->GetRange(), dcm, &hasAnies](tile_id t)
+						{
+							auto& localHasAnies = hasAnies.local();
+							localHasAnies.resize(nrRes);
+							auto arg1Data = arg1->GetTile(t);
+							has_any_container<enum_t>(sequence_traits<Bool>::seq_t(&localHasAnies), arg1Data, indexRange, dcm);
+						}
+					);
+					hasAnies.combine_each(
+						[&resData](auto& localHasAnies) {
+							dms_assert(resData.size() == localHasAnies.size());
+							for (SizeT i = 0, n = resData.size(); i != n; ++i)
+								if (localHasAnies[i].value())
+									resData[i] = true;
+						});
+				}
+				else
+				{
+					for (tile_id t = 0; t != tn; ++t)
+						has_any_container<enum_t>(resData.get_view(), arg1->GetTile(t).get_view(), e1->GetRange(), dcm);
+				}
+				resLock.Commit();
+			}
+			return true;
+		}
+	};
+
+	struct HasAnyOperatorGenerator {
+		template <typename EnumType> struct Operator : HasAnyOperator<EnumType> {
+			using base_type = HasAnyOperator<EnumType>;
+			using base_type::base_type;
+		};
+	};
+
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator<_>, AbstrOperGroup& > partCountOpers(cog_pcount);
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator<_>, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator<_>, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator<_>, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
+
+	tl_oper::inst_tuple<typelists::partition_elements, HasAnyOperatorGenerator::Operator<_>, AbstrOperGroup& > hasAnyOpers(cog_has_any);
 } // end anonymous namespace
 

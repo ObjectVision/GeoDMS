@@ -365,7 +365,7 @@ struct bit_sequence : bit_sequence_base<N, Block>
 
 	template <typename OthBlock>
 	bit_sequence(BitVector<N, OthBlock>* cont)
-		:	bit_sequence_base(cont->data_begin(),  cont->size())
+		:	bit_sequence_base<N, Block>(cont->data_begin(),  cont->size())
 	{}
 
 	size_type size () const { return this->m_NrElems; }

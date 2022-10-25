@@ -31,6 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__CLC_PCOUNT_H)
 #define __CLC_PCOUNT_H
 
+#include "set/BitVector.h"
 #include "DataCheckMode.h"
 #include "Unit.h"
 
@@ -239,6 +240,30 @@ void pcount_container(
 	dms_assert(rs == Cardinality(domainRange));
 
 	pcount_best(sb, se, rb, rs, domainRange, dcm, mustInit);
+}
+
+
+template<typename E>
+//requires( std::ranges::contiguous_range<ResSequence> && std::ranges::view<IndexDataSequence>)
+//requires(std::ranges::contiguous_range<ResSequence>&& std::ranges::view<IndexDataSequence>)
+void has_any_container(
+	typename sequence_traits<Bool>::seq_t  resData
+	, typename sequence_traits<E>::cseq_t argData
+	, typename Unit<E>::range_t domainRange
+	, DataCheckMode dcm)
+{
+	auto sb = argData.begin(), se = argData.end();
+	auto rb = resData.begin();
+	SizeT rs = resData.size();
+
+	dms_assert(rs == Cardinality(domainRange));
+	for (; sb != se; ++sb)
+	{
+		E v = *sb;
+		SizeT i = Range_GetIndex_checked(domainRange, v);
+		if (i < rs)
+			rb[i] = true;
+	}
 }
 
 

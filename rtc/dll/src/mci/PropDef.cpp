@@ -153,16 +153,17 @@ TokenID GetXmlModeID(xml_mode m)
 	static_assert(int(xml_mode::signature) == 2);
 	static_assert(int(xml_mode::attribute) == 3);
 	static_assert(int(xml_mode::element) == 4);
+	if (UInt32(m) > UInt32(xml_mode::element))
 		throwErrorD("PropDef", "Unknown xml_mode");
 
 	static TokenID xmlModeID[5] = {
-		TokenID("none", (st_tag*) nullptr),
-		TokenID("name", (st_tag*) nullptr),
-		TokenID("signature", (st_tag*) nullptr),
-		TokenID("attribute", (st_tag*) nullptr),
-		TokenID("element", (st_tag*) nullptr)
+		TokenID("none", (mt_tag*) nullptr),
+		TokenID("name", (mt_tag*) nullptr),
+		TokenID("signature", (mt_tag*) nullptr),
+		TokenID("attribute", (mt_tag*) nullptr),
+		TokenID("element", (mt_tag*) nullptr)
 	};
-	return xmlModeID[int(m)];
+	return xmlModeID[UInt32(m)];
 }
 
 struct XmlModeProp: ReadOnlyPropDef<AbstrPropDef, TokenID>
@@ -188,10 +189,10 @@ TokenID GetSetModeID(set_mode m)
 	if (UInt32(m) > UInt32(set_mode::optional))
 		throwErrorD("PropDef", "Unknown set_mode");
 	static TokenID setModeID[4] = {
-		TokenID("none", (st_tag*)nullptr),
-		TokenID("construction", (st_tag*)nullptr),
-		TokenID("obligated", (st_tag*)nullptr),
-		TokenID("optional", (st_tag*)nullptr)
+		TokenID("none", (mt_tag*)nullptr),
+		TokenID("construction", (mt_tag*)nullptr),
+		TokenID("obligated", (mt_tag*)nullptr),
+		TokenID("optional", (mt_tag*)nullptr)
 	};
 	return setModeID[UInt32(m)];
 }
@@ -216,16 +217,15 @@ TokenID GetCpyModeID(cpy_mode m)
 	static_assert(int(cpy_mode::expr) == 2);
 	static_assert(int(cpy_mode::all) == 3);
 
-	if (m > cpy_mode::all)
+	if (UInt32(m) > UInt32(cpy_mode::all))
 		throwErrorD("PropDef", "Unknown cpy_mode");
 	static TokenID cpyModeID[4] = {
-		TokenID("none", (st_tag*)nullptr),
-		TokenID("subexpr", (st_tag*)nullptr),
-		TokenID("expr", (st_tag*)nullptr),
-		TokenID("all", (st_tag*)nullptr)
+		TokenID("none", (mt_tag*)nullptr),
+		TokenID("subexpr", (mt_tag*)nullptr),
+		TokenID("expr", (mt_tag*)nullptr),
+		TokenID("all", (mt_tag*)nullptr)
 	};
-	assert(int(m) >= 0);
-	return cpyModeID[int(m)];
+	return cpyModeID[UInt32(m)];
 }
 
 struct CpyModeProp: ReadOnlyPropDef<AbstrPropDef, TokenID>
@@ -250,9 +250,9 @@ TokenID GetChgModeID(chg_mode m)
 	if (UInt32(m) > UInt32(chg_mode::invalidate))
 		throwErrorD("PropDef", "Unknown chg_mode");
 	static TokenID chgModeID[3] = {
-		TokenID("none", (st_tag*)nullptr),
-		TokenID("eval", (st_tag*)nullptr),
-		TokenID("invalidate", (st_tag*)nullptr)
+		TokenID("none", (mt_tag*)nullptr),
+		TokenID("eval", (mt_tag*)nullptr),
+		TokenID("invalidate", (mt_tag*)nullptr)
 	};
 	return chgModeID[UInt32(m)];
 }

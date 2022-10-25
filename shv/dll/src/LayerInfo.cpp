@@ -220,7 +220,17 @@ bool RefersToMappable(const TreeItem* ti)
 const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 {
 	dms_assert( IsThisMappable(ti) );
-	return AsDynamicDataItem( GetDialogDataRef(ti) );
+	auto ref = GetDialogDataRef(ti);
+	if (!ref)
+		return nullptr;
+
+	auto dataRef = AsDynamicDataItem( ref );
+	if (!dataRef)
+	{
+		auto refFullName = SharedStr(ref->GetFullName());
+		ti->throwItemErrorF("DialogData refers to '%s' but this is not an attribute", refFullName.c_str());
+	}
+	return dataRef;
 }
 
 const TreeItem* GetMappingItem(const TreeItem* ti)

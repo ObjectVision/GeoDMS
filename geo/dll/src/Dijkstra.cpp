@@ -492,12 +492,18 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						resLinkFlow.resize(ni.nrE, 0);
 				}
 
-				if (res.node_TB)
+				
+				if (res.node_TB || flags(df & DijkstraFlag::VerboseLogging))
 				{
 					dms_assert(!useTraceBack);
 					dms_assert(!flags(df & DijkstraFlag::OD));
 					dms_assert(!dh.m_TraceBackData);
 					dh.m_TraceBackDataPtr = res.node_TB;
+					if (!dh.m_TraceBackDataPtr)
+					{
+						dh.m_TraceBackBuffer.resizeSO(ni.nrV, false MG_DEBUG_ALLOCATOR_SRC_STR("Dijkstra: traceBack"));
+						dh.m_TraceBackDataPtr = dh.m_TraceBackBuffer.begin();
+					}
 					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
 				}
 
@@ -541,7 +547,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					{
 						reportF(SeverityTypeID::ST_MajorTrace, "Node %1% accepted at impedance %2% from link %3%"
 							, currNode, currImp
-							, (trIsUsed) ? dh.m_TraceBackDataPtr[currNode] : 0
+							, dh.m_TraceBackDataPtr[currNode]
 						);
 					}
 
