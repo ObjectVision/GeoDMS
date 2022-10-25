@@ -762,9 +762,18 @@ bool GDALFieldCanBeInterpretedAsInteger(gdalVectImpl::FeaturePtr &feat, SizeT &c
 
 bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex)
 {
-	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsDouble(currFieldIndex) == 0))
+	if (!feat)
 		return false;
-	return true;
+	if (!feat->IsFieldSetAndNotNull(currFieldIndex))
+		return false;
+	if (feat->GetFieldAsDouble(currFieldIndex) != 0)
+		return true;
+	auto fieldAsString = std::string(feat->GetFieldAsString(currFieldIndex));
+	if (fieldAsString == "0")
+		return true;
+	if (fieldAsString == "0.0")
+		return true;
+	return false;
 }
 
 template <typename T>
