@@ -500,7 +500,7 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 		else
 		{
 			if (tn == 0)
-				this->m_RangeDataPtr.reset();
+				this->m_RangeDataPtr.reset(new DefaultTileRangeData<V>(range));
 			else if (tn == no_tile) // assume one big old tile (as in 7.xxx)
 				this->m_RangeDataPtr.reset(new RegularTileRangeData<V>(range, Size(range)));
 			else
