@@ -42,7 +42,35 @@ void GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, Ch
 void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
 {
     // add popup on error or fatal error
-    AddLog(SeverityTypeID::ST_Error, msg);
+    //AddLog(SeverityTypeID::ST_Error, msg);
+
+    GuiState state;
+    ImGui::OpenPopup("Error");
+    state.errorDialogMessage.Set(msg);
+
+
+    /*static bool open_error_window = true;
+    //if (ImGui::Begin("ERRORBOT", &open_error_window, ImGuiWindowFlags_None))
+    //{
+        ImGui::OpenPopup("Errordialog");
+        if (ImGui::BeginPopupModal("Errordialog", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::InputTextMultiline("##ErrorDialog", const_cast<char*>(msg), sizeof(msg), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+        // knop OK mag weg
+        // knop terminate Vervangen door Abort
+        // alleen mail knop bij "contact object vision" in tekst DMSException.cpp 367
+
+
+        // Early out if the window is collapsed, as an optimization.
+        //ImGui::End();*/
+        return;
+    //}
+
+
+
 }
 
 void GuiEventLog::Update(bool* p_open)

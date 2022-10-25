@@ -140,20 +140,19 @@ std::string StartWindowsFileDialog()
     auto parent_path = std::filesystem::path(last_filename).parent_path();
     COMDLG_FILTERSPEC ComDlgFS[1] = {{L"Configuration files", L"*.dms;*.xml"}};
 
+    std::string result_file = "";
+    std::wstring test_file;
+
     HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (SUCCEEDED(hr))
     {
         IFileOpenDialog* pFileOpen;
         // Create the FileOpenDialog object.
         hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
-        //pFileOpen->SetDefaultFolder(parent_path);
-
         pFileOpen->SetFileTypes(1, ComDlgFS);
 
         IShellItem* psiDefault = NULL;
         hr = SHCreateItemFromParsingName(parent_path.c_str(), NULL, IID_PPV_ARGS(&psiDefault));
-        //hr = SHCreateItemFromParsingName(L"C:\\Users\\", NULL, IID_PPV_ARGS(&psiDefault));
         pFileOpen->SetDefaultFolder(psiDefault);
 
         if (SUCCEEDED(hr))
@@ -174,7 +173,15 @@ std::string StartWindowsFileDialog()
                     // Display the file name to the user.
                     if (SUCCEEDED(hr))
                     {
-                        MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+                        //MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+                        //result_file = *pszFilePath;
+                        test_file = std::wstring(pszFilePath);
+                        using convert_type = std::codecvt_utf8<wchar_t>;
+                        std::wstring_convert<convert_type, wchar_t> converter;
+
+                        //use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+                        result_file = converter.to_bytes(test_file);
+                        
                         CoTaskMemFree(pszFilePath);
                     }
                     pItem->Release();
@@ -186,9 +193,7 @@ std::string StartWindowsFileDialog()
         CoUninitialize();
     }
 
-
-
-    return "";
+    return result_file;
 }
 
 void GuiMenuFileComponent::Update()
@@ -209,12 +214,40 @@ void GuiMenuFileComponent::Update()
     ImGui::SetNextItemOpen(true);
     if (ImGui::BeginMenu("File"))
     {
-        if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
-            m_fileDialog.Open();
+        //if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
+        //    m_fileDialog.Open();
 
-        if (ImGui::MenuItem("Open Windows File Dialog"))
+        if (ImGui::Button("Delete.."))
+            ImGui::OpenPopup("Delete?");
+
+        if (ImGui::BeginPopupModal("Delete?", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("All those beautiful files will be deleted.\nThis operation cannot be undone!\n\n");
+            ImGui::Separator();
+
+            //static int unused_i = 0;
+            //ImGui::Combo("Combo", &unused_i, "Delete\0Delete harder\0");
+
+            static bool dont_ask_me_next_time = false;
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+            ImGui::Checkbox("Don't ask me next time", &dont_ask_me_next_time);
+            ImGui::PopStyleVar();
+
+            if (ImGui::Button("OK", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::SetItemDefaultFocus();
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::MenuItem("Open Configuration File", "Ctrl+O"))
         {
             auto file_name = StartWindowsFileDialog();
+            if (!file_name.empty())
+            {
+                m_State.configFilenameManager.Set(file_name);
+                SetGeoDmsRegKeyString("LastConfigFile", file_name);
+            }
         }
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 

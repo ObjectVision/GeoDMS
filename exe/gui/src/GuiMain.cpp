@@ -234,6 +234,33 @@ void GuiMainComponent::CloseCurrentConfig()
     m_State.clear();
 }
 
+bool GuiMainComponent::ShowErrorDialogIfNecessary()
+{
+    //if (!m_State.errorDialogMessage.HasNew())
+    //    return false;
+
+    if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
+
+        if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Abort", ImVec2(120, 0))) 
+        { 
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Email", ImVec2(120, 0)))
+        {
+        }
+        ImGui::EndPopup();
+    }
+    return false;
+}
+
 int GuiMainComponent::Init()
 {
     // set exe dir
@@ -316,22 +343,7 @@ int GuiMainComponent::MainLoop()
 
     // Main loop
     while (!glfwWindowShouldClose(m_Window)) // memory leaks: 6 up to this point
-    {      
-        if (m_State.configFilenameManager.HasNew())
-        {
-            CloseCurrentConfig();
-            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
-            auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
-
-            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
-            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-            
-            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-
-            DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
-            m_State.GetRoot()->UpdateMetaInfo();
-        }
-
+    {
         if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
         else
@@ -345,6 +357,29 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
+
+        // Show error dialogue
+        if (ShowErrorDialogIfNecessary())
+            break;
+
+        // Handle new config file
+        if (m_State.configFilenameManager.HasNew())
+        {
+            CloseCurrentConfig();
+            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
+            auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
+
+            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
+            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
+            
+            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+
+            if (m_State.GetRoot())
+            {
+                DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
+                m_State.GetRoot()->UpdateMetaInfo();
+            }
+        }
 
         // update all gui components
         Update();
