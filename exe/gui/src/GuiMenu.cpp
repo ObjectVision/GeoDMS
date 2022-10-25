@@ -21,6 +21,11 @@
 #include "DataLocks.h"
 #include "GuiMenu.h"
 
+// for windows open file dialog
+#include <windows.h>
+#include <shobjidl.h> 
+
+
 #include <codecvt>
 
 void GuiMenuComponent::Update(GuiView& ViewPtr)
@@ -129,13 +134,73 @@ void GuiMenuFileComponent::UpdateRecentOrPinnedFilesByCurrentConfiguration(std::
     SetRecentAndPinnedFiles();
 }
 
+std::string StartWindowsFileDialog()
+{
+    std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
+    auto parent_path = std::filesystem::path(last_filename).parent_path();
+    COMDLG_FILTERSPEC ComDlgFS[1] = {{L"Configuration files", L"*.dms;*.xml"}};
+
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (SUCCEEDED(hr))
+    {
+        IFileOpenDialog* pFileOpen;
+        // Create the FileOpenDialog object.
+        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+        //pFileOpen->SetDefaultFolder(parent_path);
+
+        pFileOpen->SetFileTypes(1, ComDlgFS);
+
+        IShellItem* psiDefault = NULL;
+        hr = SHCreateItemFromParsingName(parent_path.c_str(), NULL, IID_PPV_ARGS(&psiDefault));
+        //hr = SHCreateItemFromParsingName(L"C:\\Users\\", NULL, IID_PPV_ARGS(&psiDefault));
+        pFileOpen->SetDefaultFolder(psiDefault);
+
+        if (SUCCEEDED(hr))
+        {
+            // Show the Open dialog box.
+            hr = pFileOpen->Show(NULL);
+
+            // Get the file name from the dialog box.
+            if (SUCCEEDED(hr))
+            {
+                IShellItem* pItem;
+                hr = pFileOpen->GetResult(&pItem);
+                if (SUCCEEDED(hr))
+                {
+                    PWSTR pszFilePath;
+                    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+                    // Display the file name to the user.
+                    if (SUCCEEDED(hr))
+                    {
+                        MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+                        CoTaskMemFree(pszFilePath);
+                    }
+                    pItem->Release();
+                }
+            }
+            pFileOpen->Release();
+        }
+        psiDefault->Release();
+        CoUninitialize();
+    }
+
+
+
+    return "";
+}
+
 void GuiMenuFileComponent::Update()
 {
     m_fileDialog.Display();
 
     if (m_fileDialog.HasSelected())
     {
-        m_State.configFilenameManager.Set(m_fileDialog.GetSelected().string());
+        std::string new_filename = m_fileDialog.GetSelected().string();
+        m_State.configFilenameManager.Set(new_filename);
+        SetGeoDmsRegKeyString("LastConfigFile", new_filename);
+
         UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
         CleanRecentOrPinnedFiles(m_RecentFiles);
         m_fileDialog.ClearSelected();
@@ -146,6 +211,11 @@ void GuiMenuFileComponent::Update()
     {
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
             m_fileDialog.Open();
+
+        if (ImGui::MenuItem("Open Windows File Dialog"))
+        {
+            auto file_name = StartWindowsFileDialog();
+        }
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
         {
@@ -162,7 +232,7 @@ void GuiMenuFileComponent::Update()
         int ind = 1000;
         for (auto pfn = m_PinnedFiles.begin(); pfn<m_PinnedFiles.end(); pfn++)
         {
-            ImGui::PushID(ind); // TODO: check if id is unique
+            ImGui::PushID(ind);// TODO: make sure id is unique for this window
             if (ImGui::Button(ICON_RI_CLOSE_FILL))
             {
                 RemovePinnedOrRecentFile(*pfn, m_PinnedFiles);
@@ -181,6 +251,7 @@ void GuiMenuFileComponent::Update()
             if (ImGui::MenuItem((*pfn).c_str()))
             {
                 m_State.configFilenameManager.Set(*pfn);
+                SetGeoDmsRegKeyString("LastConfigFile", *pfn);
                 UpdateRecentOrPinnedFilesByCurrentConfiguration(m_PinnedFiles);
                 CleanRecentOrPinnedFiles(m_PinnedFiles);
                 pfn = m_PinnedFiles.begin();
@@ -215,6 +286,7 @@ void GuiMenuFileComponent::Update()
             if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()))
             {
                 m_State.configFilenameManager.Set(*rfn);
+                SetGeoDmsRegKeyString("LastConfigFile", *rfn);
                 UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
                 CleanRecentOrPinnedFiles(m_RecentFiles);
                 rfn = m_RecentFiles.begin();
