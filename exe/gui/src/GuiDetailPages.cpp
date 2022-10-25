@@ -297,7 +297,7 @@ void HTMLGuiComponentFactory::Reset()
 void GuiDetailPages::UpdateGeneralProperties()
 {
     m_GeneralProperties.clear();
-    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() ? nullptr : m_State.GetCurrentItem();
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut.get(), true);
     m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
@@ -307,7 +307,7 @@ void GuiDetailPages::UpdateGeneralProperties()
 void GuiDetailPages::UpdateAllProperties()
 {
     m_AllProperties.clear();
-    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() ? nullptr : m_State.GetCurrentItem();
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut.get(), false);
     m_Buff.InterpretBytes(false, m_AllProperties); // Create detail page from html stream
@@ -317,7 +317,7 @@ void GuiDetailPages::UpdateAllProperties()
 void GuiDetailPages::UpdateExploreProperties()
 {
     m_ExploreProperties.clear();
-    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() ? nullptr : m_State.GetCurrentItem();
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     DMS_TreeItem_XML_DumpExplore(m_State.GetCurrentItem(), xmlOut.get(), true);
     m_Buff.InterpretBytes(false, m_ExploreProperties); // Create detail page from html stream
@@ -347,13 +347,16 @@ void GuiDetailPages::UpdateStatistics()
 {
     SuspendTrigger::Resume();
     m_FilteredStatistics.clear();
-    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() ? nullptr : m_State.GetCurrentItem();
+    InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     m_Statistics = DMS_NumericDataItem_GetStatistics(m_State.GetCurrentItem(), nullptr);
     FilterStatistics();
 }
 
 void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& properties)
 {
+    if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
+        return;
+
     int button_index = 0;
     ImGui::BeginTable(" ", 6, ImGuiTableFlags_ScrollX | ImGuiTableFlags_NoHostExtendY); // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
     for (auto& row : properties)
