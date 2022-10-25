@@ -324,8 +324,6 @@ int GuiMainComponent::MainLoop()
             auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
             glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
-
-            //glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
             
             //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -392,7 +390,7 @@ void GuiMainComponent::Update()
     //SuspendTrigger::DoSuspend();
 
     static bool opt_fullscreen = true;
-    static bool opt_padding = false;
+    static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
     // because it would be confusing to have two docking targets within each others.

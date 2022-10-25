@@ -182,7 +182,7 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         auto status = DMS_TreeItem_GetProgressState(nextSubItem);
         auto failed = nextSubItem->IsFailed();
 
-        if (status == NotificationCode::NC2_Invalidated || failed) // ti not ready
+        if (status == NotificationCode::NC2_Updating) // ti not ready
         {
             nextSubItem = nextSubItem->GetNextItem(); // TODO: do display treeitem, but do not try to process subitems.
             continue;
