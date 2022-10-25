@@ -152,7 +152,7 @@ struct VirtualAllocPage
 
 	BYTE_PTR reserve_block(BlockSize_type BLOCK_SIZE, BlockCount_type blockIndex)
 	{
-		auto ptr = begin() + blockIndex * BLOCK_SIZE;
+		auto ptr = begin() + UInt32x32To64(blockIndex, BLOCK_SIZE);
 		return ptr;
 	}
 
@@ -175,7 +175,8 @@ struct VirtualAllocPageAllocator
 	{
 		dms_assert(std::popcount(block_sz) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
 		BLOCK_SIZE = block_sz;
-		NEXT_PAGE_SIZE = 2 * BLOCK_SIZE;
+		NEXT_PAGE_SIZE = BLOCK_SIZE;
+		NEXT_PAGE_SIZE *= 2;
 	}
 
 	BYTE_PTR get_reserved_block(BlockSize_type sz)
@@ -298,10 +299,15 @@ constexpr UInt32 ALLOC_ELEMSIZE_MAX_BITS = 28; //  log2_extended_segment_size + 
 constexpr SizeT ALLOC_ELEMSIZE_MIN = 1 << ALLOC_ELEMSIZE_MIN_BITS;
 constexpr SizeT ALLOC_ELEMSIZE_MAX = 1 << ALLOC_ELEMSIZE_MAX_BITS;
 
+//#define MG_MULTIPLE_SLOTS
+#if defined(MG_MULTIPLE_SLOTS)
 constexpr UInt32 NR_SLOT_BITS = 0;
 constexpr UInt32 NR_SLOTS = 1 << NR_SLOT_BITS;
+constexpr block_index_t NR_ELEM_ALLOC = (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) * NR_SLOTS + 1;
+#else // defined(MG_MULTIPLE_SLOTS)
+constexpr block_index_t NR_ELEM_ALLOC = ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS + 1;
+#endif //defined(MG_MULTIPLE_SLOTS)
 
-constexpr block_index_t NR_ELEM_ALLOC = (mpf::log2_v< ALLOC_ELEMSIZE_MAX > - mpf::log2_v< ALLOC_ELEMSIZE_MIN >) * NR_SLOTS+1;
 constexpr SizeT ALLOC_LIMIT = 0x1000000000000000;
 
 //----------------------------------------------------------------------
@@ -309,7 +315,7 @@ constexpr SizeT ALLOC_LIMIT = 0x1000000000000000;
 //----------------------------------------------------------------------
 
 // for each ALLOC_ELEMSIZE_MIN..ALLOC_ELEMSIZE_MAX
-using FreeStackAllocatorArray = FreeStackAllocator[28 - 13 + 1];
+using FreeStackAllocatorArray = FreeStackAllocator[ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS + 1];
 
 #if defined(MG_DEBUG)
 FreeStackAllocatorArray* sd_FSA_ptr = nullptr;
@@ -330,7 +336,7 @@ FreeStackAllocator& GetFreeStackAllocator(block_index_t i)
 	{
 		auto lock = std::scoped_lock(s_fsaCS);
 		if (!fsa.inner.BLOCK_SIZE)
-			fsa.Init(1 << (i + 13));
+			fsa.Init(1 << (i + ALLOC_ELEMSIZE_MIN_BITS));
 		dms_assert(fsa.inner.BLOCK_SIZE);
 #if defined(MG_DEBUG)
 		sd_FSA_ptr = &GetFreeStackAllocatorArray();
@@ -342,38 +348,64 @@ FreeStackAllocator& GetFreeStackAllocator(block_index_t i)
 
 ElemAllocComponent s_Initialize; // TODO: REMOVE
 
+
 constexpr SizeT BlockSize(block_index_t i) {
 	assert(i < NR_ELEM_ALLOC);
+#if defined(MG_MULTIPLE_SLOTS)
 	static_assert(std::popcount(NR_SLOTS) == 1);
 
 	constexpr UInt32 SLOT_MASK = NR_SLOTS - 1;
 	auto exp_bits = (i + SLOT_MASK) >> NR_SLOT_BITS;
-	auto slot_nr =(i + SLOT_MASK & SLOT_MASK)+1;
+	auto slot_nr = (i + SLOT_MASK & SLOT_MASK) + 1;
 
-	return ((ALLOC_ELEMSIZE_MIN / 2 + (slot_nr << (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS-1))) << exp_bits) / QWordSize;
+	return ((ALLOC_ELEMSIZE_MIN / 2 + (slot_nr << (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS - 1))) << exp_bits) / QWordSize;
+#else // defined(MG_MULTIPLE_SLOTS)
+	return (SizeT(1) << (ALLOC_ELEMSIZE_MIN_BITS + i)) / QWordSize;
+#endif //defined(MG_MULTIPLE_SLOTS)
 }
 
-constexpr block_index_t BlockListIndex(SizeT sz) {
+
+
+constexpr block_index_t BlockListIndex(SizeT sz) 
+{
+#if defined(MG_MULTIPLE_SLOTS)
 	SizeT org_sz = sz;
 
-	assert(sz >  ALLOC_ELEMSIZE_MIN / 2);
-	assert(sz <= ALLOC_ELEMSIZE_MAX);
+		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
+		assert(sz <= ALLOC_ELEMSIZE_MAX);
 
-	--sz;
-	sz >>= ALLOC_ELEMSIZE_MIN_BITS;
-	static_assert((1 << (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) & ~0xFFF0) == 0);
-	block_index_t result = highest_bit_rank(sz);
+		--sz;
+		sz >>= ALLOC_ELEMSIZE_MIN_BITS;
+		static_assert((1 << (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) & ~0xFFF0) == 0);
+		block_index_t result = highest_bit_rank(sz);
 
-	auto discard_bits = (result + (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS-1));
-	auto slot = (((((org_sz + (1 << discard_bits) - 1) >> discard_bits) -1) & (NR_SLOTS - 1)))+1;
-	assert(slot > 0);
-	assert(slot <= NR_SLOTS);
-	result = (result << NR_SLOT_BITS) + slot - NR_SLOTS;
-	assert(result >= 0);
-	assert(result < NR_ELEM_ALLOC);
-	assert(org_sz <= BlockSize(result)*QWordSize);
-	assert(org_sz > (result ? BlockSize(result-1)*QWordSize : ALLOC_ELEMSIZE_MIN/2));
-	return result;
+		auto discard_bits = (result + (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS - 1));
+		auto slot = (((((org_sz + (1 << discard_bits) - 1) >> discard_bits) - 1) & (NR_SLOTS - 1))) + 1;
+		assert(slot > 0);
+		assert(slot <= NR_SLOTS);
+		result = (result << NR_SLOT_BITS) + slot - NR_SLOTS;
+		assert(result >= 0);
+		assert(result < NR_ELEM_ALLOC);
+		assert(org_sz <= BlockSize(result) * QWordSize);
+		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : ALLOC_ELEMSIZE_MIN / 2));
+		return result;
+#else // defined(MG_MULTIPLE_SLOTS)
+		SizeT org_sz = sz;
+
+		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
+		assert(sz <= ALLOC_ELEMSIZE_MAX);
+
+		--sz;
+		sz >>= ALLOC_ELEMSIZE_MIN_BITS;
+		static_assert((1 << (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) & ~0xFFF0) == 0);
+		block_index_t result = highest_bit_rank(sz);
+
+		assert(result >= 0);
+		assert(result < NR_ELEM_ALLOC);
+		assert(org_sz <= BlockSize(result) * QWordSize);
+		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : ALLOC_ELEMSIZE_MIN / 2));
+		return result;
+#endif //defined(MG_MULTIPLE_SLOTS)
 }
 
 
