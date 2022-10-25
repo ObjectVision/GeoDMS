@@ -1626,12 +1626,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		auto coordItem = storageHolder->FindItem(coordRef);
 		if (!coordItem)
 			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (!IsUnit(coordItem))
-		{
-			auto coordItemName = SharedStr(coordItem->GetFullName());
-			storageHolder->throwItemErrorF("DialogData reference '%s' refers to %s, but this is not a projection unit as expected", coordRef.c_str(), coordItemName.c_str());
-		}
-		vu = AsUnit(coordItem);
+		if (IsUnit(coordItem))
+			vu = AsUnit(coordItem);
 	}
 
 	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))

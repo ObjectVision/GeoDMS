@@ -261,12 +261,8 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 		auto coordItem = storageHolder->FindItem(coordRef);
 		if (!coordItem)
 			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (!IsUnit(coordItem))
-		{
-			auto coordItemName = SharedStr(coordItem->GetFullName());
-			storageHolder->throwItemErrorF("DialogData reference '%s' refers to %s, but this is not a projection unit as expected", coordRef.c_str(), coordItemName.c_str());
-		}
-		uBase = AsUnit(coordItem);
+		if (IsUnit(coordItem))
+			uBase = AsUnit(coordItem);
 	}
 	if (uBase && uBase->GetNrDimensions() != 2)
 	{

@@ -224,13 +224,7 @@ const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 	if (!ref)
 		return nullptr;
 
-	auto dataRef = AsDynamicDataItem( ref );
-	if (!dataRef)
-	{
-		auto refFullName = SharedStr(ref->GetFullName());
-		ti->throwItemErrorF("DialogData refers to '%s' but this is not an attribute", refFullName.c_str());
-	}
-	return dataRef;
+	return AsDynamicDataItem( ref );
 }
 
 const TreeItem* GetMappingItem(const TreeItem* ti)
