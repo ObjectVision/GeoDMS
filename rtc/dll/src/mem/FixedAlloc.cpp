@@ -90,21 +90,13 @@ using block_index_t = UInt8;
 using BYTE_PTR = char*;
 
 constexpr UInt8 log2_page_size = 30;
+constexpr PageSize_type PAGE_SIZE = 1 << log2_page_size;
 
 template<typename Unsigned>
 constexpr block_index_t highest_bit_rank(Unsigned value)
 {
 	return sizeof(Unsigned)*8 - std::countl_zero(value);
 }
-
-template<typename Unsigned>
-constexpr block_index_t unsigned_log2(Unsigned blockSize)
-{
-	dms_assert(blockSize);
-	dms_assert(std::popcount(blockSize) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
-	return highest_bit_rank<Unsigned>(blockSize) - 1;
-}
-
 
 #include <Windows.h>
 
@@ -150,9 +142,9 @@ struct VirtualAllocPage
 //		VirtualAlloc(ptr, sz, MEM_RESET_UNDO, PAGE_READWRITE);
 	}
 
-	BYTE_PTR reserve_block(BlockSize_type BLOCK_SIZE, BlockCount_type blockIndex)
+	BYTE_PTR reserve_block_log2(block_index_t log2BlockSize, BlockCount_type blockIndex)
 	{
-		auto ptr = begin() + UInt32x32To64(blockIndex, BLOCK_SIZE);
+		auto ptr = begin() + (blockIndex << log2BlockSize);
 		return ptr;
 	}
 
@@ -168,51 +160,53 @@ struct VirtualAllocPageAllocator
 
 	std::vector<page_type> pages;
 	BlockCount_type nrUncommitedBlocks = 0;
-	BlockSize_type BLOCK_SIZE = 0;
-	SizeT NEXT_PAGE_SIZE = 0;
+	block_index_t log2BlockSize = 0;
+	BlockSize_type blockSize = 0;
+	SizeT nextPageSize = 0;
 
-	void Init(BlockSize_type block_sz)
+	void Init_log2(block_index_t log2BlockSize_)
 	{
-		dms_assert(std::popcount(block_sz) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
-		BLOCK_SIZE = block_sz;
-		NEXT_PAGE_SIZE = BLOCK_SIZE;
-		NEXT_PAGE_SIZE *= 2;
+		log2BlockSize = log2BlockSize_;
+		blockSize = 1 << log2BlockSize;
+		dms_assert(std::popcount(blockSize) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
+		nextPageSize = blockSize;
+		nextPageSize *= 2;
 	}
 
 	BYTE_PTR get_reserved_block(BlockSize_type sz)
 	{
-		dms_assert( sz <= BLOCK_SIZE && sz > BLOCK_SIZE / 2);
+		dms_assert( sz <= blockSize && sz > blockSize / 2);
 
 		if (!nrUncommitedBlocks)
 		{
-			pages.emplace_back(NEXT_PAGE_SIZE);
-			nrUncommitedBlocks = NEXT_PAGE_SIZE / BLOCK_SIZE;
+			pages.emplace_back(nextPageSize);
+			nrUncommitedBlocks = nextPageSize >> log2BlockSize;
 
-			if (NEXT_PAGE_SIZE < (SizeT(1) << SizeT(30))) // double up to 1[GB]
-				NEXT_PAGE_SIZE <<= 1;
+			if (nextPageSize < PAGE_SIZE) // double up to 1[GB]
+				nextPageSize <<= 1;
 		}
 		dms_assert(nrUncommitedBlocks);
-		return pages.back().reserve_block(BLOCK_SIZE, --nrUncommitedBlocks);
+		return pages.back().reserve_block_log2(log2BlockSize, --nrUncommitedBlocks);
 	}
 	void commit(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= BLOCK_SIZE && sz > BLOCK_SIZE / 2);
+		dms_assert(sz <= blockSize && sz > blockSize / 2);
 
-		VirtualAllocPage::commit(ptr, BLOCK_SIZE);
+		VirtualAllocPage::commit(ptr, blockSize);
 	}
 
 	void release(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= BLOCK_SIZE && sz > BLOCK_SIZE / 2);
+		dms_assert(sz <= blockSize && sz > blockSize / 2);
 
-		VirtualAllocPage::release(ptr, BLOCK_SIZE);
+		VirtualAllocPage::release(ptr, blockSize);
 	}
 
 	void recommit(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= BLOCK_SIZE && sz > BLOCK_SIZE / 2);
+		dms_assert(sz <= blockSize && sz > blockSize / 2);
 
-		VirtualAllocPage::recommit(ptr, BLOCK_SIZE);
+		VirtualAllocPage::recommit(ptr, blockSize);
 	}
 };
 
@@ -230,7 +224,7 @@ struct FreeStackAllocator
 	BlockCount_type blockCount = 0;
 	mutable std::mutex allocSection;
 
-	void Init(BlockSize_type block_sz) { inner.Init(block_sz); }
+	void Init_log2(block_index_t log2BlockSize_) { inner.Init_log2(log2BlockSize_); }
 
 	auto NrAllocatedBlocks() const { return blockCount; }
 	std::pair<BYTE_PTR, bool> get_reserved_or_reset_block(BlockSize_type sz)
@@ -267,20 +261,20 @@ struct FreeStackAllocator
 
 	FreeStackAllocSummary ReportStatus() const
 	{
-		if (!inner.BLOCK_SIZE)
+		if (!inner.blockSize)
 			return FreeStackAllocSummary(0, 0, 0, 0);
 
 		std::scoped_lock lock(allocSection);
 
 		SizeT pageCount = inner.pages.size();
-		SizeT totalBytes = 0; for (const auto& page : inner.pages) totalBytes += inner.BLOCK_SIZE * (page.PageSize() / inner.BLOCK_SIZE);
+		SizeT totalBytes = 0; for (const auto& page : inner.pages) totalBytes += page.PageSize();
 		SizeT nrAllocated = NrAllocatedBlocks();
 		SizeT nrFreed = freestack.size();
 		SizeT nrUncommitted = inner.nrUncommitedBlocks;
-		SizeT nrAllocatedBytes = inner.BLOCK_SIZE * nrAllocated;
+		SizeT nrAllocatedBytes = inner.blockSize * nrAllocated;
 		reportF(SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
-			inner.BLOCK_SIZE, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
-		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, inner.BLOCK_SIZE * nrFreed, inner.BLOCK_SIZE * nrUncommitted);
+			inner.blockSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2BlockSize, nrUncommitted << inner.log2BlockSize);
 	}
 };
 
@@ -332,12 +326,12 @@ std::mutex s_fsaCS;
 FreeStackAllocator& GetFreeStackAllocator(block_index_t i)
 {
 	auto& fsa = GetFreeStackAllocatorArray()[i];
-	if (!fsa.inner.BLOCK_SIZE)
+	if (!fsa.inner.blockSize)
 	{
 		auto lock = std::scoped_lock(s_fsaCS);
-		if (!fsa.inner.BLOCK_SIZE)
-			fsa.Init(1 << (i + ALLOC_ELEMSIZE_MIN_BITS));
-		dms_assert(fsa.inner.BLOCK_SIZE);
+		if (!fsa.inner.blockSize)
+			fsa.Init_log2(i + ALLOC_ELEMSIZE_MIN_BITS);
+		dms_assert(fsa.inner.blockSize);
 #if defined(MG_DEBUG)
 		sd_FSA_ptr = &GetFreeStackAllocatorArray();
 #endif
