@@ -49,13 +49,6 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\proj4data
   File ..\bin\Release\${GeoDmsPlatform}\proj4data\*.*
 
-  SetOutPath $INSTDIR\misc\icons
-  File ..\bin\Release\${GeoDmsPlatform}\misc\icons\*.*
-  
-  SetOutPath $INSTDIR\misc\fonts
-  File ..\bin\Release\${GeoDmsPlatform}\misc\fonts\*.*
-  
-  
  CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}-${GeoDmsPlatform}.lnk" "$INSTDIR\GeoDmsGui.exe"   "" "$INSTDIR\GeoDmsGui.exe"   0 SW_SHOWMAXIMIZED "" "Start the GeoDMS GUI"
  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall-${GeoDmsPlatform}.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
@@ -78,8 +71,6 @@ Section uninstall
 
   Delete $INSTDIR\gdaldata\*.*
   Delete $INSTDIR\proj4data\*.*
-  Delete $INSTDIR\misc\icons\*.*
-  Delete $INSTDIR\misc\fonts\*.*
 
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}-${GeoDmsPlatform}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall-${GeoDmsPlatform}.lnk"
@@ -89,8 +80,6 @@ Section uninstall
   RMDIR $SMPROGRAMS\GeoDMS
   RMDIR $INSTDIR\gdaldata
   RMDIR $INSTDIR\proj4data
-  RMDIR $INSTDIR\misc\icons
-  RMDIR $INSTDIR\misc\fonts
   RMDIR $INSTDIR\misc
   RMDIR $INSTDIR
   
