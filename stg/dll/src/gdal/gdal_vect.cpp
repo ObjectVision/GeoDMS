@@ -56,6 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataArray.h"
 #include "DataStoreManagerCaller.h"
 #include "NameSet.h"
+#include "PropFuncs.h"
 #include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
@@ -1622,8 +1623,12 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
 	const AbstrUnit* vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
-	SharedStr coordRef = dialogDataPropDefPtr->GetValue(layerDomain);
-	if (coordRef.empty()) coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
+	SharedStr coordRef;
+	if (!HasMapType(layerDomain))
+		coordRef = dialogDataPropDefPtr->GetValue(layerDomain);
+	if (coordRef.empty()) 
+		if (!HasMapType(storageHolder))
+		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
 	if (!coordRef.empty())
 	{
 		auto coordItem = storageHolder->FindItem(coordRef);
