@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <imgui_internal.h>
 #include "GuiInput.h"
 
 static ImGuiKey GLFWKeyToImGuiKey(int key)
@@ -290,7 +291,8 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
         return;
 
     // unmodified key press for step to in TreeView
-    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
+    auto treeview_window = ImGui::FindWindowByName("Treeview");
+    if (ImGui::GetCurrentContext()->WindowsFocusOrder.back() == treeview_window && key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
     {
         m_State.m_JumpLetter = GLFWKeyToLetter(key);
     }

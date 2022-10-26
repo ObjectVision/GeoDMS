@@ -30,11 +30,11 @@ void GuiCurrentItemComponent::Update()
         if (m_State.CurrentItemBarEvents.HasEvents()) // new current item
         {
             m_State.CurrentItemBarEvents.Pop();
-            //m_Buf.assign(m_Buf.size(), 0);
+            m_Buf.assign(m_Buf.size(), char());
             auto tmpPath = m_State.GetCurrentItem() ? m_State.GetCurrentItem()->GetFullName() : SharedStr("");
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
-        //
+
         if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
         {
             if (m_State.GetRoot())
