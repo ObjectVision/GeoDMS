@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataItemClass.h"
+#include "LispTreeType.h"
 #include "Metric.h"
 #include "PropFuncs.h"
 #include "Unit.h"
@@ -170,9 +171,6 @@ bool IsEqualUnit(const AbstrUnit* a, const AbstrUnit* b)
 	return a->GetUltimateItem() == b->GetUltimateItem();
 }
 
-static TokenID mapTokenID = GetTokenID_st("map");
-static TokenID geoTokenID = GetTokenID_st("geometry");
-
 const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
 {
 	dms_assert(ti);
@@ -183,7 +181,7 @@ const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
 	if (!ti->_GetFirstSubItem() && IsDataItem(ti))
 		return nullptr;
 */
-	const TreeItem* si = const_cast<TreeItem*>(ti)->GetSubTreeItemByID(geoTokenID);
+	const TreeItem* si = const_cast<TreeItem*>(ti)->GetSubTreeItemByID(token::geometry);
 //	if (!si) 
 //		si = ti->GetConstSubTreeItemByID(geoTokenID); // can call UpdateMetaInfo to retrieve stuff from a StorageManager
 	if (!IsDataItem(si))
@@ -192,12 +190,6 @@ const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
 	if (gi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
 		return nullptr;
 	return gi;
-}
-
-bool HasMapType(const TreeItem* ti)
-{
-	dms_assert(ti);
-	return TreeItem_GetDialogType(ti) == mapTokenID;
 }
 
 bool IsThisMappable(const TreeItem* ti)

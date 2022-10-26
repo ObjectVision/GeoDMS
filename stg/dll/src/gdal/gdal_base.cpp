@@ -60,9 +60,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "DataLocks.h"
+#include "LispTreeType.h"
+#include "TreeItemContextHandle.h"
 #include "Unit.h"
 #include "UnitClass.h"
-#include "TreeItemContextHandle.h"
 
 #include "stg/StorageClass.h"
 #include <filesystem>
@@ -673,7 +674,7 @@ OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
 		auto vci   = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto id    = subDataItem->GetID();
 
-		if (id == GetTokenID_mt("Geometry"))
+		if (id == token::geometry)
 			return DmsType2OGRGeometryType(vci, vc);
 
 		if (vc >= vcprev && vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))

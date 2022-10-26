@@ -92,12 +92,15 @@ namespace token {
 	extern TIC_CALL TokenID union_data;
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
-	extern TIC_CALL TokenID geometry;
 	extern TIC_CALL TokenID nr_OrgEntity;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;
 	extern TIC_CALL TokenID integrity_check;
+
+	extern TIC_CALL TokenID map;
+	extern TIC_CALL TokenID geometry;
+
 }
 
 //LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);

@@ -123,7 +123,6 @@ namespace token {
 	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
 	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");
-	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
 	TIC_CALL TokenID nr_OrgEntity = GetTokenID_st("nr_OrgEntity");
 	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
@@ -136,6 +135,8 @@ namespace token {
 	TIC_CALL TokenID ValuesUnit = GetTokenID_st("ValuesUnit");
 	TIC_CALL TokenID integrity_check = GetTokenID_st("IntegrityCheck");
 
+	TIC_CALL TokenID map = GetTokenID_st("map");
+	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)

@@ -43,6 +43,7 @@ TIC_CALL SharedStr TreeItem_GetViewAction(const TreeItem* self);
 
 TIC_CALL bool IsClassBreakAttr(const TreeItem* adi);
 TIC_CALL void MakeClassBreakAttr(AbstrDataItem* adi);
+TIC_CALL bool HasMapType(const TreeItem* ti);
 
 // cdf support
 

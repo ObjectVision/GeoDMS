@@ -394,8 +394,6 @@ static UInt32          g_LastViewStyleFlags;
 
 #include "PropFuncs.h"
 
-static TokenID dtMap = GetTokenID_st("Map");
-
 bool IsMapViewable(const AbstrDataItem* adi)
 {
 	dms_assert(adi);
@@ -419,7 +417,7 @@ bool IsMapViewable(const AbstrDataItem* adi)
 		return true;
 	do
 	{
-		if (TreeItem_GetDialogType(adu) == dtMap)
+		if (HasMapType(adu))
 			return true;
 		adu = AsUnit( adu->GetSourceItem() );
 	}	while (adu);

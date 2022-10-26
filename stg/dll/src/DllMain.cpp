@@ -46,7 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataStoreManagerCaller.h"
 #include "Metric.h"
 #include "Projection.h"
-
+#include "PropFuncs.h"
 #include "TreeItemClass.h"
 #include "TreeItemProps.h"
 #include "Unit.h"
@@ -235,9 +235,12 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
 		return nullptr;
 
-	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
+	SharedStr coordRef;
+	if (!HasMapType(gridDataDomain))
+		coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (coordRef.empty() && storageHolder != gridDataDomain)
-		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
+		if (!HasMapType(storageHolder))
+			coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
 
 	const AbstrUnit* uBase = nullptr;
 	if (coordRef.empty())

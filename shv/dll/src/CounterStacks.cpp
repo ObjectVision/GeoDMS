@@ -67,7 +67,7 @@ bool CounterStacks::CurrStackEmpty()
 {
 	dms_assert(!Empty());
 
-	UInt32 currStackBase = GetCurrStack().m_StackBase;
+	auto currStackBase = GetCurrStack().m_StackBase;
 
 	dms_assert(currStackBase <= m_Counters.size());
 
@@ -216,7 +216,7 @@ void CounterStacks::increment_or_remove(stack_iterator& stackPtr, stack_iterator
 		&&	stackPtr[0].m_DrawRegion == stackPtr[-1].m_DrawRegion
 		)
 	{
-		UInt32 storedNextStackSize = stackPtr[0].m_StackBase - stackPtr[-1].m_StackBase;
+		SizeT storedNextStackSize = stackPtr[0].m_StackBase - stackPtr[-1].m_StackBase;
 		m_Counters.erase(
 			m_Counters.begin() + stackPtr[-1].m_StackBase, 
 			m_Counters.begin() + stackPtr[ 0].m_StackBase
@@ -260,7 +260,7 @@ bool CounterStacks::MustBreak() const
 bool CounterStacks::HasBreakingStackSize() const
 {
 	// check that we are here only for the right reasons
-	UInt32 nextStoredStackSize = GetCurrStack().m_StackBase - GetNextStack().m_StackBase;
+	SizeT nextStoredStackSize = GetCurrStack().m_StackBase - GetNextStack().m_StackBase;
 	dms_assert(nextStoredStackSize >= m_NrActiveCounters); // else we would be either have m_DidBreak already or m_AutoCounter < m_StopValue
 
 	return nextStoredStackSize == m_NrActiveCounters;
@@ -397,7 +397,7 @@ SizeT CounterStacks::IncLevel(SizeT firstValue)
 {
 	dms_assert(!Empty());
 
-	UInt32 counterPos = GetCurrStack().m_StackBase + m_NrActiveCounters;
+	auto counterPos = GetCurrStack().m_StackBase + m_NrActiveCounters;
 
 	if (m_Counters.size() > counterPos)
 		firstValue = m_Counters[counterPos]; // resume from suspended value
@@ -414,9 +414,8 @@ void CounterStacks::Suspend(SizeT currValue, const ResumableCounter* prevCounter
 	dms_assert(m_NrActiveCounters > 0);
 	dms_assert(!DidBreak());
 
-	UInt32 
-		counterPos  = GetCurrStack().m_StackBase + --m_NrActiveCounters,
-		counterSize = m_Counters.size();
+	auto counterPos = GetCurrStack().m_StackBase + --m_NrActiveCounters;
+	auto counterSize = m_Counters.size();
 
 	if (counterSize <= counterPos)
 		m_Counters.insert(m_Counters.end(), counterPos+1 - counterSize, currValue);
@@ -450,7 +449,7 @@ void CounterStacks::EraseSuspended()
 
 	dms_assert(m_Counters.size() >= GetCurrStack().m_StackBase);
 
-	UInt32 nrCounters = GetCurrStack().m_StackBase + m_NrActiveCounters;
+	auto nrCounters = GetCurrStack().m_StackBase + m_NrActiveCounters;
 
 	if (m_Counters.size() > nrCounters)
 		m_Counters.erase(m_Counters.begin()+nrCounters, m_Counters.end());

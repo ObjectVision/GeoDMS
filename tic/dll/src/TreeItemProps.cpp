@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "CopyTreeContext.h"
 #include "SupplCache.h"
 #include "StoredPropDef.h"
+#include "LispTreeType.h"
 
 //----------------------------------------------------------------------
 // Generic property functions
@@ -132,6 +133,12 @@ bool IsClassBreakAttr(const TreeItem* adi)
 void MakeClassBreakAttr(AbstrDataItem* adi)
 {
 	TreeItem_SetDialogType(adi, classBreaksDialogTypeID);
+}
+
+bool HasMapType(const TreeItem* ti)
+{
+	dms_assert(ti);
+	return TreeItem_GetDialogType(ti) == token::map;
 }
 
 //----------------------------------------------------------------------

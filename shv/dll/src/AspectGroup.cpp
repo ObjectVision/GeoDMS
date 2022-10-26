@@ -100,7 +100,7 @@ TokenID GetAspectGroupNameID(AspectGroup ag)
 {
 	static_assert(AG_Count <= 32);
 
-	dms_assert( ag < AG_Count );
+	assert( ag >= 0 && ag < AG_Count );
 	if (! g_AspectGroupIds[ag] )
 		g_AspectGroupIds[ag] = GetTokenID_mt(AspectGroupArray[ag].name);
 	return g_AspectGroupIds[ag];

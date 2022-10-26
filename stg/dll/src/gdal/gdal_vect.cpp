@@ -56,9 +56,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataArray.h"
 #include "DataStoreManagerCaller.h"
 #include "NameSet.h"
-#include "UnitClass.h"
+#include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
+#include "UnitClass.h"
 
 #include "geo/BoostPolygon.h"
 #include "geo/ConvertFunctor.h"
@@ -68,13 +69,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 namespace gdalVectImpl {
 	UInt32 s_ComponentCount = 0;
-
-	static TokenID t_Geometry = GetTokenID_st("Geometry");
-
-	TokenID GeometryTokenID()
-	{
-		return t_Geometry;
-	}
 
 	// *****************************************************************************
 	//
@@ -947,7 +941,7 @@ bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 		br->SetCurrFeatureIndex(firstIndex);
 
 	auto adi = br->CurrRD();
-	if (adi->GetID() == gdalVectImpl::GeometryTokenID() || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+	if (adi->GetID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 		return ReadGeometry(br, ado, t, firstIndex, size);
 	return ReadAttrData(br, ado, t, firstIndex, size);
 }
@@ -1327,7 +1321,7 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 
-		if (subItem->GetID() == GetTokenID_mt("Geometry") || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (subItem->GetID() == token::geometry || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		{
 			if (geometryFieldCount++)
 				throwErrorF("gdalwrite.vect", "error, multiple geometry fields are unsupported in GeoDMS.");
@@ -1411,7 +1405,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 
-		if (subItem->GetID() == GetTokenID_mt("Geometry") || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (subItem->GetID() == token::geometry || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		{
 			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
 			disi.setIsGeometry(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
@@ -1641,7 +1635,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
 	{
-		AbstrDataItem* geometry = AsDynamicDataItem(layerDomain->GetSubTreeItemByID(gdalVectImpl::GeometryTokenID()));
+		AbstrDataItem* geometry = AsDynamicDataItem(layerDomain->GetSubTreeItemByID(token::geometry));
 		if (geometry)
 		{
 			ValueComposition configured_vc = geometry->GetValueComposition();
@@ -1656,7 +1650,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 				gdal_vc = ValueComposition::String;
 			}
 			geometry = CreateDataItem(
-				layerDomain, gdalVectImpl::GeometryTokenID(),
+				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
 			);
 		}

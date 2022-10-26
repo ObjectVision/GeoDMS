@@ -59,7 +59,7 @@ struct CounterStack : private boost::noncopyable
 {
 	CounterStack() = default;
 
-	CounterStack(Region&& drawRegion, UInt32 stackBase)
+	CounterStack(Region&& drawRegion, SizeT stackBase)
 		:	m_DrawRegion(std::move(drawRegion))
 		,	m_StackBase(stackBase)
 	{}
@@ -77,7 +77,7 @@ struct CounterStack : private boost::noncopyable
 	}
 
 	Region m_DrawRegion;
-	UInt32 m_StackBase = 0;
+	SizeT m_StackBase = 0;
 };
 
 //----------------------------------------------------------------------
