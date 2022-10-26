@@ -31,6 +31,7 @@ TreeItem* GuiState::m_Root = nullptr;
 TreeItem* GuiState::m_CurrentItem = nullptr;
 
 StringStateManager GuiState::configFilenameManager;
+StringStateManager GuiState::errorDialogMessage;
 
 std::pair<std::string, std::string> GuiState::m_JumpLetter;
 

@@ -262,7 +262,7 @@ void GuiView::Close(bool keepDataView=true)
 {
     if (!keepDataView && !m_Views.empty() && m_Views.at(m_ViewIndex).m_DataView)
     {
-        SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
+        //SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
         m_Views.erase(m_Views.begin()+m_ViewIndex);
         //m_ActiveItems.clear();
         //m_DataView = nullptr;

@@ -235,6 +235,7 @@ public:
 	static bool TableViewIsActive;
 
 	static StringStateManager configFilenameManager;
+	static StringStateManager errorDialogMessage;
 
 	// jump to letter in TreeView
 	static std::pair<std::string, std::string> m_JumpLetter;

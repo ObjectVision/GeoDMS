@@ -27,6 +27,7 @@ private:
 	void Update();
 	void ProcessEvent(GuiEvents e);
 	void CloseCurrentConfig();
+	bool ShowErrorDialogIfNecessary();
 	GLFWwindow*				m_Window = nullptr;
 	GuiState				m_State;
 	GuiInput			    m_Input;
