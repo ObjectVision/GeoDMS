@@ -148,24 +148,60 @@ std::pair<std::string, std::string> GLFWKeyToLetter(int key)
     }
 }
 
+void UpdateModifierKeyState(int mods, int glfw_mod_key, ImGuiKey_ imgui_mod_key)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    GLFWwindow* window = glfwGetCurrentContext();
+    int state = glfwGetKey(window, glfw_mod_key);
+
+    switch (state)
+    {
+    case GLFW_PRESS:
+    {
+        ImGui::GetIO().AddKeyEvent(imgui_mod_key, true);
+        break;
+    }
+    case GLFW_RELEASE:
+    {
+        ImGui::GetIO().AddKeyEvent(imgui_mod_key, false);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (action == GLFW_PRESS || action == GLFW_REPEAT) // Pass down key event to ImGui io state
-        ImGui::GetIO().AddKeyEvent(GLFWKeyToImGuiKey(key), true);
-    else
-        ImGui::GetIO().AddKeyEvent(GLFWKeyToImGuiKey(key), false);
+    ImGuiIO& io = ImGui::GetIO();
+
+    // keys
+    if (action == GLFW_PRESS) // Pass down key event to ImGui io state
+        io.AddKeyEvent(GLFWKeyToImGuiKey(key), true);
+    if (action == GLFW_RELEASE)
+        io.AddKeyEvent(GLFWKeyToImGuiKey(key), false);
+
+    // modifiers
+    //UpdateModifierKeyState(mods, GLFW_MOD_CONTROL, ImGuiKey_ModCtrl);
+    //UpdateModifierKeyState(mods, GLFW_MOD_SHIFT, ImGuiKey_ModShift);
+    //UpdateModifierKeyState(mods, GLFW_MOD_ALT, ImGuiKey_ModAlt);
+
+    io.AddKeyEvent(ImGuiKey_ModCtrl, (mods & GLFW_MOD_CONTROL) != 0);
+    io.AddKeyEvent(ImGuiKey_ModShift, (mods & GLFW_MOD_SHIFT) != 0);
+    io.AddKeyEvent(ImGuiKey_ModAlt, (mods & GLFW_MOD_ALT) != 0);
+    io.AddKeyEvent(ImGuiKey_ModSuper, (mods & GLFW_MOD_SUPER) != 0);
 
     if (!(action == GLFW_PRESS))
         return;
 
     // unmodified key press for step to in TreeView
-    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z &&!(mods==GLFW_MOD_CONTROL) &&!(mods == GLFW_MOD_ALT)&&!(mods == GLFW_MOD_SHIFT))
+    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
     {
         m_State.m_JumpLetter = GLFWKeyToLetter(key);
     }
 
-	switch (key)
-	{
+    switch (key)
+    {
     case GLFW_KEY_D:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-D
@@ -179,12 +215,12 @@ void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int ac
 
         return;
     }
-	case GLFW_KEY_E:
-	{
-		if (mods == GLFW_MOD_CONTROL) // CTRL-E
-			m_State.ShowConfigSource = true;
-		return;
-	}
+    case GLFW_KEY_E:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-E
+            m_State.ShowConfigSource = true;
+        return;
+    }
     case GLFW_KEY_M:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-M
@@ -221,29 +257,124 @@ void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int ac
         return;
     }
 
-	case GLFW_KEY_0:
-	{
-		if (mods == GLFW_MOD_ALT)    // ALT-0
-			m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
-		return;
-	}
-	case GLFW_KEY_1:
-	{
-		if (mods == GLFW_MOD_ALT)    // ALT-1
-			m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
-		return;
-	}
-	case GLFW_KEY_2:
-	{
-		if (mods == GLFW_MOD_ALT)    // ALT-2
-			m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
-		return;
-	}
+    case GLFW_KEY_0:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-0
+            m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+        return;
+    }
+    case GLFW_KEY_1:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-1
+            m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+        return;
+    }
+    case GLFW_KEY_2:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-2
+            m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+        return;
+    }
     case GLFW_KEY_3:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-3
             m_State.ShowToolbar = !m_State.ShowToolbar;
         return;
     }
-	}
+    }
+}
+
+void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (!(action == GLFW_PRESS))
+        return;
+
+    // unmodified key press for step to in TreeView
+    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
+    {
+        m_State.m_JumpLetter = GLFWKeyToLetter(key);
+    }
+
+    switch (key)
+    {
+    case GLFW_KEY_D:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-D
+        {
+            //m_State.ShowTableviewWindow = true;
+            //m_State.TableViewIsActive = true;
+            //m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
+            //m_State.TableViewEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
+            m_State.MainEvents.Add(OpenNewTableViewWindow);
+        }
+
+        return;
+    }
+    case GLFW_KEY_E:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-E
+            m_State.ShowConfigSource = true;
+        return;
+    }
+    case GLFW_KEY_M:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-M
+        {
+            m_State.MainEvents.Add(OpenNewMapViewWindow);
+            //m_State.ShowMapviewWindow = true;
+            //m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
+            //m_State.MapViewEvents.Add(GuiEvents::UpdateCurrentItem);
+        }
+        return;
+    }
+    case GLFW_KEY_O:
+    {
+        if (mods == GLFW_MOD_SHIFT)   // SHIFT-O
+            m_State.ShowOpenFileWindow = true;
+        else if (mods == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // CTRL-ALT-O
+            m_State.ShowOptionsWindow = true;
+        return;
+    }
+    case GLFW_KEY_R:
+    {
+        if (mods == GLFW_MOD_ALT)
+        {
+            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            m_State.GuiMenuFileComponentEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+        }
+
+        return;
+    }
+    case GLFW_KEY_T:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-T
+            m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
+        return;
+    }
+
+    case GLFW_KEY_0:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-0
+            m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+        return;
+    }
+    case GLFW_KEY_1:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-1
+            m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+        return;
+    }
+    case GLFW_KEY_2:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-2
+            m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+        return;
+    }
+    case GLFW_KEY_3:
+    {
+        if (mods == GLFW_MOD_ALT)    // ALT-3
+            m_State.ShowToolbar = !m_State.ShowToolbar;
+        return;
+    }
+    }
 }

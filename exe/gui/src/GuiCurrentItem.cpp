@@ -24,7 +24,6 @@ int TextCallBacka(ImGuiInputTextCallbackData* data)
 
 void GuiCurrentItemComponent::Update()
 {
-    // TODO: add GetClipboardText();
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     if (ImGui::BeginMenuBar())
     {
@@ -35,7 +34,7 @@ void GuiCurrentItemComponent::Update()
             auto tmpPath = m_State.GetCurrentItem() ? m_State.GetCurrentItem()->GetFullName() : SharedStr("");
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
-
+        //
         if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
         {
             if (m_State.GetRoot())
