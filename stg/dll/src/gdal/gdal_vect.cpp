@@ -39,11 +39,13 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
+#include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/ValueComposition.h"
 #include "mem/FixedAlloc.h"
+#include "ser/FormattedStream.h"
 #include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 
@@ -762,11 +764,16 @@ bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& cu
 		return false;
 	if (feat->GetFieldAsDouble(currFieldIndex) != 0)
 		return true;
-	auto fieldAsString = std::string(feat->GetFieldAsString(currFieldIndex));
-	if (fieldAsString == "0")
+	auto fieldAsCharPtr = feat->GetFieldAsString(currFieldIndex); // who owns this ? lifetime ?
+	if (!fieldAsCharPtr || !*fieldAsCharPtr)
+		return false;
+	Float64 fieldAsFloat64 = 0;
+	AssignValueFromCharPtr(fieldAsFloat64, fieldAsCharPtr);
+	if (fieldAsFloat64 == 0)
+	{
+		dms_assert(IsDefined(fieldAsFloat64));
 		return true;
-	if (fieldAsString == "0.0")
-		return true;
+	}
 	return false;
 }
 
