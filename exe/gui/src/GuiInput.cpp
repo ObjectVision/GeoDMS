@@ -173,7 +173,7 @@ void UpdateModifierKeyState(int mods, int glfw_mod_key, ImGuiKey_ imgui_mod_key)
 
 void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    ImGuiIO& io = ImGui::GetIO();
+    /*GuiIO& io = ImGui::GetIO();
 
     // keys
     if (action == GLFW_PRESS) // Pass down key event to ImGui io state
@@ -281,7 +281,7 @@ void GuiInput::ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int ac
             m_State.ShowToolbar = !m_State.ShowToolbar;
         return;
     }
-    }
+    }*/
 }
 
 void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
