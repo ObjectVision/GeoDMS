@@ -98,7 +98,7 @@ void GuiEventLog::Update(bool* p_open)
     ImGui::PopClipRect();
 
     // TODO: display items starting from the bottom
-    if (ImGui::SmallButton("Test SeverityTypeID messages"))
+    /*if (ImGui::SmallButton("Test SeverityTypeID messages"))
     {
         AddLog(SeverityTypeID::ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
         AddLog(SeverityTypeID::ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
@@ -107,17 +107,12 @@ void GuiEventLog::Update(bool* p_open)
         AddLog(SeverityTypeID::ST_FatalError, "ST_FatalError: this is a fatal error message.");
         AddLog(SeverityTypeID::ST_DispError, "ST_DispError: this is a disp error message.");
         AddLog(SeverityTypeID::ST_Nothing, "ST_Nothing: this is a nothing message.");
-    }
+    }*/
 
 
-    //if (ImGui::SmallButton("Add Debug Text")) { AddLog("%d some text", Items.Size); AddLog("some more text"); AddLog("display very important message here!"); }
-    //ImGui::SameLine();
-    //if (ImGui::SmallButton("Add Debug Error")) { AddLog(SeverityTypeID::ST_Error, "[error] something went wrong"); }
-    //ImGui::SameLine();
-    if (ImGui::SmallButton("Clear")) { ClearLog(); }
+    /*if (ImGui::SmallButton("Clear")) { ClearLog(); }
     ImGui::SameLine();
     bool copy_to_clipboard = ImGui::SmallButton("Copy");
-    //static float t = 0.0f; if (ImGui::GetTime() - t > 0.02f) { t = ImGui::GetTime(); AddLog("Spam %f", t); }
 
     ImGui::Separator();
 
@@ -131,7 +126,7 @@ void GuiEventLog::Update(bool* p_open)
     // Options, Filter
     if (ImGui::Button("Options"))
         ImGui::OpenPopup("Options");
-    ImGui::SameLine();
+    ImGui::SameLine();*/
     Filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
     ImGui::Separator();
 
@@ -144,9 +139,9 @@ void GuiEventLog::Update(bool* p_open)
         ImGui::EndPopup();
     }
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
-    if (copy_to_clipboard)
-        ImGui::LogToClipboard();
+    //ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
+    //if (copy_to_clipboard)
+    //    ImGui::LogToClipboard();
 
     for (auto& item : m_Items)
     {
@@ -184,14 +179,14 @@ void GuiEventLog::Update(bool* p_open)
         }
     }*/
 
-    if (copy_to_clipboard)
-        ImGui::LogFinish();
+    //if (copy_to_clipboard)
+    //    ImGui::LogFinish();
 
     if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
         ImGui::SetScrollHereY(1.0f);
     ScrollToBottom = false;
 
-    ImGui::PopStyleVar();
+    //ImGui::PopStyleVar();
     ImGui::EndChild();
     ImGui::Separator();
 
