@@ -275,35 +275,42 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetItem(const TreeItem* context, 
 	return nullptr;
 }
 
+TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path) ->BestItemRef
+{
+	assert(context);
+
+	char ch;
+	while (true)
+	{
+		ch = *path;
+		if (!ch || isalpha(ch) || ch == '/' || ch == '_')
+			break;
+		++path; // skip leading spaces and trash
+	}
+
+	CharPtrRange pathRange = path;
+	while (!pathRange.empty())
+	{
+		ch = pathRange.back();
+		if (isalpha(ch) || isdigit(ch) || ch == '/' || ch == '_')
+			break;
+		--pathRange.second; // skip trailing trash
+	}
+
+	return context->FindBestItem(pathRange);
+}
+
 TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path, IStringHandle* unfoundPart)
 {
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle tich(context, TreeItem::GetStaticClass(), "DMS_TreeItem_GetItem");
 
-		dms_assert(unfoundPart);
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(unfoundPart);
+		assert(!SuspendTrigger::DidSuspend());
 		SuspendTrigger::Resume();
 
-		char ch;
-		while (true)
-		{
-			ch = *path;
-			if (!ch || isalpha(ch) || ch == '/' || ch == '_')
-				break;
-			++path; // skip leading spaces and trash
-		}
-
-		CharPtrRange pathRange = path;
-		while (!pathRange.empty())
-		{
-			ch = pathRange.back();
-			if (isalpha(ch) || isdigit(ch) || ch == '/' || ch == '_')
-				break;
-			--pathRange.second; // skip trailing trash
-		}
-
-		auto itemRef = context->FindBestItem(pathRange);
+		auto itemRef = TreeItem_GetBestItemAndUnfoundPart(context, path);
 		*unfoundPart = IString::Create(itemRef.second);
 		return itemRef.first;
 
