@@ -429,7 +429,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	bool tgBetaDecayIsOne  = (tgBetaDecay == 1.0);
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
-	bool useTraceBack = (altLinkWeights || res.od_LS || res.LinkFlow) && !res.node_TB;
+	bool useTraceBack = (altLinkWeights || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
 
 	WriteBlock writeBlocks;
 
@@ -493,17 +493,12 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				}
 
 				
-				if (res.node_TB || flags(df & DijkstraFlag::VerboseLogging))
+				if (res.node_TB)
 				{
 					dms_assert(!useTraceBack);
 					dms_assert(!flags(df & DijkstraFlag::OD));
 					dms_assert(!dh.m_TraceBackData);
 					dh.m_TraceBackDataPtr = res.node_TB;
-					if (!dh.m_TraceBackDataPtr)
-					{
-						dh.m_TraceBackBuffer.resizeSO(ni.nrV, false MG_DEBUG_ALLOCATOR_SRC_STR("Dijkstra: traceBack"));
-						dh.m_TraceBackDataPtr = dh.m_TraceBackBuffer.begin();
-					}
 					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
 				}
 
@@ -584,7 +579,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							{
 								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
 								dms_assert(dstZone < ni.nrDstZones);
-								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% connects to endzone %2% at impedance %3% through endpoint %4%"
+								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% connects to DstZone %2% at impedance %3% through endPoint %4%"
 									, currNode, dstZone, endpointImpData, y
 								);
 							}
@@ -605,8 +600,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 								{
 									ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
 									dms_assert(dstZone < ni.nrDstZones);
-									reportF(SeverityTypeID::ST_MajorTrace, "Node %1% committed to endzone %2% at impedance %3% through endpoint %4%"
-										, currNode, dstZone, dstImp, yy
+									reportF(SeverityTypeID::ST_MajorTrace, "Committed to DstZone %1% at impedance %2% through endPoint %3%"
+										, dstZone, dstImp, yy
 									);
 								}
 
@@ -642,7 +637,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							{
 								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
 								dms_assert(dstZone < ni.nrDstZones);
-								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with endzone %2% at impedance %3% through endpoint %4%"
+								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with DstZone %2% at impedance %3% through endPoint %4%"
 									, currNode, dstZone, currImp, y
 								);
 							}

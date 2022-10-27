@@ -143,7 +143,6 @@ struct DijkstraHeap
 
 	ImpType* m_ResultDataPtr = nullptr;
 	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = typename sequence_traits<LinkType>::seq_t::iterator(); // LinkType can be BitValue<4>
-	OwningPtrSizedArray<LinkType> m_TraceBackBuffer;
 	ImpType m_MaxImp = MaxValue<ImpType>();
 
 protected:
