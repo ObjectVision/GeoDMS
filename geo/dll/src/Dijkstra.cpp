@@ -580,24 +580,46 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							dms_assert(ni.endPoints.Impedances[y] >= 0);
 							ImpType endpointImpData = currImp + ni.endPoints.Impedances[y];
 
+							if (flags(df & DijkstraFlag::VerboseLogging))
+							{
+								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
+								dms_assert(dstZone < ni.nrDstZones);
+								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% connects to endzone %2% at impedance %3% through endpoint %4%"
+									, currNode, dstZone, endpointImpData, y
+								);
+							}
+
 							endPointHeap.push_back(EndPointHeapElemType(y, endpointImpData));
 							std::push_heap(endPointHeap.begin(), endPointHeap.end());
 
 							y = node_endPoint_inv.NextOrNone(y);
 						}
-						while (!endPointHeap.empty() && endPointHeap.front().Imp() < dh.m_MaxImp)
+						while (!endPointHeap.empty() && endPointHeap.front().Imp() <= currImp)
 						{
 							ZoneType yy = endPointHeap.front().Value();
 							ImpType dstImp = endPointHeap.front().Imp();
 
-							if (nzc.CommitY(yy, dstImp) && dstMassPtr)
+							if (nzc.CommitY(yy, dstImp))
 							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-								dms_assert(dstZone < ni.nrDstZones);
-								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
-								if (cumulativeMass >= maxSrcMass)
-									MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
+								if (flags(df & DijkstraFlag::VerboseLogging))
+								{
+									ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+									dms_assert(dstZone < ni.nrDstZones);
+									reportF(SeverityTypeID::ST_MajorTrace, "Node %1% committed to endzone %2% at impedance %3% through endpoint %4%"
+										, currNode, dstZone, dstImp, yy
+									);
+								}
+
+								if (dstMassPtr)
+								{
+									ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+									dms_assert(dstZone < ni.nrDstZones);
+									cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
+									if (cumulativeMass >= maxSrcMass)
+										MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
+								}
 							}
+
 							std::pop_heap(endPointHeap.begin(), endPointHeap.end());
 							endPointHeap.pop_back();
 						}
@@ -614,6 +636,15 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
 								if (cumulativeMass >= maxSrcMass)
 									MakeMin(dh.m_MaxImp, currImp); // no new zones will be finalized that are beyond this zone. 
+							}
+
+							if (flags(df & DijkstraFlag::VerboseLogging))
+							{
+								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
+								dms_assert(dstZone < ni.nrDstZones);
+								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with endzone %2% at impedance %3% through endpoint %4%"
+									, currNode, dstZone, currImp, y
+								);
 							}
 
 							y = node_endPoint_inv.NextOrNone(y);
@@ -647,7 +678,39 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						currLink = graph.node_link2_inv.Next(currLink);
 					}
 				}
+				if (ni.endPoints.Impedances)
+				{
+					// postprocess remaining endPoints.
+					while (!endPointHeap.empty() && endPointHeap.front().Imp() < dh.m_MaxImp)
+					{
+						ZoneType yy = endPointHeap.front().Value();
+						ImpType dstImp = endPointHeap.front().Imp();
 
+						if (nzc.CommitY(yy, dstImp))
+						{
+							if (flags(df & DijkstraFlag::VerboseLogging))
+							{
+								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+								dms_assert(dstZone < ni.nrDstZones);
+								reportF(SeverityTypeID::ST_MajorTrace, "Finally committed to dstzone %1% at impedance %2% through endpoint %3%"
+									, dstZone, dstImp, yy
+								);
+							}
+
+							if (dstMassPtr)
+							{
+								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+								dms_assert(dstZone < ni.nrDstZones);
+								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
+								if (cumulativeMass >= maxSrcMass)
+									MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
+							}
+						}
+
+						std::pop_heap(endPointHeap.begin(), endPointHeap.end());
+						endPointHeap.pop_back();
+					}
+				}
 				// ===================== count number of reached/processed dstZones j from this orgZone i 
 				SizeT zonalResultCount = nzc.ZonalResCount();
 				SizeT resultCountBase = nzc.IsDense() ? SizeT(ni.nrDstZones) * SizeT(orgZone) : resCumulCount ? resCumulCount[orgZone] : SizeT(0);
