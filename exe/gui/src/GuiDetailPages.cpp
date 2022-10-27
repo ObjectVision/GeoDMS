@@ -401,6 +401,8 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
                 ImGui::TableSetColumnIndex(m_ColumnIndex);
                 ImGui::Separator();
             }
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
             m_ColumnIndex++;
         }
     }
@@ -415,7 +417,7 @@ void GuiDetailPages::Update(bool* p_open)
         return;
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     if (m_State.DetailPagesEvents.HasEvents()) // new current item
@@ -446,53 +448,49 @@ void GuiDetailPages::Update(bool* p_open)
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
+
             if (m_State.GetCurrentItem())
             {
                 if (m_GeneralProperties.empty())
                     UpdateGeneralProperties();
                 DrawProperties(m_GeneralProperties);
             }
-            //if (ImGui::IsItemActive() && ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
-            //    SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
         }
 
         if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
-        { // HAS NON DEFAULT VALUES
-            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
-
+        {
             if (m_State.GetCurrentItem())
             {
                 if (m_AllProperties.empty())
                     UpdateAllProperties();
                 DrawProperties(m_AllProperties);
             }
-            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
         }
+
+        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            SetKeyboardFocusToThisHwnd();
 
         if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
         {
-            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
-
             if (m_State.GetCurrentItem())
             {
                 if (m_ExploreProperties.empty())
                     UpdateExploreProperties();
                 DrawProperties(m_ExploreProperties);
             }
-            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
         }
+
         if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
         {
-            if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
-
             if (m_State.GetCurrentItem())
             {
                 if (m_FilteredStatistics.empty())
@@ -500,10 +498,9 @@ void GuiDetailPages::Update(bool* p_open)
                 //ImGui::InputTextMultiline("##statistics", const_cast<char*>(m_Statistics.c_str()), m_Statistics.size(), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
                 DrawProperties(m_FilteredStatistics);
             }
-
-            if (ImGui::IsItemHovered() && ImGui::IsAnyMouseDown())
-                SetKeyboardFocusToThisHwnd();
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
         }
 
         ImGui::EndTabBar();

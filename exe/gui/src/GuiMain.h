@@ -4,7 +4,6 @@
 #include "GuiBase.h"
 #include "GuiMenu.h"
 #include "GuiTreeview.h"
-#include "GuiInput.h"
 #include "GuiCurrentItem.h"
 #include "GuiTableview.h"
 #include "GuiView.h"
@@ -12,6 +11,7 @@
 #include "GuiDetailPages.h"
 #include "GuiEventLog.h"
 #include "GuiToolbar.h"
+#include "GuiInput.h"
 
 #include "AbstrDataItem.h"
 #include "DataView.h"

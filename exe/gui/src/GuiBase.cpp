@@ -24,7 +24,7 @@ bool GuiState::ShowTableviewWindow = false;
 bool GuiState::ShowDetailPagesWindow = false; // true
 bool GuiState::ShowEventLogWindow = false; // true
 bool GuiState::ShowToolbar                  = false;
-bool GuiState::ShowCurrentItemBar = false; // true
+bool GuiState::ShowCurrentItemBar = true; // true
 bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;
 TreeItem* GuiState::m_Root = nullptr;
@@ -203,9 +203,78 @@ void GuiState::LoadWindowOpenStatusFlags()
     ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
 }
 
-void   LoadIniFromRegistry()
+std::string GetInitialWindowComposition()
+{
+    std::string result = "[Window][GeoDMSGui]\n"
+        "Pos=0,21\n"
+        "Size=1280,699\n"
+        "Collapsed=0\n"
+        "\n"
+        "[Window][Toolbar]\n"
+        "Pos=8,50\n"
+        "Size=1264,32\n"
+        "Collapsed=0\n"
+        "DockId=0x00000003,0\n"
+        "\n"
+        "[Window][Detail Pages]\n"
+        "Pos=938,84\n"
+        "Size=334,328\n"
+        "Collapsed=0\n"
+        "DockId=0x00000006,0\n"
+        "\n"
+        "[Window][Treeview]\n"
+        "Pos=8,84\n"
+        "Size=343,328\n"
+        "Collapsed=0\n"
+        "DockId=0x00000007,0\n"
+        "\n"
+        "[Window][EventLog]\n"
+        "Pos=8,414\n"
+        "Size=1264,298\n"
+        "Collapsed=0\n"
+        "DockId=0x00000002,0\n"
+        "\n"
+        "[Window][DMSView]\n"
+        "Pos=353,84\n"
+        "Size=583,328\n"
+        "Collapsed=0\n"
+        "DockId=0x00000008,0\n"
+        "\n"
+        "[Window][Debug##Default]\n"
+        "ViewportPos=94,117\n"
+        "ViewportId=0x9F5F46A1\n"
+        "Size=400,400\n"
+        "Collapsed=0\n"
+        "\n"
+        "[Docking][Data]\n"
+        "DockSpace         ID=0x54D8F03E Window=0x47EE5377 Pos=470,269 Size=1264,662 Split=Y\n"
+        "  DockNode        ID=0x00000003 Parent=0x54D8F03E SizeRef=1264,32 HiddenTabBar=1 Selected=0x738351EE\n"
+        "  DockNode        ID=0x00000004 Parent=0x54D8F03E SizeRef=1264,628 Split=Y\n"
+        "    DockNode      ID=0x00000001 Parent=0x00000004 SizeRef=1264,328 Split=X\n"
+        "      DockNode    ID=0x00000005 Parent=0x00000001 SizeRef=928,303 Split=X\n"
+        "        DockNode  ID=0x00000007 Parent=0x00000005 SizeRef=343,303 Selected=0x0C84ACA2\n"
+        "        DockNode  ID=0x00000008 Parent=0x00000005 SizeRef=583,303 CentralNode=1 Selected=0x1BA3A327\n"
+        "      DockNode    ID=0x00000006 Parent=0x00000001 SizeRef=334,303 Selected=0x89482BF9\n"
+        "    DockNode      ID=0x00000002 Parent=0x00000004 SizeRef=1264,298 Selected=0xB76E45CC"
+        "\n";
+
+    return result;
+}
+
+void SetWindowCompositionOnFirstUse()
+{
+    SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
+}
+
+void LoadIniFromRegistry()
 {
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    if (ini_registry_contents.empty())
+    {
+        SetWindowCompositionOnFirstUse();
+        ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    }
+
     if (!ini_registry_contents.empty())
     {
         reportF(SeverityTypeID::ST_MajorTrace, "Loading GeoDMS window composition from registry.");

@@ -164,6 +164,7 @@
     <ClCompile Include="src\GuiBase.cpp" />
     <ClCompile Include="src\GuiCurrentItem.cpp" />
     <ClCompile Include="src\GuiDetailPages.cpp" />
+    <ClCompile Include="src\GuiEmail.cpp" />
     <ClCompile Include="src\GuiEventLog.cpp" />
     <ClCompile Include="src\GuiGraphics.cpp" />
     <ClCompile Include="src\GuiInput.cpp" />
@@ -187,6 +188,7 @@
     <ClInclude Include="src\GuiBase.h" />
     <ClInclude Include="src\GuiCurrentItem.h" />
     <ClInclude Include="src\GuiDetailPages.h" />
+    <ClInclude Include="src\GuiEmail.h" />
     <ClInclude Include="src\GuiEventLog.h" />
     <ClInclude Include="src\GuiGraphics.h" />
     <ClInclude Include="src\GuiInput.h" />

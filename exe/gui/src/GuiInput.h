@@ -9,6 +9,8 @@ class GuiInput : GuiBaseComponent
 {
 public:
 	static void ProcessKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
+	void ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
+
 
 private:
 	static GuiState m_State;

@@ -158,7 +158,7 @@ std::string StartWindowsFileDialog()
         if (SUCCEEDED(hr))
         {
             // Show the Open dialog box.
-            hr = pFileOpen->Show(NULL);
+            hr = pFileOpen->Show((HWND)ImGui::GetCurrentWindow()->Viewport->PlatformHandleRaw);
 
             // Get the file name from the dialog box.
             if (SUCCEEDED(hr))
@@ -198,7 +198,7 @@ std::string StartWindowsFileDialog()
 
 void GuiMenuFileComponent::Update()
 {
-    m_fileDialog.Display();
+    /*m_fileDialog.Display();
 
     if (m_fileDialog.HasSelected())
     {
@@ -209,13 +209,13 @@ void GuiMenuFileComponent::Update()
         UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
         CleanRecentOrPinnedFiles(m_RecentFiles);
         m_fileDialog.ClearSelected();
-    }
+    }*/
 
     ImGui::SetNextItemOpen(true);
     if (ImGui::BeginMenu("File"))
     {
         //if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
-        //    m_fileDialog.Open();
+            //m_fileDialog.Open();
 
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O"))
         {
@@ -224,6 +224,8 @@ void GuiMenuFileComponent::Update()
             {
                 m_State.configFilenameManager.Set(file_name);
                 SetGeoDmsRegKeyString("LastConfigFile", file_name);
+                UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
+                CleanRecentOrPinnedFiles(m_RecentFiles);
             }
         }
 

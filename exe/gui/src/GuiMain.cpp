@@ -29,6 +29,8 @@
 #include "GuiMain.h"
 #include "GuiStyles.h"
 #include "GuiGraphics.h"
+#include "GuiEmail.h"
+
 
 GuiMainComponent::GuiMainComponent()
 {
@@ -255,6 +257,8 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         ImGui::SameLine();
         if (ImGui::Button("Email", ImVec2(120, 0)))
         {
+            GuiEmail email_system;
+            email_system.SendMailUsingDefaultWindowsEmailApplication("test");
         }
         ImGui::EndPopup();
     }
@@ -333,7 +337,7 @@ int GuiMainComponent::MainLoop()
     // state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + DMS_GetVersion()).c_str()); // default window title
-    glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
+    //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();
     SHV_SetAdminMode(true); // needed for ViewStyleFlags lookup

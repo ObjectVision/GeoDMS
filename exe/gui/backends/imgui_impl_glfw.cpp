@@ -57,6 +57,8 @@
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+
+#include "../src/GuiInput.h"
 //#include "../src/GuiStyles.h"
 
 // Clang warnings with -Weverything
@@ -346,6 +348,7 @@ static int ImGui_ImplGlfw_TranslateUntranslatedKey(int key, int scancode)
 
 void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)
 {
+    static GuiInput DMSInput;
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     if (bd->PrevUserCallbackKey != NULL && window == bd->Window)
         bd->PrevUserCallbackKey(window, keycode, scancode, action, mods);
@@ -367,6 +370,9 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, i
     ImGuiKey imgui_key = ImGui_ImplGlfw_KeyToImGuiKey(keycode);
     io.AddKeyEvent(imgui_key, (action == GLFW_PRESS));
     io.SetKeyEventNativeData(imgui_key, keycode, scancode); // To support legacy indexing (<1.87 user code)
+
+    // DMS key event
+    DMSInput.ProcessDMSKeyEvent(window, keycode, scancode, action, mods);
 }
 
 void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)

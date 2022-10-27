@@ -54,7 +54,7 @@ void GuiTreeViewComponent::Update(bool* p_open)
     if (m_State.GetRoot())
         CreateTree();
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     ImGui::End();
@@ -208,8 +208,11 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
             UpdateStateAfterItemClick(nextSubItem);
 
         // click event
-        if (ImGui::IsItemClicked() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) // item is clicked
+        if (ImGui::IsItemClicked() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) // item is clicked
+        {
+            SetKeyboardFocusToThisHwnd();
             UpdateStateAfterItemClick(nextSubItem);
+        }
 
         // double click event
         if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
