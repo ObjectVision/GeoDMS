@@ -48,6 +48,9 @@ void GuiCurrentItemComponent::Update()
             }
         }
 
+        if (ImGui::IsItemClicked())
+            SetKeyboardFocusToThisHwnd();
+
         ImGui::EndMenuBar();
     }
 }

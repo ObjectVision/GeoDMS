@@ -82,7 +82,7 @@ void GuiEventLog::Update(bool* p_open)
         return;
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     // window specific options button
@@ -152,7 +152,11 @@ void GuiEventLog::Update(bool* p_open)
         ImGui::PushStyleColor(ImGuiCol_Text, color);
         ImGui::TextUnformatted(item.second.c_str());
         ImGui::PopStyleColor();
+
+        if (ImGui::IsItemClicked())
+            SetKeyboardFocusToThisHwnd();
     }
+
 
     /*ImGuiListClipper clipper;
     clipper.Begin(m_Items.size());        
@@ -185,6 +189,9 @@ void GuiEventLog::Update(bool* p_open)
     if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
         ImGui::SetScrollHereY(1.0f);
     ScrollToBottom = false;
+
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
 
     //ImGui::PopStyleVar();
     ImGui::EndChild();
@@ -272,48 +279,6 @@ void GuiEventLog::AddLog(SeverityTypeID st, std::string msg)
     }
     m_Items.push_back(std::pair(st, msg));
 };
-
-/*void GuiEventLog::ExecCommand(const char* command_line)
-{
-    AddLog(SeverityTypeID::ST_Nothing, "# %s\n", command_line);
-
-    // Insert into history. First find match and delete it so it can be pushed to the back.
-    // This isn't trying to be smart or optimal.
-    HistoryPos = -1;
-    for (int i = History.Size - 1; i >= 0; i--)
-        if (Stricmp(History[i], command_line) == 0)
-        {
-            free(History[i]);
-            History.erase(History.begin() + i);
-            break;
-        }
-    History.push_back(Strdup(command_line));
-
-    // Process command
-    if (Stricmp(command_line, "CLEAR") == 0)
-    {
-        ClearLog();
-    }
-    else if (Stricmp(command_line, "HELP") == 0)
-    {
-        AddLog("Commands:");
-        for (int i = 0; i < Commands.Size; i++)
-            AddLog("- %s", Commands[i]);
-    }
-    else if (Stricmp(command_line, "HISTORY") == 0)
-    {
-        int first = History.Size - 10;
-        for (int i = first > 0 ? first : 0; i < History.Size; i++)
-            AddLog("%3d: %s\n", i, History[i]);
-    }
-    else
-    {
-        AddLog("Unknown command: '%s'\n", command_line);
-    }
-
-    // On command input, we scroll to bottom even if AutoScroll==false
-    ScrollToBottom = true;
-};*/
 
 int   GuiEventLog::Stricmp(const char* s1, const char* s2)
 {
