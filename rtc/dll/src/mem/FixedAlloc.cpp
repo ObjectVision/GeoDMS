@@ -78,6 +78,7 @@ void RegisterAlloc(void* ptr, size_t n MG_DEBUG_ALLOCATOR_SRC_ARG);
 void RemoveAlloc(void* ptr, size_t n);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
+void PostReporting();
 void ConsiderReporting();
 
 std::allocator<UInt64> s_QWordArrayAllocator;
@@ -563,18 +564,21 @@ ElemAllocComponent::~ElemAllocComponent()
 
 #include "dbg/Timer.h"
 
+void PostReporting()
+{
+	s_ReportingRequestPending = true;
+	AddMainThreadOper([] {
+		if (s_ReportingRequestPending)
+			ReportFixedAllocStatus();
+		}
+	);
+}
+
 void ConsiderReporting()
 {
 	static Timer t;
 	if (t.PassedSecs(30))
-	{
-		s_ReportingRequestPending = true;
-		AddMainThreadOper([] {
-			if (s_ReportingRequestPending)
-				ReportFixedAllocStatus();
-			}
-		);
-	}
+		PostReporting();
 }
 
 
@@ -645,7 +649,7 @@ void ReportAllocs()
 	}
 	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %x(%d)", cumulSize, cumulSize);
 
-	ReportFixedAllocStatus();
+	PostReporting(); // Warning: allocSection can be locked, so don't call ReportFixedAllocStatus() here.
 }
 
 struct AllocReporter : DebugReporter
