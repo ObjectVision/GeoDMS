@@ -24,6 +24,8 @@ int TextCallBacka(ImGuiInputTextCallbackData* data)
 
 void GuiCurrentItemComponent::Update()
 {
+
+    //TODO: use body of DMS_TreeItem_GetBestItemAndUnfoundPart and return pair treeitem string
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     if (ImGui::BeginMenuBar())
     {
