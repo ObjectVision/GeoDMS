@@ -578,7 +578,7 @@ void SingleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 {
 	dms_assert(!begin || (end && (*end == '\'' || !*end)));
 
-	UInt32 sz = _SingleUnQuoteMiddleSize(begin, end);
+	auto sz = _SingleUnQuoteMiddleSize(begin, end);
 	if (!sz)
 		resStr.clear();
 	else
@@ -696,7 +696,7 @@ exit:
 
 SharedStr DoubleUnQuoteMiddle(CharPtr str)
 {
-	UInt32 sz = _DoubleUnQuoteMiddleSize(str);
+	auto sz = _DoubleUnQuoteMiddleSize(str);
 	if (!sz)
 		return SharedStr();
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
@@ -713,7 +713,7 @@ void DoubleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 	dms_assert(!begin || (end && (*end == '"' || !*end)));
 	dms_assert(begin || !end);
 
-	UInt32 sz = _DoubleUnQuoteMiddleSize(begin, end);
+	auto sz = _DoubleUnQuoteMiddleSize(begin, end);
 	if (!sz)
 		resStr.clear();
 	else

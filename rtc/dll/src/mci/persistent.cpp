@@ -424,8 +424,10 @@ SharedStr PersistentSharedObj::GetFindableName(const PersistentSharedObj* subIte
 
 	SharedStr result = subItem->GetRelativeName(self); // returns volatile pointer within GetFullName token str
 	if (upCount)
-		return DelimitedConcat(RepeatedDots(upCount + 1), result.c_str());
-
+	{
+		++upCount;
+		return DelimitedConcat(RepeatedDots(upCount), result.c_str());
+	}
 	return result;
 }
 
