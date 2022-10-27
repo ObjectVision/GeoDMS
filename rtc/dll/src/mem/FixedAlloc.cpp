@@ -145,7 +145,7 @@ struct VirtualAllocPage
 
 	BYTE_PTR reserve_block_log2(block_index_t log2BlockSize, BlockCount_type blockIndex)
 	{
-		auto ptr = begin() + (blockIndex << log2BlockSize);
+		auto ptr = begin() + (SizeT(blockIndex) << log2BlockSize);
 		return ptr;
 	}
 
