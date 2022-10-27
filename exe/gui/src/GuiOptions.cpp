@@ -3,6 +3,12 @@
 #include "utl/Environment.h"
 
 
+std::string SetDefaultRegKey(std::string key, std::string value)
+{
+    SetGeoDmsRegKeyString(key.c_str(), value);
+    return value;
+}
+
 GuiOptions::GuiOptions()
 {
     m_LocalDataDirPath.resize(2048);
@@ -10,8 +16,16 @@ GuiOptions::GuiOptions()
     m_DmsEditorPath.resize(2048);
 
     auto tmp_ld = GetGeoDmsRegKey("LocalDataDir");
+    if (tmp_ld.empty())
+        tmp_ld = SetDefaultRegKey("LocalDataDir", "C:\\LocalData").c_str();
+
     auto tmp_sd = GetGeoDmsRegKey("SourceDataDir");
+    if (tmp_sd.empty())
+        tmp_sd = SetDefaultRegKey("SourceDataDir", "C:\\SourceData").c_str();
+
     auto tmp_ed = GetGeoDmsRegKey("DmsEditor");
+    if (tmp_ed.empty())
+        tmp_ed = SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\Notepad++\Notepad++.exe"" ""%F"" -n%L""").c_str();
 
     std::copy(tmp_ld.begin(), tmp_ld.end(), m_LocalDataDirPath.begin());
     std::copy(tmp_sd.begin(), tmp_sd.end(), m_SourceDataDirPath.begin());
