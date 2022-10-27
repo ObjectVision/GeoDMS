@@ -39,6 +39,12 @@ granted by an additional written contract for support, assistance and/or develop
 #include "act/ActorEnums.h"
 
 //----------------------------------------------------------------------
+// C++ style Interface functions for TreeItem retrieval
+//----------------------------------------------------------------------
+
+TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path)->BestItemRef;
+
+//----------------------------------------------------------------------
 // C style Interface functions for construction
 //----------------------------------------------------------------------
 extern "C" {
