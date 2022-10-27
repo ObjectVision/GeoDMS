@@ -265,6 +265,35 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
     return false;
 }
 
+bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
+{
+    //TODO: build in timer for checks?
+    static std::string changed_files_result;
+    auto changed_files = DMS_ReportChangedFiles(true);
+    if (changed_files)
+    {
+        changed_files_result = (*changed_files).c_str();
+        changed_files->Release(changed_files);
+        ImGui::OpenPopup("Changed source file(s)");
+    }
+
+    if (ImGui::BeginPopupModal("Changed source file(s)", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text(const_cast<char*>(changed_files_result.c_str()));
+
+        if (ImGui::Button("Ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Reopen", ImVec2(120, 0)))
+        {
+            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    return false;
+}
+
 int GuiMainComponent::Init()
 {
     // set exe dir
@@ -366,6 +395,9 @@ int GuiMainComponent::MainLoop()
         if (ShowErrorDialogIfNecessary())
             break;
 
+        // Updated source files
+        ShowSourceFileChangeDialogIfNecessary();
+
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
         {
@@ -426,8 +458,6 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
-    //SuspendTrigger::DoSuspend();
-
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
