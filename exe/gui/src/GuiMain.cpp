@@ -25,6 +25,7 @@
 #include "ShvUtils.h"
 #include "AbstrUnit.h" // IsUnit
 #include "SessionData.h"
+#include "utl/Environment.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -75,6 +76,26 @@ int GetFreeViewIndex(std::vector<GuiView>& views)
         ind++;
     }
     return ind;
+}
+
+bool FillOpenConfigSourceCommand(std::string command, std::string filename, std::string line, std::string &result)
+{
+    //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
+    result = command;
+    auto fn_part = result.find("%F");
+    auto tmp_str = result.substr(fn_part + 2);
+    if (fn_part != std::string::npos)
+    {
+        result.replace(fn_part, fn_part + 2, filename);
+        result += tmp_str;
+    }
+
+    auto ln_part = result.find("%L");
+
+    if (ln_part != std::string::npos)
+        result.replace(ln_part, ln_part+2, line);
+
+    return true;
 }
 
 void GuiMainComponent::ProcessEvent(GuiEvents e)
@@ -209,6 +230,28 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_View.InitDataView(m_State.GetCurrentItem());
             break;
         }
+        }
+
+        break;
+    }
+    case OpenConfigSource:
+    {
+        std::string filename = "";
+        std::string line     = "";
+        std::string result   = "";
+        if (m_State.GetCurrentItem())
+        {
+            filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
+            line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
+        }
+        auto command = GetGeoDmsRegKey("DmsEditor");
+
+        if (!filename.empty() && !line.empty() && !command.empty())
+        {
+            if (FillOpenConfigSourceCommand(command.c_str(), filename, line, result))
+            {
+                std::system(result.c_str());
+            }
         }
 
         break;

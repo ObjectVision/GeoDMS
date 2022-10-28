@@ -30,6 +30,7 @@
 
 void GuiMenuComponent::Update(GuiView& ViewPtr)
 {
+    ImGui::SetNextItemOpen(true, 0);
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
@@ -211,7 +212,6 @@ void GuiMenuFileComponent::Update()
         m_fileDialog.ClearSelected();
     }*/
 
-    ImGui::SetNextItemOpen(true);
     if (ImGui::BeginMenu("File"))
     {
         //if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
