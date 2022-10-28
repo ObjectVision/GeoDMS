@@ -26,6 +26,9 @@ if ErrorLevel 2 set MS_VERB=build
 del /s /q "bin\debug\x64"
 del /s /q "bin\release\x64"
 
+msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
+msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
+REM 2nd push to complete copy actions.
 set MS_VERB=build
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
