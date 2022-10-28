@@ -1137,6 +1137,7 @@ namespace PlatformInfo
 			result += "version 10 or greater";
 		if (IsWindowsServer())
 			result += ", server edition";
+		return result;
 	}
 	RTC_CALL SharedStr GetUserNameA()
 	{
