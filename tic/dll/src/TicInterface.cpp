@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
+#include "utl/Encodes.h"
 
 #include "stg/AbstrStorageManager.h"
 #include "AbstrCalculator.h"
@@ -279,23 +280,10 @@ TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPt
 {
 	assert(context);
 
-	char ch;
-	while (true)
-	{
-		ch = *path;
-		if (!ch || isalpha(ch) || ch == '/' || ch == '_')
-			break;
-		++path; // skip leading spaces and trash
-	}
+	while (*path && !itemNameFirstChar_test(*path))
+		++path;
 
-	CharPtrRange pathRange = path;
-	while (!pathRange.empty())
-	{
-		ch = pathRange.back();
-		if (isalpha(ch) || isdigit(ch) || ch == '/' || ch == '_')
-			break;
-		--pathRange.second; // skip trailing trash
-	}
+	CharPtrRange pathRange = { path, ParseTreeItemPath(path) }; // skip trailing trash
 
 	return context->FindBestItem(pathRange);
 }

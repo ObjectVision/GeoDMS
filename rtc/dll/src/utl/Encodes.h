@@ -49,18 +49,10 @@ inline bool itemNameNextChar_test(unsigned char ch)
 	return isalnum(ch) || ch == '_' || ch == '@' || ch >= 128;
 }
 
-inline bool itemName_test(CharPtr p)
-{
-	if (!p || !*p)
-		return false;
-	if (!itemNameFirstChar_test(*p))
-		return false;
-	while (char ch = *++p)
-	{		
-		if (!itemNameNextChar_test(ch))
-			return false;
-	}
-	return true;
-}
+RTC_CALL bool itemName_test(CharPtr p);
+RTC_CALL CharPtr ParseTreeItemName(CharPtr name);
+RTC_CALL CharPtr ParseTreeItemPath(CharPtr name);
+RTC_CALL void CheckTreeItemName(CharPtr name);
+RTC_CALL void CheckTreeItemPath(CharPtr name);
 
 #endif // __RTC_UTL_ENCODES_H

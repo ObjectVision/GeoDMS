@@ -482,22 +482,6 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 	} while(walker);
 }
 
-void CheckTreeItemName(CharPtr name)
-{
-	dms_assert(name);
-	if (!*name)
-		return;
-	CharPtr charPtr = name;
-	if (!itemNameFirstChar_test(*charPtr))
-		throwErrorF("TreeItem Create", "Illegal starting character '%c' in name '%s'", *charPtr, name);
-	++charPtr;
-	for(; *charPtr; ++charPtr)
-	{
-		if (!itemNameNextChar_test(*charPtr))
-			throwErrorF("TreeItem Create", "Illegal character '%c' in name '%s'", *charPtr, name);
-	}
-}
-
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
 	dms_assert(m_State.GetProgress() < PS_MetaInfo);
@@ -514,11 +498,9 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 		MG_LOCKER_NO_UPDATEMETAINFO
 
 		// inherit some TreeItem State Flags.
-
 		if (parent->IsAutoDeleteDisabled())
 			DisableAutoDelete();
 		parent->AddItem(this);
-
 		m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
 
 		// special processing
@@ -530,13 +512,8 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 			SetFreeDataState(true); 
 		if (parent->GetStoreDataState())
 			SetStoreDataState(true);
-//		if (IsCacheItem() && parent->IsDcKnown())
-//			SetDcKnown();
-
-//		dms_assert(IsCacheItem() || !IsDcKnown());
 	}
 #if defined(MG_DEBUG_DATA)
-//	tmp_swapper<UInt32> allowTokenCreationForDebugPurposes(gd_TokenCreationBlockCount, 0);
 	md_FullName = GetFullName();
 	if (parent)
 		md_FullName = parent->md_FullName + '/' + GetName().c_str();
