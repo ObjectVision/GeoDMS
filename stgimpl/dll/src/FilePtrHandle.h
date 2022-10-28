@@ -64,8 +64,8 @@ public:
 private:
 	void SetBufferSize(UInt32 nrPagesInBuffer);
 
-	FILE* m_FP;
-	bool  m_TranslateText :1, m_CanRead : 1, m_CanWrite : 1;
+	FILE* m_FP = nullptr;
+	bool  m_TranslateText :1 = false, m_CanRead : 1 = false, m_CanWrite : 1 = false;
 };
 
 

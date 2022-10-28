@@ -146,8 +146,8 @@ struct DijkstraHeap
 	ImpType m_MaxImp = MaxValue<ImpType>();
 
 protected:
-	NodeType m_NrV;
-	ZoneType m_CurrSrcZoneTick;
+	NodeType m_NrV = 0;
+	ZoneType m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
 	HeapType m_NodeHeap;
 	OwningPtrSizedArray<ZoneType> m_SrcZoneStamp;
 };

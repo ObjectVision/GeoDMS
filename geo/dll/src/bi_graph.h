@@ -242,9 +242,9 @@ private:
 	const bi_graph&        m_Graph;
 	std::vector<heap_elem> m_Heap;
 	std::vector<flag_elem> m_srcTraceBack, m_dstTraceBack;
-	ChronoID               m_CurrFlag;
+	ChronoID               m_CurrFlag = 0;
 
-	UInt32 m_maxFoundAugmentation, m_maxFoundLink;
+	UInt32 m_maxFoundAugmentation = 0, m_maxFoundLink = 0;
 };
 
 
