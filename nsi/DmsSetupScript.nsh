@@ -49,9 +49,14 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\proj4data
   File ..\bin\Release\${GeoDmsPlatform}\proj4data\*.*
 
- CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
- CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}-${GeoDmsPlatform}.lnk" "$INSTDIR\GeoDmsGui.exe"   "" "$INSTDIR\GeoDmsGui.exe"   0 SW_SHOWMAXIMIZED "" "Start the GeoDMS GUI"
- CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall-${GeoDmsPlatform}.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
+  MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
+    SetShellVarContext all
+  skip_set_all:
+
+  CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
+  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}-${GeoDmsPlatform}.lnk" "$INSTDIR\GeoDmsGui.exe"   "" "$INSTDIR\GeoDmsGui.exe"   0 SW_SHOWMAXIMIZED "" "Start the GeoDMS GUI"
+  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms imGui ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsImGui.exe"   "" "$INSTDIR\GeoDmsImGui.exe"   0 SW_SHOWMAXIMIZED "" "Preview the new GeoDMS GUI"
+  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall-${GeoDmsPlatform}.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
  
   
 SectionEnd ; end the section
