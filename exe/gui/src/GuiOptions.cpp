@@ -25,7 +25,7 @@ GuiOptions::GuiOptions()
 
     auto tmp_ed = GetGeoDmsRegKey("DmsEditor");
     if (tmp_ed.empty())
-        tmp_ed = SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\Notepad++\Notepad++.exe"" ""%F"" -n%L""").c_str();
+        tmp_ed = SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L""").c_str();
 
     std::copy(tmp_ld.begin(), tmp_ld.end(), m_LocalDataDirPath.begin());
     std::copy(tmp_sd.begin(), tmp_sd.end(), m_SourceDataDirPath.begin());

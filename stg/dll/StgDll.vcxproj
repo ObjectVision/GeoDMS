@@ -47,7 +47,9 @@
       <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../stgimpl/dll/src;../../rtc/dll/src;../../tic/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMSTG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <Link />
+    <Link>
+      <DelayLoadDLLs>gdal.dll</DelayLoadDLLs>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\cfs\CompoundStorageManager.cpp" />

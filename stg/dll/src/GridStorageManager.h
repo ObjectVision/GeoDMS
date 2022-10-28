@@ -220,9 +220,11 @@ namespace Grid {
 								for (UInt32 row = 0; row != nrReadRows; ++row, stripPtr += tw_aligned)
 									fast_fill(stripPtr + nrReadableCols, stripPtr + tw_aligned, defcolor);
 							}
-							dms_assert(nrReadRows <= tileSize.Y());
-							dms_assert(tw_aligned * nrReadRows <= tile_wh);
-							fast_fill(strip.begin() + tw_aligned * nrReadRows, strip.begin() + tile_wh, defcolor);
+							assert(nrReadRows <= tileSize.Y());
+							assert(tw_aligned * nrReadRows <= tile_wh);
+							UInt32 rowStartIndex = tw_aligned * nrReadRows;
+							assert(rowStartIndex <= tile_wh);
+							fast_fill(strip.begin() + rowStartIndex, strip.begin() + tile_wh, defcolor);
 							//REMOVE							CheckValueCount("After fill completion", strip.begin(), tile_wh); // DEBUG
 						}
 						else

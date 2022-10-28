@@ -47,7 +47,8 @@ inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 	dms_assert(IsIncluding(range, loc));    // caller must shield out-of-range
 
 	assert(loc >= range.first);
-	SizeT index = (loc - range.first);   
+	loc -= range.first;
+	SizeT index = loc;   
 	assert(index < Cardinality(range)); // Postcondition
 	return index;
 }
@@ -125,12 +126,12 @@ inline SizeT Range_GetIndex_naked(const Range<Point<T> >& range, Point<T>loc)
 	dms_assert(IsIncluding(range, loc)); // caller must provide loc in range
 
 	SizeT rowSize  = _Width(range);
-	SizeT rowIndex = (loc.Row() - _Top(range));
-	SizeT colIndex = (loc.Col() - _Left(range));
+	loc.Row() -= _Top(range);  SizeT rowIndex = loc.Row();
+	loc.Col() -= _Left(range); SizeT colIndex = loc.Col();
 
+	assert(colIndex < rowSize);
 	SizeT index =  rowIndex * rowSize + colIndex;
-	dms_assert(colIndex < rowSize);
-	dms_assert(index < Cardinality(range)); // Postcondition
+	assert(index < Cardinality(range)); // Postcondition
 
 	return index;
 }
