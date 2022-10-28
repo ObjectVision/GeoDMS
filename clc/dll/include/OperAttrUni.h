@@ -193,7 +193,7 @@ struct UnaryAttrFuncOperator: UnaryAttrOperator<typename TUniOper::res_type, typ
 		do_unary_func(resData, arg1Data, m_AttrOper, af & AF1_HASUNDEFINED);
 	}
 private:
-	TUniOper m_AttrOper;
+	TUniOper m_AttrOper = TUniOper();
 };
 
 template <typename TUniOper>
@@ -213,7 +213,7 @@ struct UnaryAttrSpecialFuncOperator: UnaryAttrOperator<typename TUniOper::res_ty
 		dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), m_AttrOper);
 	}
 private:
-	TUniOper m_AttrOper;
+	TUniOper m_AttrOper = TUniOper();
 };
 
 
