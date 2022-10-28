@@ -189,10 +189,10 @@ SharedStr UrlDecode(WeakStr urlStr)
 	if (sz == urlStr.ssize() && urlStr.find('+') == urlStr.send())
 		return urlStr;
 
-	SharedStr result = SharedStr( SharedCharArray::CreateUninitialized(sz+1) );
-	SharedStr resultStr(result);
+	auto result = SharedCharArray::CreateUninitialized(sz+1);
+	SharedStr resultStr(result); // assign ownership
 
-	char* resultPtr = result.begin();
+	char* resultPtr = result->begin();
 	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++resultPtr, ++chPtr)
 	{
 		char ch = *chPtr;
@@ -205,7 +205,7 @@ SharedStr UrlDecode(WeakStr urlStr)
 			ch = ' ';
 		*resultPtr = ch;
 	}
-	dms_assert(resultPtr == result.csend());
+	dms_assert(resultPtr == resultStr.csend());
 	*resultPtr = char(0);
 	return resultStr;
 }

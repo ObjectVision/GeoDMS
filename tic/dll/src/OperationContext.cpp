@@ -1030,7 +1030,7 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 		}
 	}
 		
-	dms_assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed()));
+	dms_assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FR_MetaInfo)));
 	return resultingFlag;
 }
 
