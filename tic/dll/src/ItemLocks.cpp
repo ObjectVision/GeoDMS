@@ -749,7 +749,7 @@ std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)
 			break;
 		item = item->GetTreeParent(); // cache items can inherit write rights from parent
 	}	while (item);
-	dms_assert(!item || CheckDataReady(item) || item->IsDataReadable());
+	dms_assert(!item || CheckDataReady(item) || item->IsDataReadable() || item->WasFailed());
 	return std::shared_ptr<OperationContext>();
 }
 
