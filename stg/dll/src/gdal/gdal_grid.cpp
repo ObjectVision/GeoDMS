@@ -592,10 +592,11 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 						uc = Unit<UInt64>::GetStaticClass();
 				}
 			}
-
-			uc->CreateUnit(curr, itemID);
+			if (uc)
+				uc->CreateUnit(curr, itemID);
 			auto dataItem = curr->GetSubTreeItemByID(itemID);
-			dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", true);
+			if (dataItem)
+				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", true);
 		}
 	}
 

@@ -28,6 +28,8 @@ private:
 	void ProcessEvent(GuiEvents e);
 	void CloseCurrentConfig();
 	bool ShowErrorDialogIfNecessary();
+	bool ShowSourceFileChangeDialogIfNecessary();
+
 	GLFWwindow*				m_Window = nullptr;
 	GuiState				m_State;
 	GuiInput			    m_Input;

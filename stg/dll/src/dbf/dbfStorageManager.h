@@ -67,7 +67,7 @@ private:
 
 //	hidden implementation which doesn't know about DMS structure
 	mutable SharedPtr<TNameSet>        m_NameSet;          // nameset cache
-	mutable const TreeItem*            m_NameSetStorageHolder; // used to check for which storageHolder the nameset cache was made
+	mutable const TreeItem*            m_NameSetStorageHolder = nullptr; // used to check for which storageHolder the nameset cache was made
 	mutable SharedPtr<const AbstrUnit> m_TableDomain;
 
 	friend struct DbfMetaInfo;
@@ -75,7 +75,3 @@ private:
 };
 
 #endif // __STG_DBF_STORAGEMANAGER_H
-
-/*****************************************************************************/
-//										END OF FILE
-/*****************************************************************************/

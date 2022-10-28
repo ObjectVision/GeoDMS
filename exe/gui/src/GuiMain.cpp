@@ -25,6 +25,7 @@
 #include "ShvUtils.h"
 #include "AbstrUnit.h" // IsUnit
 #include "SessionData.h"
+#include "utl/Environment.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -75,6 +76,26 @@ int GetFreeViewIndex(std::vector<GuiView>& views)
         ind++;
     }
     return ind;
+}
+
+bool FillOpenConfigSourceCommand(std::string command, std::string filename, std::string line, std::string &result)
+{
+    //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
+    result = command;
+    auto fn_part = result.find("%F");
+    auto tmp_str = result.substr(fn_part + 2);
+    if (fn_part != std::string::npos)
+    {
+        result.replace(fn_part, fn_part + 2, filename);
+        result += tmp_str;
+    }
+
+    auto ln_part = result.find("%L");
+
+    if (ln_part != std::string::npos)
+        result.replace(ln_part, ln_part+2, line);
+
+    return true;
 }
 
 void GuiMainComponent::ProcessEvent(GuiEvents e)
@@ -213,6 +234,28 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
+    case OpenConfigSource:
+    {
+        std::string filename = "";
+        std::string line     = "";
+        std::string result   = "";
+        if (m_State.GetCurrentItem())
+        {
+            filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
+            line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
+        }
+        auto command = GetGeoDmsRegKey("DmsEditor");
+
+        if (!filename.empty() && !line.empty() && !command.empty())
+        {
+            if (FillOpenConfigSourceCommand(command.c_str(), filename, line, result))
+            {
+                std::system(result.c_str());
+            }
+        }
+
+        break;
+    }
     }
 }
 
@@ -259,6 +302,35 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         {
             GuiEmail email_system;
             email_system.SendMailUsingDefaultWindowsEmailApplication("test");
+        }
+        ImGui::EndPopup();
+    }
+    return false;
+}
+
+bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
+{
+    //TODO: build in timer for checks?
+    static std::string changed_files_result;
+    auto changed_files = DMS_ReportChangedFiles(true);
+    if (changed_files)
+    {
+        changed_files_result = (*changed_files).c_str();
+        changed_files->Release(changed_files);
+        ImGui::OpenPopup("Changed source file(s)");
+    }
+
+    if (ImGui::BeginPopupModal("Changed source file(s)", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text(const_cast<char*>(changed_files_result.c_str()));
+
+        if (ImGui::Button("Ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Reopen", ImVec2(120, 0)))
+        {
+            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
@@ -366,6 +438,9 @@ int GuiMainComponent::MainLoop()
         if (ShowErrorDialogIfNecessary())
             break;
 
+        // Updated source files
+        ShowSourceFileChangeDialogIfNecessary();
+
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
         {
@@ -426,8 +501,6 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
-    //SuspendTrigger::DoSuspend();
-
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;

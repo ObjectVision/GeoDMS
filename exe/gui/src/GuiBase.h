@@ -52,7 +52,8 @@ enum GuiEvents
 	OpenNewTableViewWindow = 5,
 	OpenNewConfiguration = 6,
 	OpenInMemoryDataView = 7,
-	OpenNewDefaultViewWindow = 8
+	OpenNewDefaultViewWindow = 8,
+	OpenConfigSource = 9
 };
 
 class GuiTreeItemsHolder
