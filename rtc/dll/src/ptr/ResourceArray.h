@@ -77,9 +77,12 @@ struct ResourceArrayHandle : ptr_base<ResourceArrayBase, movable>
 	void    reset  (pointer ptr = nullptr)  { dms_assert(ptr != get_ptr() || !ptr); ResourceArrayHandle tmp(ptr); tmp.swap(*this); }
 	void    swap   (ResourceArrayHandle& oth) { std::swap(m_Ptr, oth.m_Ptr); }
 
-	void operator = (ResourceArrayHandle&& rhs) { reset(rhs.release()); }
+	void operator = (ResourceArrayHandle&& rhs) noexcept 
+	{ 
+		reset(rhs.release()); 
+	}
 
-	friend void swap(ResourceArrayHandle& a, ResourceArrayHandle& b) { a.swap(b); }
+	friend void swap(ResourceArrayHandle& a, ResourceArrayHandle& b) noexcept { a.swap(b); }
 };
 
 template <typename R>

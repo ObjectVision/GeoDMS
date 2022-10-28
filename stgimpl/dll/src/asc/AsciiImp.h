@@ -43,9 +43,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/SharedStr.h"
 struct SafeFileWriterArray;
 
-class AsciiImp : FilePtrHandle
+struct AsciiImp
 {
-public:
+	FilePtrHandle m_FH;
 	STGIMPL_CALL  AsciiImp();
 	STGIMPL_CALL ~AsciiImp();
 

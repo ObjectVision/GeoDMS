@@ -86,7 +86,7 @@ bool AsciiImp::OpenForRead(WeakStr name, SafeFileWriterArray* sfwa)
 
 	// try to open
 	Close();
-	if(!OpenFH(name, sfwa, FCM_OpenReadOnly, true, NR_PAGES_DATFILE))
+	if (!m_FH.OpenFH(name, sfwa, FCM_OpenReadOnly, true, NR_PAGES_DATFILE))
 		return false;
 
 	DBG_TRACE(("Opened: %s", name.c_str()));
@@ -104,7 +104,7 @@ bool AsciiImp::OpenForWrite(WeakStr name, SafeFileWriterArray* sfwa)
 	// try to open
 	Close();
 
-	if(!OpenFH(name, sfwa, FCM_CreateAlways, true, NR_PAGES_DATFILE)) 
+	if(!m_FH.OpenFH(name, sfwa, FCM_CreateAlways, true, NR_PAGES_DATFILE))
 		return false;
 
 	DBG_TRACE(("Opened: %s", name.c_str()));
@@ -126,13 +126,9 @@ struct reader_base
 		dms_assert(!m_FH.IsOpen());
 	}
 
-	reader_base(const AsciiImp& imp)
-		:	m_FH(imp)
-	{
-	}
 	void Init(const AsciiImp& imp)
 	{
-		m_FH = imp; // copy the FilePtr of imp.
+		m_FH = imp.m_FH;
 		m_NoDataInFile   = imp.NoDataInFile();
 
 		dms_assert(m_GridPos == 0);
@@ -338,7 +334,7 @@ bool AsciiImp::ReadCells(typename sequence_traits<T>::pointer buff, const StgVie
 	SizeT cnt = vpi.GetNrViewPortCells();
 	DBG_TRACE(("cnt		  : %ld", cnt));
 
-	dms_assert(IsOpen());
+	dms_assert(m_FH.IsOpen());
 	UInt32 nrFileRows = NrOfRows();
 	UInt32 nrFileCols = NrOfCols();
 
@@ -594,7 +590,7 @@ bool AsciiImp::WriteCells(WeakStr fileName, SafeFileWriterArray* sfwa, typename 
 			// optimization:
 			if (remainingOnThisLine >= 16 && (buffE - buffI) >= 16)
 			{
-				fprintf( GetFP(), wtType::GetFormat16(), 
+				fprintf(m_FH.GetFP(), wtType::GetFormat16(),
 					Convert<elem_type>(buffI[ 0]), Convert<elem_type>(buffI[ 1]), Convert<elem_type>(buffI[ 2]), Convert<elem_type>(buffI[ 3]), 
 					Convert<elem_type>(buffI[ 4]), Convert<elem_type>(buffI[ 5]), Convert<elem_type>(buffI[ 6]), Convert<elem_type>(buffI[ 7]), 
 					Convert<elem_type>(buffI[ 8]), Convert<elem_type>(buffI[ 9]), Convert<elem_type>(buffI[10]), Convert<elem_type>(buffI[11]), 
@@ -605,13 +601,13 @@ bool AsciiImp::WriteCells(WeakStr fileName, SafeFileWriterArray* sfwa, typename 
 			}
 			else
 			{
-				fprintf( GetFP(), wtType::GetFormat1(), Convert<elem_type>(*buffI) ); ++buffI;
+				fprintf(m_FH.GetFP(), wtType::GetFormat1(), Convert<elem_type>(*buffI) ); ++buffI;
 				--remainingOnThisLine;
 			}
 		}
 		// line breaks
 		if (remainingOnThisLine == 0)
-			fprintf(GetFP(), "\n");
+			fprintf(m_FH.GetFP(), "\n");
 	}
 	return true;
 }
@@ -621,7 +617,7 @@ bool AsciiImp::ReadHeader()
 {
     DBG_START("AsciiImp", "ReadHeader", false);
 
-	if (!IsOpen() )
+	if (!m_FH.IsOpen() )
 		return false;
 
 	// format:
@@ -632,12 +628,12 @@ bool AsciiImp::ReadHeader()
 	//		cellsize      500    (Kan ook float zijn, zoals bij Corine Aggr)
 	//		NODATA_value  -9999	 (is Int32 of Float32, afh. van datatype).
 	return 
-		fscanf( GetFP(), "%*s %uld\n", &m_NrCols        ) == 1
-	&&	fscanf( GetFP(), "%*s %uld\n", &m_NrRows        ) == 1
-	&&	fscanf( GetFP(), "%*s %lf\n", &m_dXllCorner    ) == 1
-	&&	fscanf( GetFP(), "%*s %lf\n", &m_dYllCorner    ) == 1
-	&&	fscanf( GetFP(), "%*s %lf\n", &m_dCellSize     ) == 1
-	&&	fscanf( GetFP(), "%*s %lf\n", &m_dNODATA_InFile) == 1;
+		fscanf(m_FH.GetFP(), "%*s %uld\n", &m_NrCols        ) == 1
+	&&	fscanf(m_FH.GetFP(), "%*s %uld\n", &m_NrRows        ) == 1
+	&&	fscanf(m_FH.GetFP(), "%*s %lf\n", &m_dXllCorner    ) == 1
+	&&	fscanf(m_FH.GetFP(), "%*s %lf\n", &m_dYllCorner    ) == 1
+	&&	fscanf(m_FH.GetFP(), "%*s %lf\n", &m_dCellSize     ) == 1
+	&&	fscanf(m_FH.GetFP(), "%*s %lf\n", &m_dNODATA_InFile) == 1;
 }
 
 
@@ -646,7 +642,7 @@ bool AsciiImp::WriteHeader()
 {
     DBG_START("AsciiImp", "WriteHeader", false);
 
-	if (!IsOpen() )
+	if (!m_FH.IsOpen() )
 		return false;
 
 	// format:
@@ -656,16 +652,16 @@ bool AsciiImp::WriteHeader()
 	//		m_dYllCorner     300000
 	//		m_dCellSize      500
 	//		NODATA_value  -9999	
-	fprintf( GetFP(), "%s %u\n", "ncols       ", m_NrCols);
-	fprintf( GetFP(), "%s %u\n", "nrows       ", m_NrRows );
-	fprintf( GetFP(), "%s %lf\n", "xllcorner    ", m_dXllCorner );
-	fprintf( GetFP(), "%s %lf\n", "yllcorner    ", m_dYllCorner );
-	fprintf( GetFP(), "%s %lf\n", "cellsize     ", m_dCellSize );
+	fprintf(m_FH.GetFP(), "%s %u\n", "ncols       ", m_NrCols);
+	fprintf(m_FH.GetFP(), "%s %u\n", "nrows       ", m_NrRows );
+	fprintf(m_FH.GetFP(), "%s %lf\n", "xllcorner    ", m_dXllCorner );
+	fprintf(m_FH.GetFP(), "%s %lf\n", "yllcorner    ", m_dYllCorner );
+	fprintf(m_FH.GetFP(), "%s %lf\n", "cellsize     ", m_dCellSize );
 
 	if (m_bNODATA_IsIntegral)
-		fprintf( GetFP(), "%s %lg\n", "NODATA_value ", m_dNODATA_InFile);
+		fprintf(m_FH.GetFP(), "%s %lg\n", "NODATA_value ", m_dNODATA_InFile);
 	else
-		fprintf( GetFP(), "%s %lf\n", "NODATA_value ", m_dNODATA_InFile);
+		fprintf(m_FH.GetFP(), "%s %lf\n", "NODATA_value ", m_dNODATA_InFile);
 
 	return true;
 }
@@ -690,5 +686,5 @@ void AsciiImp::Close()
 {
     DBG_START("AsciiImp", "Close", false);
 
-	CloseFH();
+	m_FH.CloseFH();
 }

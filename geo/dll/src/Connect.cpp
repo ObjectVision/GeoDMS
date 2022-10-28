@@ -67,7 +67,7 @@ CommonOperGroup cogDISTINFO_NE("dist_info_ne");
 
 typedef UInt32 seq_index_type;
 
-enum compare_type {
+enum class compare_type {
 	none, eq, ne, count
 };
 
@@ -1135,7 +1135,7 @@ public:
 		}
 		return true;
 	}
-	compare_type m_CompareType;
+	compare_type m_CompareType = compare_type::none;
 };
 
 // *****************************************************************************

@@ -302,16 +302,6 @@ void AbstrDataItem::Unify(const TreeItem* refItem) const
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft|UM_Throw));
 }
 
-/* REMOVE
-LispRef AbstrDataItem::GetKeyExprImpl() const
-{
-	auto result = TreeItem::GetKeyExprImpl();
-	if (!result.EndP())
-		return result;
-	return {};
-}
-*/
-
 void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
 {
 	TreeItem::CopyProps(result, copyContext);

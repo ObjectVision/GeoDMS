@@ -889,7 +889,7 @@ struct sequence_array_ref
 
 	iterator  begin() { return get_sa().begin(); }
 	iterator  end()   { return get_sa().end();   }
-	reference operator [](UInt32 i) { dms_assert(i < size()); return begin()[i]; }
+	reference operator [](SizeT i) { dms_assert(i < size()); return begin()[i]; }
 	size_type size()  const { return  get_sa().size();  }
 
 	sequence_array<P>&       get_sa()       { dms_assert(m_ArrayPtr); return *m_ArrayPtr; }
@@ -913,7 +913,7 @@ struct sequence_array_cref
 
 	const_iterator  begin() const { return get_sa().begin(); }
 	const_iterator  end()   const { return get_sa().begin() + m_Size; }
-	const_reference operator [](UInt32 i) const  { dms_assert(i < size()); return begin()[i]; }
+	const_reference operator [](SizeT i) const  { dms_assert(i < size()); return begin()[i]; }
 
 	size_type       size()  const { return m_Size; }
 

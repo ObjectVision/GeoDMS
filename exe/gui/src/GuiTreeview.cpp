@@ -168,6 +168,10 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
         return true;
     //nextSubItem->UpdateMetaInfo();
 
+    //nextSubItem->GetConfigFileLineNr
+    //nextSubItem->GetConfigFileName
+    //nextSubItem->GetCOnfigColNr
+
     while (nextSubItem)
     {
         if (nextSubItem->m_State.GetProgress() < PS_MetaInfo && !nextSubItem->m_State.IsUpdatingMetaInfo())

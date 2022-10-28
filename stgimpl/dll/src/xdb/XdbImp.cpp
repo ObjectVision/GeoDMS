@@ -204,6 +204,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
 				AssignValueFromCharPtrs( *tbuf, dataPtr, dataPtr+colWidth);
 			fast_zero(tbuf, tbuf+stripped);
+			break;
 		}
 		case VT_Float32:
 		{
@@ -211,6 +212,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
 				AssignValueFromCharPtrs( *tbuf, dataPtr, dataPtr+colWidth);
 			fast_zero(tbuf, tbuf+stripped);
+			break;
 		}
 		case VT_Float64:
 		{
@@ -218,6 +220,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
 				AssignValueFromCharPtrs( *tbuf, dataPtr, dataPtr+colWidth);
 			fast_zero(tbuf, tbuf+stripped);
+			break;
 		}
 	}
 

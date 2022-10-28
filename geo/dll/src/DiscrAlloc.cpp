@@ -309,7 +309,7 @@ struct partitioning_info_t
 		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
 	}
 
-	partitioning_info_t(partitioning_info_t&& rhs)
+	partitioning_info_t(partitioning_info_t&& rhs) noexcept
 		:	m_AtomicRegionPartitioningDI  (std::move(rhs.m_AtomicRegionPartitioningDI  ))
 		,	m_AtomicRegionPartitioningData(std::move(rhs.m_AtomicRegionPartitioningData))
 		,	m_NrRegions(rhs.m_NrRegions)

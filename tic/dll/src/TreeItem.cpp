@@ -482,22 +482,6 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 	} while(walker);
 }
 
-void CheckTreeItemName(CharPtr name)
-{
-	dms_assert(name);
-	if (!*name)
-		return;
-	CharPtr charPtr = name;
-	if (!itemNameFirstChar_test(*charPtr))
-		throwErrorF("TreeItem Create", "Illegal starting character '%c' in name '%s'", *charPtr, name);
-	++charPtr;
-	for(; *charPtr; ++charPtr)
-	{
-		if (!itemNameNextChar_test(*charPtr))
-			throwErrorF("TreeItem Create", "Illegal character '%c' in name '%s'", *charPtr, name);
-	}
-}
-
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
 	dms_assert(m_State.GetProgress() < PS_MetaInfo);
@@ -514,11 +498,9 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 		MG_LOCKER_NO_UPDATEMETAINFO
 
 		// inherit some TreeItem State Flags.
-
 		if (parent->IsAutoDeleteDisabled())
 			DisableAutoDelete();
 		parent->AddItem(this);
-
 		m_StatusFlags.Set( parent->m_StatusFlags.GetBits(TSF_InTemplate | TSF_IsCacheItem | TSF_InHidden) );
 
 		// special processing
@@ -530,13 +512,8 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 			SetFreeDataState(true); 
 		if (parent->GetStoreDataState())
 			SetStoreDataState(true);
-//		if (IsCacheItem() && parent->IsDcKnown())
-//			SetDcKnown();
-
-//		dms_assert(IsCacheItem() || !IsDcKnown());
 	}
 #if defined(MG_DEBUG_DATA)
-//	tmp_swapper<UInt32> allowTokenCreationForDebugPurposes(gd_TokenCreationBlockCount, 0);
 	md_FullName = GetFullName();
 	if (parent)
 		md_FullName = parent->md_FullName + '/' + GetName().c_str();
@@ -1465,11 +1442,9 @@ const TreeItem* TreeItem::GetNamespaceUsage(UInt32 i) const
 bool TreeItem::IsDataReadable() const
 {
 	bool isLoadable = IsLoadable();
-	bool hasCalculator = HasCalculator();
+	bool hasCalculator = HasCalculatorImpl();
 	bool hasConfigData = HasConfigData();
-	bool result = isLoadable && !hasCalculator && !hasConfigData;
-
-	return IsLoadable() && !HasCalculator() && !HasConfigData();
+	return isLoadable && !hasCalculator && !hasConfigData;
 }
 
 //----------------------------------------------------------------------
@@ -3119,22 +3094,33 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 	MG_DEBUGCODE(dms_assert(!refItem->HasCalculatorImpl())); // implied by IsDataReadable
 	dms_assert(!refItem->IsCacheItem());        // how else to derive data
 
-	auto supplResult = VisitSupplBoolImpl(self, SupplierVisitFlag::Calc, [drlFlags](auto a) -> bool
+	auto supplResult = VisitSupplBoolImpl(self, SupplierVisitFlag::Calc, [self, drlFlags](auto a) -> bool
 		{
 			auto t = dynamic_cast<const TreeItem*>(a);
 			if (t && !t->PrepareDataUsage(drlFlags))
+			{
+				if (t->WasFailed(FR_Data))
+					self->Fail(t);
 				return false;
+			}
 			dms_assert(!SuspendTrigger::DidSuspend());
 			return true;
 		}
 	);
 	if (supplResult == AVS_SuspendedOrFailed)
-		return how_to_proceed::suspended;
-
+	{
+		if (SuspendTrigger::DidSuspend())	
+			return how_to_proceed::suspended;
+		else
+		{
+			assert(self->WasFailed(FR_Data));
+			return how_to_proceed::failed;
+		}
+	}
 	//				if (UpdateSuppliers(PS_Committed) == AVS_SuspendedOrFailed)
 	//					goto suspended_or_failed;
 
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	if (IsDataItem(refItem))
 	{
@@ -3265,7 +3251,9 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
 				case how_to_proceed::failed: goto failed;
-				case how_to_proceed::suspended: goto suspended;
+				case how_to_proceed::suspended:
+					assert(SuspendTrigger::DidSuspend());
+					goto suspended;
 				case how_to_proceed::suspended_or_failed: goto suspended_or_failed;
 				default: dms_assert(false);
 				}
@@ -3279,7 +3267,9 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				case how_to_proceed::nothing: break;
 				case how_to_proceed::data_ready: goto data_ready;
 				case how_to_proceed::failed: goto failed;
-				case how_to_proceed::suspended: goto suspended;
+				case how_to_proceed::suspended: 
+					assert(SuspendTrigger::DidSuspend());
+					goto suspended;
 				default: dms_assert(false);
 				}
 
@@ -3356,7 +3346,8 @@ failed_norefitem:
 	return false;
 
 suspended:
-	dms_assert(drlType != DrlType::Certain && SuspendTrigger::DidSuspend());
+	assert(drlType != DrlType::Certain);
+	assert(SuspendTrigger::DidSuspend());
 	return false;
 
 nodata:

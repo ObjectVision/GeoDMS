@@ -9,6 +9,7 @@
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "ptr/AutoDeletePtr.h"
+#include "utl/Encodes.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 
@@ -59,7 +60,6 @@ int main2(int argc, char** argv)
 	std::string fileName;
 	// find all specified items
 	for (; argc; --argc, ++argv) {
-		std::cout  << std::endl << "Find " << *argv;
 		if ((*argv)[0] == '@')
 		{
 			CharPtr cmd = (*argv) + 1;
@@ -82,6 +82,8 @@ int main2(int argc, char** argv)
 		}
 		else
 		{
+			std::cout << std::endl << "Item " << *argv;
+			CheckTreeItemPath(*argv);
 			const TreeItem* item = DMS_TreeItem_GetItem(cfg, *argv);
 			if (!item)
 			{

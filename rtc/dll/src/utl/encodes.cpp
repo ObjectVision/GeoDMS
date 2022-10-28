@@ -61,6 +61,67 @@ SharedStr from_utf(CharPtr first, CharPtr last)
 	return SharedStr(result.c_str());
 }
 
+bool itemName_test(CharPtr p)
+{
+	if (!p || !*p)
+		return false;
+	if (!itemNameFirstChar_test(*p))
+		return false;
+	while (char ch = *++p)
+	{
+		if (!itemNameNextChar_test(ch))
+			return false;
+	}
+	return true;
+}
+
+CharPtr ParseTreeItemName(CharPtr name)
+{
+	dms_assert(name);
+	if (itemNameFirstChar_test(*name))
+	{
+		++name;
+		while (itemNameNextChar_test(*name))
+			++name;
+	}
+	return name;
+}
+
+CharPtr ParseTreeItemPath(CharPtr name)
+{
+	dms_assert(name);
+	while (true)
+	{
+		name = ParseTreeItemName(name); // could be empty
+		if (!*name)
+			break;
+		if (*name != '/')
+			break;
+		if (!name[1]) // don't allow an item-path to zero-terminate directly after '/'
+			break;
+		++name;
+		if (*name == '/') // don't allow a 2nd '/'
+			break;
+		assert(*name);
+	}
+	return name;
+}
+
+void CheckTreeItemName(CharPtr name)
+{
+	CharPtr charPtr = ParseTreeItemName(name);
+	if (*charPtr)
+		throwErrorF("CheckTreeItemName", "Illegal character '%c' in item-name '%s'", *charPtr, name);
+}
+
+void CheckTreeItemPath(CharPtr name)
+{
+	auto charPtr = ParseTreeItemPath(name);
+	if (*charPtr)
+		throwErrorF("CheckTreeItemPath", "Illegal character '%c' in item-path '%s'", *charPtr, name);
+}
+
+
 SharedStr as_item_name(CharPtr first, CharPtr last)
 {
 	SizeT n = last - first;
@@ -189,10 +250,10 @@ SharedStr UrlDecode(WeakStr urlStr)
 	if (sz == urlStr.ssize() && urlStr.find('+') == urlStr.send())
 		return urlStr;
 
-	SharedStr result = SharedStr( SharedCharArray::CreateUninitialized(sz+1) );
-	SharedStr resultStr(result);
+	auto result = SharedCharArray::CreateUninitialized(sz+1);
+	SharedStr resultStr(result); // assign ownership
 
-	char* resultPtr = result.begin();
+	char* resultPtr = result->begin();
 	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++resultPtr, ++chPtr)
 	{
 		char ch = *chPtr;
@@ -205,7 +266,7 @@ SharedStr UrlDecode(WeakStr urlStr)
 			ch = ' ';
 		*resultPtr = ch;
 	}
-	dms_assert(resultPtr == result.csend());
+	dms_assert(resultPtr == resultStr.csend());
 	*resultPtr = char(0);
 	return resultStr;
 }

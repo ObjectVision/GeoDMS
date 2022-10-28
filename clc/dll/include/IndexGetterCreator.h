@@ -45,7 +45,7 @@ struct IndexGetterCreatorBase : UnitProcessor
 	CLC1_CALL void VisitImpl(const Unit<bit_value<N>>* inviter) const;
 
 	WeakPtr<const AbstrDataItem> m_Adi;
-	tile_id                      m_TileID;
+	tile_id                      m_TileID = no_tile;
 	mutable WeakPtr<IndexGetter> m_Result;
 };
 

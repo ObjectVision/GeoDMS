@@ -334,11 +334,8 @@ void DataItemColumn::SetActiveRow(SizeT row)
 	dbg_assert( row != UNDEFINED_VALUE(UInt32) ); // DEBUG, REMOVE
 	m_ActiveRow = row;
 
-	if (IsActive())
-	{
-		InvalidateDrawnActiveElement();
-		MakeVisibleRow();
-	}
+	InvalidateDrawnActiveElement();
+	MakeVisibleRow();
 }
 
 void DataItemColumn::MakeVisibleRow()
@@ -953,7 +950,7 @@ void DataItemColumn::GotoRow(SizeT row)
 	}
 	SelChangeInvalidator sci(tc.get());
 	tc->GoTo(row, m_ColumnNr);
-	sci.ProcessChange(false);
+	sci.ProcessChange(true);
 }
 
 void DataItemColumn::GotoClipboardRow()

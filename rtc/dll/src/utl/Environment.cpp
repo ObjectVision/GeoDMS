@@ -1121,19 +1121,23 @@ Int64 GetSecsSince1970()
 	return time(0);
 }
 
+#include "versionhelpers.h"
+
 namespace PlatformInfo
 {
 	RTC_CALL SharedStr GetVersionStr()
 	{
-		OSVERSIONINFO versionInfo;
-		fast_zero_obj(versionInfo);
-		versionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-		GetVersionEx(&versionInfo);
-		return mySSPrintF("Windows %d.%d: %d %s", 
-			versionInfo.dwMajorVersion, versionInfo.dwMinorVersion, 
-			versionInfo.dwBuildNumber, 
-			versionInfo.szCSDVersion
-		);
+		auto result = SharedStr("Windows ");
+
+		if (!IsWindows7OrGreater())
+			result = SharedStr("version before Windows 7, Unsupported");
+		else if (!IsWindows10OrGreater())
+			result += "version 7 or greater, but not 10";
+		else 
+			result += "version 10 or greater";
+		if (IsWindowsServer())
+			result += ", server edition";
+		return result;
 	}
 	RTC_CALL SharedStr GetUserNameA()
 	{

@@ -2,7 +2,7 @@ echo on
 cls
 
 set DMS_VERSION_MAJOR=8
-set DMS_VERSION_MINOR=43
+set DMS_VERSION_MINOR=44
 
 set DMS_VERSION_MINOR_PAD=0%DMS_VERSION_MINOR%
 
@@ -15,18 +15,27 @@ if ErrorLevel 2 goto :startBuild
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > rtc/dll/src/RtcGeneratedVersion.h
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> rtc/dll/src/RtcGeneratedVersion.h
 
+
 :startBuild
-REM set MS_VERB=rebuild
-REM CHOICE /M "Rebuild all Release x64 (requires start from Tools..Cmd line)?"
-REM if ErrorLevel 2 set MS_VERB=build
-set MS_VERB=build
+CHOICE /M "Build GeoDms?"
+if ErrorLevel 2 goto afterBuild
+
+set MS_VERB=rebuild
+CHOICE /M "Rebuild all Release x64 (requires start from Tools..Cmd line)?"
+if ErrorLevel 2 set MS_VERB=build
+del /s /q "bin\debug\x64"
+del /s /q "bin\release\x64"
 
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
+REM 2nd push to complete copy actions.
+set MS_VERB=build
+msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
+msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
 
+:afterBuild
 REM svn update ..\tst
-
-CHOICE /M "compiled and ..\tst updated? Ready to execute the R64-fast-debug-test?"
+CHOICE /M "bin\release\x64 compiled and ..\tst updated? Ready to execute the R64-fast-debug-test?"
 if ErrorLevel 2 goto :afterD64FastTest
 
 cd ..\tst\batch

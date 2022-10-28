@@ -226,7 +226,10 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 	if (dc->WasFailed(FR_MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
-	return dc->CalcResult(context);
+	auto result = dc->CalcResult(context);
+	if (!result)
+		dc->ThrowFail();
+	return result;
 }
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass)

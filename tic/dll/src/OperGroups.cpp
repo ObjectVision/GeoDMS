@@ -417,9 +417,11 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		b = GetFirstMember();
 
 	if (!b)
+	{
+		auto nameStr = SharedStr(GetName());
 		throwDmsErrF("There is no implemented operator for operator name '%s'. This operator name name might have been reserved for future implementation or might be obsolete."
-		,	GetName().c_str());
-
+			, nameStr);
+	}
 	for (; b; b = b->GetNextGroupMember())
 	{
 		dms_assert(b->m_Group == this);

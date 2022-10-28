@@ -529,7 +529,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 
 	if (mustCheck)
 	{
-		if (!currBase->UnifyDomain(gridBase, UM_AllowAllEqualCount))
+		if (currBase && gridBase && !currBase->UnifyDomain(gridBase, UM_AllowAllEqualCount))
 			context->throwItemErrorF("ProjectionBase %s incompatible with ProjectionBase %s of GridDomain", currBase->GetName().c_str(), gridBase->GetName().c_str());
 		if (tc == no_tile)
 			return;

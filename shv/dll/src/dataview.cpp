@@ -268,7 +268,9 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(DefaultFontID fid, Float64 dip2pixFactor) const
 {
-	dms_assert(fid < DF_COUNT);
+	assert(fid >= 0);
+	assert(fid < DF_COUNT);
+
 	if (! m_DefaultFonts[fid][dip2pixFactor])
 	{
 		m_DefaultFonts[fid][dip2pixFactor] =
@@ -582,7 +584,6 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 #if defined(MG_SKIP_WINDOWPOSCHANGED)
 		case WM_SIZE:
 			{
-				DBG_START(GetClsName().c_str(), "DispatchMsg(WM_SIZE)", MG_DEBUG_SIZE);
 				OnSize(msg.m_wParam, LParam2Point(msg.m_lParam) );
 				goto completed;
 			}
@@ -1215,10 +1216,9 @@ void DataView::SetFocusRect(const GRect& focusRect)
 
 SharedStr DataView::GetCaption() const
 {
-	auto contents = m_Contents;
-	if (!contents)
+	if (!m_Contents)
 		return {};
-	return contents->GetCaption();
+	return m_Contents->GetCaption();
 }
 
 
@@ -1680,7 +1680,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 			reportF(SeverityTypeID::ST_MajorTrace, "exit because object has only %s sub-objects", n);
 			return;
 		}
-		auto sgo = mo->GetEntry(i - 1);
+		auto sgo = mo->GetEntry(--i);
 		dms_assert(sgo);
 		auto smo = dynamic_cast<MovableObject*>(sgo);
 		if (!smo)

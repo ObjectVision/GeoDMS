@@ -1030,7 +1030,7 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 		}
 	}
 		
-	dms_assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed()));
+	dms_assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FR_MetaInfo)));
 	return resultingFlag;
 }
 
@@ -1227,7 +1227,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 //		auto func = Func{ this, std::move(argRefs), std::move(allInterests) };
 		auto func = Func{ this, std::move(argRefs), allInterests };
 
-		task_status resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::CalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
+		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::CalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
 			,	func
 			,	allInterests
 			,	!doASync, context
