@@ -11,6 +11,7 @@ public:
 
 private:
 	GuiState			      m_State;
+	// CODE REVIEW: waarom niet SharedStr of std::string ?
 	std::vector<char>		  m_LocalDataDirPath;
 	std::vector<char>		  m_SourceDataDirPath;
 	std::vector<char>		  m_DmsEditorPath;

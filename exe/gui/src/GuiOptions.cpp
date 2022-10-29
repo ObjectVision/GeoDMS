@@ -11,10 +11,11 @@ std::string SetDefaultRegKey(std::string key, std::string value)
 
 GuiOptions::GuiOptions()
 {
+    // CODE REVIEW no need for magic numnbers or implicit consitraints.
     m_LocalDataDirPath.resize(2048);
     m_SourceDataDirPath.resize(2048);
     m_DmsEditorPath.resize(2048);
-
+    // CODE REVIEW: Why not directly assign to designated data members.
     auto tmp_ld = GetGeoDmsRegKey("LocalDataDir");
     if (tmp_ld.empty())
         tmp_ld = SetDefaultRegKey("LocalDataDir", "C:\\LocalData").c_str();
@@ -25,7 +26,7 @@ GuiOptions::GuiOptions()
 
     auto tmp_ed = GetGeoDmsRegKey("DmsEditor");
     if (tmp_ed.empty())
-        tmp_ed = SetDefaultRegKey("DmsEditor", "c:\PROGRA~1\Notepad++\Notepad++.exe %F -n%L").c_str();
+        tmp_ed = SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L").c_str();
 
     std::copy(tmp_ld.begin(), tmp_ld.end(), m_LocalDataDirPath.begin());
     std::copy(tmp_sd.begin(), tmp_sd.end(), m_SourceDataDirPath.begin());
