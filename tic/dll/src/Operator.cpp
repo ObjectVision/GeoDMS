@@ -40,9 +40,6 @@ granted by an additional written contract for support, assistance and/or develop
 Operator::Operator(AbstrOperGroup* group, ClassCPtr resultCls)
 	:	m_Group(group)
 	,	m_ResultClass(resultCls)
-	,	m_ArgClassesBegin(nullptr)
-	,	m_ArgClassesEnd(nullptr)
-	,	m_NrOptionalArgs(0)
 {
 	dms_assert(resultCls);
 

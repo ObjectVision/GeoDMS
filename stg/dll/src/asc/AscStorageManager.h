@@ -40,7 +40,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 #include "GridStorageManager.h"
-class AsciiImp;
 
 // storagemanager for 'Ascii-grids'
 class AsciiStorageManager : public AbstrGridStorageManager

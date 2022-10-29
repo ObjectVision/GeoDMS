@@ -100,14 +100,14 @@ public:
 	inline bool CanExplainValue()          const { return GetGroup()->CanExplainValue(); }
 
 protected:
-	const ClassCPtr*       m_ArgClassesBegin;
-	const ClassCPtr*       m_ArgClassesEnd;
-	ClassCPtr              m_ResultClass;
-	arg_index              m_NrOptionalArgs;
+	const ClassCPtr*       m_ArgClassesBegin = nullptr;
+	const ClassCPtr*       m_ArgClassesEnd   = nullptr;
+	ClassCPtr              m_ResultClass     = nullptr;
+	arg_index              m_NrOptionalArgs  = 0;
 
 private:
 	SharedPtr<AbstrOperGroup> m_Group;
-	mutable const Operator*   m_NextGroupMember; friend struct AbstrOperGroup;
+	mutable const Operator*   m_NextGroupMember = nullptr; friend struct AbstrOperGroup;
 };
 
 

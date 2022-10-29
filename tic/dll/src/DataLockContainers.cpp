@@ -56,7 +56,7 @@ bool DataReadLockContainer::Add(const AbstrDataItem* adi, DrlType drlType)
 	DataReadLock newLock(adi);
 	if (newLock.IsLocked())
 		push_back(std::move(newLock));
-	dms_assert(!newLock.IsLocked()); // ownership transferred?
+	assert(!newLock.IsLocked()); // ownership transferred?
 	return true;
 }
 

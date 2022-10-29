@@ -47,8 +47,11 @@
       <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../stgimpl/dll/src;../../rtc/dll/src;../../tic/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMSTG_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <Link>
+    <Link Condition="'$(Configuration)'=='Release'" >
       <DelayLoadDLLs>gdal.dll</DelayLoadDLLs>
+    </Link>
+    <Link Condition="'$(Configuration)'=='Debug'" >
+      <DelayLoadDLLs>gdald.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
