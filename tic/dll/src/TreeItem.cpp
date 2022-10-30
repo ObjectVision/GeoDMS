@@ -788,7 +788,7 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 		return;
 	dms_assert(pr);
 	mc_Calculator = std::move(pr);
-	dms_assert(!pr);
+	assert(!pr);
 }
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
@@ -3141,7 +3141,7 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 	if (readInfo)
 	{
 		auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
-		dms_assert(!readInfo);
+		assert(!readInfo);
 		dms_assert(!CheckCalculatingOrReady(refItem));
 		auto rtc = std::make_shared<OperationContext>();
 		self->m_ReadAssets.emplace<decltype(rtc)>(rtc);

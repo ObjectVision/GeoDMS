@@ -66,7 +66,7 @@ GuiMainComponent::~GuiMainComponent()
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
 
-int GetFreeViewIndex(std::vector<GuiView>& views)
+int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this function require views to be modifyable ?
 {
     int ind = 0;
     for (auto& view : views)
@@ -78,7 +78,9 @@ int GetFreeViewIndex(std::vector<GuiView>& views)
     return ind;
 }
 
-bool FillOpenConfigSourceCommand(std::string command, std::string filename, std::string line, std::string &result)
+// CODE REVIEW: beter return by value, zie CG F20: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rf-out
+// CODE REVIEW: 1e 3 argumenten beter als const reference, of nog beter: als std::string_view, zie CG F15
+bool FillOpenConfigSourceCommand(std::string command, std::string filename, std::string line, std::string &result) 
 {
     //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
     result = command;
