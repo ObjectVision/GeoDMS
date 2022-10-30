@@ -78,12 +78,10 @@ int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this func
     return ind;
 }
 
-// CODE REVIEW: beter return by value, zie CG F20: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rf-out
-// CODE REVIEW: 1e 3 argumenten beter als const reference, of nog beter: als std::string_view, zie CG F15
-bool FillOpenConfigSourceCommand(std::string command, std::string filename, std::string line, std::string &result) 
+std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
 {
     //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
-    result = command;
+    std::string result = command.data();
     auto fn_part = result.find("%F");
     auto tmp_str = result.substr(fn_part + 2);
     if (fn_part != std::string::npos)
@@ -97,7 +95,7 @@ bool FillOpenConfigSourceCommand(std::string command, std::string filename, std:
     if (ln_part != std::string::npos)
         result.replace(ln_part, ln_part+2, line);
 
-    return true;
+    return result;
 }
 
 void GuiMainComponent::ProcessEvent(GuiEvents e)
@@ -238,24 +236,19 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case OpenConfigSource:
     {
-        std::string filename = "";
-        std::string line     = "";
-        std::string result   = "";
-        if (m_State.GetCurrentItem())
-        {
-            filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
-            line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
-        }
-        auto command = GetGeoDmsRegKey("DmsEditor");
+        if (!m_State.GetCurrentItem())
+            break;
+
+        std::string filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
+        std::string line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
+        std::string command  = GetGeoDmsRegKey("DmsEditor").c_str();
 
         if (!filename.empty() && !line.empty() && !command.empty())
         {
-            if (FillOpenConfigSourceCommand(command.c_str(), filename, line, result))
-            {
-                //std::system(result.c_str());
-                WinExec(result.c_str(), SW_HIDE);
-                //ExecuteChildProcess("test", (LPSTR)result.c_str());
-            }
+            auto result = FillOpenConfigSourceCommand(command, filename, line);
+            const TreeItem *TempItem = m_State.GetCurrentItem();
+            result = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(result.c_str()));
+            WinExec(result.c_str(), SW_HIDE); //TODO: replace with CreateProcess
         }
 
         break;
