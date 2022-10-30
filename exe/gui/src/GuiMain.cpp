@@ -250,7 +250,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
             if (FillOpenConfigSourceCommand(command.c_str(), filename, line, result))
             {
-                std::system(result.c_str());
+                //std::system(result.c_str());
+                WinExec(result.c_str(), SW_HIDE);
+                //ExecuteChildProcess("test", (LPSTR)result.c_str());
             }
         }
 
