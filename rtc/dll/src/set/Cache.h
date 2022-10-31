@@ -44,21 +44,22 @@ struct duplicate_arg {
 
 template<
 	typename Func, 
-	typename ArgOrder = std::less<typename Func::argument_type>, 
+	typename ArgOrder = std::less<typename Func::argument_type>,
+	typename argument_reftype = typename param_type < typename Func::argument_type>::type,
+	typename result_reftype = typename param_type < typename Func::result_type>::type,
 	typename DuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_type> 
 >
 struct Cache
 {
-	typedef Func function;
-	typedef typename function::argument_type         argument_type;
-	typedef typename param_type<argument_type>::type argparam_type;
-	typedef typename function::result_type           result_type;
+	using function = Func;
+	using argument_type = typename function::argument_type;
+	using result_type = typename function::result_type;
 
-	typedef std::map<argument_type, result_type, ArgOrder> map_type;
+	using map_type = std::map<argument_type, result_type, ArgOrder>;
 
 	Cache() { MG_DEBUGCODE( md_NrCalls = md_NrMisses = 0; ) }
 
-	const result_type& apply(argparam_type arg)
+	result_reftype apply(argument_reftype arg)
 	{
 		MG_DEBUGCODE(md_NrCalls++; )
 		dms_check_not_debugonly; 
@@ -71,22 +72,19 @@ struct Cache
 		}
 		return i->second;
 	}
-	const result_type& operator()(argparam_type arg)
-	{
-		return apply(arg);
-	}
-	UInt32 size () const { return m_Map.size (); }
-	bool   empty() const { return m_Map.empty(); }
 
-	void remove(const argument_type& arg)
+	SizeT size () const { return m_Map.size (); }
+	bool  empty() const { return m_Map.empty(); }
+
+	void remove(argument_reftype arg)
 	{
 		m_Map.erase(arg);
 	}
 	void clear() { m_Map.clear(); }
 
 private:
-	MG_DEBUGCODE(UInt32 md_NrCalls; )
-	MG_DEBUGCODE(UInt32 md_NrMisses; )
+	MG_DEBUGCODE(SizeT md_NrCalls; )
+	MG_DEBUGCODE(SizeT md_NrMisses; )
 
 	Func      m_Func;
 	ArgOrder  m_Comp;
@@ -96,33 +94,29 @@ private:
 
 
 /****************** struct StaticCache                  *******************/
-
-
+/*
 template<
 	typename Func, 
-	typename ArgOrder = std::less<Func::argument_type>,
-	typename DuplFunc = duplicate_arg<Func::argument_type, Func::result_type> 
+	typename ArgOrder = std::less<typename Func::argument_type>,
+	typename DuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_type> 
 >
 struct StaticCache
 {
-	typedef          Cache<Func, ArgOrder, DuplFunc> cache_type;
-	typedef typename cache_type::argument_type       argument_type;
-	typedef typename cache_type::result_type         result_type;
+	using cache_type    = Cache<Func, ArgOrder, DuplFunc> ;
+	using argument_type = typename cache_type::argument_type       ;
+	using result_type   = typename cache_type::result_type         ;
 
 	StaticCache()
 		: m_PtrSection(item_level_type(0), ord_level_type::LispObjCache, "LispObjCache")
 	{}
 
-	const result_type& operator()(const argument_type& arg)
+	result_type apply(const argument_type& arg)
 	{
 		leveled_std_section::scoped_lock lock(m_PtrSection);
-
-		if( m_Cache.is_null())
-			m_Cache.assign(new cache_type);
-		return m_Cache->apply(arg);
+		return m_Cache.apply(arg);
 	}
 
-	SizeT size() const { return m_Cache->size(); } // only defined if !IsNull()
+	SizeT size() const { return m_Cache.size(); } // only defined if !IsNull()
 
 	void remove(const argument_type& arg)           // only defined if !IsNull()
 	{
@@ -135,8 +129,8 @@ struct StaticCache
 	void clear() { m_Cache.reset(); }
 
 private:
-	static_ptr<cache_type> m_Cache;
+	cache_type m_Cache;
 	leveled_std_section m_PtrSection;
 };
-
+*/
 #endif // !defined(__SET_CACHE_H)
