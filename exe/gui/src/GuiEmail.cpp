@@ -1,6 +1,27 @@
 #include "GuiEmail.h"
 
-GuiEmail::GuiEmail()
+
+//===================================== GuiEmailImpl
+
+#include "windows.h"
+#include "MAPI.h"
+
+struct GuiEmailImpl
+{
+	GuiEmailImpl();
+	~GuiEmailImpl();
+
+	bool SendMailUsingDefaultWindowsEmailApplication(std::string message);
+
+	MapiRecipDesc GetOVRecipientDescriptor();
+
+	HMODULE hModMAPI = nullptr;
+	FARPROC pfnMAPIInitialize = nullptr;
+	FARPROC pfnMAPIUninitialize = nullptr;
+	LPMAPISENDMAIL pfnMAPISendMail = nullptr;
+};
+
+GuiEmailImpl::GuiEmailImpl()
 {
 	//hModMAPI = LoadLibrary(L"%windir%\system32\mapi32.dll");
 	hModMAPI = LoadLibrary(L"mapi32.dll");
@@ -12,18 +33,25 @@ GuiEmail::GuiEmail()
 		pfnMAPISendMail = (LPMAPISENDMAIL)GetProcAddress(hModMAPI, "MAPISendMail");
 	}
 	if (pfnMAPIInitialize)
+	{
 		auto hr = (*pfnMAPIInitialize)();
+		reportF(SeverityTypeID::ST_MinorTrace, "email HR = %s", hr);
+	}
 }
 
-GuiEmail::~GuiEmail()
+GuiEmailImpl::~GuiEmailImpl()
 {
 	if (pfnMAPIUninitialize)
 		(*pfnMAPIUninitialize)();
 }
 
-MapiRecipDesc GuiEmail::GetOVRecipientDescriptor()
+//=====================================
+
+MapiRecipDesc GuiEmailImpl::GetOVRecipientDescriptor()
 {
 	MapiRecipDesc recipient_description;
+	ZeroMemory(&recipient_description, sizeof(MapiRecipDesc));
+
 	recipient_description.ulRecipClass = MAPI_TO;
 	recipient_description.lpszName     = (LPSTR)"support@objectvision.nl";
 	recipient_description.lpszAddress  = (LPSTR)"support@objectvision.nl";
@@ -31,7 +59,7 @@ MapiRecipDesc GuiEmail::GetOVRecipientDescriptor()
 	return recipient_description;
 }
 
-bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
+bool GuiEmailImpl::SendMailUsingDefaultWindowsEmailApplication(std::string message)
 {
 	if (!hModMAPI)
 		return false;
@@ -42,6 +70,7 @@ bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
 	auto recipient_description = GetOVRecipientDescriptor();
 
 	MapiMessage email_description;
+	ZeroMemory(&email_description, sizeof(MapiMessage));
 	email_description.nRecipCount	= 1;
 	email_description.lpRecips		= &recipient_description;
 	email_description.lpszSubject	= (LPSTR)"Internal GeoDMS Error report";
@@ -56,3 +85,17 @@ bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
 
 	return true;
 }
+
+//===================================== GuiEmail member functions
+
+bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
+{
+	return pImpl->SendMailUsingDefaultWindowsEmailApplication(std::move(message));
+}
+
+GuiEmail::GuiEmail() 
+	: pImpl( new GuiEmailImpl )
+{}
+
+GuiEmail::~GuiEmail() 
+{}
