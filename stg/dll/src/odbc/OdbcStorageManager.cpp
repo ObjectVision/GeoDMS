@@ -517,7 +517,7 @@ public:
 			vc->GetSize());
 
 		dms_assert(size == GetRecordCount() * GetColumn()->ElementSize());
-		if ( !recordSet->BindExternal(GetColIndex(), data, m_RecordCount * vc->GetSize()))
+		if ( !recordSet->BindExternal(GetColIndex(), data, SizeT(m_RecordCount) * vc->GetSize()))
 			m_ODBCStorageManager->throwItemError("BindExternal Failed");
 
 	}
@@ -547,7 +547,7 @@ public:
 		while (currRec < lastRec)
 		{
 			if (GetColumn()->IsNull(currRec))
-				memcpy(dataBase + currRec * elemSize, undefinedValuePtr, elemSize);
+				memcpy(dataBase + SizeT(currRec) * elemSize, undefinedValuePtr, elemSize);
 			++currRec;
 		}
 	}

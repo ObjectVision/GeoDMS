@@ -148,7 +148,7 @@ struct NodeZoneConnector
 	typedef NetworkInfo<NodeType, ZoneType, ImpType> network_info;
 
 	NodeZoneConnector() {}
-	NodeZoneConnector(const NodeZoneConnector&) {}
+//	NodeZoneConnector(const NodeZoneConnector&) {}
 
 	void Init(const network_info& networkInfo, DijkstraFlag df)
 	{
@@ -331,8 +331,7 @@ struct NodeZoneConnector
 
 	const network_info* m_NetworkInfoPtr = nullptr;
 
-//	const DijkstraFlag m_DF;
-	ZoneType m_CurrSrcZoneTick;
+	ZoneType m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
 
 	// Found: result for current orgZone at the current state of network heap processing
 	OwningPtrSizedArray<ImpType>  m_ResImpPerDstZone;   // always                 DstZone -> Found Imp

@@ -253,12 +253,13 @@ struct AbstrConnectPointOperator : VariadicOperator
 {
 	bool isCapacitated;
 
-	AbstrConnectPointOperator(const DataItemClass* argCls, bool isCapacitated, compare_type CT)
+	AbstrConnectPointOperator(const DataItemClass* argCls, bool isCapacitated_, compare_type CT)
 		:	VariadicOperator(
-				isCapacitated ? &cogCCON : &cogCON
+				isCapacitated_ ? &cogCCON : &cogCON
 			,	AbstrDataItem::GetStaticClass()
-			,	2 + ( isCapacitated ? 2 : 0 ) + ( CT!=compare_type::none ? 2 : 0 )
+			,	2 + ( isCapacitated_ ? 2 : 0 ) + ( CT!=compare_type::none ? 2 : 0 )
 			)
+		,	isCapacitated(isCapacitated_)
 	{
 		ClassCPtr* argClsIter = m_ArgClasses.get();
 		*argClsIter++ = argCls;

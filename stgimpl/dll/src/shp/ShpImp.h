@@ -215,7 +215,7 @@ struct ShpPolygon
 	const ShpPoint& GetPoint(UInt32 partNr, UInt32 pointNr) const // Gets a point from a ring
 	{
 		dms_assert(pointNr < NrPoints(partNr));
-		return (*m_Points)[GetPartStart(partNr)+pointNr];
+		return (*m_Points)[SizeT(GetPartStart(partNr))+pointNr];
 	}
 
 	template <typename InIter> 

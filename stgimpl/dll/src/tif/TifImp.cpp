@@ -495,8 +495,8 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 
 		currNrProcesedBytes = 4 * ((currNrProcesedBytes + 2) / 3);
 
-		UInt8*    pixelDataBegin = reinterpret_cast<UInt8   *>(pixelData) + th*nrBytesPerRow;
-		DmsColor* colorDataBegin = reinterpret_cast<DmsColor*>(pixelData) + th*tw;
+		UInt8*    pixelDataBegin = reinterpret_cast<UInt8   *>(pixelData) + SizeT(th)*nrBytesPerRow;
+		DmsColor* colorDataBegin = reinterpret_cast<DmsColor*>(pixelData) + SizeT(th)*tw;
 		for (; th; --th)
 		{
 			pixelDataBegin -= nrBytesPerRow;

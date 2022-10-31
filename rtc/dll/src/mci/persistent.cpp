@@ -116,7 +116,7 @@ granted by an additional written contract for support, assistance and/or develop
 	}
 
 // *****************************************************************************
-// **********         Object Implementation              **********
+// **********         Object Implementation                           **********
 // *****************************************************************************
 
 	Object::Object()

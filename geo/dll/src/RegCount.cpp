@@ -81,7 +81,7 @@ struct RegionInfo
 		,	m_Result  (result)
 	{}
 
-	RegionInfo(RegionInfo&& rhs)  // move ctor
+	RegionInfo(RegionInfo&& rhs) noexcept // move ctor
 		: m_Partition(std::move(rhs.m_Partition))
 		, m_ReadLock(std::move(rhs.m_ReadLock))
 		, m_IndexGetter(std::move(rhs.m_IndexGetter))

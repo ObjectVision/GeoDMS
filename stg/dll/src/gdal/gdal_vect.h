@@ -67,7 +67,7 @@ struct GdalVectlMetaInfo : GdalMetaInfo
 	SharedStr                 m_SqlString;
 	TokenID                   m_NameID;
 	WeakPtr<OGRLayer>         m_Layer;
-	bool                      m_IsOwner;
+	bool                      m_IsOwner = false;
 
 	mutable ResourceHandle  m_ReadBuffer;
 	mutable SizeT           m_CurrFeatureIndex = 0;

@@ -282,7 +282,7 @@ CPLErr GDalGridImp::ReadInterleavedMultiBandTile(void* stripBuff, UInt32 tile_x,
 		nBandCount,
 		NULL,						// panBandMap
 		nBandCount,					// nPixelSpace,
-		nBandCount * tilewh.X(),	// nLineSpace
+		SizeT(nBandCount) * tilewh.X(),	// nLineSpace
 		1,							// nBandSpace
 		NULL						// psExtraArg
 	);

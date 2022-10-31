@@ -354,7 +354,7 @@ void IppsArray_InitReversed(IppsArray<A>* self, const UGrid<const T>& dataOrg, S
 	SideSize nrOrgRows = dataOrg.GetSize().Row();
 	SideSize nrOrgCols = dataOrg.GetSize().Col();
 	SideSize paddingWidth = tileDataWidth -1;
-	TileSize bufferSize = dataOrg.size() + paddingWidth * (nrOrgRows-1);
+	TileSize bufferSize = dataOrg.size() + SizeT(paddingWidth) * (nrOrgRows-1);
 	if (self->WasInitialized())
 	{
 		dms_assert(self->capacity() == bufferSize);
@@ -432,7 +432,7 @@ TileSize PotentialIppsRaw(potential_context<A>& context, UPoint& zeroInfo, const
 	auto dataBufferSize = IppsArray_Init(&context.paddedInput, zeroInfo, dataOrg, kernelInfo.orgWeightSize.Col()); // fill all in-between space with zeroes once
 
 	TileSize outputSize = dataBufferSize + weightBuffer.capacity() - 1;
-	dms_assert(outputSize == nrCols * nrRows ); // elementary math
+	dms_assert(outputSize == SizeT(nrCols) * nrRows ); // elementary math
 
 	dms_assert(dataBufferSize <= context.paddedInput.capacity());
 	dms_assert(outputSize <= context.overlappingOutput.capacity());
