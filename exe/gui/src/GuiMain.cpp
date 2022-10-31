@@ -38,8 +38,7 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-    auto test = std::string(GetGeoDmsRegKey("LastConfigFile"));
-    m_State.configFilenameManager.Set(test);
+    m_State.configFilenameManager.Set(std::string(GetGeoDmsRegKey("LastConfigFile").c_str()));
 }
 
 GuiMainComponent::~GuiMainComponent()
