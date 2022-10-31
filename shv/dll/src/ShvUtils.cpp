@@ -616,13 +616,15 @@ static CharPtr      g_DefaultFontName[DF_COUNT] = { "Small", "Medium", "Large" }
 
 CharPtr GetDefaultFontName(DefaultFontID fid)
 {
-	dms_assert(fid < DF_COUNT);
+	assert(fid >= 0);
+	assert(fid < DF_COUNT);
 	return g_DefaultFontName[fid];
 }
 
 UInt32 GetDefaultFontHeightDIP(DefaultFontID fid)
 {
-	dms_assert(fid < DF_COUNT);
+	assert(fid >= 0);
+	assert(fid < DF_COUNT);
 	return g_DefaultFontHDIP[fid];
 }
 

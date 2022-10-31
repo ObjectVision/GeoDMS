@@ -65,7 +65,7 @@ private:
 	std::shared_ptr<ColumnHeaderControl> m_HooverObj;
 	GRect                          m_HooverRect;
 	bool                           m_Activated;
-	bool                           m_Before;
+	bool                           m_Before = false;
 };
 
 //----------------------------------------------------------------------
@@ -102,7 +102,7 @@ public:
 		auto dic = GetDic(); if (!dic) return false;
 		return dic->OnKeyDown(virtKey);
 	}
-	const std::shared_ptr<DataItemColumn>& GetDic() const { return m_Dic;  }
+	std::shared_ptr<DataItemColumn> GetDic() const { return m_Dic;  }
 
 protected:
 //	override AbstrTextEditControl callbacks
@@ -166,15 +166,15 @@ bool ColumnHeaderDragger::Exec(EventInfo& eventInfo)
 		return false;
 
 	//	insert m_TargetObj as last of the main LayerControlSet
-	DataItemColumn* srcLayer = debug_cast<ColumnHeaderControl*>(GetTargetObject().lock().get())->GetDic().get();
-	TableControl*   srcOwner = debug_cast<TableControl*       >(srcLayer->GetOwner().lock().get());
+	auto srcLayer = debug_cast<ColumnHeaderControl*>(GetTargetObject().lock().get())->GetDic();
+	auto srcOwner = srcLayer->GetOwner().lock();
 
-	if (m_HooverObj)
+	if (m_HooverObj && srcOwner)
 	{
 		DataItemColumn* dstLayer = m_HooverObj->GetDic().get();
 		TableControl*   dstOwner = dstLayer->GetTableControl().lock().get();
 		dms_assert(!srcLayer->IsOwnerOf(dstOwner));
-		srcOwner->MoveEntry(srcLayer, dstOwner, dstOwner->GetEntryPos(dstLayer) + (m_Before ? 0 : 1) );
+		debug_cast<TableControl*>(srcOwner.get())->MoveEntry(srcLayer.get(), dstOwner, dstOwner->GetEntryPos(dstLayer) + (m_Before ? 0 : 1));
 	}
 	return true;
 }

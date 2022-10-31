@@ -190,7 +190,7 @@ private:
 	gr_elem_index m_GroupByIndex = -1;
 	AggrMethod m_AggrMethod = AggrMethod::sum;
 
-	mutable Float64 m_ColumnTotal;
+	mutable Float64 m_ColumnTotal = 0.0;
 	mutable SharedDataItemInterestPtrTuple m_DisplayInterest;
 
 	DECL_RTTI(SHV_CALL, ShvClass);

@@ -280,16 +280,16 @@ struct ggType_info_t
 	SharedStr                     m_strName;
 	TokenID                       m_NameID;
 
-	const AbstrDataItem*          m_diMinClaims;
-	const AbstrDataItem*          m_diMaxClaims;
+	const AbstrDataItem*          m_diMinClaims = nullptr;
+	const AbstrDataItem*          m_diMaxClaims = nullptr;
 
 	const AbstrDataItem*          m_diSuitabilityMap;
 	      AbstrDataItem*          m_diResShadowPrices = nullptr;
 	      AbstrDataItem*          m_diResTotalAllocated = nullptr;
 
-	UInt32                        m_PartitioningID;
+	UInt32                        m_PartitioningID = 0;
 	claim_id                      m_FirstClaimID = UNDEFINED_VALUE(claim_id);  // ref into m_Claims array
-	UInt32                        m_NrClaims;      // limits range of m_Claims array for this ggType
+	UInt32                        m_NrClaims = 0;      // limits range of m_Claims array for this ggType
 
 	DataReadLock                  m_SuitabilityDataLock;
 	typename DataArray<S>::locked_cseq_t m_Suitabilities; // 1 per grid-cell, points directly into memory mapped file

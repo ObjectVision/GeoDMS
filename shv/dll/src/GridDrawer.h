@@ -78,7 +78,7 @@ struct GridColorPalette
 
 private:
 	BITMAPINFO*             m_BitmapInfo;
-	UInt32                  m_Count;
+	UInt32                  m_Count = 0;
 };
 
 //----------------------------------------------------------------------
