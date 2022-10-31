@@ -46,7 +46,7 @@ inline bool itemNameFirstChar_test(unsigned char ch)
 
 inline bool itemNameNextChar_test(unsigned char ch)
 {
-	return isalnum(ch) || ch == '_' || ch == '@' || ch >= 128;
+	return isalnum(ch) || ch == '_' || ch == '@' || ch >= 128; // TODO: behavior under different code tables?
 }
 
 RTC_CALL bool itemName_test(CharPtr p);

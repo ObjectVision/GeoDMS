@@ -247,7 +247,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
             auto result = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem *TempItem = m_State.GetCurrentItem();
-            result = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(result.c_str()));
+            result = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(result.c_str())).c_str();
             WinExec(result.c_str(), SW_HIDE); //TODO: replace with CreateProcess
         }
 

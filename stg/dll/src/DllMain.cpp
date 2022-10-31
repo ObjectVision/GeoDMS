@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/Environment.h"
+#include "utl/Encodes.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -389,7 +390,7 @@ SharedStr TNameSet::FieldNameToMappedName(CharPtr src) const
 	char* dstEnd = dstPtr + m_Len;
 
 
-	if (*src >= '0' && *src <= '9')
+	if (isdigit(* src)) // first character cannot be numerical
 		*dstPtr++ = '_';
 
 	while(dstPtr != dstEnd)
@@ -398,7 +399,7 @@ SharedStr TNameSet::FieldNameToMappedName(CharPtr src) const
 		if (!ch)
 			break;
 
-		if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+		if (itemNameNextChar_test(ch))
 			*dstPtr++ = ch;
 		else
 			*dstPtr++ = '_';

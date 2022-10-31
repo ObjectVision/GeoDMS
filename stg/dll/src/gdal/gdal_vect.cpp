@@ -47,6 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/FixedAlloc.h"
 #include "ser/FormattedStream.h"
 #include "utl/mySPrintF.h"
+#include "utl/encodes.h"
 #include "xct/DmsException.h"
 
 #include "ParallelTiles.h"
@@ -648,23 +649,23 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 	dms_assert(dataArray.get_sa().data_size() == data.actual_data_size());
 }
 
-SizeT LayerFieldEnable(OGRLayer* layer, CharPtr itemName, const Actor* context)
+SizeT LayerFieldEnable(OGRLayer* layer, std::string itemName, const Actor* context)
 {
 	dms_assert(layer);
 	SizeT fieldID ;
 
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
-	if (context) // no geometry
+	if (context) // attribute, not geometry
 	{
-		gdalVectImpl::TOgrNameSet layerNameSet(featureDefn, context);
-
-		SharedStr colName = layerNameSet.ItemNameToMappedName(itemName);
+		SharedStr colName = SharedStr(itemName.c_str());
 		if (!colName.empty())
 		{
 			fieldID = 0;
 			while (fieldID < featureDefn->GetFieldCount())
 			{
-				if (gdalVectImpl::TOgrNameSet::EqualName(colName.c_str(), layerNameSet.FieldNameToMappedName(featureDefn->GetFieldDefn(fieldID)->GetNameRef()).c_str()))
+				auto tmp_name = SharedStr(featureDefn->GetFieldDefn(fieldID)->GetNameRef());
+				auto tmp_converted_name = as_item_name(tmp_name.begin(), tmp_name.end()).c_str();
+				if (!stricmp(colName.c_str(), as_item_name(tmp_name.begin(), tmp_name.end()).c_str())) //layerNameSet.FieldNameToMappedName(featureDefn->GetFieldDefn(fieldID)->GetNameRef()).c_str()))
 					goto found;
 				fieldID++;
 			}
@@ -687,7 +688,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	dms_assert(br);
 	OGRLayer* layer = br->m_Layer;
 	if (!t)
-		LayerFieldEnable(layer, nullptr, nullptr); // only set once
+		LayerFieldEnable(layer, "", nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
 	switch (vc->GetValueClassID())
@@ -1674,15 +1675,12 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 	// Update Attribute Fields
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
-
-	// Check for ambiguity
-	gdalVectImpl::TOgrNameSet colNameSpace(featureDefn, storageHolder);
-
 	for (SizeT i = 0, numFields = featureDefn->GetFieldCount(); i!=numFields; ++i)
 	{
 		WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
 		auto subType = fieldDefn->GetSubType();
-		SharedStr itemName = colNameSpace.FieldNameToItemName(fieldDefn->GetNameRef());
+		auto raw_item_name = SharedStr(fieldDefn->GetNameRef());
+		SharedStr itemName = as_item_name(raw_item_name.begin(), raw_item_name.end());
 		TreeItem* tiColumn = layerDomain->GetItem(itemName.c_str());
 		
 		auto valueType = gdalVectImpl::OGR2ValueClass(fieldDefn->GetType(), fieldDefn->GetSubType());
@@ -1730,7 +1728,8 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	for (SizeT i = 0; i != layerCount; ++i)
 	{
 		WeakPtr<OGRLayer> layer = m_hDS->GetLayer(i); // GDAL
-		TokenID layerID = GetTokenID_mt( layer->GetName() ); // GDAL
+		auto temp_layer_name = SharedStr(layer->GetName());
+		TokenID layerID = GetTokenID_mt(as_item_name(temp_layer_name.begin(), temp_layer_name.end())); // GDAL
 		if (!curr->GetSubTreeItemByID(layerID))
 		{
 			Unit<UInt32>::GetStaticClass()->CreateUnit(curr, layerID);
