@@ -296,7 +296,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         if (ImGui::Button("Email", ImVec2(120, 0)))
         {
             GuiEmail email_system;
-            email_system.SendMailUsingDefaultWindowsEmailApplication("test");
+            email_system.SendMailUsingDefaultWindowsEmailApplication(m_State.errorDialogMessage.Get());
         }
         ImGui::EndPopup();
     }
