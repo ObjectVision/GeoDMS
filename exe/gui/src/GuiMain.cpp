@@ -35,12 +35,11 @@
 
 GuiMainComponent::GuiMainComponent()
 {
-    //m_MapViews.reserve(m_MaxViews);
-    //m_TableViews.reserve(m_MaxViews);
-
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    auto test = std::string(GetGeoDmsRegKey("LastConfigFile"));
+    m_State.configFilenameManager.Set(test);
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -247,7 +246,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
             auto result = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem *TempItem = m_State.GetCurrentItem();
-            result = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(result.c_str()));
+            result = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(result.c_str())).c_str();
             WinExec(result.c_str(), SW_HIDE); //TODO: replace with CreateProcess
         }
 
@@ -405,7 +404,7 @@ int GuiMainComponent::MainLoop()
 
     // state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + DMS_GetVersion()).c_str()); // default window title
+    glfwSetWindowTitle(m_Window, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
     //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();
