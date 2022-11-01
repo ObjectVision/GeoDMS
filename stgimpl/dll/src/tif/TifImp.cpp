@@ -528,9 +528,9 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 		while (th)
 		{
 			--th;
-			UInt8* pixelDataBegin = pixelData + th*nrBytesPerRow;
+			UInt8* pixelDataBegin = pixelData + SizeT(th)*nrBytesPerRow;
 			UInt8* pixelDataEnd = pixelDataBegin + nrBytesPerRow;
-			UInt8* byteDataBegin = pixelData + th*tw;
+			UInt8* byteDataBegin = pixelData + SizeT(th)*tw;
 			UInt8* byteDataEnd = byteDataBegin + tw;
 			if (tw % 2)
 				*--byteDataEnd = ((*--pixelDataEnd) & 0xF0) >> 4;

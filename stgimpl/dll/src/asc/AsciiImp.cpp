@@ -370,7 +370,7 @@ bool AsciiImp::ReadCells(typename sequence_traits<T>::pointer buff, const StgVie
 	if (dataRect.first.Row() < 0)
 	{
 		UInt32 skipRowCount = - dataRect.first.Row();
-		typename sequence_traits<T>::pointer buffE = buff + _Width(dataRect) * skipRowCount;
+		typename sequence_traits<T>::pointer buffE = buff + SizeT(_Width(dataRect)) * skipRowCount;
 		fast_fill(buff, buffE, UNDEFINED_OR_ZERO(T));
 		buff = buffE;
 		dataRect.first.Row() = 0;
@@ -421,7 +421,7 @@ bool AsciiImp::ReadCells(typename sequence_traits<T>::pointer buff, const StgVie
 	}
 	if (currDataRow < lastDataRow)
 	{
-		typename sequence_traits<T>::pointer buffE = buff + vpi.GetViewPortSize().Col() * (lastDataRow - currDataRow);
+		typename sequence_traits<T>::pointer buffE = buff + SizeT(vpi.GetViewPortSize().Col()) * (lastDataRow - currDataRow);
 		fast_fill(buff, buffE, UNDEFINED_OR_ZERO(T));
 		buff = buffE;
 		currDataRow = lastDataRow;

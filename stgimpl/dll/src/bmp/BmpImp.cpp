@@ -388,7 +388,7 @@ void BmpImp::_SetFileRowOffsets()
 	if (m_InfoHeader->biCompression == BI_RGB)
 		vector_clear(m_FileRowOffsets);
 	else
-		vector_zero_n(m_FileRowOffsets, m_InfoHeader->biHeight + 1);
+		vector_zero_n(m_FileRowOffsets, SizeT(m_InfoHeader->biHeight) + 1);
 }
 
 Boolean BmpImp::GetSubFormat(BmpFormat & f)
