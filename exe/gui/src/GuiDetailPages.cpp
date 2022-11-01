@@ -162,6 +162,7 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
                             m_State.SetCurrentItem(item);
                             m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                             m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                            m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
                         }
                     }
                     ImGui::PopID();
@@ -385,6 +386,7 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
                         m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
                         m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                        m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
                 }
                 ImGui::PopID();

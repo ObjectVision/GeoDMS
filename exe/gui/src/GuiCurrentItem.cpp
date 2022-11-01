@@ -46,6 +46,7 @@ void GuiCurrentItemComponent::Update()
                 {
                     m_State.SetCurrentItem(jumpItem);
                     m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
                 }
             }
         }

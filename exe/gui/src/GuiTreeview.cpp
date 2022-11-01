@@ -80,6 +80,7 @@ void GuiTreeViewComponent::UpdateStateAfterItemClick(TreeItem* nextSubItem)
     m_State.SetCurrentItem(nextSubItem);
     m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+    m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
 }
 
 bool GuiTreeViewComponent::IsAlphabeticalKeyJump(TreeItem* nextItem, bool looped = false)

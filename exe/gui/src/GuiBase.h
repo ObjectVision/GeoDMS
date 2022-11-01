@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <list>
 
 #include "TreeItem.h"
 #include "AbstrDataItem.h"
@@ -210,6 +211,18 @@ struct OptionsEventLog
 	bool ShowMessageTypeNothing     = true;
 };
 
+class TreeItemHistory
+{
+public:
+	TreeItemHistory();
+	void Insert(TreeItem* new_item);
+	TreeItem* GetNext();
+	TreeItem* GetPrevious();
+private:
+	std::list<TreeItem*>::iterator m_Iterator;
+	std::list<TreeItem*> m_History;
+};
+
 class GuiState
 {
 public:
@@ -255,6 +268,8 @@ public:
 	static EventQueue MapViewEvents;
 	static EventQueue DetailPagesEvents;
 	static EventQueue GuiMenuFileComponentEvents;
+
+	static TreeItemHistory TreeItemHistoryList;
 
 	TreeItem* GetRoot() { return m_Root; }
 	TreeItem* GetCurrentItem() { return m_CurrentItem; }
