@@ -45,6 +45,14 @@ typedef UInt32 ChroID;
 
 struct FormattedOutStream;
 
+/****************** LispComponent *******************/
+
+struct LispComponent
+{
+	LispComponent();
+	~LispComponent();
+};
+
 /****************** LispRef class definition *******************/
 
 // Reference: Symbolic Computing with LISP, R.D. Cameron & A.H. Dixon., 1992

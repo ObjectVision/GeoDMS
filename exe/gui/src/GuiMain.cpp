@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <algorithm>
 
+#include "cpc/CompChar.h"
+#include "geo/BaseBounds.h"
+#include <windows.h>
+
 //#include <stdlib.h>         // abort
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -35,12 +39,10 @@
 
 GuiMainComponent::GuiMainComponent()
 {
-    //m_MapViews.reserve(m_MaxViews);
-    //m_TableViews.reserve(m_MaxViews);
-
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -298,8 +300,16 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         if (ImGui::Button("Email", ImVec2(120, 0)))
         {
             GuiEmail email_system;
-            email_system.SendMailUsingDefaultWindowsEmailApplication("test");
+            email_system.SendMailUsingDefaultWindowsEmailApplication(m_State.errorDialogMessage.Get());
         }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Reopen", ImVec2(120, 0)))
+        {
+            m_State.MainEvents.Add(ReopenCurrentConfiguration);
+        }
+
+
         ImGui::EndPopup();
     }
     return false;
@@ -405,7 +415,7 @@ int GuiMainComponent::MainLoop()
 
     // state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    glfwSetWindowTitle(m_Window, (m_State.configFilenameManager.Get() + DMS_GetVersion()).c_str()); // default window title
+    glfwSetWindowTitle(m_Window, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
     //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();

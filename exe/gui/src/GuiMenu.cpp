@@ -24,8 +24,6 @@
 // for windows open file dialog
 #include <windows.h>
 #include <shobjidl.h> 
-
-
 #include <codecvt>
 
 void GuiMenuComponent::Update(GuiView& ViewPtr)

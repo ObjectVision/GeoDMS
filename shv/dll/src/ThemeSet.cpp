@@ -146,7 +146,8 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 
 std::shared_ptr<Theme> ThemeSet::GetTheme(AspectNr aNr) const
 {
-	dms_assert(aNr < AN_AspectCount);
+	assert(aNr >= 0);
+	assert(aNr < AN_AspectCount);
 	return m_Themes[aNr];
 }
 

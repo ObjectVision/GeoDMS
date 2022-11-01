@@ -456,7 +456,7 @@ struct TRecordSetOpenLock
 inline const SQLPOINTER TColumn::Buffer()       const { return m_Buffer; }
 inline SQLINTEGER       TColumn::BufferSize()   const { return m_RecordSet->FrameSize() * ElementSize(); }
 inline SQLINTEGER       TColumn::ElementSize()  const { return m_ElementSize; }	
-inline const SQLPOINTER TColumn::ElementBuffer()const { return((char*) Buffer()) + m_RecordSet->FrameElementNumber() * ElementSize(); }
+inline const SQLPOINTER TColumn::ElementBuffer()const { return((char*) Buffer()) + SizeT(m_RecordSet->FrameElementNumber()) * ElementSize(); }
 inline SQLLEN           TColumn::ActualSize()   const { dms_assert(m_ActualSizes); return m_ActualSizes[m_RecordSet->FrameElementNumber()]; }
 inline bool             TColumn::IsNull()       const { return ActualSize() == SQL_NULL_DATA; }
 

@@ -246,7 +246,7 @@ namespace Grid {
 					);
 				bufxOffset += cSize;
 			}
-			buf += rSize * bufSize.X();
+			buf += SizeT(rSize) * bufSize.X();
 		}
 	};
 
@@ -397,7 +397,7 @@ namespace Grid {
 		UInt32 stripWidth = _Width(readRect);
 
 		//	buffer for reading from m_TiffHandle
-		OwningPtrSizedArray<ColorType> stripBuffer(stripWidth * stripHeight MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.CountDataImpl: stripBuffer"));
+		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.CountDataImpl: stripBuffer"));
 
 		IPoint viewPortOrigin = viewPort2tiff.GetViewPortOrigin();
 		UPoint viewPortSize = viewPort2tiff.GetViewPortSize();
@@ -426,10 +426,10 @@ namespace Grid {
 				dms_assert(viewPortSize.Row() > 0);
 
 				typename OwningPtrSizedArray<CountType>::pointer
-					pixelPtr = pixels + (RoundDown<4>((rowBase - oy) * finvy) - viewPortOrigin.Y())* viewPortSize.X(),
+					pixelPtr = pixels + (SizeT(RoundDown<4>((rowBase - oy) * finvy)) - viewPortOrigin.Y()) * viewPortSize.X(),
 					pixelPtrEnd = pixels + viewPortSize.X();
 				typename OwningPtrSizedArray<ColorType>::pointer
-					stripBufferRow = stripBuffer.begin() + (rowBase - readRect.first.Row())*stripWidth;
+					stripBufferRow = stripBuffer.begin() + (SizeT(rowBase) - readRect.first.Row()) * stripWidth;
 
 				for (UInt32 c = 0; c != stripWidth; ++c)
 					if (*stripBufferRow++ == countColor)

@@ -105,8 +105,8 @@ private:
 	DistrIdGridType  m_DistrOutput;
 	DistrSelSeqType  m_DistrBoolOutput;
 
-	SizeType m_Size;
-	SizeType m_NrCols;
+	SizeType m_Size = 0;
+	SizeType m_NrCols = 0;
 	IGridRect m_Rectangle;
 	IGridRect m_ResRect;
 

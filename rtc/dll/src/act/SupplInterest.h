@@ -66,6 +66,13 @@ struct SupplInterestListPtr: private OwningPtr<SupplInterestListElem>
 		OwningPtr::init(ptr);
 	}
 
+	void operator =(SupplInterestListElem* ptr)
+	{
+		assert(ptr != get_ptr());
+		OwningPtr<SupplInterestListElem> src = release();
+		OwningPtr::init(ptr);
+	}
+
 	using OwningPtr::release;
 	operator SupplInterestListElem* () const noexcept { return get_ptr(); }
 };
@@ -93,7 +100,7 @@ struct SupplInterestListElem
 
 inline void push_front(SupplInterestListPtr& self, const Actor* actor)
 {
-	self.init( new SupplInterestListElem(SharedActorInterestPtr(actor), std::move(self)) );
+	self = new SupplInterestListElem(SharedActorInterestPtr(actor), std::move(self));
 };
 
 typedef std::map<const Actor*, SupplInterestListPtr > SupplTreeInterestType;

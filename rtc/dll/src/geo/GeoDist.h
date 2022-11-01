@@ -85,8 +85,8 @@ struct ArcProjectionHandle
 	sqrdist_type  m_MinSqrDist;
 
 	// result vars
-	bool         m_FoundAny, m_InArc, m_InSegm;
-	seq_elem_index_type m_SegmIndex;
+	bool         m_FoundAny = false, m_InArc = false, m_InSegm = false;
+	seq_elem_index_type m_SegmIndex = UNDEFINED_VALUE(seq_elem_index_type);
 	PointType    m_CutPoint;
 	
 	ArcProjectionHandle() {}

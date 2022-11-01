@@ -94,11 +94,11 @@ enum class ord_level_type : UInt32
 	// level c+3
 	GDALComponent = IndexedString + 1,
 	FLispUsageCache = IndexedString - 1,
-	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
+//	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
 	NotifyTargetCount = MoveSupplInterest + 1,
 
 	// level c+4
-	ObjectRegister = SymbObjSection + 1, // can be used in SymbObjSection
+	ObjectRegister = LispObjCache + 1, // can be used in SymbObjSection
 
 	// level c+5
 	DebugOutStream = ObjectRegister + 1,

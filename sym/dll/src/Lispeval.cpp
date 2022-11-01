@@ -48,7 +48,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <functional>
 #include "set/Cache.h"
 
-typedef std::pair<LispRef, AssocList> cache_key_t;
+using cache_key_t = std::pair<LispRef, AssocList> ;
 
 /*************** Elementary functions  ******/
 
@@ -232,6 +232,7 @@ AssocList Match(AssocListPtr aList, LispPtr header, LispPtr expr)
 		return newAssocList;
 	return Match(newAssocList, header.Right(), expr.Right());
 }
+
 /*
 LispRef ShortEvalCondList(LispPtr condList)
 {
@@ -418,6 +419,7 @@ struct ApplyStepFunc
 	}
 };
 
+LispComponent s_LispServiceSubscription;
 Cache<ApplyStepFunc> g_applyCache;
 
 LispRef Apply(LispPtr expr, AssocListPtr env)
@@ -428,7 +430,7 @@ LispRef Apply(LispPtr expr, AssocListPtr env)
 #endif
 //	reportF(ST_MinorTrace, "Apply: %s", AsString(expr).c_str()); // DEBUG
 
-	return g_applyCache(cache_key_t(expr, env));
+	return g_applyCache.apply(cache_key_t(expr, env));
 }
 
 LispRef RepeatedApply(LispPtr expr, AssocListPtr env)
@@ -563,7 +565,7 @@ LispRef ApplyTopEnv(LispPtr expr)
 #endif
 	dms_assert(expr.IsRealList());
 
-	return g_applyTopEnvCache(expr);
+	return g_applyTopEnvCache.apply(expr);
 }
 
 //==============================

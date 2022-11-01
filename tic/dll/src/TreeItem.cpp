@@ -3163,9 +3163,9 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 				, nullptr
 				);
 		readInfoPtr.reset();
-		dms_assert(!readInfo);
-		dms_assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
-		dms_assert(self->GetInterestCount());
+		assert(!readInfo);
+		assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+		assert(self->GetInterestCount());
 	}
 	if (refItem->IsFailed())
 	{

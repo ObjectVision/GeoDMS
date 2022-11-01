@@ -115,16 +115,13 @@ struct IppsArray
 	}
 	void reserve(TileSize nrElem);
 
-	void operator = (IppsArray&& rhs)
+	void operator = (IppsArray&& rhs) noexcept
 	{
 		std::swap(m_Data, rhs.m_Data);
 		std::swap(m_Capacity, rhs.m_Capacity);
 	}
-//	TileSize   size() const { return m_NrElem; }
 	A* begin() { return m_Data; }
 	const A* begin() const { return m_Data; }
-//	A* end() { return m_Data + size(); }
-//	const A* end() const { return m_Data + size(); }
 
 	bool WasInitialized() const { return m_Capacity != 0;  }
 	TileSize capacity() const { return m_Capacity;  }

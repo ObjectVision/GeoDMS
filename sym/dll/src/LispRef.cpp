@@ -36,6 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/Class.h"
 #include "geo/BaseBounds.h"
 #include "geo/IterRange.h"
+#include "ptr/PtrBase.h"
 #include "ser/AsString.h"
 #include "ser/DebugOutStream.h"
 #include "ser/PolyStream.h"
@@ -51,6 +52,12 @@ granted by an additional written contract for support, assistance and/or develop
 #include <typeinfo>
 
 #define DBG_LOADOBJ false
+
+struct LispCaches;
+
+static LispComponent s_lispServiceSubscription;
+
+/****************** Lisp streaming *******************/
 
 inline FormattedOutStream& operator <<(FormattedOutStream& output, const LispObj& obj)
 {
@@ -168,7 +175,6 @@ IMPL_CLASS(LispObj, 0)
 /****************** class NumbObj                 *******************/
 /******************                               *******************/
 
-
 class NumbObj: public LispObj
 {
 	friend LispRef::LispRef(Number v);
@@ -196,50 +202,16 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-/****************** ctor/dtor                         *******************/
-
 struct MakeNumbFunc
-{	
+{
 	using argument_type = Number_t;
 	using result_type = LispObj*;
 
 	LispObj* operator()(Number_t v) const
-	{ 
-		return new NumbObj(Number(v)); 
-	} 
+	{
+		return new NumbObj(Number(v));
+	}
 };
-
-StaticCache<MakeNumbFunc, DataCompare<Number_t> > s_NumbObjCache;
-
-LispRef::LispRef(Number value) 
-	: SharedPtrWrap(
-		s_NumbObjCache(value)
-	)
-{}
-
-NumbObj::~NumbObj() { s_NumbObjCache.remove(m_Value); }
-
-
-/****************** Serialization and rtti            *******************/
-
-IMPL_STATIC_LISPCLS(NumbObj)
-
-LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("NumbObj", "ReloadObj", DBG_LOADOBJ);
-
-	double value;
-	ar >> value;
-	DBG_TRACE(("numb = %lf", value));
-
-	return s_NumbObjCache(Number(value));
-}
-
-void NumbObj::WriteObj(PolymorphOutStream& ar) const
-{
-	double value = m_Value;
-	ar << value;
-}
 
 /******************                               *******************/
 /****************** class UI64Obj                 *******************/
@@ -271,8 +243,6 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-/****************** ctor/dtor                         *******************/
-
 struct MakeUI64Func
 {
 	using argument_type = UInt64;
@@ -284,37 +254,7 @@ struct MakeUI64Func
 	}
 };
 
-StaticCache<MakeUI64Func, DataCompareImpl<UInt64, false> > s_UI64ObjCache;
-
-LispRef::LispRef(UInt64 value)
-	: SharedPtrWrap(
-		s_UI64ObjCache(value)
-	)
-{}
-
-UI64Obj::~UI64Obj() { s_UI64ObjCache.remove(m_Value); }
-
-
-/****************** Serialization and rtti            *******************/
-
 IMPL_STATIC_LISPCLS(UI64Obj)
-
-LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("UI64Obj", "ReloadObj", DBG_LOADOBJ);
-
-	UInt64 value;
-	ar >> value;
-	DBG_TRACE(("ui64 = %lf", value));
-
-	return s_UI64ObjCache(value);
-}
-
-void UI64Obj::WriteObj(PolymorphOutStream& ar) const
-{
-	UInt64 value = m_Value;
-	ar << value;
-}
 
 /******************                                   *******************/
 /****************** class SymbObj                     *******************/
@@ -324,9 +264,8 @@ void UI64Obj::WriteObj(PolymorphOutStream& ar) const
 class SymbObj : public LispObj
 {
 	friend struct MakeSymbFunc;
-	friend SymbObj* GetOrCreateSymbObj(TokenID t, ChroID c);
+	friend SymbObj* GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c);
 
-private:
 	SymbObj()              : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 	SymbObj(const SymbObj&): m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 
@@ -352,9 +291,7 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-/****************** ctor/dtor                         *******************/
-
-typedef std::pair<TokenID,  ChroID>  SymbType;
+using SymbType = std::pair<TokenID,  ChroID>;
 
 struct MakeSymbFunc
 {	
@@ -366,101 +303,6 @@ struct MakeSymbFunc
 		return new SymbObj(v.first, v.second); 
 	} 
 };
-
-StaticCache<MakeSymbFunc>          s_SymbObjCache;
-
-static_ptr<std::vector<SymbObj*> > s_ZeroSymbObjCache;
-UInt32                             s_nrActiveZeroSymbObj = 0;
-leveled_std_section           s_SymbObjSection(item_level_type(0), ord_level_type::SymbObjSection, "SymbObjRegister");
-
-inline SymbObj* GetOrCreateSymbObj(TokenID t, ChroID c)
-{
-	if (c) 
-		return s_SymbObjCache(SymbType(t, c));
-	UInt32 tnr     = t.GetNr(TokenID::TokenKey());
-	UInt32 reqSize = tnr + 1;
-
-	leveled_std_section::scoped_lock lock(s_SymbObjSection);
-	if (s_ZeroSymbObjCache.is_null())
-		s_ZeroSymbObjCache.assign(new std::vector<SymbObj*>(reqSize));
-	std::size_t s = s_ZeroSymbObjCache->size();
-	if (reqSize > s) 
-	{
-		s *= 2;
-		MakeMax(s, reqSize);
-		s_ZeroSymbObjCache->resize(s, 0);
-	}
-	SymbObj*& cacheEntry = (*s_ZeroSymbObjCache)[tnr]; 
-	if (!cacheEntry)
-	{
-		cacheEntry = new SymbObj(t, 0);
-		s_nrActiveZeroSymbObj++;
-	}
-	return cacheEntry;
-}
-
-LispRef::LispRef(TokenID t, UInt32 c) : SharedPtrWrap(GetOrCreateSymbObj(t,c))
-{}
-
-LispRef::LispRef(CharPtr s, UInt32 c) : SharedPtrWrap(GetOrCreateSymbObj(GetTokenID_mt(s), c))
-{}
-
-SymbObj::~SymbObj() 
-{ 
-	if (m_ChroID)
-		s_SymbObjCache.remove(SymbType(m_TokenID, m_ChroID)); 
-	else
-	{
-		leveled_std_section::scoped_lock lock(s_SymbObjSection);
-
-		dms_assert(s_ZeroSymbObjCache->size() > m_TokenID.GetNr(TokenID::TokenKey()) 
-			&& (*s_ZeroSymbObjCache)[m_TokenID.GetNr(TokenID::TokenKey())] == this);
-		(*s_ZeroSymbObjCache)[m_TokenID.GetNr(TokenID::TokenKey())] = nullptr;
-		if (!--s_nrActiveZeroSymbObj)
-			s_ZeroSymbObjCache.reset();
-	}
-}
-
-/****************** Serialization and rtti            *******************/
-
-IMPL_STATIC_LISPCLS(SymbObj)
-
-void SymbObj::Print   (FormattedOutStream& out, UInt32 level) const
-{ 
-	auto symbStr = GetSymbStr();
-	if (itemName_test(symbStr.c_str()))
-		out << symbStr.c_str();
-	else
-		SingleQuote(out, symbStr.c_str());
-	if (m_ChroID) 
-		out << ":" << m_ChroID; 
-	out << " "; 
-}
-
-void SymbObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
-{ 
-	out << GetSymbStr().c_str();
-	if (m_ChroID) 
-		out << ":" << m_ChroID; 
-}
-
-LispObj* SymbObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("SymbObj", "ReloadObj", DBG_LOADOBJ);
-	TokenID t = ar.ReadToken();
-	DBG_TRACE(("Token=%s", t.GetStr().c_str()));
-
-	UInt32  c;	
-	c = ar.ReadUInt32();
-
-	return GetOrCreateSymbObj(t, c);
-}
-
-void SymbObj::WriteObj(PolymorphOutStream& ar) const
-{
-	ar.WriteToken(GetSymbID());
-	ar.WriteUInt32(m_ChroID);
-}
 
 /******************                                   *******************/
 /****************** class StrnObj                     *******************/
@@ -514,109 +356,29 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-/****************** ctor/dtor                         *******************/
-
 struct MakeStrnFunc
-{	
-	typedef StrnType argument_type;
-	typedef StrnObj* result_type;
+{
+	using argument_type = StrnType;
+	using result_type = StrnObj*;
 
 	StrnObj* operator()(const StrnType& v) const
-	{ 
+	{
 		auto len = v.size();
 		dms_assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
-		char *b = new char[len+1], 
-		     *e = b+len;
+		char* b = new char[len + 1],
+			* e = b + len;
 		strncpy(b, v.first, len);
 		*e = 0;
 		return new StrnObj(b, e);
-	} 
+	}
 };
 
 struct DuplStrnData {
-	const StrnType& operator()(const StrnType&, StrnObj* res) const 
-	{ 
+	const StrnType& operator()(const StrnType&, StrnObj* res) const
+	{
 		return res->GetConstData();
 	}
 };
-
-
-StaticCache<MakeStrnFunc, std::less<StrnType>, DuplStrnData> s_StrnObjCache;
-
-LispRef::LispRef(CharPtr b, CharPtr e)
-:	SharedPtrWrap(
-		(b ==e )
-		?	StrnObj::GetEmpty()
-		:	s_StrnObjCache(StrnType(b, e))
-	)
-{}
-
-StrnObj::~StrnObj() 
-{ 
-	if (!m_Data.empty())
-	{
-		s_StrnObjCache.remove(m_Data); 
-		delete [] m_Data.first;
-	}
-}
-
-
-/****************** Serialization and rtti            *******************/
-
-IMPL_STATIC_LISPCLS(StrnObj)
-
-StrnObj* StrnObj::GetEmpty()
-{
-	static StrnObj* empty = new StrnObj();
-	static SharedPtr<LispObj> emptyHolder(empty);
-
-	return empty;
-}
-
-void StrnObj::Print   (FormattedOutStream& o, UInt32 level) const
-{ 
-	DoubleQuote(o, GetStrnBeg(), GetStrnEnd());
-	o << " "; 
-}
-
-LispObj* StrnObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("StrnObj", "ReloadObj", DBG_LOADOBJ);
-
-	UInt32 len = ar.ReadUInt32();
-	if (!len)
-		return StrnObj::GetEmpty();
-
-	if (ar.m_StrnBufSize < len)
-		ar.m_StrnBuf.reset( new Byte[Max<UInt32>(len, 2 * ar.m_StrnBufSize)] );
-
-	Byte
-		*b = ar.m_StrnBuf.get(),
-		*e = b+len;
-
-	ReadBinRangeImpl(ar, b, e, TYPEID(directcpy_streamable_tag));
-
-#if defined(MG_DEBUG)
-	if (debugContext.m_Active)
-	{
-		DebugOutStream::scoped_lock lock(g_DebugStream);
-		g_DebugStream->Buffer().WriteBytes(b, e-b);
-	}
-#endif
-
-	return s_StrnObjCache(
-		StrnType(
-			b,
-			e
-		)
-	);
-}
-
-void StrnObj::WriteObj(PolymorphOutStream& ar) const
-{
-	ar.WriteUInt32( m_Data.size() );
-	WriteBinRangeImpl(ar, m_Data.first, m_Data.second, TYPEID(directcpy_streamable_tag));
-}
 
 /******************                                   *******************/
 /****************** class ListObj                     *******************/
@@ -651,8 +413,6 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-/****************** ctor/dtor                         *******************/
-
 typedef std::pair<LispPtr, LispPtr> ListType;
 
 struct MakeListFunc
@@ -666,19 +426,299 @@ struct MakeListFunc
 	} 
 };
 
-StaticCache<MakeListFunc> s_ListObjCache;
 
-LispRef::LispRef(LispPtr head, LispPtr tail) 
-	:	SharedPtrWrap<LispPtr>(
-			s_ListObjCache(
-				ListType(tail, head)
-			)
-		)
+/****************** LispComponent *******************/
+
+UInt32 s_LispComponentCount = 0;
+
+struct LispCaches {
+	Cache<MakeNumbFunc, DataCompare<Number_t> > NumbObjCache;
+	//	Cache<MakeUI64Func, DataCompareImpl<UInt64, false> > UI64ObjCache;
+	Cache<MakeUI64Func, std::less<UInt64> > UI64ObjCache;
+	Cache<MakeSymbFunc> SymbObjCache;
+	Cache<MakeStrnFunc, std::less<StrnType>, const StrnType&, StrnObj* , DuplStrnData> StrnObjCache;
+	Cache<MakeListFunc> ListObjCache;
+
+	std::vector<SymbObj*> ZeroSymbObjCache;
+	UInt32                nrActiveZeroSymbObj = 0;
+
+	leveled_std_section   CS;
+
+	LispCaches()
+		: CS(item_level_type(0), ord_level_type::LispObjCache, "LispObjRegister")
+	{
+		assert(s_LispComponentCount);
+	}
+
+	~LispCaches()
+	{
+		assert(!s_LispComponentCount);
+
+		assert(NumbObjCache.empty());
+		assert(StrnObjCache.empty());
+		assert(UI64ObjCache.empty());
+		assert(ListObjCache.empty());
+		assert(ListObjCache.empty());
+		assert(!nrActiveZeroSymbObj);
+	}
+};
+
+SymbObj* GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c)
+{
+	if (c)
+		return self->SymbObjCache.apply(SymbType(t, c));
+	UInt32 tnr = t.GetNr(TokenID::TokenKey());
+	UInt32 reqSize = tnr + 1;
+
+	std::size_t s = self->ZeroSymbObjCache.size();
+	if (reqSize > s)
+	{
+		s *= 2;
+		MakeMax(s, reqSize);
+		self->ZeroSymbObjCache.resize(s, 0);
+	}
+	SymbObj*& cacheEntry = self->ZeroSymbObjCache[tnr];
+	if (!cacheEntry)
+	{
+		cacheEntry = new SymbObj(t, 0);
+		self->nrActiveZeroSymbObj++;
+	}
+	return cacheEntry;
+}
+
+
+alignas(LispCaches) Byte s_LispCacheBuffer[sizeof(LispCaches)];
+
+LispCaches* GetLispCachesImpl()
+{
+	return reinterpret_cast<LispCaches*>(s_LispCacheBuffer);
+}
+
+struct LispCachesHandle : ptr_base<LispCaches, noncopyable>
+{
+	LispCachesHandle(LispCaches* src)
+		:	ptr_base<LispCaches, noncopyable>(src)
+		,   m_ScopedLock(src->CS)
+	{}
+
+	std::scoped_lock<leveled_std_section> m_ScopedLock;
+};
+
+auto GetLispCaches() -> LispCachesHandle
+{
+	assert(s_LispComponentCount);
+	return GetLispCachesImpl();
+}
+
+LispComponent::LispComponent()
+{
+	if (!s_LispComponentCount++)
+		new (s_LispCacheBuffer) LispCaches;
+}
+
+LispComponent::~LispComponent()
+{
+	if (!--s_LispComponentCount)
+		GetLispCachesImpl()->~LispCaches();
+}
+
+
+/****************** NumbObj implementation  *******************/
+
+LispRef::LispRef(Number value)
+	: SharedPtrWrap( GetLispCaches()->NumbObjCache.apply(value) )
 {}
 
-ListObj::~ListObj() { s_ListObjCache.remove(ListType(m_Right, m_Left)); }
+NumbObj::~NumbObj() { GetLispCaches()->NumbObjCache.remove(m_Value); }
 
-/****************** Serialization and rtti            *******************/
+LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
+{
+	DBG_START("NumbObj", "ReloadObj", DBG_LOADOBJ);
+
+	double value;
+	ar >> value;
+	DBG_TRACE(("numb = %lf", value));
+	return GetLispCaches()->NumbObjCache.apply(Number(value));
+}
+
+void NumbObj::WriteObj(PolymorphOutStream& ar) const
+{
+	double value = m_Value;
+	ar << value;
+}
+
+IMPL_STATIC_LISPCLS(NumbObj)
+
+/****************** UI64Obj implementation  *******************/
+
+LispRef::LispRef(UInt64 value)
+	: SharedPtrWrap( GetLispCaches()->UI64ObjCache.apply(value) )
+{}
+
+UI64Obj::~UI64Obj() { GetLispCaches()->UI64ObjCache.remove(m_Value); }
+
+/****************** UI64Obj Serialization and rtti *******************/
+
+void UI64Obj::WriteObj(PolymorphOutStream& ar) const
+{
+	UInt64 value = m_Value;
+	ar << value;
+}
+
+LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
+{
+	DBG_START("UI64Obj", "ReloadObj", DBG_LOADOBJ);
+
+	UInt64 value;
+	ar >> value;
+	DBG_TRACE(("ui64 = %lf", value));
+
+	return GetLispCaches()->UI64ObjCache.apply(value);
+}
+
+/****************** SymbObj implementation  *******************/
+
+LispRef::LispRef(TokenID t, UInt32 c)
+	: SharedPtrWrap(GetOrCreateSymbObj(GetLispCaches(), t, c))
+{}
+
+LispRef::LispRef(CharPtr s, UInt32 c)
+	: LispRef(GetTokenID_mt(s), c)
+{}
+
+SymbObj::~SymbObj()
+{
+	auto x = GetLispCaches();
+	if (m_ChroID)
+		x->SymbObjCache.remove(SymbType(m_TokenID, m_ChroID));
+	else
+	{
+		assert(x->ZeroSymbObjCache.size() > m_TokenID.GetNr(TokenID::TokenKey()) && (x->ZeroSymbObjCache)[m_TokenID.GetNr(TokenID::TokenKey())] == this);
+		x->ZeroSymbObjCache[m_TokenID.GetNr(TokenID::TokenKey())] = nullptr;
+		x->nrActiveZeroSymbObj--;
+	}
+}
+
+void SymbObj::Print(FormattedOutStream& out, UInt32 level) const
+{
+	auto symbStr = GetSymbStr();
+	if (itemName_test(symbStr.c_str()))
+		out << symbStr.c_str();
+	else
+		SingleQuote(out, symbStr.c_str());
+	if (m_ChroID)
+		out << ":" << m_ChroID;
+	out << " ";
+}
+
+void SymbObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
+{
+	out << GetSymbStr().c_str();
+	if (m_ChroID)
+		out << ":" << m_ChroID;
+}
+
+LispObj* SymbObj::ReloadObj(PolymorphInpStream& ar)
+{
+	DBG_START("SymbObj", "ReloadObj", DBG_LOADOBJ);
+	TokenID t = ar.ReadToken();
+	DBG_TRACE(("Token=%s", t.GetStr().c_str()));
+
+	UInt32  c;
+	c = ar.ReadUInt32();
+
+	return GetOrCreateSymbObj(GetLispCaches(), t, c);
+}
+
+void SymbObj::WriteObj(PolymorphOutStream& ar) const
+{
+	ar.WriteToken(GetSymbID());
+	ar.WriteUInt32(m_ChroID);
+}
+
+IMPL_STATIC_LISPCLS(SymbObj)
+
+/****************** StrnObj implementation  *******************/
+
+LispRef::LispRef(CharPtr b, CharPtr e)
+	: SharedPtrWrap(
+		(b == e)
+		? StrnObj::GetEmpty()
+		: GetLispCaches()->StrnObjCache.apply(StrnType(b, e))
+	)
+{}
+
+StrnObj::~StrnObj()
+{
+	if (!m_Data.empty())
+	{
+		GetLispCaches()->StrnObjCache.remove(m_Data);
+		delete[] m_Data.first;
+	}
+}
+
+IMPL_STATIC_LISPCLS(StrnObj)
+
+StrnObj* StrnObj::GetEmpty()
+{
+	static StrnObj* empty = new StrnObj();
+	static SharedPtr<LispObj> emptyHolder(empty);
+
+	return empty;
+}
+
+void StrnObj::Print(FormattedOutStream& o, UInt32 level) const
+{
+	DoubleQuote(o, GetStrnBeg(), GetStrnEnd());
+	o << " ";
+}
+
+LispObj* StrnObj::ReloadObj(PolymorphInpStream& ar)
+{
+	DBG_START("StrnObj", "ReloadObj", DBG_LOADOBJ);
+
+	UInt32 len = ar.ReadUInt32();
+	if (!len)
+		return StrnObj::GetEmpty();
+
+	if (ar.m_StrnBufSize < len)
+		ar.m_StrnBuf.reset(new Byte[Max<UInt32>(len, 2 * ar.m_StrnBufSize)]);
+
+	Byte
+		* b = ar.m_StrnBuf.get(),
+		* e = b + len;
+
+	ReadBinRangeImpl(ar, b, e, TYPEID(directcpy_streamable_tag));
+
+#if defined(MG_DEBUG)
+	if (debugContext.m_Active)
+	{
+		DebugOutStream::scoped_lock lock(g_DebugStream);
+		g_DebugStream->Buffer().WriteBytes(b, e - b);
+	}
+#endif
+
+	return GetLispCaches()->StrnObjCache.apply(StrnType(b, e));
+}
+
+void StrnObj::WriteObj(PolymorphOutStream& ar) const
+{
+	ar.WriteUInt32(m_Data.size());
+	WriteBinRangeImpl(ar, m_Data.first, m_Data.second, TYPEID(directcpy_streamable_tag));
+}
+
+/****************** UI64Obj implementation         *******************/
+
+
+/****************** ListObj implementation  *******************/
+
+LispRef::LispRef(LispPtr head, LispPtr tail)
+	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
+{}
+
+ListObj::~ListObj() { GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left)); }
+
+/****************** ListObj Serialization and rtti *******************/
 
 IMPL_STATIC_LISPCLS(ListObj)
 
@@ -698,11 +738,11 @@ void ListObj::Print(FormattedOutStream& out, UInt32 level) const
 	else
 	{
 		LispPtr cursor = m_Right;
-		while (cursor.IsRealList()) 
+		while (cursor.IsRealList())
 			cursor = cursor.Right();
 		if (cursor.EndP())
 		{
-			out << '('; 
+			out << '(';
 			m_Left.Print(out, level);
 
 			cursor = m_Right;
@@ -716,7 +756,7 @@ void ListObj::Print(FormattedOutStream& out, UInt32 level) const
 		else
 		{
 			out << '['; m_Left.Print(out, level);
-			out << " "; m_Right.Print(out, level); 
+			out << " "; m_Right.Print(out, level);
 			out << "]";
 		}
 	}
@@ -769,10 +809,7 @@ LispObj* ListObj::ReloadObj(PolymorphInpStream& ar)
 	DBG_TRACE(("head = %s", AsString(head).c_str()));
 	ar >> tail;
 	DBG_TRACE(("tail = %s", AsString(tail).c_str()));
-	return 
-		s_ListObjCache(
-			ListType(tail, head)
-		);
+	return GetLispCaches()->ListObjCache.apply(ListType(tail, head));
 }
 
 void ListObj::WriteObj(PolymorphOutStream& ar) const
@@ -781,10 +818,9 @@ void ListObj::WriteObj(PolymorphOutStream& ar) const
 }
 
 /******************                                   *******************/
-/****************** class LispRef                     *******************/
+/****************** Print func                        *******************/
 /******************                                   *******************/
 
-/****************** Print func                *******************/
 
 void LispPtr::Print(FormattedOutStream& out, UInt32 level) const 
 { 

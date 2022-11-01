@@ -333,7 +333,8 @@ public:
 				for(; i2 != e2; ++i2)
 				{
 	//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, *i2); 
-					SizeT polyNr = *i2 - polyIndexRange.first;
+					SizeT polyNr = *i2;
+					polyNr -= polyIndexRange.first;
 					if (polyNr < nrPolys)
 					{
 						++nrPointsPerSeq[polyNr];
@@ -1142,7 +1143,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 		template <typename E>
 		void VisitImpl(const Unit<E>* inviter) const
 		{
-			dms_assert(m_Data);
+			assert(m_Data);
 			point_in_polygon(
 				composite_cast<DataArray<E>*>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID),
 				m_Data->m_PointData,
@@ -1155,7 +1156,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 		template <>
 		void VisitImpl<Bool>(const Unit<Bool>* inviter) const
 		{
-			dms_assert(m_Data);
+			assert(m_Data);
 			Range<UInt32> resValueRange = inviter->GetTileRange(m_Data->m_PolyTileID);
 
 			 // result has boolean values
@@ -1181,7 +1182,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 				true
 			);
 		}
-		DispatcherData* m_Data;
+		DispatcherData* m_Data = nullptr;
 	};
 
 	struct Dispatcher : boost::mpl::fold<typelists::partition_elements, DispatcherBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
@@ -1467,7 +1468,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 				m_Data->m_IsFirstPolyTile
 			);
 		}
-		DispatcherData* m_Data;
+		DispatcherData* m_Data = nullptr;
 	};
 
 	struct Dispatcher : boost::mpl::fold<typelists::partition_elements, DispatcherBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type

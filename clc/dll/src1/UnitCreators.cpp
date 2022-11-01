@@ -127,14 +127,14 @@ ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 
 ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args)
 {
-	dms_assert(args.size() >=2 + nrSkippedArgs); // PRECONDITION
+	assert(args.size() - 2 >= nrSkippedArgs); // PRECONDITION
 	const AbstrUnit* arg1 = AsDataItem(args[nrSkippedArgs])->GetAbstrValuesUnit(); // the first considered argument
 	dms_assert(arg1);
 	const UnitMetric*     a1MetricPtr     = arg1->GetMetric();
 	const UnitProjection* a1ProjectionPtr = arg1->GetProjection();
 	dms_assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
 
-	for (UInt32 i = nrSkippedArgs + 1; i != args.size(); ++i)
+	for (arg_index i = nrSkippedArgs + 1; i != args.size(); ++i)
 	{
 		// al other considered arguments
 		const AbstrUnit*arg2 = AsDataItem(args[i])->GetAbstrValuesUnit();

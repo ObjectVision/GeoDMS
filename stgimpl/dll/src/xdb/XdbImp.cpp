@@ -192,7 +192,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
     DBG_TRACE(("stripped  : %ld", stripped));
 
 	// Read
-	CharPtr dataPtr = m_FHD.DataBegin() + nRecPos * width + offset;
+	CharPtr dataPtr = m_FHD.DataBegin() + SizeT(nRecPos) * width + offset;
 	nRecPos += cnt;
 
 	switch(ColDescriptions[col_index].m_Type)
@@ -462,9 +462,11 @@ XdbImp::width_t XdbImp::ColWidth(column_index i) const
 	// Subtractn offsets
 	if (!IsValidColumnIndex(i)) 
 		return 0;
-	if (i+1 == ColDescriptions.size())
+	column_index next_i = i + 1;
+	assert(next_i != 0);
+	if (next_i == ColDescriptions.size())
 		return m_RecSize - ColDescriptions[i].m_Offset;
-	return ColDescriptions[i+1].m_Offset - ColDescriptions[i].m_Offset;
+	return ColDescriptions[next_i].m_Offset - ColDescriptions[i].m_Offset;
 }
 
 // Column type

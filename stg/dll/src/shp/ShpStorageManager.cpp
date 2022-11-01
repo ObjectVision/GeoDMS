@@ -171,7 +171,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 				if (!IsRingClosed(pImp->ShapeSet_GetPoints(p, partI)))
 					++nrUnclosedRings;
 
-		vector_resize_uninitialized(*polygonPtr, polygonSize + nrExtraParts + nrUnclosedRings);
+		vector_resize_uninitialized(*polygonPtr, SizeT(polygonSize) + nrExtraParts + nrUnclosedRings);
 
 		typename sequence_traits<PointType>::pointer
 			pointData = (*polygonPtr).begin();

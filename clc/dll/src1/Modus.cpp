@@ -832,7 +832,7 @@ void WeightedModusPartByIndex(
 	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, no_tile);
 	OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem);
 
-	UInt32 n = valuesEnd - valuesBegin;
+	auto n = valuesEnd - valuesBegin;
 
 	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC_STR("WeightedModusPartByIndex: index"));
 

@@ -53,7 +53,7 @@ void	TForm::Init(RadiusType radius, bool isCircle)
 
 	if (isCircle)
 	{
-		m_CirclePoint.resize(m_Radius + 1);
+		m_CirclePoint.resize(SizeT(m_Radius) + 1);
 
 		for (RadiusType i = 0; i <= radius; i++)
 			m_CirclePoint[i] = RadiusType( sqrt(sqrRadiusAsF64 - Float64(i)*Float64(i)) );

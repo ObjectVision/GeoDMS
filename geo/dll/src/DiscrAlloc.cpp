@@ -280,16 +280,16 @@ struct ggType_info_t
 	SharedStr                     m_strName;
 	TokenID                       m_NameID;
 
-	const AbstrDataItem*          m_diMinClaims;
-	const AbstrDataItem*          m_diMaxClaims;
+	const AbstrDataItem*          m_diMinClaims = nullptr;
+	const AbstrDataItem*          m_diMaxClaims = nullptr;
 
 	const AbstrDataItem*          m_diSuitabilityMap;
 	      AbstrDataItem*          m_diResShadowPrices = nullptr;
 	      AbstrDataItem*          m_diResTotalAllocated = nullptr;
 
-	UInt32                        m_PartitioningID;
-	claim_id                      m_FirstClaimID;  // ref into m_Claims array
-	UInt32                        m_NrClaims;      // limits range of m_Claims array for this ggType
+	UInt32                        m_PartitioningID = 0;
+	claim_id                      m_FirstClaimID = UNDEFINED_VALUE(claim_id);  // ref into m_Claims array
+	UInt32                        m_NrClaims = 0;      // limits range of m_Claims array for this ggType
 
 	DataReadLock                  m_SuitabilityDataLock;
 	typename DataArray<S>::locked_cseq_t m_Suitabilities; // 1 per grid-cell, points directly into memory mapped file
@@ -412,7 +412,7 @@ struct regions_info_base
 	void SetCursor(cursor_type c) {m_CurrPI = c.first; m_PrevStep = c.second; }
 
 	SizeT m_N;
-	mutable SizeT m_StepSize, m_CurrBase, m_PrevStep, m_CurrPI;
+	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
 	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
 	DataReadLock                   m_AtomicRegionLock;
@@ -502,7 +502,7 @@ struct htp_info_t : regions_info_t<AR>
 	claim<S>& GetClaim(atomic_region_id ar, AT j)
 	{ 
 		ggType_info_t<S>& gg = m_ggTypes[j];
-		return m_Claims[gg.m_FirstClaimID + this->GetRegionID(ar, gg.m_PartitioningID)];
+		return m_Claims[SizeT(gg.m_FirstClaimID) + this->GetRegionID(ar, gg.m_PartitioningID)];
 	}
 	priority_heap<S>& GetHeap(atomic_region_id ar, AT j, AT jj)
 	{
@@ -511,7 +511,7 @@ struct htp_info_t : regions_info_t<AR>
 		dms_assert(j  < k);
 		dms_assert(jj < k);
 
-		return m_Facets[ m_FacetIds[ (facet_code(ar)*k +j ) *k + jj] ];
+		return m_Facets[ m_FacetIds[ (SizeT(ar)*k +j ) *k + jj] ];
 	}
 	UInt32 ClaimID2UniqueRegionID(UInt32 claimID) const
 	{
@@ -983,18 +983,16 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 
 const AbstrDataItem* GetClaimAttr(const TreeItem* claimSet, TokenID nameID)
 {
+	assert(claimSet);
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));
 
 	if (!result)
-	{
-		//	claimSet->throwItemErrorF("Claimset should contain an attribute for %s", nameID.GetStr().c_str());
-		return nullptr;
-	}
+		claimSet->throwItemErrorF("Claimset should contain an attribute for %s", nameID.GetStr().c_str());
 
 	result->UpdateMetaInfo();
 
 	if (result->GetDynamicObjClass() != DataItemClass::Find(ValueWrap<UInt32>::GetStaticClass()))
-		result->throwItemError("Should contain UInt32 values");
+		result->throwItemError("Claim attribute should contain UInt32 values");
 	return result;
 }
 
@@ -1322,7 +1320,7 @@ void PrepareFacets(htp_info_t<S, AR, AT>& htpInfo)
 	UInt32 K = htpInfo.GetK();
 	UInt32 nrAtomicRegions = htpInfo.GetNrAtomicRegions();
 
-	htpInfo.m_FacetIds.reserve(nrAtomicRegions * K * K);
+	htpInfo.m_FacetIds.reserve(SizeT(nrAtomicRegions) * K * K);
 
 	typedef std::pair<claim<S>*, claim<S>*> claim_pair;
 

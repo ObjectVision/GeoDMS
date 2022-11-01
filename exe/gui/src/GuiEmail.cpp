@@ -1,58 +1,26 @@
 #include "GuiEmail.h"
+#include "RtcInterface.h"
+#include "imgui_internal.h"
+#include "windows.h"
 
-GuiEmail::GuiEmail()
-{
-	//hModMAPI = LoadLibrary(L"%windir%\system32\mapi32.dll");
-	hModMAPI = LoadLibrary(L"mapi32.dll");
-
-	if (hModMAPI)
-	{
-		pfnMAPIInitialize = GetProcAddress(hModMAPI, "MAPIInitialize");
-		pfnMAPIUninitialize = GetProcAddress(hModMAPI, "MAPIUninitialize");
-		pfnMAPISendMail = (LPMAPISENDMAIL)GetProcAddress(hModMAPI, "MAPISendMail");
-	}
-	if (pfnMAPIInitialize)
-		auto hr = (*pfnMAPIInitialize)();
-}
-
-GuiEmail::~GuiEmail()
-{
-	if (pfnMAPIUninitialize)
-		(*pfnMAPIUninitialize)();
-}
-
-MapiRecipDesc GuiEmail::GetOVRecipientDescriptor()
-{
-	MapiRecipDesc recipient_description;
-	recipient_description.ulRecipClass = MAPI_TO;
-	recipient_description.lpszName     = (LPSTR)"support@objectvision.nl";
-	recipient_description.lpszAddress  = (LPSTR)"support@objectvision.nl";
-
-	return recipient_description;
-}
+#include <locale>
+#include <codecvt>
 
 bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
 {
-	if (!hModMAPI)
-		return false;
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
-	if (!pfnMAPISendMail)
-		return false;
+	std::wstring wstr_version = converter.from_bytes(DMS_GetVersion());
+	std::wstring wstr_message = converter.from_bytes(message);
+	std::wstring body = std::wstring(L"{You can insert an optional message here}%0D%0A") +
+									 L"==================================================%0D%0A" +
+									 L"DMS version: " + wstr_version + L"%0D%0A" +
+									 L"===================================================%0D%0A" +
+									 wstr_message;
 
-	auto recipient_description = GetOVRecipientDescriptor();
+	std::wstring mailCommand =   std::wstring() + L"mailto:support@objectvision.nl"+ L"?subject=GeoDMS Bugreport&body=" + body;
 
-	MapiMessage email_description;
-	email_description.nRecipCount	= 1;
-	email_description.lpRecips		= &recipient_description;
-	email_description.lpszSubject	= (LPSTR)"Internal GeoDMS Error report";
-	email_description.lpszNoteText  = (LPSTR)"test_message";
-
-	auto result = pfnMAPISendMail(0, 0, &email_description, MAPI_LOGON_UI | MAPI_DIALOG, 0);
-
-	if (!result == SUCCESS_SUCCESS)
-		return false;
-
-	MAPI_E_FAILURE;
+	auto result = ShellExecute(0, NULL, mailCommand.c_str(), NULL, NULL, SW_SHOWNORMAL); //SW_SHOWNOACTIVATE);
 
 	return true;
 }
