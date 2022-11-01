@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <algorithm>
 
+#include "cpc/CompChar.h"
+#include "geo/BaseBounds.h"
+#include <windows.h>
+
 //#include <stdlib.h>         // abort
 
 #define STB_IMAGE_IMPLEMENTATION
