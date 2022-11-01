@@ -302,6 +302,14 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
             GuiEmail email_system;
             email_system.SendMailUsingDefaultWindowsEmailApplication(m_State.errorDialogMessage.Get());
         }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Reopen", ImVec2(120, 0)))
+        {
+            m_State.MainEvents.Add(ReopenCurrentConfiguration);
+        }
+
+
         ImGui::EndPopup();
     }
     return false;
