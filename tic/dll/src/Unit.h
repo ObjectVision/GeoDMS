@@ -299,8 +299,8 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 	static const UInt32 elem_count = mpf::exp2<N>::value;
 
 	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override { 
-		static LifetimeProtector<FixedRange<N>> s_RangeData;
-		return &*s_RangeData;
+		static SharedPtr<FixedRange<N>> s_RangeData = new FixedRange<N>;
+		return s_RangeData;
 	}
 
 	range_t GetRange() const { return range_t(0, elem_count); }
@@ -325,8 +325,8 @@ struct VoidUnitBase : UnitBase<Void>
 	typedef Range<UInt32> range_t;
 
 	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override {
-		static LifetimeProtector<FixedRange<0>> s_RangeData;
-		return &*s_RangeData;
+		static SharedPtr<FixedRange<0>> s_RangeData = new FixedRange<0>;
+		return s_RangeData;
 	}
 
 	range_t GetRange() const { return range_t(0, 1); }

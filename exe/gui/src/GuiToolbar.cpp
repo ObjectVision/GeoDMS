@@ -194,7 +194,7 @@ void GuiToolbar::ShowTableViewButtons(GuiView& view)
 void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0/255.0, 117.0/255.0, 138.0/255.0, 1.0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0f/255.0f, 117.0f/255.0f, 138.0f/255.0f, 1.0f));
     if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_HorizontalScrollbar))
     {
         ImGui::End();

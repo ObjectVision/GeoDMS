@@ -1395,7 +1395,7 @@ UInt32 TRecordSet::RecordCount()
 
 	TRecordSetOpenLock openLock(this);
 
-	SQLINTEGER recnum =	RecordNumber();
+	auto recnum =	RecordNumber();
 	unsigned long
 		minimum	=	0,
 		maximum	=  16; // skips 4 silly seeks when bigger 

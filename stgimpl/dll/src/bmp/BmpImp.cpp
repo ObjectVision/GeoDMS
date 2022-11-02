@@ -1250,9 +1250,9 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 		{
 			vector_zero_n(m_CodedBuf, GetRowSize());
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
-			for (UInt32 cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
 			{
-				UInt32 bit_cnt = cnt / 8;
+				auto bit_cnt = cnt / 8;
 				UInt32 shift_cnt = 7 - (cnt & 0x07);
 				if (buf[cnt] & 0x01)
 					out_buf[bit_cnt] |= (1 << shift_cnt);
@@ -1263,10 +1263,10 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 		{
 			vector_zero_n(m_CodedBuf, GetRowSize());
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
-			for (UInt32 cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
 			{
-				UInt32 bit_cnt = cnt / 2;
-				UInt32 shift_cnt = (4 - 4 * (cnt & 0x01));
+				auto bit_cnt = cnt / 2;
+//				UInt32 shift_cnt = (4 - 4 * (cnt & 0x01));
 				if (cnt & 0x01)
 					out_buf[bit_cnt] |= (buf[cnt] & 0x0F);
 				else
@@ -1282,9 +1282,9 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
 			// A true color row, make it 3 bytes per pixel B, G & R
 			// instead of R, G & B
-			for (UInt32 cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
+			for (SizeT cnt = 0; cnt != m_InfoHeader->biWidth; ++cnt)
 			{
-				UInt32 bit_cnt = cnt * 3;
+				auto bit_cnt = cnt * 3;
 				out_buf[bit_cnt]     = buf[bit_cnt + 2];
 				out_buf[bit_cnt + 1] = buf[bit_cnt + 1];
 				out_buf[bit_cnt + 2] = buf[bit_cnt];

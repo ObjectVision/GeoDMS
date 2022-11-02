@@ -42,11 +42,17 @@ granted by an additional written contract for support, assistance and/or develop
 // #	define MG_DEBUG 
 #endif
 
+
+//----------------------------------------------------------------------
+// avoid horrible Windows min & max definitions
+//----------------------------------------------------------------------
+
+#define NOMINMAX
+
 //----------------------------------------------------------------------
 // Used modules
 //----------------------------------------------------------------------
 #define BOOST_MPL_LIMIT_VECTOR_SIZE 50
-
 
 #include "cpc/CompChar.h"
 #include "cpc/Types.h"
