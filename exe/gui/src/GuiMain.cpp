@@ -108,9 +108,12 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     {
         if (!m_State.GetCurrentItem())
             return;
+        
+        m_State.TreeItemHistoryList.Insert(m_State.GetCurrentItem());
+
         //if (!m_ItemsHolder.contains(m_State.GetCurrentItem()))
         //    m_ItemsHolder.add(m_State.GetCurrentItem());
-        DMS_TreeItem_Update(m_State.GetCurrentItem());
+        //DMS_TreeItem_Update(m_State.GetCurrentItem());
         break;
     }
     case UpdateCurrentAndCompatibleSubItems:
@@ -344,6 +347,11 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
     return false;
 }
 
+void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
+{
+    //if(ImGui::IsMouseClicked())
+}
+
 int GuiMainComponent::Init()
 {
     // set exe dir
@@ -441,7 +449,7 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
 
-        // Show error dialogue
+        // Error dialogue
         if (ShowErrorDialogIfNecessary())
             break;
 
@@ -466,6 +474,9 @@ int GuiMainComponent::MainLoop()
                 m_State.GetRoot()->UpdateMetaInfo();
             }
         }
+
+        // TreeItem history event
+        TraverseTreeItemHistoryIfRequested();
 
         // update all gui components
         Update();

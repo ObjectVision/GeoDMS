@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <iterator>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "GuiBase.h"
@@ -7,6 +8,7 @@
 #include <Windows.h>
 #include "TicInterface.h"
 #include "utl/Environment.h"
+#include <iterator>
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -45,6 +47,33 @@ EventQueue GuiState::TableViewEvents;
 EventQueue GuiState::MapViewEvents;
 EventQueue GuiState::DetailPagesEvents;
 EventQueue GuiState::GuiMenuFileComponentEvents;
+
+TreeItemHistory GuiState::TreeItemHistoryList;
+
+TreeItemHistory::TreeItemHistory()
+{
+    m_Iterator = m_History.begin();
+}
+
+void TreeItemHistory::Insert(TreeItem* new_item)
+{
+    if (!(new_item == *m_Iterator))
+        m_History.insert(std::next(m_Iterator), new_item);
+}
+
+TreeItem* TreeItemHistory::GetNext()
+{
+    if (m_Iterator != m_History.end())
+        std::advance(m_Iterator, 1);
+    return *m_Iterator;
+}
+
+TreeItem* TreeItemHistory::GetPrevious()
+{
+    if (m_Iterator!=m_History.begin())
+        std::advance(m_Iterator, -1);
+    return *m_Iterator;
+}
 
 void GuiState::clear()
 {

@@ -29,6 +29,7 @@ private:
 	void CloseCurrentConfig();
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();
+	void TraverseTreeItemHistoryIfRequested();
 
 	GLFWwindow*				m_Window = nullptr;
 	GuiState				m_State;
