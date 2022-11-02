@@ -76,7 +76,6 @@ UInt32 GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed)
 
 void GuiTreeViewComponent::UpdateStateAfterItemClick(TreeItem* nextSubItem)
 {
-    auto test = m_State.GetCurrentItem();
     m_State.SetCurrentItem(nextSubItem);
     m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);

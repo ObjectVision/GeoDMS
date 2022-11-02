@@ -349,7 +349,22 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 
 void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
 {
-    //if(ImGui::IsMouseClicked())
+    TreeItem* new_current_item = NULL;
+    if (ImGui::IsMouseClicked(3)) // side-back mous button
+    {
+        new_current_item = m_State.TreeItemHistoryList.GetPrevious();
+    }
+    if (ImGui::IsMouseClicked(4)) // side-front mouse button
+    {
+        new_current_item = m_State.TreeItemHistoryList.GetNext();
+    }
+    if (new_current_item)
+    {
+        m_State.SetCurrentItem(new_current_item);
+        m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+        m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+        m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+    }
 }
 
 int GuiMainComponent::Init()
