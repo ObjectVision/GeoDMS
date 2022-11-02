@@ -116,8 +116,6 @@ SubMenu::~SubMenu()
 	}
 	case 0:
 		m_MenuDataRef.pop_back(); // remove empty sub-menu
-	default:
-		break;
 	}
 }
 

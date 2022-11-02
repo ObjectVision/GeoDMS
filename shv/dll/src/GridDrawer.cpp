@@ -128,7 +128,7 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 		if (bitCount <=32) bitCount =32;
 	}
 
-	if (usePalette)
+	if (usePalette && m_ClassIdUnit)
 	{
 		m_Count = m_ClassIdUnit->GetCount();
 		if (m_Count >= MaxPaletteSize) 

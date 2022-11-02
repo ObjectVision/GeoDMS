@@ -310,7 +310,7 @@ void DataItemColumn::SetElemWidth(GType width)
 		InvalidateDraw();
 
 	TType currClientWidth = GetCurrClientSize().x();
-	dms_assert(m_ElemSize.x + (colWidth-width) == currClientWidth);
+	assert(m_ElemSize.x + (colWidth-width) == currClientWidth);
 	GType relPosX = m_ElemSize.x; if (HasElemBorder()) relPosX += BORDERSIZE;
 
 	MakeMin(m_ElemSize.x, width);
@@ -441,8 +441,8 @@ void DataItemColumn::DoUpdateView()
 
 	if (HasElemBorder())
 	{
-		size.x() += (2*BORDERSIZE);
-		size.y() += (2*BORDERSIZE);
+		size.x() += DOUBLE_BORDERSIZE;
+		size.y() += DOUBLE_BORDERSIZE;
 	}
 	UInt32 rowSepHeight = RowSepHeight();
 	size.y() += rowSepHeight;
@@ -535,7 +535,7 @@ TRect DataItemColumn::GetElemFullRelRect( SizeT rowNr) const
 
 	UInt32 rowSepHeight = RowSepHeight();
 
-	TType startRow = TType(size.y + rowSepHeight) * rowNr + rowSepHeight;
+	TType startRow = (TType(size.y) + rowSepHeight) * rowNr + rowSepHeight;
 
 	return TRect(TPoint(0, startRow), TPoint(size.x, startRow + size.y));
 }
@@ -874,7 +874,7 @@ bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
 
 	static_assert(nrPaletteColors >= 16);
 
-	COLORREF custColors[16]; // array with static initialization enables users to change the custom colors
+	COLORREF custColors[16] = {}; // array with static initialization enables users to change the custom colors
 	for (UInt32 i = 0; i != 16; ++i)
 		custColors[i] = DmsColor2COLORREF(dv->m_ColorPalette[i]);
 
@@ -1438,7 +1438,7 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 	TPoint clientPos = target->GetCurrClientAbsPos();
 	TType newWidth = eventInfo.m_Point.x - clientPos.x();
 	if (target->HasElemBorder())
-		newWidth -= (2*BORDERSIZE);
+		newWidth -= DOUBLE_BORDERSIZE;
 	MakeMax(newWidth, 6);
 	target->SetElemWidth(TType2GType(newWidth));
 	return true;
@@ -1450,10 +1450,10 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 DataItemColumn* DataItemColumn::GetPrevControl()
 {
 	UInt32 colNr = ColumnNr();
-	if (!colNr)
+	if (!colNr--)
 		return nullptr;
 	auto tc = GetTableControl().lock(); if (!tc) return nullptr;
-	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr-1));
+	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr));
 }
 
 void DataItemColumn::StartResize(MouseEventDispatcher& med)
@@ -1473,7 +1473,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 		new TieCursorController(
 			medOwner.get(),
 			owner.get(),
-			TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), mousePoint.y+1)),
+			TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1)),
 			EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		)
 	);

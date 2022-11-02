@@ -356,7 +356,8 @@ const AbstrBoundingBoxCache* FeatureLayer::GetBoundingBoxCache() const
 
 FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
 {
-	dms_assert(fr < FR_Count);
+	assert(fr >= 0);
+	assert(fr < FR_Count);
 	dms_assert( WasValid() ); // we should only get here from after successful update in Draw
 
 	if (!m_FontIndexCaches[fr])

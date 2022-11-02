@@ -55,11 +55,11 @@ public:
 	TRect DetermineBoundingBox(const MovableObject* owner, Float64 subPixelFactor) const;
 
 protected: 
-	const ViewPort*  m_ViewPort;
-	const AbstrUnit* m_CrdUnit;
-	CrdType          m_Factor, m_MeasureSize;
-	Float64          m_MeasureValue;
-	UInt32           m_MeasureGroupCount;
+	const ViewPort*  m_ViewPort = nullptr;
+	const AbstrUnit* m_CrdUnit  = nullptr;
+	CrdType          m_Factor = 0, m_MeasureSize = 0;
+	Float64          m_MeasureValue = 0;
+	UInt32           m_MeasureGroupCount = 0;
 	SharedStr        m_UnitLabel;
 };
 

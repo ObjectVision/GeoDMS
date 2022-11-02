@@ -720,7 +720,7 @@ CommandStatus GraphicObject::OnCommandEnable(ToolButtonID id) const
 		case TB_PasteSelDirect:
 		case TB_PasteSel:
 		case TB_DeleteSel:
-			if (GetUserMode() < UM_Edit) return CMD_HIDDEN;
+			if (GetUserMode() < UM_Edit) return CommandStatus::HIDDEN;
 			break;
 
 		case TB_ZoomSelectedObj:
@@ -732,22 +732,22 @@ CommandStatus GraphicObject::OnCommandEnable(ToolButtonID id) const
 		case TB_SelectRows:
 		case TB_SelectAll:
 		case TB_SelectNone:
-			if (GetUserMode() < UM_Select) return CMD_HIDDEN;
+			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
 			break;
 
 		case TB_ShowSelOnlyOn:
 		case TB_ShowSelOnlyOff:
 		{
-			if (GetUserMode() < UM_Select) return CMD_HIDDEN;
+			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
 			bool showSelectedOnly = ShowSelectedOnly();
 			return (ShowSelectedOnlyEnabled() || showSelectedOnly)
 					?	showSelectedOnly
-						?	CMD_DOWN
-						:	CMD_UP
-					:	CMD_DISABLED;
+						? CommandStatus::DOWN
+						: CommandStatus::UP
+					: CommandStatus::DISABLED;
 		}
 	}
-	return CMD_ENABLED;
+	return CommandStatus::ENABLED;
 }
 
 void GraphicObject::FillMenu(MouseEventDispatcher& med)

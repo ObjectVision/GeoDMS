@@ -642,7 +642,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto defaultProcessing;
 		}
 		case UM_COMMAND_STATUS:
-			*msg.m_ResultPtr = GetContents()->OnCommandEnable(ToolButtonID(LOWORD(msg.m_wParam)));
+			*msg.m_ResultPtr = static_cast<LRESULT>(GetContents()->OnCommandEnable(ToolButtonID(LOWORD(msg.m_wParam))));
 			return true;
 
 		case WM_KEYDOWN + CN_BASE:
