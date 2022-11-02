@@ -228,10 +228,10 @@ CommandStatus MapControl::OnCommandEnable(ToolButtonID id) const
 		case TB_SyncScale:
 		case TB_SyncROI:
 		{
-			CommandStatus result = CMD_HIDDEN;
+			CommandStatus result = CommandStatus::HIDDEN;
 			VisitSiblingViewPorts(this, [&result] (const MapControl* self, ViewPort* vp)->void
 				{
-					result = CMD_ENABLED;
+					result = CommandStatus::ENABLED;
 				}
 			);
 			return result;
@@ -240,7 +240,7 @@ CommandStatus MapControl::OnCommandEnable(ToolButtonID id) const
 		case TB_Show_VPLC:
 		case TB_Show_VPLCOV:
 		case TB_CopyLC:
-			return CMD_ENABLED;
+			return CommandStatus::ENABLED;
 	}
 	return GetViewPort()->OnCommandEnable(id);
 }

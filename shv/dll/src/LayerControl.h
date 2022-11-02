@@ -64,7 +64,7 @@ public:
 	void ExplainValue();
 
 	SharedPtr<const AbstrDataItem> m_ThemeAttr;
-	SizeT                          m_FocusID;
+	SizeT                          m_FocusID = 0;
 };
 
 //----------------------------------------------------------------------

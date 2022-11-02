@@ -363,8 +363,8 @@ struct BoundsArraysGetterBase : UnitProcessor
 		GetBoundingBoxCache<typename scalar_of<P>::type>(m_Result, m_PolyAttr, m_MustPrepare);
 	}
 
-	const AbstrDataItem* m_PolyAttr;
-	bool m_MustPrepare;
+	const AbstrDataItem* m_PolyAttr = nullptr;
+	bool m_MustPrepare = false;
 	mutable SharedPtr<const AbstrBoundingBoxCache> m_Result;
 };
 

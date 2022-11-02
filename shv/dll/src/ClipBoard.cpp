@@ -122,20 +122,58 @@ void ClipBoard::SetText(CharPtr text)
 	SetText(text, text+StrLen(text));
 }
 
-void ClipBoard::SetText(CharPtr textBegin, CharPtr textEnd)
+bool IsUtf8TrailingByte(char x)
+{
+	return (x & 0xC0) == 0x80; // see https://en.wikipedia.org/wiki/UTF-8#Encoding 00 or 40 results are normal 7 bits utf8 ascii characters; C0
+}
+
+SizeT UTF8ToWideChar(CharPtr utf8Begin, CharPtr utf8End, wchar_t* destBuffer, SizeT destSize)
+{
+	const int MAX_MB2WC_CAPACITY = (1 << 30) - 1;
+	SizeT wCharSize = 0;
+	while (utf8Begin != utf8End)
+	{
+		SizeT utf8Size = (utf8End - utf8Begin);
+		if (utf8Size > MAX_MB2WC_CAPACITY)
+		{
+			utf8Size = MAX_MB2WC_CAPACITY;
+			while (IsUtf8TrailingByte(utf8Begin[utf8Size]))
+			{
+				utf8Size--;
+				if (utf8Size < MAX_MB2WC_CAPACITY - 4)
+					throwErrorF("UTF8ToWideChar", "Unexpected sequence of non-leading UTF8 bytes");
+			}
+		}
+		assert(utf8Size < std::numeric_limits<int>::max());
+		int destCurrMaxSize = std::numeric_limits<int>::max();
+		if (destSize < destCurrMaxSize)
+			destCurrMaxSize = destSize;
+		int ccWideChar = MultiByteToWideChar(CP_UTF8, 0, utf8Begin, int(utf8Size), destBuffer, destCurrMaxSize);
+		if (destBuffer != nullptr)
+		{
+			assert(ccWideChar <= destSize);
+			destBuffer += ccWideChar;
+			destSize -= ccWideChar;
+		}
+		utf8Begin += utf8Size;
+		wCharSize += ccWideChar;
+	}
+	assert(destSize == 0);
+	return wCharSize;
+}
+
+void ClipBoard::SetText(CharPtr utf8Begin, CharPtr utf8End)
 {
 	Clear();
 
 	dms_assert(m_Success);
-	SizeT textSize = (textEnd-textBegin);
+	SizeT textSize = (utf8End - utf8Begin);
 	MakeMin(textSize, MAX_VALUE(int));
 
-	int ccWideChar = MultiByteToWideChar(CP_UTF8, 0, textBegin, textSize, nullptr, 0);
-
+	auto ccWideChar = UTF8ToWideChar(utf8Begin, utf8End, nullptr, 0);
 	GlobalLockHandle data( GlobalAlloc(GMEM_MOVEABLE|GMEM_DDESHARE, (ccWideChar + 1)*sizeof(wchar_t)) );
 	LPWSTR unicodeText = reinterpret_cast<wchar_t*>(data.GetDataPtr());
-	MultiByteToWideChar(CP_UTF8, 0, textBegin, textSize, unicodeText, ccWideChar);
-
+	UTF8ToWideChar(utf8Begin, utf8End, unicodeText, ccWideChar);
 	unicodeText[ccWideChar] = 0;
 
 	SetClipboardData(CF_UNICODETEXT, data.GetHandle());

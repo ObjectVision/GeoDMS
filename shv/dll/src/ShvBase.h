@@ -181,14 +181,15 @@ extern CreateViewActionFunc g_ViewActionFunc;
 // constants
 //----------------------------------------------------------------------
 
-const int BORDERSIZE = 2;
+constexpr int BORDERSIZE = 2;
+constexpr int DOUBLE_BORDERSIZE = 2 * BORDERSIZE;
 
-enum CommandStatus {
-	CMD_ENABLED  = 0,
-	CMD_DISABLED = 1,
-	CMD_HIDDEN   = 2,
-	CMD_DOWN     = 3,
-	CMD_UP       = 4,
+enum class CommandStatus {
+	ENABLED  = 0,
+	DISABLED = 1,
+	HIDDEN   = 2,
+	DOWN     = 3,
+	UP       = 4,
 };
 
 enum GraphVisitState: unsigned char // see also the DIFFERENT used ActorVisitState

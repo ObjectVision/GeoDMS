@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/debug.h"
 #include "dbg/DebugContext.h"
+#include "geo/BaseBounds.h"
 #include "geo/Conversions.h"
 #include "geo/Pair.h"
 #include "mci/Class.h"
@@ -814,8 +815,9 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 			}
 			else
 			{
+				SizeT denominator = (n > 1) ? n - 1 : 1;
 				for (SizeT i = 0; i != n; ++i)
-					lock->SetValue<UInt32>(i, InterpolateColor(firstColor, lastColor, max(n-1,1), i));
+					lock->SetValue<UInt32>(i, InterpolateColor(firstColor, lastColor, denominator, i));
 			}
 		}
 		else 
