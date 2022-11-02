@@ -42,7 +42,6 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-    m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -476,11 +475,11 @@ int GuiMainComponent::MainLoop()
         {
             CloseCurrentConfig();
             auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
-            auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
+            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
-            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
+            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-            
+
             //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 
             if (m_State.GetRoot())
@@ -515,6 +514,16 @@ int GuiMainComponent::MainLoop()
         }
 
         glfwSwapBuffers(m_Window);
+
+        // initializations after first n frames
+        if (!m_FirstFrames)
+        {
+            m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+            m_FirstFrames--;
+        }
+        else if (m_FirstFrames > 0)
+            m_FirstFrames--;
+
     }
 
     // Persistently store gui state in registry
