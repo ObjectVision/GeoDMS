@@ -184,7 +184,7 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 						SizeT a_count = aCounts[x_index];
 						SizeT b_count = bCounts[x_index];
 
-						SizeT resIndex = abOffsets[x_index] + bUsed[x_index]++;
+						SizeT resIndex = abOffsets[x_index]; resIndex += bUsed[x_index]++;
 
 						while (a_count--)
 						{
