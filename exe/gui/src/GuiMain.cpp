@@ -57,6 +57,7 @@ GuiMainComponent::~GuiMainComponent()
 
     for (auto& view : m_View.m_Views)
     {
+        
         SHV_DataView_Destroy(view.m_DataView);
         view.m_ActiveItems.clear();
     }
@@ -636,7 +637,7 @@ void GuiMainComponent::Update()
         if (m_View.DoView())
             m_View.Update();
         else
-            m_View.Close(false); // true
+            m_View.Close(false);
     }
 
     /*for (auto& view : m_MapViews)

@@ -413,7 +413,7 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
 
 void GuiDetailPages::Update(bool* p_open)
 {
-    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;

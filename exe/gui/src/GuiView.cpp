@@ -262,7 +262,7 @@ void GuiView::Close(bool keepDataView=true)
 {
     if (!keepDataView && !m_Views.empty() && m_ViewIndex != -1 && m_Views.at(m_ViewIndex).m_DataView)
     {
-        SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
+        //SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView); //TODO: create close all function to be called from maincomponent destructor.
         m_Views.erase(m_Views.begin()+m_ViewIndex);
         m_IsPopulated = false;
         m_ViewIndex = -1;
