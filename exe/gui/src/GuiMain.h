@@ -47,5 +47,5 @@ private:
 	GuiDetailPages			m_DetailPages;
 	GuiTreeItemsHolder		m_ItemsHolder;
 
-	int 					m_FirstFrames = 5;
+	int 					m_FirstFrames = 1;
 };

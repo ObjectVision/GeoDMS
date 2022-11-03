@@ -59,7 +59,7 @@
 #include "imgui_impl_glfw.h"
 
 #include "../src/GuiInput.h"
-//#include "../src/GuiStyles.h"
+#include "../src/GuiStyles.h"
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -882,7 +882,7 @@ static void ImGui_ImplGlfw_CreateWindow(ImGuiViewport* viewport)
     vd->WindowOwned = true;
 
     // set window dms icon
-    //SetDmsWindowIcon(vd->Window);
+    SetDmsWindowIcon(vd->Window);
 
     viewport->PlatformHandle = (void*)vd->Window;
 #ifdef _WIN32
