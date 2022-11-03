@@ -1,6 +1,5 @@
 #include "GuiEmail.h"
 #include "RtcInterface.h"
-#include "imgui_internal.h"
 #include "windows.h"
 
 #include <locale>
