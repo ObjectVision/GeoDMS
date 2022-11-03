@@ -190,6 +190,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         m_View.SetViewStyle(tvsMapView);
         m_View.SetViewName("View");
         m_View.InitDataView(m_State.GetCurrentItem());
+        m_View.SetDoView(true);
         break;
     }
     case OpenNewTableViewWindow:
@@ -213,6 +214,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         m_View.SetViewStyle(tvsTableView);
         m_View.SetViewName("View");
         m_View.InitDataView(m_State.GetCurrentItem());
+        m_View.SetDoView(true);
         break;
     }
     case OpenNewDefaultViewWindow:
@@ -634,7 +636,7 @@ void GuiMainComponent::Update()
         if (m_View.DoView())
             m_View.Update();
         else
-            m_View.Close(true);
+            m_View.Close(false); // true
     }
 
     /*for (auto& view : m_MapViews)

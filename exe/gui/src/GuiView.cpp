@@ -260,12 +260,10 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
 
 void GuiView::Close(bool keepDataView=true)
 {
-    if (!keepDataView && !m_Views.empty() && m_Views.at(m_ViewIndex).m_DataView)
+    if (!keepDataView && !m_Views.empty() && m_ViewIndex != -1 && m_Views.at(m_ViewIndex).m_DataView)
     {
-        //SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
+        SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView);
         m_Views.erase(m_Views.begin()+m_ViewIndex);
-        //m_ActiveItems.clear();
-        //m_DataView = nullptr;
         m_IsPopulated = false;
         m_ViewIndex = -1;
     }
@@ -294,6 +292,7 @@ void GuiView::SetViewName(std::string vn)
 void GuiView::SetDoView(bool doView)
 {
     m_DoView = doView;
+    m_IsPopulated = doView; //TODO: can these two flags be merged?
 }
 
 bool GuiView::DoView()
