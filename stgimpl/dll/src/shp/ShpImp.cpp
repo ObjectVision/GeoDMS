@@ -244,7 +244,7 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 			m_Points.push_back(ShpPoint());
 
 			MG_CHECK( rhead.RecordNumber == m_Points.size() );
-			MG_CHECK( (m_FileLength - (pos - 8)) >=  (UInt32(rhead.ContentLength) * 2));
+			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
 			pos += ReadLittleEndian(m_FH, (long&)shapeType);
 
@@ -283,7 +283,7 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 			ShapeSet_PushBackPolygon(ST_None);
 
 			MG_CHECK( rhead.RecordNumber == m_Polygons.size() );
-			MG_CHECK( (m_FileLength - (pos - 8)) >=  (UInt32(rhead.ContentLength)*2));
+			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
 
 			pos += m_Polygons.back().Read(m_FH);
 		}

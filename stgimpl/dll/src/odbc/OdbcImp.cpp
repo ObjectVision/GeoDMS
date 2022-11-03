@@ -889,7 +889,7 @@ CharPtr TColumn::AsString() const
 
 		case SQL_C_ULONG:	
 			m_AsString.resize(MAXBUFLEN);
-			sprintf(&*m_AsString.begin(), "%hd", * ((ULONG*) ElementBuffer()));
+			sprintf(&*m_AsString.begin(), "%hu", * ((ULONG*) ElementBuffer()));
 			break;
 
 		case SQL_C_USHORT:	
@@ -1417,7 +1417,7 @@ UInt32 TRecordSet::RecordCount()
 
 	Check(SQLSetStmtAttr(Handle(), SQL_ATTR_RETRIEVE_DATA, (SQLPOINTER) SQL_RD_ON, 0));
 
-	SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, recnum + 1);
+	SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, SQLLEN(recnum) + 1);
 
 	return (m_RecordCount = minimum);
 }

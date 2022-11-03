@@ -62,17 +62,17 @@ struct NumberReaderBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		dms_assert(m_ResPtr);
-		dms_assert(m_FIS);
-		dms_assert(m_Offset!= -1);
-		dms_assert(m_Count != -1);
+		assert(m_ResPtr);
+		assert(m_FIS);
+		assert(m_Offset!= -1);
+		assert(m_Count != -1);
 
 		auto seq = mutable_array_cast<E>(*m_ResPtr)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		auto elem = E();
 
-		dms_assert(m_Offset           <= seq.size());
-		dms_assert(m_Count            <= seq.size());
-		dms_assert(m_Offset + m_Count <= seq.size());
+		assert(m_Offset           <= seq.size());
+		assert(m_Count            <= seq.size());
+		assert(m_Offset + m_Count <= seq.size());
 
 		for (auto p = seq.begin()+m_Offset, e = p + m_Count; p!=e; ++p)
 		{
@@ -85,7 +85,7 @@ public:
 	DataWriteLock*      m_ResPtr = nullptr;
 	FormattedInpStream* m_FIS = nullptr;
 	tile_id             m_TileID = no_tile;
-	UInt32              m_Offset=-1, m_Count=-1;
+	SizeT               m_Offset = 0, m_Count = 0;
 };
 
 struct NumberReader :  boost::mpl::fold<typelists::scalars, NumberReaderBase, VisitorImpl<Unit<_2>, _1> >::type
