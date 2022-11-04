@@ -265,21 +265,20 @@ namespace range_impl
 	// =============== Range_Index2Value_Inplace_checked
 
 	template <typename MutIter, typename T>
-	inline void Range_Index2Value_Inplace_checked(const Range<T>& range, MutIter first, MutIter last, const ord_type_tag*)
+	inline void Range_Index2Value_Inplace_checked(Range<T> range, MutIter first, MutIter last, const ord_type_tag*)
 	{
-		T      inc = range.first;
-		SizeT  sz  = range.second - inc;
-		dms_assert(UNDEFINED_VALUE(UInt32) >= sz );
-
-		if (inc)
-			for (; first != last; ++first) 
-				if (SizeT(*first) < sz)
-					*first += inc;
+		if (range.first)
+		{
+			range.second -= range.first;
+			for (; first != last; ++first)
+				if (SizeT(*first) < range.second)
+					*first += range.first;
 				else
 					MakeUndefined(*first);
+		}
 		else
 			for (; first != last; ++first) 
-				if (SizeT(*first) >= sz)
+				if (SizeT(*first) >= range.second)
 					MakeUndefined(*first);
 	}
 

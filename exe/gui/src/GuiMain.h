@@ -46,4 +46,6 @@ private:
 	int						m_MapViewsCursor = 0;
 	GuiDetailPages			m_DetailPages;
 	GuiTreeItemsHolder		m_ItemsHolder;
+
+	int 					m_FirstFrames = 1;
 };

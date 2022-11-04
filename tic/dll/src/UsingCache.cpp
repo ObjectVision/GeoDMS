@@ -236,7 +236,7 @@ void UsingCache::AddUsingUrl(TokenID urlToken)
 	SetDirty();
 }
 
-bool UsingCache::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd, UInt32 nrSkippedFromEnd)
+bool UsingCache::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd, SizeT nrSkippedFromEnd)
 {
 	dms_assert(urlsEnd);
 	dms_assert(urlsBegin != urlsEnd);

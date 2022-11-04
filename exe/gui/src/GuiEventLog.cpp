@@ -76,7 +76,7 @@ void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
 void GuiEventLog::Update(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
-    if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;

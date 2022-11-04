@@ -45,7 +45,7 @@ void GuiTreeViewComponent::Update(bool* p_open)
         m_TemporaryJumpItem = m_State.GetCurrentItem();
     }
 
-    if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None))
+    if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;
@@ -76,7 +76,6 @@ UInt32 GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed)
 
 void GuiTreeViewComponent::UpdateStateAfterItemClick(TreeItem* nextSubItem)
 {
-    auto test = m_State.GetCurrentItem();
     m_State.SetCurrentItem(nextSubItem);
     m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -213,7 +212,7 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
             UpdateStateAfterItemClick(nextSubItem);
 
         // click event
-        if (ImGui::IsItemClicked() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) // item is clicked
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) // item is clicked
         {
             SetKeyboardFocusToThisHwnd();
             UpdateStateAfterItemClick(nextSubItem);
@@ -231,7 +230,26 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
             auto base_style_color = ImGui::GetStyleColorVec4(0);
             auto current_style_color = ImGui::GetStyleColorVec4(1);
             ImGui::PopStyleColor(2);
-            ImGui::Text("popup menu");
+            if (ImGui::Button("Edit Config Source       Ctrl-E"))
+            {
+                m_State.MainEvents.Add(OpenConfigSource);
+            }
+
+            if (ImGui::Button("Default View"))
+            {
+                m_State.MainEvents.Add(OpenNewDefaultViewWindow);
+            }
+
+            if (ImGui::Button("Map View                 CTRL-M"))
+            {
+                m_State.MainEvents.Add(OpenNewMapViewWindow);
+            }
+
+            if (ImGui::Button("Table View               CTRL-D"))
+            {
+                m_State.MainEvents.Add(OpenNewTableViewWindow);
+            }
+
             //if (ImGui::Button("Close"))
             //    ImGui::CloseCurrentPopup();
             //ImGui::PushStyleColor(ImGuiCol_Text, GetColorU32(style_color));

@@ -826,11 +826,11 @@ CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
 	{
 		case TB_ShowSelOnlyOn:
 		case TB_ShowSelOnlyOff:
-			if (GetUserMode() < UM_Select) return CMD_HIDDEN;
+			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
 			{
 				const GraphicLayer* al = GetActiveLayer();
 				if (!al)
-					return CMD_DISABLED;
+					return CommandStatus::DISABLED;
 				return al->OnCommandEnable(id);
 			}
 	}

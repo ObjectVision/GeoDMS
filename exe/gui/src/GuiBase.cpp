@@ -57,22 +57,41 @@ TreeItemHistory::TreeItemHistory()
 
 void TreeItemHistory::Insert(TreeItem* new_item)
 {
-    if (!(new_item == *m_Iterator))
-        m_History.insert(std::next(m_Iterator), new_item);
+    if (m_Iterator == m_History.end())
+    {
+        m_History.push_back(new_item);
+        m_Iterator = std::prev(m_History.end());
+        return;
+    }
+
+    if (new_item == *m_Iterator)
+        return;
+
+    m_Iterator = m_History.insert(std::next(m_Iterator), new_item);
 }
 
 TreeItem* TreeItemHistory::GetNext()
 {
-    if (m_Iterator != m_History.end())
+    if (std::distance(m_History.end(), m_Iterator))
+    {
+        if (std::next(m_Iterator) == m_History.end())
+            return NULL;
+
         std::advance(m_Iterator, 1);
-    return *m_Iterator;
+        return *m_Iterator;
+    }
+    return NULL;
 }
 
 TreeItem* TreeItemHistory::GetPrevious()
 {
-    if (m_Iterator!=m_History.begin())
+    auto test = std::distance(m_History.begin(), m_Iterator);
+    if (std::distance(m_Iterator, m_History.begin()))
+    {
         std::advance(m_Iterator, -1);
-    return *m_Iterator;
+        return *m_Iterator;
+    }
+    return NULL;
 }
 
 void GuiState::clear()

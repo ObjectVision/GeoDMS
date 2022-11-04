@@ -64,7 +64,7 @@ struct UsingCache
 private:
 	void SetDirty();
 
-	bool AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd, UInt32 nrSkippedFromEnd);
+	bool AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd, SizeT nrSkippedFromEnd);
 
 	void CheckSearchSpace(const TreeItem* nameSpace) const;
 	void UpdateUsings() const;

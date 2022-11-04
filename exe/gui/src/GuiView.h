@@ -40,6 +40,7 @@ public:
 	void ResetView(ViewStyle vs, std::string vn);
 	void Update();
 	void Close(bool keepDataView);
+	void CloseAll();
 	void SetDoView(bool doView);
 	bool DoView();
 	bool IsPopulated();

@@ -42,7 +42,6 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-    m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -56,13 +55,15 @@ GuiMainComponent::~GuiMainComponent()
     //m_TableViews.clear();
     //m_MapViews.clear();
 
-    for (auto& view : m_View.m_Views)
+    /*for (auto& view : m_View.m_Views)
     {
+        
         SHV_DataView_Destroy(view.m_DataView);
         view.m_ActiveItems.clear();
-    }
+    }*/
+    m_View.CloseAll();
 
-    m_ItemsHolder.clear();
+    m_ItemsHolder.clear(); 
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -191,6 +192,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         m_View.SetViewStyle(tvsMapView);
         m_View.SetViewName("View");
         m_View.InitDataView(m_State.GetCurrentItem());
+        m_View.SetDoView(true);
         break;
     }
     case OpenNewTableViewWindow:
@@ -214,6 +216,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         m_View.SetViewStyle(tvsTableView);
         m_View.SetViewName("View");
         m_View.InitDataView(m_State.GetCurrentItem());
+        m_View.SetDoView(true);
         break;
     }
     case OpenNewDefaultViewWindow:
@@ -349,7 +352,22 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 
 void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
 {
-    //if(ImGui::IsMouseClicked())
+    TreeItem* new_current_item = NULL;
+    if (ImGui::IsMouseClicked(3)) // side-back mous button
+    {
+        new_current_item = m_State.TreeItemHistoryList.GetPrevious();
+    }
+    if (ImGui::IsMouseClicked(4)) // side-front mouse button
+    {
+        new_current_item = m_State.TreeItemHistoryList.GetNext();
+    }
+    if (new_current_item)
+    {
+        m_State.SetCurrentItem(new_current_item);
+        m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+        m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+        m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+    }
 }
 
 int GuiMainComponent::Init()
@@ -461,11 +479,11 @@ int GuiMainComponent::MainLoop()
         {
             CloseCurrentConfig();
             auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
-            auto filename    = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
+            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
-            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() +  std::string(" - ") + DMS_GetVersion()).c_str());
+            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-            
+
             //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 
             if (m_State.GetRoot())
@@ -500,6 +518,16 @@ int GuiMainComponent::MainLoop()
         }
 
         glfwSwapBuffers(m_Window);
+
+        // initializations after first n frames
+        if (!m_FirstFrames)
+        {
+            m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+            m_FirstFrames--;
+        }
+        else if (m_FirstFrames > 0)
+            m_FirstFrames--;
+
     }
 
     // Persistently store gui state in registry
@@ -610,7 +638,7 @@ void GuiMainComponent::Update()
         if (m_View.DoView())
             m_View.Update();
         else
-            m_View.Close(true);
+            m_View.Close(false);
     }
 
     /*for (auto& view : m_MapViews)
