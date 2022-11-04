@@ -112,6 +112,7 @@ public:
 	TIC_CALL void SetFormat(TokenID format);
 
 	TIC_CALL TokenID   GetFormat             () const;
+	TIC_CALL TokenID   GetCurrFormat         () const;
 	TIC_CALL SharedStr GetMetricStr          (FormattingFlags ff) const;
 	TIC_CALL SharedStr GetCurrMetricStr      (FormattingFlags ff) const;
 	TIC_CALL SharedStr GetFormattedMetricStr () const;

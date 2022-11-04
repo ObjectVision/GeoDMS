@@ -332,6 +332,16 @@ TokenID AbstrUnit::GetFormat () const
 	return TokenID::GetEmptyID();
 }
 
+TokenID AbstrUnit::GetCurrFormat() const
+{
+	if (GetTSF(USF_HasFormat))
+		return s_FormatAssoc.GetExisting(this);
+	auto m = GetCurrMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+		return TokenID(m->m_BaseUnits.begin()->first);
+	return TokenID::GetEmptyID();
+}
+
 SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
 {
 	auto m = GetMetric();

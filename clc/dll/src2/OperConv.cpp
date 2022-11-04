@@ -509,10 +509,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		:	m_PreRescaler (UnitProjection::GetCompositeTransform(srcUnit->GetCurrProjection()))
 		,	m_PostRescaler(UnitProjection::GetCompositeTransform(resUnit->GetCurrProjection()).Inverse())
 	{
-		TokenID srcFormat = CompositeBase(srcUnit)->GetFormat();
+		TokenID srcFormat = CompositeBase(srcUnit)->GetCurrFormat();
 		if (srcFormat)
 		{
-			TokenID resFormat = CompositeBase(resUnit)->GetFormat();
+			TokenID resFormat = CompositeBase(resUnit)->GetCurrFormat();
 			if (resFormat && srcFormat != resFormat)
 			{
 				leveled_critical_section::scoped_lock lock(cs_SpatialRefBlockCreation);
