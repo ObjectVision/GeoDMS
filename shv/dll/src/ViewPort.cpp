@@ -1102,8 +1102,9 @@ CrdRect ViewPort::GetROI() const
 { 
 	dms_assert(GetContents());
 	CertainUpdate(PS_Committed);
-	if (m_ROI.empty())
-		const_cast<ViewPort*>(this)->ZoomAll();
+// ISSUE 262, WIP
+//	if (m_ROI.empty())
+//		const_cast<ViewPort*>(this)->ZoomAll();
 	return m_ROI;
 }
 
