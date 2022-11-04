@@ -236,15 +236,30 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
 		return nullptr;
 
-	SharedStr coordRef;
-	if (!HasMapType(gridDataDomain))
-		coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
-	if (coordRef.empty() && storageHolder != gridDataDomain)
-		if (!HasMapType(storageHolder))
-			coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
+	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 
 	const AbstrUnit* uBase = nullptr;
-	if (coordRef.empty())
+	if (!coordRef.empty())
+	{
+		auto context = gridDataDomain->GetTreeParent();
+		if (!context)
+			context = storageHolder;
+		auto coordItem = context->FindItem(coordRef);
+		if (!coordItem)
+			coordItem->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+		if (IsUnit(coordItem))
+			uBase = AsUnit(coordItem);
+	}
+	if (uBase == nullptr && storageHolder != gridDataDomain)
+	{
+		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
+		auto coordItem = storageHolder->FindItem(coordRef);
+		if (!coordItem)
+			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+		if (IsUnit(coordItem))
+			uBase = AsUnit(coordItem);
+	}
+	if (uBase == nullptr)
 	{
 		uBase = AsDynamicUnit(storageHolder);
 		if (!uBase && IsDataItem(storageHolder))
@@ -258,16 +273,7 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 				uBase = nullptr; // no self referring thing
 		}
 	}
-	else
-	{
-		if (gridDataDomain->GetTreeParent())
-			storageHolder = gridDataDomain->GetTreeParent();
-		auto coordItem = storageHolder->FindItem(coordRef);
-		if (!coordItem)
-			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (IsUnit(coordItem))
-			uBase = AsUnit(coordItem);
-	}
+
 	if (uBase && uBase->GetNrDimensions() != 2)
 	{
 		auto coordItemName = SharedStr(uBase->GetFullName());
