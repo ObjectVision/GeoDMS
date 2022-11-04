@@ -64,6 +64,9 @@ bool HTMLGuiComponentFactory::ReplaceStringInString(std::string& str, const std:
 
     return true;
 }
+// CODE REVIEW; en &amp; ? Consider integrating with HtmlDecode in XmlParser.cpp, 
+// enventueel laten we die functie op een char range werken teneinde voor zowel std::string als SharedStr te laten werken.
+// HtmlDecode en helpers kunnen we verplaatsen naar Encodes.cpp voor een generieke set van consistente encoding en decoding functies.
 
 std::string HTMLGuiComponentFactory::CleanStringFromHtmlEncoding(std::string text)
 {
