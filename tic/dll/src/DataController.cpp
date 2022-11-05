@@ -369,6 +369,7 @@ auto DataController::CalcResult(Explain::Context* context) const -> FutureData
 	dms_assert(GetInterestCount());
 
 	MakeResult();
+	assert(resultHolder);
 	return resultHolder;
 }
 

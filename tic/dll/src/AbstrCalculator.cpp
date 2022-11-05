@@ -227,8 +227,13 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
 	auto result = dc->CalcResult(context);
+	if (SuspendTrigger::DidSuspend())
+		return {};
 	if (!result)
+	{
+		assert(dc->WasFailed(FR_Data));
 		dc->ThrowFail();
+	}
 	return result;
 }
 

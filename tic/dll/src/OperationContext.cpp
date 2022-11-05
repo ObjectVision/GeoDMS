@@ -1044,7 +1044,7 @@ void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC)
 		TimeStamp ts = funcDC->GetLastChangeTS();
 		for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
 			cacheItem->MarkTS(ts);
-		dms_assert(!oc->m_Result);
+		dms_assert(!oc->m_Result || oc->m_Result == funcDC->GetNew());
 		oc->m_Result = funcDC->GetNew();
 		dms_assert(oc->m_Result == funcDC->GetNew());
 	}
