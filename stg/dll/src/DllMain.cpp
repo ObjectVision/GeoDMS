@@ -228,17 +228,10 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	uDomain->throwItemErrorF("Error reading geographic reference info from %s", geoRefFileName.c_str());
 }
 
-const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
 {
-	dms_assert(storageHolder); // PRECONDITION
-	if (!gridDataDomain)
-		return nullptr;
-	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
-		return nullptr;
-
-	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
-
 	const AbstrUnit* uBase = nullptr;
+	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (!coordRef.empty())
 	{
 		auto context = gridDataDomain->GetTreeParent();
@@ -246,7 +239,7 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 			context = storageHolder;
 		auto coordItem = context->FindItem(coordRef);
 		if (!coordItem)
-			coordItem->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
 		if (IsUnit(coordItem))
 			uBase = AsUnit(coordItem);
 	}
@@ -259,6 +252,17 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 		if (IsUnit(coordItem))
 			uBase = AsUnit(coordItem);
 	}
+	return uBase;
+}
+
+const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+{
+	dms_assert(storageHolder); // PRECONDITION
+	if (!gridDataDomain)
+		return nullptr;
+	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
+		return nullptr;
+	auto uBase = FindProjectionRef(storageHolder, gridDataDomain);
 	if (uBase == nullptr)
 	{
 		uBase = AsDynamicUnit(storageHolder);
@@ -559,7 +563,18 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	*typesafe_cast<CrdTransformation*>(this) -= Convert<DPoint>(GetTopLeft(m_GridExtents, viewPortProj2fileRasterProj.Orientation())); // camouflage of non-zero based grids
 
 	if (currDomain)
-		this->m_ViewPortExtents = ThrowingConvert<rect_type>(currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc));
+	{
+		try {
+			this->m_ViewPortExtents = ThrowingConvert<rect_type>(currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc));
+		}
+		catch (...)
+		{
+			auto err = catchException(true)->Why();
+			err = GetFirstLine(err);
+			auto msg = mySSPrintF("ViewPortInfo failure: %s", err);
+			currDomain->throwItemError(msg);
+		}
+	}
 	else
 		this->m_ViewPortExtents = rect_type(MIN_VALUE(ViewPortInfoEx::point_type), MAX_VALUE(ViewPortInfoEx::point_type));
 	this->m_CountColor = cc;

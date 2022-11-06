@@ -471,9 +471,11 @@ bool DbfImpl::ReadHeader()
 
 	if (m_HeaderSize <= DBF_HEADER_BLOCK_SIZE)
 		return false;
-	assert(m_HeaderSize > 0);
-	assert((m_HeaderSize -1) >= DBF_HEADER_BLOCK_SIZE);
-	m_ColumnDescriptions.resize((m_HeaderSize - 1) / DBF_HEADER_BLOCK_SIZE - 1);
+	auto nrColumns = m_HeaderSize;
+	--nrColumns; assert(nrColumns >= DBF_HEADER_BLOCK_SIZE);
+	nrColumns /= DBF_HEADER_BLOCK_SIZE; assert(nrColumns >= 1);
+	--nrColumns;
+	m_ColumnDescriptions.resize(nrColumns);
 	MG_CHECK(m_ColumnDescriptions.size() > 0);
 
 	int	offset	=	1;

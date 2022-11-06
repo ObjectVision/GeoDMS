@@ -1615,36 +1615,10 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
 
-    //if layerDomain->sqlStringPropDefPtr->HasNonDefaultValue(adiParent))
-	//{
-	//m_SqlString = TreeItemPropertyValue(adiParent, sqlStringPropDefPtr);
-	//}
-
-	//GetDialogDataAttr(storageHolder);
-	
-	//auto dialogDataPtr = TreeItemPropertyValue(storageHolder, dialogDataPropDefPtr);
-
-	//if (dialogDataPtr.c_str())
-	//{
-	//	auto dialogDataItem = storageHolder->FindItem("dialogDataPtr");
-	//}
-
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
-	const AbstrUnit* vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
-	SharedStr coordRef;
-	if (!HasMapType(layerDomain))
-		coordRef = dialogDataPropDefPtr->GetValue(layerDomain);
-	if (coordRef.empty()) 
-		if (!HasMapType(storageHolder))
-		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
-	if (!coordRef.empty())
-	{
-		auto coordItem = storageHolder->FindItem(coordRef);
-		if (!coordItem)
-			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (IsUnit(coordItem))
-			vu = AsUnit(coordItem);
-	}
+	const AbstrUnit* vu = FindProjectionRef(storageHolder, layerDomain);
+	if (!vu)
+		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
 	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
 	{
