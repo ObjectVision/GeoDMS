@@ -96,6 +96,7 @@ SharedStr GenerateContext()
 			if (last5 || nrContexts < g_MaxNrContexts)
 			{
 				try {
+					fos << "\n" << (nrContexts + 1) << ". ";
 					if (ach->Describe(fos))
 					{
 						++nrContexts;
@@ -131,11 +132,6 @@ CharPtr FailTypeStr(FailType ft)
 	case FR_Committed: return "Committing data to storage";
 	}
 	return "<Unexpected FailType>";
-}
-
-RTC_CALL bool HasItemName(WeakStr msg)
-{
-	return Search(CharPtrRange(msg), CharPtrRange(" Failed in ")) != msg.csend();
 }
 
 #include "utl/SourceLocation.h"
@@ -219,24 +215,26 @@ SharedStr ErrMsg::GetSourceName() const
 
 SharedStr ErrMsg::GetAsText() const
 {
-	dms_assert(!HasItemName(m_Why));
-
 	auto location = GetLocation();
 	if (!location)
 		return m_Why;
-	return mgFormat2SharedStr("%s\n%s", m_Why, GetSourceName());
+	return mgFormat2SharedStr("%s\n%s\n", GetErrorBody(m_Why), GetSourceName(), GetErrorContext(m_Why));
 }
 
 OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 {
-	dms_assert(!HasItemName(obj.m_Why));
-	osb.WriteValue(obj.m_Why.c_str());
+	osb.WriteValue(GetErrorBody(obj.m_Why).c_str());
 	osb.WriteValue("\n");
 	auto where = obj.GetWhere();
 	if (where)
 	{
 		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + where->GetFullName()).c_str());
 		osb.WriteValue(obj.GetSourceName().c_str());
+	}
+	if (HasContext(obj.m_Why))
+	{
+		osb.WriteValue("\n\n");
+		osb.WriteValue(GetErrorContext(obj.m_Why).c_str());
 	}
 	return osb;
 }
@@ -383,7 +381,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const PersistentSharedObj* obj, CharPtr method)
 {
-	obj->throwItemErrorF("Illegal Abstract %s called at %s", method, ErrLoc(sourceFile, line, true));
+	obj->throwItemErrorF("Illegal Abstract %s called.\n%s", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, CharPtr method)
@@ -750,7 +748,23 @@ RTC_CALL bool HasContext(WeakStr msg)
 
 RTC_CALL SharedStr GetErrorContext(WeakStr msg)
 {
-	return SharedStr(GetContextPtr(msg), msg.csend());
+	auto contextPtr = GetContextPtr(msg);
+	if (contextPtr != msg.csend())
+	{
+		assert(contextPtr[0] == '\n');
+		assert(contextPtr[1] == '#');
+		assert(contextPtr[2] == ' ');
+		contextPtr += 3;
+	}
+	return SharedStr(contextPtr, msg.csend());
+}
+
+RTC_CALL SharedStr GetFirstLine(WeakStr msg)
+{
+	CharPtr eolPtr = msg.find('\n');
+	if (eolPtr == msg.csend())
+		return msg;
+	return SharedStr(msg.begin(), eolPtr);
 }
 
 RTC_CALL SharedStr GetErrorBody(WeakStr msg)
@@ -758,6 +772,8 @@ RTC_CALL SharedStr GetErrorBody(WeakStr msg)
 	CharPtr contextPtr = GetContextPtr(msg);
 	if (contextPtr == msg.csend())
 		return msg;
+	while (contextPtr != msg.begin() && contextPtr[-1] == '\n')
+		--contextPtr;
 	return SharedStr(msg.begin(), contextPtr);
 }
 

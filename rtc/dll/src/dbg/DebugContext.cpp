@@ -108,7 +108,7 @@ bool AbstrContextHandle::Describe(FormattedOutStream& fos) // default: calls Get
 	if (!extraInfo || !*extraInfo)
 		return false;
 
-	fos << "\n" << extraInfo << '\n';
+	fos << extraInfo;
 	return true;
 }
 

@@ -353,7 +353,7 @@ SharedStr PersistentSharedObj::GetPrefixedFullName() const
 	auto result = GetFullName();
 	auto rootID = GetRoot()->GetID();
 	if (rootID)
-		result += SharedStr(rootID) + "\\" + result;
+		result = SharedStr(rootID) + ":" + result;
  	return result;
 
 }
