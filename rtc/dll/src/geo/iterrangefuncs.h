@@ -37,6 +37,6 @@ granted by an additional written contract for support, assistance and/or develop
 // IterRangeFuncs
 //----------------------------------------------------------------------
 
-RTC_CALL CharPtr Search(const CharPtrRange& str, const CharPtrRange& pattern);
+RTC_CALL CharPtr Search(CharPtrRange str, CharPtrRange pattern);
 
 #endif // !defined(__RTC_GEO_ITERRANGEFUNCS_H)

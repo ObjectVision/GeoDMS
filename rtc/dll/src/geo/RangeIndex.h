@@ -267,19 +267,24 @@ namespace range_impl
 	template <typename MutIter, typename T>
 	inline void Range_Index2Value_Inplace_checked(Range<T> range, MutIter first, MutIter last, const ord_type_tag*)
 	{
+		assert(range.first <= range.second);
 		if (range.first)
 		{
 			range.second -= range.first;
+			assert(range.second >= 0);
 			for (; first != last; ++first)
-				if (SizeT(*first) < range.second)
+				if (SizeT(*first) < SizeT(range.second))
 					*first += range.first;
 				else
 					MakeUndefined(*first);
 		}
 		else
-			for (; first != last; ++first) 
-				if (SizeT(*first) >= range.second)
+		{
+			assert(range.second >= 0);
+			for (; first != last; ++first)
+				if (SizeT(*first) >= SizeT(range.second))
 					MakeUndefined(*first);
+		}
 	}
 
 	//	specialization for Bool (function overloading)

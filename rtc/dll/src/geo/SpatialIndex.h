@@ -468,7 +468,7 @@ private:
 
 	void _Add(LeafType* obj)
 	{
-		auto objExtents = obj->GetExtents();
+		const auto& objExtents = obj->GetExtents();
 		Node*  nodePtr = &*m_Nodes.begin();
 		UInt32 nodeIdx = 0;
 		while (true)

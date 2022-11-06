@@ -117,32 +117,32 @@ void DoInterpolateLinear(
 
 	for (; dataB != dataE; ++resultI, ++dataB) 
 	{
-		T value = *dataB;
-		if (!IsDefined(value) )
+		T x = *dataB;
+		if (!IsDefined(x) )
 			*resultI = UNDEFINED_VALUE(V);
 		else
 		{
-			chart_iter_t chartM = std::lower_bound(chartB, chartE, value, xComparator);
+			chart_iter_t chartM = std::lower_bound(chartB, chartE, x, xComparator);
 			if (chartM == chartB)
-				*resultI = chartB->second; // take first y-value
+				*resultI = chartB->second; // take first y-x
 			else
 			{
 				chart_iter_t chartP = chartM-1;
 				if (chartM == chartE)
-					*resultI = chartP->second; // take last value
+					*resultI = chartP->second; // take last x
 				else
 				{
 					dms_assert(chartP->first != chartM->first); // result of unique, ifs guarantee that both values are defined.
-					if (chartM->first == value)
+					if (chartM->first == x)
 						*resultI = chartM->second;
 					else if (IsDefined(chartP->second) && IsDefined(chartM->second))
-						*resultI = 
-							V(	(	(chartP->second * (chartM->first - value)) 
-								+	(chartM->second * (value - chartP->first)) 
-								) 
-							/	(	chartM->first 
-								-	chartP->first
-							)	);
+					{
+						using intermediate_type = std::conditional_t<std::is_integral_v<T>&& std::is_integral_v<V>, SizeT, Float64>;
+						intermediate_type dPX = x; dPX -= chartP->first;
+						intermediate_type dXM = chartM->first; dXM -= x;
+						auto y = (chartP->second * dXM + chartM->second * dPX) / (dPX+dXM);
+						*resultI = Convert<V>(y);
+					}
 					else
 						*resultI = UNDEFINED_VALUE(V);
 				}

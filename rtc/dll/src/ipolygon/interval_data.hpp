@@ -24,9 +24,7 @@ class interval_data {
   typedef T coordinate_type;
 
   interval_data()
-#ifndef BOOST_POLYGON_MSVC
     : coords_()
-#endif
   {}
 
   interval_data(coordinate_type low, coordinate_type high) {

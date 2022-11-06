@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 // IterRangeFuncs
 //----------------------------------------------------------------------
 
-CharPtr Search(const CharPtrRange& str, const CharPtrRange& pattern)
+CharPtr Search(CharPtrRange str, CharPtrRange pattern)
 {
 	return std::search(str.begin(), str.end(), pattern.begin(), pattern.end());
 }

@@ -24,9 +24,7 @@ class point_data {
   typedef T coordinate_type;
 
   point_data()
-#ifndef BOOST_POLYGON_MSVC
     : coords_()
-#endif
   {}
 
   point_data(coordinate_type x, coordinate_type y) {
