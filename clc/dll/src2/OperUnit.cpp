@@ -614,6 +614,7 @@ public:
 					}
 				}
 			}
+			MG_USERCHECK2(IsLowerBound(lb, ub), "Error in range-operator: lowerBound (arg2) is not less or equal to upperbound (arg3)");
 			result->SetRange(bounds);
 		}
 		return true;
