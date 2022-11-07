@@ -88,7 +88,7 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 
 }
 
-void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::vector<PropertyEntry>> &properties)
+void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry>> &properties)
 {
     // open tags
     if (m_Tag.text.substr(0, 5) == "<BODY")
@@ -100,16 +100,10 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
     }
     else if (m_Tag.text.substr(0, 6) == "<TABLE")
     {
-        if (direct_draw)
-            ImGui::BeginTable(" ", 6, ImGuiTableFlags_None, ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8));
-
         m_OpenTags[HTMLTagType::TABLE]++;
     }
     else if (m_Tag.text.substr(0, 3) == "<TR")
     {
-        if (direct_draw)
-            ImGui::TableNextRow();
-
         m_ColumnIndex = 0;
         m_OpenTags[HTMLTagType::TABLEROW]++;
         if (!properties.back().empty())
@@ -124,9 +118,6 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
         m_OpenTags[HTMLTagType::BODY]--;
     else if (m_Tag.text == "</H2>")
     {
-        if (direct_draw)
-            ImGui::Text(m_Text.c_str());
-
         m_Tag.href.clear();
         properties.emplace_back();
         properties.back().emplace_back(PET_HEADING, m_Text);
@@ -134,9 +125,6 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
     }
     else if (m_Tag.text == "</TABLE>")
     {
-        if (direct_draw)
-            ImGui::EndTable();
-
         m_OpenTags[HTMLTagType::TABLE]--;
     }
     else if (m_Tag.text == "</TR>")
@@ -148,37 +136,14 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
         if (m_OpenTags[HTMLTagType::TABLEDATA] > 0)
         {
             m_OpenTags[HTMLTagType::TABLEDATA]--;
-            if (direct_draw)
-                ImGui::TableSetColumnIndex(m_ColumnIndex);
 
             if (!m_Tag.href.empty())
             {
-                if (direct_draw)
-                {
-                    ImGui::PushID(m_refIndex++);
-
-                    if (ImGui::Button(m_Text.c_str()))
-                    {
-                        auto item = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(m_Text.c_str()));
-                        if (item)
-                        {
-                            m_State.SetCurrentItem(item);
-                            m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                            m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                            m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                        }
-                    }
-                    ImGui::PopID();
-                }
                 properties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
                 m_Tag.href.clear();
             }
             else
             {
-                if (direct_draw)
-                {
-                    ImGui::Text(m_Text.c_str());
-                }
                 if (!m_Text.empty())
                     properties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
             }
@@ -188,9 +153,6 @@ void HTMLGuiComponentFactory::InterpretTag(bool direct_draw, std::vector<std::ve
     }
     else if (m_Tag.text == "<HR/>")
     {
-        if (direct_draw)
-            ImGui::Separator();
-
         if (!properties.back().empty())
             properties.emplace_back();
         properties.back().emplace_back(PET_SEPARATOR, m_Text);
@@ -237,7 +199,7 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
     return false;
 }
 
-void HTMLGuiComponentFactory::InterpretBytes(bool direct_draw, std::vector<std::vector<PropertyEntry>> &properties)
+void HTMLGuiComponentFactory::InterpretBytes(std::vector<std::vector<PropertyEntry>> &properties)
 {
     m_refIndex = 0;
     m_ParserState = HTMLParserState::NONE;
@@ -271,7 +233,7 @@ void HTMLGuiComponentFactory::InterpretBytes(bool direct_draw, std::vector<std::
         case HTMLParserState::TAGCLOSE:
         {
             m_Tag.text += chr;
-            InterpretTag(direct_draw, properties);
+            InterpretTag(properties);
             m_Tag.text.clear();
             break;
         }
@@ -304,7 +266,7 @@ void GuiDetailPages::UpdateGeneralProperties()
     InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(m_State.GetCurrentItem(), xmlOut.get(), true);
-    m_Buff.InterpretBytes(false, m_GeneralProperties); // Create detail page from html stream
+    m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -314,7 +276,7 @@ void GuiDetailPages::UpdateAllProperties()
     InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpAllProps(m_State.GetCurrentItem(), xmlOut.get(), false);
-    m_Buff.InterpretBytes(false, m_AllProperties); // Create detail page from html stream
+    m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -324,7 +286,7 @@ void GuiDetailPages::UpdateExploreProperties()
     InterestPtr<TreeItem*> tmpInterest = m_State.GetCurrentItem()->IsFailed() || m_State.GetCurrentItem()->WasFailed() ? nullptr : m_State.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     DMS_TreeItem_XML_DumpExplore(m_State.GetCurrentItem(), xmlOut.get(), true);
-    m_Buff.InterpretBytes(false, m_ExploreProperties); // Create detail page from html stream
+    m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -382,15 +344,17 @@ void GuiDetailPages::DrawProperties(std::vector<std::vector<PropertyEntry>>& pro
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
                 if (ImGui::Button(col.text.c_str()))
                 {
-                    auto item = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(col.text.c_str()));
-                    if (item)
+                    auto unfound_part = IString::Create("");
+                    TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), col.text.c_str(), &unfound_part);
+                    if (jumpItem)
                     {
-                        m_State.SetCurrentItem(item);
+                        m_State.SetCurrentItem(jumpItem);
                         m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
                         m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                         m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
+                    unfound_part->Release(unfound_part);
                 }
                 ImGui::PopID();
                 ImGui::PopStyleColor(2);

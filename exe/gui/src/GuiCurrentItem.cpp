@@ -3,6 +3,9 @@
 #include <vector>
 #include <numeric>
 
+#include "TicInterface.h"
+#include "ser/AsString.h"
+
 GuiCurrentItemComponent::GuiCurrentItemComponent()
 {
     m_Buf.resize(1024);
@@ -41,13 +44,22 @@ void GuiCurrentItemComponent::Update()
         {
             if (m_State.GetRoot())
             {
-                auto jumpItem = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(reinterpret_cast<char*> (&m_Buf[0])));
+                auto unfound_part = IString::Create("");
+                TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), reinterpret_cast<char*> (&m_Buf[0]), &unfound_part);
+                
+                //auto jumpItem = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(reinterpret_cast<char*> (&m_Buf[0])));
                 if (jumpItem)
                 {
                     m_State.SetCurrentItem(jumpItem);
                     m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                     m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
                 }
+                if (!unfound_part->empty())
+                {
+                    int i = 0; // TODO: do something with unfound part
+                }
+
+                unfound_part->Release(unfound_part);
             }
         }
 

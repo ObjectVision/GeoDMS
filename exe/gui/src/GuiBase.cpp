@@ -146,30 +146,6 @@ std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string ful
     return SeparatedTreeItemFullName;
 }
 
-TreeItem* SetJumpItemFullNameToOpenInTreeView(TreeItem* root, std::vector<std::string> SeparatedTreeItemFullName)
-{
-    TreeItem* tmpItem = root;
-    for (auto& name : SeparatedTreeItemFullName)
-    {
-        if (name.empty()) // root
-            continue;
-
-        tmpItem = tmpItem->_GetFirstSubItem();
-        while (tmpItem)
-        {
-            if (name == tmpItem->GetName().c_str())
-            {
-                break;
-            }
-            tmpItem = tmpItem->GetNextItem();
-            if (!tmpItem)
-                return NULL;
-        }
-    }
-
-    return tmpItem;
-}
-
 std::string GetExeFilePath()
 {
     wchar_t buffer[MAX_PATH];
