@@ -171,7 +171,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case OpenNewMapViewWindow:
+    case OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
     {
         /*auto freeViewInd = GetFreeViewIndex(m_MapViews);
         if (freeViewInd < m_MapViews.size())
@@ -189,10 +189,16 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_MapViewsCursor++;
             break;
         }*/
-        m_View.SetViewStyle(tvsMapView);
-        m_View.SetViewName("View");
-        m_View.InitDataView(m_State.GetCurrentItem());
-        m_View.SetDoView(true);
+
+        auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
+        if (viewstyle_flags & ViewStyleFlags::vsfMapView)
+        {
+            m_View.SetViewStyle(tvsMapView);
+            m_View.SetViewName("View");
+            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.SetDoView(true);
+        }
+
         break;
     }
     case OpenNewTableViewWindow:
@@ -213,10 +219,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_TableViewsCursor++;
             break;
         }*/
-        m_View.SetViewStyle(tvsTableView);
-        m_View.SetViewName("View");
-        m_View.InitDataView(m_State.GetCurrentItem());
-        m_View.SetDoView(true);
+        auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
+        if (viewstyle_flags & ViewStyleFlags::vsfTableView)
+        {
+            m_View.SetViewStyle(tvsTableView);
+            m_View.SetViewName("View");
+            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.SetDoView(true);
+        }
+
         break;
     }
     case OpenNewDefaultViewWindow:
@@ -291,7 +302,10 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
+        if (!m_State.errorDialogMessage._Get().empty())
+        {
+            ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
+        }
 
         if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
         ImGui::SetItemDefaultFocus();
