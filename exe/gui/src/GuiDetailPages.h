@@ -121,7 +121,7 @@ public:
     virtual ~HTMLGuiComponentFactory();
 
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    void InterpretBytes(bool direct_draw, std::vector<std::vector<PropertyEntry>>& properties);
+    void InterpretBytes(std::vector<std::vector<PropertyEntry>>& properties);
 
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -129,7 +129,7 @@ public:
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
-    void InterpretTag(bool direct_draw, std::vector<std::vector<PropertyEntry>>& properties);
+    void InterpretTag(std::vector<std::vector<PropertyEntry>>& properties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
 
