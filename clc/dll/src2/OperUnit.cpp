@@ -590,6 +590,7 @@ public:
 			MG_USERCHECK2(IsDefined(ub), "Error in range-operator: upperBound (arg3) is UNDEFINED");
 
 			Range<T> bounds(lb, ub);
+			assert(IsLowerBound(bounds.first, bounds.second);
 			auto arg1Unit = dynamic_cast<const Unit<T>*>(arg1);
 
 			if (!bounds.empty() && arg1Unit)
@@ -614,7 +615,6 @@ public:
 					}
 				}
 			}
-			MG_USERCHECK2(IsLowerBound(lb, ub), "Error in range-operator: lowerBound (arg2) is not less or equal to upperbound (arg3)");
 			result->SetRange(bounds);
 		}
 		return true;
