@@ -102,7 +102,6 @@ TRect ScalableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
 CrdRect ScalableObject::CalcWorldClientRect() const
 {
 	dms_assert(IsMainThread());
-
 	UpdateView();
 	return m_WorldClientRect;
 }

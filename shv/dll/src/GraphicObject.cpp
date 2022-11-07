@@ -276,7 +276,7 @@ struct PairRemover
 	std::set<UpdateActionType>::iterator m_Pos;
 };
 
-std::shared_ptr<PairRemover> RegisterNew(GraphicObject* obj, const TreeItem* item)
+auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<PairRemover>
 {
 	UpdateActionType itemPair(obj, item);
 
@@ -286,7 +286,7 @@ std::shared_ptr<PairRemover> RegisterNew(GraphicObject* obj, const TreeItem* ite
 		return {};
 
 	pos = s_UpdateActionSet.insert(pos, itemPair);
-	return std::make_shared<PairRemover>( pos );
+	return std::make_shared<PairRemover>(pos);
 }
 
 
@@ -312,7 +312,7 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 		return true;
 
 	auto pairRemover = RegisterNew(this, itemHolder);
-	if (!pairRemover)
+	if (!pairRemover && !ViewPort::g_CurrZoom)
 		return false;
 
 	std::weak_ptr<GraphicObject> objWPtr = this->shared_from_this();
