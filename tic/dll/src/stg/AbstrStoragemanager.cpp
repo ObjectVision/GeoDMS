@@ -59,6 +59,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemProps.h"
 #include "stg/StorageClass.h"
 
+
 #if defined(MG_DEBUG)
 #define MG_DEBUG_ASM 1
 #else
@@ -325,6 +326,15 @@ SharedStr GetProjDir(CharPtr configDir)
 	return s_ProjDir;
 }
 
+SharedStr GetLocalTime()
+{
+	std::time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	std::string s(30, '\0');
+	std::strftime(&s[0], s.size(), "%Y-%m-%d_%H-%M-%S", std::localtime(&time_now));
+
+	return SharedStr(s.c_str());
+}
+
 SharedStr GetProjBase(CharPtr configDir)
 {
 	return GetConvertedConfigDirKeyString(configDir, "projBase", splitFullPath(GetProjDir(configDir).c_str()).c_str());
@@ -386,6 +396,7 @@ SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool must
 	if (!stricmp(placeHolder, "osversion"       )) return PlatformInfo::GetVersionStr();
 	if (!stricmp(placeHolder, "username"        )) return PlatformInfo::GetUserNameA();
 	if (!stricmp(placeHolder, "computername"    )) return PlatformInfo::GetComputerNameA();
+	if (!stricmp(placeHolder, "DateTime"        )) return GetLocalTime();
 	if ((StrLen(placeHolder) > 4) && !strnicmp(placeHolder, "env:", 4))
 	{
 		SharedStr result;
