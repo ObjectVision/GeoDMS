@@ -218,7 +218,11 @@ SharedStr ErrMsg::GetAsText() const
 	auto location = GetLocation();
 	if (!location)
 		return m_Why;
-	return mgFormat2SharedStr("%s\n%s\n", GetErrorBody(m_Why), GetSourceName(), GetErrorContext(m_Why));
+	return mgFormat2SharedStr("%s\n%s\n%s"
+		, GetErrorBody(m_Why)
+		, GetSourceName()
+		, GetErrorContext(m_Why)
+	);
 }
 
 OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
