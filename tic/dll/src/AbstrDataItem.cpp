@@ -447,8 +447,11 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 
 const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
+	auto dataObj = m_DataObject;
+//	if (!dataObj)
+//		throwItemError("No DataObj");
 //	dms_assert(m_DataLockCount > 0);
-	dms_assert(m_DataObject);
+//	dms_assert(m_DataObject);
 /* REMOVE
 	if (!m_DataObject)
 	{
@@ -464,7 +467,7 @@ const AbstrDataObject* AbstrDataItem::GetDataObj() const
 		MG_CHECK(m_DataObject);
 	}
 */
-	return m_DataObject;
+	return dataObj;
 }
 
 const Object* AbstrDataItem::_GetAs(const Class* cls) const

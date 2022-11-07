@@ -103,8 +103,8 @@ private:
 	SharedPtr<const TreeItem> m_SpecContainer;
 	wms::tile_matrix_set m_TMS;
 	std::unique_ptr<wms::TileCache> m_TileCache;
-	mutable SizeT m_ZoomLevel;
-	const AbstrUnit* m_WorldCrdUnit;
+	mutable SizeT m_ZoomLevel = 0;
+	const AbstrUnit* m_WorldCrdUnit = nullptr;
 
 	CrdRect WorldExtents(wms::tile_id key) const {
 		const wms::tile_matrix& tm = m_TMS[key.first];

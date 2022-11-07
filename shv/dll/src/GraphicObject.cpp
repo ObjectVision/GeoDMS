@@ -302,6 +302,7 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	if (IsDataReady(item->GetCurrRangeItem()))
 		return true;
 
+	SuspendTrigger::FencedBlocker lockSuspend;
 	SharedTreeItemInterestPtr itemHolder(item);
 	dms_assert(item->HasInterest());
 
