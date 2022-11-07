@@ -299,7 +299,6 @@ private:
 
 // Helper functions
 std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/");
-TreeItem* SetJumpItemFullNameToOpenInTreeView(TreeItem* root, std::vector<std::string> SeparatedTreeItemFullName);
 std::string GetExeFilePath();
 ImVec2 SetCursorPosToOptionsIconInWindowHeader();
 void   SetClipRectToIncludeOptionsIconInWindowHeader();
