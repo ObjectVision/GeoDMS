@@ -70,6 +70,8 @@ const TreeItem* _GetCurrUltimateItem(const TreeItem* ti)
 
 const TreeItem* _GetCurrRangeItem(const TreeItem* ti)
 {
+	return _GetCurrUltimateItem(ti);
+/*
 	dms_assert(ti);
 	dbg_assert(ti->CheckMetaInfoReadyOrPassor());
 	if (!IsUnit(ti))
@@ -86,6 +88,7 @@ const TreeItem* _GetCurrRangeItem(const TreeItem* ti)
 		dms_assert(IsUnit(refItem));
 		u = AsUnit(refItem);
 	}
+*/
 }
 
 const TreeItem* _GetUltimateItem(const TreeItem* ti)
