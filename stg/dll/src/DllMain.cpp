@@ -234,10 +234,7 @@ const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUni
 	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (!coordRef.empty())
 	{
-		auto context = gridDataDomain->GetTreeParent();
-		if (!context)
-			context = storageHolder;
-		auto coordItem = context->FindItem(coordRef);
+		auto coordItem = gridDataDomain->FindItem(coordRef);
 		if (!coordItem)
 			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
 		if (IsUnit(coordItem))
