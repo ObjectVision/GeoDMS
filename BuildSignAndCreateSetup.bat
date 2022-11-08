@@ -106,6 +106,6 @@ echo on
 CHOICE /M  "Install test OK ? Ready to copy to teams?"
 if ErrorLevel 2 exit /B
 
-copy "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" "C:\Users\Maarten Hilferink\OneDrive - Objectvision\GeoDMS\distr"
+copy "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" "\\ovrv05\SourceData\distr"
 
 pause "Klaar ?"

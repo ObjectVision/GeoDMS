@@ -102,7 +102,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
 			const TreeItem* suppl = context->FindItem(explicitSupplierName);
 			if (!suppl)
-				context->throwItemErrorF("ExplicitSupplier '%s' not found", explicitSupplierName);
+				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
 			dms_assert(i<m_NrConfigured);
 			newSupplArray[i++] = ActorCRef(suppl);
