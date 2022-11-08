@@ -421,10 +421,12 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew)
 
 	pointItem->UpdateMetaInfo();
 
-	if (!isNew)
-		if (pointItem->GetDataObj()->GetValueAsDPoint(0) == point)
+	if (!isNew && pointItem->HasDataObj())
+	{
+		auto ado = pointItem->GetDataObj();
+		if (ado->GetValueAsDPoint(0) == point)
 			return;
-
+	}
 	DataWriteLock dataHolder(pointItem);
 	MG_CHECK(dataHolder->GetTiledRangeData()->GetRangeSize() == 1);
 	dms_assert(pointItem->m_DataLockCount < 0);
