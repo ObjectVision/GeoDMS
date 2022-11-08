@@ -8,7 +8,6 @@
 #include <Windows.h>
 #include "TicInterface.h"
 #include "utl/Environment.h"
-#include <iterator>
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -92,6 +91,16 @@ TreeItem* TreeItemHistory::GetPrevious()
         return *m_Iterator;
     }
     return NULL;
+}
+
+std::list<TreeItem*>::iterator TreeItemHistory::GetBeginIterator()
+{
+    return m_History.begin();
+}
+
+std::list<TreeItem*>::iterator TreeItemHistory::GetEndIterator()
+{
+    return m_History.end();
 }
 
 void GuiState::clear()
