@@ -69,8 +69,8 @@ struct StaticMtIncrementalLock
 template <UInt32& lockCounter>
 struct StaticStIncrementalLock
 {
-	StaticStIncrementalLock() { dms_assert(IsMainThread());  ++lockCounter; }
-	~StaticStIncrementalLock() { dms_assert(IsMainThread());  --lockCounter; }
+	StaticStIncrementalLock() { dms_assert(IsMetaThread());  ++lockCounter; }
+	~StaticStIncrementalLock() { dms_assert(IsMetaThread());  --lockCounter; }
 
 	StaticStIncrementalLock(const StaticStIncrementalLock& rhs) = delete;
 	StaticStIncrementalLock(StaticStIncrementalLock&& rhs) = delete;

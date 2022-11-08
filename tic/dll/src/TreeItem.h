@@ -265,6 +265,7 @@ public:
 //	Copying
 
 	TIC_CALL TreeItem* Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
+	void UpdateMetaInfoImpl2() const; // sort of const
 	TIC_CALL void UpdateMetaInfo() const override; // sort of const
 
 //	override Actor callbacks

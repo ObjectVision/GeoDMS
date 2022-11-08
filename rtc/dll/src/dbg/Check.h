@@ -69,9 +69,10 @@ class Object;
 RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line);
 #define dms_check(EXPR) (void)( (!!(EXPR)) || (dms_check_failed(#EXPR, __FILE__, __LINE__), 0) )
 
+RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
+
 #if defined(CC_FIX_ASSERT)
 
-RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line);
 #define dms_assert_impl(EXPR) (void)( (!!(EXPR)) || (dms_assertion_failed(#EXPR, __FILE__, __LINE__), 0) )
 
 #else

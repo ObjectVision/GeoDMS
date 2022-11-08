@@ -103,13 +103,13 @@ AbstrDataItem::~AbstrDataItem() noexcept
 
 inline const AbstrUnit* AbstrDataItem::GetAbstrDomainUnit() const 
 { 
-	if (!m_DomainUnit && IsMainThread())
+	if (!m_DomainUnit && IsMetaThread())
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
 	return m_DomainUnit;
 }
 inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const 
 { 
-	if (!m_ValuesUnit && IsMainThread())
+	if (!m_ValuesUnit && IsMetaThread())
 	{
 		ValueComposition vc = GetValueComposition();
 		m_ValuesUnit = FindUnit(m_tValuesUnit, "Values", &vc);
@@ -126,7 +126,7 @@ inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const
 
 inline const AbstrDataObject* AbstrDataItem::GetRefObj()          const 
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 	return debug_cast<const AbstrDataItem*>(GetUltimateItem())->GetDataObj(); 
@@ -277,6 +277,7 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 {
 	auto avu = GetAbstrValuesUnit();
+	assert(avu);
 	auto vc = GetValueComposition();
 	auto vt = avu->GetUnitClass()->GetValueType(vc);
 	auto dic = DataItemClass::FindCertain(vt, this);
@@ -313,6 +314,7 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	{
 		try {
 			auto adu = GetAbstrDomainUnit();
+			assert(adu);
 			res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
 		}
 		catch (...)
@@ -346,7 +348,7 @@ ValueComposition AbstrDataItem::GetValueComposition() const
 void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	
-//	dms_assert(IsMainThread());
+//	dms_assert(IsMetaThread());
 	dms_assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
 	dms_assert(GetCurrDataObj());
 	dms_assert(!m_DataLockCount);
@@ -563,7 +565,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 	if (!adi->GetTSF(DSF_ValuesChecked))
 	{
 		dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-		dms_assert(IsMainThread() || IsMultiThreaded2());
+		dms_assert(IsMetaThread() || IsMultiThreaded2());
 		if (IsMultiThreaded2())
 		{
 			data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -572,7 +574,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 		}
 		else
 		{
-			dms_assert(IsMainThread());
+			dms_assert(IsMetaThread());
 			adi->GetRawCheckModeImpl();
 		}
 	}
@@ -591,7 +593,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	dms_assert(adi->GetDataObjLockCount() > 0);
 
 	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMainThread() || IsMultiThreaded2());
+	dms_assert(IsMetaThread() || IsMultiThreaded2());
 	if (IsMultiThreaded2())
 	{
 		data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -599,7 +601,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	}
 	else
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		return adi->DetermineRawCheckModeImpl();
 	}
 }

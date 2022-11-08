@@ -35,7 +35,7 @@ namespace treeitem_production_task
 	{
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 
-		dms_assert(IsMainThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
+		dms_assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount <= 0;  });
@@ -458,7 +458,7 @@ bool IsCalculating(const TreeItem* item)
 /*
 bool CheckFilesPresent(const AbstrDataItem* adi)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if (DataStoreManager::Curr()->CheckFilesPresent(adi))
 	{
@@ -566,7 +566,7 @@ bool IsDcReady(const DataController* dc, const TreeItem* cacheRoot, const TreeIt
 		if (!cacheItem->IsFnKnown())
 			return true;
 		dms_assert(IsDataItem(cacheItem)); // implied by TSF_DSM_FnKnown
-		dms_assert(IsMainThread()); // ???
+		dms_assert(IsMetaThread()); // ???
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("IsDcReady") sg_ActorLockMap, cacheItem);
 		return CheckFilesPresent(dc, cacheRoot, AsDataItem(cacheItem));
 	}
@@ -619,7 +619,7 @@ void RunTasks() {
 
 bool RunTask(const TreeItem* item)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(item);
 	dms_assert(item->HasInterest());
 

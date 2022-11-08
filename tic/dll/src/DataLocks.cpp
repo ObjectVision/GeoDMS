@@ -118,7 +118,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 
 	dms_assert(!item->InTemplate());
 
-	dbg_assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMainThread());
+	dbg_assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMetaThread());
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
 

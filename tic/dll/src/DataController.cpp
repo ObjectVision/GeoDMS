@@ -66,7 +66,7 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
 	if (ti && m_Data != ti)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		dms_assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
 
 		if (GetInterestCount() && m_Data)
@@ -375,7 +375,7 @@ auto DataController::CalcResult(Explain::Context* context) const -> FutureData
 
 auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: REMOVE
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if (WasFailed(FR_Data))
 		return nullptr;

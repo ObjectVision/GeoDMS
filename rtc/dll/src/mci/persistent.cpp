@@ -402,7 +402,7 @@ static SharedStr str_Dot(".");
 
 SharedStr PersistentSharedObj::GetFindableName(const PersistentSharedObj* subItem) const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_check_not_debugonly;
 
 	dms_assert(this);

@@ -181,7 +181,7 @@ namespace { // DebugOutStreamBuff is local
 			if (m_Data.empty())
 				return;
 
-			if (IsMainThread())
+			if (GetThreadID() == 1)
 				Flush(std::move(m_Data));
 			else
 				AddMainThreadOper([bufferCopy = std::move(m_Data)]() mutable {
@@ -272,7 +272,7 @@ RTC_CALL static_ptr<DebugOutStream> g_DebugStream;
 
 DebugOutStream::flush_first::flush_first()
 {
-	if (IsMainThread())
+	if (GetThreadID() == 1)
 		ProcessMainThreadOpers();
 }
 

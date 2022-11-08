@@ -246,7 +246,7 @@ ChangeSourceLock::~ChangeSourceLock()
 
 	TimeStamp GetFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause))
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		dms_assert(! IsInActiveState()    );
 		dms_assert(! IsInDetermineState() );
@@ -256,7 +256,7 @@ ChangeSourceLock::~ChangeSourceLock()
 
 	void Renumber(TimeStampPtr* first, TimeStampPtr* last)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		DBG_START("UpdateMarker", "Renumber", false);
 

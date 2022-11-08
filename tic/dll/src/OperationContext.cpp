@@ -437,7 +437,7 @@ OperationContext::~OperationContext()
 
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allInterest, bool runDirect)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(UpdateMarker::IsInActiveState());
 
 	if (item)
@@ -969,7 +969,7 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 	DBG_START("OperationContext", "CreateResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(funcDC);
 
 	MG_DEBUGCODE(const TreeItem* oldItem = funcDC->GetOld());
@@ -1150,8 +1150,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		return false;
 	}
 
-	dms_assert(IsMainThread() || doASync);
-	dms_assert(IsMainThread()); // ???
+	dms_assert(IsMetaThread() || doASync);
+	dms_assert(IsMetaThread()); // ???
 	if (!resultHolder.DoesHaveSupplInterest())
 	{
 		dms_assert(!doASync);
