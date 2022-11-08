@@ -71,6 +71,8 @@ void SetLastHandledErrMsg(ErrMsgPtr msg)
 
 const UInt32 g_MaxNrContexts = 10;
 
+// TODO: consider removing AbstrContextHandle, 
+/* REMOVE
 SharedStr GenerateContext()
 {
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
@@ -121,6 +123,7 @@ SharedStr GenerateContext()
 	}
 	return SharedStr(osb.GetData(), osb.GetDataEnd());
 }
+*/
 
 CharPtr FailTypeStr(FailType ft)
 {
@@ -249,10 +252,10 @@ DmsException::DmsException(ErrMsgPtr msg)
 	,	m_PrevUnrollingErrMsgPtr(SetUnrollingErrMsgPtr(msg))
 {
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-
+/*  REMOVE
 	if (ach && !HasContext(msg->Why()))
 		msg->TellExtra(GenerateContext().c_str()); // TODO: straighten out
-
+*/
 	dms_check_not_debugonly; 
 }
 
