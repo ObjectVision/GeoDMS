@@ -87,7 +87,7 @@ SharedStr GenerateContext()
 		fos << "\n\n# while dumping context description in the DmsException constructor: context therefore not available";
 	else
 	{
-		fos << "\n\n# Context description at " << StreamableDataTime() << ":\n";
+		fos << "\n\n# Context description:\n";
 
 		UInt32 nrContexts = 0;
 		bool last5 = false;
