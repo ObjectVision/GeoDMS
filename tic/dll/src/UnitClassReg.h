@@ -59,7 +59,11 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{}
 
 	// override base class
-	ApiType GetValue(const unit_t* item) const override { item->UpdateMetaInfo(); return item->GetPreparedRange(); }
+	ApiType GetValue(const unit_t* item) const override
+	{
+		SharedUnitInterestPtr holder(item);
+		return item->GetRange(); 
+	}
 	void SetValue(unit_t* item, ParamType val) override
 	{
 		item->SetRange(val);
@@ -69,7 +73,7 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{
 		const unit_t* u = debug_cast<const unit_t*>(self);
 		if constexpr (has_var_range_field_v<T>)
-			return u->m_RangeDataPtr;
+			return u->GetTSF(USF_HasConfigRange);
 		return false;
 	}
 };

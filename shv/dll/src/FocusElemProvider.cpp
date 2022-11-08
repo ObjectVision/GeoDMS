@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "DataItemClass.h"
 #include "DataArray.h"
+#include "ItemLocks.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -195,7 +196,7 @@ FocusElemProvider::~FocusElemProvider()
 SizeT FocusElemProvider::GetIndex() const 
 {
 	if (IsMainThread()) m_IndexParam->UpdateMetaInfo();
-	if (!m_IndexParam->GetCurrRefObj())
+	if (!IsCalculatingOrReady(m_IndexParam->GetCurrUltimateItem()))
 		return UNDEFINED_VALUE(SizeT);
 	DataReadLock lock(m_IndexParam); return m_IndexParam->GetValue<SizeT>(0); 
 }

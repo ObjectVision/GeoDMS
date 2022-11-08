@@ -448,6 +448,8 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
 	auto dataObj = m_DataObject;
+	dms_assert(dataObj);
+
 //	if (!dataObj)
 //		throwItemError("No DataObj");
 //	dms_assert(m_DataLockCount > 0);
