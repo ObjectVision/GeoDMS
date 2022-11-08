@@ -41,6 +41,7 @@ enum GuiWindowOpenFlags
 	GWOF_Options = 8,
 	GWOF_ToolBar = 16,
 	GWOF_CurrentItemBar = 32,
+	GWOF_StatusBar = 64
 };
 
 enum GuiEvents
@@ -247,12 +248,14 @@ public:
 	static bool ShowDemoWindow;
 	static bool ShowEventLogWindow;
 	static bool ShowToolbar;
+	static bool ShowStatusBar;
 	static bool ShowCurrentItemBar;
 	static bool MapViewIsActive;
 	static bool TableViewIsActive;
 
 	static StringStateManager configFilenameManager;
 	static StringStateManager errorDialogMessage;
+	static StringStateManager contextMessage;
 
 	// jump to letter in TreeView
 	static std::pair<std::string, std::string> m_JumpLetter;

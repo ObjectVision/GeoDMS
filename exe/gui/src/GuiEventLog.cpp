@@ -70,11 +70,6 @@ void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
     //}
 }
 
-void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
-{
-    AddLog(SeverityTypeID::ST_MajorTrace, msg);
-}
-
 void GuiEventLog::Update(bool* p_open)
 {
     ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???

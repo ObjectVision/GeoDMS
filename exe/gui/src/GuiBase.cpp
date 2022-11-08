@@ -24,7 +24,8 @@ bool GuiState::ShowMapviewWindow		    = false;
 bool GuiState::ShowTableviewWindow = false;
 bool GuiState::ShowDetailPagesWindow = false; // true
 bool GuiState::ShowEventLogWindow = false; // true
-bool GuiState::ShowToolbar                  = false;
+bool GuiState::ShowToolbar                  = true;
+bool GuiState::ShowStatusBar        = true;
 bool GuiState::ShowCurrentItemBar = true; // true
 bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;
@@ -33,6 +34,7 @@ TreeItem* GuiState::m_CurrentItem = nullptr;
 
 StringStateManager GuiState::configFilenameManager;
 StringStateManager GuiState::errorDialogMessage;
+StringStateManager GuiState::contextMessage;
 
 std::pair<std::string, std::string> GuiState::m_JumpLetter;
 
@@ -207,6 +209,7 @@ void GuiState::SaveWindowOpenStatusFlags()
     flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
     flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
     flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowStatusBar           ? flags |= GWOF_StatusBar       : flags &= ~GWOF_StatusBar;
     SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
 }
 
@@ -216,8 +219,9 @@ void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availa
     ShowDetailPagesWindow   = true;
     ShowEventLogWindow      = true;
     ShowOptionsWindow       = false;
-    ShowToolbar             = false;
+    ShowToolbar             = true;
     ShowCurrentItemBar      = true;
+    ShowStatusBar           = true;
     SaveWindowOpenStatusFlags();
 }
 
@@ -239,6 +243,7 @@ void GuiState::LoadWindowOpenStatusFlags()
     ShowOptionsWindow       = flags & GWOF_Options;
     ShowToolbar             = flags & GWOF_ToolBar;
     ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
+    ShowStatusBar           = flags & GWOF_StatusBar;
 }
 
 std::string GetInitialWindowComposition()
