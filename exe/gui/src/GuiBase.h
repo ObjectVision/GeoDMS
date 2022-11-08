@@ -218,6 +218,7 @@ public:
 	void Insert(TreeItem* new_item);
 	TreeItem* GetNext();
 	TreeItem* GetPrevious();
+	std::list<TreeItem*>::iterator GetCurrentIterator();
 	std::list<TreeItem*>::iterator GetBeginIterator();
 	std::list<TreeItem*>::iterator GetEndIterator();
 private:

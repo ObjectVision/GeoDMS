@@ -42,6 +42,7 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_SetContextNotification(&m_EventLog.GeoDMSContextMessage, nullptr);
 }
 
 GuiMainComponent::~GuiMainComponent()

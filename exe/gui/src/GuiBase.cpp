@@ -93,6 +93,11 @@ TreeItem* TreeItemHistory::GetPrevious()
     return NULL;
 }
 
+std::list<TreeItem*>::iterator TreeItemHistory::GetCurrentIterator()
+{
+    return m_Iterator;
+}
+
 std::list<TreeItem*>::iterator TreeItemHistory::GetBeginIterator()
 {
     return m_History.begin();

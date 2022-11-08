@@ -9,6 +9,7 @@ public:
     ~GuiEventLog();
     static void GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
     static void GeoDMSExceptionMessage(CharPtr msg);
+    static void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg);
     void Update(bool* p_open);
 
 private:
