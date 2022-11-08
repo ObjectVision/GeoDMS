@@ -2,6 +2,7 @@
 #include "GuiCurrentItem.h"
 #include <vector>
 #include <numeric>
+#include <iterator>
 
 #include "TicInterface.h"
 #include "ser/AsString.h"
@@ -27,9 +28,6 @@ int TextCallBacka(ImGuiInputTextCallbackData* data)
 
 void GuiCurrentItemComponent::Update()
 {
-
-    //TODO: use body of DMS_TreeItem_GetBestItemAndUnfoundPart and return pair treeitem string
-    ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     if (ImGui::BeginMenuBar())
     {
         if (m_State.CurrentItemBarEvents.HasEvents()) // new current item
@@ -40,6 +38,36 @@ void GuiCurrentItemComponent::Update()
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
 
+        static ImGuiComboFlags flags = ImGuiComboFlags_None | ImGuiComboFlags_NoPreview;
+
+        const char* items[] = { "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" };
+        static int item_current_idx = 0; // Here we store our selection data as an index.
+        const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
+        if (ImGui::BeginCombo("##combo 1", combo_preview_value, flags))
+        {
+            auto iterator = m_State.TreeItemHistoryList.GetEndIterator();
+            while (iterator != m_State.TreeItemHistoryList.GetBeginIterator())
+            {
+                std::advance(iterator, -1);
+             
+                if (!*iterator)
+                    break;
+
+                const bool is_selected = (*iterator == m_State.GetCurrentItem());
+                if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
+                {
+                    m_State.SetCurrentItem(*iterator);
+                    m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                    m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+
+        ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
         if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
         {
             if (m_State.GetRoot())
@@ -53,10 +81,11 @@ void GuiCurrentItemComponent::Update()
                     m_State.SetCurrentItem(jumpItem);
                     m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                     m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                 }
                 if (!unfound_part->empty())
                 {
-                    int i = 0; // TODO: do something with unfound part
+                    // TODO: do something with unfound part
                 }
 
                 unfound_part->Release(unfound_part);

@@ -357,7 +357,7 @@ void GuiView::Update()
     }
 
     // handle events
-    EventQueue* eventQueuePtr = nullptr; // TODO: memory leak.
+    EventQueue* eventQueuePtr = nullptr;
     switch (m_Views.at(m_ViewIndex).m_ViewStyle)
     {
     case ViewStyle::tvsMapView:
