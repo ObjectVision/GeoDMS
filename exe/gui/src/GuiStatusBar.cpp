@@ -14,7 +14,7 @@ void GuiStatusBar::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 
 void GuiStatusBar::ParseNewContextMessage(std::string msg)
 {
-
+    // TODO: implement
 }
 
 void GuiStatusBar::Update(bool* p_open) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
