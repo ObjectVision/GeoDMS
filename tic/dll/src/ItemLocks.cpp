@@ -170,6 +170,8 @@ namespace cs_lock {
 	void PrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
 	{
 		dms_assert(key);
+		if (!key->IsCacheItem())
+			return;
 		const struct TreeItem* parent = key->GetTreeParent();
 		if (!parent)
 			return;
@@ -179,6 +181,8 @@ namespace cs_lock {
 	bool TryPrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
 	{
 		dms_assert(key);
+		if (!key->IsCacheItem())
+			return true;
 		const struct TreeItem* parent = key->GetTreeParent();
 		if (!parent)
 			return true;
@@ -188,6 +192,8 @@ namespace cs_lock {
 	void FreeReadAccess(const TreeItem* key)
 	{
 		dms_assert(key);
+		if (!key->IsCacheItem())
+			return;
 		const struct TreeItem* parent = key->GetTreeParent();
 		if (parent)
 			ReadFree(parent);
