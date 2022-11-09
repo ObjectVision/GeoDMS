@@ -52,7 +52,7 @@ const SAMPLEFORMAT::ENUM sfArray[] = {
 
 SAMPLEFORMAT::SAMPLEFORMAT(bool isSigned, bool isFloat, bool isComplex)
 	: m_Value(
-		sfArray[(int(isSigned) << 2) + (int(isFloat) << 1) + isComplex]
+		sfArray[(int(isSigned) << 2) + (int(isFloat) << 1) + int(isComplex)]
 	)
 {}
 

@@ -1349,7 +1349,7 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			// check for laundered fieldname
 			gdalVectImpl::FeaturePtr feat = OGRFeature::CreateFeature(layerHandle->GetLayerDefn());
 			auto currentFieldName = std::string(feat->GetFieldDefnRef(feat->GetFieldCount() - 1)->GetNameRef());
-			if (std::string(fieldName).compare(currentFieldName) != 0) // fieldname is laundered
+			if (std::string(fieldName.c_str()).compare(currentFieldName) != 0) // fieldname is laundered
 				disi.SetLaunderedName(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), SharedStr(currentFieldName.c_str()));
 		}
 	}
