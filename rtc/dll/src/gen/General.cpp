@@ -53,7 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 Float64 DMS_CONV DMS_GetVersionNumber()
 {
-	return DMS_VERSION_MAJOR + 0.001 * DMS_VERSION_MINOR;
+	return DMS_VERSION_MAJOR + 0.01 * DMS_VERSION_MINOR + DMS_VERSION_PATCH * 0.0001;
 }
 
 CharPtr DMS_CONV DMS_GetPlatform()
@@ -76,14 +76,6 @@ CharPtr DMS_CONV DMS_GetBuildConfig()
 #  define MG_EDG_VERSION_STR ""
 #endif // defined(__EDG_VERSION__)
 
-#if DMS_VERSION_MINOR < 10
-#	define DMS_VERSION_MINOR_PAD "00"
-#elif DMS_VERSION_MINOR < 100
-#	define DMS_VERSION_MINOR_PAD "0"
-#else
-#	define DMS_VERSION_MINOR_PAD
-#endif
-
 #pragma message( "==========:---------------" )
 #pragma message( "Compiler  : " BOOST_COMPILER )
 #pragma message( "MSC_VER   : " BOOST_STRINGIZE( _MSC_VER ) )
@@ -92,7 +84,7 @@ CharPtr DMS_CONV DMS_GetBuildConfig()
 #endif
 #pragma message( "StdVersion: " BOOST_STDLIB )
 #pragma message( "Platform  : " BOOST_PLATFORM )
-#pragma message( "DmsVersion: " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." DMS_VERSION_MINOR_PAD BOOST_STRINGIZE( DMS_VERSION_MINOR ) )
+#pragma message( "DmsVersion: " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." BOOST_STRINGIZE( DMS_VERSION_MINOR ) "." BOOST_STRINGIZE( DMS_VERSION_PATCH )
 #pragma message( "DmsDate   : " DMS_VERSION_DATE )
 #pragma message( "DmsTime   : " DMS_VERSION_TIME )
 #pragma message( "==========:---------------" )
@@ -107,7 +99,7 @@ RTC_CALL CharPtr DMS_CONV DMS_GetTypeModel()
 RTC_CALL CharPtr DMS_CONV DMS_GetVersion()
 {
 	return "GeoDms "
-		BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." DMS_VERSION_MINOR_PAD BOOST_STRINGIZE( DMS_VERSION_MINOR ) 
+		BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." BOOST_STRINGIZE( DMS_VERSION_MINOR )  "." BOOST_STRINGIZE(DMS_VERSION_PATCH)
 #if defined(MG_DEBUG)
 		" [" DMS_CONFIGURATION_NAME "]"
 #endif
