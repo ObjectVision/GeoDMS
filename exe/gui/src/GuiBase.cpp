@@ -24,7 +24,8 @@ bool GuiState::ShowMapviewWindow		    = false;
 bool GuiState::ShowTableviewWindow = false;
 bool GuiState::ShowDetailPagesWindow = false; // true
 bool GuiState::ShowEventLogWindow = false; // true
-bool GuiState::ShowToolbar                  = false;
+bool GuiState::ShowToolbar                  = true;
+bool GuiState::ShowStatusBar        = true;
 bool GuiState::ShowCurrentItemBar = true; // true
 bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;
@@ -33,6 +34,7 @@ TreeItem* GuiState::m_CurrentItem = nullptr;
 
 StringStateManager GuiState::configFilenameManager;
 StringStateManager GuiState::errorDialogMessage;
+StringStateManager GuiState::contextMessage;
 
 std::pair<std::string, std::string> GuiState::m_JumpLetter;
 
@@ -91,6 +93,11 @@ TreeItem* TreeItemHistory::GetPrevious()
         return *m_Iterator;
     }
     return NULL;
+}
+
+std::list<TreeItem*>::iterator TreeItemHistory::GetCurrentIterator()
+{
+    return m_Iterator;
 }
 
 std::list<TreeItem*>::iterator TreeItemHistory::GetBeginIterator()
@@ -202,6 +209,7 @@ void GuiState::SaveWindowOpenStatusFlags()
     flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
     flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
     flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowStatusBar           ? flags |= GWOF_StatusBar       : flags &= ~GWOF_StatusBar;
     SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
 }
 
@@ -211,8 +219,9 @@ void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availa
     ShowDetailPagesWindow   = true;
     ShowEventLogWindow      = true;
     ShowOptionsWindow       = false;
-    ShowToolbar             = false;
+    ShowToolbar             = true;
     ShowCurrentItemBar      = true;
+    ShowStatusBar           = true;
     SaveWindowOpenStatusFlags();
 }
 
@@ -234,44 +243,46 @@ void GuiState::LoadWindowOpenStatusFlags()
     ShowOptionsWindow       = flags & GWOF_Options;
     ShowToolbar             = flags & GWOF_ToolBar;
     ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
+    ShowStatusBar           = flags & GWOF_StatusBar;
 }
 
 std::string GetInitialWindowComposition()
 {
-    std::string result = "[Window][GeoDMSGui]\n"
+    std::string result =
+        "[Window][GeoDMSGui]\n"
         "Pos=0,21\n"
         "Size=1280,699\n"
         "Collapsed=0\n"
         "\n"
         "[Window][Toolbar]\n"
         "Pos=8,50\n"
-        "Size=1264,32\n"
+        "Size=1264,31\n"
         "Collapsed=0\n"
-        "DockId=0x00000003,0\n"
+        "DockId=0x00000009,0\n"
         "\n"
         "[Window][Detail Pages]\n"
-        "Pos=938,84\n"
-        "Size=334,328\n"
+        "Pos=891,83\n"
+        "Size=381,254\n"
+        "Collapsed=0\n"
+        "DockId=0x00000004,0\n"
+        "\n"
+        "[Window][Treeview]\n"
+        "Pos=8,83\n"
+        "Size=367,254\n"
+        "Collapsed=0\n"
+        "DockId=0x00000001,0\n"
+        "\n"
+        "[Window][EventLog]\n"
+        "Pos=8,339\n"
+        "Size=1264,339\n"
         "Collapsed=0\n"
         "DockId=0x00000006,0\n"
         "\n"
-        "[Window][Treeview]\n"
-        "Pos=8,84\n"
-        "Size=343,328\n"
-        "Collapsed=0\n"
-        "DockId=0x00000007,0\n"
-        "\n"
-        "[Window][EventLog]\n"
-        "Pos=8,414\n"
-        "Size=1264,298\n"
+        "[Window][DMSView]\n"
+        "Pos=377,83\n"
+        "Size=1792,911\n"
         "Collapsed=0\n"
         "DockId=0x00000002,0\n"
-        "\n"
-        "[Window][DMSView]\n"
-        "Pos=353,84\n"
-        "Size=583,328\n"
-        "Collapsed=0\n"
-        "DockId=0x00000008,0\n"
         "\n"
         "[Window][Debug##Default]\n"
         "ViewportPos=94,117\n"
@@ -279,18 +290,25 @@ std::string GetInitialWindowComposition()
         "Size=400,400\n"
         "Collapsed=0\n"
         "\n"
+        "[Window][StatusBar]\n"
+        "Pos=8,680\n"
+        "Size=1264,32\n"
+        "Collapsed=0\n"
+        "DockId=0x00000008,0\n"
+        "\n"
         "[Docking][Data]\n"
-        "DockSpace         ID=0x54D8F03E Window=0x47EE5377 Pos=470,269 Size=1264,662 Split=Y\n"
-        "  DockNode        ID=0x00000003 Parent=0x54D8F03E SizeRef=1264,32 HiddenTabBar=1 Selected=0x738351EE\n"
-        "  DockNode        ID=0x00000004 Parent=0x54D8F03E SizeRef=1264,628 Split=Y\n"
-        "    DockNode      ID=0x00000001 Parent=0x00000004 SizeRef=1264,328 Split=X\n"
-        "      DockNode    ID=0x00000005 Parent=0x00000001 SizeRef=928,303 Split=X\n"
-        "        DockNode  ID=0x00000007 Parent=0x00000005 SizeRef=343,303 Selected=0x0C84ACA2\n"
-        "        DockNode  ID=0x00000008 Parent=0x00000005 SizeRef=583,303 CentralNode=1 Selected=0x1BA3A327\n"
-        "      DockNode    ID=0x00000006 Parent=0x00000001 SizeRef=334,303 Selected=0x89482BF9\n"
-        "    DockNode      ID=0x00000002 Parent=0x00000004 SizeRef=1264,298 Selected=0xB76E45CC"
+        "DockSpace           ID=0x54D8F03E Window=0x47EE5377 Pos=120,185 Size=1264,662 Split=Y\n"
+        "  DockNode          ID=0x00000009 Parent=0x54D8F03E SizeRef=2544,31 HiddenTabBar=1 Selected=0x738351EE\n"
+        "  DockNode          ID=0x0000000A Parent=0x54D8F03E SizeRef=2544,1286 Split=Y\n"
+        "    DockNode        ID=0x00000007 Parent=0x0000000A SizeRef=1264,1252 Split=Y\n"
+        "      DockNode      ID=0x00000005 Parent=0x00000007 SizeRef=1264,911 Split=X\n"
+        "        DockNode    ID=0x00000003 Parent=0x00000005 SizeRef=881,662 Split=X\n"
+        "          DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=367,662 Selected=0x0C84ACA2\n"
+        "          DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=895,662 CentralNode=1 Selected=0x1BA3A327\n"
+        "        DockNode    ID=0x00000004 Parent=0x00000005 SizeRef=381,662 Selected=0x89482BF9\n"
+        "      DockNode      ID=0x00000006 Parent=0x00000007 SizeRef=1264,339 Selected=0xB76E45CC\n"
+        "    DockNode        ID=0x00000008 Parent=0x0000000A SizeRef=1264,32 HiddenTabBar=1 Selected=0x51C70801\n"
         "\n";
-
     return result;
 }
 

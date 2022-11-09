@@ -68,9 +68,6 @@ void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
         //ImGui::End();*/
         return;
     //}
-
-
-
 }
 
 void GuiEventLog::Update(bool* p_open)
