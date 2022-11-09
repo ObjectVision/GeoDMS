@@ -422,12 +422,11 @@ namespace {
 		BinUnitOperator<DivMetricFunctor> unitDivOper;
 	};
 
-	template <typename T, typename U, typename V>
+	template <typename R, typename U, typename V>
 	struct UnitMulOpers : AbstrUnitMulOpers
 	{
 		UnitMulOpers()
-			: AbstrUnitMulOpers(
-			Unit<T>::GetStaticClass()
+			: AbstrUnitMulOpers(Unit<R>::GetStaticClass()
 			, Unit<U>::GetStaticClass()
 			, Unit<V>::GetStaticClass()
 			)
@@ -478,6 +477,7 @@ namespace {
 	INST(Int32,   Int32,   Int16)
 	INST(Int32,   Int32,   UInt8)
 	INST(Int32,   Int32,   Int8)
+//	INST(Int32,   Int32,   Bool)
 
 	INST(Float32, Float32, UInt32)
 	INST(Float32, Float32, Int32)
@@ -485,6 +485,7 @@ namespace {
 	INST(Float32, Float32, Int16)
 	INST(Float32, Float32, UInt8)
 	INST(Float32, Float32, Int8)
+//	INST(Float32, Float32, Bool)
 
 	INST(Float64, Float64, Float32)
 	INST(Float64, Float64, UInt32)
@@ -493,11 +494,13 @@ namespace {
 	INST(Float64, Float64, Int16)
 	INST(Float64, Float64, UInt8)
 	INST(Float64, Float64, Int8)
+//	INST(Float64, Float64, Bool)
 
 	INST(Int32, UInt16, Int32)
 	INST(Int32, Int16,  Int32)
 	INST(Int32, UInt8 , Int32)
 	INST(Int32, Int8 ,  Int32)
+	INST(Int32, Bool ,  Int32)
 
 	INST(Float32, UInt32, Float32)
 	INST(Float32, Int32,  Float32)
@@ -505,6 +508,7 @@ namespace {
 	INST(Float32, Int16,  Float32)
 	INST(Float32, UInt8,  Float32)
 	INST(Float32, Int8,   Float32)
+	INST(Float32, Bool,   Float32)
 
 	INST(Float64, Float32,Float64)
 	INST(Float64, UInt32, Float64)
@@ -513,6 +517,7 @@ namespace {
 	INST(Float64, Int16,  Float64)
 	INST(Float64, UInt8,  Float64)
 	INST(Float64, Int8,   Float64)
+	INST(Float64, Bool,   Float64)
 
 	INST(WPoint, WPoint, WPoint)
 	INST(SPoint, SPoint, SPoint)
@@ -521,7 +526,21 @@ namespace {
 	INST(FPoint, FPoint, FPoint)
 	INST(DPoint, DPoint, DPoint)
 
-	#undef INST
+	INST(WPoint, Bool, WPoint)
+	INST(SPoint, Bool, SPoint)
+	INST(UPoint, Bool, UPoint)
+	INST(IPoint, Bool, IPoint)
+	INST(FPoint, Bool, FPoint)
+	INST(DPoint, Bool, DPoint)
+
+	INST(WPoint, UInt16, WPoint)
+	INST(SPoint, Int16,  SPoint)
+	INST(UPoint, UInt32, UPoint)
+	INST(IPoint, Int32, IPoint)
+	INST(FPoint, Float32, FPoint)
+	INST(DPoint, Float64, DPoint)
+
+#undef INST
 
 	StrConcatOperator strConcatC(&cog_add);
 

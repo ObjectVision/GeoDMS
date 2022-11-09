@@ -2,18 +2,20 @@ echo on
 cls
 
 set DMS_VERSION_MAJOR=8
-set DMS_VERSION_MINOR=45
+set DMS_VERSION_MINOR=5
+set DMS_VERSION_PATCH=0
 
 set DMS_VERSION_MINOR_PAD=0%DMS_VERSION_MINOR%
 
 set geodms_rootdir=%cd%
 
-set GeoDmsVersion=%DMS_VERSION_MAJOR%%DMS_VERSION_MINOR_PAD%
+set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
 
 CHOICE /M "Update RtcGeneratedVersion.h?"
 if ErrorLevel 2 goto :startBuild
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > rtc/dll/src/RtcGeneratedVersion.h
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> rtc/dll/src/RtcGeneratedVersion.h
+echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> rtc/dll/src/RtcGeneratedVersion.h
 
 
 :startBuild
@@ -32,6 +34,16 @@ REM 2nd build to complete copy actions.
 set MS_VERB=build
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
+
+ROBOCOPY exe\gui\misc bin\debug\misc /v /fft /E /njh /njs
+IF %ErrorLevel%==1 EXIT 0
+IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
+
+ROBOCOPY exe\gui\misc bin\release\misc /v /fft /E /njh /njs
+IF %ErrorLevel%==1 EXIT 0
+IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
+
+
 
 :afterBuild
 REM svn update ..\tst
