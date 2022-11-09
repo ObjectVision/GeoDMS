@@ -73,7 +73,7 @@ namespace {
 void ProgressNotifyMsg(CharPtr msg)
 {
 	dms_assert(sc_NotifyTargetCount.isLocked());
-	if (IsMainThread())
+	if (IsMetaThread())
 		ProgressMsg(msg);
 	else
 		g_LastMsg = msg;
@@ -131,7 +131,7 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 
 extern "C" RTC_CALL void DMS_CONV DMS_NotifyCurrentTargetCount()
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	ProcessMainThreadOpers();
 	if (!g_LastMsg)
 		return;
@@ -237,7 +237,7 @@ namespace DemandManagement {
 	IncInterestFence::IncInterestFence()
 		:	m_PrevFence(s_CurrFence)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		dms_assert(!IsMultiThreaded2());
 
 		s_CurrFence = this;
@@ -245,7 +245,7 @@ namespace DemandManagement {
 
 	IncInterestFence::~IncInterestFence()
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		dms_assert(!IsMultiThreaded2());
 
 		dms_assert(s_CurrFence == this);
@@ -267,7 +267,7 @@ namespace DemandManagement {
 	IncInterestGate::IncInterestGate()
 		: m_PrevFence(s_CurrFence)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		dms_assert(!IsMultiThreaded2());
 
 		s_CurrFence = nullptr;
@@ -275,7 +275,7 @@ namespace DemandManagement {
 
 	IncInterestGate::~IncInterestGate()
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		dms_assert(!IsMultiThreaded2());
 
 		dms_assert(s_CurrFence == nullptr);
@@ -286,10 +286,9 @@ namespace DemandManagement {
 	{
 		dms_assert(a);
 
-		dms_assert(IsMainThread());
-		dms_assert(!s_CurrFence || IsMainThread() );
+		dms_assert(IsMetaThread());
 
-		if (IsMainThread() && s_CurrFence)
+		if (IsMetaThread() && s_CurrFence)
 			s_CurrFence->m_TempTargets[a] = s_TargetCount++;
 
 		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
@@ -300,9 +299,9 @@ namespace DemandManagement {
 	{
 		dms_assert(a);
 
-		dms_assert(!s_CurrFence || IsMainThread() );
+		dms_assert(!s_CurrFence || IsMetaThread() );
 
-		if (IsMainThread() && s_CurrFence)
+		if (IsMetaThread() && s_CurrFence)
 			s_CurrFence->m_TempTargets.erase(a);
 
 		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
@@ -374,19 +373,19 @@ namespace SuspendTrigger {
 	void IncSuspendLevel() noexcept { ++s_SuspendLevel; }
 	void DecSuspendLevel() noexcept { --s_SuspendLevel; }
 
-	UInt32 s_TryFrameCount = 0;
+	UInt32 s_TryFrameCount = 0; // used by current meta thread
 	TryFrame::TryFrame() noexcept
 	{
-		if (IsMainThread())
+		if (IsMetaThread())
 			++s_TryFrameCount;
 	}
 	TryFrame:: ~TryFrame() noexcept
 	{
-		if (IsMainThread())
+		if (IsMetaThread())
 			--s_TryFrameCount;
 	}
 
-	bool TryFrame::IsActive() noexcept { return IsMainThread() && s_TryFrameCount;  }
+	bool TryFrame::IsActive() noexcept { return IsMetaThread() && s_TryFrameCount;  }
 
 	void TryFrame::ConsiderSuspendException()
 	{
@@ -410,7 +409,7 @@ namespace SuspendTrigger {
 		if (BlockerBase::IsBlocked())
 			return false;
 
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		if (s_bLastResult)
 			return true;
@@ -428,7 +427,7 @@ namespace SuspendTrigger {
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
 
-		if (IsMainThread())
+		if (IsMetaThread())
 			ProcessMainThreadOpers();
 
 		if (s_SuspendLevel || HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
@@ -442,7 +441,7 @@ namespace SuspendTrigger {
 
 	void Resume() noexcept
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 //		dms_assert(!s_SuspendLevel); // receipe for trouble later on
 		s_bLastResult  = false;
 		s_ProgressMade = false;
@@ -462,7 +461,7 @@ namespace SuspendTrigger {
 	{
 		if (BlockerBase::IsBlocked()) 
 			return false;
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		return s_bLastResult;
 	}
 
@@ -480,7 +479,7 @@ namespace SuspendTrigger {
 
 	BlockerBase::BlockerBase() 
 	{ 
-		if (IsMainThread())
+		if (IsMetaThread())
 		{
 			++s_SuspendBlockLevel; 
 			dms_assert(s_SuspendBlockLevel); // no overflow
@@ -489,7 +488,7 @@ namespace SuspendTrigger {
 
 	BlockerBase::~BlockerBase()
 	{
-		if (IsMainThread())
+		if (IsMetaThread())
 		{
 			dms_assert(s_SuspendBlockLevel); // resource match
 			--s_SuspendBlockLevel;
@@ -498,18 +497,18 @@ namespace SuspendTrigger {
 
 	bool BlockerBase::IsBlocked()
 	{
-		return IsMainThread() ? s_SuspendBlockLevel : true;
+		return IsMetaThread() ? s_SuspendBlockLevel : true;
 	}
 
 	SilentBlocker::SilentBlocker() 
 	{ 
-		if (IsMainThread() && s_SuspendBlockLevel == 1)
+		if (IsMetaThread() && s_SuspendBlockLevel == 1)
 			EnterNotificationBlock();
 	}
 
 	SilentBlocker::~SilentBlocker()
 	{
-		if (IsMainThread() && s_SuspendBlockLevel == 1)
+		if (IsMetaThread() && s_SuspendBlockLevel == 1)
 			LeaveNotificationBlock();
 	}
 
@@ -522,7 +521,7 @@ namespace SuspendTrigger {
 
 	SilentBlockerGate::SilentBlockerGate()
 	{
-		if (!IsMultiThreaded2() && IsMainThread())
+		if (!IsMultiThreaded2() && IsMetaThread())
 			m_InterestGate.assign(new DemandManagement::IncInterestGate);
 	}
 
@@ -531,7 +530,7 @@ namespace SuspendTrigger {
 
 	FencedBlocker::FencedBlocker()
 	{ 
-		if (!InterestRetainContextBase::IsActive() && !IsMultiThreaded2() && IsMainThread())
+		if (!InterestRetainContextBase::IsActive() && !IsMultiThreaded2() && IsMetaThread())
 			m_InterestFence.assign(new DemandManagement::IncInterestFence );
 	}
 

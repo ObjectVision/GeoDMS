@@ -310,7 +310,7 @@ CharPtr RepeatedDots(SizeT n)
 	if (n <= 16)
 		return sixteenDots + (16 - n);
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	static std::vector<char> moreDots;
 	if (moreDots.size() <= n)
 	{

@@ -71,7 +71,7 @@ public:
 	// implement PropDef get/set virtuals
 	ApiType GetValue(const ItemType* item) const override
 	{ 
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		auto lock = std::scoped_lock(m_Mutex);
 		auto i = m_Data.find(item);
@@ -82,7 +82,7 @@ public:
 
 	void SetValue(ItemType* item, ParamType value) override
 	{ 
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		dms_assert(item);
 		item->AssertPropChangeRights( this->GetName().c_str() );
@@ -126,7 +126,7 @@ public:
 		if (!debug_cast<const ItemType*>(item)->GetTSF(TSF_HasStoredProps))
 			return false;
 
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		auto lock = std::scoped_lock(m_Mutex);
 		auto i = m_Data.find(static_cast<const ItemType*>(item));

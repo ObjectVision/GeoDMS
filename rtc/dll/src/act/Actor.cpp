@@ -155,7 +155,7 @@ Actor::UpdateLock::UpdateLock(const Actor* act, actor_flag_set::TransState ts)
 	:	m_Actor(act)
 	,	m_TransState(ts)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	if (act && ts > actor_flag_set::AF_DeterminingState && act->WasFailed(TransState_FailType(ts)))
 		act->ThrowFail();
 	dms_assert(!act || ts <= actor_flag_set::AF_DeterminingState || !act->WasFailed(TransState_FailType(ts)) ); //|| ps == PS_DetermineState || ps == PS_ChangeInterest); // no fallback allowed without going through reset by Invalidation
@@ -407,7 +407,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 
 	dms_assert(ps >= PS_Validated); 
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	DetermineState(); // go back to US_Invalidated when supplier has changed, call DoInvalidate if nessecary
 
@@ -533,7 +533,7 @@ ActorVisitState Actor::DoUpdate(ProgressState ps)
 
 void Actor::DoInvalidate () const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(!DoesHaveSupplInterest());
 	dms_assert(!WasFailed(FR_Data));
 
@@ -547,8 +547,7 @@ void Actor::DoInvalidate () const
 }
 
 void Actor::UpdateMetaInfo() const
-{
-}
+{}
 
 void Actor::UpdateSupplMetaInfo() const
 {
@@ -698,7 +697,7 @@ void Actor::DetermineState() const
 
 	if (IsPassor())
 		return;
-	if (!IsMainThread())
+	if (!IsMetaThread())
 	{
 		dms_assert(UpdateMarker::IsInActiveState());
 		return;
@@ -935,7 +934,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 		}
 	}
 
-	dms_assert(IsMainThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
+	dms_assert(IsMetaThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 	DBG_START("IncInterestCount", "Actor", MG_DEBUG_INTERESTSOURCE_VALUE);
@@ -1044,7 +1043,7 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 
 void Actor::StartInterest() const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	dms_assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
 	dms_assert( !DoesHaveSupplInterest() ); // PRECONDITION
@@ -1092,7 +1091,7 @@ SupplInterestListPtr Actor::GetSupplInterest() const
 
 void Actor::StartSupplInterest() const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if (IsPassor())
 		return;

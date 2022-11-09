@@ -31,6 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "LispRef.h"
 
+#include "act/MainThread.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "mci/Class.h"
@@ -137,7 +138,10 @@ Object* LispCls::CreateObj(PolymorphInpStream* istr) const
 
 
 	Object* obj = nullptr;
-	auto callFunc = [this, istr]() {
+	auto callFunc = [this, istr]() -> LispObj*
+	{
+		SetMetaThreadID();
+		assert(IsMetaThread());
 		return m_CreateFromStreamFunc(*istr);
 	};
 	auto remainingStackSpace = RemainingStackSpace();
@@ -147,6 +151,8 @@ Object* LispCls::CreateObj(PolymorphInpStream* istr) const
 	{
 		auto future = std::async(callFunc);
 		obj = future.get();
+		SetMetaThreadID();
+		assert(IsMetaThread());
 	}
 
 	dms_assert(obj);

@@ -91,6 +91,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UsingCache.h"
 
 #include <stdarg.h>
+#include <future>
+
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
@@ -490,7 +492,7 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 
 	dms_assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	if (s_MakeEndoLockCount)
 		SetTSF(TSF_IsEndogenous);
 	if (parent) 
@@ -782,7 +784,7 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 {
 	dms_check_not_debugonly;
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if (pr == mc_Calculator)
 		return;
@@ -1131,7 +1133,7 @@ struct OldRefDecrementer : SharedPtr<const Actor>
 
 void TreeItem_RemoveInheritedSubItems(TreeItem* self)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	TreeItem* si = self->_GetFirstSubItem();
 	while (si)
@@ -1150,7 +1152,7 @@ void TreeItem_RemoveInheritedSubItems(TreeItem* self)
 
 void TreeItem::SetReferredItem(const TreeItem* refItem) const
 {
-	dms_assert(IsMainThread() || !refItem);
+	dms_assert(IsMetaThread() || !refItem);
 
 	dms_assert(!IsDataItem(this) || AsDataItem(this)->GetDataObjLockCount() <= 0); // DON'T MESS WITH SHARED-LOCKED ITEMS
 
@@ -1573,7 +1575,7 @@ const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 {
 	dms_assert(this);
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	if (subItemNames.empty())
 		return this;
@@ -2317,9 +2319,9 @@ const TreeItem* TreeItem::GetBackRef() const
 	return m_BackRef;
 }
 
-void TreeItem::UpdateMetaInfo() const
+void TreeItem::UpdateMetaInfoImpl2() const
 {
-	dbg_assert(IsMainThread());
+	dbg_assert(IsMetaThread());
 
 	if (m_LastGetStateTS >= UpdateMarker::LastTS())
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
@@ -2392,12 +2394,50 @@ void TreeItem::UpdateMetaInfo() const
 	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
+void TreeItem::UpdateMetaInfo() const
+{
+	assert(IsMetaThread());
+	auto remainingStackSpace = RemainingStackSpace();
+	if (remainingStackSpace <= 327680)
+	{
+		// just use async to start a new thread.
+		auto future = std::async([this] ()->void
+			{ 
+				SetMetaThreadID();
+				assert(IsMetaThread());
+				this->UpdateMetaInfoImpl2();
+			}
+		);
+		future.get();
+		SetMetaThreadID();
+		assert(IsMetaThread());
+	}
+	else
+		UpdateMetaInfoImpl2();
+}
+
 ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
 {
 //	dms_assert((m_State.GetProgress()>=PS_Committed) || (ps < PS_DataReady) || GetInterestCount() || !IsDataItem(this));
 	dms_assert(ps == PS_Committed); // TODO: clean-up if this holds
 
 	UpdateMetaInfo();
+	auto remainingStackSpace = RemainingStackSpace();
+	if (remainingStackSpace <= 327680)
+	{
+		// just use async to start a new thread.
+		auto future = std::async([this, ps]()->ActorVisitState
+			{
+				SetMetaThreadID();
+				assert(IsMetaThread());
+				return this->base_type::SuspendibleUpdate(ps);
+			}
+		);
+		ActorVisitState result = future.get();
+		SetMetaThreadID();
+		assert(IsMetaThread());
+		return result;
+	}
 	return base_type::SuspendibleUpdate(ps);
 }
 
@@ -2816,7 +2856,7 @@ garbage_t TreeItem::DropValue()
 
 TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const // noexcept
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
 
@@ -3004,7 +3044,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 		drlFlags = DrlType(UInt32(drlFlags) & ~UInt32(DrlType::UpdateMask));
 
 	dms_assert(!IsTemplate()); // formation of FuncDC's should prevent args to be calculated that fail to meet this precondition
-	dms_assert(IsMainThread() || !(UInt32(drlFlags) & UInt32(DrlType::UpdateMask)));
+	dms_assert(IsMetaThread() || !(UInt32(drlFlags) & UInt32(DrlType::UpdateMask)));
 
 	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{

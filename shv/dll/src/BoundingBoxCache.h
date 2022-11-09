@@ -159,7 +159,7 @@ template <typename ScalarType>
 const BoundingBoxCache<ScalarType>*
 GetBoundingBoxCache(const FeatureLayer* layer)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	return GetBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
 }
 

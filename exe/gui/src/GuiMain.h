@@ -12,6 +12,7 @@
 #include "GuiEventLog.h"
 #include "GuiToolbar.h"
 #include "GuiInput.h"
+#include "GuiStatusBar.h"
 
 #include "AbstrDataItem.h"
 #include "DataView.h"
@@ -41,6 +42,7 @@ private:
 	GuiEventLog		        m_EventLog;
 	GuiView					m_View; // TODO: convert single view to multiview
 	GuiOptions				m_Options;
+	GuiStatusBar			m_StatusBar;
 	int		                m_MaxViews = 2;
 	int                     m_TableViewsCursor = 0;
 	int						m_MapViewsCursor = 0;

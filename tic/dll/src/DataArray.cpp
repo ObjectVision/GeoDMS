@@ -279,7 +279,7 @@ void Dump<UInt32>(OutStreamBase* xmlOutStr, bool isColorCode, DataArrayBase<UInt
 template <class V> 
 void DataArrayBase<V>::XML_DumpObjData(OutStreamBase* xmlOutStr, const AbstrDataItem* owner) const
 {
-//	bool isColorCode = IsColorAspectNameID(dialogTypePropDefPtr->GetValue(owner)); Requires IsMainThread
+//	bool isColorCode = IsColorAspectNameID(dialogTypePropDefPtr->GetValue(owner)); Requires IsMetaThread
 	bool isColorCode = false;
 	for (tile_id t = 0, tn = GetTiledRangeData()->GetNrTiles(); t != tn; ++t)
 	{
@@ -689,7 +689,7 @@ template <typename V>
 DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 {
 	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMainThread() || IsMultiThreaded2());
+	dms_assert(IsMetaThread() || IsMultiThreaded2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
@@ -706,7 +706,7 @@ template <typename V>
 DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 {
 	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMainThread() || IsMultiThreaded2());
+	dms_assert(IsMetaThread() || IsMultiThreaded2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;

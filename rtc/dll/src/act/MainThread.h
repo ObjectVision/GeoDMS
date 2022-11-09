@@ -36,7 +36,9 @@ granted by an additional written contract for support, assistance and/or develop
 /********** helper funcs  **********/
 
 RTC_CALL void   SetMainThreadID();
+RTC_CALL void   SetMetaThreadID();
 RTC_CALL bool   IsMainThread();
+RTC_CALL bool   IsMetaThread();
 RTC_CALL bool   NoOtherThreadsStarted();
 RTC_CALL bool   IsElevatedThread();
 RTC_CALL UInt32 GetCallCount();

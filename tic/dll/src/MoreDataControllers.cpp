@@ -330,7 +330,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -426,7 +426,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(!SuspendTrigger::DidSuspend());
 #endif
 
@@ -531,7 +531,7 @@ const Operator* FuncDC::GetOperator() const
 {
 	if (!m_Operator)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		ArgClsSeqType operandTypeSeq;
 		if (WasFailed(FR_MetaInfo))
 			ThrowFail();
@@ -575,7 +575,7 @@ const Class* FuncDC::GetResultCls() const
 
 OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	DBG_START("FuncDc::GetArgs", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC && doCalcData);
 
@@ -631,7 +631,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 
 bool FuncDC::MakeResultImpl() const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_check_not_debugonly; 
 
 	dms_assert(!WasFailed(FR_MetaInfo));
@@ -695,7 +695,7 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_check_not_debugonly;
 
 	dms_assert(!WasFailed(FR_Data));

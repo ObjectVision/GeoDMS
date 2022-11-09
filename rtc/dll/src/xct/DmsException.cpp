@@ -730,18 +730,12 @@ RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 #endif
 }
 
-#if defined(CC_FIX_ASSERT)
-
 RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
-	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "assertion failure: %s\n%s(%u)", msg, fileName, line);
-
 #if defined(MG_DEBUG)
 	__debugbreak();
 #endif
 }
-
-#endif
 
 CharPtr GetContextPtr(WeakStr msg)
 {

@@ -53,7 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 #if defined(MG_DEBUG)
 	dms_assert(sd_ParseExprReentrantCheck == 0);
 	StaticMtIncrementalLock<sd_ParseExprReentrantCheck> reentrantLock;

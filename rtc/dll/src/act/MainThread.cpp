@@ -44,7 +44,9 @@ namespace { // local defs
 
 	THREAD_LOCAL dms_thread_id sThreadID  = 0;
 	dms_thread_id sMainThreadID = 0;
+	dms_thread_id sMetaThreadID = 0;
 	std::atomic<dms_thread_id> sLastThreadID = 0;
+	HANDLE sPriorityThread = 0;
 
 } // end anonymous namespace
 
@@ -55,19 +57,40 @@ dms_thread_id GetThreadID()
 	return sThreadID;
 }
 
+void SetPriority()
+{
+	HANDLE currThread = GetCurrentThread();
+	SetThreadPriority(currThread, THREAD_PRIORITY_ABOVE_NORMAL);
+	if (sPriorityThread)
+		SetThreadPriority(sPriorityThread, THREAD_PRIORITY_NORMAL);
+	sPriorityThread = currThread;
+}
+
 void SetMainThreadID()
 {
 	dms_assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
+	sMetaThreadID = GetThreadID();
 	dms_assert(sMainThreadID == 1);
+	SetPriority();
+}
 
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+void SetMetaThreadID()
+{
+	sMetaThreadID = GetThreadID();
+	SetPriority();
 }
 
 bool IsMainThread()
 {
 	dms_assert(sMainThreadID); // must be set prior.
 	return GetThreadID() == sMainThreadID;
+}
+
+bool IsMetaThread()
+{
+	dms_assert(sMetaThreadID); // must be set prior.
+	return GetThreadID() == sMetaThreadID;
 }
 
 bool NoOtherThreadsStarted()

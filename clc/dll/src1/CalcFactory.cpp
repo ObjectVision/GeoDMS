@@ -102,7 +102,7 @@ static std::recursive_mutex s_CalcFactoryCacheSection;
 
 AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr expr, CalcRole cr)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	if (expr.empty())
 		return nullptr;
 //	CalcKey key(context, expr, calcRole);

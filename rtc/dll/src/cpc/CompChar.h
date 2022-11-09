@@ -110,7 +110,7 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_STL_1300
 #	define CC_ITERATOR_CHECKED
 #	define CC_HAS_OVERRIDE
-#	define CC_FIX_ASSERT
+//REMOVE#	define CC_FIX_ASSERT
 #	pragma warning( disable : 4244) // conversion, possible loss of data
 #	pragma warning( disable : 4267) // conversion, possible loss of data
 #	pragma warning( disable : 4646) // function declared with __declspec(noreturn) has non-void return type

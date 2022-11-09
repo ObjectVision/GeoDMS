@@ -367,7 +367,7 @@ BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 
 auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly referred persistent object.
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(IsSourceRef());
 
 	TokenID supplRefID = GetLispExprOrg().GetSymbID();
@@ -516,7 +516,7 @@ SharedStr AbstrCalculator::EvaluatePossibleStringExpr(const TreeItem* context, W
 
 SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange expr, CalcRole cr, UInt32 nrEvals)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_assert(nrEvals); // else MustEvaluate would have returned false; PRECONDITION
 	dms_assert(!expr.empty()); // idem
 
@@ -906,7 +906,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 {
 //	let op: (oap & oap_is_templ) in argumenten van oper_group
 
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 	dms_check_not_debugonly;
 	dms_assert(holder);
 	dms_assert(ac);
@@ -1172,7 +1172,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 	dms_check_not_debugonly;
 	if (!m_HasSubstituted)
 	{
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
 		auto lispRefOrg = GetLispExprOrg();

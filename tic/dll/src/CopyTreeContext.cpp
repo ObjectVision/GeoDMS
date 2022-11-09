@@ -156,7 +156,7 @@ void RemoveStoredPropValues(TreeItem* item, cpy_mode minCpyMode)
 
 void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	auto lock = std::scoped_lock(g_RemoveRequestMutex);
 	dms_assert(!IsCacheItem());

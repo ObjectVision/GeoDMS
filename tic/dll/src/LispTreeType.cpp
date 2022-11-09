@@ -189,7 +189,7 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
 
 LispRef CreateLispSign(const TreeItem* self)
 {
-	dbg_assert(IsMainThread() && IsUnit(self) //&& HasConfigData()
+	dbg_assert(IsMetaThread() && IsUnit(self) //&& HasConfigData()
 		|| self->m_LastGetStateTS == UpdateMarker::GetLastTS() || self->InTemplate() || self->IsPassor()); // suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
 
 	try {

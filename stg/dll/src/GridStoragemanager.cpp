@@ -172,7 +172,7 @@ namespace Grid {
 GridStorageMetaInfo::GridStorageMetaInfo(const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa)
 	: GdalMetaInfo(storageHolder, focusItem)
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	const AbstrDataItem* adi = AsDynamicDataItem(focusItem);
 	if (!adi || !GridDomain(adi) || (sa != StorageAction::read))

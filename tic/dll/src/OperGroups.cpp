@@ -84,7 +84,7 @@ namespace AbstrOperGroupRegImpl {
 	void UpdateOperatorGroupReg()
 	{
 		dms_check_not_debugonly;
-		dms_assert(IsMainThread());
+		dms_assert(IsMetaThread());
 
 		if (s_OperGroupRegDirty)
 		{
@@ -484,7 +484,7 @@ const Operator* AbstrOperGroup::FindOperByArgs(const ArgRefs& args) const // REM
 
 ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 {
-	dms_assert(IsMainThread());
+	dms_assert(IsMetaThread());
 
 	ArgRefs unitSeq;
 
