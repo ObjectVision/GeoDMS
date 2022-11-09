@@ -467,7 +467,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 				auto& nzc = nzcC.local();
 				auto& dh = dhC.local();
-				auto& tr = trC.local();
+				TreeRelations& tr = trC.local();
 				auto& nodeALW = dh.m_AltLinkWeight;
 				auto& resLinkFlow = resLinkFlowC.local();
 
