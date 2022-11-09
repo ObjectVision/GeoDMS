@@ -23,10 +23,14 @@ public:
 		//auto test = dv->shared_from_this();
 	}
 
+	~View();
+
+
 	std::string m_Name;
 	ViewStyle m_ViewStyle;
 	GuiTreeItemsHolder m_ActiveItems;
 	DataView* m_DataView;
+	HWND m_HWND = nullptr;
 };
 
 class GuiView : GuiBaseComponent 

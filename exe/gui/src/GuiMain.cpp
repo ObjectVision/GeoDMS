@@ -229,6 +229,14 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             m_View.SetDoView(true);
         }
 
+        if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
+        {
+            m_View.SetViewStyle(tvsTableContainer);
+            m_View.SetViewName("View");
+            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.SetDoView(true);
+        }
+
         break;
     }
     case OpenNewDefaultViewWindow:
