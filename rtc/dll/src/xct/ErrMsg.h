@@ -65,7 +65,7 @@ struct ErrMsg {
 	RTC_CALL SharedStr GetAsText() const;
 
 	SharedPtr<const PersistentSharedObj> GetWhere() const;
-	SharedPtr<const SourceLocation>      GetLocation() const;
+//	SharedPtr<const SourceLocation>      GetLocation() const;
 
 private:
 	SharedStr GetFullName() const { return m_FullName; }

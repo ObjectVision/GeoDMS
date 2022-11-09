@@ -84,7 +84,7 @@ CharPtr DMS_CONV DMS_GetBuildConfig()
 #endif
 #pragma message( "StdVersion: " BOOST_STDLIB )
 #pragma message( "Platform  : " BOOST_PLATFORM )
-#pragma message( "DmsVersion: " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." BOOST_STRINGIZE( DMS_VERSION_MINOR ) "." BOOST_STRINGIZE( DMS_VERSION_PATCH )
+#pragma message( "DmsVersion: " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) "." BOOST_STRINGIZE( DMS_VERSION_MINOR ) "." BOOST_STRINGIZE( DMS_VERSION_PATCH ) )
 #pragma message( "DmsDate   : " DMS_VERSION_DATE )
 #pragma message( "DmsTime   : " DMS_VERSION_TIME )
 #pragma message( "==========:---------------" )

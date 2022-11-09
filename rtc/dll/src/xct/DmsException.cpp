@@ -195,32 +195,16 @@ SharedPtr<const PersistentSharedObj> ErrMsg::GetWhere() const
 	return m_Where;
 }
 
-SharedPtr<const SourceLocation> ErrMsg::GetLocation() const
-{ 
-	auto where = GetWhere();
-	if (!where)
-		return {};
-	return where->GetLocation();
-}
-
 SharedStr ErrMsg::GetSourceName() const
 {
 	auto where = GetWhere();
 	if (!where)
 		return {};
-
-	auto location = GetLocation();
-	if (!location)
-		return where->GetSourceName();
-
-	return location->GetSourceName(m_FullName, m_Class);
+	return where->GetSourceName();
 }
 
 SharedStr ErrMsg::GetAsText() const
 {
-	auto location = GetLocation();
-	if (!location)
-		return m_Why;
 	return mgFormat2SharedStr("%s\n%s\n%s"
 		, GetErrorBody(m_Why)
 		, GetSourceName()

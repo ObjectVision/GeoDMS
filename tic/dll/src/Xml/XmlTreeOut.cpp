@@ -569,15 +569,17 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			exprRow.ValueCell("ExplicitSuppliers");
 			exprRow.ValueCell(explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str());
 		}
-
-		UInt32 n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-		for (UInt32 i = 0; i < n; ++i)
-		{
-			const Actor* supplier = self->GetSupplCache()->begin(self)[i];
-			auto supplTI = debug_cast<const TreeItem*>(supplier); 
-			if (supplTI)
-				xmlTable.NamedItemRow(AsString(i).c_str(), supplTI);
+		try {
+			UInt32 n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+			for (UInt32 i = 0; i < n; ++i)
+			{
+				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
+				auto supplTI = debug_cast<const TreeItem*>(supplier);
+				if (supplTI)
+					xmlTable.NamedItemRow(AsString(i).c_str(), supplTI);
+			}
 		}
+		catch (...) {}
 	}
 
 	const TreeItem* sp = self->GetStorageParent(false);
