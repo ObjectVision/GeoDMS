@@ -177,7 +177,7 @@ void ErrMsg::tellWhere(const PersistentSharedObj* ptr)
 			return;
 	}
 	m_Where = ptr;
-	m_FullName = ptr->GetPrefixedFullName();
+	m_FullName = ptr->GetFullName();
 	m_Class = ptr->GetCurrentObjClass();
 	dms_assert(m_Class);
 }
@@ -200,7 +200,7 @@ SharedStr ErrMsg::GetSourceName() const
 	auto where = GetWhere();
 	if (!where)
 		return {};
-	return where->GetSourceName();
+	return where->GetFullName();
 }
 
 SharedStr ErrMsg::GetAsText() const
