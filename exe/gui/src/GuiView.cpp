@@ -253,7 +253,6 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     }*/
 
     SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
-    UpdateWindow(m_HWND);
     UpdateWindowPosition(true);
     return WindowState::CHANGED;
 }
