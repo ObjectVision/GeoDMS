@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueClassID.h"
 #include "geo/Conversions.h"
 #include "geo/Area.h"
+#include "geo/IsInside.h"
 #include "geo/PointOrder.h"
 #include "geo/CentroidOrMid.h"
 #include "geo/MinMax.h"
@@ -690,7 +691,7 @@ SizeT GraphicPointLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const Abstr
 	visit<typelists::points>(featureData->GetValueClass(), 
 		[this, featureData, &geoPnt, &result] <typename P> (const P*) 
 		{
-			result = FindNearestPoint< scalar_of<P>::type >(this, featureData, geoPnt);
+			result = FindNearestPoint< scalar_of_t<P> >(this, featureData, geoPnt);
 		}
 	);
 
@@ -854,7 +855,7 @@ void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
 		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(), 
 			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*) 
 			{
-				result = SelectPointsInRect< scalar_of<a_type>::type >(this, valuesItem->GetRefObj(), geoRect, eventID);
+				result = SelectPointsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
 			}
 		);
 	}
@@ -885,7 +886,7 @@ void GraphicPointLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadi
 		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
 			[this, valuesItem, worldRadius, eventID, &worldPnt, &result] <typename P> (const Unit<P>*) 
 			{
-				result = SelectPointsInCircle< scalar_of<P>::type >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+				result = SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
 			}
 		);
 	}
@@ -1201,7 +1202,7 @@ bool GraphicPointLayer::DrawImpl(FeatureDrawer& fd) const
 	visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
 		[this, valuesItem, fontIndices, &fd, &result] <typename P> (const Unit<P>*) 
 		{
-			result = DrawPoints< scalar_of<P>::type >(fd, this, valuesItem, fontIndices);
+			result = DrawPoints< typename scalar_of<P>::type >(fd, this, valuesItem, fontIndices);
 		}
 	);
 	return result;
