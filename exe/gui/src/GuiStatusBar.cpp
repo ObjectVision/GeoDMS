@@ -1,0 +1,38 @@
+#include <imgui.h>
+#include "GuiStatusBar.h"
+
+GuiStatusBar::GuiStatusBar()
+{
+    
+}
+
+void GuiStatusBar::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
+{
+    static GuiState state;
+    state.contextMessage.Set(msg);
+}
+
+void GuiStatusBar::ParseNewContextMessage(std::string msg)
+{
+
+}
+
+void GuiStatusBar::Update(bool* p_open) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
+{
+    if (!ImGui::Begin("StatusBar", p_open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
+    {
+        ImGui::End();
+        return;
+    }
+   
+    // focus window when clicked
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
+
+    //if (m_State.contextMessage.HasNew())
+    //    ParseNewContextMessage(m_State.contextMessage.Get());
+
+    ImGui::Text(m_State.contextMessage.Get().c_str());
+
+    ImGui::End();
+}

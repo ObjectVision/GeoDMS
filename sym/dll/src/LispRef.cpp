@@ -31,6 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "LispRef.h"
 
+#include "act/MainThread.h"
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "mci/Class.h"

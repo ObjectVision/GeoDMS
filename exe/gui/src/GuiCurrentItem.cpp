@@ -53,7 +53,7 @@ void GuiCurrentItemComponent::Update()
                 if (!*iterator)
                     break;
 
-                const bool is_selected = (*iterator == m_State.GetCurrentItem());
+                const bool is_selected = (iterator == m_State.TreeItemHistoryList.GetCurrentIterator());
                 if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
                 {
                     m_State.SetCurrentItem(*iterator);

@@ -368,26 +368,25 @@ void GuiMenuViewComponent::Update()
 
         ImGui::Separator();
         if (ImGui::MenuItem("Treeview", "Alt+0")) 
-        {
             m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
-        }
+
         if (ImGui::MenuItem("Detail Pages", "Alt+1")) 
-        {
             m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
-        }
+
         if (ImGui::MenuItem("Eventlog", "Alt+2")) 
-        {
             m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
-        }
+
         if (ImGui::MenuItem("Toolbar", "Alt+3")) 
-        {
             m_State.ShowToolbar = !m_State.ShowToolbar;
-        }
+
         if (ImGui::MenuItem("Current Item bar", "Alt+4")) 
-        {
             m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
-        }
+
         if (ImGui::MenuItem("Hidden Items", "Alt+5")) {}
+
+        if (ImGui::MenuItem("Status Bar", "Alt+6"))
+            m_State.ShowStatusBar = !m_State.ShowStatusBar;
+
         ImGui::PopItemFlag();
         ImGui::EndMenu();
     }

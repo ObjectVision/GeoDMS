@@ -42,6 +42,7 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -646,6 +647,9 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow);
+
+    if (m_State.ShowStatusBar)
+        m_StatusBar.Update(&m_State.ShowStatusBar);
 
     if (m_View.IsPopulated())
     {
