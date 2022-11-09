@@ -853,9 +853,9 @@ void WeightedModusPartByIndex(
 		else
 		{
 			dms_assert(p < pCount);
-			decltype(valuesBegin) maxVPtr;
 			Float64 maxC = MIN_VALUE(Float64);
-			do 
+			decltype(valuesBegin) maxVPtr = nullptr;
+			do
 			{
 				auto vPtr = valuesBegin + *i; V v = *vPtr;
 				if (IsDefined(*vPtr))
@@ -880,7 +880,10 @@ void WeightedModusPartByIndex(
 			}	while (i != e && indexGetter->Get(*i) == p);
 
 			if (maxC != MIN_VALUE(Float64))
+			{
+				assert(maxVPtr != nullptr);
 				resBegin[p] = *maxVPtr;
+			}
 		}
 	}
 }
