@@ -234,6 +234,9 @@ void GuiView::RegisterMapViewAreaWindowClass(HINSTANCE instance)
 
 void GuiView::SetViewIndex(int index)
 {
+    if (m_ViewIndex == -1)
+        m_ViewIndex = index;
+
     if (index != m_ViewIndex)
     {
         UpdateWindowPosition(true);
