@@ -285,8 +285,8 @@ euclidean_distance(
     const PointType1& point1,
     const PointType2& point2,
     orientation_2d orient) {
-  typename point_difference_type<PointType1>::type dif =
-      get(point1, orient) - get(point2, orient);
+    typename point_difference_type<PointType1>::type dif = get(point1, orient);
+    dif -= get(point2, orient);
   return (dif < 0) ? -dif : dif;
 }
 

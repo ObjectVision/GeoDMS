@@ -419,14 +419,10 @@ namespace boost { namespace polygon{
           }
         }
         //the bounding boxes of the two line segments intersect, so we check closer to find the intersection point
-        dy2 = (he2.second.get(VERTICAL)) -
-          (he2.first.get(VERTICAL));
-        dy1 = (he1.second.get(VERTICAL)) -
-          (he1.first.get(VERTICAL));
-        dx2 = (he2.second.get(HORIZONTAL)) -
-          (he2.first.get(HORIZONTAL));
-        dx1 = (he1.second.get(HORIZONTAL)) -
-          (he1.first.get(HORIZONTAL));
+        dy2 = (he2.second.get(VERTICAL  )); dy2 -= (he2.first.get(VERTICAL));
+        dy1 = (he1.second.get(VERTICAL  )); dy1 -= (he1.first.get(VERTICAL));
+        dx2 = (he2.second.get(HORIZONTAL)); dx2 -= (he2.first.get(HORIZONTAL));
+        dx1 = (he1.second.get(HORIZONTAL)); dx1 -= (he1.first.get(HORIZONTAL));
         if(equal_slope_hp(dx1, dy1, dx2, dy2)) return false;
         //the line segments have different slopes
         //we can assume that the line segments are not vertical because such an intersection is handled elsewhere
@@ -581,8 +577,8 @@ namespace boost { namespace polygon{
         if(!contains(rect1, result, true)) return false;
         if(!contains(rect2, result, true)) return false;
         if(projected) {
-          high_precision b1 = (high_precision) (std::numeric_limits<Unit>::min)();
-          high_precision b2 = (high_precision) (std::numeric_limits<Unit>::max)();
+          constexpr high_precision b1 = (high_precision) (std::numeric_limits<Unit>::min)();
+          constexpr high_precision b2 = (high_precision) (std::numeric_limits<Unit>::max)();
           if(x > b2 || y > b2 || x < b1 || y < b1)
             return false;
         }
