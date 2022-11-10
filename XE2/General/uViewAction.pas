@@ -178,6 +178,7 @@ begin
   with TViewAction(clientHandle) do
   begin
     IsReady := false;
+    frmMain.LogMsg(PAnsiChar('  url '+m_Url + ' vat ' +AsString(Cardinal(m_VAT))));
     if newState = NC_Deleting then
       LooseFocus;
   end;
