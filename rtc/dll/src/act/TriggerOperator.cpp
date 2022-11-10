@@ -73,7 +73,7 @@ namespace {
 void ProgressNotifyMsg(CharPtr msg)
 {
 	dms_assert(sc_NotifyTargetCount.isLocked());
-	if (IsMetaThread())
+	if (IsMainThread())
 		ProgressMsg(msg);
 	else
 		g_LastMsg = msg;
