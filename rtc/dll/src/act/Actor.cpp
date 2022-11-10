@@ -460,7 +460,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 
 	dms_assert(m_State.GetProgress() < ps); // UpdateSuppliers only could affect Progress in case of failure
 
-	if (!updateRes)
+	if (updateRes == AVS_SuspendedOrFailed)
 	{
 		dms_assert(SuspendTrigger::DidSuspend());
 		return AVS_SuspendedOrFailed;
@@ -476,14 +476,22 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 #endif
 
 	try {
-
+		assert(updateRes != AVS_SuspendedOrFailed); // follows from previous ifs
+		MG_DEBUGCODE(int d_WTF = 0 );
 		if (SuspendTrigger::MustSuspend())
+		{
 			updateRes = AVS_SuspendedOrFailed;
+			MG_DEBUGCODE(d_WTF = 1);
+		}
 		else
 		{
+			MG_DEBUGCODE(d_WTF = 2);
 			updateRes = const_cast<Actor*>(this)->DoUpdate(ps);
 			if (WasFailed(FR_Data))
+			{
 				updateRes = AVS_SuspendedOrFailed;
+				MG_DEBUGCODE(d_WTF = 3);
+			}
 		}
 
 		MG_DEBUGCODE( dms_assert( lts == UpdateMarker::LastTS() ); )
