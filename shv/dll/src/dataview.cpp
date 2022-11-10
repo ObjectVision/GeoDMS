@@ -1509,7 +1509,8 @@ LRESULT CALLBACK DataViewWndProc(
 
 			if (uMsg == WM_DESTROY)
 			{
-				delete view; view = 0;
+				SHV_DataView_Destroy(view); // delete view; 
+				view = 0;
 				SetWindowLongPtr(hWnd, 0, (LONG_PTR)view);
 			}
 			goto defWindowProc;

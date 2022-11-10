@@ -27,10 +27,44 @@
 
 View::~View()
 {
-    SHV_DataView_Destroy(m_DataView);
+    Reset();
     //m_DataView = nullptr;
+
+}
+
+View::View(View&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+void View::operator=(View && other) noexcept
+{
+    Reset();
+    m_Name      = std::move(other.m_Name);
+    m_ViewStyle = std::move(other.m_ViewStyle);
+    m_DataView  = std::move(other.m_DataView);
+    m_HWND      = std::move(other.m_HWND);
+
+    other.m_HWND = NULL;
+    other.m_DataView = NULL;
+}
+
+void View::Reset()
+{
     if (m_HWND)
+    {
         DestroyWindow(m_HWND);
+        m_HWND = nullptr;
+        m_DataView = nullptr;
+    }
+/*
+
+    if (m_DataView)
+    {
+        SHV_DataView_Destroy(m_DataView);
+        m_DataView = nullptr;
+    }
+*/
 }
 
 void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
@@ -61,7 +95,7 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
     }
     case OpenInMemoryDataView:
     {
-        Close(true);
+        //Close(true);
         break;
     }
     }
@@ -200,7 +234,12 @@ void GuiView::RegisterMapViewAreaWindowClass(HINSTANCE instance)
 
 void GuiView::SetViewIndex(int index)
 {
-    m_ViewIndex = index;
+    if (index != m_ViewIndex)
+    {
+        UpdateWindowPosition(true);
+        m_ViewIndex = index;
+        UpdateParentWindow();
+    }
 }
 
 HWND GuiView::GetHWND()
@@ -291,8 +330,8 @@ void GuiView::Close(bool keepDataView=true)
 
 void GuiView::CloseAll()
 {
-    for (auto& view : m_Views)
-        SHV_DataView_Destroy(view.m_DataView); //m_Views.at(m_ViewIndex).m_DataView
+    //for (auto& view : m_Views)
+    //    SHV_DataView_Destroy(view.m_DataView); //m_Views.at(m_ViewIndex).m_DataView
     m_Views.clear();
 }
 
@@ -410,11 +449,8 @@ void GuiView::Update()
             auto droppedTreeItem = reinterpret_cast<const char*>(payload->Data);
             if (droppedTreeItem)
             {
-                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(m_State.GetCurrentItem()))//!m_ActiveItems.contains(m_State.GetCurrentItem()))
-                {
-                    m_Views.at(m_ViewIndex).m_ActiveItems.add(m_State.GetCurrentItem()); //m_ActiveItems.add(m_State.GetCurrentItem());
+                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()))
                     SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
-                }
             }
         }
         ImGui::EndDragDropTarget();

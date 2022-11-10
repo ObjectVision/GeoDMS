@@ -22,15 +22,18 @@ public:
 		m_DataView = dv; //use SharedFromThis on DataView
 		//auto test = dv->shared_from_this();
 	}
+	View(View&& other) noexcept;
+	void operator=(View && other) noexcept;
 
 	~View();
 
+	void Reset();
 
 	std::string m_Name;
 	ViewStyle m_ViewStyle;
-	GuiTreeItemsHolder m_ActiveItems;
-	DataView* m_DataView;
-	HWND m_HWND = nullptr;
+	//GuiTreeItemsHolder m_ActiveItems;
+	DataView* m_DataView = nullptr;
+	HWND m_HWND		     = nullptr;
 };
 
 class GuiView : GuiBaseComponent 
