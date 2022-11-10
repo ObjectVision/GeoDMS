@@ -752,10 +752,17 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	if (rwMode != dms_rw_mode::read_only && (gdalOpenFlags & GDAL_OF_RASTER) && IsDataItem(smi.CurrRI())) // not a container without a domain
 	{
-		if (!IsUnit(smi.StorageHolder()) || !AsUnit(smi.StorageHolder())->UnifyDomain(smi.CurrRD()->GetAbstrDomainUnit()))
+
+		auto domainUnit = AsDynamicUnit(smi.StorageHolder());
+		if (domainUnit == nullptr)
+		{
+			auto gridData = AsDynamicDataItem(smi.CurrRD());
+			if (gridData)
+				domainUnit = gridData->GetAbstrDomainUnit();
+		}
+		if (!domainUnit || !domainUnit->UnifyDomain(smi.CurrRD()->GetAbstrDomainUnit()))
 			throwErrorF("GDAL", "Cannot determine domain %s", datasourceName.c_str());
 
-		auto domainUnit = AsUnit(smi.StorageHolder());
 		if (domainUnit->GetNrDimensions() == 2)
 		{
 			auto range = domainUnit->GetRangeAsIRect();
