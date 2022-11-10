@@ -25,6 +25,48 @@
 #include <GLFW/glfw3native.h>
 #include <winuser.h>
 
+View::~View()
+{
+    Reset();
+    //m_DataView = nullptr;
+
+}
+
+View::View(View&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+void View::operator=(View && other) noexcept
+{
+    Reset();
+    m_Name      = std::move(other.m_Name);
+    m_ViewStyle = std::move(other.m_ViewStyle);
+    m_DataView  = std::move(other.m_DataView);
+    m_HWND      = std::move(other.m_HWND);
+
+    other.m_HWND = NULL;
+    other.m_DataView = NULL;
+}
+
+void View::Reset()
+{
+    if (m_HWND)
+    {
+        DestroyWindow(m_HWND);
+        m_HWND = nullptr;
+        m_DataView = nullptr;
+    }
+/*
+
+    if (m_DataView)
+    {
+        SHV_DataView_Destroy(m_DataView);
+        m_DataView = nullptr;
+    }
+*/
+}
+
 void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     switch (event)
@@ -53,7 +95,7 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
     }
     case OpenInMemoryDataView:
     {
-        Close(true);
+        //Close(true);
         break;
     }
     }
@@ -110,8 +152,11 @@ ImVec2 GuiView::GetRootParentCurrentWindowOffset()
 
 void GuiView::UpdateWindowPosition(bool hide)
 {
-    if (!m_HWND)
+    if (!m_Views.at(m_ViewIndex).m_HWND)
         return;
+
+    if (hide)
+        int i = 0;
 
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
@@ -132,7 +177,7 @@ void GuiView::UpdateWindowPosition(bool hide)
     if (IsDocked())
     {
         SetWindowPos(// TODO: When docked, use offset of mainwindow + this window to get correct position.
-            m_HWND,
+            m_Views.at(m_ViewIndex).m_HWND,
             NULL,
             crMin.x + wPos.x - xpos, // left
             crMin.y + wPos.y - ypos, // top
@@ -145,7 +190,7 @@ void GuiView::UpdateWindowPosition(bool hide)
     {
         auto offset = GetRootParentCurrentWindowOffset();
         SetWindowPos(// TODO: When docked, use offset of mainwindow + this window to get correct position.
-            m_HWND,
+            m_Views.at(m_ViewIndex).m_HWND,
             NULL,
             crMin.x + offset.x, // left
             crMin.y + offset.y, // top
@@ -189,18 +234,25 @@ void GuiView::RegisterMapViewAreaWindowClass(HINSTANCE instance)
 
 void GuiView::SetViewIndex(int index)
 {
-    m_ViewIndex = index;
+    if (index != m_ViewIndex)
+    {
+        UpdateWindowPosition(true);
+        m_ViewIndex = index;
+        UpdateParentWindow();
+    }
 }
 
 HWND GuiView::GetHWND()
 {
-    return m_HWND;
+    return m_Views.at(m_ViewIndex).m_HWND;
 }
 
 void GuiView::InitDataView(TreeItem* currentItem)
 {
     if (!currentItem)
         return;
+    if (m_ViewIndex!=-1)
+        GuiView::UpdateWindowPosition(true); // hide previous window
 
     static int s_ViewCounter = 0;
     auto rootItem = (TreeItem*)currentItem->GetRoot();
@@ -224,7 +276,7 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     HINSTANCE instance = GetInstance(m_HWNDParent);
     RegisterMapViewAreaWindowClass(instance);
     auto vs = m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
-    m_HWND = CreateWindowEx(
+    m_Views.at(m_ViewIndex).m_HWND = CreateWindowEx(
         0L,                                                             // no extended styles
         (LPCWSTR)m_ViewName.c_str(),                                    // MapView control class 
         (LPCWSTR)NULL,                                                  // text for window title bar 
@@ -239,7 +291,7 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         m_Views.at(m_ViewIndex).m_DataView //m_DataView                                       
     );
 
-    if (!m_HWND)
+    if (!m_Views.at(m_ViewIndex).m_HWND)
     {
         return WindowState::UNINITIALIZED;
     }
@@ -261,22 +313,25 @@ void GuiView::Close(bool keepDataView=true)
 {
     if (!keepDataView && !m_Views.empty() && m_ViewIndex != -1 && m_Views.at(m_ViewIndex).m_DataView)
     {
-        SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView); //TODO: create close all function to be called from maincomponent destructor.
-        m_Views.erase(m_Views.begin()+m_ViewIndex);
+        //SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView); //TODO: create close all function to be called from maincomponent destructor.
+        //m_Views.erase(m_Views.begin()+m_ViewIndex);
+
+    }
+    if (m_ViewIndex!=-1 && m_Views.at(m_ViewIndex).m_HWND)
+    {
+        //SHV_DataView_Destroy
+        //DestroyWindow(m_Views.at(m_ViewIndex).m_HWND);
+        m_Views.erase(m_Views.begin() + m_ViewIndex);
         m_IsPopulated = false;
         m_ViewIndex = -1;
-    }
-    if (m_HWND)
-    {
-        DestroyWindow(m_HWND);
-        m_HWND = nullptr;
+        //m_Views.at(m_ViewIndex).m_HWND = nullptr;
     }
 }
 
 void GuiView::CloseAll()
 {
-    for (auto& view : m_Views)
-        SHV_DataView_Destroy(view.m_DataView); //m_Views.at(m_ViewIndex).m_DataView
+    //for (auto& view : m_Views)
+    //    SHV_DataView_Destroy(view.m_DataView); //m_Views.at(m_ViewIndex).m_DataView
     m_Views.clear();
 }
 
@@ -362,6 +417,7 @@ void GuiView::Update()
     case ViewStyle::tvsMapView:
         eventQueuePtr = &m_State.MapViewEvents;
         break;
+    case ViewStyle::tvsTableContainer:
     case ViewStyle::tvsTableView:
         eventQueuePtr = &m_State.TableViewEvents;
         break;
@@ -393,11 +449,8 @@ void GuiView::Update()
             auto droppedTreeItem = reinterpret_cast<const char*>(payload->Data);
             if (droppedTreeItem)
             {
-                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(m_State.GetCurrentItem()))//!m_ActiveItems.contains(m_State.GetCurrentItem()))
-                {
-                    m_Views.at(m_ViewIndex).m_ActiveItems.add(m_State.GetCurrentItem()); //m_ActiveItems.add(m_State.GetCurrentItem());
+                if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem()))
                     SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
-                }
             }
         }
         ImGui::EndDragDropTarget();
@@ -416,10 +469,10 @@ void GuiView::Update()
     //if (!m_Views.at(m_ViewIndex).m_DataView)
     //    InitDataView(m_State.GetCurrentItem());
 
-    if (!m_HWND)
+    if (!m_Views.at(m_ViewIndex).m_HWND)
         InitWindow(m_State.GetCurrentItem());
 
-    if (!m_Views.at(m_ViewIndex).m_DataView || !m_HWND || !m_HWNDParent || !IsWindow(m_HWNDParent) || !IsWindow(m_HWND)) // final check
+    if (!m_Views.at(m_ViewIndex).m_DataView || !m_Views.at(m_ViewIndex).m_HWND || !m_HWNDParent || !IsWindow(m_HWNDParent) || !IsWindow(m_Views.at(m_ViewIndex).m_HWND)) // final check TODO: simplify and is this necessary?
     {
         Close(true);
         ImGui::End();
@@ -429,7 +482,7 @@ void GuiView::Update()
     // update parent window
     if (parentWindowState == WindowState::CHANGED)
     {
-        SetParent(m_HWND, m_HWNDParent); // set new parent on dock/undock
+        SetParent(m_Views.at(m_ViewIndex).m_HWND, m_HWNDParent); // set new parent on dock/undock
         UpdateWindowPosition(true);
     }
 
@@ -441,7 +494,7 @@ void GuiView::Update()
     }
 
     // If m_HWND is focused, focus imgui window as well
-    if (GetFocus() == m_HWND)
+    if (GetFocus() == m_Views.at(m_ViewIndex).m_HWND)
         ImGui::FocusWindow(ImGui::GetCurrentWindow());
 
     // update window
