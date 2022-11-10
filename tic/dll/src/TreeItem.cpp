@@ -2486,8 +2486,14 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 
 				DataReadLockContainer c;                                                  // @@@USE
 				if (!c.Add(AsDataItem(result->GetOld()), DrlType::Suspendible))
+				{
+					if (SuspendTrigger::DidSuspend())
+						return AVS_SuspendedOrFailed;
+					dms_assert(result->WasFailed(FR_Data));
+					if (result->WasFailed(FR_Data))
+						Fail(result.get_ptr());
 					return AVS_SuspendedOrFailed;
-	
+				}
 				SizeT nrFailures = AsDataItem(result->GetOld())->CountValues<Bool>(false);
 				if (nrFailures)
 				{

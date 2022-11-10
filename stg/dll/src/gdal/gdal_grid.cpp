@@ -414,9 +414,10 @@ void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile
 bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	auto adi = smi->CurrRD();
-	if (!adi->GetAbstrDomainUnit()->UnifyDomain(AsDynamicUnit(smi->StorageHolder())))
-		return false;
 	if (!HasGridDomain(adi))
+		return false;
+	auto gridStorageDomain = AsDynamicUnit(smi->StorageHolder());
+	if (gridStorageDomain && !adi->GetAbstrDomainUnit()->UnifyDomain(gridStorageDomain))
 		return false;
 
 	auto storageHolder = smi->StorageHolder();
