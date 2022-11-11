@@ -937,11 +937,13 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain, siwlPaletteDomain, breakAttrPtr, siwlBreakAttr, nrBreaks, resultCopy = std::move(result), aNr, dv_wptr]() {
+	dv->AddGuiOper([tsActive, paletteDomain, siwlMovedPaletteDomain = std::move(siwlPaletteDomain), breakAttrPtr, siwlBreakAttr, nrBreaks, resultCopy = std::move(result), aNr, dv_wptr]() {
 		UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
 		paletteDomain->SetCount(nrBreaks);
 
-		*siwlPaletteDomain = ItemWriteLock(); // give space to breakAttr access
+		// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
+		// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
+		*siwlMovedPaletteDomain = ItemWriteLock(); 
 		breakAttrPtr->MarkTS(tsActive);
 
 		FillBreakAttrFromArray(breakAttrPtr, resultCopy);
