@@ -76,7 +76,9 @@
     <ClCompile Include="src1\Ramp.cpp" />
     <ClCompile Include="src1\random.cpp" />
     <ClCompile Include="src1\ReadData.cpp" />
-    <ClCompile Include="src1\RLookup.cpp" />
+    <ClCompile Include="src1\RLookup.cpp">
+      <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">None</DebugInformationFormat>
+    </ClCompile>
     <ClCompile Include="src1\Sort.cpp" />
     <ClCompile Include="src1\SubItem.cpp" />
     <ClCompile Include="src1\Subset.cpp" />

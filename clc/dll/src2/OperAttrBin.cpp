@@ -83,7 +83,7 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 			re = resData.end();
 
 		SizeT a1Size, a2Size;
-		sequence_traits<char>::const_pointer a1Begin, a1End, a2Begin, a2End;
+		sequence_traits<char>::const_pointer a1Begin = nullptr, a1End = nullptr, a2Begin = nullptr, a2End = nullptr;
 		bool a1Defined, a2Defined;
 		if (e1Void && (a1Defined = a1i->IsDefined())) { a1Begin = a1i->begin(); a1End = a1i->end(); a1Size = a1End - a1Begin; }
 		if (e2Void && (a2Defined = a2i->IsDefined())) { a2Begin = a2i->begin(); a2End = a2i->end(); a2Size = a2End - a2Begin; }
