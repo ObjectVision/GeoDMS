@@ -35,11 +35,11 @@ set MS_VERB=build
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Debug -p:Platform=x64
 msbuild all22.sln -t:%MS_VERB% -p:Configuration=Release -p:Platform=x64
 
-ROBOCOPY exe\gui\misc bin\debug\misc /v /fft /E /njh /njs
+ROBOCOPY exe\gui\misc bin\debug\x64\misc /v /fft /E /njh /njs
 IF %ErrorLevel%==1 EXIT 0
 IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 
-ROBOCOPY exe\gui\misc bin\release\misc /v /fft /E /njh /njs
+ROBOCOPY exe\gui\misc bin\release\x64\misc /v /fft /E /njh /njs
 IF %ErrorLevel%==1 EXIT 0
 IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 

@@ -7,11 +7,13 @@
     <IntDir>..\..\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <RunCodeAnalysis>true</RunCodeAnalysis>
 	<CAExcludePath>c:\SourceData\ext\boost;$(CAExcludePath)</CAExcludePath>
+	<Platforms>x64;x86</Platforms>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <PlatformToolset>v143</PlatformToolset>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
     <EnableUnitySupport>true</EnableUnitySupport>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>
@@ -30,7 +32,11 @@
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
       <AnalyzeExternalRuleset>BasicCorrectnessRules.ruleset</AnalyzeExternalRuleset>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
-    </ClCompile>
+      <SDLCheck>true</SDLCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <ConformanceMode>true</ConformanceMode>
+  </ClCompile>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <LargeAddressAware>true</LargeAddressAware>
@@ -39,6 +45,10 @@
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <StackReserveSize>67108864</StackReserveSize>
+      <StackCommitSize>8192</StackCommitSize>
     </Link>
     <Midl>
       <MkTypLibCompatible>true</MkTypLibCompatible>
