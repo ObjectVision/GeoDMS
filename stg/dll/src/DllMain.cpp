@@ -295,13 +295,16 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 {
 	dms_assert(storageHolder); // PRECONDITION
 
-	AbstrUnit* gridDataDomain = GetGridDataDomainRW(storageHolder); 
+	const AbstrUnit* gridDataDomainRO = GetGridDataDomainRO(storageHolder); 
+	if (!storageHolder->DoesContain(gridDataDomainRO))
+		return;
 
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain );
+	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(storageHolder);
+	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW );
 	if (!uBase)
 		return;
 
-	ReadGeoRefFile(geoRefFileName, gridDataDomain, uBase);
+	ReadGeoRefFile(geoRefFileName, gridDataDomainRW, uBase);
 }
 
 // ------------------------------------------------------------------------
