@@ -1404,9 +1404,11 @@ end;
 procedure OnStateChanged(clientHandle: TClientHandle; item: TTreeItem; newState: TUpdateState);
 begin
   try
-
     Assert(dmfGeneral <> nil);
+
+{$IFDEF DEGUG}
     frmMain.LogMsg(PAnsiChar('OnStateChanged '+AsString(Cardinal(newState))));
+{$ENDIF}
 
     case newState of
       CC_CreateMdiChild:
