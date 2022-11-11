@@ -2986,9 +2986,9 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	} 
 	catch (...)
 	{
-		dms_assert(!HasConfigData());
+ 		dms_assert(!HasConfigData());
 
-		if (!WasFailed()) {
+		if (!WasFailed(FR_Data)) {
 			auto err = catchException(true);
 			err->TellExtraF("while reading data from %s"
 			,	DMS_TreeItem_GetAssociatedFilename(this)

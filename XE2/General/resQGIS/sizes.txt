@@ -1,0 +1,2 @@
+icns: 32 * 32
+toolbar: 38 hoog
