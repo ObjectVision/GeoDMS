@@ -129,27 +129,27 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 	auto valuesBegin = valuesLock.begin(),
 	     valuesEnd   = valuesLock.end();
 
-	UInt32 n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC_STR("ModusTotByIndex: index"));
+	SizeT n = valuesEnd - valuesBegin;
+	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC_STR("ModusTotByIndex: index"));
 
-	UInt32
+	SizeT
 		*i = index.begin(),
 		*e = i + n;
 
 	make_index(i, e, valuesBegin);
 
-	decltype(valuesBegin)  maxVPtr;
-	UInt32 maxC = 0;
+	decltype(valuesBegin) maxVPtr = nullptr;
+	SizeT maxC = 0;
 	while (i != e)
 	{
 		decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
 		if (IsDefined(v))
 		{
-			UInt32 c = 1;
+			SizeT c = 1;
 			while (++i != e && valuesBegin[*i] == v)
 				++c;
 			dms_assert(c > 0);
-			if (c>maxC)
+			if (c > maxC)
 			{
 				maxC = c;
 				maxVPtr = vPtr;
@@ -160,8 +160,11 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 				;
 	};
 
-	if (maxC)
+	if (maxC != 0)
+	{
+		assert(maxVPtr != nullptr);
 		resData = *maxVPtr;
+	}
 	else
 		resData = UNDEFINED_VALUE(V);
 }
@@ -240,7 +243,7 @@ void ModusTotDispatcher(
 {
 	typename Unit<V>::range_t valuesRange = GetRange<V>( valuesItem );
 	// Countable values; go for Table if sensible
-	UInt32
+	SizeT
 		n = valuesItem->GetAbstrDomainUnit()->GetCount(),
 		v = Cardinality(valuesRange);
 
@@ -359,7 +362,7 @@ void ModusPartByIndex(
 		else
 		{
 			dms_assert(p < pCount);
-			decltype(valuesBegin) maxVPtr;
+			decltype(valuesBegin) maxVPtr = nullptr;
 			UInt32 maxC = 0;
 			do 
 			{
@@ -390,7 +393,10 @@ void ModusPartByIndex(
 			}	while (i != e && indexGetter->Get(*i) == p);
 
 			if (maxC > 0)
+			{
+				assert(maxVPtr != nullptr);
 				resBegin[p] = *maxVPtr;
+			}
 		}
 	}
 }
@@ -411,16 +417,14 @@ void ModusPartByIndexOrSet(
 }
 
 template<typename V, typename OIV>
-void ModusPartByTable(
-	const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	typename Unit<V>::range_t valuesRange,
-	SizeT pCount)  // countable dommain unit of result; P can be Void.
+void ModusPartByTable(const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem
+	, OIV resBegin
+	, typename Unit<V>::range_t valuesRange
+	, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
-	UInt32 vCount = Cardinality(valuesRange);
-	std::vector<UInt32> buffer(vCount*pCount, 0);
-	std::vector<UInt32>::iterator
-		bufferB = buffer.begin();
+	SizeT vCount = Cardinality(valuesRange);
+	std::vector<SizeT> buffer(vCount*pCount, 0);
+	auto bufferB = buffer.begin();
 
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t != tn; ++t)
 	{
@@ -500,9 +504,9 @@ void ModusPartDispatcher(
 	typename Unit<V>::range_t valuesRange = GetRange<V>(valuesItem);
 
 	// Countable values; go for Table if sensible
-	UInt32
+	SizeT
 		n = valuesItem->GetAbstrDomainUnit()->GetCount(),
-		v = valuesRange.empty() ? MAX_VALUE(UInt32) : Cardinality(valuesRange);
+		v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
 
 	dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
 
