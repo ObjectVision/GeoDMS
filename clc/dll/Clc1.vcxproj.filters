@@ -108,6 +108,9 @@
     <ClCompile Include="src2\OperAttrVar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src1\Classify.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\res\RewriteExpr.lsp">
@@ -251,6 +254,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\RemoveAdjacentsAndSpikes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src1\RLookup.ipp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
