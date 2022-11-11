@@ -11,3 +11,6 @@ todo*.txt
 /enc_temp_folder
 /bin.old
 *.exe
+/XE2/General/__history
+/XE2/General/DmsInterface/__history
+

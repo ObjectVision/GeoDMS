@@ -173,12 +173,16 @@ end;
 
 procedure OnTreeItemChanged(clientHandle: TClientHandle; item: TTreeItem; newState: TUpdateState);  cdecl;
 begin
+{$IFDEF DEBUG}
   frmMain.LogMsg(PAnsiChar('OnTreeItemChanged '+AsString(Cardinal(newState))));
+{$ENDIF}
 
   with TViewAction(clientHandle) do
   begin
     IsReady := false;
+{$IFDEF DEBUG}
     frmMain.LogMsg(PAnsiChar('  url '+m_Url + ' vat ' +AsString(Cardinal(m_VAT))));
+{$ENDIF}
     if newState = NC_Deleting then
       LooseFocus;
   end;

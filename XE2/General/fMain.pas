@@ -339,8 +339,9 @@ begin
 
   DMS_RegisterMsgCallback(LogMsgCallback, TClientHandle(Self));
   DMS_SetCoalesceHeapFunc(CoalesceHeap);
+{$IFDEF DEBUG}
   LogMsg('FormCreate');
-
+{$ENDIF}
   Application.OnHint := OnShowHint;
 
   UpdateCaption;
@@ -413,7 +414,9 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
+{$IFDEF DEBUG}
   LogMsg('FormDestroy');
+{$ENDIF}
 
   DMS_SetCoalesceHeapFunc(Nil);
   DMS_ReleaseMsgCallback(LogMsgCallback, TClientHandle(Self));
@@ -558,6 +561,16 @@ var ti: TTreeItem;
  actionStr: MsgString;
  done: Boolean;
 begin
+  // DEBUG
+{$IFDEF DEBUG}
+  LogMsg(PMsgChar('UpdateDataInfo '+action.Url));
+  if action.IsReady
+  then LogMsg(' Ready')
+  else LogMsg(' TODO');
+  if bActive
+  then LogMsg(' BUSY')
+  else LogMsg(' GO');
+{$ENDIF}
   if not pnlExpl.Visible then action.IsReady := true;
   if bActive or action.IsReady then Exit;
   action.IsReady := true; // be optimistic
@@ -600,7 +613,12 @@ begin
           ViewMetadata(wbMetadata.DefaultInterface, ti);
         end;
       DP_Explore, DP_General, DP_AllProps, DP_Config:
-        action.IsReady := ViewDetails(wbMetaData.DefaultInterface, ti, dmfGeneral.AdminMode, dp);
+        begin
+{$IFDEF DEBUG}
+          LogMsg(PAnsiChar('UpdateDataInfo DP'));
+{$ENDIF}
+          action.IsReady := ViewDetails(wbMetaData.DefaultInterface, ti, dmfGeneral.AdminMode, dp);
+        end;
       DP_SourceDescr:
         begin
           SetDocData(wbMetaData.DefaultInterface, htmlEncodeTextDoc(TreeItemSourceDescr(ti, TSourceDescrMode(action.RecNo))));
@@ -1671,9 +1689,11 @@ begin
    pcds := Message.CopyDataStruct;
    code := pcds^.dwData;
 
+{$IFDEF DEBUG}
    LogMsg(PMsgChar(MsgString('WM_COPYDATA ')));
    LogMsg(PMsgChar(MsgString('CODE   ')+AsString(code)));
    LogMsg(PMsgChar(MsgString('#Bytes ')+AsString(pcds^.cbData)));
+{$ENDIF}
 
    case code of
      0: hWindow := HWnd(nil);
@@ -1706,9 +1726,11 @@ begin
       msg.WParam := WPARAM(WindowHandle);
       msg.LParam := LPARAM(@cds2);
    end;
+{$IFDEF DEBUG}
    LogMsg(PMsgChar(MsgString('MSG ')+AsString(msg.Msg)));
    LogMsg(PMsgChar(MsgString('WPARAM ')+AsString(msg.WParam)));
    LogMsg(PMsgChar(MsgString('LPARAM ')+AsString(msg.LParam)));
+{$ENDIF}
    if code < 3 then
       SendMessage(hWindow, msg.Msg,  msg.WParam, msg.LParam)
    else
