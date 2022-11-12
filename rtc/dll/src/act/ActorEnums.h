@@ -221,4 +221,6 @@ public:
 	bool HasInvalidationBlock() const { return Get(AF_InvalidationBlock); }
 };
 
+RTC_CALL CharPtr FailStateName(UInt32 fs);
+
 #endif // __RTC_ACT_ENUMS_H

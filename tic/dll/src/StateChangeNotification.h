@@ -71,7 +71,7 @@ enum NotificationCode {
 };
 
 //----------------------------------------------------------------------
-
+CharPtr UpdateStateName(UInt32 nc);
 TIC_CALL void NotifyStateChange(const TreeItem* item, UInt32 state);
 
 #endif // __TIC_STATECHANGENOTIFICATION_H

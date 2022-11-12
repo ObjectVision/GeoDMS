@@ -59,6 +59,18 @@ namespace { // local defs
 // header implementation
 //----------------------------------------------------------------------
 
+CharPtr UpdateStateName(UInt32 nc)
+{
+	switch (nc) {
+	case NC2_Invalidated: return "None";
+	case NC2_MetaReady:   return "MetaInfoReady";
+	case NC2_DataReady:   return "DataReady";
+	case NC2_Validated:   return "Validated";
+	case NC2_Committed:   return "Validated&Committed";
+	}
+	return "unrecognized";
+}
+
 void NotifyStateChange(const TreeItem* item, UInt32 state)
 {
 	if (TreeItem::s_NotifyChangeLockCount || (state < CC_First && item->IsPassor()))

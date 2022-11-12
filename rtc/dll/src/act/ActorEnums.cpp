@@ -95,3 +95,18 @@ void flag_set::Toggle (UInt32 sf)
 	ScopedFlagSetLock lock(GetFlagSetCS(this));
 	m_DW ^= sf;
 }
+
+RTC_CALL CharPtr FailStateName(UInt32 fs)
+{
+	switch (fs)
+	{
+	case FR_None: return "None";
+	case FR_Determine: return "DetermineState Failed";
+	case FR_MetaInfo: return "MetaInfo Failed";
+	case FR_Data: return "Primary Data Derivation Failed";
+	case FR_Validate: return "Validation (Integrity Check) Failed";
+	case FR_Committed: return "Committing Data (writing to storage) Failed";
+	}
+	return "unrecognized";
+}
+

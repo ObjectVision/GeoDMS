@@ -307,32 +307,6 @@ void NewLine(OutStreamBase& out)
 	XML_OutElement br(out, "BR", "", false);
 }
 
-CharPtr UpdateStateName(UInt32 nc)
-{
-	switch(nc) {
-		case NC2_Invalidated: return "None";
-		case NC2_MetaReady:   return "MetaInfoReady";
-		case NC2_DataReady:   return "DataReady";
-		case NC2_Validated:   return "Validated";
-		case NC2_Committed:   return "Validated&Committed";
-	}
-	return "unrecognized";
-}
-
-CharPtr FailStateName(UInt32 fs)
-{
-	switch(fs) 
-	{
-		case FR_None     : return "None";
-		case FR_Determine: return "DetermineState Failed";
-		case FR_MetaInfo : return "MetaInfo Failed"; 
-		case FR_Data     : return "Primary Data Derivation Failed"; 
-		case FR_Validate : return "Validation (Integrity Check) Failed"; 
-		case FR_Committed: return "Committing Data (writing to storage) Failed"; 
-	}
-	return "unrecognized";
-}
-
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
 //	lispExpr.PrintAsFLisp(stream.FormattingStream(), 0); doesn't do HtmlEncode

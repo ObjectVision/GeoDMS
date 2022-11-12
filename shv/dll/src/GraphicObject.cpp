@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LockLevels.h"
 
 #include "PropFuncs.h"
+#include "StateChangeNotification.h"
 
 #include "DataView.h"
 #include "DcHandle.h"
@@ -758,14 +759,19 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 		auto ft = GetFailType();
 		auto fr = GetFailReason(); if (!fr) return;
 
-		SubMenu subMenu(med.m_MenuData, mySSPrintF("See FailReason Level %d of %s", ft, GetDynamicClass()->GetName().c_str()));
+		SubMenu subMenu(med.m_MenuData, mySSPrintF("%s of %s", FailStateName(ft), GetDynamicClass()->GetName().c_str()));
 		SharedStr failReason = fr->GetAsText();
 		CharPtr
 			bol = failReason.begin(),
 			eos = failReason.send();
+		SharedTreeItem item = dynamic_cast<const TreeItem*>(fr->GetWhere().get_ptr());
 		while (true) {
 			CharPtr eol = std::find(bol, eos, '\n');
-			med.m_MenuData.push_back( MenuItem(SharedStr(bol, eol)) );
+			auto txt = SharedStr(bol, eol);
+			if (item)
+				med.m_MenuData.push_back( MenuItem(txt, new RequestClientCmd(item, CC_Activate), this) );
+			else
+				med.m_MenuData.push_back(MenuItem(txt));
 			if (eol == eos)
 				break;
 			bol = eol+1;
