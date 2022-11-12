@@ -343,16 +343,17 @@ begin
 
   if cdsSelected in State then
   begin
-   clrText   := ColorToRGB(clHighlightText);
-   if cdsFocused in State then
-   begin
-     if dmfGeneral.GetStatus(SF_ShowStateColors) then
-       clrTextBk := ColorToRGB(TreeItem_GetStateColor(tn.Data))
-     else
-       clrTextBk := ColorToRGB(clHighlight)
-   end
-   else
-     clrTextBk := ColorToRGB(clBlack);
+    if DMS_TreeItem_IsFailed(tn.Data)
+    then clrText := g_cFailed
+    else clrText := ColorToRGB(clHighlightText);
+    if cdsFocused in State
+    then begin
+      if dmfGeneral.GetStatus(SF_ShowStateColors) then
+        clrTextBk := ColorToRGB(TreeItem_GetStateColor(tn.Data))
+      else
+        clrTextBk := ColorToRGB(clHighlight)
+    end
+    else clrTextBk := ColorToRGB(clBlack);
   end
   else
   begin
