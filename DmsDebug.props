@@ -26,6 +26,9 @@
       <WarningLevel>Level3</WarningLevel>
 	  <EnablePREfast>true</EnablePREfast>
     </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>

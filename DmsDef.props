@@ -36,17 +36,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ConformanceMode>true</ConformanceMode>
-  </ClCompile>
+    </ClCompile>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <LargeAddressAware>true</LargeAddressAware>
-      <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <AdditionalDependencies>user32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
       <StackReserveSize>67108864</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
     </Link>
