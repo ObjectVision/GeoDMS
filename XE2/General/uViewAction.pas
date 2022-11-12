@@ -118,6 +118,10 @@ uses SysUtils, Forms,
   uDmsInterface, uAppGeneral,
   fMain, Configuration, uGenLib;
 
+const g_LastActivePage: TTabSheet = nil;
+const g_LastActiveTreeItem: TTreeItem = nil;
+
+
 function FindMenuItem(menuObj: TMenuItem; sMenu: String): TMenuItem;
 var sMain, sSub, sCaption: String; i: Integer;
 begin
@@ -172,20 +176,21 @@ begin
 end;
 
 procedure OnTreeItemChanged(clientHandle: TClientHandle; item: TTreeItem; newState: TUpdateState);  cdecl;
+var va: TViewAction;
 begin
 {$IFDEF DEBUG}
   frmMain.LogMsg(PAnsiChar('OnTreeItemChanged '+AsString(Cardinal(newState))));
 {$ENDIF}
 
-  with TViewAction(clientHandle) do
-  begin
-    IsReady := false;
+  va := TViewAction(clientHandle);
+  va.IsReady := false;
+  g_LastActiveTreeItem := nil;
 {$IFDEF DEBUG}
-    frmMain.LogMsg(PAnsiChar('  url '+m_Url + ' vat ' +AsString(Cardinal(m_VAT))));
+  if assigned(g_frmMain) then
+    g_frmMain.LogMsg(PAnsiChar('  url '+va.m_Url + ' vat ' +AsString(Cardinal(va.m_VAT))));
 {$ENDIF}
-    if newState = NC_Deleting then
-      LooseFocus;
-  end;
+  if newState = NC_Deleting then
+    va.LooseFocus;
 end;
 
 // ============================= TViewAction implementation
@@ -399,9 +404,6 @@ begin
      g_ActiveAction.Free;
   g_ActiveAction := newActive;
 end;
-
-const g_LastActivePage: TTabSheet = nil;
-const g_LastActiveTreeItem: TTreeItem = nil;
 
 function TViewAction.Apply: Boolean;
 // var oldActiveAction: TViewAction;
