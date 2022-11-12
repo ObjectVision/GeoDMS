@@ -180,7 +180,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 		UpdateMarker::ChangeSourceLock changeStamp(UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("SHV_DataView_AddItem")), "SHV_DataView_AddItem");
 
-		if (viewItem->IsFailed(FR_Data))
+		if (viewItem->IsFailed(FR_MetaInfo))
 			viewItem->ThrowFail();
 
 		dv->AddLayer(viewItem, isDropped);
