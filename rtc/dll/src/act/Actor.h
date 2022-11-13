@@ -141,7 +141,7 @@ protected:
 	RTC_CALL virtual bool MustApplyImpl() const;
 
 	RTC_CALL virtual ActorVisitState DoUpdate(ProgressState ps);
-	RTC_CALL virtual void DoFail(ErrMsgPtr msg, FailType ft) const;
+	RTC_CALL virtual bool DoFail(ErrMsgPtr msg, FailType ft) const;
 
 	//	Override this method to implement reset behaviour. For example:
 	//	aMapView->InvalidateLayer(this).
