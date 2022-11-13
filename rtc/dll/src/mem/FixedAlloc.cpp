@@ -422,7 +422,7 @@ bool SpecialSize(SizeT sz)
 //----------------------------------------------------------------------
 
 
-void* AllocateFromStock_impl(SizeT sz)
+void* AllocateFromStock_impl(size_t sz)
 {
 #if defined(MG_CACHE_ALLOC)
 
@@ -444,7 +444,7 @@ void* AllocateFromStock_impl(SizeT sz)
 
 }
 
-void* AllocateFromStock(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto result = AllocateFromStock_impl(sz);
 
@@ -462,7 +462,7 @@ void* AllocateFromStock(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 	return result;
 }
 
-void LeaveToStock(void* ptr, SizeT sz) {
+void LeaveToStock(void* ptr, size_t sz) {
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	if (sz)

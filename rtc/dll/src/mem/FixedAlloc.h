@@ -85,8 +85,8 @@ granted by an additional written contract for support, assistance and/or develop
 #define MG_DEBUG_ALLOCATOR_SRC_PARAM
 
 #endif //defined(MG_DEBUG_ALLOCATOR)
-RTC_CALL void* AllocateFromStock(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG);
-RTC_CALL void  LeaveToStock(void* ptr, SizeT sz);
+RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
+RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
 extern std::atomic<bool> s_ReportingRequestPending;
 void ReportFixedAllocStatus();
 
