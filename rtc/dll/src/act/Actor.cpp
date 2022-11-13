@@ -815,7 +815,7 @@ ErrMsgPtr Actor::GetFailReason() const
 	return s_ActorFailReasonAssoc.GetExistingOrDefault(this, ErrMsgPtr());
 }
 
-void Actor::DoFail(ErrMsgPtr msg, FailType ft) const
+bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 	dms_assert(ft != FR_None);
 	SupplInterestListPtr supplInterestWaste;
@@ -823,7 +823,7 @@ void Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 
 		if (GetFailType() && GetFailType() <= ft)
-			return;
+			return false;
 
 		dms_assert(msg->Why().IsDefined() && !msg->Why().empty());
 
@@ -835,9 +835,8 @@ void Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 		// data generation is no longer needed
 		if (ft <= FR_Data)
 			supplInterestWaste.init( MoveSupplInterest(this).release());
-//		if (m_State.GetProgress() < PS_MetaInfo)
-//			m_State.SetProgress(PS_MetaInfo);
 	}
+	return true;
 }
 
 void Actor::ThrowFail() const

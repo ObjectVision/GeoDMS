@@ -2919,12 +2919,13 @@ SharedStr TreeItem::GetSourceName() const
 	);
 }
 
-void TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
+bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 {
 	if (!IsCacheItem())
 		msg->TellWhere(this);
 
-	Actor::DoFail(msg, ft);
+	if (!Actor::DoFail(msg, ft))
+		return false;
 
 	if (IsCacheItem()) {
 		auto si = _GetFirstSubItem();
@@ -2935,6 +2936,7 @@ void TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 		}
 	}
 	NotifyStateChange(this, NotificationCodeFromProblem(ft));
+	return true;
 }
 
 //----------------------------------------------------------------------

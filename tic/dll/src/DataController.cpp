@@ -133,11 +133,13 @@ void TreeItemDualRef::DoInvalidate() const
 	Actor::DoInvalidate();
 }
 
-void TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
+bool TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 {
+	if (!Actor::DoFail(msg, ft))
+		return false;
 	if (IsNew())
 		GetNew()->DoFail(msg, ft);
-	Actor::DoFail(msg, ft);
+	return true;
 }
 
 void TreeItemDualRef::IncDataInterestCount() const

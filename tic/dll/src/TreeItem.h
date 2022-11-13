@@ -271,7 +271,7 @@ public:
 //	override Actor callbacks
 
 	TIC_CALL void SetProgress(ProgressState ps) const override;
-	TIC_CALL void DoFail(ErrMsgPtr msg, FailType ft) const override;
+	TIC_CALL bool DoFail(ErrMsgPtr msg, FailType ft) const override;
 	TIC_CALL void AssertPropChangeRights(CharPtr changeWhat) const override;
 	TIC_CALL void AssertDataChangeRights(CharPtr changeWhat) const override;
 

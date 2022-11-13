@@ -35,7 +35,7 @@ int StartGuiContext()
     return 0;
 }
 
-int WinMain(
+int WINAPI WinMain(
     HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
     LPSTR     lpCmdLine,
