@@ -644,13 +644,18 @@ const TreeItem* AbstrCalculator::GetSearchContext(const TreeItem* holder, CalcRo
 
 BestItemRef AbstrCalculator::FindErrorneousItem() const
 {
+	if (m_BestGuessErrorSuppl.first && m_BestGuessErrorSuppl.first->WasFailed())
+		return m_BestGuessErrorSuppl;
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		return FindBestItem(supplRefID);
+	}
 	for (auto ti : m_SupplierArray)
 	{
 		if (ti && ti->WasFailed())
 			return { ti, {} };
 	}
-	if (m_BestGuessErrorSuppl.first && m_BestGuessErrorSuppl.first->WasFailed())
-		return m_BestGuessErrorSuppl;
 	return { nullptr, {} };
 }
 
@@ -1184,9 +1189,15 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 		}
 		else
 		{
+			ErrMsgPtr p;
 			SubstitutionBuffer substBuff;
-			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
-
+			try {
+				m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
+			}
+			catch (const DmsException& x)
+			{
+				p = x.AsErrMsg();
+			}
 			// process registered suppliers
 			TreeItemCRefArray supplierArrayCopy; supplierArrayCopy.swap(m_SupplierArray);
 			UInt32 count = substBuff.m_SupplierSet.size();
@@ -1204,6 +1215,8 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 				DecArrayInterestCount(supplierArrayCopy);
 			}
 #endif
+			if (p)
+				throw DmsException(p);
 		}
 		dms_assert(!m_HasSubstituted); // not allowed to call twice when this results in MetaInfo
 		m_HasSubstituted = true;
