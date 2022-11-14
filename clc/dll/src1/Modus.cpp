@@ -104,21 +104,16 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 				++counters[*valuesIter];
 	}
 
-	const V* maxVPtr = nullptr;
 	SizeT    maxC    = 0;
+	resData = UNDEFINED_VALUE(V);
 	for (auto i = counters.begin(), e = counters.end(); i!=e; ++i)
 	{
 		if (i->second > maxC)
 		{
-			maxC = i->second;
-			maxVPtr = &(i->first);
+			maxC    = i->second;
+			resData = i->first;
 		}
 	}
-
-	if (maxC)
-		resData = *maxVPtr;
-	else
-		resData = UNDEFINED_VALUE(V);
 }
 
 // assume v >> n; time complexity: n*log(min(v, n))
@@ -138,8 +133,8 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 
 	make_index(i, e, valuesBegin);
 
-	decltype(valuesBegin) maxVPtr = nullptr;
 	SizeT maxC = 0;
+	resData = UNDEFINED_VALUE(V);
 	while (i != e)
 	{
 		decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
@@ -152,21 +147,13 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 			if (c > maxC)
 			{
 				maxC = c;
-				maxVPtr = vPtr;
+				resData = v;
 			}
 		}
 		else
 			while (++i != e && valuesBegin[*i] == v)
 				;
 	};
-
-	if (maxC != 0)
-	{
-		assert(maxVPtr != nullptr);
-		resData = *maxVPtr;
-	}
-	else
-		resData = UNDEFINED_VALUE(V);
 }
 
 template<typename V>
@@ -309,24 +296,17 @@ void ModusPartBySet(
 		SizeT pi = i->first.first;
 		dms_assert(IsNotUndef(pi));
 		dms_assert(pi < pCount);
-		const V* maxVPtr = nullptr;
-		UInt32   maxC    = 0;
+		SizeT maxC = 0;
 		do 
 		{
-			UInt32 c = i->second;
+			SizeT c = i->second;
 			dms_assert( i->second>0);
-			if ( i->second >maxC)
+			if ( i->second > maxC)
 			{
-				maxC    =   i->second;
-				maxVPtr = &(i->first.second);
+				maxC         = i->second;
+				resBegin[pi] = i->first.second;
 			}
 		}	while (++i != e && i->first.first == pi);
-
-		if (maxC > 0)
-		{
-			dms_assert(pi < pCount); // implied by IsIncluding
-			resBegin[pi] = *maxVPtr;
-		}
 	}
 }
 
@@ -362,24 +342,20 @@ void ModusPartByIndex(
 		else
 		{
 			dms_assert(p < pCount);
-			decltype(valuesBegin) maxVPtr = nullptr;
-			UInt32 maxC = 0;
+			SizeT maxC = 0;
 			do 
 			{
 				decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
 				if (IsDefined(v))
 				{
-					UInt32   c = 1;
-					while	(	++i != e 
-							&&	valuesBegin[*i]   == v
-							&&	indexGetter->Get(*i) == p 
-							)
+					SizeT c = 1;
+					while (	++i != e &&	valuesBegin[*i] == v && indexGetter->Get(*i) == p )
 						++c;
 					dms_assert(c>0);
-					if (c>maxC)
+					if ( c > maxC)
 					{
 						maxC = c;
-						maxVPtr = vPtr;
+						resBegin[p] = v;
 					}
 				}
 				else
@@ -391,12 +367,6 @@ void ModusPartByIndex(
 						;
 				}
 			}	while (i != e && indexGetter->Get(*i) == p);
-
-			if (maxC > 0)
-			{
-				assert(maxVPtr != nullptr);
-				resBegin[p] = *maxVPtr;
-			}
 		}
 	}
 }
@@ -567,21 +537,18 @@ void WeightedModusTotBySet(const AbstrDataItem* valuesItem, const AbstrDataItem*
 			if (IsDefined(*valuesIter))
 				counters[*valuesIter] += weightsGetter->Get(weightsIter);
 	}
-	const V* maxVPtr = nullptr;
-	Float64 maxC    = 0;
+
+	Float64 maxC = 0;
+	resData = UNDEFINED_VALUE(V);
+
 	for (auto i = counters.begin(), e = counters.end(); i!=e; ++i)
 	{
 		if (i->second > maxC)
 		{
-			maxC    =   i->second;
-			maxVPtr = &(i->first);
+			maxC    = i->second;
+			resData = i->first;
 		}
 	}
-
-	if (maxC)
-		resData = *maxVPtr;
-	else
-		resData = UNDEFINED_VALUE(V);
 }
 
 // assume v >> n; time complexity: n*log(min(v, n))
@@ -605,9 +572,8 @@ void WeightedModusTotByIndex(
 
 	make_index(i, e, valuesBegin);
 
-	static V undefinedOrZero = UNDEFINED_OR_ZERO(V);
-	decltype(valuesBegin) maxVPtr = &undefinedOrZero;
 	Float64 maxC = MIN_VALUE(Float64);
+	resData = UNDEFINED_OR_ZERO(V);
 
 	while (i != e)
 	{
@@ -623,15 +589,13 @@ void WeightedModusTotByIndex(
 			if (c > maxC)
 			{
 				maxC = c;
-				maxVPtr = vPtr;
+				resData = v;
 			}
 		}
 		else
 			while (++i != e && valuesBegin[*i] == v)
 				;
 	};
-
-	resData = *maxVPtr;
 }
 
 template<typename V>
@@ -803,21 +767,16 @@ void WeightedModusPartBySet(
 		SizeT p = i->first.first;
 		dms_assert( IsDefined(p) );
 		dms_assert( p < pCount );
-		const V* maxVPtr = nullptr;
-		Float64 maxC    = 0;
+		Float64 maxC = 0;
 		do 
 		{
-			Float64 c = i->second;
 			dms_assert( i->second>0);
 			if ( i->second > maxC)
 			{
-				maxC    =   i->second;
-				maxVPtr = &(i->first.second);
+				maxC        = i->second;
+				resBegin[p] = i->first.second;
 			}
 		}	while (++i != e && i->first.first == p);
-
-		if (maxC > 0)
-			resBegin[p] = *maxVPtr;
 	}
 }
 
@@ -858,7 +817,6 @@ void WeightedModusPartByIndex(
 		{
 			dms_assert(p < pCount);
 			Float64 maxC = MIN_VALUE(Float64);
-			decltype(valuesBegin) maxVPtr = nullptr;
 			do
 			{
 				auto vPtr = valuesBegin + *i; V v = *vPtr;
@@ -870,10 +828,10 @@ void WeightedModusPartByIndex(
 						if (IsDefined(w))
 							c += w; 
 					}	while (++i != e && valuesBegin[*i]   == v && indexGetter->Get(*i) == p);
-					if (c>maxC)
+					if ( c > maxC )
 					{
 						maxC = c;
-						maxVPtr = vPtr;
+						resBegin[p] = v;
 					}
 				}
 				else
@@ -882,12 +840,6 @@ void WeightedModusPartByIndex(
 						;
 				}
 			}	while (i != e && indexGetter->Get(*i) == p);
-
-			if (maxC != MIN_VALUE(Float64))
-			{
-				assert(maxVPtr != nullptr);
-				resBegin[p] = *maxVPtr;
-			}
 		}
 	}
 }
