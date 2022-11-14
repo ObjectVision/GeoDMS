@@ -301,6 +301,19 @@ void AbstrDataItem::Unify(const TreeItem* refItem) const
 		refAsDi = AsDataItem(refItem);
 	}
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft|UM_Throw));
+
+/*
+	if (refAsDi->GetTSF(DSF_Categorical))
+	{
+		SharedStr resultMsg;
+		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
+			reportF(SeverityTypeID::ST_Warning, "%s: DomainUnification of categorical calculation result: %s"
+			,	GetFullName()
+			,	resultMsg
+			);
+	}
+*/
+
 }
 
 void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
@@ -411,14 +424,26 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (GetAbstrValuesUnit()->UnifyValues(refvu, UM_AllowDefault, &resultMsg))
-			return true;
-		issueStr = "ValuesUnit ";
+		if (!GetAbstrValuesUnit()->UnifyValues(refvu, UM_AllowDefault, &resultMsg))
+		{
+			issueStr = "ValuesUnit ";
+			goto failResultMsg;
+		}
 	}
+	if (adi->GetTSF(DSF_Categorical))
+	{
+		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
+		{
+			issueStr = "ValuesUnit ";
+			goto failResultMsg;
+		}
+	}
+	return true;
 
 failResultMsg:
-	auto msg = mySSPrintF("%s is incompatible with the result of the calculation '%s'\nbecause %s"
+	auto msg = mySSPrintF("%s is incompatible with the result of the%s calculation '%s'\nbecause %s"
 	,	issueStr
+	, adi->GetTSF(DSF_Categorical) ? " categorical" : ""
 	,	AsFLispSharedStr(GetAsLispRef(GetCurrMetaInfo({})))
 	,	resultMsg
 	);
