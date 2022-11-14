@@ -476,6 +476,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		{
 			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, polyEntity);
 			MG_PRECONDITION(resSub3);
+			resSub3->SetTSF(DSF_Categorical);
 		}
 
 		if (m_CreateFlags & DoCreateSequenceNr)
@@ -726,6 +727,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
 			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, pointEntity);
+			resSub3->SetTSF(DSF_Categorical);
 			MG_PRECONDITION(resSub3);
 		}
 
@@ -1025,20 +1027,22 @@ protected:
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A); 
-		dms_assert(arg2A); 
+		dms_assert(arg1A);
+		dms_assert(arg2A);
 
 		const AbstrUnit* domainUnit = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* valuesUnit = arg2A->GetAbstrDomainUnit();
 		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), UM_Throw);
 
-		bool isOnePolygon= arg2A->HasVoidDomainGuarantee();
+		bool isOnePolygon = arg2A->HasVoidDomainGuarantee();
 		if (isOnePolygon)
 			valuesUnit = Unit<Bool>::GetStaticClass()->CreateDefault();
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
@@ -1345,8 +1349,10 @@ protected:
 		MG_CHECK(!isOnePolygon);
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
@@ -1577,6 +1583,8 @@ protected:
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
 		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
+		if (res1) res1->SetTSF(DSF_Categorical);
+		if (res2) res2->SetTSF(DSF_Categorical);
 
 		if (mustCalc)
 		{

@@ -1320,11 +1320,13 @@ public:
 		{
 			dms_assert(!flags(df & DijkstraFlag::OD));
 			resTB = CreateDataItem(resultContext, GetTokenID_mt("TraceBack"), v, e);
+			resTB->SetTSF(DSF_Categorical);
 		}
 
 		AbstrDataItem* resLS = flags(df & DijkstraFlag::ProdOdLinkSet)
 			?	CreateDataItem(resultContext, GetTokenID_mt("LinkSet"), resultUnit, e, ValueComposition::Sequence)
 			:	nullptr;
+		if (resLS) resLS->SetTSF(DSF_Categorical);
 
 		AbstrDataItem* resAltLinkImp = flags(df & DijkstraFlag::ProdOdAltImpedance)
 			? CreateDataItem(resultContext, GetTokenID_mt("alt_imp"), resultUnit, imp2Unit)
@@ -1353,16 +1355,21 @@ public:
 		AbstrDataItem* resSrcZone = flags(df & DijkstraFlag::ProdOdOrgZone_rel)
 			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZones)
 			: nullptr;
+		if (resSrcZone) resSrcZone->SetTSF(DSF_Categorical);
+
 		AbstrDataItem* resDstZone = flags(df & DijkstraFlag::ProdOdDstZone_rel)
 			? CreateDataItem(resultContext, GetTokenID_mt("DstZone_rel"), resultUnit, dstZones)
 			: nullptr;
+		if (resDstZone) resDstZone->SetTSF(DSF_Categorical);
 
 		AbstrDataItem* resStartPoint = flags(df & DijkstraFlag::ProdOdStartPoint_rel)
 			? CreateDataItem(resultContext, GetTokenID_mt("StartPoint_rel"), resultUnit, x)
 			: nullptr;
+		if (resStartPoint) resStartPoint->SetTSF(DSF_Categorical);
 		AbstrDataItem* resEndPoint = flags(df & DijkstraFlag::ProdOdEndPoint_rel)
 			? CreateDataItem(resultContext, GetTokenID_mt("EndPoint_rel"), resultUnit, y)
 			: nullptr;
+		if (resEndPoint) resEndPoint->SetTSF(DSF_Categorical);
 
 		if (mustCalc)
 		{

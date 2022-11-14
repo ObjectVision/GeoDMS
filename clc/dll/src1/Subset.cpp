@@ -159,6 +159,8 @@ struct SubsetOperator: public UnaryOperator
 		{
 			auto resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
+			resSub->SetTSF(DSF_Categorical);
+
 			MG_PRECONDITION(resSub);
 		}
 

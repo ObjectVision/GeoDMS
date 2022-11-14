@@ -140,6 +140,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			, res
 			, AsCertainUnit(args[--i]) // i gets decremented here
 		);
+		resSub->SetTSF(DSF_Categorical);
 
 		if (!mustCalc)
 			continue; // go to next sub

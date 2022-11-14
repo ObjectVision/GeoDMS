@@ -89,7 +89,10 @@ struct AbstrInvertOperator : public UnaryOperator
 		dms_assert(newDomain);
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(newDomain, entity);
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
 		AbstrDataItem* resSub = nullptr;

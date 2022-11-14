@@ -106,6 +106,7 @@ const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 3;
 const int VC_MASK = 0x03U;
 const DataItemStatusFlags DSF_VC_Range               = 0x08000000; // VC_Range   << VC2DSF_SHIFT
 const DataItemStatusFlags DSF_VC_Sequence            = 0x10000000; // VC_Sequence<< VC2DSF_SHIFT
+const DataItemStatusFlags DSF_Categorical            = 0x20000000;
 
 struct treeitem_flag_set : flag_set
 {

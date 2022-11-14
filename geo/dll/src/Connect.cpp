@@ -126,8 +126,10 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 			pointDomain->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(pointDomain, pointDomain);
-
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
@@ -295,7 +297,10 @@ struct AbstrConnectPointOperator : VariadicOperator
 		}
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(point2Entity, point1Entity);
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 
 		if (mustCalc)
 		{
@@ -615,6 +620,9 @@ public:
 		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  );
 		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  );
 
+		if (resSub2)
+			resSub2->SetTSF(DSF_Categorical);
+
 		if (mustCalc)
 		{
 			Timer processTimer;
@@ -915,6 +923,7 @@ public:
 			,	resDomain
 			,	arg1A->GetAbstrDomainUnit()
 			);
+		resNrOrg->SetTSF(DSF_Categorical);
 
 		MG_PRECONDITION(resSub);
 
