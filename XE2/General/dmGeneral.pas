@@ -1300,7 +1300,7 @@ end;
 
 function TdmfGeneral.CheckItem(ti: TTreeItem): Boolean;
 begin
-  Result := Assigned(ti) and not DMS_TreeItem_IsMetaFailed(ti)
+  Result := Assigned(ti); // and not DMS_TreeItem_IsMetaFailed(ti)
 end;
 
 procedure TdmfGeneral.aeGeneralMessage(var Msg: tagMSG;
