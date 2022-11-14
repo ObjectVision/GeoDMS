@@ -198,7 +198,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			{
 				auto err = catchException(true);
 				if (err)
-				xmlTable.NameErrRow(METRIC_NAME, *err);
+				xmlTable.NameErrRow(METRIC_NAME, *err, unit);
 			}
 		}
 	}
@@ -296,6 +296,31 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFu
 	}
 	else
 		out << item->GetName().c_str();
+}
+
+
+void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self)
+{
+	{
+		Row row(*this);
+		row.ValueCell(propName);
+		auto cell = Row::Cell(row);
+		OutStream() << err;
+	}
+	auto errSrc = TreeItem_GetErrorSource(self);
+	if (errSrc.first && errSrc.first != self)
+	{
+		Row row(*this);
+		Row::Cell xmlElemTD(row);
+		xmlElemTD.OutStream().WriteAttr("colspan", "2");
+		
+		OutStream() << "see ";
+		{
+			XML_hRef xmlElemA(OutStream(), ItemUrl(errSrc.first).c_str());
+			OutStream() << errSrc.first->GetFullName().c_str();
+		}
+		OutStream() << " or press F2";
+	}
 }
 
 // *****************************************************************************
@@ -474,7 +499,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		if (fr)
 		{
 			xmlTable.NameValueRow("FailState", FailStateName(ft));
-			xmlTable.NameErrRow("FailReason", *fr);
+			xmlTable.NameErrRow("FailReason", *fr, self);
 		}
 	}
 	if (self->InTemplate())
@@ -690,7 +715,7 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		{
 			auto err = catchException(true);
 			if (err)
-				xmlTable.NameErrRow(pd->GetName().c_str(), *err);
+				xmlTable.NameErrRow(pd->GetName().c_str(), *err, self);
 			canBeIndirect = false;
 		}
 		while (true)
@@ -724,7 +749,7 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 				{
 					auto err = catchException(true);
 					if (err)
-						xmlTable.NameErrRow("EvaluationErr", *err);
+						xmlTable.NameErrRow("EvaluationErr", *err, self);
 					break;
 				}
 			}

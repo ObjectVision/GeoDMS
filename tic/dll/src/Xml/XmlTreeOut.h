@@ -41,6 +41,7 @@ struct SafeFileWriterArray;
 #include "xct/ErrMsg.h"
 
 #include "TreeItem.h"
+BestItemRef TreeItem_GetErrorSource(const TreeItem* src); // impl in TicInterface.cpp
 
 /********** defines                                        **********/
 
@@ -130,13 +131,7 @@ struct XML_Table : XML_OutElement
 			row.ValueCell(propName);
 			row.ValueCell(propValue);
 	}
-	void NameErrRow(CharPtr propName, const ErrMsg& err)
-	{
-		Row row(*this);
-		row.ValueCell(propName);
-		auto cell = Row::Cell(row);
-		OutStream() << err;
-	}
+	TIC_CALL void NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self);
 	void NamedItemRow(CharPtr role, const TreeItem* item)
 	{
 		XML_Table::Row row(*this);

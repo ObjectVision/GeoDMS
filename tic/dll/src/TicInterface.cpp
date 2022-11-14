@@ -1017,7 +1017,7 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 			if (sc)
 			{
 				BestItemRef si = sc->FindErrorneousItem();
-				if (si.first)
+				if (si.first && si.first->WasFailed())
 					return si;
 			}
 		}
