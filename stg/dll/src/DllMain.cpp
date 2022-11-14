@@ -294,10 +294,11 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 {
 	dms_assert(storageHolder); // PRECONDITION
-
+/* 
 	const AbstrUnit* gridDataDomainRO = GetGridDataDomainRO(storageHolder); 
 	if (!storageHolder->DoesContain(gridDataDomainRO))
 		return;
+*/
 
 	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(storageHolder);
 	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW );
