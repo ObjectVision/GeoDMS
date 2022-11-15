@@ -174,29 +174,10 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
     {
-        /*auto freeViewInd = GetFreeViewIndex(m_MapViews);
-        if (freeViewInd < m_MapViews.size())
-            m_MapViews.at(freeViewInd).ResetView(tvsMapView, "MapView#" + std::to_string(freeViewInd + 1));
-        else if (m_MapViewsCursor >= m_MaxViews)
-        {
-            reportF(SeverityTypeID::ST_Warning, "Maximum number of Mapview windows %d reached.", m_MaxViews);
-            break;
-        }
-        else
-        {
-            m_MapViews.emplace_back(std::move(GuiView()));
-            m_MapViews.back().SetViewName("MapView#" + std::to_string(m_MapViews.size()));
-            m_MapViews.back().SetViewStyle(tvsMapView);
-            m_MapViewsCursor++;
-            break;
-        }*/
-
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
         {
-            m_View.SetViewStyle(tvsMapView);
-            m_View.SetViewName("View");
-            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.InitDataView(m_State.GetCurrentItem(), tvsMapView, "View");
             m_View.SetDoView(true);
         }
 
@@ -204,36 +185,16 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case OpenNewTableViewWindow:
     {
-        /*auto freeViewInd = GetFreeViewIndex(m_TableViews);
-        if (freeViewInd < m_TableViews.size())
-            m_TableViews.at(freeViewInd).ResetView(tvsTableView, "TableView#" + std::to_string(freeViewInd + 1));
-        else if (m_TableViewsCursor >= m_MaxViews)
-        {
-            reportF(SeverityTypeID::ST_Warning, "Maximum number of TableView windows %d reached.", m_MaxViews);
-            break;
-        }
-        else
-        {
-            m_TableViews.emplace_back();
-            m_TableViews.back().SetViewName("TableView#" + std::to_string(m_TableViews.size()));
-            m_TableViews.back().SetViewStyle(tvsTableView);
-            m_TableViewsCursor++;
-            break;
-        }*/
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
         {
-            m_View.SetViewStyle(tvsTableView);
-            m_View.SetViewName("View");
-            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableView, "View");
             m_View.SetDoView(true);
         }
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
         {
-            m_View.SetViewStyle(tvsTableContainer);
-            m_View.SetViewName("View");
-            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableContainer, "View");
             m_View.SetDoView(true);
         }
 
@@ -246,16 +207,12 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
         case tvsMapView:
         {
-            m_View.SetViewStyle(tvsMapView);
-            m_View.SetViewName("View");
-            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.InitDataView(m_State.GetCurrentItem(), tvsMapView, "View");
             break;
         }
         case tvsTableView:
         {
-            m_View.SetViewStyle(tvsTableView);
-            m_View.SetViewName("View");
-            m_View.InitDataView(m_State.GetCurrentItem());
+            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableView, "View");
             break;
         }
         }
