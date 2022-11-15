@@ -57,6 +57,11 @@ class AbstrUnit;
 
 SharedStr AsStrWithLabel(const AbstrUnit* au, const AbstrValue* valuePtr, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock, WeakStr result)
 {
+	dms_assert(IsMainThread());
+	SharedUnitInterestPtr uip = au; // covered by ipHolder soon.
+	if (!ipHolder)
+		au->PrepareDataUsage(DrlType::Suspendible);
+
 	SizeT i = au->GetIndexForAbstrValue(*valuePtr);
 	if (!IsDefined(i))
 		return result;
