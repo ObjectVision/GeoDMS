@@ -801,7 +801,7 @@ void Actor::ClearFail() const
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 
 		auto errMsgPtr = s_ActorFailReasonAssoc.GetExisting(this);
-		errMsgPtr->forgetWhere(this);
+//		errMsgPtr->forgetWhere(this);
 		s_ActorFailReasonAssoc.eraseExisting(this);
 		m_State.ClearFailed();
 	}
@@ -827,7 +827,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
 		dms_assert(msg->Why().IsDefined() && !msg->Why().empty());
 
-		msg->tellWhere(this);
+		msg->TellWhere(this);
 		s_ActorFailReasonAssoc.assoc(this, msg);
 		m_State.SetFailure(ft);
 

@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "LockLevels.h"
 
+#include "DataStoreManagerCaller.h"
 #include "PropFuncs.h"
 #include "StateChangeNotification.h"
 
@@ -764,7 +765,9 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 		CharPtr
 			bol = failReason.begin(),
 			eos = failReason.send();
-		SharedTreeItem item = dynamic_cast<const TreeItem*>(fr->GetWhere().get_ptr());
+		SharedTreeItem item;
+		if (DSM::Curr() && DSM::Curr()->m_ConfigRoot)
+			item = DSM::Curr()->m_ConfigRoot->FindBestItem(fr->FullName()).first;
 		while (true) {
 			CharPtr eol = std::find(bol, eos, '\n');
 			auto txt = SharedStr(bol, eol);

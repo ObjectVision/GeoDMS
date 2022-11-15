@@ -131,7 +131,7 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 	SharedPtr& operator =(SharedPtr&& rhs) = default;
 
 	template <typename SrcPtr>
-	void operator =(SrcPtr&& rhs) noexcept { *this = SharedPtr(rhs); }
+	void operator =(SrcPtr&& rhs) noexcept { *this = SharedPtr(std::forward<SrcPtr>(rhs)); }
 };
 
 template<typename T>
