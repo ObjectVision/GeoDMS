@@ -40,6 +40,7 @@ public:
 
 	void Reset();
 
+	bool m_DoView = true;
 	std::string m_Name;
 	ViewStyle m_ViewStyle = tvsUndefined;;
 	//GuiTreeItemsHolder m_ActiveItems;
@@ -54,27 +55,28 @@ public:
 	GuiView() {}
 	GuiView(GuiView&&) noexcept {}
 	~GuiView();
-	void Update();
+	
 	void Close(bool keepDataView);
 	void CloseAll();
 	void SetDoView(bool doView);
 	bool DoView();
 	bool IsPopulated();
-	void InitDataView(TreeItem* currentItem, ViewStyle vs, std::string name);
+	void AddView(TreeItem* currentItem, ViewStyle vs, std::string name);
 	void SetViewIndex(int index);
 	HWND GetHWND();
-
+	void UpdateAll();
 
 	std::vector<View> m_Views;
 	View EditPaletteWindow = View("Edit Palette Window");
 	int m_ViewIndex = -1;
 
 private:
+	void Update(View& view);
 	WindowState InitWindow(TreeItem* currentItem);
-	WindowState UpdateParentWindow();
+	WindowState UpdateParentWindow(View& view);
 	bool CloseWindowOnMimimumSize();
 	ImVec2 GetRootParentCurrentWindowOffset();
-	void UpdateWindowPosition(bool show);
+	void UpdateWindowPosition(View& view, bool show);
 	void RegisterViewAreaWindowClass(HINSTANCE instance);
 	bool IsDocked();
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
