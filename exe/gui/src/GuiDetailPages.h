@@ -4,7 +4,7 @@
 #include "GuiBase.h"
 #include "ser/BaseStreamBuff.h"
 
-enum HTMLTagType
+enum class HTMLTagType
 {
     BODY = 1,            // <BODY>
     TABLE = 2,           // <TABLE>
@@ -17,7 +17,7 @@ enum HTMLTagType
     UNKNOWN = 10
 };
 
-enum HTMLParserState
+enum class HTMLParserState
 {
     TAGOPEN = 1,
     TAGCLOSE = 2,
@@ -29,7 +29,7 @@ class Tag
 {
 public:
     std::string text;
-    HTMLTagType type;
+    HTMLTagType type = HTMLTagType::UNKNOWN;
     std::string bgcolor;
     static std::string href;
     int         colspan = -1;

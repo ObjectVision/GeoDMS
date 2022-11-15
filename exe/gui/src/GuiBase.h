@@ -16,7 +16,7 @@
 class GuiTreeNode
 {
 private:
-	TreeItem* m_TreeItem;
+	TreeItem* m_TreeItem = nullptr;
 	ProgressState m_State = PS_None; // synchronized using TreeItem update callback
 	std::vector<GuiTreeNode> m_Branches;
 };
