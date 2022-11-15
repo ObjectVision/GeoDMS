@@ -163,51 +163,20 @@ void ErrMsg::TellExtra(CharPtrRange msg)
 
 void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 {
-	leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
-	tellWhere(ptr);
-}
-
-void ErrMsg::tellWhere(const PersistentSharedObj* ptr)
-{
 	if (!ptr)
 		return;
-	if (m_Where)
-	{
-		if (m_Where->GetLocation() || !ptr->GetLocation())
-			return;
-	}
-	m_Where = ptr;
-	m_FullName = ptr->GetFullName();
+
+	if (m_FullName.empty())
+		m_FullName = ptr->GetFullName();
 	m_Class = ptr->GetCurrentObjClass();
 	dms_assert(m_Class);
-}
-
-void ErrMsg::forgetWhere(const PersistentSharedObj* ptr)
-{
-	if (m_Where == ptr)
-		m_Where = nullptr;
-}
-
-SharedPtr<const PersistentSharedObj> ErrMsg::GetWhere() const
-{
-	leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
-
-	return m_Where;
-}
-
-SharedStr ErrMsg::GetSourceName() const
-{
-	auto where = GetWhere();
-	if (!where)
-		return {};
-	return where->GetFullName();
 }
 
 SharedStr ErrMsg::GetAsText() const
 {
 	return mgFormat2SharedStr("%s\n%s\n%s"
 		, GetErrorBody(m_Why)
-		, GetSourceName()
+		, m_FullName
 		, GetErrorContext(m_Why)
 	);
 }
@@ -216,11 +185,10 @@ OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 {
 	osb.WriteValue(GetErrorBody(obj.m_Why).c_str());
 	osb.WriteValue("\n");
-	auto where = obj.GetWhere();
-	if (where)
+	if (!obj.m_FullName.empty())
 	{
-		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + where->GetFullName()).c_str());
-		osb.WriteValue(obj.GetSourceName().c_str());
+		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + obj.m_FullName).c_str());
+		osb.WriteValue(obj.m_FullName.c_str());
 	}
 	if (HasContext(obj.m_Why))
 	{

@@ -205,7 +205,10 @@ void CheckIsNew(TreeItem* context, TokenID nameID)
 {
 	dms_assert(context);
 	if (context->GetSubTreeItemByID(nameID))
-		context->throwItemErrorF("SubItem '%s' is already defined", GetTokenStr(nameID).c_str());
+	{
+		auto name = SharedStr(GetTokenStr(nameID));
+		context->throwItemErrorF("SubItem '%s' is already defined", name);
+	}
 }
 
 

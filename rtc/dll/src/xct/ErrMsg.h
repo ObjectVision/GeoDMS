@@ -49,8 +49,6 @@ struct ErrMsg {
 	explicit ErrMsg(CharPtr msg, const PersistentSharedObj* ptr = nullptr) : ErrMsg(SharedStr(msg), ptr) {}
 
 	RTC_CALL void TellWhere(const PersistentSharedObj* ptr);
-	RTC_CALL void tellWhere(const PersistentSharedObj* ptr);
-	RTC_CALL void forgetWhere(const PersistentSharedObj* ptr);
 
 	RTC_CALL void TellExtra(CharPtr msg);
 	RTC_CALL void TellExtra(CharPtrRange msg);
@@ -61,22 +59,17 @@ struct ErrMsg {
 		TellExtra(mgFormat2string(fmt, std::forward<Args>(args)...).c_str());
 	}
 
-	const SharedStr& Why() const { return m_Why;  }
+	SharedStr Why() const { return m_Why;  }
 	RTC_CALL SharedStr GetAsText() const;
-	RTC_CALL SharedPtr<const PersistentSharedObj> GetWhere() const;
+	SharedStr FullName() const { return m_FullName;  }
 
 private:
-	SharedStr GetFullName() const { return m_FullName; }
-	SharedStr GetSourceName() const;
-
 	SharedStr m_Why, m_FullName;
 	WeakPtr<const Class> m_Class;
-	const PersistentSharedObj* m_Where = nullptr;
-//	SharedPtr<const SourceLocation> m_Location;
 
 	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& value);
 	friend RTC_CALL OutStreamBase&      operator <<(OutStreamBase&      str, const ErrMsg& value);
-	friend bool IsDefaultValue(const ErrMsg& msg) { return msg.m_Why.empty() && msg.m_Where == nullptr; }
+	friend bool IsDefaultValue(const ErrMsg& msg) { return msg.m_Why.empty(); }
 };
 
 extern leveled_critical_section sc_FailSection;
