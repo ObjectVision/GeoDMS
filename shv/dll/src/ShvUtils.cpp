@@ -1001,11 +1001,10 @@ const AbstrUnit* SHV_DataContainer_GetDomain(const TreeItem* ti, UInt32 level, b
 
 	if (IsDataItem(ti))
 	{
-		if (!ti->WasFailed(FR_MetaInfo))
-			try { 
-				return AsDataItem(ti)->GetAbstrDomainUnit();
-			} 
-			catch (...) {}
+		try { 
+			return AsDataItem(ti)->GetAbstrDomainUnit();
+		} 
+		catch (...) {}
 		return nullptr;
 	}
 
