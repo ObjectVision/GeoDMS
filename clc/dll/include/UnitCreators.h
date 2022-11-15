@@ -111,11 +111,16 @@ inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType&
 	return arg1_values_unit(args);
 }
 
-CLC1_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args);
+CLC1_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
 
-inline ConstUnitRef compatible_values_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
+inline ConstUnitRef compatible_values_or_categories_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
-	return compatible_values_unit_creator_func(0, gr, args);
+	return compatible_values_unit_creator_func(0, gr, args, true);
+}
+
+inline ConstUnitRef compatible_simple_values_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
+{
+	return compatible_values_unit_creator_func(0, gr, args, false);
 }
 
 inline ConstUnitRef boolean_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
@@ -123,9 +128,9 @@ inline ConstUnitRef boolean_unit_creator(const AbstrOperGroup* gr, const ArgSeqT
 	return default_unit_creator<Bool>(gr, args);
 };
 
-inline ConstUnitRef compare_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
+inline ConstUnitRef compare_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories)
 {
-	compatible_values_unit_creator_func(0, gr, args);
+	compatible_values_unit_creator_func(0, gr, args, mustCheckCategories);
 	return boolean_unit_creator(gr, args);
 };
 

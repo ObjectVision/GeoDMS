@@ -207,12 +207,12 @@ void do_binary_func(
 
 template <typename T> struct plus_func : std_binary_func< std::plus<T>, T, T, T>       
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
 template <typename T> struct minus_func: std_binary_func< std::minus<T>, T, T, T>      
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
 template <typename T> struct mul_func  : std_binary_func< std::multiplies<T>, T, T, T> 

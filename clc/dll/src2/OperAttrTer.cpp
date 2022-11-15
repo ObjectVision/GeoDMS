@@ -197,7 +197,7 @@ struct iif_assign: ternary_assign<T, Bool, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 	{
-		return compatible_values_unit_creator_func(1, gr, args);
+		return compatible_values_unit_creator_func(1, gr, args, true);
 	}
 	
 	void operator()(typename iif_assign::assignee_ref res, typename iif_assign::arg1_cref b, typename iif_assign::arg2_cref t1, typename iif_assign::arg3_cref t2) const

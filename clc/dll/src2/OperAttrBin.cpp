@@ -48,7 +48,7 @@ using tile_future = std::function<TileCRef>;
 struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 {
 	StrConcatOperator(AbstrOperGroup* gr) 
-		: BinaryAttrOper(gr, compatible_values_unit_creator, COMPOSITION(SharedStr), ArgFlags())
+		: BinaryAttrOper(gr, compatible_simple_values_unit_creator, COMPOSITION(SharedStr), ArgFlags())
 	{}
 
 	// Override BinaryAttrOper
@@ -307,10 +307,10 @@ template <typename P> struct dist_func: binary_func<typename dist_type<P>::type,
 // *****************************************************************************
 
 template <typename T> struct compare_func : binary_func<Bool, T, T> {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compare_unit_creator(gr, args); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compare_unit_creator(gr, args, true); }
 };
 
-template <typename T> struct equal_to : compare_func<T>  { Bool operator ()(typename equal_to::arg1_cref a, typename equal_to::arg2_cref b) const { return a == b; } };
+template <typename T> struct equal_to     : compare_func<T> { Bool operator ()(typename equal_to::arg1_cref a, typename equal_to::arg2_cref b) const { return a == b; } };
 template <typename T> struct not_equal_to : compare_func<T> { Bool operator ()(typename not_equal_to::arg1_cref a, typename not_equal_to::arg2_cref b) const { return !(a==b); } };
 template <typename T> struct greater      : compare_func<T> { Bool operator ()(typename greater::arg1_cref a, typename greater::arg2_cref b) const { return   b< a ; } };
 template <typename T> struct greater_equal: compare_func<T> { Bool operator ()(typename greater_equal::arg1_cref a, typename greater_equal::arg2_cref b) const { return !(a< b); } };
@@ -321,7 +321,7 @@ template <typename T> struct logical_and : compare_func<T> { Bool operator ()(ty
 template <typename T> struct logical_or  : compare_func<T> { Bool operator ()(typename logical_or::arg1_cref a, typename logical_or::arg2_cref b) const { return   a || b; } };
 
 template <typename T> struct binary_base: binary_func<T, T, T> {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compatible_values_unit_creator_func(0, gr, args); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
 template <typename T> struct binary_and : binary_base<T> { T operator()(typename binary_base<T>::arg1_cref a, typename binary_base<T>::arg2_cref b) const { return a&b; } };

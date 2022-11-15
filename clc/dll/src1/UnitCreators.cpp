@@ -125,14 +125,24 @@ ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 	);
 }
 
-ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args)
+ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories)
 {
 	assert(args.size() - 2 >= nrSkippedArgs); // PRECONDITION
 	const AbstrUnit* arg1 = AsDataItem(args[nrSkippedArgs])->GetAbstrValuesUnit(); // the first considered argument
 	dms_assert(arg1);
-	const UnitMetric*     a1MetricPtr     = arg1->GetMetric();
+	const UnitMetric* a1MetricPtr = arg1->GetMetric();
 	const UnitProjection* a1ProjectionPtr = arg1->GetProjection();
 	dms_assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
+
+	const AbstrUnit* catUnit = nullptr;
+	if (mustCheckCategories)
+	{
+		for (arg_index i = nrSkippedArgs; i != args.size(); ++i)
+			if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
+				catUnit = AsDataItem(args[i])->GetAbstrValuesUnit();
+		if (catUnit)
+			catUnit->UnifyDomain(arg1, UnifyMode(UM_AllowDefaultRight | UM_Throw));
+	}
 
 	for (arg_index i = nrSkippedArgs + 1; i != args.size(); ++i)
 	{
@@ -142,6 +152,9 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 
 		if (arg1->GetValueType() != arg2->GetValueType())
 			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1->GetValueType()->GetName().c_str(), arg2->GetValueType()->GetName().c_str());
+
+		if (catUnit)
+			catUnit->UnifyDomain(arg2, UnifyMode(UM_AllowDefaultRight | UM_Throw));
 
 		const UnitMetric* a2MetricPtr = arg2->GetMetric();
 		if (!IsEmpty(a1MetricPtr))
