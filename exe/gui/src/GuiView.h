@@ -51,8 +51,6 @@ public:
 class GuiView : GuiBaseComponent 
 {
 public:
-	//GuiView(GuiView&&) noexcept {}
-	//GuiView(TreeItem*& currentItem, ViewStyle style, std::string name);
 	GuiView() {}
 	GuiView(GuiView&&) noexcept {}
 	~GuiView();
@@ -62,10 +60,7 @@ public:
 	void SetDoView(bool doView);
 	bool DoView();
 	bool IsPopulated();
-	void SetViewStyle(ViewStyle vs);
-	void SetViewName(std::string vn);
-	std::string GetViewName();
-	void InitDataView(TreeItem* currentItem);
+	void InitDataView(TreeItem* currentItem, ViewStyle vs, std::string name);
 	void SetViewIndex(int index);
 	HWND GetHWND();
 
@@ -83,13 +78,8 @@ private:
 	void RegisterViewAreaWindowClass(HINSTANCE instance);
 	bool IsDocked();
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
-	//GuiTreeItemsHolder m_ActiveItems;
 	GuiState	m_State;
 	bool m_DoView = true;
 	bool		m_IsPopulated = false;
 	bool		m_AddCurrentItem = false;
-	//HWND		m_HWNDParent = nullptr;
-	mutable ViewStyle	m_ViewStyle = tvsUndefined;
-	mutable std::string m_ViewName = "";
-	//DataView*	m_DataView   = nullptr;
 };

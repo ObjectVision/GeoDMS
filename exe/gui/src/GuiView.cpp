@@ -188,7 +188,7 @@ void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
     wndClassData.hCursor = NULL;
     wndClassData.hbrBackground = HBRUSH(COLOR_WINDOW + 1);
     wndClassData.lpszMenuName = NULL;
-    wndClassData.lpszClassName = (LPCWSTR)m_ViewName.c_str();
+    wndClassData.lpszClassName = (LPCWSTR)m_Views.at(m_ViewIndex).m_Name.c_str();
     wndClassData.hIconSm = NULL;
 
     RegisterClassEx(&wndClassData);
@@ -212,7 +212,7 @@ HWND GuiView::GetHWND()
     return m_Views.at(m_ViewIndex).m_HWND;
 }
 
-void GuiView::InitDataView(TreeItem* currentItem)
+void GuiView::InitDataView(TreeItem* currentItem, ViewStyle vs, std::string name)
 {
     if (!currentItem)
         return;
@@ -224,13 +224,12 @@ void GuiView::InitDataView(TreeItem* currentItem)
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-    m_ViewIndex = m_Views.size();
-    m_Views.emplace_back(currentItem->GetName().c_str(), m_ViewStyle, SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load));
+    m_ViewIndex = m_Views.size(); // currentItem->GetName().c_str()
+    m_Views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
     Close(true);
     m_AddCurrentItem = true;
 
     m_IsPopulated = true;
-    //m_DataView = SHV_DataView_Create(viewContextItem, m_ViewStyle, ShvSyncMode::SM_Load);
 }
 
 WindowState GuiView::InitWindow(TreeItem* currentItem)
@@ -240,10 +239,10 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
     HINSTANCE instance = GetInstance(m_Views.at(m_ViewIndex).m_HWNDParent);
     RegisterViewAreaWindowClass(instance);
-    auto vs = m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    auto vs = m_Views.at(m_ViewIndex).m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_Views.at(m_ViewIndex).m_HWND = CreateWindowEx(
         0L,                                                             // no extended styles
-        (LPCWSTR)m_ViewName.c_str(),                                    // MapView control class 
+        (LPCWSTR)m_Views.at(m_ViewIndex).m_Name.c_str(),                                    // MapView control class 
         (LPCWSTR)NULL,                                                  // text for window title bar 
         vs,                                                             // styles
         CW_USEDEFAULT,                                                  // horizontal position 
@@ -281,20 +280,20 @@ void GuiView::CloseAll()
     m_Views.clear();
 }
 
-void GuiView::SetViewStyle(ViewStyle vs)
+/*void GuiView::SetViewStyle(ViewStyle vs)
 {
     m_ViewStyle = vs;
-}
+}*/
 
-std::string GuiView::GetViewName()
+/*std::string GuiView::GetViewName()
 {
-    return m_ViewName;
-}
+    return m_Views.at(m_ViewIndex).m_Name.c_str(); //m_ViewName;
+}*/
 
-void GuiView::SetViewName(std::string vn)
+/*void GuiView::SetViewName(std::string vn)
 {
-    m_ViewName = vn;
-}
+    //m_ViewName = vn;
+}*/
 
 void GuiView::SetDoView(bool doView)
 {
