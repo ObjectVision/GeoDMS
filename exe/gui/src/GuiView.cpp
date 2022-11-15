@@ -28,8 +28,6 @@
 View::~View()
 {
     Reset();
-    //m_DataView = nullptr;
-
 }
 
 View::View(View&& other) noexcept
@@ -57,14 +55,6 @@ void View::Reset()
         m_HWND = nullptr;
         m_DataView = nullptr;
     }
-/*
-
-    if (m_DataView)
-    {
-        SHV_DataView_Destroy(m_DataView);
-        m_DataView = nullptr;
-    }
-*/
 }
 
 void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
@@ -73,31 +63,16 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
     {
     case UpdateCurrentItem: // update current item
     {
-        /*if (m_DataView && !m_ActiveItems.contains(currentItem))
-        {
-            m_ActiveItems.clear();
-            Close(false);
-        }*/
-
         m_IsPopulated = true;
         break;
     }
     case UpdateCurrentAndCompatibleSubItems:
     {
-        /*if (m_DataView && !m_DataView->DoesContain(currentItem))
-        {
-            m_ActiveItems.clear();
-            Close(false);
-        }*/
-
         m_IsPopulated = true;
         break;
     }
     case OpenInMemoryDataView:
-    {
-        //Close(true);
         break;
-    }
     }
 }
 
@@ -106,14 +81,13 @@ WindowState GuiView::UpdateParentWindow()
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow  = glfwGetWin32Window(glfw_window);
     auto window      = ImGui::GetCurrentWindow(); //ImGui::FindWindowByName(m_ViewName.c_str());
-    //auto window = ImGui::GetCurrentWindow();
     if (!window || !(HWND)window->Viewport->PlatformHandleRaw)
         return WindowState::UNINITIALIZED;
 
-    if (m_HWNDParent == (HWND)window->Viewport->PlatformHandleRaw)
+    if (m_Views.at(m_ViewIndex).m_HWNDParent == (HWND)window->Viewport->PlatformHandleRaw)
         return WindowState::UNCHANGED;
         
-    m_HWNDParent = (HWND)window->Viewport->PlatformHandleRaw;
+    m_Views.at(m_ViewIndex).m_HWNDParent = (HWND)window->Viewport->PlatformHandleRaw;
     return WindowState::CHANGED;
 }
 
@@ -199,21 +173,9 @@ void GuiView::UpdateWindowPosition(bool hide)
             hide ? SWP_HIDEWINDOW : SWP_SHOWWINDOW
         );
     }
-    
-    //auto window = ImGui::GetCurrentWindow();
-    //auto parentPos = GetRootParentCurrentWindowOffset();
-
-    /*ImGui::Text(("irmin x, y: " + std::to_string(ImGui::GetItemRectMin().x) + ", " + std::to_string(ImGui::GetItemRectMin().y)).c_str());
-    ImGui::Text(("irmax x, y: " + std::to_string(ImGui::GetItemRectMax().x) + ", " + std::to_string(ImGui::GetItemRectMax().y)).c_str());
-    ImGui::Text(("wpos x, y: " + std::to_string(wPos.x) + ", " + std::to_string(wPos.y)).c_str());
-    ImGui::Text(("gwpos x, y: " + std::to_string(xpos) + ", " + std::to_string(ypos)).c_str());
-    ImGui::Text(("mpos x, y: " + std::to_string(mouse_pos.x) + ", " + std::to_string(mouse_pos.y)).c_str());
-    ImGui::Text(("crMin x, y: " + std::to_string(crMin.x) + ", " + std::to_string(crMin.y)).c_str());
-    ImGui::Text(("crMax x, y: " + std::to_string(crMax.x) + ", " + std::to_string(crMax.y)).c_str());
-    ImGui::Text(("pPos x, y: " + std::to_string(parentPos.x) + ", " + std::to_string(parentPos.y)).c_str());*/
 }
 
-void GuiView::RegisterMapViewAreaWindowClass(HINSTANCE instance)
+void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
 {
     WNDCLASSEX wndClassData;
     wndClassData.cbSize = sizeof(WNDCLASSEX);
@@ -276,8 +238,8 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     dms_assert(m_ViewIndex<m_Views.size());
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
-    HINSTANCE instance = GetInstance(m_HWNDParent);
-    RegisterMapViewAreaWindowClass(instance);
+    HINSTANCE instance = GetInstance(m_Views.at(m_ViewIndex).m_HWNDParent);
+    RegisterViewAreaWindowClass(instance);
     auto vs = m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_Views.at(m_ViewIndex).m_HWND = CreateWindowEx(
         0L,                                                             // no extended styles
@@ -288,7 +250,7 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         CW_USEDEFAULT,                                                  // vertical position
         crMax.x - crMin.x,                                              // width
         crMax.y - crMin.y,                                              // height 
-        m_HWNDParent,                                                   // handle to parent
+        m_Views.at(m_ViewIndex).m_HWNDParent,                           // handle to parent
         (HMENU)NULL,                                                    // no menu
         instance,                                                       // instance owning this window 
         m_Views.at(m_ViewIndex).m_DataView //m_DataView                                       
@@ -299,14 +261,6 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
         return WindowState::UNINITIALIZED;
     }
 
-    //m_Views.at(m_ViewIndex).m_DataView; //m_DataView->ResetHWnd(m_HWND);
-
-    /*if (SHV_DataView_CanContain(m_Views.at(m_ViewIndex).m_DataView, currentItem) && !m_Views.at(m_ViewIndex).m_ActiveItems.contains(currentItem)) //!m_ActiveItems.contains(currentItem))
-    {
-        //m_ActiveItems.add(currentItem);
-        SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, currentItem, false);
-    }*/
-
     SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
     UpdateWindowPosition(true);
     return WindowState::CHANGED;
@@ -314,27 +268,16 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
 
 void GuiView::Close(bool keepDataView=true)
 {
-    if (!keepDataView && !m_Views.empty() && m_ViewIndex != -1 && m_Views.at(m_ViewIndex).m_DataView)
-    {
-        //SHV_DataView_Destroy(m_Views.at(m_ViewIndex).m_DataView); //TODO: create close all function to be called from maincomponent destructor.
-        //m_Views.erase(m_Views.begin()+m_ViewIndex);
-
-    }
     if (m_ViewIndex!=-1 && !m_Views.empty() && m_Views.at(m_ViewIndex).m_HWND)
     {
-        //SHV_DataView_Destroy
-        //DestroyWindow(m_Views.at(m_ViewIndex).m_HWND);
         m_Views.erase(m_Views.begin() + m_ViewIndex);
         m_IsPopulated = false;
         m_ViewIndex = -1;
-        //m_Views.at(m_ViewIndex).m_HWND = nullptr;
     }
 }
 
 void GuiView::CloseAll()
 {
-    //for (auto& view : m_Views)
-    //    SHV_DataView_Destroy(view.m_DataView); //m_Views.at(m_ViewIndex).m_DataView
     m_Views.clear();
 }
 
@@ -382,25 +325,9 @@ bool GuiView::CloseWindowOnMimimumSize()
     return false;
 }
 
-/*GuiView::GuiView(TreeItem*& currentItem, ViewStyle style, std::string name)
-{
-    SetViewStyle(style);
-    SetViewName(name);
-    InitDataView(currentItem);
-    InitWindow(currentItem);
-    m_DoView = true;
-}*/
-
 GuiView::~GuiView()
 {
     Close(false);
-}
-
-void GuiView::ResetView(ViewStyle vs, std::string vn)
-{
-    SetViewStyle(vs);
-    SetViewName(vn);
-    m_IsPopulated = true;
 }
 
 void GuiView::Update()
@@ -468,14 +395,10 @@ void GuiView::Update()
         return;
     }
 
-    // init View window
-    //if (!m_Views.at(m_ViewIndex).m_DataView)
-    //    InitDataView(m_State.GetCurrentItem());
-
     if (!m_Views.at(m_ViewIndex).m_HWND)
         InitWindow(m_State.GetCurrentItem());
 
-    if (!m_Views.at(m_ViewIndex).m_DataView || !m_Views.at(m_ViewIndex).m_HWND || !m_HWNDParent || !IsWindow(m_HWNDParent) || !IsWindow(m_Views.at(m_ViewIndex).m_HWND)) // final check TODO: simplify and is this necessary?
+    if (!m_Views.at(m_ViewIndex).m_DataView || !m_Views.at(m_ViewIndex).m_HWND || !m_Views.at(m_ViewIndex).m_HWNDParent || !IsWindow(m_Views.at(m_ViewIndex).m_HWNDParent) || !IsWindow(m_Views.at(m_ViewIndex).m_HWND)) // final check TODO: simplify and is this necessary?
     {
         Close(true);
         ImGui::End();
@@ -485,7 +408,7 @@ void GuiView::Update()
     // update parent window
     if (parentWindowState == WindowState::CHANGED)
     {
-        SetParent(m_Views.at(m_ViewIndex).m_HWND, m_HWNDParent); // set new parent on dock/undock
+        SetParent(m_Views.at(m_ViewIndex).m_HWND, m_Views.at(m_ViewIndex).m_HWNDParent); // set new parent on dock/undock
         UpdateWindowPosition(true);
     }
 

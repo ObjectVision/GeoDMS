@@ -5,6 +5,12 @@
 #include <windows.h>
 #include "dataview.h"
 
+//TODO:		
+// define active viewre
+// window naming sprintf(buf, "Animated title %c %d###AnimatedTitle", "|/-\\"[(int)(ImGui::GetTime() / 0.25f) & 3], ImGui::GetFrameCount());
+// programatically docking of new node DockBuilderDockWindow DockBuilderGetCentralNode
+
+
 enum WindowState
 {
 	UNINITIALIZED = -1,
@@ -15,6 +21,11 @@ enum WindowState
 class View
 {
 public:
+	View(std::string n)
+	{
+		m_Name = n;
+	}
+
 	View(std::string n, ViewStyle vs, DataView* dv)
 	{
 		m_Name = n;
@@ -30,9 +41,10 @@ public:
 	void Reset();
 
 	std::string m_Name;
-	ViewStyle m_ViewStyle;
+	ViewStyle m_ViewStyle = tvsUndefined;;
 	//GuiTreeItemsHolder m_ActiveItems;
 	DataView* m_DataView = nullptr;
+	HWND m_HWNDParent	 = nullptr;
 	HWND m_HWND		     = nullptr;
 };
 
@@ -44,7 +56,6 @@ public:
 	GuiView() {}
 	GuiView(GuiView&&) noexcept {}
 	~GuiView();
-	void ResetView(ViewStyle vs, std::string vn);
 	void Update();
 	void Close(bool keepDataView);
 	void CloseAll();
@@ -59,7 +70,8 @@ public:
 	HWND GetHWND();
 
 
-	std::vector<View> m_Views; 
+	std::vector<View> m_Views;
+	View EditPaletteWindow = View("Edit Palette Window");
 	int m_ViewIndex = -1;
 
 private:
@@ -68,7 +80,7 @@ private:
 	bool CloseWindowOnMimimumSize();
 	ImVec2 GetRootParentCurrentWindowOffset();
 	void UpdateWindowPosition(bool show);
-	void RegisterMapViewAreaWindowClass(HINSTANCE instance);
+	void RegisterViewAreaWindowClass(HINSTANCE instance);
 	bool IsDocked();
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
 	//GuiTreeItemsHolder m_ActiveItems;
@@ -76,8 +88,7 @@ private:
 	bool m_DoView = true;
 	bool		m_IsPopulated = false;
 	bool		m_AddCurrentItem = false;
-	HWND		m_HWND       = nullptr;
-	HWND		m_HWNDParent = nullptr;
+	//HWND		m_HWNDParent = nullptr;
 	mutable ViewStyle	m_ViewStyle = tvsUndefined;
 	mutable std::string m_ViewName = "";
 	//DataView*	m_DataView   = nullptr;

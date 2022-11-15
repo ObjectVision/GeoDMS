@@ -36,7 +36,7 @@
 #include "GuiGraphics.h"
 #include "GuiEmail.h"
 
-
+#include "imgui_internal.h"
 GuiMainComponent::GuiMainComponent()
 {
     auto flags = GetRegStatusFlags();
@@ -622,7 +622,7 @@ void GuiMainComponent::Update()
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     {
-        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGuiID dockspace_id = ImGui::GetID("GeoDMSDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
 
