@@ -235,7 +235,7 @@ const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUni
 	if (!coordRef.empty())
 	{
 		auto coordItem = gridDataDomain->FindItem(coordRef);
-		if (!coordItem)
+		if (!coordItem && !HasMapType(gridDataDomain))
 			gridDataDomain->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
 		if (IsUnit(coordItem))
 			uBase = AsUnit(coordItem);
@@ -244,7 +244,7 @@ const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUni
 	{
 		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
 		auto coordItem = storageHolder->FindItem(coordRef);
-		if (!coordItem)
+		if (!coordItem && !HasMapType(storageHolder))
 			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
 		if (IsUnit(coordItem))
 			uBase = AsUnit(coordItem);
