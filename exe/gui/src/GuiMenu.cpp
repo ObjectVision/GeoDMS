@@ -417,7 +417,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
         if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
         ImGui::Separator();
 
-        int index = 0;
+        /*int index = 0;
         for (auto& view : ViewPtr.m_Views)
         {
             ImGui::PushID(index);
@@ -432,7 +432,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
             }
             ImGui::PopID();
             index++;
-        }
+        }*/
 
 
         // TODO: add ViewPtr available views

@@ -38,10 +38,12 @@ View::View(View&& other) noexcept
 void View::operator=(View && other) noexcept
 {
     Reset();
-    m_Name      = std::move(other.m_Name);
-    m_ViewStyle = std::move(other.m_ViewStyle);
-    m_DataView  = std::move(other.m_DataView);
-    m_HWND      = std::move(other.m_HWND);
+    m_Name       = std::move(other.m_Name);
+    m_ViewStyle  = std::move(other.m_ViewStyle);
+    m_DataView   = std::move(other.m_DataView);
+    m_HWND       = std::move(other.m_HWND);
+    m_DoView     = std::move(other.m_DoView);
+    m_ShowWindow = std::move(other.m_ShowWindow);
 
     other.m_HWND = NULL;
     other.m_DataView = NULL;
@@ -63,12 +65,12 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
     {
     case UpdateCurrentItem: // update current item
     {
-        m_IsPopulated = true;
+        //m_IsPopulated = true;
         break;
     }
     case UpdateCurrentAndCompatibleSubItems:
     {
-        m_IsPopulated = true;
+        //m_IsPopulated = true;
         break;
     }
     case OpenInMemoryDataView:
@@ -124,13 +126,19 @@ ImVec2 GuiView::GetRootParentCurrentWindowOffset()
     return offset;
 }
 
-void GuiView::UpdateWindowPosition(View& view, bool hide)
+void GuiView::ShowOrHideWindow(View& view, bool show)
+{
+    if (view.m_ShowWindow != show) // change in show state
+    {
+        view.m_ShowWindow = show;
+        ShowWindow(view.m_HWND, view.m_ShowWindow ? SW_NORMAL : SW_HIDE);
+    }
+}
+
+void GuiView::UpdateWindowPosition(View& view)
 {
     if (!view.m_HWND)
         return;
-
-    if (hide)
-        int i = 0;
 
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
@@ -150,14 +158,14 @@ void GuiView::UpdateWindowPosition(View& view, bool hide)
     auto is_item_visible = ImGui::IsItemVisible();
     if (IsDocked())
     {
-        SetWindowPos(// TODO: When docked, use offset of mainwindow + this window to get correct position.
+        SetWindowPos(
             view.m_HWND,
             NULL,
-            crMin.x + wPos.x - xpos, // left
-            crMin.y + wPos.y - ypos, // top
-            crMax.x - crMin.x,
-            crMax.y - crMin.y,
-            hide ? SWP_HIDEWINDOW : SWP_SHOWWINDOW 
+            crMin.x + wPos.x - xpos,    // The new position of the left side of the window, in client coordinates.
+            crMin.y + wPos.y - ypos,    // The new position of the top of the window, in client coordinates.
+            crMax.x - crMin.x,          // The new width of the window, in pixels.
+            crMax.y - crMin.y,          // The new height of the window, in pixels.
+            view.m_ShowWindow ? SWP_SHOWWINDOW : SWP_HIDEWINDOW
         );
     }
     else
@@ -166,11 +174,11 @@ void GuiView::UpdateWindowPosition(View& view, bool hide)
         SetWindowPos(// TODO: When docked, use offset of mainwindow + this window to get correct position.
             view.m_HWND,
             NULL,
-            crMin.x + offset.x, // left
-            crMin.y + offset.y, // top
-            crMax.x - crMin.x,
-            crMax.y - crMin.y,
-            hide ? SWP_HIDEWINDOW : SWP_SHOWWINDOW
+            crMin.x + offset.x, // The new position of the left side of the window, in client coordinates.
+            crMin.y + offset.y, // The new position of the top of the window, in client coordinates.
+            crMax.x - crMin.x,  // The new width of the window, in pixels.
+            crMax.y - crMin.y,  // The new height of the window, in pixels.
+            view.m_ShowWindow ? SWP_SHOWWINDOW : SWP_HIDEWINDOW
         );
     }
 }
@@ -201,7 +209,8 @@ void GuiView::SetViewIndex(int index)
 
     if (index != m_ViewIndex)
     {
-        UpdateWindowPosition(m_Views.at(m_ViewIndex), true);
+        UpdateWindowPosition(m_Views.at(m_ViewIndex));
+        ShowOrHideWindow(m_Views.at(m_ViewIndex), false);
         m_ViewIndex = index;
         UpdateParentWindow(m_Views.at(m_ViewIndex));
     }
@@ -225,13 +234,16 @@ void GuiView::AddView(TreeItem* currentItem, ViewStyle vs, std::string name)
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
     m_ViewIndex = m_Views.size(); // currentItem->GetName().c_str()
+
     m_Views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
+    m_ViewIt = --m_Views.end();
+
 
     UpdateParentWindow(m_Views.back());
     InitWindow(m_State.GetCurrentItem());
     SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
     m_AddCurrentItem = true;
-    m_IsPopulated = true;
+    //m_IsPopulated = true;
 }
 
 WindowState GuiView::InitWindow(TreeItem* currentItem)
@@ -239,7 +251,7 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     dms_assert(m_ViewIndex<m_Views.size());
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
-    HINSTANCE instance = GetInstance(m_Views.at(m_ViewIndex).m_HWNDParent);
+    HINSTANCE instance = GetInstance(m_ViewIt->m_HWNDParent);//m_Views.at(m_ViewIndex).m_HWNDParent);
     RegisterViewAreaWindowClass(instance);
     auto vs = m_Views.at(m_ViewIndex).m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_Views.at(m_ViewIndex).m_HWND = CreateWindowEx(
@@ -263,11 +275,12 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     }
 
     SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
-    UpdateWindowPosition(m_Views.at(m_ViewIndex), true);
+    UpdateWindowPosition(m_Views.at(m_ViewIndex));
+    ShowOrHideWindow(m_Views.at(m_ViewIndex), true);
     return WindowState::CHANGED;
 }
 
-void GuiView::Close(bool keepDataView=true)
+/*void GuiView::Close()
 {
     if (m_ViewIndex!=-1 && !m_Views.empty() && m_Views.at(m_ViewIndex).m_HWND)
     {
@@ -275,36 +288,38 @@ void GuiView::Close(bool keepDataView=true)
         m_IsPopulated = false;
         m_ViewIndex = -1;
     }
-}
+}*/
 
 void GuiView::CloseAll()
 {
     m_Views.clear();
 }
 
-void GuiView::SetDoView(bool doView)
+/*void GuiView::SetDoView(bool doView)
 {
     m_DoView = doView;
     m_IsPopulated = doView; //TODO: can these two flags be merged?
-}
+}*/
 
-bool GuiView::DoView()
+/*bool GuiView::DoView()
 {
     return m_DoView;
-}
+}*/
 
-bool GuiView::IsPopulated()
+/*bool GuiView::IsPopulated()
 {
     return m_IsPopulated;
-}
+}*/
 
-bool GuiView::CloseWindowOnMimimumSize()
+bool GuiView::CloseWindowOnMimimumSize(View &view)
 {
     auto crm = ImGui::GetContentRegionMax();
     static int min_szx = 50, min_szy = 50;
     if (crm.x <= min_szx || crm.y <= min_szy)
     {
-        UpdateWindowPosition(m_Views.at(m_ViewIndex), true);
+        ShowOrHideWindow(view, false);
+        //UpdateWindowPosition(m_Views.at(m_ViewIndex), true);
+
         //Close(true);
         return true;
     }
@@ -314,7 +329,7 @@ bool GuiView::CloseWindowOnMimimumSize()
 
 GuiView::~GuiView()
 {
-    Close(false);
+    //Close();
 }
 
 void GuiView::UpdateAll()
@@ -322,31 +337,29 @@ void GuiView::UpdateAll()
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
-
         if (it->m_DoView)
         {
-            Update(*it);
+            if (Update(*it) && m_ViewIt._Ptr && m_ViewIt != it)
+                m_ViewIt = it;
+
             ++it;
         }
-        else
-            it = m_Views.erase(it);
+        else // view to be destroyed TODO: don't close on tab-occluded window state
+            it = m_Views.erase(it);            
     }
 }
 
-void GuiView::Update(View& view)
+bool GuiView::Update(View& view)
 {
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin( (view.m_DataView->GetCaption().c_str() + view.m_Name).c_str(), &view.m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || m_Views.empty())
+    if (!ImGui::Begin( (view.m_DataView->GetCaption().c_str() + view.m_Name).c_str(), &view.m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize(view) || m_Views.empty())
     {
-        //Close(true);
-        ImGui::End();
-        return;
-    }
+        ShowOrHideWindow(view, false);
 
-    auto test = ImGui::IsWindowCollapsed();
-    if (test)
-        int i = 0;
+        ImGui::End();
+        return false;
+    }
 
     // handle events
     EventQueue* eventQueuePtr = nullptr;
@@ -370,12 +383,14 @@ void GuiView::Update(View& view)
     }
 
     // currentItem not requested for viewing, do nothing
-    if (!m_IsPopulated)
+    /*if (!m_IsPopulated)
     {
-        UpdateWindowPosition(view, true);
+        ShowOrHideWindow(view, false);
+        UpdateWindowPosition(view);
+
         ImGui::End();
-        return;
-    }
+        return false;
+    }*/
 
     // drag-drop target
     ImGui::Dummy(ImGui::GetWindowSize());
@@ -400,7 +415,7 @@ void GuiView::Update(View& view)
     if (parentWindowState == WindowState::UNINITIALIZED)// || (m_ViewStyle == ViewStyle::tvsMapView && !IsDataItem(currentItem)))
     {
         ImGui::End();
-        return;
+        return false;
     }
     
     assert(view.m_HWNDParent);
@@ -409,20 +424,28 @@ void GuiView::Update(View& view)
     if (parentWindowState == WindowState::CHANGED)
     {
         SetParent(view.m_HWND, view.m_HWNDParent); // set new parent on dock/undock
-        UpdateWindowPosition(view, true);
+        UpdateWindowPosition(view);
+        ShowOrHideWindow(view, false);
     }
 
     // If view window is focused, focus imgui window as well
-    if (GetFocus() == view.m_HWND)
+    bool result = false;
+    if (ImGui::IsWindowFocused())
+    {
         ImGui::FocusWindow(ImGui::GetCurrentWindow());
+        result = true;
+    }
 
     // update window
-    auto result = SHV_DataView_Update(view.m_DataView);
+    SHV_DataView_Update(view.m_DataView); //TODO: do something with result?
     view.m_DataView->UpdateView();
-    auto hide = ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-    UpdateWindowPosition(view, hide);
+    auto show = !(ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
+    ShowOrHideWindow(view, show);
+    UpdateWindowPosition(view);
+
 
     SuspendTrigger::Resume();
 
     ImGui::End();
+    return result;
 }
