@@ -177,7 +177,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
         {
-            m_View.InitDataView(m_State.GetCurrentItem(), tvsMapView, "View");
+            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "##View" + std::to_string(m_View.m_Views.size()));
             m_View.SetDoView(true);
         }
 
@@ -188,13 +188,13 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
         {
-            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableView, "View");
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "##View" + std::to_string(m_View.m_Views.size()));
             m_View.SetDoView(true);
         }
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
         {
-            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableContainer, "View");
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableContainer, "##View" + std::to_string(m_View.m_Views.size()));
             m_View.SetDoView(true);
         }
 
@@ -207,12 +207,12 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
         case tvsMapView:
         {
-            m_View.InitDataView(m_State.GetCurrentItem(), tvsMapView, "View");
+            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "##View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         case tvsTableView:
         {
-            m_View.InitDataView(m_State.GetCurrentItem(), tvsTableView, "View");
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "##View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         }
@@ -616,35 +616,15 @@ void GuiMainComponent::Update()
     if (m_State.ShowStatusBar)
         m_StatusBar.Update(&m_State.ShowStatusBar);
 
-    if (m_View.IsPopulated())
-    {
-        if (m_View.DoView())
-            m_View.Update();
-        else
-            m_View.Close(false);
-    }
+    m_View.UpdateAll();
 
-    /*for (auto& view : m_MapViews)
-    {
-        if (!view.IsPopulated())
-            continue;
-
-        if (view.DoView())
-            view.Update();
-        else
-            view.Close(true);
-    }
-
-    for (auto& view : m_TableViews)
-    {
-        if (!view.IsPopulated())
-            continue;
-
-        if (view.DoView())
-            view.Update();
-        else
-            view.Close(true);
-    }*/
+    //if (m_View.IsPopulated())
+    //{
+    //    if (m_View.DoView())
+    //        m_View.Update();
+    //    else
+    //        m_View.Close(false);
+    //}
 
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
