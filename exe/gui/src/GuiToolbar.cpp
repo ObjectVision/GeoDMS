@@ -209,13 +209,13 @@ void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to 
 
     if (!view.m_Views.empty())
     {
-        if (view.m_ViewIndex != -1)
+        if (view.m_ViewIt._Ptr)
         {
-            if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsTableView)
+            if (view.m_ViewIt->m_ViewStyle == tvsTableView)
             {
                 ShowTableViewButtons(view);
             }
-            else if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsMapView)
+            else if (view.m_ViewIt->m_ViewStyle == tvsMapView)
             {
                 ShowMapViewButtons(view);
             }

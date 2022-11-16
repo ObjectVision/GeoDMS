@@ -62,13 +62,13 @@ public:
 	//bool DoView();
 	//bool IsPopulated();
 	void AddView(TreeItem* currentItem, ViewStyle vs, std::string name);
-	void SetViewIndex(int index);
+	//void SetViewIndex(int index);
 	HWND GetHWND();
 	void UpdateAll();
 
 	std::vector<View> m_Views;
 	View EditPaletteWindow = View("Edit Palette Window");
-	int m_ViewIndex = -1;
+	//int m_ViewIndex = -1;
 	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
 
 private:

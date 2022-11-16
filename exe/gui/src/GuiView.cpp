@@ -63,18 +63,9 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     switch (event)
     {
-    case UpdateCurrentItem: // update current item
-    {
-        //m_IsPopulated = true;
-        break;
-    }
-    case UpdateCurrentAndCompatibleSubItems:
-    {
-        //m_IsPopulated = true;
-        break;
-    }
-    case OpenInMemoryDataView:
-        break;
+    case UpdateCurrentItem: break;
+    case UpdateCurrentAndCompatibleSubItems: break;
+    case OpenInMemoryDataView: break;
     }
 }
 
@@ -196,44 +187,26 @@ void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
     wndClassData.hCursor = NULL;
     wndClassData.hbrBackground = HBRUSH(COLOR_WINDOW + 1);
     wndClassData.lpszMenuName = NULL;
-    wndClassData.lpszClassName = (LPCWSTR)m_Views.at(m_ViewIndex).m_Name.c_str();
+    wndClassData.lpszClassName = (LPCWSTR)m_ViewIt->m_Name.c_str(); //m_Views.at(m_ViewIndex).m_Name.c_str();
     wndClassData.hIconSm = NULL;
 
     RegisterClassEx(&wndClassData);
 }
 
-void GuiView::SetViewIndex(int index)
-{
-    if (m_ViewIndex == -1)
-        m_ViewIndex = index;
-
-    if (index != m_ViewIndex)
-    {
-        UpdateWindowPosition(m_Views.at(m_ViewIndex));
-        ShowOrHideWindow(m_Views.at(m_ViewIndex), false);
-        m_ViewIndex = index;
-        UpdateParentWindow(m_Views.at(m_ViewIndex));
-    }
-}
-
 HWND GuiView::GetHWND()
 {
-    return m_Views.at(m_ViewIndex).m_HWND;
+    return m_ViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
 void GuiView::AddView(TreeItem* currentItem, ViewStyle vs, std::string name)
 {
     if (!currentItem)
         return;
-    //if (m_ViewIndex!=-1)
-    //    GuiView::UpdateWindowPosition(true); // hide previous window
 
     static int s_ViewCounter = 0;
     auto rootItem = (TreeItem*)currentItem->GetRoot();
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
-
-    m_ViewIndex = m_Views.size(); // currentItem->GetName().c_str()
 
     m_Views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
     m_ViewIt = --m_Views.end();
@@ -241,75 +214,47 @@ void GuiView::AddView(TreeItem* currentItem, ViewStyle vs, std::string name)
 
     UpdateParentWindow(m_Views.back());
     InitWindow(m_State.GetCurrentItem());
-    SHV_DataView_AddItem(m_Views.at(m_ViewIndex).m_DataView, m_State.GetCurrentItem(), false);
+    SHV_DataView_AddItem(m_ViewIt->m_DataView, m_State.GetCurrentItem(), false);
     m_AddCurrentItem = true;
-    //m_IsPopulated = true;
 }
 
 WindowState GuiView::InitWindow(TreeItem* currentItem)
 {
-    dms_assert(m_ViewIndex<m_Views.size());
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
     HINSTANCE instance = GetInstance(m_ViewIt->m_HWNDParent);//m_Views.at(m_ViewIndex).m_HWNDParent);
     RegisterViewAreaWindowClass(instance);
-    auto vs = m_Views.at(m_ViewIndex).m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
-    m_Views.at(m_ViewIndex).m_HWND = CreateWindowEx(
+    auto vs = m_ViewIt->m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    m_ViewIt->m_HWND = CreateWindowEx(
         0L,                                                             // no extended styles
-        (LPCWSTR)m_Views.at(m_ViewIndex).m_Name.c_str(),                                    // MapView control class 
+        (LPCWSTR)m_ViewIt->m_Name.c_str(),                                    // MapView control class 
         (LPCWSTR)NULL,                                                  // text for window title bar 
         vs,                                                             // styles
         CW_USEDEFAULT,                                                  // horizontal position 
         CW_USEDEFAULT,                                                  // vertical position
         crMax.x - crMin.x,                                              // width
         crMax.y - crMin.y,                                              // height 
-        m_Views.at(m_ViewIndex).m_HWNDParent,                           // handle to parent
+        m_ViewIt->m_HWNDParent,                           // handle to parent
         (HMENU)NULL,                                                    // no menu
         instance,                                                       // instance owning this window 
-        m_Views.at(m_ViewIndex).m_DataView //m_DataView                                       
+        m_ViewIt->m_DataView //m_DataView                                       
     );
 
-    if (!m_Views.at(m_ViewIndex).m_HWND)
+    if (!m_ViewIt->m_HWND)
     {
         return WindowState::UNINITIALIZED;
     }
 
-    SHV_DataView_Update(m_Views.at(m_ViewIndex).m_DataView);
-    UpdateWindowPosition(m_Views.at(m_ViewIndex));
-    ShowOrHideWindow(m_Views.at(m_ViewIndex), true);
+    SHV_DataView_Update(m_ViewIt->m_DataView);
+    UpdateWindowPosition(*m_ViewIt);
+    ShowOrHideWindow(*m_ViewIt, true);
     return WindowState::CHANGED;
 }
-
-/*void GuiView::Close()
-{
-    if (m_ViewIndex!=-1 && !m_Views.empty() && m_Views.at(m_ViewIndex).m_HWND)
-    {
-        m_Views.erase(m_Views.begin() + m_ViewIndex);
-        m_IsPopulated = false;
-        m_ViewIndex = -1;
-    }
-}*/
 
 void GuiView::CloseAll()
 {
     m_Views.clear();
 }
-
-/*void GuiView::SetDoView(bool doView)
-{
-    m_DoView = doView;
-    m_IsPopulated = doView; //TODO: can these two flags be merged?
-}*/
-
-/*bool GuiView::DoView()
-{
-    return m_DoView;
-}*/
-
-/*bool GuiView::IsPopulated()
-{
-    return m_IsPopulated;
-}*/
 
 bool GuiView::CloseWindowOnMimimumSize(View &view)
 {
@@ -318,19 +263,13 @@ bool GuiView::CloseWindowOnMimimumSize(View &view)
     if (crm.x <= min_szx || crm.y <= min_szy)
     {
         ShowOrHideWindow(view, false);
-        //UpdateWindowPosition(m_Views.at(m_ViewIndex), true);
-
-        //Close(true);
         return true;
     }
 
     return false;
 }
 
-GuiView::~GuiView()
-{
-    //Close();
-}
+GuiView::~GuiView(){}
 
 void GuiView::UpdateAll()
 {
@@ -344,8 +283,15 @@ void GuiView::UpdateAll()
 
             ++it;
         }
-        else // view to be destroyed TODO: don't close on tab-occluded window state
-            it = m_Views.erase(it);            
+        else // view to be destroyed
+        {
+            bool update_focus_iterator = m_ViewIt == it; // m_ViewIt is invalidated by erase
+            it = m_Views.erase(it);
+            if (update_focus_iterator && it == m_Views.end())
+                m_ViewIt = m_Views.begin();
+            else if (update_focus_iterator)
+                m_ViewIt = it;
+        }
     }
 }
 
@@ -381,16 +327,6 @@ bool GuiView::Update(View& view)
         if (m_State.GetCurrentItem())
             ProcessEvent(view_event, m_State.GetCurrentItem());
     }
-
-    // currentItem not requested for viewing, do nothing
-    /*if (!m_IsPopulated)
-    {
-        ShowOrHideWindow(view, false);
-        UpdateWindowPosition(view);
-
-        ImGui::End();
-        return false;
-    }*/
 
     // drag-drop target
     ImGui::Dummy(ImGui::GetWindowSize());
