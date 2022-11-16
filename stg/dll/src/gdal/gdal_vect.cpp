@@ -649,7 +649,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 	dms_assert(dataArray.get_sa().data_size() == data.actual_data_size());
 }
 
-SizeT LayerFieldEnable(OGRLayer* layer, std::string itemName, const Actor* context)
+SizeT LayerFieldEnable(OGRLayer* layer, CharPtrRange itemName, const Actor* context)
 {
 	dms_assert(layer);
 	SizeT fieldID ;
@@ -657,15 +657,15 @@ SizeT LayerFieldEnable(OGRLayer* layer, std::string itemName, const Actor* conte
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
 	if (context) // attribute, not geometry
 	{
-		SharedStr colName = SharedStr(itemName.c_str());
-		if (!colName.empty())
+		if (!itemName.empty())
 		{
 			fieldID = 0;
 			while (fieldID < featureDefn->GetFieldCount())
 			{
-				auto tmp_name = SharedStr(featureDefn->GetFieldDefn(fieldID)->GetNameRef());
-				auto tmp_converted_name = as_item_name(tmp_name.begin(), tmp_name.end()).c_str();
-				if (!stricmp(colName.c_str(), as_item_name(tmp_name.begin(), tmp_name.end()).c_str())) //layerNameSet.FieldNameToMappedName(featureDefn->GetFieldDefn(fieldID)->GetNameRef()).c_str()))
+				CharPtr columnName = featureDefn->GetFieldDefn(fieldID)->GetNameRef();
+				SizeT columnNameLen = StrLen(columnName);
+				auto columnNameAsItemName = as_item_name(columnName, columnName + columnNameLen);
+				if (!stricmp(itemName.first, columnNameAsItemName.c_str())) //layerNameSet.FieldNameToMappedName(featureDefn->GetFieldDefn(fieldID)->GetNameRef()).c_str()))
 					goto found;
 				fieldID++;
 			}
@@ -688,7 +688,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	dms_assert(br);
 	OGRLayer* layer = br->m_Layer;
 	if (!t)
-		LayerFieldEnable(layer, "", nullptr); // only set once
+		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
 	switch (vc->GetValueClassID())
