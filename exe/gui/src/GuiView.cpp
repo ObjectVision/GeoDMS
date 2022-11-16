@@ -290,7 +290,7 @@ void GuiView::UpdateAll()
             if (update_focus_iterator && it == m_Views.end())
                 m_ViewIt = m_Views.begin();
             else if (update_focus_iterator)
-                m_ViewIt = it;
+                m_ViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
         }
     }
 }

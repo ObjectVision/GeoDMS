@@ -514,6 +514,8 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
+    //SuspendTrigger::MustSuspend();
+
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
