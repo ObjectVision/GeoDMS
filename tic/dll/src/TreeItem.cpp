@@ -2485,7 +2485,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				dms_assert(result && result->GetInterestCount());
 
 				DataReadLockContainer c;                                                  // @@@USE
-				if (!c.Add(AsDataItem(result->GetOld()), DrlType::Suspendible))
+				if (!result->GetOld() || !c.Add(AsDataItem(result->GetOld()), DrlType::Suspendible))
 				{
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;

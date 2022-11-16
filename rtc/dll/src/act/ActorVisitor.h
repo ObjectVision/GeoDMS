@@ -76,7 +76,8 @@ struct DerivedProcVisitor : ActorVisitor
 
 	ActorVisitState operator() (const Actor* self) const override
 	{
-		lfunc(self);
+		if (self)
+			lfunc(self);
 		return AVS_Ready;
 	}
 	ProcLambda lfunc;

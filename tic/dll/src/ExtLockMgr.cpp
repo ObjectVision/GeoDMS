@@ -179,6 +179,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_IncInterestCount(const TreeItem* self)
 {
 	DMS_SE_CALL_BEGIN
 
+		MG_CHECK2(self, "invalid null pointer in DMS_TreeItem_IncInterestCount");
 		TreeItem_IncInterestCountImpl(self);
 
 	DMS_SE_CALL_END
