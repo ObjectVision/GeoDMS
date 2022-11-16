@@ -94,6 +94,8 @@ public:
 			dms_assert(valuesA);
 
 			resultHolder = CreateCacheDataItem(domainA, valuesA, vc );
+			if (valuesA->GetTSF(DSF_Categorical))
+				resultHolder->SetTSF(DSF_Categorical);
 		}
 
 		if (mustCalc)

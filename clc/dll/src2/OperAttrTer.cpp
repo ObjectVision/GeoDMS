@@ -293,17 +293,28 @@ struct replace_assign : ternary_assign<SharedStr, SharedStr, SharedStr, SharedSt
 #include "OperUnit.h"
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
+#include "LispTreeType.h"
 
 namespace 
 {
-	CommonOperGroup cog_Iif("iif"), cog_Rgb("rgb");
+	CommonOperGroup cog_Iif(token::iif), cog_Rgb("rgb");
 
 	template <typename X>
-	struct iifOperator
+	struct iifOperator : MonalTernaryAttrOperator<iif_assign<X> >
 	{
-		iifOperator() : m_OperData(&cog_Iif) {}
-		MonalTernaryAttrOperator<iif_assign<X> > m_OperData;
+		iifOperator()
+			: MonalTernaryAttrOperator <iif_assign<X>>(&cog_Iif)
+		{}
+		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+		{
+			if (!MonalTernaryAttrOperator<iif_assign<X> >::CreateResult(resultHolder, args, mustCalc))
+				return false;
+			if (args[1]->GetTSF(DSF_Categorical) || args[2]->GetTSF(DSF_Categorical))
+				resultHolder->SetTSF(DSF_Categorical);
+			return true;
+		}
 	};
+
 	template <typename X>
 	struct rgbOperator
 	{

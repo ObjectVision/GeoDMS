@@ -437,6 +437,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 			issueStr = "ValuesUnit ";
 			goto failResultMsg;
 		}
+		SetTSF(DSF_Categorical);
 	}
 	return true;
 
