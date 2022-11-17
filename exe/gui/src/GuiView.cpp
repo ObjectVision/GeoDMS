@@ -285,11 +285,10 @@ void GuiView::UpdateAll()
         }
         else // view to be destroyed
         {
-            bool update_focus_iterator = m_ViewIt == it; // m_ViewIt is invalidated by erase
             it = m_Views.erase(it);
-            if (update_focus_iterator && it == m_Views.end())
+            if (it == m_Views.end())
                 m_ViewIt = m_Views.begin();
-            else if (update_focus_iterator)
+            else
                 m_ViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
         }
     }
@@ -366,15 +365,23 @@ bool GuiView::Update(View& view)
 
     // If view window is focused, focus imgui window as well
     bool result = false;
-    if (ImGui::IsWindowFocused())
+    if (ImGui::IsWindowFocused() && GetFocus() == view.m_HWND)
     {
-        ImGui::FocusWindow(ImGui::GetCurrentWindow());
+        //if (GetFocus() != view.m_HWND)
+        //    SetFocus(view.m_HWND);
+
         result = true;
     }
+    //else if (GetFocus()==view.m_HWND)
+    //
+    //ImGui::FocusWindow(ImGui::GetCurrentWindow());
 
     // update window
-    SHV_DataView_Update(view.m_DataView); //TODO: do something with result?
-    view.m_DataView->UpdateView();
+    if (!SHV_DataView_Update(view.m_DataView))
+    {
+        SHV_DataView_Update(view.m_DataView);
+    }
+
     auto show = !(ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     ShowOrHideWindow(view, show);
     UpdateWindowPosition(view);

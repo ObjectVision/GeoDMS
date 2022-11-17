@@ -209,7 +209,7 @@ void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to 
 
     if (!view.m_Views.empty())
     {
-        if (view.m_ViewIt._Ptr)
+        if (view.m_ViewIt!=view.m_Views.end())
         {
             if (view.m_ViewIt->m_ViewStyle == tvsTableView)
             {

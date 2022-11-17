@@ -589,7 +589,7 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItemComponent.Update();
-    
+
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_View);
 
