@@ -247,8 +247,8 @@ public:
 		if (!resultHolder)
 		{
 			dms_assert(!mustCalc);
-			if (arg2A) pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
-			if (arg3A) pointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), UM_Throw);
+			if (arg2A) pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+			if (arg3A) pointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), "e1", "e3", UM_Throw);
 			resultHolder = CreateCacheDataItem(polyEntity, valuesUnit, m_VC);
 		}
 		if (mustCalc)

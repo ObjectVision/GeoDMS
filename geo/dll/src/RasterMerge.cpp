@@ -77,14 +77,14 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 		if (m_IsRasterMerge && e1->GetNrDimensions() != 2)
 			resultHolder.throwItemError("Raster domain expected");
 
-		for (UInt32 a=2, nrArg=args.size(); a!=nrArg; ++a)
+		for (arg_index a=2, nrArg=args.size(); a!=nrArg; ++a)
 		{
 			if (!IsDataItem(args[a]))
 				resultHolder.throwItemErrorF("DataItem expected at arg %d", a);
 			const AbstrDataItem* argDi = AsDataItem(args[a]);
 			if (m_IsRasterMerge && argDi->GetAbstrDomainUnit()->GetNrDimensions() != 2 && !(m_IsIndexed && argDi->HasVoidDomainGuarantee()))
 				resultHolder.throwItemErrorF("Raster data expected at arg %d", a);
-			v1->UnifyValues(argDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowVoidRight | UM_Throw));
+			v1->UnifyValues(argDi->GetAbstrValuesUnit(), "v1", "Values of a subsequent attribute", UnifyMode(UM_AllowVoidRight | UM_Throw));
 		}
 
 		if (!resultHolder)

@@ -495,7 +495,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 		infoTxt += mySSPrintF(TXT_DIALOGDATA_REF, mapItem2->GetFullName().c_str());
 		if (IsFeatureData(mapItem2))
 		{
-			if (!avu->UnifyDomain(mapItem2->GetAbstrDomainUnit(), UnifyMode(0), &resultMsg)) // mapItem will be inverted to EK->E and must be compatible with EK->Crd
+			if (!avu->UnifyDomain(mapItem2->GetAbstrDomainUnit(), UnifyMode(), &resultMsg)) // mapItem will be inverted to EK->E and must be compatible with EK->Crd
 				return LayerInfo(infoTxt + TXT_DOMAIN_ERR + resultMsg);
 
 			return LayerInfo(LayerInfo::Feature,                         // adi: E->V; mapItem: E->EK; mapItem2: EK->Crd

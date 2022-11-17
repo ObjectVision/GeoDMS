@@ -1038,7 +1038,7 @@ void CreateResultingItems(
 		regioRefDI->UpdateMetaInfo();
 		fc->AddDependency(regioRefDI->GetCheckedDC());
 
-		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
 				,	p, partitioningName, regioRefDI->GetSourceName()
 				,	atomicRegionUnit->GetSourceName()

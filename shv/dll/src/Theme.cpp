@@ -355,19 +355,23 @@ void Theme::CheckConsistency() const
 {
 	ObjectContextHandle och(this, GetAspectName());
 
-	const AbstrUnit* vu = 0;
+	const AbstrUnit* vu = nullptr;
 	if (m_ThemeAttr)
 		vu = m_ThemeAttr->GetAbstrValuesUnit();
 	if (m_Classification)
 	{
 		if (vu) 
-			vu->UnifyValues(m_Classification->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefault|UM_Throw));
+			vu->UnifyValues(m_Classification->GetAbstrValuesUnit(), "Values of thematic attribute", "Values of class-break attribute", UnifyMode(UM_AllowDefault | UM_Throw));
 		vu = m_Classification->GetAbstrDomainUnit();
 	}
 	if (m_PaletteAttr)
 	{
 		if (vu)
-			vu->UnifyDomain(m_PaletteAttr->GetAbstrDomainUnit(), UnifyMode(UM_AllowDefaultLeft|UM_Throw));
+			vu->UnifyDomain(m_PaletteAttr->GetAbstrDomainUnit()
+				, m_Classification ? "Domain of class-break attribute" : "Domain of thematic attribute"
+				, "Domain of palette attribute"
+				, UnifyMode(UM_AllowDefaultLeft | UM_Throw)
+			);
 	}
 }
 

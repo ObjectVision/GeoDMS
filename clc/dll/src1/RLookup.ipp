@@ -54,7 +54,7 @@ public:
 
 		arg1A->GetAbstrValuesUnit()->UnifyValues(
 			arg2A->GetAbstrValuesUnit(), 
-			UnifyMode(UM_Throw|UM_AllowDefault)
+			"v1", "v2", UnifyMode(UM_Throw | UM_AllowDefault)
 		);
 
 		if (!resultHolder)

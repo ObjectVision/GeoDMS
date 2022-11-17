@@ -1408,7 +1408,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		fieldName = subItem->GetName().c_str();
 
 		if (layerDomain)
-			subDI->GetAbstrDomainUnit()->UnifyDomain(layerDomain, UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
+			subDI->GetAbstrDomainUnit()->UnifyDomain(layerDomain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
 		auto adu = subDI->GetAbstrDomainUnit();
 		auto unittype = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();

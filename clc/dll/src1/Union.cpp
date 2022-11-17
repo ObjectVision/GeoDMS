@@ -97,7 +97,7 @@ public:
 			if (arg1_ValuesUnit->IsDefaultUnit())
 				arg1_ValuesUnit = currArg_ValuesUnit;
 			else
-				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, UnifyMode(UM_Throw|UM_AllowDefault) );
+				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, "Values of a next attribute wiht known values unit", "Values of the first attribute with known values unit", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 
 		AbstrUnit* resultDomain = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
@@ -274,7 +274,7 @@ public:
 			{
 				auto leftRole = mySSPrintF("Values of argument %d", arg1_VU_index + 1);
 				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaul | UM_Throw));
+				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefault | UM_Throw));
 			}
 
 

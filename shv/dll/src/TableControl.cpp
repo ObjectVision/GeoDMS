@@ -240,7 +240,7 @@ void TableControl::ProcessDIC(DataItemColumn* dic)
 	const AbstrUnit* entity = dic->GetActiveEntity();
 	if (m_Entity) {
 		if (entity)
-			m_Entity->UnifyDomain(entity, UM_Throw, 0);
+			m_Entity->UnifyDomain(entity, "Table Entity", "Domain of attribute", UM_Throw, 0);
 	}
 	else
 		SetEntity( entity );

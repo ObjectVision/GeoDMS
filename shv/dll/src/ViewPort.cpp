@@ -137,7 +137,7 @@ void ViewPort::InitWorldCrdUnit(const AbstrUnit* worldCrdUnit)
 	if (worldCrdUnit)
 	{
 		if (m_WorldCrdUnit)
-			m_WorldCrdUnit->UnifyValues(worldCrdUnit, UnifyMode(UM_AllowTypeDiff|UM_Throw|UM_AllowDefaultLeft)); // worldCrdUnit must not have less metrc/projection
+			m_WorldCrdUnit->UnifyValues(worldCrdUnit, "Already set WorldCrdUnit", "new WorldCrdUnit", UnifyMode(UM_AllowTypeDiff | UM_Throw | UM_AllowDefaultLeft)); // worldCrdUnit must not have less metrc/projection
 		m_WorldCrdUnit = worldCrdUnit;
 	}
 	else
@@ -1054,7 +1054,7 @@ void SetRoiParam(TreeItem* context, SharedRwDataItemInterestPtr& param, TokenID 
 	{
 		const AbstrDataItem* res = AsDynamicDataItem( context->GetConstSubTreeItemByID(id) );
 
-		if (res && res->GetAbstrValuesUnit()->UnifyValues(worldCrdUnit, UM_AllowDefault) )
+		if (res && res->GetAbstrValuesUnit()->UnifyValues(worldCrdUnit, res->GetFullName().c_str(), "WorldCrdUnit", UM_AllowDefault))
 			param = const_cast<AbstrDataItem*>(res);
 	}
 }

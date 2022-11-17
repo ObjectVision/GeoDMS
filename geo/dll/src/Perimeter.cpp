@@ -166,13 +166,13 @@ public:
 		domain->UnifyDomain(northFactor->GetAbstrDomainUnit(), UM_Throw);
 		const AbstrUnit* resUnit = northFactor->GetAbstrValuesUnit();
 
-		domain->UnifyDomain(AsDataItem(args[2])->GetAbstrDomainUnit(), UM_Throw);
-		domain->UnifyDomain(AsDataItem(args[3])->GetAbstrDomainUnit(), UM_Throw);
-		domain->UnifyDomain(AsDataItem(args[4])->GetAbstrDomainUnit(), UM_Throw);
+		domain->UnifyDomain(AsDataItem(args[2])->GetAbstrDomainUnit(), "e1", "e3", UM_Throw);
+		domain->UnifyDomain(AsDataItem(args[3])->GetAbstrDomainUnit(), "e1", "e4", UM_Throw);
+		domain->UnifyDomain(AsDataItem(args[4])->GetAbstrDomainUnit(), "e1", "e5", UM_Throw);
 
-		resUnit->UnifyValues(AsDataItem(args[2])->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
-		resUnit->UnifyValues(AsDataItem(args[3])->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
-		resUnit->UnifyValues(AsDataItem(args[4])->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
+		resUnit->UnifyValues(AsDataItem(args[2])->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_Throw|UM_AllowDefault));
+		resUnit->UnifyValues(AsDataItem(args[3])->GetAbstrValuesUnit(), "v2", "v4", UnifyMode(UM_Throw|UM_AllowDefault));
+		resUnit->UnifyValues(AsDataItem(args[4])->GetAbstrValuesUnit(), "v2", "v5", UnifyMode(UM_Throw|UM_AllowDefault));
 
 		dms_assert(resUnit);
 		if (!resultHolder) resultHolder = CreateCacheDataItem(regionsUnit, resUnit);

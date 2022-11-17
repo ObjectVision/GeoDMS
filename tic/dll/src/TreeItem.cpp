@@ -1989,7 +1989,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	return result;
 }
 
-void TreeItem::Unify(const TreeItem* refItem) const
+void TreeItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const
 {}
 
 void TreeItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
@@ -2183,15 +2183,13 @@ auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheIte
 	auto dataItemSelf = AsDataItem(self);
 	auto cacheDataItem = AsDataItem(cacheItem);
 
-	// just check domain
-	const AbstrUnit* adu = dataItemSelf->GetAbstrDomainUnit();
-	const AbstrUnit* sdu = cacheDataItem->GetAbstrDomainUnit();
-	adu->UnifyDomain(sdu, UnifyMode(UM_AllowDefaultLeft | UM_Throw));
+	// just check domain (again?)
+	MG_CHECK(dataItemSelf->GetAbstrDomainUnit()->UnifyDomain(cacheDataItem->GetAbstrDomainUnit(), "", "", UnifyMode(UM_AllowDefaultLeft))); // GUARANTEED BY CheckResultItem
 
-	// just check values unit
+	// just check values unit (again?)
 	const AbstrUnit* avu = dataItemSelf->GetAbstrValuesUnit();
 	const AbstrUnit* svu = cacheDataItem->GetAbstrValuesUnit();
-	avu->UnifyValues(svu, UnifyMode(UM_AllowDefaultLeft | UM_Throw));
+	MG_CHECK( avu->UnifyValues(svu, "", "", UnifyMode(UM_AllowDefaultLeft | UM_Throw)) ); // GUARANTEED BY CheckResultItem
 
 	// ===== this -> convert(this, formalValuesUnit) if result was DefaultUnit or allowably different.
 	if ((svu->GetCurrRangeItem() != avu->GetCurrRangeItem()) && !avu->IsDefaultUnit())

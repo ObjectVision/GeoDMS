@@ -1400,7 +1400,7 @@ TIC_CALL bool DMS_CONV DMS_ParseResult_CheckResultingTreeItem(AbstrCalculator* s
 
 		auto result = CalcResult(self, resultHolder ? resultHolder->GetDynamicObjClass() : nullptr);
 		if (resultHolder)
-			resultHolder->Unify(result->GetOld()); // works like _CheckResulItem but throws and doesn't fail resultHolder.
+			resultHolder->Unify(result->GetOld(), "Formal ResultHolder", "Calculation Result"); // works like _CheckResulItem but throws and doesn't fail resultHolder.
 		return true;
 
 	DMS_CALL_END

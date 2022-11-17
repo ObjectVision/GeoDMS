@@ -69,7 +69,7 @@ public:
 		{
 			MG_CHECK(AsDynamicDataItem(GetItem(args[i])));
 
-			arg1A->GetAbstrValuesUnit()->UnifyValues(AsDataItem(args[i])->GetAbstrValuesUnit(), UnifyMode(UM_Throw));
+			arg1A->GetAbstrValuesUnit()->UnifyValues(AsDataItem(args[i])->GetAbstrValuesUnit(), "v1", "Values of a following argument", UnifyMode(UM_Throw));
 		}
 		auto res  = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
 		resultHolder = res;

@@ -124,8 +124,8 @@ struct ArgMinMaxOper : UnaryOperator
 				auto v = argA->GetAbstrValuesUnit();
 				if (e1->GetValueType() == ValueWrap<Void>::GetStaticClass())
 					e1 = e;
-				e1->UnifyDomain(e, UnifyMode(UM_Throw| UM_AllowVoidRight));
-				v1->UnifyValues(v, UnifyMode(UM_Throw | UM_AllowDefault));
+				e1->UnifyDomain(e, "e1", "Domain of a subsequent attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+				v1->UnifyValues(v, "v1", "Values of a subsequent attribute "UnifyMode(UM_Throw | UM_AllowDefault));
 				if (v1->IsDefaultUnit())
 					v1 = v;
 			}
