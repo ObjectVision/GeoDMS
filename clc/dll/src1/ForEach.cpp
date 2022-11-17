@@ -206,55 +206,55 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	const AbstrUnit* domainUnit = nameArrayItemA->GetAbstrDomainUnit();
 	dms_assert(domainUnit);
 
-	MG_USERCHECK2(!optExprs || domainUnit->UnifyDomain(optExprsA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optExprs || domainUnit->UnifyDomain(optExprsA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and exprArray don't have the same domain");
 	bool optExprsIsParam = IsParam(optExprsA);
 
-	MG_USERCHECK2(!optChecks || domainUnit->UnifyDomain(optChecksA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optChecks || domainUnit->UnifyDomain(optChecksA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and checkArray don't have the same domain");
 	bool optChecksIsParam = IsParam(optChecksA);
 
-	MG_USERCHECK2(!optTemplNames || domainUnit->UnifyDomain(optTemplNamesA->GetAbstrDomainUnit()),
+	MG_USERCHECK2(!optTemplNames || domainUnit->UnifyDomain(optTemplNamesA->GetAbstrDomainUnit(), "", ""),
 		"for_each operator: nameArray and templNameArray don't have the same domain");
 
-	MG_USERCHECK2(!optDuNames || domainUnit->UnifyDomain(optDuNamesA->GetAbstrDomainUnit()),
+	MG_USERCHECK2(!optDuNames || domainUnit->UnifyDomain(optDuNamesA->GetAbstrDomainUnit(), "", ""),
 		"for_each operator: nameArray and domainUnitNameArray don't have the same domain");
 
-	MG_USERCHECK2(!optVuNames || domainUnit->UnifyDomain(optVuNamesA->GetAbstrDomainUnit()),
+	MG_USERCHECK2(!optVuNames || domainUnit->UnifyDomain(optVuNamesA->GetAbstrDomainUnit(), "", ""),
 		"for_each operator: nameArray and valuesUnitNameArray don't have the same domain");
 
-	MG_USERCHECK2(!optUnitNames || domainUnit->UnifyDomain(optUnitNamesA->GetAbstrDomainUnit()),
+	MG_USERCHECK2(!optUnitNames || domainUnit->UnifyDomain(optUnitNamesA->GetAbstrDomainUnit(), "", ""),
 		"for_each operator: nameArray and unitNameArray don't have the same domain");
 
-	MG_USERCHECK2(!optLabels || domainUnit->UnifyDomain(optLabelsA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optLabels || domainUnit->UnifyDomain(optLabelsA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and labelArray don't have the same domain");
 	bool optLabelsIsParam = IsParam(optLabelsA);
 
-	MG_USERCHECK2(!optDescrs || domainUnit->UnifyDomain(optDescrsA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optDescrs || domainUnit->UnifyDomain(optDescrsA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and descrArray don't have the same domain");
 	bool optDescrsIsParam = IsParam(optDescrsA);
 
-	MG_USERCHECK2(!optStorageName || domainUnit->UnifyDomain(optStorageNameA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optStorageName || domainUnit->UnifyDomain(optStorageNameA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and storageName don't have the same domain");
 	bool optStorageNamesIsParam = IsParam(optStorageNameA);
 
-	MG_USERCHECK2(!optStorageType || domainUnit->UnifyDomain(optStorageTypeA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optStorageType || domainUnit->UnifyDomain(optStorageTypeA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and storageType don't have the same domain");
 	bool optStorageTypesIsParam = IsParam(optStorageTypeA);
 
-	MG_USERCHECK2(!optStorageRo || domainUnit->UnifyDomain(optStorageRoA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optStorageRo || domainUnit->UnifyDomain(optStorageRoA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and storageReadOnly don't have the same domain");
 	bool optStorageRoIsParam = IsParam(optStorageRoA);
 
-	MG_USERCHECK2(!optSqlStrings || domainUnit->UnifyDomain(optSqlStringsA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optSqlStrings || domainUnit->UnifyDomain(optSqlStringsA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and sqlStringArray don't have the same domain");
 	bool optSqlStringsIsParam  = IsParam(optSqlStringsA);
 
-	MG_USERCHECK2(!optCdf || domainUnit->UnifyDomain(optCdfA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optCdf || domainUnit->UnifyDomain(optCdfA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and CdfArray don't have the same domain");
 	bool optCdfIsParam  = IsParam(optCdfA);
 
-	MG_USERCHECK2(!optUrl || domainUnit->UnifyDomain(optUrlA->GetAbstrDomainUnit(), UM_AllowVoidRight),
+	MG_USERCHECK2(!optUrl || domainUnit->UnifyDomain(optUrlA->GetAbstrDomainUnit(), "", "", UM_AllowVoidRight),
 		"for_each operator: nameArray and UrlArray don't have the same domain");
 	bool optUrlIsParam  = IsParam(optUrlA);
 

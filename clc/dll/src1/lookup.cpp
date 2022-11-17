@@ -88,7 +88,7 @@ public:
 
 		if (!resultHolder)
 		{
-			arg1ValuesA->UnifyDomain(arg2DomainA, UnifyMode(UM_Throw|UM_AllowDefaultLeft));
+			arg1ValuesA->UnifyDomain(arg2DomainA, "v1", "e2", UnifyMode(UM_Throw|UM_AllowDefaultLeft));
 
 			dms_assert(domainA);
 			dms_assert(valuesA);

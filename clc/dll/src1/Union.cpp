@@ -257,6 +257,7 @@ public:
 		const AbstrUnit* resultDomain = AsUnit(GetItem(args[0]));
 
 		const AbstrDataItem *arg1A = AsDataItem(args[1]);
+		arg_index arg1_VU_index = 1;
 		dms_assert(arg1A);
 		const AbstrUnit* arg1_ValuesUnit = arg1A->GetAbstrValuesUnit();
 		dms_assert(arg1_ValuesUnit);
@@ -269,9 +270,19 @@ public:
 			const AbstrDataItem* argA = AsDataItem(args[i]);
 			const AbstrUnit* currArg_ValuesUnit = argA->GetAbstrValuesUnit();
 			dms_assert(currArg_ValuesUnit);
-			currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, UnifyMode(UM_Throw|UM_AllowDefault) );
+			if (!currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, "", "", UM_AllowDefault))
+			{
+				auto leftRole = mySSPrintF("Values of argument %d", arg1_VU_index + 1);
+				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
+				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaul | UM_Throw));
+			}
+
+
 			if (arg1_ValuesUnit->IsDefaultUnit())
+			{
 				arg1_ValuesUnit = currArg_ValuesUnit;
+				arg1_VU_index = i;
+			}
 			Unify(vc, argA->GetValueComposition());
 		}
 
@@ -298,7 +309,7 @@ public:
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
-		dms_assert(!context || context->m_Domain && resultDomain->UnifyDomain(context->m_Domain));
+		dms_assert(!context || context->m_Domain && resultDomain->UnifyDomain(context->m_Domain, "r1", "e2"));
 		dms_assert(!context || context->m_Coordinate);
 		SizeT coordOffset = context ? context->m_Coordinate->first : 0;
 

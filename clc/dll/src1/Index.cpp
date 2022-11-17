@@ -280,9 +280,9 @@ public:
 		dms_assert(adi3);
 
 		const AbstrUnit*  e = adi1->GetAbstrDomainUnit();
-		e->UnifyDomain(adi2->GetAbstrDomainUnit(), UM_Throw);
-		e->UnifyDomain(adi3->GetAbstrDomainUnit(), UM_Throw);
-		e->UnifyDomain(adi1->GetAbstrValuesUnit(), UM_Throw);
+		e->UnifyDomain(adi2->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		e->UnifyDomain(adi3->GetAbstrDomainUnit(), "e1", "e3", UM_Throw);
+		e->UnifyDomain(adi1->GetAbstrValuesUnit(), "e1", "v1", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(e, e);

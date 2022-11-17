@@ -188,8 +188,8 @@ struct AbstrOperAccPartBin: TernaryOperator
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
 		const AbstrUnit* e3 = arg3A->GetAbstrDomainUnit();
-		e3->UnifyDomain(e1, UM_Throw);
-		e3->UnifyDomain(e2, UM_Throw);
+		e3->UnifyDomain(e1, "e3", "e1", UM_Throw);
+		e3->UnifyDomain(e2, "e3", "e2", UM_Throw);
 
 		const AbstrUnit* p3 = arg3A->GetAbstrValuesUnit();
 		dms_assert(p3);

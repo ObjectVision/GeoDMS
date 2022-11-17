@@ -132,8 +132,8 @@ public:
 	TIC_CALL SharedStr GetNameOrCurrMetric(FormattingFlags ff) const;
 
 	TIC_CALL const UnitClass*  GetUnitClass () const;
-	TIC_CALL bool  UnifyValues(const AbstrUnit* calculatedUnit, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
-	TIC_CALL bool  UnifyDomain(const AbstrUnit* calculatedUnit, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
+	TIC_CALL bool  UnifyValues(const AbstrUnit* calculatedUnit, CharPtr leftRole, CharPtr rightRole, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
+	TIC_CALL bool  UnifyDomain(const AbstrUnit* calculatedUnit, CharPtr leftRole, CharPtr rightRole, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
 	TIC_CALL bool  IsDefaultUnit() const;
 
 // unit methods
@@ -223,7 +223,7 @@ protected:
 	bool DoReadItem(StorageMetaInfo* smi) override;
 
 private:
-	void      UnifyError(const AbstrUnit* cu, CharPtr reason, UnifyMode um, SharedStr* resultMsg, bool isDomain) const;
+	void      UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const;
 	SharedStr GetProjMetrString() const;
 
 	bool                  HasDataItemsAssoc() const { return m_DataItemsAssocPtr.has_ptr(); }

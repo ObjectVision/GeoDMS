@@ -169,7 +169,7 @@ namespace Cumulate
 
 			const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 			const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
-			e2->UnifyDomain(e1, UM_Throw);
+			e2->UnifyDomain(e1, "e2", "e1", UM_Throw);
 
 			if (!resultHolder)
 				resultHolder = CreateCacheDataItem(

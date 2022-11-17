@@ -141,10 +141,10 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 
 				candidate->UpdateMetaInfo();
 				valuesUnit->UpdateMetaInfo();
-				if (valuesUnit->UnifyValues(candidateValuesUnit, UM_AllowDefaultLeft, nullptr)) // metric and value-type compatible
+				if (valuesUnit->UnifyValues(candidateValuesUnit, "ClassBreak values", "Candidate Values", UM_AllowDefaultLeft)) // metric and value-type compatible
 				if (!candidateValuesUnit->GetValueType()->IsIntegral() // base grid ?
 					|| IsClassBreakAttr(candidate) // class breaks ?
-					|| valuesUnit->UnifyDomain(candidateValuesUnit, UnifyMode()) ) // rlookup possible ?
+					|| valuesUnit->UnifyDomain(candidateValuesUnit, "ClassBreak values", "Candidate Domain", UnifyMode())) // rlookup possible ?
 					if (callback(clientHandle, candidate))
 							++count;
 			};

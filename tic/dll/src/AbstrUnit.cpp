@@ -178,17 +178,24 @@ SharedStr AbstrUnit::GetProjMetrString() const
 	return GetMetricStr(FormattingFlags::ThousandSeparator) + GetProjectionStr(FormattingFlags::ThousandSeparator);
 }
 
-void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, UnifyMode um, SharedStr* resultMsg, bool isDomain) const
+void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const
 {
 	if ((!resultMsg) && !(um & UM_Throw))
 		return;
 
+	assert(leftRole && *leftRole || resultMsg == nullptr && !(um | UM_Throw));
+	assert(rightRole && *rightRole || resultMsg == nullptr && !(um | UM_Throw));
+
 	dms_assert(cu);
 	dms_assert(reason);
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s (%s: %s) with %s (%s: %s) is not possible because of %s"
+
+	auto leftPair = Relabel(leftRole);
+	auto rightPair = Relabel(rightRole);
+
+	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible because of %s"
 		,	isDomain ? "Domain" : "Values"
-		,		GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
-		,	cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
+		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
+		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
 		,	reason 
 		);
 
@@ -213,7 +220,34 @@ bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	return sm->WriteUnitRange(std::move(smi));
 }
 
-bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, UnifyMode um, SharedStr* resultMsg) const
+using CharPtrPair = std::pair<CharPtr, CharPtr>;
+
+auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
+{
+	if (!role[2]) // zero-termination
+		switch (role[1])
+		{
+		case '0': return CharPtrPair("Common ", role2);
+		case '1': return CharPtrPair( role2, " of  1st argument" );
+		case '2': return CharPtrPair( role2, " of  2nd argument" );
+		case '3': return CharPtrPair( role2, " of  3rd argument" );
+		case '4': return CharPtrPair( role2, " of  4th argument" );
+		case '5': return CharPtrPair( role2, " of  5th argument" );
+		}
+	return CharPtrPair( role, "" );
+}
+
+CharPtrPair Relabel(CharPtr role) // parse 'e1', 'e4', 'v1', 'v4' 
+{
+	assert(role);
+	if (*role == 'e')
+		return RelabelX(role, "Domain");
+	if (*role == 'v')
+		return RelabelX(role, "Values");
+	return { role, "" };
+}
+
+bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg) const
 {
 	dms_assert(cu);
 
@@ -226,7 +260,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, UnifyMode um, SharedStr* result
 	{
 		if ((um & UM_AllowVoidRight) && const_unit_dynacast<Void>(  cu))
 			return true;
-		UnifyError(cu, "Domain incompatibiliy due to different ValueTypes", um, resultMsg, true);
+		UnifyError(cu, "Domain incompatibiliy due to different ValueTypes", leftRole), rightRole, um, resultMsg, true);
 		return false;
 	}
 
@@ -261,13 +295,13 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, UnifyMode um, SharedStr* result
 				return true;
 		}
 	error:
-		UnifyError(cu, "Domain incompatibiliy due to different calculation rule", um, resultMsg, true);
+		UnifyError(cu, "Domain incompatibiliy due to different calculation rule", leftRole, rightRole, um, resultMsg, true);
 		return false;
 	}
 	return true;
 }
 
-bool AbstrUnit::UnifyValues(const AbstrUnit* cu, UnifyMode um, SharedStr* resultMsg) const
+bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg) const
 {
 	// TODO G8: dms_assert(Was(PS_MetaInfo)); dms_assert(cu->Was(PS_MetaInfo));
 	dms_assert(cu);
@@ -279,7 +313,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, UnifyMode um, SharedStr* result
 
 	if (!(um & UM_AllowTypeDiff) && !cu->IsKindOf(GetDynamicClass()))
 	{
-		UnifyError(cu, "incompatible ValueTypes", um, resultMsg, false);
+		UnifyError(cu, "incompatible ValueTypes", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
@@ -289,7 +323,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, UnifyMode um, SharedStr* result
 
 	if (*GetCurrMetric() != *cu->GetCurrMetric())
 	{
-		UnifyError(cu, "incompatible Metrics", um, resultMsg, false);
+		UnifyError(cu, "incompatible Metrics", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
@@ -297,7 +331,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, UnifyMode um, SharedStr* result
 	if (*GetCurrProjection() != *cu->GetCurrProjection())
 		// TODO: specific error, generalise Metric & Projection
 	{
-		UnifyError(cu, "incompatible Projections", um, resultMsg, false);
+		UnifyError(cu, "incompatible Projections", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 	return true;
@@ -400,7 +434,7 @@ SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 	if (IsDataItem(si))
 	{
 		SharedDataItemInterestPtr di = MakeShared( AsDataItem(si) );
-		if (di->GetAbstrDomainUnit()->UnifyDomain(this))
+		if (di->GetAbstrDomainUnit()->UnifyDomain(this, "Domain of attribute named Label", "Unit that has that attribute"))
 		{
 			di->UpdateMetaInfo();
 			return di;
@@ -422,7 +456,7 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 	if (IsDataItem(si))
 	{
 		auto di = AsDataItem(si);
-		if (di->GetAbstrDomainUnit()->UnifyDomain(au))
+		if (di->GetAbstrDomainUnit()->UnifyDomain(au, "Domain of attribute named Label", "Unit that has that attribute"))
 		{
 			return di;
 		}

@@ -200,7 +200,7 @@ struct SubsetOperator: public UnaryOperator
 		{
 			DataWriteLock resSubLock(resSub);
 
-			dms_assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit()));
+			dms_assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit()), "values of resSub", "e1");
 
 			visit<typelists::domain_elements>(arg1Domain, 
 				[&resSubLock, arg1Obj] <typename a_type> (const Unit<a_type>*)
@@ -232,7 +232,7 @@ struct AbstrSelectDataOperator : TernaryOperator
 		const AbstrUnit* subset = debug_cast<const AbstrUnit*>(args[0]);
 		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[1]);
 		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[2]);
-		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), UM_Throw);
+		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit());

@@ -78,9 +78,9 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		const AbstrUnit* e3 = arg3A->GetAbstrDomainUnit(); bool e3Void = e3->GetValueType() == ValueWrap<Void>::GetStaticClass();
 
 		const AbstrUnit* e = e1Void ? (e2Void ? e3 : e2) : e1;
-		if (!e1Void && e!=e1) e->UnifyDomain(e1, UM_Throw);
-		if (!e2Void && e!=e2) e->UnifyDomain(e2, UM_Throw);
-		if (!e3Void && e!=e3) e->UnifyDomain(e3, UM_Throw);
+		if (!e1Void && e!=e1) e->UnifyDomain(e1, "e0", "e1", UM_Throw);
+		if (!e2Void && e!=e2) e->UnifyDomain(e2, "e0", "e2", UM_Throw);
+		if (!e3Void && e!=e3) e->UnifyDomain(e3, "e0", "e3", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_ValueComposition);

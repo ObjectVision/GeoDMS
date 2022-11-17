@@ -78,7 +78,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 
 		const AbstrUnit* e= e1Void ? e2 : e1;
 		if (!mustCalc && !e1Void && !e2Void)
-			e1->UnifyDomain(e2, UM_Throw);
+			e1->UnifyDomain(e2, "e1", "e2", UM_Throw);
 
 		if (!resultHolder)
 		{

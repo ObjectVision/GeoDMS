@@ -137,11 +137,20 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	const AbstrUnit* catUnit = nullptr;
 	if (mustCheckCategories)
 	{
-		for (arg_index i = nrSkippedArgs; i != args.size(); ++i)
-			if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
-				catUnit = AsDataItem(args[i])->GetAbstrValuesUnit();
+		arg_index ii = nrSkippedArgs;
+		for (; ii != args.size(); ++ii)
+			if (AsDataItem(args[ii])->GetTSF(DSF_Categorical))
+			{
+				catUnit = AsDataItem(args[ii])->GetAbstrValuesUnit();
+				break;
+			}
 		if (catUnit)
-			catUnit->UnifyDomain(arg1, UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			if (catUnit->UnifyDomain(arg1, "", "", UM_AllowDefaultRight))
+			{
+				auto leftRole = mySSPrintF("Values of argument %d", ii+1);
+				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
+				catUnit->UnifyDomain(arg1, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			}
 	}
 
 	for (arg_index i = nrSkippedArgs + 1; i != args.size(); ++i)

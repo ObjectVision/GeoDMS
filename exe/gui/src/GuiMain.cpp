@@ -143,7 +143,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
                 if (IsDataItem(subItem))
                 {
                     auto adi = AsDataItem(subItem);
-                    if (adi->GetAbstrDomainUnit()->UnifyDomain(au, UnifyMode::UM_Throw))
+                    if (adi->GetAbstrDomainUnit()->UnifyDomain(au, "Domain of subitem", "parent table", UnifyMode()))
                     {
                         if (!m_ItemsHolder.contains(subItem))
                         {

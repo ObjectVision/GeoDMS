@@ -214,7 +214,7 @@ struct ReadElemsOperator: public QuaternaryOperator
 		const AbstrUnit* adu = AsDataItem(arg1)->GetAbstrDomainUnit();
 		const AbstrUnit* avu = AsUnit(args[1]);
 
-		adu->UnifyDomain(AsDataItem(args[2])->GetAbstrDomainUnit(), UM_Throw);
+		adu->UnifyDomain(AsDataItem(args[2])->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (args.size() >= 4)
 			checked_domain<Void>(args[3]);
