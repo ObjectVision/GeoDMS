@@ -178,7 +178,7 @@ void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
 {
     WNDCLASSEX wndClassData;
     wndClassData.cbSize = sizeof(WNDCLASSEX);
-    wndClassData.style = CS_DBLCLKS;
+    wndClassData.style = CS_DBLCLKS; // CS_OWNDC
     wndClassData.lpfnWndProc = &DataViewWndProc;
     wndClassData.cbClsExtra = 0;
     wndClassData.cbWndExtra = sizeof(DataView*);
@@ -345,7 +345,6 @@ bool GuiView::Update(View& view)
     }
     
     // update parent window if changed
-    auto mainWindow = glfwGetWin32Window(glfwGetCurrentContext());
     auto parentWindowState = UpdateParentWindow(view);
     if (parentWindowState == WindowState::UNINITIALIZED)// || (m_ViewStyle == ViewStyle::tvsMapView && !IsDataItem(currentItem)))
     {
@@ -365,22 +364,13 @@ bool GuiView::Update(View& view)
 
     // If view window is focused, focus imgui window as well
     bool result = false;
-    if (ImGui::IsWindowFocused() && GetFocus() == view.m_HWND)
+    if (ImGui::IsWindowFocused() || GetFocus() == view.m_HWND)
     {
-        //if (GetFocus() != view.m_HWND)
-        //    SetFocus(view.m_HWND);
-
         result = true;
     }
-    //else if (GetFocus()==view.m_HWND)
-    //
-    //ImGui::FocusWindow(ImGui::GetCurrentWindow());
 
     // update window
-    if (!SHV_DataView_Update(view.m_DataView))
-    {
-        SHV_DataView_Update(view.m_DataView);
-    }
+    SHV_DataView_Update(view.m_DataView);
 
     auto show = !(ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     ShowOrHideWindow(view, show);

@@ -314,8 +314,11 @@ ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
 	DMS_SE_CALL_BEGIN
 
 		ProcessMainThreadOpers();
-		if (self)
-			return DataView_Update(self);
+
+		if (self->UpdateView() != GVS_Continue)
+			return AVS_SuspendedOrFailed;  // come back if suspended and not failed
+		
+		return AVS_Ready;
 
 	DMS_SE_CALL_END
 
