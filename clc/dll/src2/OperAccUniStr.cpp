@@ -226,7 +226,7 @@ public:
 		const AbstrUnit* e3	= arg3A->GetAbstrDomainUnit();
 		const AbstrUnit* p3	= arg3A->GetAbstrValuesUnit();
 
-		e3->UnifyDomain(e1, UM_Throw);
+		e3->UnifyDomain(e1, "e3", "e1", UM_Throw);
 		MG_PRECONDITION(p3);
 
 		if (!resultHolder)

@@ -77,14 +77,14 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 		if (m_IsRasterMerge && e1->GetNrDimensions() != 2)
 			resultHolder.throwItemError("Raster domain expected");
 
-		for (UInt32 a=2, nrArg=args.size(); a!=nrArg; ++a)
+		for (arg_index a=2, nrArg=args.size(); a!=nrArg; ++a)
 		{
 			if (!IsDataItem(args[a]))
 				resultHolder.throwItemErrorF("DataItem expected at arg %d", a);
 			const AbstrDataItem* argDi = AsDataItem(args[a]);
 			if (m_IsRasterMerge && argDi->GetAbstrDomainUnit()->GetNrDimensions() != 2 && !(m_IsIndexed && argDi->HasVoidDomainGuarantee()))
 				resultHolder.throwItemErrorF("Raster data expected at arg %d", a);
-			v1->UnifyValues(argDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowVoidRight | UM_Throw));
+			v1->UnifyValues(argDi->GetAbstrValuesUnit(), "v1", "Values of a subsequent attribute", UnifyMode(UM_AllowVoidRight | UM_Throw));
 		}
 
 		if (!resultHolder)
@@ -116,7 +116,8 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 				const AbstrUnit* argDU = argDi->GetAbstrDomainUnit();
 				const AbstrUnit* argDU_range = AsUnit(argDU->GetCurrRangeItem());
 
-				if (e1->UnifyDomain(argDU, UM_AllowVoidRight))
+				// m_IsIndexed ? "Domain of Index" : "First argument", "Domain of any subsequent attribute"
+				if (e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight))
 				{
 					ViewPortInfoEx<Int64> vpi(res, e1_range, t, e1_range, t);
 					if (vpi.IsGridCurrVisible())
@@ -128,7 +129,10 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 					{
 						ViewPortInfoEx<Int64> arg2AllProj(res, argDU_range, u, e1_range, t);
 						if (!arg2AllProj.IsNonScaling())
-							res->throwItemErrorF("RasterMerge: Scale of argument %d incompatible with the domain of the result", a);
+							res->throwItemErrorF("RasterMerge: Scale or projection of argument %d incompatible with the %s, which determined teh domain of the resulting attribute"
+								, a
+								, m_IsIndexed ? "Domain of the first attribute" : "First argument"
+							);
 
 						dms_assert(arg2AllProj.GetGridExtents() == currTileRect);
 						MG_DEBUGCODE( 

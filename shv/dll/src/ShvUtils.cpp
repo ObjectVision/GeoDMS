@@ -1089,7 +1089,7 @@ void UpdateShowSelOnlyImpl(
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
 		dms_assert(selAttr);
 		dms_assert(entity);
-		entity->UnifyDomain(selAttr->GetAbstrDomainUnit(), UM_Throw);
+		entity->UnifyDomain(selAttr->GetAbstrDomainUnit(), "TableDomain", "Domain of selection attribute", UM_Throw);
 
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)

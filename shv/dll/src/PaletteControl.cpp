@@ -348,7 +348,7 @@ void PaletteControl::CreateColumnsImpl()
 	SharedPtr<const AbstrUnit> classIds = m_ThemeAttr ? GetRealAbstrValuesUnit(m_ThemeAttr) : nullptr;
 
 	//	=========================================	add Class boundaries
-	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), UM_AllowDefaultRight)))
+	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
 	{
 		dms_assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
 		if (m_ThemeAttr)

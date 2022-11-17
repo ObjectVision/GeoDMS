@@ -128,7 +128,7 @@ protected:
 		const AbstrUnit* domain2Unit = arg2A->GetAbstrDomainUnit(); bool e2IsVoid = domain2Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
-		values1Unit->UnifyValues(values2Unit, UM_Throw);
+		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
 		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
 		resultHolder = res;
@@ -554,11 +554,11 @@ protected:
 		const AbstrUnit* resDomain = (argPart) ? argPart->GetAbstrValuesUnit() : (m_Flags & PolygonFlags::F_DoUnion) ? Unit<Void>::GetStaticClass()->CreateDefault() : domain1Unit;
 
 		if (argPart)
-			domain1Unit->UnifyDomain(argPart->GetAbstrDomainUnit(), UM_Throw);
+			domain1Unit->UnifyDomain(argPart->GetAbstrDomainUnit(), "Domain of polygon attribute", "Domain of partitioning attribute", UM_Throw);
 		if (argNum1)
-			resDomain  ->UnifyDomain(argNum1->GetAbstrDomainUnit(), UnifyMode(UM_Throw|UM_AllowVoidRight));
+			resDomain  ->UnifyDomain(argNum1->GetAbstrDomainUnit(), "Domain of result", "Domain of Num1", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		if (argNum2)
-			resDomain  ->UnifyDomain(argNum2->GetAbstrDomainUnit(), UnifyMode(UM_Throw|UM_AllowVoidRight));
+			resDomain  ->UnifyDomain(argNum2->GetAbstrDomainUnit(), "Domain of result", "Domain of Num2", UnifyMode(UM_Throw|UM_AllowVoidRight));
 
 		AbstrDataItem* resGeometry;
 		AbstrDataItem* resNrOrgEntity = nullptr;

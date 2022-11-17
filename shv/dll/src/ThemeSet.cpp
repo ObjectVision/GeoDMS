@@ -397,7 +397,7 @@ void ThemeSet::OnSelectionsThemeCreated(Theme* selTheme)
 {
 	dms_assert(!m_Themes[AN_Selections]);
 
-	GetActiveEntity()->UnifyDomain(selTheme->GetThemeEntityUnit(), UM_Throw);
+	GetActiveEntity()->UnifyDomain(selTheme->GetThemeEntityUnit(), "Domain of thematic attribute", "Domain of selection attribute", UM_Throw);
 
 	m_Themes[AN_Selections] = selTheme->shared_from_this();
 	m_DataView.reset();

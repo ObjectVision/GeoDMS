@@ -124,20 +124,20 @@ public:
 		const AbstrUnit* buildingEntity  = arg6A->GetAbstrDomainUnit();
 		const AbstrUnit* distUnit        = arg9A->GetAbstrValuesUnit();
 
-		calcPointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
-		calcPointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), UM_Throw);
-		segmentEntity  ->UnifyDomain(arg4A->GetAbstrDomainUnit(), UM_Throw);
-		segmentEntity  ->UnifyDomain(arg5A->GetAbstrDomainUnit(), UM_Throw);
-		buildingEntity ->UnifyDomain(arg7A->GetAbstrDomainUnit(), UM_Throw);
+		calcPointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		calcPointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), "e1", "e3", UM_Throw);
+		segmentEntity  ->UnifyDomain(arg4A->GetAbstrDomainUnit(), "v3", "e4", UM_Throw);
+		segmentEntity  ->UnifyDomain(arg5A->GetAbstrDomainUnit(), "v3", "e5", UM_Throw);
+		buildingEntity ->UnifyDomain(arg7A->GetAbstrDomainUnit(), "e6", "e7", UM_Throw);
 
-		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg8A->GetAbstrDomainUnit(), UM_Throw);
-		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg9A->GetAbstrDomainUnit(), UM_Throw);
+		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg8A->GetAbstrDomainUnit(), "Unit<Void>", "e8", UM_Throw);
+		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg9A->GetAbstrDomainUnit(), "Unit<Void>", "e9", UM_Throw);
 
-		pointUnit ->UnifyValues(arg4A->GetAbstrValuesUnit(), UM_Throw);
-		pointUnit ->UnifyValues(arg5A->GetAbstrValuesUnit(), UM_Throw);
-		pointUnit ->UnifyValues(arg6A->GetAbstrValuesUnit(), UM_Throw);
-		heightUnit->UnifyValues(arg7A->GetAbstrValuesUnit(), UM_Throw);
-		heightUnit->UnifyValues(arg8A->GetAbstrValuesUnit(), UM_Throw);
+		pointUnit ->UnifyValues(arg4A->GetAbstrValuesUnit(), "v1", "v4", UM_Throw);
+		pointUnit ->UnifyValues(arg5A->GetAbstrValuesUnit(), "v1", "v5", UM_Throw);
+		pointUnit ->UnifyValues(arg6A->GetAbstrValuesUnit(), "v1", "v6", UM_Throw);
+		heightUnit->UnifyValues(arg7A->GetAbstrValuesUnit(), "v2", "v7", UM_Throw);
+		heightUnit->UnifyValues(arg8A->GetAbstrValuesUnit(), "v2", "v8", UM_Throw);
 
 		if (!resultHolder)
 		{

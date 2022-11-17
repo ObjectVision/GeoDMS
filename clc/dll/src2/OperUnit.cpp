@@ -948,8 +948,8 @@ struct AbstrTiledUnitOper: BinaryOperator
 
 		const AbstrDataItem* a1 = AsDataItem(args[0]);
 		const AbstrDataItem* a2 = AsDataItem(args[1]);
-		a1->GetAbstrDomainUnit()->UnifyDomain(a2->GetAbstrDomainUnit(), UM_Throw);
-		a1->GetAbstrValuesUnit()->UnifyDomain(a2->GetAbstrValuesUnit(), UM_Throw);
+		a1->GetAbstrDomainUnit()->UnifyDomain(a2->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		a1->GetAbstrValuesUnit()->UnifyDomain(a2->GetAbstrValuesUnit(), "v1", "v2", UM_Throw);
 
 		if (!resultHolder)
 		{

@@ -132,8 +132,8 @@ public:
 	TIC_CALL SharedStr GetNameOrCurrMetric(FormattingFlags ff) const;
 
 	TIC_CALL const UnitClass*  GetUnitClass () const;
-	TIC_CALL bool  UnifyValues(const AbstrUnit* calculatedUnit, CharPtr leftRole, CharPtr rightRole, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
-	TIC_CALL bool  UnifyDomain(const AbstrUnit* calculatedUnit, CharPtr leftRole, CharPtr rightRole, UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
+	TIC_CALL bool  UnifyValues(const AbstrUnit* calculatedUnit, CharPtr leftRole = "", CharPtr rightRole = "", UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
+	TIC_CALL bool  UnifyDomain(const AbstrUnit* calculatedUnit, CharPtr leftRole = "", CharPtr rightRole = "", UnifyMode um = UnifyMode(), SharedStr* resultMsg = nullptr) const;
 	TIC_CALL bool  IsDefaultUnit() const;
 
 // unit methods

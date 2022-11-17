@@ -200,7 +200,7 @@ struct SubsetOperator: public UnaryOperator
 		{
 			DataWriteLock resSubLock(resSub);
 
-			dms_assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit()), "values of resSub", "e1");
+			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 
 			visit<typelists::domain_elements>(arg1Domain, 
 				[&resSubLock, arg1Obj] <typename a_type> (const Unit<a_type>*)

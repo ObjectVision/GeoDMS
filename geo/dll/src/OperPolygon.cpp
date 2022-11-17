@@ -247,8 +247,8 @@ public:
 		if (!resultHolder)
 		{
 			dms_assert(!mustCalc);
-			if (arg2A) pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
-			if (arg3A) pointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), UM_Throw);
+			if (arg2A) pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+			if (arg3A) pointEntity->UnifyDomain(arg3A->GetAbstrDomainUnit(), "e1", "e3", UM_Throw);
 			resultHolder = CreateCacheDataItem(polyEntity, valuesUnit, m_VC);
 		}
 		if (mustCalc)
@@ -700,8 +700,8 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		const AbstrUnit* pointEntity     = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
-		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg3A->GetAbstrDomainUnit(), UM_Throw);
+		pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg3A->GetAbstrDomainUnit(), "Unit<Void>", "e3", UM_Throw);
 
 		ResultUnitType* resDomain
 			=	debug_cast<ResultUnitType*>(
@@ -1032,7 +1032,7 @@ protected:
 
 		const AbstrUnit* domainUnit = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* valuesUnit = arg2A->GetAbstrDomainUnit();
-		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), UM_Throw);
+		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), "v1", "v2", UM_Throw);
 
 		bool isOnePolygon = arg2A->HasVoidDomainGuarantee();
 		if (isOnePolygon)
@@ -1342,8 +1342,8 @@ protected:
 
 		const AbstrUnit* domainUnit = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* valuesUnit = arg2A->GetAbstrDomainUnit();
-		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), UM_Throw);
-		arg2A->GetAbstrDomainUnit()->UnifyDomain(arg3A->GetAbstrDomainUnit());
+		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), "v1", "v2", UM_Throw);
+		arg2A->GetAbstrDomainUnit()->UnifyDomain(arg3A->GetAbstrDomainUnit(), "e2", "e3", UM_Throw);
 
 		bool isOnePolygon = arg2A->HasVoidDomainGuarantee();
 		MG_CHECK(!isOnePolygon);
@@ -1576,7 +1576,7 @@ protected:
 		const AbstrUnit* domain2Unit = arg2A->GetAbstrDomainUnit(); bool e2IsVoid = domain2Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
-		values1Unit->UnifyValues(values2Unit, UM_Throw);
+		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
 		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
 		resultHolder = res;

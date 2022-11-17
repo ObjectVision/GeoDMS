@@ -200,8 +200,8 @@ struct RegCountOperator : public QuaternaryOperator
 		dms_assert(actorTypeUnit);
 		ActorTypeIndex n = actorTypeUnit->GetCount();
 
-		actorTypeUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
-		actorTypeUnit->UnifyDomain(arg4A->GetAbstrDomainUnit(), UM_Throw);
+		actorTypeUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), "v1", "e2", UM_Throw);
+		actorTypeUnit->UnifyDomain(arg4A->GetAbstrDomainUnit(), "v1", "e4", UM_Throw);
 
 		RegionInfoArray regionInfoArray; regionInfoArray.reserve(n);
 		regionInfoArray.m_ResUnit = (m_CountUnitClass)
@@ -230,7 +230,7 @@ struct RegCountOperator : public QuaternaryOperator
 						partitionContainer->GetFullName().c_str()
 					);
 				partition->UpdateMetaInfo();
-				gridDomain->UnifyDomain(partition->GetAbstrDomainUnit(), UM_Throw);
+				gridDomain->UnifyDomain(partition->GetAbstrDomainUnit(), "e1", "Domain of partitioning attribute", UM_Throw);
 			}
 			auto className = arg2A->GetValue<SharedStr>(i);
 			if (className.empty())

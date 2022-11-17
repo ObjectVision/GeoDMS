@@ -133,9 +133,9 @@ public:
 	{
 		dms_assert(args.size() == 3);
 
-		const AbstrDataItem* adiGridImp       = debug_valcast<const AbstrDataItem*>(args[0]);
-		const AbstrDataItem* adiStartPointGrid= debug_valcast<const AbstrDataItem*>(args[1]);
-		const AbstrDataItem* adiStartPointImp = debug_valcast<const AbstrDataItem*>(args[2]);
+		const AbstrDataItem* adiGridImp       = AsDataItem(args[0]);
+		const AbstrDataItem* adiStartPointGrid= AsDataItem(args[1]);
+		const AbstrDataItem* adiStartPointImp = AsDataItem(args[2]);
 
 		dms_assert(adiGridImp && adiStartPointGrid && adiStartPointImp);
 
@@ -147,9 +147,9 @@ public:
 		dms_assert(impUnit );
 		dms_assert(startSet);
 
-		gridSet->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), UM_Throw);
-		startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), UM_Throw);
-		impUnit->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), UM_Throw);
+		gridSet->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), "e1", "v2", UM_Throw);
+		startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), "e2", "e3", UM_Throw);
+		impUnit->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), "v1", "v3", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(gridSet, impUnit);

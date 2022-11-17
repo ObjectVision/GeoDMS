@@ -356,7 +356,7 @@ protected:
 		const AbstrUnit* domain2Unit = arg2A->GetAbstrDomainUnit(); bool e2IsVoid = domain2Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
-		domain1Unit->UnifyDomain(domain2Unit, UnifyMode(UM_Throw| UM_AllowVoidRight));
+		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw| UM_AllowVoidRight));
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain1Unit, values1Unit, arg1A->GetValueComposition());
@@ -594,8 +594,8 @@ protected:
 		const AbstrUnit* domain3Unit = arg3A->GetAbstrDomainUnit(); bool e3IsVoid = domain3Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 //		const AbstrUnit* values3Unit = arg2A->GetAbstrValuesUnit();
 
-		domain1Unit->UnifyDomain(domain2Unit, UnifyMode(UM_Throw | UM_AllowVoidRight));
-		domain1Unit->UnifyDomain(domain3Unit, UnifyMode(UM_Throw | UM_AllowVoidRight));
+		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw | UM_AllowVoidRight));
+		domain1Unit->UnifyDomain(domain3Unit, "e1", "e3", UnifyMode(UM_Throw | UM_AllowVoidRight));
 
 		MG_CHECK(e2IsVoid);
 		MG_CHECK(e3IsVoid);
