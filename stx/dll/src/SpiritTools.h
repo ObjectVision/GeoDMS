@@ -71,10 +71,9 @@ struct assertive_parser_creator
 	ErrorDescrT m_Descr;
 };
 
-const assertive_parser_creator<typename assertion_type_traits<ErrMsgPtr>::type>
-inline assert_d(CharPtr descriptor)
+inline auto assert_d(CharPtr descriptor)
 {
-	return assertive_parser_creator<typename assertion_type_traits<ErrMsgPtr>::type>(std::make_shared<ErrMsg>( SharedStr(descriptor) ));
+	return assertive_parser_creator<typename assertion_type_traits<SharedStr>::type>( SharedStr(descriptor) );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -111,7 +110,7 @@ struct dms_fallback_parser
 
 		catch (const DmsException& x)
 		{
-			throw parser_error_t(scan.first, x.AsErrMsg());
+			throw parser_error_t(scan.first, x.AsErrMsg()->GetAsText());
 		}
 	}
 };
@@ -129,7 +128,6 @@ inline dms_guard_d(ParserT const& p)
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-//template <typename ErrorDescrT>
 struct syntaxError_gen
 {
 	syntaxError_gen(error_descr_t errMsg) : m_ErrMsg(errMsg) {}
@@ -143,10 +141,10 @@ struct syntaxError_gen
 };
 
 template <typename ErrorArgT>
-inline syntaxError_gen // <typename assertion_type_traits<ErrorArgT>::type>
+inline syntaxError_gen
 syntaxError(ErrorArgT errMsg) 
 { 
-	return std::make_shared<ErrMsg>(errMsg);
+	return SharedStr(errMsg);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

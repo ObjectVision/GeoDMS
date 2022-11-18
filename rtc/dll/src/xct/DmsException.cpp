@@ -140,6 +140,10 @@ ErrMsg::ErrMsg(WeakStr msg, const PersistentSharedObj* ptr)
 	:	m_Why(msg)
 {
 	TellWhere(ptr);
+
+	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
+	if (ach)
+		m_Context = GenerateContext();
 }
 
 void ErrMsg::TellExtra(CharPtrRange msg)
@@ -194,11 +198,6 @@ DmsException::DmsException(ErrMsgPtr msg)
 	:	ErrMsgPtr(msg)
 	,	m_PrevUnrollingErrMsgPtr(SetUnrollingErrMsgPtr(msg))
 {
-	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-
-	if (ach && msg->m_Context.empty())
-		msg->m_Context = GenerateContext();
-
 	dms_check_not_debugonly; 
 }
 
