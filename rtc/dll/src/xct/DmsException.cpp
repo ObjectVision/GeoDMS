@@ -71,8 +71,6 @@ void SetLastHandledErrMsg(ErrMsgPtr msg)
 
 const UInt32 g_MaxNrContexts = 10;
 
-// TODO: consider removing AbstrContextHandle, 
-/* REMOVE
 SharedStr GenerateContext()
 {
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
@@ -123,7 +121,6 @@ SharedStr GenerateContext()
 	}
 	return SharedStr(osb.GetData(), osb.GetDataEnd());
 }
-*/
 
 CharPtr FailTypeStr(FailType ft)
 {
@@ -145,20 +142,14 @@ ErrMsg::ErrMsg(WeakStr msg, const PersistentSharedObj* ptr)
 	TellWhere(ptr);
 }
 
-void ErrMsg::TellExtra(CharPtr msg)
-{
-	if (!msg || !*msg)
-		return;
-	m_Why += '\n';
-	m_Why += CharPtrRange(msg);
-}
-
 void ErrMsg::TellExtra(CharPtrRange msg)
 {
 	if (msg.empty())
 		return;
-	m_Why += '\n';
-	m_Why += msg;
+	if (m_Context.empty())
+		m_Context = SharedStr(msg);
+	else
+		m_Context += mySSPrintF("%s\n%s", m_Context, msg);
 }
 
 void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
@@ -175,25 +166,25 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 SharedStr ErrMsg::GetAsText() const
 {
 	return mgFormat2SharedStr("%s\n%s\n%s"
-		, GetErrorBody(m_Why)
+		, m_Why
 		, m_FullName
-		, GetErrorContext(m_Why)
+		, m_Context
 	);
 }
 
 OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 {
-	osb.WriteValue(GetErrorBody(obj.m_Why).c_str());
+	osb.WriteValue(obj.m_Why.c_str());
 	osb.WriteValue("\n");
 	if (!obj.m_FullName.empty())
 	{
 		XML_hRef hRef(osb, (CharPtrRange("dms:dp.general:") + obj.m_FullName).c_str());
 		osb.WriteValue(obj.m_FullName.c_str());
 	}
-	if (HasContext(obj.m_Why))
+	if (!obj.m_Context.empty())
 	{
 		osb.WriteValue("\n\n");
-		osb.WriteValue(GetErrorContext(obj.m_Why).c_str());
+		osb.WriteValue(obj.m_Context.c_str());
 	}
 	return osb;
 }
@@ -204,10 +195,10 @@ DmsException::DmsException(ErrMsgPtr msg)
 	,	m_PrevUnrollingErrMsgPtr(SetUnrollingErrMsgPtr(msg))
 {
 	AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-/*  REMOVE
-	if (ach && !HasContext(msg->Why()))
-		msg->TellExtra(GenerateContext().c_str()); // TODO: straighten out
-*/
+
+	if (ach && msg->m_Context.empty())
+		msg->m_Context = GenerateContext();
+
 	dms_check_not_debugonly; 
 }
 
@@ -699,34 +690,11 @@ RTC_CALL bool HasContext(WeakStr msg)
 	return GetContextPtr(msg) != msg.csend();
 }
 
-RTC_CALL SharedStr GetErrorContext(WeakStr msg)
-{
-	auto contextPtr = GetContextPtr(msg);
-	if (contextPtr != msg.csend())
-	{
-		assert(contextPtr[0] == '\n');
-		assert(contextPtr[1] == '#');
-		assert(contextPtr[2] == ' ');
-		contextPtr += 3;
-	}
-	return SharedStr(contextPtr, msg.csend());
-}
-
 RTC_CALL SharedStr GetFirstLine(WeakStr msg)
 {
 	CharPtr eolPtr = msg.find('\n');
 	if (eolPtr == msg.csend())
 		return msg;
 	return SharedStr(msg.begin(), eolPtr);
-}
-
-RTC_CALL SharedStr GetErrorBody(WeakStr msg)
-{
-	CharPtr contextPtr = GetContextPtr(msg);
-	if (contextPtr == msg.csend())
-		return msg;
-	while (contextPtr != msg.begin() && contextPtr[-1] == '\n')
-		--contextPtr;
-	return SharedStr(msg.begin(), contextPtr);
 }
 

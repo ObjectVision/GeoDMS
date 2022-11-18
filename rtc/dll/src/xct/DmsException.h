@@ -77,9 +77,7 @@ struct MemoryAllocFailure: DmsException
 extern "C" RTC_CALL void DMS_CONV DMS_ReportError (CharPtr msg);
 extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg);
 
-RTC_CALL bool HasContext(WeakStr msg);
 RTC_CALL SharedStr GetErrorContext(WeakStr msg);
-RTC_CALL SharedStr GetErrorBody   (WeakStr msg);
 RTC_CALL SharedStr GetFirstLine(WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
 RTC_CALL ErrMsgPtr GetUnrollingErrorMsgPtr();

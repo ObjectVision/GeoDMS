@@ -224,7 +224,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible because of %s"
+	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible%s"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
@@ -267,7 +267,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	{
 		if ((um & UM_AllowVoidRight) && const_unit_dynacast<Void>(  cu))
 			return true;
-		UnifyError(cu, "Domain incompatibiliy due to different ValueTypes", leftRole, rightRole, um, resultMsg, true);
+		UnifyError(cu, " (different ValueTypes)", leftRole, rightRole, um, resultMsg, true);
 		return false;
 	}
 
@@ -302,7 +302,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 				return true;
 		}
 	error:
-		UnifyError(cu, "Domain incompatibiliy due to different calculation rule", leftRole, rightRole, um, resultMsg, true);
+		UnifyError(cu, " (different CheckedKeyExpr)", leftRole, rightRole, um, resultMsg, true);
 		return false;
 	}
 	return true;
@@ -322,7 +322,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 
 	if (!(um & UM_AllowTypeDiff) && !cu->IsKindOf(GetDynamicClass()))
 	{
-		UnifyError(cu, "incompatible ValueTypes", leftRole, rightRole, um, resultMsg, false);
+		UnifyError(cu, " (different ValueTypes)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
@@ -332,7 +332,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 
 	if (*GetCurrMetric() != *cu->GetCurrMetric())
 	{
-		UnifyError(cu, "incompatible Metrics", leftRole, rightRole, um, resultMsg, false);
+		UnifyError(cu, " (incompatible Metrics)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
@@ -340,7 +340,7 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	if (*GetCurrProjection() != *cu->GetCurrProjection())
 		// TODO: specific error, generalise Metric & Projection
 	{
-		UnifyError(cu, "incompatible Projections", leftRole, rightRole, um, resultMsg, false);
+		UnifyError(cu, " (incompatible Projections)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 	return true;

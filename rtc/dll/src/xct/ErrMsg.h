@@ -50,7 +50,7 @@ struct ErrMsg {
 
 	RTC_CALL void TellWhere(const PersistentSharedObj* ptr);
 
-	RTC_CALL void TellExtra(CharPtr msg);
+	void TellExtra(CharPtr msg) { TellExtra(CharPtrRange(msg)); }
 	RTC_CALL void TellExtra(CharPtrRange msg);
 
 	template <class ...Args>
@@ -63,8 +63,7 @@ struct ErrMsg {
 	RTC_CALL SharedStr GetAsText() const;
 	SharedStr FullName() const { return m_FullName;  }
 
-private:
-	SharedStr m_Why, m_FullName;
+	SharedStr m_Why, m_FullName, m_Context;
 	WeakPtr<const Class> m_Class;
 
 	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& value);

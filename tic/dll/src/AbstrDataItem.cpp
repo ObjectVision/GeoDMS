@@ -409,14 +409,13 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		return false;
 	const AbstrDataItem* adi = AsDataItem(refItem);
 
-	SharedStr resultMsg;
 	CharPtr issueStr;
 	{
 		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
 		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
-		if (!mydu->UnifyDomain(refdu, "Domain of configured attribute", "Domain of calculation result", UnifyMode::UM_AllowDefaultLeft, &resultMsg))
+		if (!mydu->UnifyDomain(refdu, "", "", UnifyMode::UM_AllowDefaultLeft))
 		{
-			issueStr = "Domain";
+			issueStr = "The specified Domain";
 			goto failResultMsg;
 		}
 	}
@@ -424,17 +423,17 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!GetAbstrValuesUnit()->UnifyValues(refvu, "Values of configured attribute", "Values of calculation result", UM_AllowDefault, &resultMsg))
+		if (!GetAbstrValuesUnit()->UnifyValues(refvu, "", "", UnifyMode::UM_AllowDefault))
 		{
-			issueStr = "ValuesUnit ";
+			issueStr = "The specified ValuesUnit";
 			goto failResultMsg;
 		}
 	}
 	if (adi->GetTSF(DSF_Categorical))
 	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "Values of configured attribute", "Categorical values of calculation result", UnifyMode(UM_AllowDefaultLeft), &resultMsg))
+		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "", "", UnifyMode::UM_AllowDefaultLeft))
 		{
-			issueStr = "ValuesUnit ";
+			issueStr = "The specified ValuesUnit ";
 			goto failResultMsg;
 		}
 		SetTSF(DSF_Categorical);
@@ -442,11 +441,10 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	return true;
 
 failResultMsg:
-	auto msg = mySSPrintF("%s is incompatible with the result of the%s calculation '%s'\nbecause %s"
+	auto msg = mySSPrintF("%s is incompatible with the result of the%s calculation '%s'"
 	,	issueStr
 	, adi->GetTSF(DSF_Categorical) ? " categorical" : ""
 	,	AsFLispSharedStr(GetAsLispRef(GetCurrMetaInfo({})))
-	,	resultMsg
 	);
 	Fail(msg, FR_Determine);
 	return false;

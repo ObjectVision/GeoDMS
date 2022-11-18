@@ -323,11 +323,13 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 
 		position_t  problemLoc = problem.where.get_position();
 		ErrMsgPtr descr = problem.descriptor;
+		assert(descr);
 
-		descr->TellExtraF("%s(%d,%d) at\n%s",
-			fileName, problemLoc.line, problemLoc.column, 
-			strAtProblemLoc.c_str()
-		);
+		if (descr->m_Context.empty())
+			descr->TellExtraF("%s(%d,%d) at\n%s",
+				fileName, problemLoc.line, problemLoc.column, 
+				strAtProblemLoc.c_str()
+			);
 		throw DmsException(descr);
 	}
 	dbg_assert(CurrentIsTop());
