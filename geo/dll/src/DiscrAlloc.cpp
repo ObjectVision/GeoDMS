@@ -1038,7 +1038,7 @@ void CreateResultingItems(
 		regioRefDI->UpdateMetaInfo();
 		fc->AddDependency(regioRefDI->GetCheckedDC());
 
-		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
 				,	p, partitioningName, regioRefDI->GetSourceName()
 				,	atomicRegionUnit->GetSourceName()
@@ -1061,10 +1061,10 @@ void CreateResultingItems(
 	DataReadLock ggTypes2partitioningsLock(ggTypes2partitioningsA);
 	const DataArray<UInt8>* ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
 
-	if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA      ->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+	if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA      ->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
 		throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
 
-	if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+	if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
 		throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
 
 	UInt32 K = ggTypeNames->GetDataRead().size();
@@ -1089,7 +1089,7 @@ void CreateResultingItems(
 		gg->m_PartitioningID = partitioningID;
 		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg->m_PartitioningID );
 
-		if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+		if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
 //				, partitioningID
 				, htpInfo.m_Partitionings[partitioningID].GetName()
@@ -1097,7 +1097,7 @@ void CreateResultingItems(
 				, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
 				, resultMsg
 			);
-		if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+		if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
 //				, partitioningID
 				, htpInfo.m_Partitionings[partitioningID].GetName()
@@ -1109,7 +1109,7 @@ void CreateResultingItems(
 		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
 		fc->AddDependency(gg->m_diSuitabilityMap->GetCheckedDC());
-		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
 				,	gg->m_NameID, gg->m_diSuitabilityMap->GetSourceName()
 				,	allocUnit->GetSourceName()
@@ -1121,7 +1121,7 @@ void CreateResultingItems(
 			if (!htpInfo.m_PriceUnit)
 				htpInfo.m_PriceUnit = priceUnit;
 			else
-				if (!htpInfo.m_PriceUnit->UnifyValues(priceUnit, UnifyMode(), &resultMsg))
+				if (!htpInfo.m_PriceUnit->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of suitability map for %s incompatible with earlier suitability map values:\n%s", gg->m_NameID, resultMsg);
 
 			if (mustAdjust)
@@ -1140,7 +1140,7 @@ void CreateResultingItems(
 			,	Unit<land_unit_id>::GetStaticClass()->CreateDefault()
 			);
 	}
-	if (!allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+	if (!allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit(), "second argument", "Domain of the AtomicRegions (7th) attribute", UnifyMode(), &resultMsg))
 		throwErrorF("discrete_alloc", "Domain of atomic region map (arg7):\n%s\nand allocUnit (arg2):\n%s incompatible:\n%s"
 			, atomicRegionMapA->GetSourceName()
 			, allocUnit->GetSourceName()

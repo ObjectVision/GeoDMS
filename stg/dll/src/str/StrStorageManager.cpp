@@ -251,7 +251,8 @@ void StrFilesStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeIte
 		||		AsDataItem(storageHolder)->GetAbstrValuesUnit()->GetUnitClass() != Unit<SharedStr>::GetStaticClass()
 	)
 		throwItemError("StrFilesStorageManager requires an attribute<SharedStr> as storageManager");
-	AsDataItem(storageHolder)->GetAbstrDomainUnit()->UnifyDomain(GetFileNameAttr(storageHolder, curr)->GetAbstrDomainUnit(), UM_Throw);
+	AsDataItem(storageHolder)->GetAbstrDomainUnit()->UnifyDomain(GetFileNameAttr(storageHolder, curr)->GetAbstrDomainUnit()
+		, "Domain of StorageHolder", "Domain of attribute<String> FileName", UM_Throw);
 }
 
 IMPL_DYNC_STORAGECLASS(StrStorageManager, "str");

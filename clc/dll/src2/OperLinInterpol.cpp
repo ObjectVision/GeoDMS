@@ -180,8 +180,8 @@ public:
 		const AbstrDataItem* yCoordA = debug_cast<const AbstrDataItem*>(args[2]);
 
 		const AbstrUnit* dataUnit = arg1A->GetAbstrValuesUnit();
-		dataUnit->UnifyValues( xCoordA->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefault|UM_Throw));
-		xCoordA->GetAbstrDomainUnit()->UnifyDomain(yCoordA->GetAbstrDomainUnit(), UM_Throw);
+		dataUnit->UnifyValues( xCoordA->GetAbstrValuesUnit(), "v1", "v2", UnifyMode(UM_AllowDefault | UM_Throw));
+		xCoordA->GetAbstrDomainUnit()->UnifyDomain(yCoordA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		const AbstrUnit* reclassUnit = yCoordA->GetAbstrValuesUnit();
 		const AbstrUnit* domainUnit  = arg1A->GetAbstrDomainUnit();

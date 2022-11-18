@@ -456,7 +456,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 	if (HasGridDomain(mapItem))
 	{
 
-		if (!adu->UnifyValues(mapItem->GetAbstrValuesUnit(), UM_AllowDefault, &resultMsg))
+		if (!adu->UnifyDomain(mapItem->GetAbstrValuesUnit(), "Domain of the thematic attribute", "Values of BaseGrid", UM_AllowDefault, &resultMsg))
 			return LayerInfo(infoTxt + TXT_GRIDDATA_ERR + resultMsg);
 
 		return LayerInfo(LayerInfo::Grid, 
@@ -464,14 +464,14 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 			GridLayer::GetStaticClass()
 		); 
 	}
-	if (adu->UnifyDomain(mapItem->GetAbstrValuesUnit(), UM_AllowDefaultRight))
+	if (adu->UnifyDomain(mapItem->GetAbstrValuesUnit(), "Domain of the thematic attribute", "Values of MapItem", UM_AllowDefaultRight))
 	{
 		mapItem2 = mapItem; mapItem = nullptr;
 		infoTxt += TXT_AS_EKD;
 	}
 	else
 	{
- 		if (!adu->UnifyDomain(mapItem->GetAbstrDomainUnit(), UnifyMode(), &resultMsg))
+ 		if (!adu->UnifyDomain(mapItem->GetAbstrDomainUnit(), "Domain of the thematic attribute", "Domain of MapItem", UnifyMode(), &resultMsg))
 			return LayerInfo(infoTxt + TXT_DOMAIN_ERR + resultMsg);
 
 		// adi: E->V; mapItem: E->???
@@ -495,7 +495,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 		infoTxt += mySSPrintF(TXT_DIALOGDATA_REF, mapItem2->GetFullName().c_str());
 		if (IsFeatureData(mapItem2))
 		{
-			if (!avu->UnifyDomain(mapItem2->GetAbstrDomainUnit(), UnifyMode(0), &resultMsg)) // mapItem will be inverted to EK->E and must be compatible with EK->Crd
+			if (!avu->UnifyDomain(mapItem2->GetAbstrDomainUnit(), "Values of MapItem", "Domain of MapItem2", UnifyMode(), &resultMsg)) // mapItem will be inverted to EK->E and must be compatible with EK->Crd
 				return LayerInfo(infoTxt + TXT_DOMAIN_ERR + resultMsg);
 
 			return LayerInfo(LayerInfo::Feature,                         // adi: E->V; mapItem: E->EK; mapItem2: EK->Crd
@@ -505,7 +505,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 		}
 		infoTxt += TXT_AS_EKD;
 
-		if (!avu->UnifyValues(mapItem2->GetAbstrValuesUnit(), UM_AllowDefault, &resultMsg))
+		if (!avu->UnifyValues(mapItem2->GetAbstrValuesUnit(), "Values of MapItem", "Values of MapItem2", UM_AllowDefault, &resultMsg))
 			return LayerInfo(infoTxt + TXT_VALUES_ERR + resultMsg);
 	}
 	// adi: E->V; mapItem: E->EK; mapItem2: P->EK
@@ -518,7 +518,7 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 		return LayerInfo(infoTxt + TXT_DIALOGDATA_ERR + " (a reference to a FeatureAttr was expected)");
 
 	infoTxt += mySSPrintF(TXT_DIALOGDATA_REF, mapItem3->GetFullName().c_str());
-	if (!adu3->UnifyDomain(mapItem3->GetAbstrDomainUnit(), UnifyMode(0), &resultMsg))
+	if (!adu3->UnifyDomain(mapItem3->GetAbstrDomainUnit(), "Domain of MapItem2", "Domain of MappedData of MapItem2", UnifyMode(0), &resultMsg))
 		return LayerInfo(infoTxt + TXT_DOMAIN_ERR + resultMsg);
 
 	if (!IsFeatureData(mapItem3)) 
@@ -565,7 +565,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 	if (allowParameter)  res = FindAspectParam(aNr, avu, layerClass);      
 	if (res) goto returnAspectParam;
 	else {
-		infoTxt = mgFormat2SharedStr("ThematicAttr %s has ValuesUnit %s of type %s",
+		infoTxt = mgFormat2SharedStr("thematic attribute %s has ValuesUnit %s of type %s",
 			adi->GetFullName().c_str(),
 			avu->GetFullName().c_str(),
 			avu->GetValueType()->GetName()
@@ -601,7 +601,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 		{
 			SharedStr resultMsg;
 			infoTxt += mySSPrintF("\nwhich has DataItem %s as associated Classification item", mapItem2->GetFullName().c_str());
-			if (!avu->UnifyValues(mapItem2->GetAbstrValuesUnit(), UM_AllowDefault, &resultMsg))
+			if (!avu->UnifyValues(mapItem2->GetAbstrValuesUnit(), "Values of thematic attribute", "Values of MapItem2", UM_AllowDefault, &resultMsg))
 				return LayerInfo(infoTxt + TXT_VALUES_ERR + resultMsg);
 
 			classIdUnit = mapItem2->GetAbstrDomainUnit();

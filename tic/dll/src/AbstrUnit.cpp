@@ -178,13 +178,45 @@ SharedStr AbstrUnit::GetProjMetrString() const
 	return GetMetricStr(FormattingFlags::ThousandSeparator) + GetProjectionStr(FormattingFlags::ThousandSeparator);
 }
 
+using CharPtrPair = std::pair<CharPtr, CharPtr>;
+
+auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
+{
+	if (!role[2]) // zero-termination
+		switch (role[1])
+		{
+		case '0': return CharPtrPair("Common ", role2);
+		case '1': return CharPtrPair(role2, " of  first argument");
+		case '2': return CharPtrPair(role2, " of  second argument");
+		case '3': return CharPtrPair(role2, " of  third argument");
+		case '4': return CharPtrPair(role2, " of  fourth argument");
+		case '5': return CharPtrPair(role2, " of  fifth argument");
+		case '6': return CharPtrPair(role2, " of  sixth argument");
+		case '7': return CharPtrPair(role2, " of  seventh argument");
+		case '8': return CharPtrPair(role2, " of  eighth argument");
+		case '9': return CharPtrPair(role2, " of  ninth argument");
+		case 'A': return CharPtrPair(role2, " of  tenth argument");
+		}
+	return CharPtrPair(role, "");
+}
+
+CharPtrPair Relabel(CharPtr role) // parse 'e1', 'e4', 'v1', 'v4' 
+{
+	assert(role);
+	if (*role == 'e')
+		return RelabelX(role, "Domain");
+	if (*role == 'v')
+		return RelabelX(role, "Values");
+	return { role, "" };
+}
+
 void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const
 {
 	if ((!resultMsg) && !(um & UM_Throw))
 		return;
 
-	assert(leftRole && *leftRole || resultMsg == nullptr && !(um | UM_Throw));
-	assert(rightRole && *rightRole || resultMsg == nullptr && !(um | UM_Throw));
+	assert(leftRole  != nullptr && *leftRole  != char(0) || resultMsg == nullptr && !(um & UM_Throw));
+	assert(rightRole != nullptr && *rightRole != char(0) || resultMsg == nullptr && !(um & UM_Throw));
 
 	dms_assert(cu);
 	dms_assert(reason);
@@ -220,47 +252,22 @@ bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	return sm->WriteUnitRange(std::move(smi));
 }
 
-using CharPtrPair = std::pair<CharPtr, CharPtr>;
-
-auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
-{
-	if (!role[2]) // zero-termination
-		switch (role[1])
-		{
-		case '0': return CharPtrPair("Common ", role2);
-		case '1': return CharPtrPair( role2, " of  1st argument" );
-		case '2': return CharPtrPair( role2, " of  2nd argument" );
-		case '3': return CharPtrPair( role2, " of  3rd argument" );
-		case '4': return CharPtrPair( role2, " of  4th argument" );
-		case '5': return CharPtrPair( role2, " of  5th argument" );
-		}
-	return CharPtrPair( role, "" );
-}
-
-CharPtrPair Relabel(CharPtr role) // parse 'e1', 'e4', 'v1', 'v4' 
-{
-	assert(role);
-	if (*role == 'e')
-		return RelabelX(role, "Domain");
-	if (*role == 'v')
-		return RelabelX(role, "Values");
-	return { role, "" };
-}
-
 bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg) const
 {
-	dms_assert(cu);
+	assert(cu);
 
-	dms_assert(!((um & UM_Throw) && resultMsg));
+	assert(!((um & UM_Throw) && resultMsg));
+	assert(leftRole  && *leftRole  || !(um & UM_Throw) && !resultMsg);
+	assert(rightRole && *rightRole || !(um & UM_Throw) && !resultMsg);
 
-	if (cu == this) 
+	if (cu == this)
 		return true;
 
 	if (!cu->IsKindOf(GetDynamicClass()))
 	{
 		if ((um & UM_AllowVoidRight) && const_unit_dynacast<Void>(  cu))
 			return true;
-		UnifyError(cu, "Domain incompatibiliy due to different ValueTypes", leftRole), rightRole, um, resultMsg, true);
+		UnifyError(cu, "Domain incompatibiliy due to different ValueTypes", leftRole, rightRole, um, resultMsg, true);
 		return false;
 	}
 
@@ -304,9 +311,11 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg) const
 {
 	// TODO G8: dms_assert(Was(PS_MetaInfo)); dms_assert(cu->Was(PS_MetaInfo));
-	dms_assert(cu);
+	assert(cu);
 
-	dms_assert(!((um & UM_Throw) && resultMsg));
+	assert(!((um & UM_Throw) && resultMsg));
+	assert(leftRole  && *leftRole  || !(um & UM_Throw) && !resultMsg);
+	assert(rightRole && *rightRole || !(um & UM_Throw) && !resultMsg);
 
 	if (cu == this)
 		return true;

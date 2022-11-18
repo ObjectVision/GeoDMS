@@ -116,6 +116,6 @@ echo on
 CHOICE /M  "Install test OK ? Ready to copy to OVSRV05?"
 if ErrorLevel 2 exit /B
 
-copy "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" "\\ovrv05\SourceData\distr"
+copy "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" "\\ovsrv05\SourceData\distr"
 
 pause "Klaar ?"

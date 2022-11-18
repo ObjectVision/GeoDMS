@@ -1222,59 +1222,59 @@ public:
 		const AbstrUnit* dstZones = adiEndPointDstZone ? adiEndPointDstZone->GetAbstrValuesUnit() : y;
 
 		dms_assert(e && v && impUnit && x && y && orgZones && dstZones);
-		e->UnifyDomain(adiLinkF1->GetAbstrDomainUnit(), UM_Throw);
-		e->UnifyDomain(adiLinkF2->GetAbstrDomainUnit(), UM_Throw);
-		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), UM_Throw);
-		v->UnifyDomain(adiLinkF2->GetAbstrValuesUnit(), UM_Throw);
-		if (adiLinkBidirFlag) e->UnifyDomain(adiLinkBidirFlag->GetAbstrDomainUnit(), UM_Throw);
+		e->UnifyDomain(adiLinkF1->GetAbstrDomainUnit(), "Links", "Domain of FromNode_rel attribute", UM_Throw);
+		e->UnifyDomain(adiLinkF2->GetAbstrDomainUnit(), "Links", "Domain of ToNode_rel attribute", UM_Throw);
+		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), "Nodes", "Values of FromNode_rel attribute", UM_Throw);
+		v->UnifyDomain(adiLinkF2->GetAbstrValuesUnit(), "Nodes", "Values of ToNode_rel attribute", UM_Throw);
+		if (adiLinkBidirFlag) e->UnifyDomain(adiLinkBidirFlag->GetAbstrDomainUnit(), "Links", "Domain of Bidirectional flag attribute", UM_Throw);
 		if (adiLinkBidirFlag) MG_CHECK(adiLinkBidirFlag->GetAbstrValuesUnit()->IsKindOf(Unit<Bool>::GetStaticClass()));
 
-		if (adiStartPointNode) v->UnifyDomain(adiStartPointNode->GetAbstrValuesUnit(), UM_Throw);
-		if (adiStartPointImpedance) x->UnifyDomain(adiStartPointImpedance->GetAbstrDomainUnit(), UM_Throw);
-		if (adiStartPoinOrgZone) x->UnifyDomain(adiStartPoinOrgZone->GetAbstrDomainUnit(), UM_Throw);
-		if (adiStartPointImpedance) impUnit->UnifyValues(adiStartPointImpedance->GetAbstrValuesUnit(), UM_Throw);
+		if (adiStartPointNode) v->UnifyDomain(adiStartPointNode->GetAbstrValuesUnit(), "NodeSet", "Domain of StartLink Node_rel", UM_Throw);
+		if (adiStartPointImpedance) x->UnifyDomain(adiStartPointImpedance->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink Impedance", UM_Throw);
+		if (adiStartPoinOrgZone) x->UnifyDomain(adiStartPoinOrgZone->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink OrgZone_rel", UM_Throw);
+		if (adiStartPointImpedance) impUnit->UnifyValues(adiStartPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "StartLink Impedances", UM_Throw);
 
-		if (adiEndPointNode) v->UnifyDomain(adiEndPointNode->GetAbstrValuesUnit(), UM_Throw);
-		if (adiEndPointImpedance) y->UnifyDomain(adiEndPointImpedance->GetAbstrDomainUnit(), UM_Throw);
-		if (adiEndPointDstZone) y->UnifyDomain(adiEndPointDstZone->GetAbstrDomainUnit(), UM_Throw);
-		if (adiEndPointImpedance) impUnit->UnifyValues(adiEndPointImpedance->GetAbstrValuesUnit(), UM_Throw);
+		if (adiEndPointNode) v->UnifyDomain(adiEndPointNode->GetAbstrValuesUnit(), "NodeSet", "Domain of EndLink Node_rel ", UM_Throw);
+		if (adiEndPointImpedance) y->UnifyDomain(adiEndPointImpedance->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink Impedance", UM_Throw);
+		if (adiEndPointDstZone) y->UnifyDomain(adiEndPointDstZone->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink OrgZone_rel", UM_Throw);
+		if (adiEndPointImpedance) impUnit->UnifyValues(adiEndPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "EndLink Impedances", UM_Throw);
 
 		if (adiOrgMaxImp) // maxDist
 		{
-			orgZones->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), UnifyMode(UM_Throw|UM_AllowVoidRight));
-			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
+			orgZones->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMassLimit) // limitMass
 		{
 			dms_assert(adiDstMassLimit);
-			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), UnifyMode(UM_Throw | UM_AllowDefault));
-			orgZones->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
-			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgMassLimit", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
+			orgZones->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), "DstZones", "Domain of DstMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 
 		const Unit<ImpType>* imp2Unit= impUnit;
 		if (adiLinkAltImp) // AlternativeLinkWeight
 		{
 			imp2Unit= const_unit_cast<ImpType>(adiLinkAltImp->GetAbstrValuesUnit());
-			e->UnifyDomain(adiLinkAltImp->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			e->UnifyDomain(adiLinkAltImp->GetAbstrDomainUnit(), "Edges", "Domain of Alternative Impedances", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 
 		// interaction parameters
-		if (adiOrgMinImp) // maxDist
+		if (adiOrgMinImp)
 		{
-			orgZones->UnifyDomain(adiOrgMinImp->GetAbstrDomainUnit(), UnifyMode(UM_Throw|UM_AllowVoidRight));
-			imp2Unit->UnifyValues(adiOrgMinImp->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
+			orgZones->UnifyDomain(adiOrgMinImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMinImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			imp2Unit->UnifyValues(adiOrgMinImp->GetAbstrValuesUnit(), "Imp2Unit", "Values of OrgMinImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
-		if (adiDstMinImp) // maxDist
+		if (adiDstMinImp)
 		{
-			dstZones->UnifyDomain(adiDstMinImp->GetAbstrDomainUnit(), UnifyMode(UM_Throw|UM_AllowVoidRight));
-			imp2Unit->UnifyValues(adiDstMinImp->GetAbstrValuesUnit(), UnifyMode(UM_Throw|UM_AllowDefault));
+			dstZones->UnifyDomain(adiDstMinImp->GetAbstrDomainUnit(), "DstZones", "Domain of DstMinImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			imp2Unit->UnifyValues(adiDstMinImp->GetAbstrValuesUnit(), "Imp2Unit", "Values of DstMinImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMass) // SrcMass
 		{
 			dms_assert(adiDistDecayBetaParam);
 			dms_assert(adiDstMass);
-			orgZones->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZones->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		MG_CHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
 		MG_CHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
@@ -1284,12 +1284,12 @@ public:
 		if (adiDstMass) // DstMass
 		{
 			dms_assert(adiOrgMass);
-			dstZones->UnifyDomain(adiDstMass->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			dstZones->UnifyDomain(adiDstMass->GetAbstrDomainUnit(), "DstZones", "Domain of DstMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		if (adiOrgAlpha)
 		{
 			dms_assert(adiOrgMass);
-			orgZones->UnifyDomain(adiOrgAlpha->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZones->UnifyDomain(adiOrgAlpha->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgAlpha attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		const AbstrUnit* resultUnit;
 		AbstrUnit* mutableResultUnit;

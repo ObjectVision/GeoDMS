@@ -439,7 +439,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 		}
 		if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
 		{
-			srcUnit->UnifyValues(resUnit, UM_Throw);
+			srcUnit->UnifyValues(resUnit, "Values of first argument", "cast target as specified by the second argument", UM_Throw);
 			dms_assert(0); // if+unify => throw
 		}
 		m_Factor = srcUnit->GetCurrMetric()->m_Factor / resUnit->GetCurrMetric()->m_Factor;

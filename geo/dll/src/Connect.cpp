@@ -123,7 +123,7 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 		const AbstrUnit* pointDomain = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* neighbourEntity = arg2A ? arg2A->GetAbstrValuesUnit() : nullptr;
 		if (arg2A)
-			pointDomain->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
+			pointDomain->UnifyDomain(arg2A->GetAbstrDomainUnit(), "v1", "e2", UM_Throw);
 
 		if (!resultHolder)
 		{
@@ -290,10 +290,13 @@ struct AbstrConnectPointOperator : VariadicOperator
 		const AbstrUnit* point1Entity = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* point2Entity = arg2A->GetAbstrDomainUnit();
 
+		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), "v1", isCapacitated ? "v3" : "v2", UM_Throw);
 		if (isCapacitated)
 		{
-			point1Entity->UnifyDomain(arg1W->GetAbstrDomainUnit(), UM_Throw);
-			point2Entity->UnifyDomain(arg2W->GetAbstrDomainUnit(), UM_Throw);
+			point1Entity->UnifyDomain(arg1W->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+			point2Entity->UnifyDomain(arg2W->GetAbstrDomainUnit(), "e3", "e4", UM_Throw);
+
+			arg1W->GetAbstrValuesUnit()->UnifyValues(arg2W->GetAbstrValuesUnit(), "v2", "v4", UM_Throw);
 		}
 
 		if (!resultHolder)
@@ -585,18 +588,18 @@ public:
 		const AbstrUnit* pointUnit   = arg2A->GetAbstrValuesUnit();
 		const AbstrUnit* polyEntity  = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointEntity = arg2A->GetAbstrDomainUnit();
-		polyUnit->Unify(pointUnit);
+		polyUnit->UnifyValues (pointUnit, "Values of polygon attribute", "Values of point attribute", UM_Throw);
 
 		if (CT != compare_type::none)
 		{
-			polyEntity ->UnifyDomain(arg1_ID->GetAbstrDomainUnit(), UM_Throw);
-			pointEntity->UnifyDomain(arg2_ID->GetAbstrDomainUnit(), UM_Throw);
-			arg1_ID->GetAbstrValuesUnit()->UnifyValues(arg2_ID->GetAbstrValuesUnit(), UM_Throw);
+			polyEntity ->UnifyDomain(arg1_ID->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+			pointEntity->UnifyDomain(arg2_ID->GetAbstrDomainUnit(), "e3", "e4", UM_Throw);
+			arg1_ID->GetAbstrValuesUnit()->UnifyValues(arg2_ID->GetAbstrValuesUnit(), "v2", "v4", UM_Throw);
 		}
 		if (HasMinDist)
-			pointEntity->UnifyDomain(argMinDist->GetAbstrDomainUnit(), UnifyMode(UM_Throw| UM_AllowVoidRight));
+			pointEntity->UnifyDomain(argMinDist->GetAbstrDomainUnit(), "Domain of Point attribute", "Domain of Minimum Distances", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		if (HasMaxDist)
-			pointEntity->UnifyDomain(argMaxDist->GetAbstrDomainUnit(), UnifyMode(UM_Throw| UM_AllowVoidRight));
+			pointEntity->UnifyDomain(argMaxDist->GetAbstrDomainUnit(), "Domain of Point attribute", "Domain of Maximum Distances", UnifyMode(UM_Throw| UM_AllowVoidRight));
 
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());
@@ -886,18 +889,18 @@ public:
 		const AbstrUnit* pointUnit = arg2A->GetAbstrValuesUnit();
 		const AbstrUnit* polyEntity = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointEntity = arg2A->GetAbstrDomainUnit();
-		polyUnit->Unify(pointUnit);
+		polyUnit->UnifyValues(pointUnit, "polygon coordinates", "points", UM_Throw);
 
 		if (CT != compare_type::none)
 		{
-			polyEntity->UnifyDomain(arg1_ID->GetAbstrDomainUnit(), UM_Throw);
-			pointEntity->UnifyDomain(arg2_ID->GetAbstrDomainUnit(), UM_Throw);
-			arg1_ID->GetAbstrValuesUnit()->UnifyValues(arg2_ID->GetAbstrValuesUnit(), UM_Throw);
+			polyEntity->UnifyDomain(arg1_ID->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+			pointEntity->UnifyDomain(arg2_ID->GetAbstrDomainUnit(), "e3", "e4", UM_Throw);
+			arg1_ID->GetAbstrValuesUnit()->UnifyValues(arg2_ID->GetAbstrValuesUnit(), "v2", "v4", UM_Throw);
 		}
 		if (HasMinDist)
-			pointEntity->UnifyDomain(argMinDist->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			pointEntity->UnifyDomain(argMinDist->GetAbstrDomainUnit(), "Domain of points", "Domain of Minimum Distances", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		if (HasMaxDist)
-			pointEntity->UnifyDomain(argMaxDist->GetAbstrDomainUnit(), UnifyMode(UM_Throw | UM_AllowVoidRight));
+			pointEntity->UnifyDomain(argMaxDist->GetAbstrDomainUnit(), "Domain of points", "Domain of Maximum Distances", UnifyMode(UM_Throw | UM_AllowVoidRight));
 
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());

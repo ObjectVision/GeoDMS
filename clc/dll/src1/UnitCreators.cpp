@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitCreators.h"
 
 #include "mci/ValueClass.h"
+#include "utl/mySPrintF.h"
 
 #include "Metric.h"
 #include "Projection.h"
@@ -64,7 +65,7 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 
 	ConstUnitRef u = uc->CreateDefault();
 
-	if (!v->UnifyValues(u, UM_AllowTypeDiff))
+	if (!v->UnifyValues(u, "", "", UM_AllowTypeDiff))
 	{
 		AbstrUnit* newArg2 = uc->CreateTmpUnit(nullptr);
 		u = newArg2;
@@ -135,21 +136,14 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	dms_assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
 
 	const AbstrUnit* catUnit = nullptr;
+	arg_index cat_unit_index = nrSkippedArgs;
 	if (mustCheckCategories)
 	{
-		arg_index ii = nrSkippedArgs;
-		for (; ii != args.size(); ++ii)
-			if (AsDataItem(args[ii])->GetTSF(DSF_Categorical))
+		for (; cat_unit_index != args.size(); ++cat_unit_index)
+			if (AsDataItem(args[cat_unit_index])->GetTSF(DSF_Categorical))
 			{
-				catUnit = AsDataItem(args[ii])->GetAbstrValuesUnit();
+				catUnit = AsDataItem(args[cat_unit_index])->GetAbstrValuesUnit();
 				break;
-			}
-		if (catUnit)
-			if (catUnit->UnifyDomain(arg1, "", "", UM_AllowDefaultRight))
-			{
-				auto leftRole = mySSPrintF("Values of argument %d", ii+1);
-				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-				catUnit->UnifyDomain(arg1, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
 			}
 	}
 
@@ -162,8 +156,12 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		if (arg1->GetValueType() != arg2->GetValueType())
 			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1->GetValueType()->GetName().c_str(), arg2->GetValueType()->GetName().c_str());
 
-		if (catUnit)
-			catUnit->UnifyDomain(arg2, UnifyMode(UM_AllowDefaultRight | UM_Throw));
+		if (catUnit && !catUnit->UnifyDomain(arg2, "", "", UnifyMode(UM_AllowDefaultRight)))
+		{
+			auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
+			auto rightRole = mySSPrintF("Values of argument %d", i + 1);
+			catUnit->UnifyDomain(arg2, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
+		}
 
 		const UnitMetric* a2MetricPtr = arg2->GetMetric();
 		if (!IsEmpty(a1MetricPtr))

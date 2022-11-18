@@ -88,7 +88,7 @@ public:
 
 		const AbstrUnit* entity1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* entity2 = arg2A->GetAbstrDomainUnit();
-		entity1->UnifyDomain(entity2, UM_Throw);
+		entity1->UnifyDomain(entity2, "e1", "e2", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(entity1, arg3);

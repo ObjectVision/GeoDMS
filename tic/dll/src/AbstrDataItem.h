@@ -100,7 +100,7 @@ public:
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
 	void ClearData(garbage_t&) const override;
 
-	void Unify(const TreeItem* refItem) const override;
+	void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const override;
 //REMOVE	LispRef GetKeyExprImpl() const override;
 
 //	override Actor

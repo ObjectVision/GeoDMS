@@ -291,16 +291,16 @@ const Class* AbstrDataItem::GetCurrentObjClass() const
 		:	GetDynamicClass();
 }
 
-void AbstrDataItem::Unify(const TreeItem* refItem) const
+void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const
 {
 	const AbstrDataItem* refAsDi = AsDataItem(refItem);
-	GetAbstrDomainUnit()->UnifyDomain(refAsDi->GetAbstrDomainUnit(), UM_Throw);
+	GetAbstrDomainUnit()->UnifyDomain(refAsDi->GetAbstrDomainUnit(), leftRole, rightRole, UM_Throw);
 	while (refItem = refAsDi->GetReferredItem())
 	{
-		refAsDi->Unify(refItem);
+		Unify(refItem, leftRole, rightRole);
 		refAsDi = AsDataItem(refItem);
 	}
-	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft|UM_Throw));
+	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), leftRole, rightRole, UnifyMode(UM_AllowDefaultLeft|UM_Throw));
 
 /*
 	if (refAsDi->GetTSF(DSF_Categorical))
@@ -414,7 +414,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
 		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
-		if (!mydu->UnifyDomain(refdu, UnifyMode::UM_AllowDefaultLeft, &resultMsg))
+		if (!mydu->UnifyDomain(refdu, "Domain of configured attribute", "Domain of calculation result", UnifyMode::UM_AllowDefaultLeft, &resultMsg))
 		{
 			issueStr = "Domain";
 			goto failResultMsg;
@@ -424,7 +424,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!GetAbstrValuesUnit()->UnifyValues(refvu, UM_AllowDefault, &resultMsg))
+		if (!GetAbstrValuesUnit()->UnifyValues(refvu, "Values of configured attribute", "Values of calculation result", UM_AllowDefault, &resultMsg))
 		{
 			issueStr = "ValuesUnit ";
 			goto failResultMsg;
@@ -432,7 +432,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	}
 	if (adi->GetTSF(DSF_Categorical))
 	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
+		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "Values of configured attribute", "Categorical values of calculation result", UnifyMode(UM_AllowDefaultLeft), &resultMsg))
 		{
 			issueStr = "ValuesUnit ";
 			goto failResultMsg;
@@ -985,7 +985,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPt
 
 	const AbstrUnit* domain = dataItemArray[0]->GetAbstrDomainUnit();
 	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray + 1; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		domain->UnifyDomain((*dataItemIter)->GetAbstrDomainUnit(), UM_Throw);
+		domain->UnifyDomain((*dataItemIter)->GetAbstrDomainUnit(), "Domain of the first column", "Domain of a following column", UM_Throw);
 
 	std::vector<SharedDataItemInterestPtr> keepInterest; keepInterest.reserve(nrDataItems);
 	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)

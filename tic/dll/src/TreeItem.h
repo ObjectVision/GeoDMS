@@ -293,7 +293,7 @@ public:
 	TIC_CALL const TreeItem* GetUltimateItem() const;
 	TIC_CALL const TreeItem* GetCurrRefItem () const;
 	TIC_CALL const TreeItem* GetReferredItem() const;
-	TIC_CALL virtual void Unify(const TreeItem* refItem) const;
+	TIC_CALL virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
 //	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
 	TIC_CALL MetaInfo GetCurrMetaInfo(metainfo_policy_flags mpf) const;

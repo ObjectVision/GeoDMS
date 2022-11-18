@@ -64,7 +64,7 @@ public:
 		
 		const AbstrUnit* arg1_DomainUnit = arg1A->GetAbstrDomainUnit();
 		dms_assert(arg1_DomainUnit);
-		if (arg2A) arg1_DomainUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), UM_Throw);
+		if (arg2A) arg1_DomainUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		const AbstrUnit* arg2_ValuesUnit = (arg2A) ? arg2A->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
 

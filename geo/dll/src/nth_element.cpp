@@ -166,14 +166,14 @@ struct AbstrPthElementPart: TernaryOperator
 			resultHolder = CreateCacheDataItem(argPartitionA->GetAbstrValuesUnit(), argRankingA->GetAbstrValuesUnit());
 
 		// check partitions domain with order domain
-		argPartitionA->GetAbstrDomainUnit()->UnifyDomain(argRankingA->GetAbstrDomainUnit(), UM_Throw);
+		argPartitionA->GetAbstrDomainUnit()->UnifyDomain(argRankingA->GetAbstrDomainUnit(), "Domain of the Partitioning", "Domain of the Ranking", UM_Throw);
 
 		// check partitions values with pos domain
 		const AbstrDataItem* argTargetCountA = AsDataItem(args[1]);
 		const AbstrUnit*     e2    = argTargetCountA->GetAbstrDomainUnit();
 		bool e2Void = e2->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		if (!e2Void)
-			e2->UnifyDomain(argPartitionA->GetAbstrValuesUnit(), UM_Throw);
+			e2->UnifyDomain(argPartitionA->GetAbstrValuesUnit(), "e2", "Partitioning values", UM_Throw);
 
 		if (mustCalc)
 		{
@@ -214,19 +214,19 @@ struct AbstrPthElementWeightedPart: QuaternaryOperator
 			resultHolder = CreateCacheDataItem(argPartitionA->GetAbstrValuesUnit(), argVA->GetAbstrValuesUnit());
 
 		// check partitions domain with order domain
-		argPartitionA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), UM_Throw);
+		argPartitionA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), "e4", "e1", UM_Throw);
 
 		// check partitions values with pos domain
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		const AbstrUnit*     e2    = arg2A->GetAbstrDomainUnit();
 		bool e2Void = e2->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		if (!e2Void)
-			e2->UnifyDomain(argPartitionA->GetAbstrValuesUnit(), UM_Throw);
+			e2->UnifyDomain(argPartitionA->GetAbstrValuesUnit(), "e2", "v4", UM_Throw);
 
 		// check partitions domain with weight domain
 		const AbstrDataItem* weightA = AsDataItem(args[2]);
 		dms_assert(weightA);
-		weightA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), UM_Throw);
+		weightA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), "e3", "e1", UM_Throw);
 
 		if (mustCalc)
 		{
