@@ -545,6 +545,7 @@ void Actor::DoInvalidate () const
 	dms_assert(!DoesHaveSupplInterest());
 	dms_assert(!WasFailed(FR_Data));
 
+	GetLastChangeTS();
 	if (m_InterestCount)
 	{
 		UpdateLock lock(this, actor_flag_set::AF_ChangingInterest);

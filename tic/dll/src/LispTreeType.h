@@ -136,10 +136,7 @@ LispRef AsLispRef(bit_value<N> v, LispPtr valuesUnitKeyExpr)
 	return ExprList(ValueWrap<bit_value<N>>::GetStaticClass()->GetID(), LispRef(Number(v)));
 }
 
-inline auto AsLispRef(Bool v, LispPtr valuesUnitKeyExpr) -> LispRef
-{
-	return LispRef(v ? token::true_ : token::false_);
-}
+auto AsLispRef(Bool v, LispPtr valuesUnitKeyExpr) -> LispRef;
 
 template <typename T>
 inline auto AsLispRef(Point<T> p, LispPtr valuesUnitKeyExpr) -> LispRef

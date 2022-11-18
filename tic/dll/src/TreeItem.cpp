@@ -2809,7 +2809,7 @@ void TreeItem::DoInvalidate() const
 
 	mc_IntegrityChecker.reset();
 
-	if (mc_Calculator)
+	if (mc_DC)
 	{
 		OldRefDecrementer oldDcInterestCounter;
 		DataControllerRef oldDC;

@@ -84,10 +84,10 @@ SharedStr GenerateContext()
 		fos << "\n\nin thread " << GetThreadID();
 
 	if (g_DumpContextCount > 1)
-		fos << "\n\n# while dumping context description in the DmsException constructor: context therefore not available";
+		fos << "while generating context.";
 	else
 	{
-		fos << "\n\n# Context description:\n";
+		fos << "Context:\n";
 
 		UInt32 nrContexts = 0;
 		bool last5 = false;

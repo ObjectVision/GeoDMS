@@ -224,6 +224,17 @@ LispRef CreateLispSign(const TreeItem* self)
 	}
 }
 
+
+// REMOVELispComponent s_UseLispAdm;
+static auto lspTrue = ExprList(token::true_);
+static auto lspFalse = ExprList(token::false_);
+
+auto AsLispRef(Bool v, LispPtr valuesUnitKeyExpr) -> LispRef
+{
+	return v ? lspTrue : lspFalse;
+}
+
+
 LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 {
 	LispRef result;
