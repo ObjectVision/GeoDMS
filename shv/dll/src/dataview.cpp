@@ -915,7 +915,7 @@ ActorVisitState UpdateChildViews(DataViewList* dvl)
 
 ActorVisitState DataView::UpdateViews()
 {
-	if (g_DispatchLockCount > 1) // any other locks that the one from SHV_DataView_Update?
+	if (g_DispatchLockCount > 1) // any other locks than the one from SHV_DataView_Update?
 		return AVS_SuspendedOrFailed;
 	return UpdateChildViews(&g_DataViews);
 }

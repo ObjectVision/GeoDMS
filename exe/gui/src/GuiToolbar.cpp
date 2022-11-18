@@ -136,7 +136,7 @@ void Button::UpdateModal(GuiView& view)
 
 GuiToolbar::GuiToolbar()
 {
-    m_Buf.resize(1024);
+    //m_Buf.resize(1024); // TODO: magic number, remove
 
     // TableView buttons
     m_TableViewButtons.emplace_back(TB_Export,                              GV_save,                        -1,     ButtonType::MODAL, "Save to file as semicolon delimited text", false);                 // SHV_DataView_GetExportInfo(m_DataView, @nrRows, @nrCols, @nrDotRows, @nrDotCols, @fullFileNameBaseStr) then format as 569 dmscontrol.pas
@@ -169,6 +169,7 @@ GuiToolbar::GuiToolbar()
     m_MapViewButtons.emplace_back(TB_SelectDistrict, MV_select_district, 1, ButtonType::SINGLE, "Select contiguous regions in the active layer by clicking on them (use Ctrl for deselection)", false);
     m_MapViewButtons.emplace_back(TB_SelectAll, MV_select_all, -1, ButtonType::SINGLE, "Select all objects in the active layer", false);
     m_MapViewButtons.emplace_back(TB_SelectNone, MV_select_none, -1, ButtonType::SINGLE, "Deselect all objects in the active layer", false);
+    m_MapViewButtons.emplace_back(TB_ShowSelOnlyOn, TB_ShowSelOnlyOff, MV_show_selected_features, -1, ButtonType::TOGGLE, "Show only selected rows", false);
 }
 
 void GuiToolbar::ShowMapViewButtons(GuiView& view)
@@ -209,13 +210,13 @@ void GuiToolbar::Update(bool* p_open, GuiView& view) // TODO: add int return to 
 
     if (!view.m_Views.empty())
     {
-        if (view.m_ViewIndex != -1)
+        if (view.m_ViewIt!=view.m_Views.end())
         {
-            if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsTableView)
+            if (view.m_ViewIt->m_ViewStyle == tvsTableView)
             {
                 ShowTableViewButtons(view);
             }
-            else if (view.m_Views.at(view.m_ViewIndex).m_ViewStyle == tvsMapView)
+            else if (view.m_ViewIt->m_ViewStyle == tvsMapView)
             {
                 ShowMapViewButtons(view);
             }

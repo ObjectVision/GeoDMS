@@ -16,7 +16,7 @@ public:
 private:
 	void GetRecentAndPinnedFiles();
 	void SetRecentAndPinnedFiles();
-	void CleanRecentOrPinnedFiles(std::vector<std::string>& m_Files);
+	std::vector<std::string>::iterator CleanRecentOrPinnedFiles(std::vector<std::string>& m_Files);
 	void UpdateRecentOrPinnedFilesByCurrentConfiguration(std::vector<std::string>& m_Files);
 	Int32 ConfigIsInRecentOrPinnedFiles(std::string cfg, std::vector<std::string>& m_Files);
 	void AddPinnedOrRecentFile(std::string PinnedFile, std::vector<std::string>& m_Files);

@@ -70,7 +70,7 @@ GuiMainComponent::~GuiMainComponent()
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
 
-int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this function require views to be modifyable ?
+/*int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this function require views to be modifyable ?
 {
     int ind = 0;
     for (auto& view : views)
@@ -80,7 +80,7 @@ int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this func
         ind++;
     }
     return ind;
-}
+}*/
 
 std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
 {
@@ -177,8 +177,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "##View" + std::to_string(m_View.m_Views.size()));
-            m_View.SetDoView(true);
+            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
+            //m_View.SetDoView(true);
         }
 
         break;
@@ -188,14 +188,14 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "##View" + std::to_string(m_View.m_Views.size()));
-            m_View.SetDoView(true);
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
+            //m_View.SetDoView(true);
         }
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableContainer, "##View" + std::to_string(m_View.m_Views.size()));
-            m_View.SetDoView(true);
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
+            //m_View.SetDoView(true);
         }
 
         break;
@@ -207,12 +207,12 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
         case tvsMapView:
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "##View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         case tvsTableView:
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "##View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         }
@@ -243,20 +243,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
 void GuiMainComponent::CloseCurrentConfig()
 {
-    m_View.Close(false);
-
-    /*
-    // close the views
-    for (auto& view : m_MapViews)
-    {
-        view.Close(false);
-    }
-
-    for (auto& view : m_TableViews)
-    {
-        view.Close(false);
-    }*/
-
+    m_View.CloseAll();
     m_ItemsHolder.clear();
     m_State.clear();
 }
@@ -527,6 +514,8 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
+    //SuspendTrigger::MustSuspend();
+
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
@@ -600,7 +589,7 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItemComponent.Update();
-    
+
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_View);
 
@@ -617,14 +606,6 @@ void GuiMainComponent::Update()
         m_StatusBar.Update(&m_State.ShowStatusBar);
 
     m_View.UpdateAll();
-
-    //if (m_View.IsPopulated())
-    //{
-    //    if (m_View.DoView())
-    //        m_View.Update();
-    //    else
-    //        m_View.Close(false);
-    //}
 
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);

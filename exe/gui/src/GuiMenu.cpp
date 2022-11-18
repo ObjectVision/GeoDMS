@@ -71,28 +71,21 @@ void GuiMenuFileComponent::SetRecentAndPinnedFiles()
     SetGeoDmsRegKeyMultiString("RecentFiles", m_RecentFiles);
 }
 
-void GuiMenuFileComponent::CleanRecentOrPinnedFiles(std::vector<std::string> &m_Files)
+std::vector<std::string>::iterator GuiMenuFileComponent::CleanRecentOrPinnedFiles(std::vector<std::string> &m_Files)
 {
     // recent files
-    int i = 0;
     auto it_rf = m_Files.begin();
-    while (true)
+    while (it_rf != m_Files.end())
     {
-        it_rf = m_Files.begin();
-        for (i = 0; i < m_Files.size(); i++)
+        if (!std::filesystem::exists(*it_rf) || it_rf->empty())
         {
-            if (!std::filesystem::exists(m_Files.at(i)) || m_Files.at(i).empty())
-            {
-                m_Files.erase(it_rf+i);
-                it_rf = m_Files.begin();
-                i = 0;
-                break;
-            }
-        }
-        if (m_Files.empty() || it_rf+i == m_Files.end())
+            it_rf = m_Files.erase(it_rf);
             break;
+        }
+        it_rf++;
     }
-    SetRecentAndPinnedFiles();
+    SetRecentAndPinnedFiles(); // Update registry
+    return it_rf;
 }
 
 Int32 GuiMenuFileComponent::ConfigIsInRecentOrPinnedFiles(std::string cfg, std::vector<std::string> &m_Files)
@@ -237,7 +230,7 @@ void GuiMenuFileComponent::Update()
             UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
             CleanRecentOrPinnedFiles(m_RecentFiles);
         }
-        ImGui::Separator();
+        /*ImGui::Separator();
 
         int ind = 1000;
         for (auto pfn = m_PinnedFiles.begin(); pfn<m_PinnedFiles.end(); pfn++)
@@ -269,21 +262,22 @@ void GuiMenuFileComponent::Update()
                     break;
             }
             ind++;
-        }
+        }*/
 
         ImGui::Separator();
-
-        ind = 1;
+        int ind = 1;
         for (auto rfn = m_RecentFiles.begin(); rfn < m_RecentFiles.end(); rfn++)
         {
-            ImGui::PushID(ind); // TODO: check if id is unique
+            ImGui::PushID(ind);
             if (ImGui::Button(ICON_RI_CLOSE_FILL))
             {
-                RemovePinnedOrRecentFile(*rfn, m_RecentFiles);
-                UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
-                CleanRecentOrPinnedFiles(m_RecentFiles);
-                rfn = m_RecentFiles.begin();
-                if (rfn == m_RecentFiles.end())
+                rfn = m_RecentFiles.erase(rfn); //RemovePinnedOrRecentFile(*rfn, m_RecentFiles); //TODO: use iterator
+                //UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
+                auto ret_it = CleanRecentOrPinnedFiles(m_RecentFiles);
+                if (ret_it != m_RecentFiles.end())
+                    ret_it = rfn;
+
+                if (m_RecentFiles.empty() || rfn == m_RecentFiles.end())
                 {
                     ImGui::PopID();
                     break;
@@ -304,7 +298,7 @@ void GuiMenuFileComponent::Update()
                     break;
             }
 
-            ImGui::SameLine();
+            /*ImGui::SameLine();
             ImGui::PushID(ind + 4000); // TODO: check if id is unique
             if (ImGui::Button(ICON_RI_PINN_ON))
             {
@@ -313,7 +307,7 @@ void GuiMenuFileComponent::Update()
                 UpdateRecentOrPinnedFilesByCurrentConfiguration(m_PinnedFiles);
                 CleanRecentOrPinnedFiles(m_PinnedFiles);
             }
-            ImGui::PopID();
+            ImGui::PopID();*/
 
             ind++;
         }
@@ -417,7 +411,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
         if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
         ImGui::Separator();
 
-        int index = 0;
+        /*int index = 0;
         for (auto& view : ViewPtr.m_Views)
         {
             ImGui::PushID(index);
@@ -432,7 +426,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
             }
             ImGui::PopID();
             index++;
-        }
+        }*/
 
 
         // TODO: add ViewPtr available views
