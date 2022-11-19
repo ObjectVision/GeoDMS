@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueComposition.h"
 #include "set/FileView.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 
 #include "SpiritTools.h"
 #include "ConfigProd.h"
@@ -280,14 +281,12 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 		SharedStr strAtProblemLoc = problemlocAsString(configString, configStringEnd, &*problem.where);
 
 		position_t  problemLoc = problem.where.get_position();
-		ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
-//		if (descr->m_Context.empty())
-			descr->TellExtraF(
-				"%s(%d,%d) at\n%s",
-				"ConfigParse FromString", problemLoc.line, problemLoc.column,
-				strAtProblemLoc.c_str()
+		auto fullDescr = mySSPrintF("%s\n%s(%d,%d) at\n%s"
+			,	problem.descriptor
+			,	"ConfigParse FromString", problemLoc.line, problemLoc.column
+			,	strAtProblemLoc.c_str()
 			);
-		throw DmsException(descr);
+		DmsException::throwMsgD(fullDescr);
 	}
 	dbg_assert(CurrentIsTop());
 	if (s_AuthErrorDisplayLockCatchCount)
@@ -322,12 +321,12 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
 		position_t  problemLoc = problem.where.get_position();
-		ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
-		descr->TellExtraF("%s(%d,%d) at\n%s",
-			fileName, problemLoc.line, problemLoc.column, 
-			strAtProblemLoc.c_str()
+		auto fullDescr = mySSPrintF("%s\n%s(%d,%d) at\n%s"
+		,	problem.descriptor
+		,	fileName, problemLoc.line, problemLoc.column
+		,	strAtProblemLoc.c_str()
 		);
-		throw DmsException(descr);
+		DmsException::throwMsgD(fullDescr);
 	}
 	dbg_assert(CurrentIsTop());
 	if (s_AuthErrorDisplayLockCatchCount)

@@ -84,11 +84,12 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 
 		position_t  problemLoc = problem.where.get_position();
 		ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
-		descr->TellExtraF("CalculationRule(%d, %d) at\n%s", 
-			problemLoc.line, problemLoc.column, 
-			strAtProblemLoc.c_str()
+		auto fullDescr = mySSPrintF("%s\nCalculationRule(%d, %d) at\n%s"
+			,	problem.descriptor
+			,	problemLoc.line, problemLoc.column
+			,	strAtProblemLoc.c_str()
 		);
-		throw DmsException(descr);
+		DmsException::throwMsgD(fullDescr);
 	}
 
 	if (!prod.m_Result.size()) // Empty LispRefList is allowed (no expression)
