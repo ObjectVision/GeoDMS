@@ -742,7 +742,8 @@ void DataArrayBase<V>::DoSimplifyCheckMode(DataCheckMode& dcm) const
 	if constexpr (has_var_range_field_v<V>)
 	{
 		auto vrd = GetValueRangeData();
-		if (dcm == DCM_CheckBoth && vrd  && !ContainsUndefined(vrd->GetRange()))
+		MG_CHECK(vrd);
+		if (dcm == DCM_CheckBoth && vrd && !ContainsUndefined(vrd->GetRange()))
 			dcm = DCM_CheckRange; // implies excluding UNDEFINED_VALUE()
 	}
 	else

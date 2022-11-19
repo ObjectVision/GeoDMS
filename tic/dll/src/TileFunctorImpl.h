@@ -60,7 +60,14 @@ struct DelayedTileFunctor : TileFunctor<V>
 	DelayedTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ActiveTiles(std::make_unique<SharedPtr<future_tile>[]>(tn))
-	{}
+	{
+		MG_CHECK(tiledDomainRangeData);
+		MG_CHECK(tiledDomainRangeData->GetNrTiles() == tn);
+		if constexpr (has_var_range_field_v<V>)
+		{
+			MG_CHECK(valueRangePtr);
+		}
+	}
 
 	auto GetFutureTile(tile_id t) const->SharedPtr<future_tile> override
 	{
