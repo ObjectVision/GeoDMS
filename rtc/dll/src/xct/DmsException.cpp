@@ -80,14 +80,15 @@ SharedStr GenerateContext()
 
 	DynamicIncrementalLock<> lock2(g_DumpContextCount);
 
-	if (!IsMainThread())
-		fos << "\n\nin thread " << GetThreadID();
 
 	if (g_DumpContextCount > 1)
-		fos << "while generating context.";
+		fos << "\nwhile generating context.";
 	else
 	{
-		fos << "Context:\n";
+		fos << "\nContext:\n";
+
+		if (!IsMainThread())
+			fos << "\nThread " << GetThreadID();
 
 		UInt32 nrContexts = 0;
 		bool last5 = false;
