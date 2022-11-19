@@ -172,6 +172,5 @@ UInt32 nrLineBreaks(CharPtr first, CharPtr last)
 void CheckInfo(const parse_info_t& info)
 {
 	if (! info.full)
-		boost::spirit::throw_<error_descr_t>(info.stop, std::make_shared<ErrMsg>( SharedStr("unexpected token(s)") ));
+		boost::spirit::throw_<error_descr_t>(info.stop, SharedStr("unexpected token(s)") );
 }
-

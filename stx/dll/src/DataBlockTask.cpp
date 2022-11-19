@@ -119,10 +119,11 @@ struct DataArrayOperator : TernaryOperator
 
 			SharedStr strAtProblemLoc = problemlocAsString(dataBlock.begin(), dataBlock.end(), &*problem.where);
 
-			auto err = problem.descriptor;
-			dms_assert(err);
-			err->TellExtra(strAtProblemLoc.c_str());
-			resultHolder->throwItemError(err->Why());
+			ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
+			dms_assert(descr);
+			descr->TellWhere(resultHolder.GetOld());
+			descr->TellExtra(strAtProblemLoc.c_str());
+			throw DmsException(descr);
 		}
 	}
 private:

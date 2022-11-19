@@ -265,7 +265,7 @@ struct simple_range_provider {
 		using type = SimpleRangeData<T>;
 	};
 	template <typename T> struct apply_ptr {
-		using type =SharedPtr<const SimpleRangeData<T>>;
+		using type = SharedPtr<const SimpleRangeData<T>>;
 	};
 };
 

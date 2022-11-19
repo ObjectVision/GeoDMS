@@ -83,7 +83,7 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 		SharedStr strAtProblemLoc = problemlocAsString(exprBegin, exprEnd, &*problem.where);
 
 		position_t  problemLoc = problem.where.get_position();
-		ErrMsgPtr descr = problem.descriptor;
+		ErrMsgPtr descr = std::make_shared<ErrMsg>(problem.descriptor);
 		descr->TellExtraF("CalculationRule(%d, %d) at\n%s", 
 			problemLoc.line, problemLoc.column, 
 			strAtProblemLoc.c_str()

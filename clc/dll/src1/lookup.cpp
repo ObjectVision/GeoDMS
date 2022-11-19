@@ -173,12 +173,15 @@ public:
 
 	auto CreateFutureTileFunctor(const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
+		assert(valuesA);
+		assert(arg2DomainA);
+
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
-		auto valuesUnit = debug_cast<const Unit<field_of_t<V>>*>(valuesA);
+		auto valuesUnit = debug_cast<const Unit<field_of_t<V>>*>(valuesA->GetCurrRangeItem());
 
 		auto arg1 = const_array_cast<T>(arg1A); dms_assert(arg1);
 
-		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA);
+		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA->GetCurrRangeItem());
 		dms_assert(arg2_DomainUnit);
 		dms_assert(arg2_DomainUnit->GetInterestCount());
 		Arg1RangeType actualIndexRange = arg2_DomainUnit->GetRange();
