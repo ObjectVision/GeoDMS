@@ -8,6 +8,9 @@ set DMS_VERSION_PATCH=2
 set geodms_rootdir=%cd%
 
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
+cd ..\tst
+git pull
+cd %cd%
 
 CHOICE /M "Update RtcGeneratedVersion.h?"
 if ErrorLevel 2 goto :startBuild
@@ -45,7 +48,7 @@ IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 
 :afterBuild
 REM svn update ..\tst
-CHOICE /M "bin\release\x64 compiled and ..\tst updated? Ready to execute the R64-fast-debug-test?"
+CHOICE /M "bin\release\x64 compiled and ..\tst updated? Ready to execute the x64-fast-debug-test?"
 if ErrorLevel 2 goto :afterD64FastTest
 
 cd ..\tst\batch
@@ -55,7 +58,7 @@ cd %geodms_rootdir%
 echo on
 
 :afterD64FastTest
-CHOICE /M "Ready to execute the D64-unit-debug-test?"
+CHOICE /M "Ready to execute the x64-unit-debug-test?"
 if ErrorLevel 2 goto :afterD64UnitTest
 
 cd ..\tst\batch
