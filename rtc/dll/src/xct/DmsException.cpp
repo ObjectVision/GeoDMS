@@ -82,10 +82,10 @@ SharedStr GenerateContext()
 
 
 	if (g_DumpContextCount > 1)
-		fos << "\nwhile generating context.";
+		fos << "while generating context.";
 	else
 	{
-		fos << "\nContext:\n";
+		fos << "Context:\n";
 
 		if (!IsMainThread())
 			fos << "\nThread " << GetThreadID();

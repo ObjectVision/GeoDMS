@@ -110,7 +110,9 @@ struct dms_fallback_parser
 
 		catch (const DmsException& x)
 		{
-			throw parser_error_t(scan.first, x.AsErrMsg()->GetAsText());
+//			if (x.m_Why.contains(") at\n"))
+//				throw;
+			throw parser_error_t(scan.first, x.AsErrMsg()->m_Why);
 		}
 	}
 };
