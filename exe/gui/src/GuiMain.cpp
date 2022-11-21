@@ -30,6 +30,8 @@
 #include "AbstrUnit.h" // IsUnit
 #include "SessionData.h"
 #include "utl/Environment.h"
+#include "utl/splitPath.h"
+#include "dbg/DebugLog.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -337,6 +339,35 @@ void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
     }
 }
 
+void GuiMainComponent::InterpretCommandLineParameters()
+{
+    int    argc = __argc;
+    --argc;
+    char** argv = __argv; 
+    ++argv;
+
+    CharPtr firstParam = argv[0];
+    if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+    {
+        SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+
+        m_DebugLog = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()));
+        SetRegStatusFlag(RSF_TraceLogFile);
+        argc--; argv++;
+    }
+
+    ParseRegStatusFlags(argc, argv);
+    
+    for (; argc; --argc, ++argv) {
+        if ((*argv)[0] == '/')
+        {
+            CharPtr cmd = (*argv) + 1;
+            if (!stricmp(cmd, "noconfig"))
+                m_NoConfig = true;
+        }
+    }
+}
+
 int GuiMainComponent::Init()
 {
     // set exe dir
@@ -399,6 +430,9 @@ int GuiMainComponent::Init()
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
     LoadIniFromRegistry();
 
+    // command line params
+    InterpretCommandLineParameters();
+
     return 0;
 }
 
@@ -418,7 +452,7 @@ int GuiMainComponent::MainLoop()
     UInt32 UpdateFrameCounter = frames_to_update;
 
     // Main loop
-    while (!glfwWindowShouldClose(m_Window)) // memory leaks: 6 up to this point
+    while (!glfwWindowShouldClose(m_Window))
     {
         if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
@@ -486,10 +520,12 @@ int GuiMainComponent::MainLoop()
 
         glfwSwapBuffers(m_Window);
 
-        // initializations after first n frames
+
         if (!m_FirstFrames)
         {
-            m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+            // initializations after first n frames
+            if (!m_NoConfig)
+                m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
             m_FirstFrames--;
         }
         else if (m_FirstFrames > 0)

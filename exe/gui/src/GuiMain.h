@@ -31,6 +31,7 @@ private:
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();
 	void TraverseTreeItemHistoryIfRequested();
+	void InterpretCommandLineParameters();
 
 	GLFWwindow*				m_Window = nullptr;
 	GuiState				m_State;
@@ -48,6 +49,8 @@ private:
 	int						m_MapViewsCursor = 0;
 	GuiDetailPages			m_DetailPages;
 	GuiTreeItemsHolder		m_ItemsHolder;
-
 	int 					m_FirstFrames = 1;
+	bool                    m_NoConfig = false;
+
+	std::unique_ptr<CDebugLog> m_DebugLog;
 };
