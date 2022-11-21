@@ -13,6 +13,7 @@
 #include "GuiToolbar.h"
 #include "GuiInput.h"
 #include "GuiStatusBar.h"
+#include "GuiUnitTest.h"
 
 #include "AbstrDataItem.h"
 #include "DataView.h"
@@ -31,6 +32,7 @@ private:
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();
 	void TraverseTreeItemHistoryIfRequested();
+	void InterpretCommandLineParameters();
 
 	GLFWwindow*				m_Window = nullptr;
 	GuiState				m_State;
@@ -43,11 +45,11 @@ private:
 	GuiView					m_View; // TODO: convert single view to multiview
 	GuiOptions				m_Options;
 	GuiStatusBar			m_StatusBar;
-	int		                m_MaxViews = 2;
-	int                     m_TableViewsCursor = 0;
-	int						m_MapViewsCursor = 0;
+	GuiUnitTest				m_GuiUnitTest;
 	GuiDetailPages			m_DetailPages;
-	GuiTreeItemsHolder		m_ItemsHolder;
-
+	//GuiTreeItemsHolder		m_ItemsHolder;
 	int 					m_FirstFrames = 1;
+	bool                    m_NoConfig = false;
+
+	std::unique_ptr<CDebugLog> m_DebugLog;
 };

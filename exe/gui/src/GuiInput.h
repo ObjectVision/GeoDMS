@@ -12,5 +12,5 @@ public:
 
 
 private:
-	static GuiState m_State;
+	static GuiState m_State; // TODO: make std::shared_ptr
 };
