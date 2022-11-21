@@ -100,6 +100,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 		if (iFirstEnd != iBegin)
 		{
 			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
+			Trim(explicitSupplierName);
 			const TreeItem* suppl = context->FindItem(explicitSupplierName);
 			if (!suppl)
 				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));

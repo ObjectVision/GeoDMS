@@ -990,12 +990,52 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 // C style Interface function for treeitem error traversal 
 //----------------------------------------------------------------------
 
+#include "UsingCache.h"
+#include "SupplCache.h"
+#include "TreeItemProps.h"
+
 BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "DMS_TreeItem_GetErrorSource");
 
 	if (src)
 	{
+		auto context = src->GetTreeParent();
+		if (context && src->CurrHasUsingCache())
+		{
+			auto usingCache = src->GetUsingCache();
+			assert(usingCache);
+			for (auto usingUrl : usingCache->UsingUrls())
+			{
+				auto usingUrlStr = SharedStr(usingUrl);
+				auto ur = context->FindBestItem(usingUrlStr);
+				if (ur.first && ur.first->WasFailed())
+					return ur;
+			}
+		}
+		if (context)
+		{
+			SharedStr strConfigured = TreeItemPropertyValue(src, explicitSupplPropDefPtr);
+			CharPtr
+				iBegin = strConfigured.begin(),
+				iEnd = strConfigured.send();
+			while (iBegin != iEnd)
+			{
+				CharPtr iFirstEnd = std::find(iBegin, iEnd, ';');
+				CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
+				Trim(explicitSupplierName);
+				if (!explicitSupplierName.empty())
+				{
+					auto ur = context->FindBestItem(explicitSupplierName);
+					if (ur.first && ur.first->WasFailed())
+						return ur;
+				}
+				if (iFirstEnd == iEnd)
+					break;
+				iBegin = iFirstEnd + 1;
+			}
+		}
+
 		if (IsDataItem(src))
 		{
 			BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
@@ -1021,9 +1061,8 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 					return si;
 			}
 		}
-		src = src->GetTreeParent();
-		if (src && src->WasFailed())
-			return { src, {} };
+		if (context && context->WasFailed())
+			return { context, {} };
 	}
 	return { nullptr, {} };
 }

@@ -232,3 +232,19 @@ RTC_CALL CharPtrRange TokenID::str_range_st() const
 		? CharPtrRange((*s_TokenListPtr)[m_ID], s_TokenListPtr->item_end(m_ID))
 		: CharPtrRange(Undefined());
 }
+
+RTC_CALL void Trim(CharPtrRange& range)
+{
+	while (!range.empty() && isspace(*range.first))
+		++range.first;
+	while (!range.empty() && isspace(range.second[-1]))
+		--range.second;
+}
+
+
+RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last)
+{
+	CharPtrRange range(first, last);
+	Trim(range);
+	return GetTokenID_mt(range.first, range.second);
+}

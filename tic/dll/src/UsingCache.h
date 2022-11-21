@@ -60,6 +60,7 @@ struct UsingCache
 	void OnItemAdded  (const TreeItem* child);
 	void OnItemRemoved(const TreeItem* child) { SetDirty(); }
 
+	const std::vector<TokenID>& UsingUrls() const { return m_UsingUrls; }
 
 private:
 	void SetDirty();
@@ -84,17 +85,17 @@ private:
 			CS_DIRTY,
 			CS_READY,
 			CS_BUSY
-	}                                   m_CacheState;
+	}                                    m_CacheState;
 
 #if defined(MG_DEBUG_DATA)
-	mutable enum CacheStateType         md_PrevState;
+	mutable enum CacheStateType          md_PrevState;
 #endif
 
-	const TreeItem*                     m_Context;
+	const TreeItem*                      m_Context;
 
 	mutable std::vector<TokenID>         m_UsingUrls;
-	mutable TreeItemCRefArray           m_Usings;
-	mutable TreeItemCPtrArray           m_SortedItemCache;
+	mutable TreeItemCRefArray            m_Usings;
+	mutable TreeItemCPtrArray            m_SortedItemCache;
 	mutable std::vector<UsingCache*>     m_Incoming;
 
 #if defined(MG_DEBUG_DATA)

@@ -194,11 +194,14 @@ inline TokenID UndefinedValue(const TokenID* x) { return TokenID(Undefined()); }
 
 // ===================== Interface
 
+RTC_CALL void Trim(CharPtrRange& range);
+
 // get or create id
 inline TokenID GetTokenID_st(CharPtr tokenStr) { return TokenID(tokenStr, single_threading_tag_v); }
 inline TokenID GetTokenID_mt(CharPtr tokenStr) { return TokenID(tokenStr, multi_threading_tag_v); }
 inline TokenID GetTokenID_st(CharPtr first, CharPtr last) { return TokenID(first, last, single_threading_tag_v); }
 inline TokenID GetTokenID_mt(CharPtr first, CharPtr last) { return TokenID(first, last, multi_threading_tag_v); }
+RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last);
 inline TokenID GetTokenID_st(CharPtrRange range) { return GetTokenID_st(range.first, range.second); }
 inline TokenID GetTokenID_mt(CharPtrRange range) { return GetTokenID_mt(range.first, range.second); }
 
