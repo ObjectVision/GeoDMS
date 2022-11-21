@@ -10,7 +10,7 @@ set geodms_rootdir=%cd%
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
 cd ..\tst
 git pull
-cd %cd%
+cd %geodms_rootdir%
 
 CHOICE /M "Update RtcGeneratedVersion.h?"
 if ErrorLevel 2 goto :startBuild
@@ -43,8 +43,6 @@ IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 ROBOCOPY exe\gui\misc bin\release\x64\misc /v /fft /E /njh /njs
 IF %ErrorLevel%==1 EXIT 0
 IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
-
-
 
 :afterBuild
 REM svn update ..\tst
