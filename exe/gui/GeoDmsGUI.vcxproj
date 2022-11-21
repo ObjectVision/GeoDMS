@@ -26,13 +26,11 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>GeoDmsGUI</ProjectName>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
@@ -44,7 +42,6 @@
   <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
     <Import Project="..\..\DmsRelease.props" />
   </ImportGroup>
-  
   <PropertyGroup>
     <TargetName>GeoDmsImGui</TargetName>
   </PropertyGroup>
@@ -84,6 +81,7 @@
     <ClCompile Include="src\GuiStyles.cpp" />
     <ClCompile Include="src\GuiToolbar.cpp" />
     <ClCompile Include="src\GuiTreeview.cpp" />
+    <ClCompile Include="src\GuiUnitTest.cpp" />
     <ClCompile Include="src\GuiView.cpp" />
     <ClCompile Include="src\imgui_demo.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
@@ -109,6 +107,7 @@
     <ClInclude Include="src\GuiStyles.h" />
     <ClInclude Include="src\GuiToolbar.h" />
     <ClInclude Include="src\GuiTreeview.h" />
+    <ClInclude Include="src\GuiUnitTest.h" />
     <ClInclude Include="src\GuiView.h" />
     <ClInclude Include="src\IconsFontRemixIcon.h" />
     <ClInclude Include="src\imfilebrowser.h" />

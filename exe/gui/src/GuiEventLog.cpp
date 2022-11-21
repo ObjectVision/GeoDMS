@@ -6,7 +6,7 @@
 //ImVector<char*>       GuiEventLog::Items;
 
 std::vector<std::pair<SeverityTypeID, std::string>> GuiEventLog::m_Items;
-UInt32 GuiEventLog::m_MaxLogLines = 1000;
+UInt32 GuiEventLog::m_MaxLogLines = 1000; // TODO: magic number, remove?
 
 GuiEventLog::GuiEventLog()
 {

@@ -66,7 +66,7 @@ GuiMainComponent::~GuiMainComponent()
     }*/
     m_View.CloseAll();
 
-    m_ItemsHolder.clear(); 
+    //m_ItemsHolder.clear(); 
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -125,15 +125,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         if (!m_State.GetCurrentItem())
             return;
 
-        if (!m_ItemsHolder.contains(m_State.GetCurrentItem()))
-        {
+        //if (!m_ItemsHolder.contains(m_State.GetCurrentItem()))
+        //{
             //m_ItemsHolder.add(m_State.GetCurrentItem());
             //if (IsDataItem(m_State.GetCurrentItem()))
             //{
             //    m_ItemsHolder.add(m_State.GetCurrentItem());
             //}
 
-        }
+        //}
         //DMS_TreeItem_Update(m_CurrentItem);
 
         if (IsUnit(m_State.GetCurrentItem()))
@@ -147,14 +147,14 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
                     auto adi = AsDataItem(subItem);
                     if (adi->GetAbstrDomainUnit()->UnifyDomain(au, "Domain of subitem", "parent table", UnifyMode()))
                     {
-                        if (!m_ItemsHolder.contains(subItem))
-                        {
+                        //if (!m_ItemsHolder.contains(subItem))
+                        //{
                             //m_ItemsHolder.add(subItem);
                             //if (IsDataItem(m_State.GetCurrentItem()))
                             //{
                             //    m_ItemsHolder.add(m_State.GetCurrentItem());
                             //}
-                        }
+                        //}
                         //DMS_TreeItem_Update(subItem);
                     }
                 }
@@ -246,7 +246,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_View.CloseAll();
-    m_ItemsHolder.clear();
+    //m_ItemsHolder.clear();
     m_State.clear();
 }
 
@@ -364,6 +364,12 @@ void GuiMainComponent::InterpretCommandLineParameters()
             CharPtr cmd = (*argv) + 1;
             if (!stricmp(cmd, "noconfig"))
                 m_NoConfig = true;
+            if (!stricmp(cmd, "script"))
+            {
+                m_GuiUnitTest.LoadStepsFromScriptFile(*(argv+1));
+                argc--;
+                argv++;
+            }
         }
     }
 }
