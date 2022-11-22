@@ -37,6 +37,15 @@ struct StepDescription
 	StepType	step_type;
 	StepSubType step_sub_type;
 	std::string value;
+	UInt32 wait_time = 0;
+	std::chrono::steady_clock::time_point start_time;
+
+	bool WaitTimeExpired()
+	{
+		if ((start_time - std::chrono::steady_clock::now()).count() > wait_time)
+			return true;
+		return false;
+	}
 };
 
 class GuiUnitTest : GuiBaseComponent
@@ -47,6 +56,7 @@ public:
 	void LoadStepsFromScriptFile(std::string script_file_name);
 
 private:
+	void ProcessStep();
 	std::list<StepDescription>	         m_Steps;
 	std::list<StepDescription>::iterator m_CurrStep;
 	GuiState			                 m_State;
