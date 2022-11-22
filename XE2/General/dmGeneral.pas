@@ -115,6 +115,7 @@ type
     ClearTargets1: TMenuItem;
     SetSource: TMenuItem;
     miStepUp: TMenuItem;
+    miRunUp: TMenuItem;
 
     procedure pmTreeItemPopup(Sender: TObject);
     procedure miUpdateSubTreeClick(Sender: TObject);
@@ -170,6 +171,7 @@ type
     procedure ClearTargets1Click(Sender: TObject);
     procedure SetSourceClick(Sender: TObject);
     procedure miStepUpClick(Sender: TObject);
+    procedure miRunUpClick(Sender: TObject);
 
   private
     { Private declarations }
@@ -1041,6 +1043,18 @@ begin
   begin
     SetActiveTreeItem(ti, nil);
     frmMain.ProcessUnfoundPart(upStr);
+  end;
+end;
+
+procedure TdmfGeneral.miRunUpClick(Sender: TObject);
+var ti: TTreeItem;
+begin
+  while true do
+  begin
+    ti := GetActiveTreeItem;
+    if not assigned(ti) then exit;    
+    miStepUpClick(Sender);
+    if GetActiveTreeItem = ti then exit;
   end;
 end;
 

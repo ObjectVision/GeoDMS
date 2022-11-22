@@ -40,6 +40,11 @@ object dmfGeneral: TdmfGeneral
       ShortCut = 113
       OnClick = miStepUpClick
     end
+    object miRunUp: TMenuItem
+      Caption = 'Run up to Causa prima'
+      ShortCut = 8305
+      OnClick = miRunUpClick
+    end
     object miEditDefinition: TMenuItem
       Caption = 'Edit Definitio&n'
       ShortCut = 49221
@@ -144,7 +149,7 @@ object dmfGeneral: TdmfGeneral
     Left = 26
     Top = 58
     Bitmap = {
-      494C010106006400F00020001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010106006400F40020001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000002000000001002000000000000040
       0000000000000000000000000000000000008000800080008000800080008000
       8000800080008000800080008000800080008000800080008000800080008000
