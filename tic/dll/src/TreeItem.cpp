@@ -2110,7 +2110,7 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 		const AbstrCalculator* calc = mc_Calculator;
 		if (!calc)
 		{
-			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
+//			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
 			return LispRef{}; // let Unit::GetMetaInfo finish this
 		}
 
@@ -2178,8 +2178,10 @@ auto TreeItem::GetOrgDC() const -> std::pair<DataControllerRef, SharedTreeItem>
 auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheItem, LispPtr expr) -> LispRef
 {
 	if (!self->CheckResultItem(cacheItem))
-		self->ThrowFail();
-
+	{
+		assert(self->WasFailed(FR_MetaInfo));
+		return {};
+	}
 	auto dataItemSelf = AsDataItem(self);
 	auto cacheDataItem = AsDataItem(cacheItem);
 
@@ -2224,7 +2226,15 @@ void TreeItem::UpdateDC() const
 	if (resultDC && IsDataItem(this) && !resultDC->WasFailed(FR_MetaInfo))
 	{
 		if (SharedTreeItem cacheItem = resultDC->MakeResult())
-			resultDC = GetOrCreateDataController( TreeItem_CreateConvertedExpr(this, cacheItem, resultDC->GetLispRef()) );
+		{
+			auto keyExpr = TreeItem_CreateConvertedExpr(this, cacheItem, resultDC->GetLispRef());
+			if (!keyExpr)
+			{
+				assert(WasFailed(FR_MetaInfo));
+				return;
+			}
+			resultDC = GetOrCreateDataController(keyExpr);
+		}
 	}
 	if (resultDC && HasIntegrityChecker())
 	{

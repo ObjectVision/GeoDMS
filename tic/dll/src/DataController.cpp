@@ -215,6 +215,8 @@ namespace {
 		reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 		dms_assert(IsExpr(keyExpr));
 #endif
+		assert(!keyExpr.EndP());
+		MG_CHECK(!keyExpr.EndP());
 
 		if (keyExpr.IsList())
 		{
