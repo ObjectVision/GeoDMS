@@ -498,6 +498,63 @@ UInt32 CountIndirections(CharPtr expr)
 	return expr - exprBegin;
 }
 
+BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr expr)
+{
+	if (expr.empty())
+		return {};
+
+	auto exprPtr = expr.AsRange();
+	UInt32 nrEvals = CountIndirections(exprPtr.first);
+	if (!nrEvals)
+		return {};
+
+	exprPtr.first += nrEvals;
+
+	dms_assert(IsMetaThread());
+	dms_assert(nrEvals); // else MustEvaluate would have returned false; PRECONDITION
+	dms_assert(!expr.empty()); // idem
+
+	dms_assert(!MustEvaluate(expr.begin()));
+	FencedInterestRetainContext irc;
+	SuspendTrigger::FencedBlocker lockSuspend;
+
+	SharedStr resultStr(expr);
+	if (!context->InTemplate())
+		while (nrEvals-- && !resultStr.empty())
+		{
+			AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, CalcRole::Other);
+			assert(calculator);
+			auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
+			assert(res);
+			if (res->WasFailed(FR_Data))
+				return calculator->FindErrorneousItem();
+
+			auto resItem = res->GetOld();
+
+			irc.Add(res.get_ptr());
+			irc.Add(resItem);
+
+			const AbstrDataItem* resDataItem = AsDataItem(resItem);
+			dms_assert(resDataItem || res->WasFailed(FR_Data));
+
+			if (res->WasFailed(FR_Data))
+				return calculator->FindErrorneousItem();
+
+			dms_assert(resDataItem);
+			if (resDataItem->WasFailed(FR_Data))
+				return calculator->FindErrorneousItem();
+			if (resDataItem->WasFailed())
+				context->Fail(resDataItem);
+			resultStr = GetValue<SharedStr>(resDataItem, 0);
+
+			UInt32 nrNewEvals = CountIndirections(resultStr.c_str());
+			if (nrNewEvals)
+				resultStr.erase(0, nrNewEvals);
+			nrEvals += nrNewEvals;
+		}
+	return {};
+}
+
 SharedStr AbstrCalculator::EvaluatePossibleStringExpr(const TreeItem* context, WeakStr expr, CalcRole cr)
 {
 	if (expr.empty())
@@ -507,9 +564,6 @@ SharedStr AbstrCalculator::EvaluatePossibleStringExpr(const TreeItem* context, W
 	UInt32 nrEvals = CountIndirections(exprPtr);
 	if (!nrEvals)
 		return expr;
-
-	CDebugContextHandle   dContext("AbstrCalculator", exprPtr, false);
-	TreeItemContextHandle checkPtr(context, "Context");
 
 	return EvaluateExpr(context, CharPtrRange(exprPtr+nrEvals, expr.send()), cr, nrEvals);
 }

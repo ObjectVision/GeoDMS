@@ -974,7 +974,7 @@ void TreeItem::MakeCalculator() const
 
 	try {
 		AbstrCalculatorRef newCalculator;
-		if (mc_Expr.get_ptr())
+		if (!mc_Expr.empty())
 			newCalculator = AbstrCalculator::ConstructFromStr(this, mc_Expr, CalcRole::Calculator);
 		SetCalculator(newCalculator);
 	}
@@ -2250,11 +2250,8 @@ void TreeItem::UpdateDC() const
 
 auto TreeItem_GetCheckedDC_impl(const TreeItem* self) ->DataControllerRef
 {
+	assert(self);
 	self->UpdateDC();
-
-	if (self->WasFailed(FR_MetaInfo))
-		self->ThrowFail();
-
 	return self->mc_DC;
 }
 

@@ -120,6 +120,7 @@ public:
 	static bool MustEvaluate(CharPtr expr) { dms_assert(expr); return *expr == '='; }
 	static LispRef RewriteExprTop(LispPtr org) { return GetConstructor()->RewriteExprTop(org); }
 
+	TIC_CALL static BestItemRef GetErrorSource(const TreeItem* context, WeakStr expr);
 	TIC_CALL static SharedStr EvaluatePossibleStringExpr(const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static SharedStr EvaluateExpr(const TreeItem* context, CharPtrRange expr, CalcRole cr, UInt32 nrEvals);
 

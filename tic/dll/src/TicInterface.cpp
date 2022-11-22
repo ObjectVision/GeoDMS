@@ -1015,7 +1015,16 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 		}
 		if (context)
 		{
-			SharedStr strConfigured = TreeItemPropertyValue(src, explicitSupplPropDefPtr);
+			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
+			if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
+			{
+				auto result = AbstrCalculator::GetErrorSource(src, strConfigured);
+				if (result.first)
+					return result;
+				strConfigured = AbstrCalculator::EvaluatePossibleStringExpr(src, strConfigured, CalcRole::Other);
+			}
+
+
 			CharPtr
 				iBegin = strConfigured.begin(),
 				iEnd = strConfigured.send();
@@ -1053,6 +1062,13 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 		}
 		if (src->HasCalculator())
 		{
+			if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
+			{
+				auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
+				if (result.first)
+					return result;
+			}
+
 			auto sc = src->GetCalculator();
 			if (sc)
 			{
