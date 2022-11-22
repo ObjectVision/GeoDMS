@@ -104,7 +104,11 @@ AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr e
 {
 	dms_assert(IsMetaThread());
 	if (expr.empty())
+	{
+		if (cr == CalcRole::Calculator)
+			context->Fail("Invalid CalculationRule", FR_MetaInfo);
 		return nullptr;
+	}
 //	CalcKey key(context, expr, calcRole);
 
 //	std::lock_guard guard(s_CalcFactoryCacheSection);

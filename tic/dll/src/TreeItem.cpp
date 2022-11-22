@@ -3085,7 +3085,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 //				FutureData dc = GetDC(GetCalculator());
 //	self->UpdateDC();
 	FutureData dc = self->GetCheckedDC();
-	dms_assert(dc || self->GetCurrRefItem());
+//	dms_assert(dc || self->GetCurrRefItem());
 //	if (!dc) dc = GetDC(self->GetCalculator()); // TODO G8: unwind recursion
 //	dms_assert(dc);
 	//				const AbstrCalculator* apr = GetCalculator();
