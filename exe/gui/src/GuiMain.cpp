@@ -364,7 +364,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
             CharPtr cmd = (*argv) + 1;
             if (!stricmp(cmd, "noconfig"))
                 m_NoConfig = true;
-            if (!stricmp(cmd, "script"))
+            if (!stricmp(cmd, "script")) // gui unit tests
             {
                 m_GuiUnitTest.LoadStepsFromScriptFile(*(argv+1));
                 argc--;
@@ -556,7 +556,8 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
-    //SuspendTrigger::MustSuspend();
+    m_GuiUnitTest.ProcessStep();
+
 
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
@@ -661,5 +662,5 @@ void GuiMainComponent::Update()
     
     ImGui::End();
 
-    SuspendTrigger::Resume();
+    m_GuiUnitTest.Step();
 }
