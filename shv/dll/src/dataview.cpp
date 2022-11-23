@@ -647,7 +647,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_KEYDOWN + CN_BASE:
 			if (OnKeyDown(msg.m_wParam))
-				goto delphi_vcl_control_notificaion_completed;
+				goto delphi_vcl_control_notification_completed;
 			goto defaultProcessing;
 
 		case WM_KEYDOWN:
@@ -657,7 +657,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_SYSKEYDOWN + CN_BASE:
 			if (OnKeyDown(msg.m_wParam | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst ))
-				goto delphi_vcl_control_notificaion_completed;
+				goto delphi_vcl_control_notification_completed;
 			goto defaultProcessing;
 
 		case WM_SYSKEYDOWN:
@@ -692,7 +692,7 @@ completed:
 	*msg.m_ResultPtr = 0; // don't dispatch any further if processed
 	return true;
 
-delphi_vcl_control_notificaion_completed:
+delphi_vcl_control_notification_completed:
 	*msg.m_ResultPtr = 1; // don't dispatch any further if processed (Delphi VCL Control Notification)
 	return true;
 }

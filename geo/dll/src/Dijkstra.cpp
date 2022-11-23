@@ -1560,7 +1560,10 @@ public:
 					make_cumulative_base(resCount.begin(), resCount.begin() + networkInfo.nrOrgZones);
 				}
 				else
-					nrRes = networkInfo.nrOrgZones * networkInfo.nrDstZones;
+				{
+					nrRes =  networkInfo.nrOrgZones;
+					nrRes *= networkInfo.nrDstZones;
+				}
 				DBG_TRACE(("OD-pair cardinality = %I64u", (UInt64)nrRes))
 				mutableResultUnit->SetCount(nrRes);
 			}

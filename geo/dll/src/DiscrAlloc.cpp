@@ -983,7 +983,7 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 
 #include <gsl/gsl>
 
-gsl::not_null<const AbstrDataItem*> GetClaimAttr(const TreeItem* claimSet, TokenID nameID)
+auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> gsl::not_null<const AbstrDataItem*>
 {
 	assert(claimSet);
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));
@@ -2046,9 +2046,8 @@ struct DistFromOpt
 				if (currPrice < bid)
 				{
 					foundHigherBidder = true;
-					totalDistFromOpt.first += (bid.first - currPrice.first);
-					totalDistFromOpt.second += bid.second;
-					totalDistFromOpt.second -= currPrice.second;
+					totalDistFromOpt.first  += bid.first;  totalDistFromOpt.first  -= currPrice.first;
+					totalDistFromOpt.second += bid.second; totalDistFromOpt.second -= currPrice.second;
 
 					belowThreshold = (Sij < htpInfo.m_Threshold);
 						

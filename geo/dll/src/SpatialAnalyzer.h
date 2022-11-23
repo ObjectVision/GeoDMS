@@ -137,7 +137,7 @@ private:
 
 	// diversity
 	TForm  m_Form;
-	T      m_InputUpperBound;
+	T      m_InputUpperBound = T();
 
 	void GetDiversity1();
 	void GetDiversity2();

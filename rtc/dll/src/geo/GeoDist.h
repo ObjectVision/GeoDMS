@@ -81,8 +81,8 @@ struct ArcProjectionHandle
 	typedef const PointType* ConstPointPtr;
 	typedef R                sqrdist_type;
 
-	ConstPointPtr m_Point;
-	sqrdist_type  m_MinSqrDist;
+	ConstPointPtr m_Point      = nullptr;
+	sqrdist_type  m_MinSqrDist = 0;
 
 	// result vars
 	bool         m_FoundAny = false, m_InArc = false, m_InSegm = false;
@@ -174,7 +174,7 @@ T SafeBet(T val)
 template <typename R, typename T>
 struct ArcProjectionHandleWithDist : ArcProjectionHandle<R, T>
 {
-	R m_Dist;
+	R m_Dist = R();
 
 	ArcProjectionHandleWithDist() {}
 

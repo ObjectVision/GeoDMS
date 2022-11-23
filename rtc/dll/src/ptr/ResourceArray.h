@@ -88,7 +88,7 @@ struct ResourceArrayHandle : ptr_base<ResourceArrayBase, movable>
 template <typename R>
 struct ResourceArray : ResourceArrayBase
 {
-	R     m_Data[0];
+	R     m_Data[0] = {};
 
 	void Destroy() override
 	{
