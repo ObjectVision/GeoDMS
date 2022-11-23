@@ -11,8 +11,8 @@ enum class StepType
 	dock,
 	expand,
 	set,
-	
 	check,
+	none
 };
 
 enum class StepSubType
@@ -30,19 +30,22 @@ enum class StepSubType
 	eventlog,
 	detail_pages,
 	current_item_bar,
+	none
 };
 
 struct StepDescription
 {
-	StepType	step_type;
-	StepSubType step_sub_type;
+	StepType	step_type	  = StepType::none;
+	StepSubType step_sub_type = StepSubType::none;
 	std::string value;
-	UInt32 wait_time = 0;
+	UInt64 wait_time = 0;
+	bool is_processed = false;
 	std::chrono::steady_clock::time_point start_time;
 
 	bool WaitTimeExpired()
 	{
-		if ((start_time - std::chrono::steady_clock::now()).count() > wait_time)
+		UInt64 count = (std::chrono::steady_clock::now() - start_time).count() / 1000000000;
+		if (count > wait_time)
 			return true;
 		return false;
 	}
@@ -52,11 +55,13 @@ class GuiUnitTest : GuiBaseComponent
 {
 public:
 	GuiUnitTest();
+	void ProcessStep();
 	void Step();
-	void LoadStepsFromScriptFile(std::string script_file_name);
+	void LoadStepsFromScriptFile(std::string_view script_file_name);
 
 private:
-	void ProcessStep();
+	StepType InterpretStepType(std::string_view sv);
+	StepSubType InterpretStepSubType(std::string_view sv);
 	std::list<StepDescription>	         m_Steps;
 	std::list<StepDescription>::iterator m_CurrStep;
 	GuiState			                 m_State;
