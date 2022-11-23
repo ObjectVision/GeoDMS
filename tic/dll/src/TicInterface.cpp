@@ -50,6 +50,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "CopyTreeContext.h"
 #include "DataController.h"
 #include "DataItemClass.h"
+#include "DataStoreManagerCaller.h"
 #include "ItemUpdate.h"
 #include "Param.h"
 #include "PropFuncs.h"
@@ -996,11 +997,16 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 
 BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 {
-	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "DMS_TreeItem_GetErrorSource");
+	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 
 	if (src)
 	{
+		// parent ?
 		auto context = src->GetTreeParent();
+		if (WasInFailed(context))
+			return { context, {} };
+
+		// using refs ?
 		if (context && src->CurrHasUsingCache())
 		{
 			auto usingCache = src->GetUsingCache();
@@ -1009,10 +1015,12 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 			{
 				auto usingUrlStr = SharedStr(usingUrl);
 				auto ur = context->FindBestItem(usingUrlStr);
-				if (ur.first && ur.first->WasFailed())
+				if (ur.first && WasInFailed(ur.first))
 					return ur;
 			}
 		}
+
+		// explicit Suppliers ?
 		if (context)
 		{
 			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
@@ -1036,7 +1044,7 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 				if (!explicitSupplierName.empty())
 				{
 					auto ur = context->FindBestItem(explicitSupplierName);
-					if (ur.first && ur.first->WasFailed())
+					if (ur.first && WasInFailed(ur.first))
 						return ur;
 				}
 				if (iFirstEnd == iEnd)
@@ -1045,21 +1053,24 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 			}
 		}
 
+		// domain and values units ?
 		if (IsDataItem(src))
 		{
 			BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
 			if (!result.first)
 				result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
 
-			if (result.first && result.first->WasFailed())
+			if (result.first && WasInFailed(result.first))
 				return result;
 
 			result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
 			if (!result.first)
 				result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
-			if (result.first && result.first->WasFailed())
+			if (result.first && WasInFailed(result.first))
 				return result;
 		}
+
+		// CalcRule ?
 		if (src->HasCalculator())
 		{
 			if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
@@ -1073,21 +1084,47 @@ BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 			if (sc)
 			{
 				BestItemRef si = sc->FindErrorneousItem();
-				if (si.first && si.first->WasFailed())
+				if (si.first && WasInFailed(si.first))
 					return si;
 			}
 		}
-		if (context && context->WasFailed())
-			return { context, {} };
+
+		// SourceItem
+		auto sourceItem = src->GetCurrSourceItem();
+		if (sourceItem)
+		{
+			assert(!sourceItem->IsCacheItem());
+			assert(sourceItem != src);
+			if (WasInFailed(sourceItem))
+				return { sourceItem, {} };
+		}
 	}
 	return { nullptr, {} };
+}
+
+BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
+{
+	try {
+		return TreeItem_GetErrorSource(src);
+	}
+	catch (const DmsException& x)
+	{
+		auto fullName = x.AsErrMsg()->m_FullName;
+		if (!fullName.empty())
+		{
+			src = DSM::Curr()->m_ConfigRoot;
+			if (src)
+				return src->FindBestItem(fullName);
+		}
+	}
+	return {};
 }
 
 extern "C" TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetErrorSource(const TreeItem* src, IStringHandle* unfoundPart)
 {
 	DMS_CALL_BEGIN
 
-		BestItemRef result = TreeItem_GetErrorSource(src);
+		BestItemRef result = TreeItem_GetErrorSourceCaller(src);
 		if (unfoundPart)
 			*unfoundPart = IString::Create(result.second);
 		return result.first;

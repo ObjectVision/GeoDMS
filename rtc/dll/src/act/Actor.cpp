@@ -560,9 +560,12 @@ void Actor::UpdateMetaInfo() const
 
 void Actor::UpdateSupplMetaInfo() const
 {
-	VisitSupplProcImpl(this, SupplierVisitFlag::Update, [&](const Actor* supplier)
-		{ 
-			supplier->UpdateMetaInfo(); 
+	VisitSupplProcImpl(this, SupplierVisitFlag::Update, [this](const Actor* supplier)
+		{
+			assert(supplier);
+			supplier->UpdateMetaInfo();
+			if (supplier->WasFailed())
+				this->Fail(supplier);
 		}
 	);
 }
@@ -1246,3 +1249,14 @@ item_level_type GetItemLevel(const Actor* act)
 }
 
 #endif
+
+bool WasInFailed(const Actor* a)
+{
+	assert(a);
+	if (a->WasFailed())
+		return true;
+	auto p = a->GetParent();
+	if (!p)
+		return false;
+	return WasInFailed(debug_cast<const Actor*>(p));
+}

@@ -225,4 +225,6 @@ protected:
 RTC_CALL item_level_type GetItemLevel(const Actor* act);
 #endif
 
+RTC_CALL bool WasInFailed(const Actor* a);
+
 #endif // __RTC_ACT_ACTOR_H

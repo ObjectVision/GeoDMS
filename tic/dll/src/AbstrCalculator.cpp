@@ -512,13 +512,13 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 
 	dms_assert(IsMetaThread());
 	dms_assert(nrEvals); // else MustEvaluate would have returned false; PRECONDITION
-	dms_assert(!expr.empty()); // idem
 
-	dms_assert(!MustEvaluate(expr.begin()));
+	dms_assert(!MustEvaluate(exprPtr.begin()));
 	FencedInterestRetainContext irc;
 	SuspendTrigger::FencedBlocker lockSuspend;
 
-	SharedStr resultStr(expr);
+	SharedStr resultStr(exprPtr);
+	dms_assert(!MustEvaluate(resultStr.begin()));
 	if (!context->InTemplate())
 		while (nrEvals-- && !resultStr.empty())
 		{
@@ -526,7 +526,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 			assert(calculator);
 			auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
 			assert(res);
-			if (res->WasFailed(FR_Data))
+			if (WasInFailed(res.get_ptr()))
 				return calculator->FindErrorneousItem();
 
 			auto resItem = res->GetOld();
@@ -535,16 +535,11 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 			irc.Add(resItem);
 
 			const AbstrDataItem* resDataItem = AsDataItem(resItem);
-			dms_assert(resDataItem || res->WasFailed(FR_Data));
-
-			if (res->WasFailed(FR_Data))
-				return calculator->FindErrorneousItem();
-
 			dms_assert(resDataItem);
-			if (resDataItem->WasFailed(FR_Data))
+
+
+			if (WasInFailed(resDataItem))
 				return calculator->FindErrorneousItem();
-			if (resDataItem->WasFailed())
-				context->Fail(resDataItem);
 			resultStr = GetValue<SharedStr>(resDataItem, 0);
 
 			UInt32 nrNewEvals = CountIndirections(resultStr.c_str());
@@ -707,7 +702,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	}
 	for (auto ti : m_SupplierArray)
 	{
-		if (ti && ti->WasFailed())
+		if (ti && WasInFailed(ti))
 			return { ti, {} };
 	}
 	return { nullptr, {} };
