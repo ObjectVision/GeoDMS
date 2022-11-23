@@ -283,8 +283,8 @@ struct ggType_info_t
 	const AbstrDataItem*          m_diMinClaims = nullptr;
 	const AbstrDataItem*          m_diMaxClaims = nullptr;
 
-	const AbstrDataItem*          m_diSuitabilityMap;
-	      AbstrDataItem*          m_diResShadowPrices = nullptr;
+	const AbstrDataItem*          m_diSuitabilityMap    = nullptr;
+	      AbstrDataItem*          m_diResShadowPrices   = nullptr;
 	      AbstrDataItem*          m_diResTotalAllocated = nullptr;
 
 	UInt32                        m_PartitioningID = 0;
@@ -981,7 +981,9 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 //									CreateResultingItems
 // *****************************************************************************
 
-const AbstrDataItem* GetClaimAttr(const TreeItem* claimSet, TokenID nameID)
+#include <gsl/gsl>
+
+gsl::not_null<const AbstrDataItem*> GetClaimAttr(const TreeItem* claimSet, TokenID nameID)
 {
 	assert(claimSet);
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));
@@ -1077,10 +1079,12 @@ void CreateResultingItems(
 		auto contextHandle = MakeLCH([gg]() { return "discrete_alloc_init for Type " + gg->m_strName;  });
 
 		gg->m_NameID         = GetTokenID_mt(gg->m_strName.begin(), gg->m_strName.send());
-		gg->m_diMinClaims    = GetClaimAttr(minClaimSet, gg->m_NameID);
-		gg->m_diMaxClaims    = GetClaimAttr(maxClaimSet, gg->m_NameID);
-		fc->AddDependency(gg->m_diMinClaims->GetCheckedDC());
-		fc->AddDependency(gg->m_diMaxClaims->GetCheckedDC());
+		auto minClaims = GetClaimAttr(minClaimSet, gg->m_NameID);
+		auto maxClaims = GetClaimAttr(maxClaimSet, gg->m_NameID);
+		gg->m_diMinClaims = minClaims;
+		gg->m_diMaxClaims = maxClaims;
+		fc->AddDependency(minClaims->GetCheckedDC());
+		fc->AddDependency(maxClaims->GetCheckedDC());
 
 		auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
 		if (partitioningID >= htpInfo.GetNrPartitionings())

@@ -260,7 +260,7 @@ public:
 					{
 						typename Arg6Type::const_iterator buildingPtr = (*iter)->get_ptr();
 						UInt32 buildingNr = buildingPtr - buildingPointsBegin;
-						Float64 hoogteDiff = buildingHoogteBegin[buildingNr] - *hoogtePtr;
+						Float64 hoogteDiff = Int64(buildingHoogteBegin[buildingNr]) - *hoogtePtr;
 						if (hoogteDiff < minHeight)
 							continue;
 						if (buildingPtr->size() < 2)

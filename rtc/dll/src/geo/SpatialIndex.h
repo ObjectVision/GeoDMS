@@ -200,13 +200,13 @@ Bool MustSplit(const LeafType* lf, PointType center)
 
 	do {
 		dms_assert(lf->IsDefined());
-		auto extents = lf->GetExtents();
+		const auto& extents = lf->GetExtents();
 		if (InOneQuadrant(extents, center)) // is lf in a specific quadrant? Always true for Points
 		{
 			while (lf = lf->GetNext())
 			{
 				dms_assert(lf->IsDefined());
-				auto nextExtents = lf->GetExtents();
+				const auto& nextExtents = lf->GetExtents();
 				if (InOneQuadrant(nextExtents, center)) // is next lf in a specific quadrant? Always true for Points
 					if (extents != nextExtents)
 						return true;
