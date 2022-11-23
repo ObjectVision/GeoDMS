@@ -163,9 +163,12 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 		return;
 
 	if (m_FullName.empty())
+	{
 		m_FullName = ptr->GetFullName();
-	m_Class = ptr->GetCurrentObjClass();
-	dms_assert(m_Class);
+		m_HasBeenReported = false;
+	}
+//	m_Class = ptr->GetCurrentObjClass();
+//	dms_assert(m_Class);
 }
 
 SharedStr ErrMsg::GetAsText() const

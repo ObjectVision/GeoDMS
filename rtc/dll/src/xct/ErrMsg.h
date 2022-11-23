@@ -58,13 +58,23 @@ struct ErrMsg {
 	{
 		TellExtra(mgFormat2string(fmt, std::forward<Args>(args)...).c_str());
 	}
+	bool MustReport() const
+	{
+		if (m_HasBeenReported)
+			return false;
+		m_HasBeenReported = true;
+		return true;
+	}
 
 	SharedStr Why() const { return m_Why;  }
 	RTC_CALL SharedStr GetAsText() const;
 	SharedStr FullName() const { return m_FullName;  }
 
 	SharedStr m_Why, m_FullName, m_Context;
-	WeakPtr<const Class> m_Class;
+//	WeakPtr<const Class> m_Class;
+
+private:
+	mutable bool m_HasBeenReported = false;
 
 	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& value);
 	friend RTC_CALL OutStreamBase&      operator <<(OutStreamBase&      str, const ErrMsg& value);
