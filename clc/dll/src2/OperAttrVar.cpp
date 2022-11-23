@@ -189,23 +189,25 @@ struct ArgMinMaxOper : UnaryOperator
 									continue;
 								}
 							}
-							if constexpr (NP == null_policy::certain)
-								if (!IsDefined(valueSoFar[i]))
-									continue;
+							bool argAndValueSoFarComparable = true;
 							if constexpr (NP != null_policy::fast)
 								if (!IsDefined(valueSoFar[i]))
-									goto assign2;
-							if constexpr (OperType == MinMaxOperType::Maximum)
-							{
-								if (argValue <= valueSoFar[i])
-									continue;
-							}
-							else
-							{
-								if (argValue >= valueSoFar[i])
-									continue;
-							}
-						assign2:
+								{
+									if constexpr (NP == null_policy::certain)
+										continue;
+									argAndValueSoFarComparable = false;
+								}
+							if (argAndValueSoFarComparable)
+								if constexpr (OperType == MinMaxOperType::Maximum)
+								{
+									if (argValue <= valueSoFar[i])
+										continue;
+								}
+								else
+								{
+									if (argValue >= valueSoFar[i])
+										continue;
+								}
 							valueSoFar[i] = argValue;
 							if constexpr (IsArgIndex)
 								resTile[i] = j;
