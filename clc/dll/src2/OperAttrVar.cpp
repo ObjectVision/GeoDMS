@@ -63,7 +63,14 @@ GetTileAsContainer(const AbstrDataItem* arg, tile_id t, SizeT n)
 	return typename sequence_traits<ArgValue>::container_type{ tileData.begin(), tileData.end() };
 }
 
-template <typename ResValue, typename ArgValue, bool IsArgIndex = true>
+enum class null_policy {
+	simple,
+	fast,
+	certain,
+	known
+};
+
+template <typename ResValue, typename ArgValue, null_policy NP, bool IsArgIndex>
 void InitializeResTile(auto& valueSoFarContainer, auto& valueSoFar, typename sequence_traits<ResValue>::seq_t resTile, const AbstrDataItem* arg1, tile_id t, tile_id n)
 {
 	DataReadLock lock(arg1);
@@ -71,11 +78,14 @@ void InitializeResTile(auto& valueSoFarContainer, auto& valueSoFar, typename seq
 	{
 		valueSoFarContainer = GetTileAsContainer<ArgValue>(arg1, t, n);
 		valueSoFar = typename sequence_traits<ArgValue>::seq_t(begin_ptr(valueSoFarContainer), end_ptr(valueSoFarContainer));
-/* The following code would undefine zero-initialized indices that would refer to null values 
-		for (auto i= valueSoFarContainer.begin(), b=i, e= valueSoFarContainer.end(); i!=e; ++i)
-			if (!IsDefined(*i))
-				MakeUndefined(resTile[i - b]);
-*/
+
+		// The following code will undefine zero-initialized indices that would refer to null values
+		if constexpr (NP == null_policy::known || NP == null_policy::certain)
+		{
+			for (auto i = valueSoFarContainer.begin(), b = i, e = valueSoFarContainer.end(); i != e; ++i)
+				if (!IsDefined(*i))
+					MakeUndefined(resTile[i - b]);
+		}
 	}
 	else
 	{
@@ -94,7 +104,7 @@ void InitializeResTile(auto& valueSoFarContainer, auto& valueSoFar, typename seq
 	}
 }
 
-template <typename ResIndex, typename ArgValue, MinMaxOperType OperType, bool AllDefined, bool IsArgIndex>
+template <typename ResIndex, typename ArgValue, MinMaxOperType OperType, null_policy NP, bool IsArgIndex>
 struct ArgMinMaxOper : UnaryOperator
 {
 	using ResValue = std::conditional_t<IsArgIndex, ResIndex, ArgValue>;
@@ -151,58 +161,54 @@ struct ArgMinMaxOper : UnaryOperator
 					auto valueSoFar = sequence_traits<ArgValue>::seq_t();
 
 					auto resTile = mutable_array_cast<ResValue>(resLock)->GetWritableTile(t, IsArgIndex ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all);
-					InitializeResTile<ResValue, ArgValue, IsArgIndex>(valueSoFarContainer, valueSoFar, resTile.get_view(), arg1, t, n);
+					InitializeResTile<ResValue, ArgValue, NP, IsArgIndex>(valueSoFarContainer, valueSoFar, resTile.get_view(), arg1, t, n);
 
 					for (arg_index j = 1; j != args.size(); ++j)
 					{
 						auto argAttr = AsDataItem(args[j]);
+						bool isParameter = argAttr->HasVoidDomainGuarantee();
 						auto argData = const_array_cast<ArgValue>(argAttr);
-						if (argAttr->HasVoidDomainGuarantee())
+						auto argTile = argData->GetTile(isParameter ? 0 : t);
+						ArgValue argValue = ArgValue();
+						if (isParameter)
+							argValue = argTile[0];
+						for (SizeT i = 0; i != n; ++i)
 						{
-							ArgValue argValue = argData->GetLockedDataRead()[0];
-							for (SizeT i = 0; i != n; ++i)
+							if (!isParameter)
+								argValue = argTile[i];
+							if constexpr (NP != null_policy::fast)
 							{
-								if (!AllDefined && !IsDefined(argValue))
+								if (!IsDefined(argValue))
+								{
+									if constexpr (NP == null_policy::certain)
+									{
+										valueSoFar[i] = UNDEFINED_VALUE(ArgValue);
+										if constexpr (IsArgIndex)
+											resTile[i] = UNDEFINED_VALUE(ResIndex);
+									}
 									continue;
-								if (AllDefined || IsDefined(valueSoFar[i]))
-									if constexpr (OperType == MinMaxOperType::Maximum)
-									{
-										if (argValue <= valueSoFar[i])
-											continue;
-									}
-									else
-									{
-										if (argValue >= valueSoFar[i])
-											continue;
-									}
-								valueSoFar[i] = argValue;
-								if constexpr (IsArgIndex)
-									resTile[i] = j;
+								}
 							}
-						}
-						else
-						{
-							auto argTile = argData->GetTile(t);
-							for (SizeT i = 0; i != n; ++i)
+							if constexpr (NP == null_policy::certain)
+								if (!IsDefined(valueSoFar[i]))
+									continue;
+							if constexpr (NP != null_policy::fast)
+								if (!IsDefined(valueSoFar[i]))
+									goto assign2;
+							if constexpr (OperType == MinMaxOperType::Maximum)
 							{
-								ArgValue argValue = argTile[i];
-								if (!AllDefined && !IsDefined(argValue))
+								if (argValue <= valueSoFar[i])
 									continue;
-								if (AllDefined || IsDefined(valueSoFar[i]))
-									if constexpr (OperType == MinMaxOperType::Maximum)
-									{
-										if (argValue <= valueSoFar[i])
-											continue;
-									}
-									else
-									{
-										if (argValue >= valueSoFar[i])
-											continue;
-									}
-								valueSoFar[i] = argValue;
-								if constexpr (IsArgIndex)
-									resTile[i] = j;
 							}
+							else
+							{
+								if (argValue >= valueSoFar[i])
+									continue;
+							}
+						assign2:
+							valueSoFar[i] = argValue;
+							if constexpr (IsArgIndex)
+								resTile[i] = j;
 						}
 					}
 				}
@@ -217,12 +223,13 @@ struct ArgMinMaxOper : UnaryOperator
 //											INSTANTIATION
 // *****************************************************************************
 
-template <typename ResIndex, MinMaxOperType Oper, bool AllDefined, bool IsArgIndex>
+template <typename ResIndex, MinMaxOperType Oper, null_policy NP, bool IsArgIndex>
 struct ArgMinMaxOperGenerator
 {
-	template <typename ArgValue> struct apply : ArgMinMaxOper<ResIndex, ArgValue, Oper, AllDefined || is_bitvalue_v<ArgValue>, IsArgIndex >
+	template <typename ArgValue> struct apply 
+		: ArgMinMaxOper<ResIndex, ArgValue, Oper, is_bitvalue_v<ArgValue> ? null_policy::fast : NP, IsArgIndex >
 	{
-		using ArgMinMaxOper<ResIndex, ArgValue, Oper, AllDefined || is_bitvalue_v<ArgValue>, IsArgIndex >::ArgMinMaxOper;
+		using ArgMinMaxOper<ResIndex, ArgValue, Oper, is_bitvalue_v<ArgValue> ? null_policy::fast : NP, IsArgIndex >::ArgMinMaxOper;
 	};
 };
 
@@ -238,25 +245,59 @@ namespace {
 	CommonOperGroup cog_argmax8("argmax_uint8", oper_policy::allow_extra_args);
 	CommonOperGroup cog_argmin16("argmin_uint16", oper_policy::allow_extra_args);
 	CommonOperGroup cog_argmax16("argmax_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC("certain_argmin", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC("certain_argmax", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK("known_argmin", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK("known_argmax", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC8("certain_argmin_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC8("certain_argmax_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK8("known_argmin_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK8("known_argmax_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC16("certain_argmin_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC16("certain_argmax_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK16("known_argmin_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK16("known_argmax_uint16", oper_policy::allow_extra_args);
 
 	CommonOperGroup cog_minelem("min_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelem("max_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_minelem_fast("min_elem_fast", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelem_fast("max_elem_fast", oper_policy::allow_extra_args);
+	CommonOperGroup cog_minelemC("ceertain_min_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_maxelemC("ceertain_max_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_minelemK("known_min_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_maxelemK("known_max_elem", oper_policy::allow_extra_args);
 
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, false, true>::template apply<_>, AbstrOperGroup& > argMinOpers   (cog_argmin);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, false, true>::template apply<_>, AbstrOperGroup& > argMaxOpers   (cog_argmax);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Minimum, false, true>::template apply<_>, AbstrOperGroup& > argMinOpersU8 (cog_argmin8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Maximum, false, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU8 (cog_argmax8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, false, true>::template apply<_>, AbstrOperGroup& > argMinOpersU16(cog_argmin16);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, false, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU16(cog_argmax16);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpers   (cog_argmin);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpers   (cog_argmax);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpersU8 (cog_argmin8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU8 (cog_argmax8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpersU16(cog_argmin16);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU16(cog_argmax16);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, true,  true>::template apply<_>, AbstrOperGroup& > argMinOpers_fast(cog_argmin_fast);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, true,  true>::template apply<_>, AbstrOperGroup& > argMaxOpers_fast(cog_argmax_fast);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpers(cog_argminC);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpers(cog_argmaxC);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpersU8(cog_argminC8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpersU8(cog_argmaxC8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpersU16(cog_argminC16);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpersU16(cog_argmaxC16);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, false, false>::template apply<_>, AbstrOperGroup& > minElemOpers(cog_minelem);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, false, false>::template apply<_>, AbstrOperGroup& > maxElemOpers(cog_maxelem);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, true,  false>::template apply<_>, AbstrOperGroup& > minElemFastOpers_fast(cog_minelem_fast);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, true,  false>::template apply<_>, AbstrOperGroup& > maxElemFastOpers_fast(cog_maxelem_fast);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpers(cog_argminK);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpers(cog_argmaxK);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpersU8(cog_argminK8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpersU8(cog_argmaxK8);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpersU16(cog_argminK16);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpersU16(cog_argmaxK16);
+
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::fast,  true>::template apply<_>, AbstrOperGroup& > argMinOpers_fast(cog_argmin_fast);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::fast,  true>::template apply<_>, AbstrOperGroup& > argMaxOpers_fast(cog_argmax_fast);
+
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::simple, false>::template apply<_>, AbstrOperGroup& > minElemOpers(cog_minelem);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::simple, false>::template apply<_>, AbstrOperGroup& > maxElemOpers(cog_maxelem);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::fast,  false>::template apply<_>, AbstrOperGroup& > minElemFastOpers_fast(cog_minelem_fast);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::fast,  false>::template apply<_>, AbstrOperGroup& > maxElemFastOpers_fast(cog_maxelem_fast);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::certain, false>::template apply<_>, AbstrOperGroup& > minElemCOpers(cog_minelemC);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::certain, false>::template apply<_>, AbstrOperGroup& > maxElemCOpers(cog_maxelemC);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::known, false>::template apply<_>, AbstrOperGroup& > minElemKOpers(cog_minelemK);
+	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::known, false>::template apply<_>, AbstrOperGroup& > maxElemKOpers(cog_maxelemK);
 } // namespace
