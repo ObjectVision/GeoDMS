@@ -767,7 +767,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	SizeT m = vcpc.size();
 	if (kk >= m)
 		return ClassifyUniqueValues(vcpc, kk);
-	if (!separateZero || kk < 2 || kk == 2 && vcpc[0].first < 0)
+	if (!separateZero || kk < 2 || kk == 2 && (vcpc[0].first > 0 || vcpc.back().first < 0))
 		return ClassifyCRJenksFisher(vcpc, kk);
 
 	DBG_START("ClassifyNonzeroJenksFisher", "", MG_DEBUG_CLASSBREAKS);
