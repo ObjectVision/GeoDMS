@@ -264,8 +264,8 @@ namespace {
 	CommonOperGroup cog_maxelem("max_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_minelem_fast("min_elem_fast", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelem_fast("max_elem_fast", oper_policy::allow_extra_args);
-	CommonOperGroup cog_minelemC("ceertain_min_elem", oper_policy::allow_extra_args);
-	CommonOperGroup cog_maxelemC("ceertain_max_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_minelemC("certain_min_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_maxelemC("certain_max_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_minelemK("known_min_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelemK("known_max_elem", oper_policy::allow_extra_args);
 
