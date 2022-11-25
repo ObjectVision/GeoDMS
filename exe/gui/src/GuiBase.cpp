@@ -21,12 +21,10 @@ bool GuiState::ShowEventLogOptionsWindow    = false;
 bool GuiState::ShowOpenFileWindow		    = false;
 bool GuiState::ShowConfigSource			    = false;
 bool GuiState::ShowTreeviewWindow = true;// = false; // true
-bool GuiState::ShowMapviewWindow		    = false;
-bool GuiState::ShowTableviewWindow = false;
-bool GuiState::ShowDetailPagesWindow = false; // true
-bool GuiState::ShowEventLogWindow = false; // true
-bool GuiState::ShowToolbar                  = true;
-bool GuiState::ShowStatusBar        = true;
+bool GuiState::ShowDetailPagesWindow = true; // true
+bool GuiState::ShowEventLogWindow = true; // true
+bool GuiState::ShowToolbar = true;
+bool GuiState::ShowStatusBar = true;
 bool GuiState::ShowCurrentItemBar = true; // true
 bool GuiState::MapViewIsActive = false;
 bool GuiState::TableViewIsActive		    = false;

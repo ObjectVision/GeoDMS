@@ -245,8 +245,6 @@ public:
 	static bool ShowOpenFileWindow;
 	static bool ShowConfigSource;
 	static bool ShowTreeviewWindow;
-	static bool ShowMapviewWindow;
-	static bool ShowTableviewWindow;
 	static bool ShowDetailPagesWindow;
 	static bool ShowDemoWindow;
 	static bool ShowEventLogWindow;

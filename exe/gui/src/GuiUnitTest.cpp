@@ -159,7 +159,7 @@ int GuiUnitTest::ProcessStep()
 			unfound_part->Release(unfound_part);
 			break;
 		}
-		case StepSubType::treeview:			m_State.ShowTreeviewWindow = std::stoi(m_CurrStep->value); break;
+		case StepSubType::treeview:			m_State.return_value = m_State.ShowTreeviewWindow != std::stoi(m_CurrStep->value); break; // TODO: continue implementation
 		case StepSubType::toolbar:			m_State.ShowToolbar = std::stoi(m_CurrStep->value); break;
 		case StepSubType::eventlog:			m_State.ShowEventLogWindow = std::stoi(m_CurrStep->value); break;
 		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = std::stoi(m_CurrStep->value); break;
@@ -172,7 +172,7 @@ int GuiUnitTest::ProcessStep()
 		switch (m_CurrStep->step_sub_type)
 		{
 		case (StepSubType::config):	return 1;
-		case StepSubType::treeview:			m_State.ShowTableviewWindow = false; break;
+		case StepSubType::treeview:			m_State.ShowTreeviewWindow = false; break;
 		case StepSubType::toolbar:			m_State.ShowToolbar = false; break;
 		case StepSubType::eventlog:			m_State.ShowEventLogWindow = false; break;
 		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = false; break;

@@ -343,7 +343,7 @@ void GuiMenuViewComponent::Update()
         if (ImGui::MenuItem("Map", "Ctrl+M")) {}
         if (ImGui::MenuItem("Table", "Ctrl+D")) 
         {
-            m_State.ShowTableviewWindow = true;
+            //m_State.ShowTableviewWindow = true;
         }
         if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
         ImGui::Separator();
