@@ -817,27 +817,6 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 }
 
 
-template <typename E>
-auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
-{
-	//	dms_assert(valuesUnitPtr);
-	if constexpr (has_var_range_field_v<E>)
-	{
-		if (valuesUnitPtr)
-		{
-			dbg_assert(valuesUnitPtr->CheckMetaInfoReadyOrPassor());
-			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ?
-			valuesUnitPtr = const_unit_cast<E>(valuesUnitPtr->GetCurrRangeItem()); // Or fix it here
-			if (!valuesUnitPtr->m_RangeDataPtr)
-				valuesUnitPtr = nullptr;
-		}
-	}
-	if (!valuesUnitPtr)
-		valuesUnitPtr = const_unit_cast<E>(Unit<E>::GetStaticClass()->CreateDefault());
-	dms_assert(valuesUnitPtr);
-	return valuesUnitPtr->m_RangeDataPtr;
-}
-
 template<typename V>
 TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {

@@ -392,5 +392,31 @@ private: friend Object* CreateFunc<Unit<V> >();
 template <typename V>
 class Unit<const V> {}; // unsupported use
 
+template <typename E>
+auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
+{
+	// DEBUG TESTS
+//	dms_assert(valuesUnitPtr);
+	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
+
+	if constexpr (has_var_range_field_v<E>)
+	{
+		if (valuesUnitPtr)
+		{
+			dbg_assert(valuesUnitPtr->CheckMetaInfoReadyOrPassor());
+			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
+			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
+
+			valuesUnitPtr = const_unit_cast<E>(valuesUnitPtr->GetCurrRangeItem()); // Or fix it here
+			if (!valuesUnitPtr->m_RangeDataPtr)
+				valuesUnitPtr = nullptr;
+		}
+	}
+	if (!valuesUnitPtr)
+		valuesUnitPtr = const_unit_cast<E>(Unit<E>::GetStaticClass()->CreateDefault());
+	dms_assert(valuesUnitPtr);
+	return valuesUnitPtr->m_RangeDataPtr;
+}
+
 
 #endif // __TIC_UNIT_H

@@ -159,7 +159,7 @@ public:
 			using index_tile = indexed_tile_t<index_type, V>;
 			using res_seq_t = sequence_traits<E>::seq_t;
 
-			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(tileRangeData, arg2Domain->m_RangeDataPtr, tileRangeData->GetNrTiles()
+			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(arg2Domain), tileRangeData->GetNrTiles()
 				, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 				, [arg1HasUndefined, arg2DomainRange = arg2Domain->GetRange(), indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
 				{
