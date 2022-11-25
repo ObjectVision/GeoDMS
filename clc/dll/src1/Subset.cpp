@@ -318,6 +318,10 @@ namespace {
 	CommonOperGroup cog_subset_orgrel_16("select_orgrel_uint16");
 	CommonOperGroup cog_subset_orgrel_32("select_orgrel_uint32");
 
+	CommonOperGroup cog_subset_m("select_many", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_subset_a("select_afew", oper_policy::dynamic_result_class);
+
+
 	SubsetOperator operXX(cog_subset_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
 	SubsetOperator oper08(cog_subset_08, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
 	SubsetOperator oper16(cog_subset_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
