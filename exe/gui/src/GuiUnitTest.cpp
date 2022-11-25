@@ -96,26 +96,15 @@ int GuiUnitTest::ProcessStep()
 	{
 		switch (m_CurrStep->step_sub_type)
 		{
-		case StepSubType::config:
-		{
-			m_State.configFilenameManager.Set(m_CurrStep->value);
-			break;
-		}
-		case StepSubType::default_view:
-		{
-			m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
-			break;
-		}
-		case StepSubType::table_view:
-		{
-			m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
-			break;
-		}
-		case StepSubType::map_view:
-		{
-			m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
-			break;
-		}
+		case StepSubType::config:       m_State.configFilenameManager.Set(m_CurrStep->value); break;
+		case StepSubType::default_view: m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); break;
+		case StepSubType::table_view:   m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow); break;
+		case StepSubType::map_view:  	m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow); break;
+		case StepSubType::treeview:			m_State.ShowTreeviewWindow    = true; break;
+		case StepSubType::toolbar:			m_State.ShowToolbar           = true; break;
+		case StepSubType::eventlog:			m_State.ShowEventLogWindow    = true; break;
+		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = true; break;
+		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar    = true; break;
 		}
 		break;
 	}
@@ -168,7 +157,13 @@ int GuiUnitTest::ProcessStep()
 		    else if (check_item != m_State.GetCurrentItem())
 				m_State.return_value = 1; // failed unit test 
 			unfound_part->Release(unfound_part);
+			break;
 		}
+		case StepSubType::treeview:			m_State.ShowTreeviewWindow = std::stoi(m_CurrStep->value); break;
+		case StepSubType::toolbar:			m_State.ShowToolbar = std::stoi(m_CurrStep->value); break;
+		case StepSubType::eventlog:			m_State.ShowEventLogWindow = std::stoi(m_CurrStep->value); break;
+		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = std::stoi(m_CurrStep->value); break;
+		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = std::stoi(m_CurrStep->value); break;
 		}
 		break;
 	}
@@ -176,8 +171,12 @@ int GuiUnitTest::ProcessStep()
 	{
 		switch (m_CurrStep->step_sub_type)
 		{
-		case (StepSubType::config):
-			return 1;
+		case (StepSubType::config):	return 1;
+		case StepSubType::treeview:			m_State.ShowTableviewWindow = false; break;
+		case StepSubType::toolbar:			m_State.ShowToolbar = false; break;
+		case StepSubType::eventlog:			m_State.ShowEventLogWindow = false; break;
+		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = false; break;
+		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = false; break;
 		}
 	}
 	}
