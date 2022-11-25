@@ -30,8 +30,12 @@
 int StartGuiContext()
 {
     GuiMainComponent guiMainComponent;
-    guiMainComponent.Init();
-    guiMainComponent.MainLoop();
+    if (guiMainComponent.Init())
+        return 1;
+
+    if (guiMainComponent.MainLoop())
+        return 1;
+
     return 0;
 }
 
@@ -42,16 +46,15 @@ int WINAPI WinMain(
     int       nShowCmd
 )
 {
-    DMS_Shv_Load();
+    int result = 0;
 
+    DMS_Shv_Load();
     DMS_CALL_BEGIN
 
     DBG_INIT_COUT;
     DBG_START("Main", "", true);
-
-    return StartGuiContext();
-
+    result = StartGuiContext();
     DMS_CALL_END
 
-    return 0;
+    return result;
 }

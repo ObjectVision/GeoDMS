@@ -166,11 +166,6 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
     TreeItem* nextSubItem = branch->_GetFirstSubItem();
     if (!nextSubItem)
         return true;
-    //nextSubItem->UpdateMetaInfo();
-
-    //nextSubItem->GetConfigFileLineNr
-    //nextSubItem->GetConfigFileName
-    //nextSubItem->GetCOnfigColNr
 
     while (nextSubItem)
     {
@@ -220,9 +215,7 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
 
         // double click event
         if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-        {
-            m_State.MainEvents.Add(OpenNewDefaultViewWindow);
-        }
+            m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
         // right-mouse popup menu
         if (ImGui::BeginPopupContextItem())
@@ -231,24 +224,16 @@ bool GuiTreeViewComponent::CreateBranch(TreeItem* branch)
             auto current_style_color = ImGui::GetStyleColorVec4(1);
             ImGui::PopStyleColor(2);
             if (ImGui::Button("Edit Config Source       Ctrl-E"))
-            {
-                m_State.MainEvents.Add(OpenConfigSource);
-            }
+                m_State.MainEvents.Add(GuiEvents::OpenConfigSource);
 
             if (ImGui::Button("Default View"))
-            {
-                m_State.MainEvents.Add(OpenNewDefaultViewWindow);
-            }
+                m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
             if (ImGui::Button("Map View                 CTRL-M"))
-            {
-                m_State.MainEvents.Add(OpenNewMapViewWindow);
-            }
+                m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
 
             if (ImGui::Button("Table View               CTRL-D"))
-            {
-                m_State.MainEvents.Add(OpenNewTableViewWindow);
-            }
+                m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
 
             //if (ImGui::Button("Close"))
             //    ImGui::CloseCurrentPopup();

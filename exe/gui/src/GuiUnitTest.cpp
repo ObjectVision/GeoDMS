@@ -3,6 +3,8 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include "TicInterface.h"
+#include "ser/AsString.h"
 
 GuiUnitTest::GuiUnitTest()
 {
@@ -58,8 +60,8 @@ std::string StepSubTypeToString(StepSubType t)
 	{
 	case StepSubType::none: return "none";
 	case StepSubType::edit_palette: return "edit_palette";
-	case StepSubType::new_current_item: return "new_current_item";
-	case StepSubType::new_config: return "new_config";
+	case StepSubType::current_item: return "current_item";
+	case StepSubType::config: return "config";
 	case StepSubType::active_window: return "active_window";
 	case StepSubType::map_view: return "nmap_viewone";
 	case StepSubType::table_view: return "table_view";
@@ -74,13 +76,19 @@ std::string StepSubTypeToString(StepSubType t)
 	}
 }
 
-void GuiUnitTest::ProcessStep()
+int GuiUnitTest::ProcessStep()
 {
 	if (m_CurrStep == m_Steps.end())
-		return;
+		return 0;
+
+	if (m_CurrStep->first_time_processed)
+	{
+		reportF(SeverityTypeID::ST_MajorTrace, "Gui unit test step: %s %s %s %d", StepTypeToString(m_CurrStep->step_type), StepSubTypeToString(m_CurrStep->step_sub_type), m_CurrStep->value, m_CurrStep->wait_time);
+		m_CurrStep->first_time_processed = false;
+	}
 
 	if (!m_CurrStep->WaitTimeExpired())
-		return;
+		return 0;
 
 	switch (m_CurrStep->step_type)
 	{
@@ -88,24 +96,93 @@ void GuiUnitTest::ProcessStep()
 	{
 		switch (m_CurrStep->step_sub_type)
 		{
-		case StepSubType::new_config:
+		case StepSubType::config:
 		{
 			m_State.configFilenameManager.Set(m_CurrStep->value);
+			break;
 		}
+		case StepSubType::default_view:
+		{
+			m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+			break;
+		}
+		case StepSubType::table_view:
+		{
+			m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+			break;
+		}
+		case StepSubType::map_view:
+		{
+			m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
+			break;
+		}
+		}
+		break;
+	}
+	case StepType::set:
+	{
+		switch (m_CurrStep->step_sub_type)
+		{
+		case StepSubType::current_item:
+		{
+			if (m_State.GetRoot())
+			{
+				auto unfound_part = IString::Create("");
+				TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
+
+				if (jumpItem)
+				{
+					m_State.SetCurrentItem(jumpItem);
+					m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+					m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+					m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
+					m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+				}
+				if (!unfound_part->empty())
+				{
+					// TODO: do something with unfound part
+				}
+
+				unfound_part->Release(unfound_part);
+			}
+		}
+		}
+		break;
+	}
+	case StepType::check:
+	{
+		switch (m_CurrStep->step_sub_type)
+		{
+		case (StepSubType::config):
+		{
+			if (m_State.configFilenameManager._Get().compare(m_CurrStep->value)!=0)
+				m_State.return_value = 1;
+			break;
+		}
+		case (StepSubType::current_item):
+		{
+			auto unfound_part = IString::Create("");
+			TreeItem* check_item = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
+			if (!check_item)
+				m_State.return_value = 1; // failed unit test 
+		    else if (check_item != m_State.GetCurrentItem())
+				m_State.return_value = 1; // failed unit test 
+			unfound_part->Release(unfound_part);
+		}
+		}
+		break;
+	}
+	case StepType::close:
+	{
+		switch (m_CurrStep->step_sub_type)
+		{
+		case (StepSubType::config):
+			return 1;
 		}
 	}
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	m_CurrStep->is_processed = true;
+	return 0;
 }
 
 StepType GuiUnitTest::InterpretStepType(std::string_view sv)
@@ -138,10 +215,10 @@ StepSubType GuiUnitTest::InterpretStepSubType(std::string_view sv)
 		return StepSubType::edit_palette;
 	else if (sv.compare("active_window") == 0)
 		return StepSubType::active_window;
-	else if (sv.compare("new_current_item") == 0)
-		return StepSubType::new_current_item;
-	else if (sv.compare("new_config") == 0)
-		return StepSubType::new_config;
+	else if (sv.compare("current_item") == 0)
+		return StepSubType::current_item;
+	else if (sv.compare("config") == 0)
+		return StepSubType::config;
 	else if (sv.compare("map_view") == 0)
 		return StepSubType::map_view;
 	else if (sv.compare("table_view") == 0)
@@ -168,9 +245,6 @@ void GuiUnitTest::Step()
 	if (m_CurrStep == m_Steps.end())
 		return;
 
-	if (!m_CurrStep->WaitTimeExpired())
-		return;
-
 	if (!m_CurrStep->is_processed) // precondition
 		return;
 	
@@ -178,8 +252,6 @@ void GuiUnitTest::Step()
 
 	if (m_CurrStep == m_Steps.end())
 		return;
-
-	reportF(SeverityTypeID::ST_MajorTrace, "Gui unit test step: %s, %s, %s, %d", StepTypeToString(m_CurrStep->step_type), StepSubTypeToString(m_CurrStep->step_sub_type), m_CurrStep->value, m_CurrStep->wait_time);
+	
 	m_CurrStep->start_time = std::chrono::steady_clock::now();
 }
-

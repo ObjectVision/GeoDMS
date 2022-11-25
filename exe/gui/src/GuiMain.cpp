@@ -108,102 +108,51 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 {
     switch (e)
     {
-    case UpdateCurrentItem:
+    case GuiEvents::UpdateCurrentItem:
     {
         if (!m_State.GetCurrentItem())
             return;
         
         m_State.TreeItemHistoryList.Insert(m_State.GetCurrentItem());
-
-        //if (!m_ItemsHolder.contains(m_State.GetCurrentItem()))
-        //    m_ItemsHolder.add(m_State.GetCurrentItem());
-        //DMS_TreeItem_Update(m_State.GetCurrentItem());
         break;
     }
-    case UpdateCurrentAndCompatibleSubItems:
-    {
-        if (!m_State.GetCurrentItem())
-            return;
-
-        //if (!m_ItemsHolder.contains(m_State.GetCurrentItem()))
-        //{
-            //m_ItemsHolder.add(m_State.GetCurrentItem());
-            //if (IsDataItem(m_State.GetCurrentItem()))
-            //{
-            //    m_ItemsHolder.add(m_State.GetCurrentItem());
-            //}
-
-        //}
-        //DMS_TreeItem_Update(m_CurrentItem);
-
-        if (IsUnit(m_State.GetCurrentItem()))
-        {
-            auto au = AsUnit(m_State.GetCurrentItem());
-            auto subItem = m_State.GetCurrentItem()->_GetFirstSubItem();
-            while (subItem)
-            {
-                if (IsDataItem(subItem))
-                {
-                    auto adi = AsDataItem(subItem);
-                    if (adi->GetAbstrDomainUnit()->UnifyDomain(au, "Domain of subitem", "parent table", UnifyMode()))
-                    {
-                        //if (!m_ItemsHolder.contains(subItem))
-                        //{
-                            //m_ItemsHolder.add(subItem);
-                            //if (IsDataItem(m_State.GetCurrentItem()))
-                            //{
-                            //    m_ItemsHolder.add(m_State.GetCurrentItem());
-                            //}
-                        //}
-                        //DMS_TreeItem_Update(subItem);
-                    }
-                }
-                subItem = subItem->GetNextItem();
-            }
-        }
-        break;
-    }
-    case ReopenCurrentConfiguration:
+    case GuiEvents::ReopenCurrentConfiguration:
     {
         CloseCurrentConfig();
         if (!m_State.configFilenameManager.Get().empty())
-        {
-            //m_Root = DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-        }
-
         break;
     }
-    case OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
+    case GuiEvents::OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
     {
+        if (!m_State.GetCurrentItem())
+            break;
+
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
-        {
             m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
-            //m_View.SetDoView(true);
-        }
 
         break;
     }
-    case OpenNewTableViewWindow:
+    case GuiEvents::OpenNewTableViewWindow:
     {
+        if (!m_State.GetCurrentItem())
+            break;
+
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
-        {
             m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
-            //m_View.SetDoView(true);
-        }
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
-        {
             m_View.AddView(m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
-            //m_View.SetDoView(true);
-        }
 
         break;
     }
-    case OpenNewDefaultViewWindow:
+    case GuiEvents::OpenNewDefaultViewWindow:
     {
+        if (!m_State.GetCurrentItem())
+            break;
+
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
@@ -221,7 +170,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case OpenConfigSource:
+    case GuiEvents::OpenConfigSource:
     {
         if (!m_State.GetCurrentItem())
             break;
@@ -281,7 +230,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         ImGui::SameLine();
         if (ImGui::Button("Reopen", ImVec2(120, 0)))
         {
-            m_State.MainEvents.Add(ReopenCurrentConfiguration);
+            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
         }
 
 
@@ -462,12 +411,15 @@ int GuiMainComponent::MainLoop()
     {
         if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
-        else
+        else 
         {
             glfwWaitEventsTimeout(1.0);
             if (UpdateFrameCounter == 0)
                 UpdateFrameCounter = frames_to_update;
         }
+
+        if (m_GuiUnitTest.ProcessStep())
+            break;
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -537,6 +489,7 @@ int GuiMainComponent::MainLoop()
         else if (m_FirstFrames > 0)
             m_FirstFrames--;
 
+        m_GuiUnitTest.Step();
     }
 
     // Persistently store gui state in registry
@@ -551,12 +504,12 @@ int GuiMainComponent::MainLoop()
     glfwDestroyWindow(m_Window);
     glfwTerminate();
 
-    return true;
+    return m_State.return_value;
 }
 
 void GuiMainComponent::Update()
 {
-    m_GuiUnitTest.ProcessStep();
+
 
 
     static bool opt_fullscreen = true;
@@ -577,9 +530,7 @@ void GuiMainComponent::Update()
         window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
     }
     else
-    {
         dockspace_flags &= ~ImGuiDockNodeFlags_PassthruCentralNode;
-    }
 
     // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
     // and handle the pass-thru hole, so we ask Begin() to not render a background.
@@ -620,7 +571,7 @@ void GuiMainComponent::Update()
         auto e = m_State.MainEvents.Pop();
         ProcessEvent(e);
 
-        if (e == ReopenCurrentConfiguration)
+        if (e == GuiEvents::ReopenCurrentConfiguration)
         {
             ImGui::End();
             return;
@@ -661,6 +612,4 @@ void GuiMainComponent::Update()
         ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
     ImGui::End();
-
-    m_GuiUnitTest.Step();
 }

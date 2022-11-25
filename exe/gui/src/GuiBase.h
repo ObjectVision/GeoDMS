@@ -44,18 +44,19 @@ enum GuiWindowOpenFlags
 	GWOF_StatusBar = 64
 };
 
-enum GuiEvents
+enum class GuiEvents
 {
-	UpdateCurrentItem = 0,
-	JumpToCurrentItem = 1,
-	UpdateCurrentAndCompatibleSubItems = 2,
-	ReopenCurrentConfiguration = 3,
-	OpenNewMapViewWindow = 4,
-	OpenNewTableViewWindow = 5,
-	OpenNewConfiguration = 6,
-	OpenInMemoryDataView = 7,
-	OpenNewDefaultViewWindow = 8,
-	OpenConfigSource = 9
+	UpdateCurrentItem,
+	JumpToCurrentItem,
+	UpdateCurrentAndCompatibleSubItems,
+	ReopenCurrentConfiguration,
+	OpenNewMapViewWindow,
+	OpenNewTableViewWindow,
+	OpenNewConfiguration,
+	OpenInMemoryDataView,
+	OpenNewDefaultViewWindow,
+	OpenConfigSource,
+	Close
 };
 
 class GuiTreeItemsHolder
@@ -233,6 +234,8 @@ public:
 	GuiState() {}
 	GuiState(const GuiState&) = delete;
 	void clear();
+
+	static int return_value;
 
 	// option window flags
 	static bool ShowOptionsWindow;

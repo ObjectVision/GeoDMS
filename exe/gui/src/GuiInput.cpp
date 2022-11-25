@@ -171,7 +171,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             //m_State.TableViewIsActive = true;
             //m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
             //m_State.TableViewEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
-            m_State.MainEvents.Add(OpenNewTableViewWindow);
+            m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
         }
 
         return;
@@ -180,7 +180,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-E
         {
-            m_State.MainEvents.Add(OpenConfigSource);
+            m_State.MainEvents.Add(GuiEvents::OpenConfigSource);
         }
         return;
     }
@@ -188,7 +188,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-M
         {
-            m_State.MainEvents.Add(OpenNewMapViewWindow);
+            m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
             //m_State.ShowMapviewWindow = true;
             //m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
             //m_State.MapViewEvents.Add(GuiEvents::UpdateCurrentItem);

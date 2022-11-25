@@ -221,9 +221,8 @@ void GuiMenuFileComponent::Update()
         }
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
-        {
-            m_State.MainEvents.Add(ReopenCurrentConfiguration);
-        }
+            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+
         if (ImGui::MenuItem("Open Demo Config")) 
         {
             m_State.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");

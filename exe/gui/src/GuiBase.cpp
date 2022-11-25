@@ -13,6 +13,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+int GuiState::return_value = 0;
 bool GuiState::ShowDemoWindow			    = false; 
 bool GuiState::ShowOptionsWindow		    = false;
 bool GuiState::ShowDetailPagesOptionsWindow = false;

@@ -19,8 +19,8 @@ enum class StepSubType
 {
 	edit_palette,
 	active_window,
-	new_current_item,
-	new_config,
+	current_item,
+	config,
 	map_view,
 	table_view,
 	default_view,
@@ -39,6 +39,7 @@ struct StepDescription
 	StepSubType step_sub_type = StepSubType::none;
 	std::string value;
 	UInt64 wait_time = 0;
+	bool first_time_processed = true;
 	bool is_processed = false;
 	std::chrono::steady_clock::time_point start_time;
 
@@ -55,7 +56,7 @@ class GuiUnitTest : GuiBaseComponent
 {
 public:
 	GuiUnitTest();
-	void ProcessStep();
+	int ProcessStep();
 	void Step();
 	void LoadStepsFromScriptFile(std::string_view script_file_name);
 

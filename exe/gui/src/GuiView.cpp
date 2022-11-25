@@ -63,9 +63,9 @@ void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     switch (event)
     {
-    case UpdateCurrentItem: break;
-    case UpdateCurrentAndCompatibleSubItems: break;
-    case OpenInMemoryDataView: break;
+    case GuiEvents::UpdateCurrentItem: break;
+    case GuiEvents::UpdateCurrentAndCompatibleSubItems: break;
+    case GuiEvents::OpenInMemoryDataView: break;
     }
 }
 
