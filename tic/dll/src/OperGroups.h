@@ -96,6 +96,7 @@ struct AbstrOperGroup : SharedObj
 	bool AllowExtraArgs       () const { return m_Policy & oper_policy::allow_extra_args; }
 	bool CanExplainValue      () const { return m_Policy & oper_policy::can_explain_value; }
 	bool HasDynamicArgPolicies() const { return m_Policy & oper_policy::dynamic_argument_policies; }
+	bool IsDepreciated        () const { return m_Policy & oper_policy::depreciated; }
 	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
 
 	void SetCanExplainValue() { m_Policy = 	oper_policy(m_Policy | oper_policy::can_explain_value); }

@@ -1108,7 +1108,9 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				bufferValue = slSupplierExpr(substBuff, sourceRef, mpf);
 				goto exit;
 			}
-			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID());
+
+			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
+			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID()); 
 			dms_assert(og);
 			if (og->IsTemplateCall())
 			{

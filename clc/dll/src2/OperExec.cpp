@@ -63,7 +63,7 @@ namespace {
 				resultHolder = CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), Unit<ERRORLEVEL>::GetStaticClass()->CreateDefault());
 			else
 			{
-				reportD(SeverityTypeID::ST_Warning, "Obsolete function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
+				reportD(SeverityTypeID::ST_Warning, "Depreciated function called, use EXEC_EC instead that return an errorcode as parameter<UInt32>");
 				resultHolder = TreeItem::CreateCacheRoot();
 			}
 		}
@@ -385,7 +385,7 @@ public:
 
 struct ExecOperGroup: CommonOperGroup
 {
-	ExecOperGroup(CharPtr operName) : CommonOperGroup(operName)
+	ExecOperGroup(CharPtr operName, oper_policy op) : CommonOperGroup(operName, op)
 	{
 		m_Policy = m_Policy | oper_policy::has_external_effects | oper_policy::calc_requires_metainfo;
 	}
@@ -395,8 +395,8 @@ namespace
 {
 	oper_arg_policy oap_sn[2] = { oper_arg_policy::calc_never, oper_arg_policy::calc_as_result };
 
-	ExecOperGroup cog_EXEC("EXEC");
-	ExecOperGroup cog_EXEC_V("EXEC_EC");
+	ExecOperGroup cog_EXEC("EXEC", oper_policy::depreciated);
+	ExecOperGroup cog_EXEC_V("EXEC_EC", oper_policy());
 
 	OperExec<false>      exec1(&cog_EXEC);
 	OperExecInDir<false> exec2(&cog_EXEC);

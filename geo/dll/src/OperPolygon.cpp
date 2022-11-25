@@ -1798,8 +1798,8 @@ namespace
 	CommonOperGroup cogUB("upper_bound");
 	CommonOperGroup cogCB("center_bound");
 
-	Obsolete<CommonOperGroup> cogFN("use first_point instead", "first_node", oper_policy::obsolete);
-	Obsolete<CommonOperGroup> cogLN("use last_point instead",  "last_node", oper_policy::obsolete);
+	Obsolete<CommonOperGroup> cogFN("use first_point instead", "first_node", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cogLN("use last_point instead",  "last_node", oper_policy::depreciated);
 
 	CommonOperGroup cogFP("first_point");
 	CommonOperGroup cogLP("last_point");

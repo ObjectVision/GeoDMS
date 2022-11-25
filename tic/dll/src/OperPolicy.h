@@ -57,8 +57,11 @@ enum class oper_policy
 	is_dynamic_group       = 0x0800,
 
 	can_explain_value      = 0x1000, // Calc can be called to epxlain value
-	obsolete               = 0x2000
+	depreciated            = 0x2000, // warn when used; mention preferred alternative
+	obsolete               = 0x4000, // error when used; instruct preferred alternative
+	always_preprocess      = 0x8000, // Don't expect nor allow actual registered operators as this operator must be preprocesed, such as select_many_x, select_afew_x, arrow
 
+	can_be_rewritten       = 0x00010000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 };
 
 inline bool  operator & (oper_policy a, oper_policy b) { return int(a) & int(b); }
