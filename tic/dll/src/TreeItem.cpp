@@ -3283,7 +3283,11 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 
 	if (CheckCalculatingOrReady(refItem)) // quick route first
 		goto data_ready; // may have been arranged in an alternative thread.
-
+	if (IsDataItem(this))
+	{
+		if (!AsDataItem(this)->GetAbstrValuesUnit()->PrepareDataUsage(drlFlags))
+			return false;
+	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
 	try {
