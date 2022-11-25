@@ -487,11 +487,12 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '1': SetRegStatusFlag(RSF_MultiThreading1, newValue); break;
 		case '2': SetRegStatusFlag(RSF_MultiThreading2, newValue); break;
 		case '3': SetRegStatusFlag(RSF_MultiThreading3, newValue); break;
+		case 'H': SetRegStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		default: 
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Recognised command line option %s %s", (newValue ? "Set" : "Clear"), param[2]);
+//	reportF(SeverityTypeID::ST_MinorTrace, "Recognised command line option %s %s", (newValue ? "Set" : "Clear"), param[2]);
 	return true;
 }
 
