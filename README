@@ -25,26 +25,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 
-*******************************
-additional guidelines and notes
-*******************************
-
-Additional to the terms of the license, we request you to apply the following
-guidelines (these additional requests are not limiting your rights under the terms of the license):
-- An appropriate copyright notice that an interactive program/web-site
-  containing or using the GeoDMS in a start splash-screen/page and/or about-box (if any), is:
-  "This software/web-site is using the Geographic Data & Model Server (GeoDMS)"
-- Before distributing the GeoDMS library, and/or work containing it, to others, 
-  please check if any newer version has been made available and/or refer to the most up to date github repository.
-- We would like to be notified when you make any modification to the source code 
-  and would like to receive your modifications as pull-request
-- When you have made a product that uses the GeoDMS, we would like to hear from you and 
-  receive a copy of your product including its source code. 
-  You will remain the author of this product, and any major modifications to the GeoDMS; 
-  Object Vision will remain the author of the included GeoDMS source code.
 
 Object Vision BV
-De Boelelaan 1085 - F 532
+De Boelelaan 1085 - F 538
 1081 HV  AMSTERDAM - the Netherlands
 t: +31-20-598.9083
 w: www.ObjectVision.Nl/
