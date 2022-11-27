@@ -76,7 +76,7 @@ TIC_CALL AbstrCalculatorRef CreateCalculatorForTreeItem(TreeItem* context, const
 using make_result_t = DataControllerRef; // std::pair<DataControllerRef, SharedTreeItem>; second is optionallu owned by first
 using calc_result_t = FutureData; // std::pair<DataControllerRef, SharedTreeItemInterestPtr>; second is optionallu owned by first
 
-auto GetDC(const AbstrCalculator* calculator)->DataControllerRef;
+TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef;
 auto MakeResult(const AbstrCalculator* calculator)->make_result_t;
 auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Context* context=nullptr)->calc_result_t;
 

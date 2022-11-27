@@ -52,7 +52,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 
-LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
+TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
 {
 	static LispRef subItemSymb = LispRef(token::subitem);
 	return List3<LispRef>(subItemSymb, baseExpr, LispRef(relPath.begin(), relPath.end()));
@@ -130,6 +130,8 @@ namespace token {
 	TIC_CALL TokenID select_afew_uint8 = GetTokenID_st("select_afew_uint8");
 	TIC_CALL TokenID select_many_uint16 = GetTokenID_st("select_many_uint16");
 	TIC_CALL TokenID select_afew_uint16 = GetTokenID_st("select_afew_uint16");
+	TIC_CALL TokenID select_many_uint32 = GetTokenID_st("select_many_uint32");
+	TIC_CALL TokenID select_afew_uint32 = GetTokenID_st("select_afew_uint32");
 	TIC_CALL TokenID nr_OrgEntity = GetTokenID_st("nr_OrgEntity");
 	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");

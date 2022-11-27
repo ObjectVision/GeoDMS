@@ -433,6 +433,10 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		}
 		else if (nrSpecifiedArgs > nrArgs)
 		{
+			// allow for skipped trailing args of select_xxx that are processed as lispExpr only for now 
+			if (!MustCacheResult())
+				while (nrSpecifiedArgs > nrArgs && GetArgPolicy(nrSpecifiedArgs - 1, nullptr) == oper_arg_policy::calc_as_result)
+					--nrSpecifiedArgs;
 			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
 				continue;
 			nrSpecifiedArgs = nrArgs;

@@ -197,7 +197,7 @@ AbstrCalculatorRef CreateCalculatorForTreeItem(TreeItem* context, const TreeItem
 // now independent Calculator related function; TODO G8: dismantle Calculators
 //----------------------------------------------------------------------
 
-auto GetDC(const AbstrCalculator* calculator)->DataControllerRef
+TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef
 {
 	auto metaInfo = calculator->GetMetaInfo();
 	if (metaInfo.index() == 0)
@@ -844,10 +844,19 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 	SharedStr firstArgValue;
 	for (LispListPtr cursor = metaCallArgs; !cursor.EndP(); cursor = cursor.Tail(), ++currArg)
 	{
-		bool mustCalcArg = FuncDC::MustCalcArg(og->GetArgPolicy(currArg, firstArgValue.begin()), false);
+		auto oap = og->GetArgPolicy(currArg, firstArgValue.begin());
+		bool mustCalcArg = FuncDC::MustCalcArg(oap, false);
 
 		ArgRef argRef;
-		if (!mustCalcArg) { // DomainContainer and ValuesContainer and SubsetContainer
+		if (!mustCalcArg) 
+		{ // DomainContainer and ValuesContainer and SubsetContainer
+			if (oap == oper_arg_policy::calc_as_result)
+			{
+				// skip condition argument for select_xxxx meta functions
+				assert(currArg == 1); // only this one
+				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				continue;
+			}
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
 				argRef.emplace<SharedTreeItem>(UnitClass::Find(vc)->CreateDefault()); // unitName -> [UnitName []] ofwel unitName().
@@ -865,7 +874,8 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FR_MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
-		else {
+		else if (mustCalcArg)
+		{
 			FutureData dc = GetOrCreateDataController(std::get<1>(ac->SubstituteExpr(substBuff, cursor.Left()))); // what about non-substitited stuff?
 			dms_assert(dc);
 			FutureData fd = dc->CalcResultWithValuesUnits();
@@ -977,8 +987,8 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs)));
 #endif
 
-	if (holder->GetDynamicClass() != TreeItem::GetStaticClass())
-		holder->throwItemError("Only containers can be the sink for Meta Functions");
+//	if (holder->GetDynamicClass() != TreeItem::GetStaticClass())
+//		holder->throwItemError("Only containers can be the sink for Meta Functions");
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;

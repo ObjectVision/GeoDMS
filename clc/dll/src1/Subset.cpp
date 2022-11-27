@@ -221,7 +221,7 @@ struct SubsetOperator: public UnaryOperator
 
 struct SelectMetaOperator : public BinaryOperator
 {
-	SelectMetaOperator(CommonOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm)
+	SelectMetaOperator(AbstrOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm)
 		: BinaryOperator(&cog, resDomainClass, TreeItem::GetStaticClass(), DataArray<Bool>::GetStaticClass())
 		, m_ORCM(orcm)
 	{}
@@ -232,17 +232,17 @@ struct SelectMetaOperator : public BinaryOperator
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
 	{
-		xxx;
-	}
+		assert(args.size() == 1);
 
-	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
-	{
-		dms_assert(args.size() == 2);
-		assert(!mustCalc);
+		const TreeItem* attrContainer = GetItem(args[0]);
 
-		const TreeItem* attrContainer = args[0];
-		const AbstrDataItem* conditionA = debug_cast<const AbstrDataItem*>(args[1]);
-		dms_assert(conditionA);
+		auto containerExpr = metaCallArgs.Right().Left();
+		auto conditionExpr = metaCallArgs.Right().Right().Left();
+		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
+		auto conditionDC = GetDC(conditionCalc);
+		auto conditionItem = conditionDC->MakeResult();
+		const AbstrDataItem* conditionA = debug_cast<const AbstrDataItem*>(conditionItem.get());
+		MG_USERCHECK2(conditionA, "condition data-item expected as 2nd argument");
 
 		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
 		dms_assert(domain);
@@ -258,13 +258,15 @@ struct SelectMetaOperator : public BinaryOperator
 
 		AbstrDataItem* resSub = nullptr;
 		TokenID resSubName;
+		LispRef resSubExpr;
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
-			 resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
+			resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, domain);
 			resSub->SetTSF(DSF_Categorical);
 
 			MG_PRECONDITION(resSub);
+			resSubExpr = LispRef(resSubName);
 		}
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
@@ -273,16 +275,16 @@ struct SelectMetaOperator : public BinaryOperator
 			auto subDataItem = AsDataItem(subItem);
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
-			resSub = CreateDataItem(res, subDataItem->GetID(), res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			LispRef keyExpr;
+			auto subDataID = subDataItem->GetID();
+			resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			LispRef keyExpr = slSubItemCall(containerExpr, subDataID.AsStrRange());
 			if (m_ORCM == OrgRelCreationMode::none)
-				keyExpr = ExprList(token::select_data, subset, conditionA, srcdata);
+				keyExpr = ExprList(token::select_data, LispRef(".."), conditionExpr, keyExpr);
 			else
-				keyExpr = ExprList(token::lookup, x, LispRef(resSubName));
+				keyExpr = ExprList(token::lookup, resSubExpr, keyExpr);
 
 			resSub->SetDC(GetOrCreateDataController(keyExpr));
 		}
-		return true;
 	}
 };
 
@@ -387,13 +389,15 @@ namespace {
 	CommonOperGroup cog_subset_orgrel_08("select_orgrel_uint8");
 	CommonOperGroup cog_subset_orgrel_16("select_orgrel_uint16");
 	CommonOperGroup cog_subset_orgrel_32("select_orgrel_uint32");
-	oper_arg_policy oap_subset[2] = { calc_never , calc_as_result };
+	oper_arg_policy oap_subset[2] = { oper_arg_policy::calc_never , oper_arg_policy::calc_as_result };
 	SpecialOperGroup cog_subset_m_xx(token::select_many, 2, oap_subset, oper_policy::dynamic_result_class| oper_policy::dont_cache_result);
-	CommonOperGroup cog_subset_a_xx(token::select_afew, oper_policy::dynamic_result_class| oper_policy::dont_cache_result);
-	CommonOperGroup cog_subset_m_08(token::select_many_uint8, oper_policy::dont_cache_result);
-	CommonOperGroup cog_subset_a_08(token::select_afew_uint8, oper_policy::dont_cache_result);
-	CommonOperGroup cog_subset_m_16(token::select_many_uint16, oper_policy::dont_cache_result);
-	CommonOperGroup cog_subset_a_16(token::select_afew_uint16, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_a_xx(token::select_afew, 2, oap_subset, oper_policy::dynamic_result_class| oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_m_08(token::select_many_uint8, 2, oap_subset, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_a_08(token::select_afew_uint8, 2, oap_subset, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_m_16(token::select_many_uint16, 2, oap_subset, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_a_16(token::select_afew_uint16, 2, oap_subset, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_m_32(token::select_many_uint32, 2, oap_subset, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_subset_a_32(token::select_afew_uint32, 2, oap_subset, oper_policy::dont_cache_result);
 
 
 	SubsetOperator operXX(cog_subset_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
@@ -410,6 +414,16 @@ namespace {
 	SubsetOperator operOrgRel08(cog_subset_orgrel_08, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel);
 	SubsetOperator operOrgRel16(cog_subset_orgrel_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel);
 	SubsetOperator operOrgRel32(cog_subset_orgrel_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel);
+
+	SelectMetaOperator operMetaMxx(cog_subset_m_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::none);
+	SelectMetaOperator operMetaM08(cog_subset_m_08, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::none);
+	SelectMetaOperator operMetaM16(cog_subset_m_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::none);
+	SelectMetaOperator operMetaM32(cog_subset_m_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::none);
+
+	SelectMetaOperator operMetaAxx(cog_subset_a_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel);
+	SelectMetaOperator operMetaA08(cog_subset_a_08, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel);
+	SelectMetaOperator operMetaA16(cog_subset_a_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel);
+	SelectMetaOperator operMetaA32(cog_subset_a_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel);
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>> subsetDataOperInstances;
 }

@@ -40,8 +40,7 @@ struct TreeItem;
 //#define MG_DEBUG_LISP_TREE
 #endif //defined(MG_DEBUG)
 
-LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath);
-
+TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath);
 TIC_CALL LispRef slConvertedLispExpr(LispPtr result, LispPtr vu);
 
 namespace token {
@@ -99,6 +98,8 @@ namespace token {
 	extern TIC_CALL TokenID select_afew_uint8;
 	extern TIC_CALL TokenID select_many_uint16;
 	extern TIC_CALL TokenID select_afew_uint16;
+	extern TIC_CALL TokenID select_many_uint32;
+	extern TIC_CALL TokenID select_afew_uint32;
 	extern TIC_CALL TokenID nr_OrgEntity;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
