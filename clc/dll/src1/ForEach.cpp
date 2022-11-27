@@ -140,7 +140,7 @@ const TreeItem* FindName(const TreeItem* context, const DataArray<SharedStr>* na
 	return result;
 }
 
-bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, UInt32 argCount, bool mustCalc, TokenID groupNameID, field_spec fs)
+bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, UInt32 argCount, TokenID groupNameID, field_spec fs)
 {
 	dbg_assert(resultHolder);
 
@@ -379,7 +379,7 @@ public:
 		SharedStr argSpec = GetValue<SharedStr>(args[0], 0);
 		auto fs = ScanFirstArg(GetGroup(), argSpec.begin());
 
-		return ForEach_CreateResult(resultHolder, args, 1, mustCalc, GetGroup()->GetNameID(), fs);
+		return ForEach_CreateResult(resultHolder, args, 1, GetGroup()->GetNameID(), fs);
 	}
 };
 
@@ -451,6 +451,7 @@ public:
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		dms_assert(args.size() == NrSpecifiedArgs());
+		dms_assert(!mustCalc);
 
 /* NYI: add obsolete warnings, once argument dependent argument policy determination is implemented.
 		if (m_FS & (FS_STORAGENAME | FS_STORAGETYPE | FS_SQLSTRING | FS_DESCR | FS_LABEL))
@@ -461,7 +462,7 @@ public:
 			);
 		}
 */
-		return ForEach_CreateResult(resultHolder, args, 0, mustCalc, GetGroup()->GetNameID(), m_FS);
+		return ForEach_CreateResult(resultHolder, args, 0, GetGroup()->GetNameID(), m_FS);
 	}
 
 private:

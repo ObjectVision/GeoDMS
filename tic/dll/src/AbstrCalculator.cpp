@@ -847,7 +847,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		bool mustCalcArg = FuncDC::MustCalcArg(og->GetArgPolicy(currArg, firstArgValue.begin()), false);
 
 		ArgRef argRef;
-		if (!mustCalcArg) { // DomainContainer and ValuesContainer
+		if (!mustCalcArg) { // DomainContainer and ValuesContainer and SubsetContainer
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
 				argRef.emplace<SharedTreeItem>(UnitClass::Find(vc)->CreateDefault()); // unitName -> [UnitName []] ofwel unitName().
@@ -1196,6 +1196,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 		TokenID exprHeadID = head.GetSymbID();
 		if (exprHeadID == token::arrow)
 			goto skipTemplInst;
+
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
 		dms_assert(og);
 		if (og->IsTemplateCall())

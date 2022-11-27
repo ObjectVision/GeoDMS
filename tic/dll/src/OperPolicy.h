@@ -40,7 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 enum class oper_policy
 {
 	none                 = 0,
-	dont_cache_result    = 1, // dont create the result in the data-cache but instantiate in-place (templates, for each, loop).
+	dont_cache_result    = 1, // dont create the result in the data-cache but instantiate in-place (templates, for each, loop, select_many, select_afew).
 	                          // Requires application as MetaFunc.
 	existing             = 2, // can result to an existing item, thus result is a supplier (SubItem, DomainUnit, ValuesUnit, GetProjectionBase, Generate).
 	has_external_effects = 4,
@@ -59,9 +59,7 @@ enum class oper_policy
 	can_explain_value      = 0x1000, // Calc can be called to epxlain value
 	depreciated            = 0x2000, // warn when used; mention preferred alternative
 	obsolete               = 0x4000, // error when used; instruct preferred alternative
-	always_preprocess      = 0x8000, // Don't expect nor allow actual registered operators as this operator must be preprocesed, such as select_many_x, select_afew_x, arrow
-
-	can_be_rewritten       = 0x00010000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
+	can_be_rewritten       = 0x8000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 };
 
 inline bool  operator & (oper_policy a, oper_policy b) { return int(a) & int(b); }

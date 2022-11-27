@@ -35,8 +35,10 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "LispTreeType.h"
 #include "ParallelTiles.h"
 #include "TileChannel.h"
+#include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
 #include "UnitProcessor.h"
@@ -217,7 +219,74 @@ struct SubsetOperator: public UnaryOperator
 	}
 };
 
-CommonOperGroup cog_subset_data("select_data");
+struct SelectMetaOperator : public BinaryOperator
+{
+	SelectMetaOperator(CommonOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm)
+		: BinaryOperator(&cog, resDomainClass, TreeItem::GetStaticClass(), DataArray<Bool>::GetStaticClass())
+		, m_ORCM(orcm)
+	{}
+
+	using ArgType = DataArray<Bool>;
+
+	OrgRelCreationMode m_ORCM;
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
+	{
+		xxx;
+	}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		dms_assert(args.size() == 2);
+		assert(!mustCalc);
+
+		const TreeItem* attrContainer = args[0];
+		const AbstrDataItem* conditionA = debug_cast<const AbstrDataItem*>(args[1]);
+		dms_assert(conditionA);
+
+		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
+		dms_assert(domain);
+
+		const ValueClass* vc = domain->GetValueType();
+		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(m_ResultClass);
+		if (!resDomainCls)
+			resDomainCls = UnitClass::Find(vc->GetCrdClass());
+
+		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder); // does this set result to Failed when 
+		dms_assert(res);
+		resultHolder = res;
+
+		AbstrDataItem* resSub = nullptr;
+		TokenID resSubName;
+		if (m_ORCM != OrgRelCreationMode::none)
+		{
+			 resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
+			resSub = CreateDataItem(res, resSubName, res, domain);
+			resSub->SetTSF(DSF_Categorical);
+
+			MG_PRECONDITION(resSub);
+		}
+		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			if (!IsDataItem(subItem))
+				continue;
+			auto subDataItem = AsDataItem(subItem);
+			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
+				continue;
+			resSub = CreateDataItem(res, subDataItem->GetID(), res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			LispRef keyExpr;
+			if (m_ORCM == OrgRelCreationMode::none)
+				keyExpr = ExprList(token::select_data, subset, conditionA, srcdata);
+			else
+				keyExpr = ExprList(token::lookup, x, LispRef(resSubName));
+
+			resSub->SetDC(GetOrCreateDataController(keyExpr));
+		}
+		return true;
+	}
+};
+
+CommonOperGroup cog_subset_data(token::select_data);
 
 struct AbstrSelectDataOperator : TernaryOperator
 {
@@ -301,6 +370,7 @@ struct SelectDataOperator : AbstrSelectDataOperator
 // *****************************************************************************
 //                               INSTANTIATION
 // *****************************************************************************
+#include "LispTreeType.h"
 
 namespace {
 	CommonOperGroup cog_subset_xx("subset", oper_policy::dynamic_result_class);
@@ -317,9 +387,13 @@ namespace {
 	CommonOperGroup cog_subset_orgrel_08("select_orgrel_uint8");
 	CommonOperGroup cog_subset_orgrel_16("select_orgrel_uint16");
 	CommonOperGroup cog_subset_orgrel_32("select_orgrel_uint32");
-
-	CommonOperGroup cog_subset_m("select_many", oper_policy::dynamic_result_class);
-	CommonOperGroup cog_subset_a("select_afew", oper_policy::dynamic_result_class);
+	oper_arg_policy oap_subset[2] = { calc_never , calc_as_result };
+	SpecialOperGroup cog_subset_m_xx(token::select_many, 2, oap_subset, oper_policy::dynamic_result_class| oper_policy::dont_cache_result);
+	CommonOperGroup cog_subset_a_xx(token::select_afew, oper_policy::dynamic_result_class| oper_policy::dont_cache_result);
+	CommonOperGroup cog_subset_m_08(token::select_many_uint8, oper_policy::dont_cache_result);
+	CommonOperGroup cog_subset_a_08(token::select_afew_uint8, oper_policy::dont_cache_result);
+	CommonOperGroup cog_subset_m_16(token::select_many_uint16, oper_policy::dont_cache_result);
+	CommonOperGroup cog_subset_a_16(token::select_afew_uint16, oper_policy::dont_cache_result);
 
 
 	SubsetOperator operXX(cog_subset_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
