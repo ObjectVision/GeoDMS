@@ -242,7 +242,10 @@ struct SelectMetaOperator : public BinaryOperator
 		auto conditionExpr = metaCallArgs.Right().Left();
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
 		auto conditionDC = GetDC(conditionCalc);
+		MG_CHECK(conditionDC);
+		conditionExpr = conditionDC->GetLispRef();
 		auto conditionItem = conditionDC->MakeResult();
+		MG_CHECK(conditionItem);
 		const AbstrDataItem* conditionA = debug_cast<const AbstrDataItem*>(conditionItem.get());
 		MG_USERCHECK2(conditionA, "condition data-item expected as 2nd argument");
 
@@ -265,7 +268,7 @@ struct SelectMetaOperator : public BinaryOperator
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
 			resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
-			resSubExpr = LispRef(resSubName);
+			resSubExpr = slSubItemCall(resExpr, resSubName.AsStrRange());
 		}
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
@@ -279,11 +282,11 @@ struct SelectMetaOperator : public BinaryOperator
 			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 			if (m_ORCM == OrgRelCreationMode::none)
-				keyExpr = ExprList(token::select_data, LispRef(".."), conditionExpr, keyExpr);
+				keyExpr = ExprList(token::select_data, resExpr, conditionExpr, keyExpr);
 			else
 				keyExpr = ExprList(token::lookup, resSubExpr, keyExpr);
 
-			resSub->SetDC(GetOrCreateDataController(keyExpr));
+			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
 		}
 		res->SetIsInstantiated();
 	}

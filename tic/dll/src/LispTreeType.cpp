@@ -55,6 +55,7 @@ granted by an additional written contract for support, assistance and/or develop
 TIC_CALL LispRef slSubItemCall(LispPtr baseExpr, CharPtrRange relPath)
 {
 	static LispRef subItemSymb = LispRef(token::subitem);
+	assert(!baseExpr.EndP());
 	return List3<LispRef>(subItemSymb, baseExpr, LispRef(relPath.begin(), relPath.end()));
 }
 

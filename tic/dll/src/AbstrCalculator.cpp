@@ -124,10 +124,14 @@ LispRef GetLispRefForTreeItem(const TreeItem* sourceObject, const CopyTreeContex
 
 	dms_assert(! copyContext.m_SrcRoot->GetTreeParent()); // DEBUG, set all refs to Cache SubItems as direct paths.
 
-	return slSubItemCall(
-		debug_valcast<TreeItem*>(copyContext.m_DstRoot)->GetBaseKeyExpr(),
-		sourceObject->GetRelativeName(copyContext.m_SrcRoot).AsRange()
-	);
+	MG_CHECK(copyContext.m_DstRoot);
+	MG_CHECK(copyContext.m_DstRoot->mc_DC);
+	//	auto dstRootItem = debug_valcast<TreeItem*>(copyContext.m_DstRoot);
+//	auto keyExpr = dstRootItem->GetBaseKeyExpr();
+	auto keyExpr = copyContext.m_DstRoot->mc_DC->GetLispRef();
+	assert(!keyExpr.EndP());
+
+	return slSubItemCall(keyExpr, sourceObject->GetRelativeName(copyContext.m_SrcRoot).AsRange());
 }
 
 using item_ref_type = std::variant<SharedTreeItem, LispRef>;
