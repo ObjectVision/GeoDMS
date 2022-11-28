@@ -56,20 +56,41 @@ void WriteFactor(FormattedOutStream& str, Float64 factor)
 {
 	const Float64 kilo = 1000;
 	const Float64 mega = kilo * kilo;
-	const Float64 giga = kilo * mega;
-	const Float64 tera = mega * mega;
-	const Float64 peta = giga * mega;
+	const Float64 giga = kilo * mega; // 10^09
+	const Float64 tera = mega * mega; // 10^12
+	const Float64 peta = giga * mega; // 10^15
+	const Float64 exa  = tera * mega; // 10^15
+	const Float64 zetta = mega * peta; // 10^21
+	const Float64 yotta = giga * peta; // 10^24
+	const Float64 ronna  = tera * peta; // 10^27
+	const Float64 quetta = peta * peta; // 10^30
 
 	if (factor >= kilo)
 	{
-		if (factor >= peta)
-			WriteQuantity(str, factor / peta, " peta ");
-		else if (factor >= tera)
-			WriteQuantity(str, factor / tera, " tera ");
-		else if (factor >= giga)
-			WriteQuantity(str, factor / giga, " giga ");
-		else if (factor >= mega)
-			WriteQuantity(str, factor / mega, " mega ");
+		if (factor >= mega)
+		{
+			if (factor >= peta)
+			{
+				if (factor >= quetta)
+					WriteQuantity(str, factor / quetta, " quetta ");
+				else if (factor >= ronna)
+					WriteQuantity(str, factor / ronna, " ronna ");
+				else if (factor >= yotta)
+					WriteQuantity(str, factor / yotta, " yotta ");
+				else if (factor >= zetta)
+					WriteQuantity(str, factor / zetta, " zetta ");
+				else if (factor >= exa)
+					WriteQuantity(str, factor / exa, " exa ");
+				else
+					WriteQuantity(str, factor / peta, " peta ");
+			}
+			if (factor >= tera)
+				WriteQuantity(str, factor / tera, " tera ");
+			else if (factor >= giga)
+				WriteQuantity(str, factor / giga, " giga ");
+			else
+				WriteQuantity(str, factor / mega, " mega ");
+		}
 		else
 			WriteQuantity(str, factor / kilo, " kilo ");
 	}
@@ -85,6 +106,16 @@ void WriteFactor(FormattedOutStream& str, Float64 factor)
 			WriteQuantity(str, factor * tera, " pico ");
 		else if (factor >= 0.000000000000001)
 			WriteQuantity(str, factor * peta, " femto ");
+		else if (factor >= 0.000000000000000001)
+			WriteQuantity(str, factor * exa, " atto ");
+		else if (factor >= 0.000000000000000000001)
+			WriteQuantity(str, factor * zetta, " zepto ");
+		else if (factor >= 0.000000000000000000000001)
+			WriteQuantity(str, factor * yotta, " yocto ");
+		else if (factor >= 0.000000000000000000000000001)
+			WriteQuantity(str, factor * ronna, " ronto ");
+		else if (factor >= 0.000000000000000000000000000001)
+			WriteQuantity(str, factor * quetta, " quecto ");
 	}
 	else
 		WriteQuantity(str, factor, "");
