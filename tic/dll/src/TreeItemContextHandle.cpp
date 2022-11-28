@@ -68,10 +68,7 @@ void TreeItemContextHandle::GenerateDescription()
 	{
 		SharedStr objNameStr = m_Obj->GetFullName();
 		SetText(
-			mgFormat2SharedStr("%1%(%2%,%3%): while in %4%( %5%: %6% )"
-				,	m_Obj->GetConfigFileName()
-				,	m_Obj->GetConfigFileLineNr()
-				,	m_Obj->GetConfigFileColNr()
+			mgFormat2SharedStr("while in %1%( %2%: %3% )"
 				,	role
 				,	objNameStr.empty() ? m_Obj->GetName().c_str() : objNameStr.c_str()
 				,	m_Obj->GetClsName()
