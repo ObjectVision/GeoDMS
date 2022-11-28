@@ -626,7 +626,7 @@ struct Poly2GridOperator : public AbstrPoly2GridOperator
 		bool isAllDefined = polyAttr->HasUndefinedValues();
 
 		// TODO G8: Avoid double work of polygons than intersect with multiple tiles: when going throuh the list, take neighbouring tiles into account such as with an ordered heap
-/*
+
 		parallel_tileloop(resObj->GetTiledRangeData()->GetNrTiles(), [resObj, resDomain, polyAttr, boxesArray](tile_id tg)
 			{
 				poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, tg);
@@ -637,13 +637,14 @@ struct Poly2GridOperator : public AbstrPoly2GridOperator
 				polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
 			}
 		);
-*/
+/*
 		poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, no_tile);
 
 		poly2grid::Dispatcher disp;
 		disp.m_Data = &dispatcherTileData;
 
 		polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
+*/
 	}
 };
 
