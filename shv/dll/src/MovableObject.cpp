@@ -315,7 +315,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 		)
 	);
 
-	CompatibleDcHandle memDC(NULL, dv ? dv->GetDefaultFont(DF_SMALL, subPixelFactor) : NULL);
+	CompatibleDcHandle memDC(NULL, dv ? dv->GetDefaultFont(FontSizeCategory::SMALL, subPixelFactor) : NULL);
 
 	GdiObjectSelector<HBITMAP> selectBitmap(memDC, hBitmap);
 

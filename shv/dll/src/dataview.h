@@ -215,7 +215,7 @@ public:
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND  GetHWnd()        const { return m_hWnd; }
 
-	HFONT   GetDefaultFont(DefaultFontID fid, Float64 subPixelFactor) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor) const;
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
@@ -311,7 +311,7 @@ protected:
 	Region                        m_SelCaret;
 	GdiHandle<HBRUSH>             m_SelBrush, m_BrdBrush;
 
-	mutable std::map<Float64, GdiHandle<HFONT> > m_DefaultFonts[DF_COUNT];
+	mutable std::map<Float64, GdiHandle<HFONT> > m_DefaultFonts[static_cast<int>(FontSizeCategory::COUNT)];
 
 	StatusTextCaller              m_StatusTextCaller;
 

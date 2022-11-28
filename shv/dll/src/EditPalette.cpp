@@ -222,7 +222,6 @@ void EditPaletteControl::Init()
 	auto dv = GetDataView().lock();
 	if (dv)
 		SetClientSize(TPoint(dv->ViewRect().Size()));
-	//	UpdateLayout();
 }
 
 void EditPaletteControl::ProcessSize(TPoint viewClientSize)
@@ -744,7 +743,6 @@ const AbstrDataItem* DMS_CONV SHV_EditPaletteView_Create(TreeItem* desktopItem, 
 			editPaletteView->SetContents(make_shared_gr<EditPaletteControl>(editPaletteView.get())(classAttr, themeAttr, themeUnit), SM_Save);
 			const AbstrDataItem* adi = editPaletteView->GetEditPaletteControl()->GetPaletteControl()->GetBreakAttr();
 			Keep(editPaletteView);
-
 			return adi;
 		}
 

@@ -229,19 +229,19 @@ enum ToolButtonID {
 };
 
 //----------------------------------------------------------------------
-// enum DefaultFontID
+// enum class FontSizeCategory
 //----------------------------------------------------------------------
 
-enum DefaultFontID
+enum class FontSizeCategory
 {
-	DF_SMALL,
-	DF_MEDIUM,
-	DF_LARGE,
-	DF_COUNT
+	SMALL,
+	MEDIUM,
+	LARGE,
+	COUNT
 };
 
-CharPtr GetDefaultFontName(DefaultFontID fid);
-UInt32  GetDefaultFontHeightDIP(DefaultFontID fid); // in Device Independent Pixels, which are assumed to be 1/96th of an inch.
+CharPtr GetDefaultFontName(FontSizeCategory fid);
+UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent Pixels, which are assumed to be 1/96th of an inch.
 
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 

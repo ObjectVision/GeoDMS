@@ -151,7 +151,7 @@ CaretHider::~CaretHider()
 //----------------------------------------------------------------------
 
 ClippedDC::ClippedDC(DataView* dv, const Region& rgn)
-	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(DF_SMALL, GetDesktopDIP2pixFactor()) )
+	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()) )
 {
 	m_Empty = ( SelectClipRgn(GetHDC(), rgn.GetHandle() ) == NULLREGION );
 }

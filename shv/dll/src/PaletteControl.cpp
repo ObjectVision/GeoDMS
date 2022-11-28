@@ -396,7 +396,7 @@ void PaletteControl::CreateColumnsImpl()
 
 void PaletteControl::DoUpdateView()
 {
-	SetRowHeight(GetDefaultFontHeightDIP( GetDefaultFontID() ) );
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) );
 	base_type::DoUpdateView();
 }
 

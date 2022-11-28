@@ -602,7 +602,7 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 	);
 
 	GdiObjectSelector<HFONT> fontSelector(GetDC(),
-		m_ViewPtr->GetDefaultFont(lc->GetDefaultFontID(), GetSubPixelFactor())
+		m_ViewPtr->GetDefaultFont(lc->GetFontSizeCategory(), GetSubPixelFactor())
 	);
 
 	return base_type::DoLayerControlBase(lc);

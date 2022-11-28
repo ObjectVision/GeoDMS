@@ -101,7 +101,7 @@ void LayerInfoControl::ExplainValue()
 LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSetElem)
 	:	base_type(owner)
 	,	m_LayerElem   (layerSetElem)
-	,	m_FID(DF_SMALL)
+	,	m_FID(FontSizeCategory::SMALL)
 	,	m_connDetailsVisibilityChanged(layerSetElem->m_cmdDetailsVisibilityChanged.connect([this]() { this->OnDetailsVisibilityChanged();}))
 	,	m_connVisibilityChanged(layerSetElem->m_cmdVisibilityChanged.connect([this]() { this->InvalidateDraw();}))
 {
@@ -117,7 +117,7 @@ void LayerControlBase::Init()
 	InsertEntry(m_HeaderControl.get());
 }
 
-void LayerControlBase::SetDefaultFontID(DefaultFontID fid)
+void LayerControlBase::SetFontSizeCategory(FontSizeCategory fid)
 {
 	if (m_FID == fid)
 		return;
@@ -133,30 +133,30 @@ ScalableObject* LayerControlBase::GetLayerSetElem() const
 
 struct SetFontCmd : public AbstrCmd
 {
-	SetFontCmd(DefaultFontID fid) : m_FID(fid) {}
+	SetFontCmd(FontSizeCategory fid) : m_FID(fid) {}
 
 	GraphVisitState DoLayerControlBase(LayerControlBase* lc) override
 	{
 		dms_assert(lc);
-		lc->SetDefaultFontID(m_FID);
+		lc->SetFontSizeCategory(m_FID);
 		return GVS_Handled;
 	}
 private:
-	DefaultFontID m_FID;
+	FontSizeCategory m_FID;
 };
 
 
 void FillFontMenu(MenuData& md, LayerControlBase* self)
 {
 	SubMenu subMenu(md, mySSPrintF("Set %s &Font", self->GetDynamicClass()->GetName().c_str()));
-	for (UInt32 i = 0; i != DF_COUNT; ++i)
+	for (UInt32 i = 0; i != static_cast<int>(FontSizeCategory::COUNT); ++i)
 	{
 		md.push_back(
 			MenuItem(
-				SharedStr(GetDefaultFontName(DefaultFontID(i))),
-				new SetFontCmd(DefaultFontID(i)),
+				SharedStr(GetDefaultFontName(FontSizeCategory(i))),
+				new SetFontCmd(FontSizeCategory(i)),
 				self,
-				(DefaultFontID(i) == self->GetDefaultFontID()) ? MFS_CHECKED : 0
+				(FontSizeCategory(i) == self->GetFontSizeCategory()) ? MFS_CHECKED : 0
 			)
 		);
 	}
@@ -552,14 +552,14 @@ void LayerControl::SetPaletteControl(std::shared_ptr<PaletteControl> pc)
 	m_PaletteControl = pc;
 }
 
-void LayerControl::SetDefaultFontID(DefaultFontID fid)
+void LayerControl::SetFontSizeCategory(FontSizeCategory fid)
 {
-	if (GetDefaultFontID() == fid)
+	if (GetFontSizeCategory() == fid)
 		return;
 
-	base_type::SetDefaultFontID(fid);
+	base_type::SetFontSizeCategory(fid);
 
-	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetDefaultFontID()));
+	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
 	m_InfoControl->InvalidateDraw();
 	if (m_PaletteControl)
 		m_PaletteControl->InvalidateView();
@@ -690,7 +690,7 @@ void LayerControlSet::DoUpdateView()
 			// make new LayerControl for elem
 			lc = elem->CreateControl(this);
 			dms_assert(lc->GetOwner().lock().get() == this);
-			lc->SetDefaultFontID( GetDefaultFontID() );
+			lc->SetFontSizeCategory( GetFontSizeCategory() );
 
 			InsertEntryAt(lc.get(), i);
 		}
@@ -781,14 +781,14 @@ LayerControlSet* LayerControlGroup::GetControlSet()
 	return debug_cast<LayerControlSet*>(GetEntry(1));
 }
 
-void LayerControlGroup::SetDefaultFontID(DefaultFontID fid)
+void LayerControlGroup::SetFontSizeCategory(FontSizeCategory fid)
 {
-	base_type::SetDefaultFontID(fid);
+	base_type::SetFontSizeCategory(fid);
 
 	LayerControlSet* contents = m_Contents.get();
 	SizeT n = contents->NrEntries();
 	for (UInt32 i = 0; i!=n; ++i)
-		debug_valcast<LayerControlBase*>(contents->GetEntry(i))->SetDefaultFontID(fid);
+		debug_valcast<LayerControlBase*>(contents->GetEntry(i))->SetFontSizeCategory(fid);
 }
 
 void LayerControlGroup::OnDetailsVisibilityChanged()

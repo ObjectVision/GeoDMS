@@ -691,12 +691,12 @@ COLORREF GraphicObject::GetBkColor() const
 	return GetSysColor(COLOR_BTNFACE);
 }
 
-DefaultFontID GraphicObject::GetDefaultFontID() const
+FontSizeCategory GraphicObject::GetFontSizeCategory() const
 {
 	auto owner = GetOwner().lock();
 	if (owner)
-		return owner->GetDefaultFontID();
-	return DF_SMALL;
+		return owner->GetFontSizeCategory();
+	return FontSizeCategory::SMALL;
 }
 
 bool GraphicObject::MouseEvent(MouseEventDispatcher& med)

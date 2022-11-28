@@ -112,7 +112,7 @@ struct CounterStacks;
 struct EventInfo;
 
 enum AspectNr;
-enum DefaultFontID;
+enum class FontSizeCategory;
 enum EventID;
 enum ShvSyncMode { SM_Load, SM_Save };
 enum ToolButtonID;

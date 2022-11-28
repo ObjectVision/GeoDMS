@@ -80,8 +80,8 @@ public:
 
 	ScalableObject* GetLayerSetElem() const;
 
-	virtual void SetDefaultFontID(DefaultFontID fid);
-	DefaultFontID GetDefaultFontID() const override { return m_FID; }
+	virtual void SetFontSizeCategory(FontSizeCategory fid);
+	FontSizeCategory GetFontSizeCategory() const override { return m_FID; }
 
 //	override virtuals of GraphicObject
   	void SetActive(bool newState) override;
@@ -103,7 +103,7 @@ private:
 
 private:
 	ScalableObject*           m_LayerElem; // ownership must be guarded by derived class that sees the complete type
-	DefaultFontID             m_FID;
+	FontSizeCategory          m_FID;
 
 	std::shared_ptr<LayerHeaderControl>  m_HeaderControl;
 
@@ -146,7 +146,7 @@ protected:
 private:
 	void OnFocusElemChanged(SizeT selectedID, SizeT oldSelectedID);
 	void OnDetailsVisibilityChanged() override;
-	void SetDefaultFontID(DefaultFontID fid) override;
+	void SetFontSizeCategory(FontSizeCategory fid) override;
 
 private:
 	std::shared_ptr<GraphicLayer> m_Layer;
@@ -214,7 +214,7 @@ public:
 
 private:
 	void OnDetailsVisibilityChanged() override;
-	void SetDefaultFontID(DefaultFontID fid) override;
+	void SetFontSizeCategory(FontSizeCategory fid) override;
 
 private:
 	const LayerControlSet* GetConstControlSet() const;

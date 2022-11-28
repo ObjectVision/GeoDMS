@@ -202,7 +202,7 @@ public:
 //	define new virtuals for display of GraphicObjects
 	virtual void DrawBackground(const GraphDrawer& d) const;
 	virtual COLORREF GetBkColor() const;
-	virtual DefaultFontID GetDefaultFontID() const;
+	virtual FontSizeCategory GetFontSizeCategory() const;
 
 	virtual bool Draw(GraphDrawer& d) const;
 	virtual bool MouseEvent(MouseEventDispatcher& med);

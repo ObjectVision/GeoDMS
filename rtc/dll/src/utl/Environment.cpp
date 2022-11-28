@@ -522,11 +522,12 @@ RegDWordAttr s_RegDWordAttrs[] =
 
 extern "C" RTC_CALL UInt32 RTC_GetRegDWord(RegDWordEnum i)
 {
-	dms_assert(UInt32(i) < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	auto ui = UInt32(i);
+	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 
 	leveled_critical_section::scoped_lock lock(s_RegAccess);
 
-	RegDWordAttr& regAttr = s_RegDWordAttrs[UInt32(i)];
+	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	if (!regAttr.wasRead)
 	{
 		regAttr.wasRead = true;
@@ -555,10 +556,11 @@ exit:
 
 extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
 {
-	dms_assert(UInt32(i) < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	auto ui = UInt32(i);
+	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
 
 	leveled_critical_section::scoped_lock lock(s_RegAccess);
-	RegDWordAttr& regAttr = s_RegDWordAttrs[UInt32(i)];
+	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	regAttr.wasRead = true;
 	regAttr.value   = dw;
 }
