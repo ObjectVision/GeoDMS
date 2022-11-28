@@ -59,7 +59,7 @@ void WriteFactor(FormattedOutStream& str, Float64 factor)
 	const Float64 giga = kilo * mega; // 10^09
 	const Float64 tera = mega * mega; // 10^12
 	const Float64 peta = giga * mega; // 10^15
-	const Float64 exa  = tera * mega; // 10^15
+	const Float64 exa  = tera * mega; // 10^18
 	const Float64 zetta = mega * peta; // 10^21
 	const Float64 yotta = giga * peta; // 10^24
 	const Float64 ronna  = tera * peta; // 10^27
