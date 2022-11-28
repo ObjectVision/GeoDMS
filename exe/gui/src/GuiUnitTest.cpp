@@ -11,29 +11,59 @@ GuiUnitTest::GuiUnitTest()
 	m_CurrStep = m_Steps.begin();
 }
 
-void GuiUnitTest::LoadStepsFromScriptFile(std::string_view script_file_name)
+StepType GuiUnitTest::InterpretStepType(std::string_view sv)
 {
-	std::ifstream infile(script_file_name.data());
-	std::string line;
-	while (std::getline(infile, line))
-	{
-		StepDescription step;
-		auto line_parts = DivideTreeItemFullNameIntoTreeItemNames(line, " ");
-		if (line_parts.size()>=1)
-			step.step_type = InterpretStepType(line_parts.at(0));
-		if (line_parts.size() >= 2 && step.step_type == StepType::sleep)
-			step.wait_time = std::stoi(line_parts.at(1));
-		else if (line_parts.size() >= 2)
-			step.step_sub_type = InterpretStepSubType(line_parts.at(1));
-		if (line_parts.size() >= 3)
-			step.value = line_parts.at(2);
+	if (sv.compare("sleep") == 0)
+		return StepType::sleep;
+	else if (sv.compare("open") == 0)
+		return StepType::open;
+	else if (sv.compare("close") == 0)
+		return StepType::close;
+	else if (sv.compare("reopen") == 0)
+		return StepType::reopen;
+	else if (sv.compare("move") == 0)
+		return StepType::move;
+	else if (sv.compare("dock") == 0)
+		return StepType::dock;
+	else if (sv.compare("expand") == 0)
+		return StepType::expand;
+	else if (sv.compare("set") == 0)
+		return StepType::set;
+	else if (sv.compare("check") == 0)
+		return StepType::check;
 
-		if (step.step_type != StepType::none && (step.wait_time || step.step_sub_type != StepSubType::none))
-			m_Steps.emplace_back(std::move(step));
-	}
+	return StepType::none;
+}
 
-
-	m_CurrStep = m_Steps.begin();
+StepSubType GuiUnitTest::InterpretStepSubType(std::string_view sv)
+{
+	if (sv.compare("edit_palette") == 0)
+		return StepSubType::edit_palette;
+	else if (sv.compare("active_window") == 0)
+		return StepSubType::active_window;
+	else if (sv.compare("current_item") == 0)
+		return StepSubType::current_item;
+	else if (sv.compare("config") == 0)
+		return StepSubType::config;
+	else if (sv.compare("map_view") == 0)
+		return StepSubType::map_view;
+	else if (sv.compare("table_view") == 0)
+		return StepSubType::table_view;
+	else if (sv.compare("default_view") == 0)
+		return StepSubType::default_view;
+	else if (sv.compare("focus_view") == 0)
+		return StepSubType::focus_view;
+	else if (sv.compare("treeview") == 0)
+		return StepSubType::treeview;
+	else if (sv.compare("toolbar") == 0)
+		return StepSubType::toolbar;
+	else if (sv.compare("eventlog") == 0)
+		return StepSubType::eventlog;
+	else if (sv.compare("detail_pages") == 0)
+		return StepSubType::detail_pages;
+	else if (sv.compare("current_item_bar") == 0)
+		return StepSubType::current_item_bar;
+	return StepSubType::none;
 }
 
 std::string StepTypeToString(StepType t)
@@ -76,6 +106,34 @@ std::string StepSubTypeToString(StepSubType t)
 	}
 }
 
+
+void GuiUnitTest::LoadStepsFromScriptFile(std::string_view script_file_name)
+{
+	std::ifstream infile(script_file_name.data());
+	std::string line;
+	while (std::getline(infile, line))
+	{
+		StepDescription step;
+		auto line_parts = DivideTreeItemFullNameIntoTreeItemNames(line, " ");
+		if (line_parts.size()>=1)
+			step.step_type = InterpretStepType(line_parts.at(0));
+		if (line_parts.size() >= 2 && step.step_type == StepType::sleep)
+			step.wait_time = std::stoi(line_parts.at(1));
+		else if (line_parts.size() >= 2)
+			step.step_sub_type = InterpretStepSubType(line_parts.at(1));
+		if (line_parts.size() >= 3)
+			step.value = line_parts.at(2);
+
+		if (step.step_type != StepType::none && (step.wait_time || step.step_sub_type != StepSubType::none))
+			m_Steps.emplace_back(std::move(step));
+	}
+
+
+	m_CurrStep = m_Steps.begin();
+}
+
+
+
 int GuiUnitTest::ProcessStep()
 {
 	if (m_CurrStep == m_Steps.end())
@@ -96,10 +154,10 @@ int GuiUnitTest::ProcessStep()
 	{
 		switch (m_CurrStep->step_sub_type)
 		{
-		case StepSubType::config:       m_State.configFilenameManager.Set(m_CurrStep->value); break;
-		case StepSubType::default_view: m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); break;
-		case StepSubType::table_view:   m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow); break;
-		case StepSubType::map_view:  	m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow); break;
+		case StepSubType::config:			m_State.configFilenameManager.Set(m_CurrStep->value); break;
+		case StepSubType::default_view:		m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); break;
+		case StepSubType::table_view:		m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow); break;
+		case StepSubType::map_view:  		m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow); break;
 		case StepSubType::treeview:			m_State.ShowTreeviewWindow    = true; break;
 		case StepSubType::toolbar:			m_State.ShowToolbar           = true; break;
 		case StepSubType::eventlog:			m_State.ShowEventLogWindow    = true; break;
@@ -155,15 +213,15 @@ int GuiUnitTest::ProcessStep()
 			if (!check_item)
 				m_State.return_value = 1; // failed unit test 
 		    else if (check_item != m_State.GetCurrentItem())
-				m_State.return_value = 1; // failed unit test 
+				m_State.return_value = 1;
 			unfound_part->Release(unfound_part);
 			break;
 		}
-		case StepSubType::treeview:			m_State.return_value = m_State.ShowTreeviewWindow != std::stoi(m_CurrStep->value); break; // TODO: continue implementation
-		case StepSubType::toolbar:			m_State.ShowToolbar = std::stoi(m_CurrStep->value); break;
-		case StepSubType::eventlog:			m_State.ShowEventLogWindow = std::stoi(m_CurrStep->value); break;
-		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = std::stoi(m_CurrStep->value); break;
-		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = std::stoi(m_CurrStep->value); break;
+		case StepSubType::treeview:			m_State.return_value = (int)m_State.ShowTreeviewWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break; // TODO: continue implementation
+		case StepSubType::toolbar:			m_State.ShowToolbar = (int)m_State.ShowToolbar != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
+		case StepSubType::eventlog:			m_State.ShowEventLogWindow = (int)m_State.ShowEventLogWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
+		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = (int)m_State.ShowDetailPagesWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
+		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = (int)m_State.ShowCurrentItemBar != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
 		}
 		break;
 	}
@@ -182,61 +240,6 @@ int GuiUnitTest::ProcessStep()
 	}
 	m_CurrStep->is_processed = true;
 	return 0;
-}
-
-StepType GuiUnitTest::InterpretStepType(std::string_view sv)
-{
-	if (sv.compare("sleep") == 0)
-		return StepType::sleep;
-	else if (sv.compare("open") == 0)
-		return StepType::open;
-	else if (sv.compare("close") == 0)
-		return StepType::close;
-	else if (sv.compare("reopen") == 0)
-		return StepType::reopen;
-	else if (sv.compare("move") == 0)
-		return StepType::move;
-	else if (sv.compare("dock") == 0)
-		return StepType::dock;
-	else if (sv.compare("expand") == 0)
-		return StepType::expand;
-	else if (sv.compare("set") == 0)
-		return StepType::set;
-	else if (sv.compare("check") == 0)
-		return StepType::check;
-
-	return StepType::none;
-}
-
-StepSubType GuiUnitTest::InterpretStepSubType(std::string_view sv)
-{
-	if (sv.compare("edit_palette") == 0)
-		return StepSubType::edit_palette;
-	else if (sv.compare("active_window") == 0)
-		return StepSubType::active_window;
-	else if (sv.compare("current_item") == 0)
-		return StepSubType::current_item;
-	else if (sv.compare("config") == 0)
-		return StepSubType::config;
-	else if (sv.compare("map_view") == 0)
-		return StepSubType::map_view;
-	else if (sv.compare("table_view") == 0)
-		return StepSubType::table_view;
-	else if (sv.compare("default_view") == 0)
-		return StepSubType::default_view;
-	else if (sv.compare("focus_view") == 0)
-		return StepSubType::focus_view;
-	else if (sv.compare("treeview") == 0)
-		return StepSubType::treeview;
-	else if (sv.compare("toolbar") == 0)
-		return StepSubType::toolbar;
-	else if (sv.compare("eventlog") == 0)
-		return StepSubType::eventlog;
-	else if (sv.compare("detail_pages") == 0)
-		return StepSubType::detail_pages;
-	else if (sv.compare("current_item_bar") == 0)
-		return StepSubType::current_item_bar;
-	return StepSubType::none;
 }
 
 void GuiUnitTest::Step()
