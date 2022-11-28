@@ -123,6 +123,16 @@ namespace token {
 	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
 	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");
+
+	TIC_CALL TokenID select_unit = GetTokenID_st("select_unit");
+	TIC_CALL TokenID select_orgrel = GetTokenID_st("select_orgrel");
+	TIC_CALL TokenID select_unit_uint8 = GetTokenID_st("select_unit_uint8");
+	TIC_CALL TokenID select_orgrel_uint8 = GetTokenID_st("select_orgrel_uint8");
+	TIC_CALL TokenID select_unit_uint16 = GetTokenID_st("select_unit_uint16");
+	TIC_CALL TokenID select_orgrel_uint16 = GetTokenID_st("select_orgrel_uint16");
+	TIC_CALL TokenID select_unit_uint32 = GetTokenID_st("select_unit_uint32");
+	TIC_CALL TokenID select_orgrel_uint32 = GetTokenID_st("select_orgrel_uint32");
+
 	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
 	TIC_CALL TokenID select_many = GetTokenID_st("select_many");
 	TIC_CALL TokenID select_afew = GetTokenID_st("select_afew");

@@ -92,6 +92,14 @@ namespace token {
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
 	extern TIC_CALL TokenID select_data;
+	extern TIC_CALL TokenID select_unit;
+	extern TIC_CALL TokenID select_orgrel;
+	extern TIC_CALL TokenID select_unit_uint8;
+	extern TIC_CALL TokenID select_orgrel_uint8;
+	extern TIC_CALL TokenID select_unit_uint16;
+	extern TIC_CALL TokenID select_orgrel_uint16;
+	extern TIC_CALL TokenID select_unit_uint32;
+	extern TIC_CALL TokenID select_orgrel_uint32;
 	extern TIC_CALL TokenID select_many;
 	extern TIC_CALL TokenID select_afew;
 	extern TIC_CALL TokenID select_many_uint8;
