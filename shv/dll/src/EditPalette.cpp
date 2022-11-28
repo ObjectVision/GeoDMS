@@ -191,7 +191,6 @@ bool EditPaletteControl::CanContain(const AbstrDataItem* attr) const
 
 void EditPaletteControl::Init()
 {
-	SetClientSize(TPoint(500, 100));
 	m_txtDomain    = std::make_shared<TextControl>(this, DEF_TEXT_PIX_WIDTH / 2);
 	m_txtNrClasses = std::make_shared<TextControl>(this, DEF_TEXT_PIX_WIDTH / 2);
 	m_numNrClasses = std::make_shared<NumericEditControl>(this);
@@ -219,7 +218,11 @@ void EditPaletteControl::Init()
 	InsertEntry(m_Line1.get());
 	InsertEntry(m_TableView.get());
 	InsertEntry(m_Line2.get());
-//	UpdateLayout();
+
+	auto dv = GetDataView().lock();
+	if (dv)
+		SetClientSize(TPoint(dv->ViewRect().Size()));
+	//	UpdateLayout();
 }
 
 void EditPaletteControl::ProcessSize(TPoint viewClientSize)
@@ -741,6 +744,7 @@ const AbstrDataItem* DMS_CONV SHV_EditPaletteView_Create(TreeItem* desktopItem, 
 			editPaletteView->SetContents(make_shared_gr<EditPaletteControl>(editPaletteView.get())(classAttr, themeAttr, themeUnit), SM_Save);
 			const AbstrDataItem* adi = editPaletteView->GetEditPaletteControl()->GetPaletteControl()->GetBreakAttr();
 			Keep(editPaletteView);
+
 			return adi;
 		}
 
