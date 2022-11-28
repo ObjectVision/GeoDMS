@@ -995,7 +995,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 #include "SupplCache.h"
 #include "TreeItemProps.h"
 
-BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
+TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 
