@@ -1122,25 +1122,34 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )
 		{
-			if (!IgnoreActivation())
-				GenerateValueInfo();
-
-			if (GetEnabledTheme(AN_LabelText))
-				OnKeyDown(VK_F2);
-			else if ( GetEnabledTheme(AN_LabelBackColor) )
+			if ( GetEnabledTheme(AN_LabelBackColor) )
 			{
 				if (IsEditable(AN_LabelBackColor))
+				{
 					SelectBrushColor();
-				else
-					MessageBeep(-1);
+					return true;
+				}
 			}
 			else if (GetEnabledTheme(AN_LabelTextColor))
 			{
 				if (IsEditable(AN_LabelTextColor))
+				{
 					SelectPenColor();
-				else
-					MessageBeep(-1);
+					return true;
+				}
 			}
+			else if (GetEnabledTheme(AN_LabelText))
+			{
+				if (IsEditable(AN_LabelTextColor))
+				{
+					OnKeyDown(VK_F2);
+					return true;
+				}
+			}
+			if (!IgnoreActivation())
+				GenerateValueInfo();
+			else
+				MessageBeep(-1);
 		}
 		return true;  // don't continue processing LBUTTONDBLCLK
 	}
