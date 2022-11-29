@@ -51,6 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define	WRITE_ONLY_SM_NAME      "NonReadOnlyStorageManagers"
 #define	ALL_SM_NAME             "AllStorageManagers"
 #define EXPR_NAME               "Expr"
+#define CALCRULE_NAME           "CalcRule"
 #define DESCR_NAME              "Descr"
 #define ICHECK_NAME             "IntegrityCheck"
 #define LABEL_NAME              "Label"

@@ -195,9 +195,12 @@ namespace { // local defs
 	class ExprPropDef: public PropDef<TreeItem, SharedStr>
 	{
 	public:
-		ExprPropDef()
-			:	PropDef<TreeItem, SharedStr>(EXPR_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, chg_mode::invalidate, false, true, true)
-		{}
+		ExprPropDef(bool depreciatedName)
+			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, chg_mode::invalidate, false, true, true)
+		{
+			if (depreciatedName)
+				SetDepreciated();
+		}
 		// override base class
 		ApiType GetValue(const TreeItem* ti) const override 
 		{
@@ -668,7 +671,8 @@ namespace { // local defs
 namespace {
 	static NamePropDef namePropDef;
 	static MF_RoPropDef<TreeItem, SharedStr> fullNameProp(FULLNAME_NAME, &TreeItem::GetFullName);
-	static ExprPropDef exprPropDef;
+	static ExprPropDef depreciatedExprPropDef(true);
+	static ExprPropDef calcRulePropDef(false);
 	static DisableStoragePropDef disableStoragePropDef;
 	static KeepDataPropDef keepDataPropDef;
 	static FreeDataPropDef freeDataPropDef;
@@ -735,7 +739,7 @@ namespace {
 
 }
 
-PropDef<TreeItem, SharedStr>* exprPropDefPtr           = &exprPropDef;
+PropDef<TreeItem, SharedStr>* calcRulePropDefPtr       = &calcRulePropDef;
 PropDef<TreeItem, SharedStr>* descrPropDefPtr          = &descrPropDef;
 PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr = &integrityCheckPropDef;
 PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr  = &explicitSupplPropDef;

@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 using PropBool = Bool;
 
-TIC_CALL extern PropDef<TreeItem, SharedStr>* exprPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* calcRulePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* descrPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;

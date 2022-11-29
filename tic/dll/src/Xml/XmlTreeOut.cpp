@@ -178,7 +178,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	dms_assert(IsMainThread());
 	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
 
-	xmlTable.NameValueRow("ElementType", unit->GetValueType()->GetName().c_str());
+	xmlTable.NameValueRow("ValueType", unit->GetValueType()->GetName().c_str());
 
 	if (unit->InTemplate())
 		return false;
@@ -609,7 +609,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			if (!result.empty())
 				xmlTable.NameValueRow(STORAGETYPE_NAME, result.c_str());
 
-			xmlTable.NameValueRow("ReadOnly", AsString(readOnly).c_str());
+			xmlTable.NameValueRow("AccessType", readOnly ? "ReadOnly" : "ReadWrite");
 
 			result = TreeItemPropertyValue(self, sqlStringPropDefPtr);
 			if (showAll || !result.empty())
@@ -708,6 +708,8 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
 			if (!showAll && !pd->HasNonDefaultValue(self))
+				continue;
+			if (pd->IsDepreciated())
 				continue;
 			result = pd->GetValueAsSharedStr(self);
 		}
@@ -1044,7 +1046,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa,
 	FormattedOutStream fout(&fileOut, FormattingFlags::None);
 	fout << commentedHeader;
 
-	OwningPtr<OutStreamBase> xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", exprPropDefPtr);
+	OwningPtr<OutStreamBase> xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", calcRulePropDefPtr);
 	DMS_TreeItem_XML_Dump(self, xmlOutStr);
 }
 
