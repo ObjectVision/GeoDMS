@@ -51,23 +51,11 @@ GuiMainComponent::~GuiMainComponent()
 {
     m_View.CloseAll();
 
-    //m_ItemsHolder.clear(); 
-    //m_State.clear();
+    //m_ItemsHolder.clear();
+    m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
-
-/*int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this function require views to be modifyable ?
-{
-    int ind = 0;
-    for (auto& view : views)
-    {
-        if (!view.IsPopulated())
-            return ind;
-        ind++;
-    }
-    return ind;
-}*/
 
 std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
 {
