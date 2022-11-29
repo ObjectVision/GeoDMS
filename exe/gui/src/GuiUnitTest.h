@@ -56,7 +56,7 @@ class GuiUnitTest : GuiBaseComponent
 {
 public:
 	GuiUnitTest();
-	int ProcessStep();
+	int ProcessStep(GuiState& state);
 	void Step();
 	void LoadStepsFromScriptFile(std::string_view script_file_name);
 
@@ -65,5 +65,4 @@ private:
 	StepSubType InterpretStepSubType(std::string_view sv);
 	std::list<StepDescription>	         m_Steps;
 	std::list<StepDescription>::iterator m_CurrStep;
-	GuiState			                 m_State;
 };

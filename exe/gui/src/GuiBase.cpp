@@ -13,42 +13,16 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-int GuiState::return_value = 0;
-bool GuiState::ShowDemoWindow			    = false; 
-bool GuiState::ShowOptionsWindow		    = false;
-bool GuiState::ShowDetailPagesOptionsWindow = false;
-bool GuiState::ShowEventLogOptionsWindow    = false;
-bool GuiState::ShowOpenFileWindow		    = false;
-bool GuiState::ShowConfigSource			    = false;
-bool GuiState::ShowTreeviewWindow = true;// = false; // true
-bool GuiState::ShowDetailPagesWindow = true; // true
-bool GuiState::ShowEventLogWindow = true; // true
-bool GuiState::ShowToolbar = true;
-bool GuiState::ShowStatusBar = true;
-bool GuiState::ShowCurrentItemBar = true; // true
-bool GuiState::MapViewIsActive = false;
-bool GuiState::TableViewIsActive		    = false;
-TreeItem* GuiState::m_Root = nullptr;
-TreeItem* GuiState::m_CurrentItem = nullptr;
-
-StringStateManager GuiState::configFilenameManager;
-StringStateManager GuiState::errorDialogMessage;
-StringStateManager GuiState::contextMessage;
-
-std::pair<std::string, std::string> GuiState::m_JumpLetter;
-
-GuiSparseTree GuiState::m_SparseTree;
-OptionsEventLog GuiState::m_OptionsEventLog;
-
-EventQueue GuiState::MainEvents;
-EventQueue GuiState::CurrentItemBarEvents;
-EventQueue GuiState::TreeViewEvents;
-EventQueue GuiState::TableViewEvents;
-EventQueue GuiState::MapViewEvents;
-EventQueue GuiState::DetailPagesEvents;
-EventQueue GuiState::GuiMenuFileComponentEvents;
-
-TreeItemHistory GuiState::TreeItemHistoryList;
+GuiEventQueues* GuiEventQueues::instance = 0;
+GuiEventQueues* GuiEventQueues::getInstance()
+{
+    if (!instance) {
+        instance = new GuiEventQueues();
+        return instance;
+    }
+    else
+        return instance;
+}
 
 TreeItemHistory::TreeItemHistory()
 {
@@ -109,11 +83,18 @@ std::list<TreeItem*>::iterator TreeItemHistory::GetEndIterator()
     return m_History.end();
 }
 
-void GuiState::clear()
+auto GuiState::clear() -> void
 {
-    if (m_Root && !(m_CurrentItem == m_Root))
+    m_CurrentItem.reset();
+    if (m_Root.has_ptr())
         m_Root->EnableAutoDelete();
-    m_CurrentItem = nullptr;
+
+    m_Root.reset();   
+}
+
+GuiState::~GuiState()
+{
+    clear();
 }
 
 bool GuiTreeItemsHolder::contains(TreeItem* item)
@@ -154,14 +135,14 @@ GuiBaseComponent::GuiBaseComponent(){}
 GuiBaseComponent::~GuiBaseComponent(){}
 void GuiBaseComponent::Update(){}
 
-std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator)
+auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator) -> std::vector<std::string>
 {
     std::vector<std::string> SeparatedTreeItemFullName;
     boost::split(SeparatedTreeItemFullName, fullname, boost::is_any_of(separator), boost::token_compress_on);
     return SeparatedTreeItemFullName;
 }
 
-std::string GetExeFilePath()
+auto GetExeFilePath() -> std::string
 {
     wchar_t buffer[MAX_PATH];
     GetModuleFileName(NULL, buffer, MAX_PATH);

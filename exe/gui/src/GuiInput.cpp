@@ -1,5 +1,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
+#include "ser/AsString.h"
+#include "TicInterface.h"
 #include "GuiInput.h"
 
 static ImGuiKey GLFWKeyToImGuiKey(int key)
@@ -154,11 +156,13 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     if (!(action == GLFW_PRESS))
         return;
 
+    auto event_queues = GuiEventQueues::getInstance();
+
     // unmodified key press for step to in TreeView
     auto treeview_window = ImGui::FindWindowByName("Treeview");
     if (ImGui::GetCurrentContext()->WindowsFocusOrder.back() == treeview_window && key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
     {
-        m_State.m_JumpLetter = GLFWKeyToLetter(key);
+        //m_State.m_JumpLetter = GLFWKeyToLetter(key); // TODO: reimplement
     }
 
     switch (key)
@@ -171,7 +175,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             //m_State.TableViewIsActive = true;
             //m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
             //m_State.TableViewEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
-            m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+            event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
         }
 
         return;
@@ -180,7 +184,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-E
         {
-            m_State.MainEvents.Add(GuiEvents::OpenConfigSource);
+            event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
         }
         return;
     }
@@ -188,7 +192,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-M
         {
-            m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
+            event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
             //m_State.ShowMapviewWindow = true;
             //m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
             //m_State.MapViewEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -197,18 +201,18 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_O:
     {
-        if (mods == GLFW_MOD_SHIFT)   // SHIFT-O
-            m_State.ShowOpenFileWindow = true;
-        else if (mods == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // CTRL-ALT-O
-            m_State.ShowOptionsWindow = true;
+        //if (mods == GLFW_MOD_SHIFT)   // SHIFT-O
+        //    m_State.ShowOpenFileWindow = true;
+        //else if (mods == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // CTRL-ALT-O
+        //    m_State.ShowOptionsWindow = true;
         return;
     }
     case GLFW_KEY_R:
     {
         if (mods == GLFW_MOD_ALT)
         {
-            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
-            m_State.GuiMenuFileComponentEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            event_queues->GuiMenuFileComponentEvents.Add(GuiEvents::ReopenCurrentConfiguration);
         }
 
         return;
@@ -216,33 +220,55 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     case GLFW_KEY_T:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-T
-            m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
+            event_queues->MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
         return;
     }
 
     case GLFW_KEY_0:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-0
-            m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+            event_queues->MainEvents.Add(GuiEvents::ToggleShowTreeViewWindow);
         return;
     }
     case GLFW_KEY_1:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-1
-            m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+            event_queues->MainEvents.Add(GuiEvents::ToggleShowDetailPagesWindow);
         return;
     }
     case GLFW_KEY_2:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-2
-            m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+            event_queues->MainEvents.Add(GuiEvents::ToggleShowEventLogWindow);
         return;
     }
     case GLFW_KEY_3:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-3
-            m_State.ShowToolbar = !m_State.ShowToolbar;
+            event_queues->MainEvents.Add(GuiEvents::ToggleShowToolbar);
         return;
+    }
+    case GLFW_KEY_F2:
+    {
+        // TODO: implement transitive shift-F2
+        //auto unfound_part = IString::Create("");
+        //auto item_error_source = DMS_TreeItem_GetErrorSource(m_State.GetCurrentItem(), &unfound_part);
+        //unfound_part->Release(unfound_part);
+        if (mods == GLFW_MOD_SHIFT)
+            event_queues->MainEvents.Add(GuiEvents::StepToRootErrorSource);
+        else
+            event_queues->MainEvents.Add(GuiEvents::StepToErrorSource);
+        return;
+        // 
+        //if (!item_error_source)
+        //    return;
+        
+        //m_State.SetCurrentItem(item_error_source);
+        //m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+        //m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
+        //m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+        //m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+    
     }
     }
 }

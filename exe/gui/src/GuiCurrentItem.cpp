@@ -9,7 +9,7 @@
 
 GuiCurrentItemComponent::GuiCurrentItemComponent()
 {
-    m_Buf.resize(1024);
+    m_Buf.resize(1024); // TODO: remove magic number
 }
 
 int TextCallBacka(ImGuiInputTextCallbackData* data)
@@ -26,15 +26,16 @@ int TextCallBacka(ImGuiInputTextCallbackData* data)
     return 1;
 }
 
-void GuiCurrentItemComponent::Update()
+void GuiCurrentItemComponent::Update(GuiState &state)
 {
+    auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::BeginMenuBar())
     {
-        if (m_State.CurrentItemBarEvents.HasEvents()) // new current item
+        if (event_queues->CurrentItemBarEvents.HasEvents()) // new current item
         {
-            m_State.CurrentItemBarEvents.Pop();
+            event_queues->CurrentItemBarEvents.Pop();
             m_Buf.assign(m_Buf.size(), char());
-            auto tmpPath = m_State.GetCurrentItem() ? m_State.GetCurrentItem()->GetFullName() : SharedStr("");
+            auto tmpPath = state.GetCurrentItem() ? state.GetCurrentItem()->GetFullName() : SharedStr("");
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
 
@@ -45,22 +46,22 @@ void GuiCurrentItemComponent::Update()
         const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
         if (ImGui::BeginCombo("##combo 1", combo_preview_value, flags))
         {
-            auto iterator = m_State.TreeItemHistoryList.GetEndIterator();
-            while (iterator != m_State.TreeItemHistoryList.GetBeginIterator())
+            auto iterator = state.TreeItemHistoryList.GetEndIterator();
+            while (iterator != state.TreeItemHistoryList.GetBeginIterator())
             {
                 std::advance(iterator, -1);
              
                 if (!*iterator)
                     break;
 
-                const bool is_selected = (iterator == m_State.TreeItemHistoryList.GetCurrentIterator());
+                const bool is_selected = (iterator == state.TreeItemHistoryList.GetCurrentIterator());
                 if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
                 {
-                    m_State.SetCurrentItem(*iterator);
-                    m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                    m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                    m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                    m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                    state.SetCurrentItem(*iterator);
+                    event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                 }
             }
 
@@ -70,18 +71,18 @@ void GuiCurrentItemComponent::Update()
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
         if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            if (m_State.GetRoot())
+            if (state.GetRoot())
             {
                 auto unfound_part = IString::Create("");
-                TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), reinterpret_cast<char*> (&m_Buf[0]), &unfound_part);
+                TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), reinterpret_cast<char*> (&m_Buf[0]), &unfound_part);
                 
                 //auto jumpItem = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(reinterpret_cast<char*> (&m_Buf[0])));
                 if (jumpItem)
                 {
-                    m_State.SetCurrentItem(jumpItem);
-                    m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                    m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                    m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                    state.SetCurrentItem(jumpItem);
+                    event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                 }
                 if (!unfound_part->empty())
                 {

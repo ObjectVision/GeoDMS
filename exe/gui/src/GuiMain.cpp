@@ -49,40 +49,13 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    //for (auto& view : m_TableViews)
-    //    view.Close(false);
-
-    //for (auto& view : m_MapViews)
-    //    view.Close(false);
-
-    //m_TableViews.clear();
-    //m_MapViews.clear();
-
-    /*for (auto& view : m_View.m_Views)
-    {
-        
-        SHV_DataView_Destroy(view.m_DataView);
-        view.m_ActiveItems.clear();
-    }*/
     m_View.CloseAll();
 
-    //m_ItemsHolder.clear(); 
+    //m_ItemsHolder.clear();
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
-
-/*int GetFreeViewIndex(std::vector<GuiView>& views) // CODE REVIEW: does this function require views to be modifyable ?
-{
-    int ind = 0;
-    for (auto& view : views)
-    {
-        if (!view.IsPopulated())
-            return ind;
-        ind++;
-    }
-    return ind;
-}*/
 
 std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
 {
@@ -130,7 +103,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
-            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
 
         break;
     }
@@ -141,10 +114,10 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
 
         break;
     }
@@ -158,12 +131,12 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         {
         case tvsMapView:
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         case tvsTableView:
         {
-            m_View.AddView(m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
             break;
         }
         }
@@ -189,13 +162,80 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
+    case GuiEvents::ToggleShowCurrentItemBar:
+    {
+        m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
+        break;
+    }
+    case GuiEvents::ToggleShowDetailPagesWindow:
+    {
+        m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+        break;
+    }
+    case GuiEvents::ToggleShowEventLogWindow:
+    {
+        m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+        break;
+    }
+    case GuiEvents::ToggleShowToolbar:
+    {
+        m_State.ShowToolbar = !m_State.ShowToolbar;
+        break;
+    }
+    case GuiEvents::ToggleShowTreeViewWindow:
+    {
+        m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+        break;
+    }
+    case GuiEvents::StepToErrorSource:
+    {
+        if (!m_State.GetCurrentItem())
+            break;
+        auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
+        if (item_error_source.first)
+        { 
+            m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
+            auto event_queues = GuiEventQueues::getInstance();
+            event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+            event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+            event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+            event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+        }
+        break;
+    }
+    case GuiEvents::StepToRootErrorSource:
+    {
+        if (!m_State.GetCurrentItem())
+            break;
+
+        TreeItem* prev_item_error_source = m_State.GetCurrentItem();
+        while (true)
+        {
+            auto item_error_source = TreeItem_GetErrorSource(prev_item_error_source);
+            if (!item_error_source.first)
+            {
+                if (prev_item_error_source)
+                {
+                    m_State.SetCurrentItem(prev_item_error_source);
+                    auto event_queues = GuiEventQueues::getInstance();
+                    event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                }
+                break;
+            }
+            prev_item_error_source = const_cast<TreeItem*>(item_error_source.first);
+        }
+
+        break;
+    }
     }
 }
 
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_View.CloseAll();
-    //m_ItemsHolder.clear();
     m_State.clear();
 }
 
@@ -230,7 +270,8 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         ImGui::SameLine();
         if (ImGui::Button("Reopen", ImVec2(120, 0)))
         {
-            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            auto event_queues = GuiEventQueues::getInstance();
+            event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
         }
 
 
@@ -253,6 +294,7 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 
     if (ImGui::BeginPopupModal("Changed source file(s)", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
+        auto event_queues = GuiEventQueues::getInstance();
         ImGui::Text(const_cast<char*>(changed_files_result.c_str()));
 
         if (ImGui::Button("Ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
@@ -260,7 +302,7 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
         ImGui::SameLine();
         if (ImGui::Button("Reopen", ImVec2(120, 0)))
         {
-            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -281,10 +323,11 @@ void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
     }
     if (new_current_item)
     {
+        auto event_queues = GuiEventQueues::getInstance();
         m_State.SetCurrentItem(new_current_item);
-        m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-        m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-        m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+        event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     }
 }
 
@@ -418,7 +461,7 @@ int GuiMainComponent::MainLoop()
                 UpdateFrameCounter = frames_to_update;
         }
 
-        if (m_GuiUnitTest.ProcessStep())
+        if (m_GuiUnitTest.ProcessStep(m_State))
             break;
 
         // Start the Dear ImGui frame
@@ -509,9 +552,7 @@ int GuiMainComponent::MainLoop()
 
 void GuiMainComponent::Update()
 {
-
-
-
+    auto event_queues = GuiEventQueues::getInstance();
     static bool opt_fullscreen = true;
     static bool opt_padding = true;
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
@@ -566,9 +607,9 @@ void GuiMainComponent::Update()
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
 
-    while (m_State.MainEvents.HasEvents()) // Handle MainEvents
+    while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
-        auto e = m_State.MainEvents.Pop();
+        auto e = event_queues->MainEvents.Pop();
         ProcessEvent(e);
 
         if (e == GuiEvents::ReopenCurrentConfiguration)
@@ -579,27 +620,27 @@ void GuiMainComponent::Update()
     }
 
     // Update all GeoDMSGui components
-    m_MenuComponent.Update(m_View);
+    m_MenuComponent.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
-        m_CurrentItemComponent.Update();
+        m_CurrentItemComponent.Update(m_State);
 
     if (m_State.ShowToolbar)
-        m_Toolbar.Update(&m_State.ShowToolbar, m_View);
+        m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
 
     if (m_State.ShowDetailPagesWindow)
-        m_DetailPages.Update(&m_State.ShowDetailPagesWindow);
+        m_DetailPages.Update(&m_State.ShowDetailPagesWindow, m_State);
 
     if (m_State.ShowTreeviewWindow)
-        m_TreeviewComponent.Update(&m_State.ShowTreeviewWindow);
+        m_TreeviewComponent.Update(&m_State.ShowTreeviewWindow, m_State);
 
     if (m_State.ShowEventLogWindow)
-        m_EventLog.Update(&m_State.ShowEventLogWindow);
+        m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);
 
     if (m_State.ShowStatusBar)
-        m_StatusBar.Update(&m_State.ShowStatusBar);
+        m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
-    m_View.UpdateAll();
+    m_View.UpdateAll(m_State);
 
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);

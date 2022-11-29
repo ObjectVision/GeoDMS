@@ -8,9 +8,9 @@
 class GuiInput : GuiBaseComponent
 {
 public:
+	GuiInput(){}
 	void ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
 
-
 private:
-	static GuiState m_State; // TODO: make std::shared_ptr
+	//static GuiState m_State; // TODO: make std::shared_ptr
 };

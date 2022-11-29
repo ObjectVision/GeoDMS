@@ -27,7 +27,7 @@
 #include "GuiMain.h"
 #include <windows.h>
 
-int StartGuiContext()
+int RunGui()
 {
     GuiMainComponent guiMainComponent;
     if (guiMainComponent.Init())
@@ -49,12 +49,10 @@ int WINAPI WinMain(
     int result = 0;
 
     DMS_Shv_Load();
-    DMS_CALL_BEGIN
 
     DBG_INIT_COUT;
-    DBG_START("Main", "", true);
-    result = StartGuiContext();
-    DMS_CALL_END
+    result = RunGui();
+
 
     return result;
 }

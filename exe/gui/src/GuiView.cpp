@@ -198,7 +198,7 @@ HWND GuiView::GetHWND()
     return m_ViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
-void GuiView::AddView(TreeItem* currentItem, ViewStyle vs, std::string name)
+void GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name)
 {
     if (!currentItem)
         return;
@@ -213,8 +213,8 @@ void GuiView::AddView(TreeItem* currentItem, ViewStyle vs, std::string name)
 
 
     UpdateParentWindow(m_Views.back());
-    InitWindow(m_State.GetCurrentItem());
-    SHV_DataView_AddItem(m_ViewIt->m_DataView, m_State.GetCurrentItem(), false);
+    InitWindow(state.GetCurrentItem());
+    SHV_DataView_AddItem(m_ViewIt->m_DataView, state.GetCurrentItem(), false);
     m_AddCurrentItem = true;
 }
 
@@ -271,14 +271,14 @@ bool GuiView::CloseWindowOnMimimumSize(View &view)
 
 GuiView::~GuiView(){}
 
-void GuiView::UpdateAll()
+void GuiView::UpdateAll(GuiState& state)
 {
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
         if (it->m_DoView)
         {
-            if (Update(*it) && m_ViewIt._Ptr && m_ViewIt != it)
+            if (Update(state, *it) && m_ViewIt._Ptr && m_ViewIt != it)
                 m_ViewIt = it;
 
             ++it;
@@ -294,8 +294,10 @@ void GuiView::UpdateAll()
     }
 }
 
-bool GuiView::Update(View& view)
+bool GuiView::Update(GuiState& state, View& view)
 {
+    auto event_queues = GuiEventQueues::getInstance();
+
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin( (view.m_DataView->GetCaption().c_str() + view.m_Name).c_str(), &view.m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize(view) || m_Views.empty())
@@ -311,11 +313,11 @@ bool GuiView::Update(View& view)
     switch (view.m_ViewStyle)
     {
     case ViewStyle::tvsMapView:
-        eventQueuePtr = &m_State.MapViewEvents;
+        eventQueuePtr = &event_queues->MapViewEvents;
         break;
     case ViewStyle::tvsTableContainer:
     case ViewStyle::tvsTableView:
-        eventQueuePtr = &m_State.TableViewEvents;
+        eventQueuePtr = &event_queues->TableViewEvents;
         break;
     default:
         break;
@@ -323,8 +325,8 @@ bool GuiView::Update(View& view)
     while (eventQueuePtr->HasEvents())
     {
         auto view_event = eventQueuePtr->Pop();
-        if (m_State.GetCurrentItem())
-            ProcessEvent(view_event, m_State.GetCurrentItem());
+        if (state.GetCurrentItem())
+            ProcessEvent(view_event, state.GetCurrentItem());
     }
 
     // drag-drop target
@@ -337,8 +339,8 @@ bool GuiView::Update(View& view)
             auto droppedTreeItem = reinterpret_cast<const char*>(payload->Data);
             if (droppedTreeItem)
             {
-                if (SHV_DataView_CanContain(view.m_DataView, m_State.GetCurrentItem()))
-                    SHV_DataView_AddItem(view.m_DataView, m_State.GetCurrentItem(), false);
+                if (SHV_DataView_CanContain(view.m_DataView, state.GetCurrentItem()))
+                    SHV_DataView_AddItem(view.m_DataView, state.GetCurrentItem(), false);
             }
         }
         ImGui::EndDragDropTarget();

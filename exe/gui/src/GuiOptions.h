@@ -10,7 +10,7 @@ public:
 	void Update(bool* p_open);
 
 private:
-	GuiState			      m_State;
+	//GuiState			      m_State;
 	// CODE REVIEW: waarom niet SharedStr of std::string ?
 	std::vector<char>		  m_LocalDataDirPath;
 	std::vector<char>		  m_SourceDataDirPath;
