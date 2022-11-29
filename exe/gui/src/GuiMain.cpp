@@ -189,7 +189,17 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::StepToErrorSource:
     {
-        // TODO: Implement
+        if (!m_State.GetCurrentItem())
+            break;
+        auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
+        if (item_error_source.first)
+        { 
+            auto event_queues = GuiEventQueues::getInstance();
+            event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+            event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+            event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+            event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+        }
         break;
     }
     case GuiEvents::StepToRootErrorSource:
