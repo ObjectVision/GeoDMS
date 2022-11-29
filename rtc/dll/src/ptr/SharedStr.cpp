@@ -177,6 +177,10 @@ void SharedStr::operator = (const TokenID& id)
 { 
 	assign(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str())); 
 }
+void SharedStr::operator = (const SA_ConstReference<char>& range)
+{ 
+	assign(SharedCharArray_Create(range.begin(), range.end())); 
+}
 
 void SharedStr::MakeUnique()
 {

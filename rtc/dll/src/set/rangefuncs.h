@@ -178,15 +178,17 @@ fast_move(Iter first, Iter last, Iter target)
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = std::iterator_traits< Iter>::value_type;
 
-	BOOST_MPL_ASSERT_NOT((is_bitvalue< T>));
-	BOOST_MPL_ASSERT_NOT((boost::has_trivial_assign< T >));
+	static_assert(! is_bitvalue_v<T>);
+	static_assert(! std::is_trivially_move_assignable_v< T >);
 #endif
 
 //	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
 
-	return swap_range(first, last, target);
+	for (; first != last; ++first, ++target)
+		*target = std::move(*first);
+	return target;
 }
 
 template <typename Iter, typename CIter> inline
@@ -195,8 +197,8 @@ fast_copy_backward(CIter first, CIter last, Iter target)
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	BOOST_MPL_ASSERT_NOT((is_bitvalue<typename std::iterator_traits<CIter>::value_type>));
-	BOOST_MPL_ASSERT_NOT((is_bitvalue<typename std::iterator_traits< Iter>::value_type>));
+	static_assert(!is_bitvalue_v<typename std::iterator_traits<CIter>::value_type>);
+	static_assert(!is_bitvalue_v<typename std::iterator_traits< Iter>::value_type>);
 #endif
 
 //	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES, BUT PROBLEM WITH INCOMPATIBLE ITERATORS
@@ -213,16 +215,18 @@ fast_move_backward(Iter first, Iter last, Iter targetEnd)
 	typedef typename std::iterator_traits< Iter>::value_type  T;
 
 	static_assert(!is_bitvalue_v< T>);
-	static_assert(!std::is_trivially_assignable_v< T, T>);
+	static_assert(!std::is_trivially_move_assignable_v< T, T>);
 #endif
 
 	dms_assert((targetEnd <= first) || (last <= targetEnd) ); // BEWARE OF OVERLAPPING RANGES
 
-	return swap_range_backward(first, last, targetEnd);
+	while (first != last)
+		*--targetEnd = std::move(*--last);
+	return targetEnd;
 }
 
 template <typename T> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, T>, T*>::type
+typename std::enable_if<std::is_trivially_copy_assignable_v<T>, T*>::type
 fast_copy(const T* first, const T* last, T* target)
 {
 	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
@@ -233,7 +237,7 @@ fast_copy(const T* first, const T* last, T* target)
 }
 
 template <typename T> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, T>, T*>::type
+typename std::enable_if<std::is_trivially_move_assignable_v<T>, T*>::type
 fast_move(T* first, T* last, T* target)
 {
 	return fast_copy(first, last, target);

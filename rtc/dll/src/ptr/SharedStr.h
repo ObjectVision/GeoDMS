@@ -226,6 +226,7 @@ public:
 	RTC_CALL void operator = (const TokenID& id);
 	void operator = (SharedCharArray* id) { assign(id); }
 	void operator = (SharedStr&& str) noexcept { swap(str); }
+	RTC_CALL void operator = (const SA_ConstReference<char>& range);
 
 	SharedStr& operator = (const SharedStr&) = default;
 
