@@ -179,7 +179,7 @@ bool GuiTreeViewComponent::CreateBranch(GuiState& state, TreeItem* branch)
             nextSubItem->UpdateMetaInfo();
         }     
 
-        ImGuiTreeNodeFlags useFlags = nextSubItem == state.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags; //nextSubItem == m_State.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags;
+        ImGuiTreeNodeFlags useFlags = nextSubItem == state.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags;
 
         // status color
         auto status = DMS_TreeItem_GetProgressState(nextSubItem);
@@ -204,6 +204,7 @@ bool GuiTreeViewComponent::CreateBranch(GuiState& state, TreeItem* branch)
 
         if (IsAncestor(nextSubItem, state.GetCurrentItem()))
             ImGui::SetNextItemOpen(true);
+
         auto treeItemIsOpen = ImGui::TreeNodeEx(nextSubItem->GetName().c_str(), nextSubItem->_GetFirstSubItem() ? useFlags : useFlags | ImGuiTreeNodeFlags_Leaf);
         
         // keyboard focus event

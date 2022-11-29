@@ -86,7 +86,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         if (!m_State.GetCurrentItem())
             return;
         
-        m_State.TreeItemHistoryList.Insert(m_State.GetCurrentItem());
+        if (m_State.GetCurrentItem()!=m_State.GetRoot())
+            m_State.TreeItemHistoryList.Insert(m_State.GetCurrentItem());
         break;
     }
     case GuiEvents::ReopenCurrentConfiguration:
