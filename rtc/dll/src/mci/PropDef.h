@@ -81,6 +81,9 @@ public:
 	chg_mode          GetChgMode()       const { return m_ChgMode; }
 	bool              CanBeIndirect()    const { return m_CanBeIndirect; }
 	bool              AddImplicitSuppl() const { return m_AddImplicitSuppl; }
+	bool              IsDepreciated()    const { return m_Depreciated; }
+
+	void SetDepreciated() { m_Depreciated = true;  }
 
 	RTC_CALL AbstrValue* CreateValue() const;
 
@@ -102,6 +105,7 @@ private:
 	chg_mode          m_ChgMode : (2+1);
 	bool              m_AddImplicitSuppl: 1;
 	bool              m_CanBeIndirect: 1;
+	bool              m_Depreciated : 1 = false;
 
 	AbstrPropDef*     m_PrevPD;
 	AbstrPropDef*     m_PrevCopyablePD;

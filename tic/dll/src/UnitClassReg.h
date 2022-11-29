@@ -62,6 +62,8 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	ApiType GetValue(const unit_t* item) const override
 	{
 		SharedUnitInterestPtr holder(item);
+		if (!IsDataReady(item->GetCurrRangeItem()))
+			return ApiType{};
 		return item->GetRange(); 
 	}
 	void SetValue(unit_t* item, ParamType val) override
