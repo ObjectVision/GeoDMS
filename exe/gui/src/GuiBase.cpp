@@ -85,9 +85,10 @@ std::list<TreeItem*>::iterator TreeItemHistory::GetEndIterator()
 
 auto GuiState::clear() -> void
 {
+    m_CurrentItem.reset();
     if (m_Root.has_ptr())
         m_Root->EnableAutoDelete();
-    m_CurrentItem.reset();
+
     m_Root.reset();   
 }
 

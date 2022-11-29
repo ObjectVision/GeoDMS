@@ -194,6 +194,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
         if (item_error_source.first)
         { 
+            m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
             auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
             event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
@@ -204,7 +205,29 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::StepToRootErrorSource:
     {
-        //TODO: Implement
+        if (!m_State.GetCurrentItem())
+            break;
+
+        TreeItem* prev_item_error_source = m_State.GetCurrentItem();
+        while (true)
+        {
+            auto item_error_source = TreeItem_GetErrorSource(prev_item_error_source);
+            if (!item_error_source.first)
+            {
+                if (prev_item_error_source)
+                {
+                    m_State.SetCurrentItem(prev_item_error_source);
+                    auto event_queues = GuiEventQueues::getInstance();
+                    event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                    event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                }
+                break;
+            }
+            prev_item_error_source = const_cast<TreeItem*>(item_error_source.first);
+        }
+
         break;
     }
     }
