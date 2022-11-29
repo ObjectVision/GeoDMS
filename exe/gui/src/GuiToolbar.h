@@ -42,10 +42,10 @@ public:
 	GuiToolbar();
 	void ShowMapViewButtons(GuiView& view);
 	void ShowTableViewButtons(GuiView& view);
-	void Update(bool* p_open, GuiView& view);
+	void Update(bool* p_open, GuiState& state, GuiView& view);
 
 private:
-	GuiState			      m_State;
+	//GuiState			      m_State;
 	std::vector<char>		  m_Buf;
 	std::vector<Button>		  m_TableViewButtons;
 	std::vector<Button>		  m_MapViewButtons;

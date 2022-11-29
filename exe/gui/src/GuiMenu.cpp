@@ -26,7 +26,7 @@
 #include <shobjidl.h> 
 #include <codecvt>
 
-void GuiMenuComponent::Update(GuiView& ViewPtr)
+void GuiMenuComponent::Update(GuiState& state, GuiView& ViewPtr)
 {
     ImGui::SetNextItemOpen(true, 0);
     if (ImGui::BeginMainMenuBar())
@@ -34,12 +34,12 @@ void GuiMenuComponent::Update(GuiView& ViewPtr)
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
             SetKeyboardFocusToThisHwnd();
 
-        m_FileComponent.Update();
-        m_EditComponent.Update();
-        m_ViewComponent.Update();
-        m_ToolsComponent.Update();
+        m_FileComponent.Update(state);
+        m_EditComponent.Update(state);
+        m_ViewComponent.Update(state);
+        m_ToolsComponent.Update(state);
         m_WindowComponent.Update(ViewPtr);
-        m_HelpComponent.Update();
+        m_HelpComponent.Update(state);
 
         ImGui::EndMainMenuBar();
     }
@@ -114,15 +114,15 @@ void GuiMenuFileComponent::RemovePinnedOrRecentFile(std::string cfg, std::vector
     }
 }
 
-void GuiMenuFileComponent::UpdateRecentOrPinnedFilesByCurrentConfiguration(std::vector<std::string>& m_Files)
+void GuiMenuFileComponent::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& state, std::vector<std::string>& m_Files)
 {
-    auto ind = ConfigIsInRecentOrPinnedFiles(m_State.configFilenameManager._Get(), m_Files);
+    auto ind = ConfigIsInRecentOrPinnedFiles(state.configFilenameManager._Get(), m_Files);
     auto it = m_Files.begin();
     if (ind != -1) // in recent files
         m_Files.erase(it+ind);
 
     it = m_Files.begin(); // renew iterator
-    m_Files.insert(it, m_State.configFilenameManager._Get());
+    m_Files.insert(it, state.configFilenameManager._Get());
     SetRecentAndPinnedFiles();
 }
 
@@ -188,20 +188,9 @@ std::string StartWindowsFileDialog()
     return result_file;
 }
 
-void GuiMenuFileComponent::Update()
+void GuiMenuFileComponent::Update(GuiState& state)
 {
-    /*m_fileDialog.Display();
-
-    if (m_fileDialog.HasSelected())
-    {
-        std::string new_filename = m_fileDialog.GetSelected().string();
-        m_State.configFilenameManager.Set(new_filename);
-        SetGeoDmsRegKeyString("LastConfigFile", new_filename);
-
-        UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
-        CleanRecentOrPinnedFiles(m_RecentFiles);
-        m_fileDialog.ClearSelected();
-    }*/
+    auto event_queues = GuiEventQueues::getInstance();
 
     if (ImGui::BeginMenu("File"))
     {
@@ -213,20 +202,20 @@ void GuiMenuFileComponent::Update()
             auto file_name = StartWindowsFileDialog();
             if (!file_name.empty())
             {
-                m_State.configFilenameManager.Set(file_name);
+                state.configFilenameManager.Set(file_name);
                 SetGeoDmsRegKeyString("LastConfigFile", file_name);
-                UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
+                UpdateRecentOrPinnedFilesByCurrentConfiguration(state, m_RecentFiles);
                 CleanRecentOrPinnedFiles(m_RecentFiles);
             }
         }
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
-            m_State.MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
 
         if (ImGui::MenuItem("Open Demo Config")) 
         {
-            m_State.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
-            UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
+            state.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
+            UpdateRecentOrPinnedFilesByCurrentConfiguration(state, m_RecentFiles);
             CleanRecentOrPinnedFiles(m_RecentFiles);
         }
         /*ImGui::Separator();
@@ -288,9 +277,9 @@ void GuiMenuFileComponent::Update()
             ImGui::SameLine();
             if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()))
             {
-                m_State.configFilenameManager.Set(*rfn);
+                state.configFilenameManager.Set(*rfn);
                 SetGeoDmsRegKeyString("LastConfigFile", *rfn);
-                UpdateRecentOrPinnedFilesByCurrentConfiguration(m_RecentFiles);
+                UpdateRecentOrPinnedFilesByCurrentConfiguration(state, m_RecentFiles);
                 CleanRecentOrPinnedFiles(m_RecentFiles);
                 rfn = m_RecentFiles.begin();
                 if (rfn == m_RecentFiles.end())
@@ -317,12 +306,12 @@ void GuiMenuFileComponent::Update()
     }
 }
 
-void GuiMenuEditComponent::Update()
+void GuiMenuEditComponent::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Edit"))
     {
         if (ImGui::MenuItem("Dear ImGui Demo Window"))
-            m_State.ShowDemoWindow = true;
+            state.ShowDemoWindow = true;
         if (ImGui::MenuItem("Config Source", "Ctrl+E")) {}
         if (ImGui::MenuItem("Definition", "Ctrl+Alt+E")) {}
         if (ImGui::MenuItem("Classification and Palette", "Ctrl+Alt+C")) {}
@@ -334,7 +323,7 @@ void GuiMenuEditComponent::Update()
     }
 }
 
-void GuiMenuViewComponent::Update()
+void GuiMenuViewComponent::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("View"))
     {
@@ -361,37 +350,37 @@ void GuiMenuViewComponent::Update()
 
         ImGui::Separator();
         if (ImGui::MenuItem("Treeview", "Alt+0")) 
-            m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
+            state.ShowTreeviewWindow = !state.ShowTreeviewWindow;
 
         if (ImGui::MenuItem("Detail Pages", "Alt+1")) 
-            m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
+            state.ShowDetailPagesWindow = !state.ShowDetailPagesWindow;
 
         if (ImGui::MenuItem("Eventlog", "Alt+2")) 
-            m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
+            state.ShowEventLogWindow = !state.ShowEventLogWindow;
 
         if (ImGui::MenuItem("Toolbar", "Alt+3")) 
-            m_State.ShowToolbar = !m_State.ShowToolbar;
+            state.ShowToolbar = !state.ShowToolbar;
 
         if (ImGui::MenuItem("Current Item bar", "Alt+4")) 
-            m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
+            state.ShowCurrentItemBar = !state.ShowCurrentItemBar;
 
         if (ImGui::MenuItem("Hidden Items", "Alt+5")) {}
 
         if (ImGui::MenuItem("Status Bar", "Alt+6"))
-            m_State.ShowStatusBar = !m_State.ShowStatusBar;
+            state.ShowStatusBar = !state.ShowStatusBar;
 
         ImGui::PopItemFlag();
         ImGui::EndMenu();
     }
 }
 
-void GuiMenuToolsComponent::Update()
+void GuiMenuToolsComponent::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Tools"))
     {
         if (ImGui::MenuItem("Options", "Ctrl+Alt+O")) 
         {
-            m_State.ShowOptionsWindow = true;
+            state.ShowOptionsWindow = true;
         }
         if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) {}
         ImGui::EndMenu();
@@ -473,7 +462,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
     }
 }
 
-void GuiMenuHelpComponent::Update()
+void GuiMenuHelpComponent::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Help"))
     {

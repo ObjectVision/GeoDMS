@@ -52,27 +52,18 @@ public:
 class GuiView : GuiBaseComponent 
 {
 public:
-	GuiView() {}
-	GuiView(GuiView&&) noexcept {}
 	~GuiView();
-	
-	//void Close();
 	void CloseAll();
-	//void SetDoView(bool doView);
-	//bool DoView();
-	//bool IsPopulated();
-	void AddView(TreeItem* currentItem, ViewStyle vs, std::string name);
-	//void SetViewIndex(int index);
+	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
 	HWND GetHWND();
-	void UpdateAll();
+	void UpdateAll(GuiState& state);
 
 	std::vector<View> m_Views;
 	View EditPaletteWindow = View("Edit Palette Window");
-	//int m_ViewIndex = -1;
 	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
 
 private:
-	bool Update(View& view);
+	bool Update(GuiState& state, View& view);
 	WindowState InitWindow(TreeItem* currentItem);
 	WindowState UpdateParentWindow(View& view);
 	bool CloseWindowOnMimimumSize(View& view);
@@ -82,8 +73,5 @@ private:
 	void RegisterViewAreaWindowClass(HINSTANCE instance);
 	bool IsDocked();
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
-	GuiState	m_State;
-	//bool m_DoView = true;
-	//bool		m_IsPopulated = false;
 	bool		m_AddCurrentItem = false;
 };

@@ -70,7 +70,7 @@ void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg)
     //}
 }
 
-void GuiEventLog::Update(bool* p_open)
+void GuiEventLog::Update(bool* p_open, GuiState& state)
 {
     ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
@@ -89,7 +89,7 @@ void GuiEventLog::Update(bool* p_open)
     if (MouseHooversOptionsIconInWindowHeader())
     {
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            m_State.ShowEventLogOptionsWindow = true;
+            state.ShowEventLogOptionsWindow = true;
     }
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
@@ -142,7 +142,7 @@ void GuiEventLog::Update(bool* p_open)
 
     for (auto& item : m_Items)
     {
-        if (!Filter.PassFilter(item.second.c_str()) || !EventFilter(item.first))
+        if (!Filter.PassFilter(item.second.c_str()) || !EventFilter(item.first, state))
             continue;
 
         ImVec4 color = ConvertSeverityTypeIDToColor(item.first);
@@ -247,22 +247,22 @@ void GuiEventLog::ClearLog()
     m_Items.clear();
 };
 
-bool GuiEventLog::EventFilter(SeverityTypeID st)
+bool GuiEventLog::EventFilter(SeverityTypeID st, GuiState& state)
 {
     switch (st)
     {
     case SeverityTypeID::ST_MinorTrace:
-        return m_State.m_OptionsEventLog.ShowMessageTypeMinorTrace;
+        return state.m_OptionsEventLog.ShowMessageTypeMinorTrace;
     case SeverityTypeID::ST_MajorTrace:
-        return m_State.m_OptionsEventLog.ShowMessageTypeMajorTrace;
+        return state.m_OptionsEventLog.ShowMessageTypeMajorTrace;
     case SeverityTypeID::ST_Warning:
-        return m_State.m_OptionsEventLog.ShowMessageTypeWarning;
+        return state.m_OptionsEventLog.ShowMessageTypeWarning;
     case SeverityTypeID::ST_Error:
     case SeverityTypeID::ST_DispError:
     case SeverityTypeID::ST_FatalError:
-        return m_State.m_OptionsEventLog.ShowMessageTypeError;
+        return state.m_OptionsEventLog.ShowMessageTypeError;
     case SeverityTypeID::ST_Nothing:
-        return m_State.m_OptionsEventLog.ShowMessageTypeNothing;
+        return state.m_OptionsEventLog.ShowMessageTypeNothing;
     }
     return true;
 }

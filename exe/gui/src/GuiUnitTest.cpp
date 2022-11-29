@@ -106,7 +106,6 @@ std::string StepSubTypeToString(StepSubType t)
 	}
 }
 
-
 void GuiUnitTest::LoadStepsFromScriptFile(std::string_view script_file_name)
 {
 	std::ifstream infile(script_file_name.data());
@@ -132,10 +131,10 @@ void GuiUnitTest::LoadStepsFromScriptFile(std::string_view script_file_name)
 	m_CurrStep = m_Steps.begin();
 }
 
-
-
-int GuiUnitTest::ProcessStep()
+int GuiUnitTest::ProcessStep(GuiState& state)
 {
+	auto event_queues = GuiEventQueues::getInstance();
+
 	if (m_CurrStep == m_Steps.end())
 		return 0;
 
@@ -154,15 +153,15 @@ int GuiUnitTest::ProcessStep()
 	{
 		switch (m_CurrStep->step_sub_type)
 		{
-		case StepSubType::config:			m_State.configFilenameManager.Set(m_CurrStep->value); break;
-		case StepSubType::default_view:		m_State.MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); break;
-		case StepSubType::table_view:		m_State.MainEvents.Add(GuiEvents::OpenNewTableViewWindow); break;
-		case StepSubType::map_view:  		m_State.MainEvents.Add(GuiEvents::OpenNewMapViewWindow); break;
-		case StepSubType::treeview:			m_State.ShowTreeviewWindow    = true; break;
-		case StepSubType::toolbar:			m_State.ShowToolbar           = true; break;
-		case StepSubType::eventlog:			m_State.ShowEventLogWindow    = true; break;
-		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = true; break;
-		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar    = true; break;
+		case StepSubType::config:			state.configFilenameManager.Set(m_CurrStep->value); break;
+		case StepSubType::default_view:		event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); break;
+		case StepSubType::table_view:		event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow); break;
+		case StepSubType::map_view:  		event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow); break;
+		case StepSubType::treeview:			state.ShowTreeviewWindow    = true; break;
+		case StepSubType::toolbar:			state.ShowToolbar           = true; break;
+		case StepSubType::eventlog:			state.ShowEventLogWindow    = true; break;
+		case StepSubType::detail_pages:		state.ShowDetailPagesWindow = true; break;
+		case StepSubType::current_item_bar: state.ShowCurrentItemBar    = true; break;
 		}
 		break;
 	}
@@ -172,18 +171,18 @@ int GuiUnitTest::ProcessStep()
 		{
 		case StepSubType::current_item:
 		{
-			if (m_State.GetRoot())
+			if (state.GetRoot())
 			{
 				auto unfound_part = IString::Create("");
-				TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
+				TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
 
 				if (jumpItem)
 				{
-					m_State.SetCurrentItem(jumpItem);
-					m_State.CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-					m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-					m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
-					m_State.DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+					state.SetCurrentItem(jumpItem);
+					event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+					event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+					event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+					event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
 				}
 				if (!unfound_part->empty())
 				{
@@ -202,26 +201,26 @@ int GuiUnitTest::ProcessStep()
 		{
 		case (StepSubType::config):
 		{
-			if (m_State.configFilenameManager._Get().compare(m_CurrStep->value)!=0)
-				m_State.return_value = 1;
+			if (state.configFilenameManager._Get().compare(m_CurrStep->value)!=0)
+				state.return_value = 1;
 			break;
 		}
 		case (StepSubType::current_item):
 		{
 			auto unfound_part = IString::Create("");
-			TreeItem* check_item = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(m_State.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
+			TreeItem* check_item = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
 			if (!check_item)
-				m_State.return_value = 1; // failed unit test 
-		    else if (check_item != m_State.GetCurrentItem())
-				m_State.return_value = 1;
+				state.return_value = 1; // failed unit test 
+		    else if (check_item != state.GetCurrentItem())
+				state.return_value = 1;
 			unfound_part->Release(unfound_part);
 			break;
 		}
-		case StepSubType::treeview:			m_State.return_value = (int)m_State.ShowTreeviewWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break; // TODO: continue implementation
-		case StepSubType::toolbar:			m_State.ShowToolbar = (int)m_State.ShowToolbar != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
-		case StepSubType::eventlog:			m_State.ShowEventLogWindow = (int)m_State.ShowEventLogWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
-		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = (int)m_State.ShowDetailPagesWindow != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
-		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = (int)m_State.ShowCurrentItemBar != std::stoi(m_CurrStep->value); m_State.return_value = 1; break;
+		case StepSubType::treeview:			state.return_value = (int)state.ShowTreeviewWindow != std::stoi(m_CurrStep->value); state.return_value = 1; break; // TODO: continue implementation
+		case StepSubType::toolbar:			state.ShowToolbar = (int)state.ShowToolbar != std::stoi(m_CurrStep->value); state.return_value = 1; break;
+		case StepSubType::eventlog:			state.ShowEventLogWindow = (int)state.ShowEventLogWindow != std::stoi(m_CurrStep->value); state.return_value = 1; break;
+		case StepSubType::detail_pages:		state.ShowDetailPagesWindow = (int)state.ShowDetailPagesWindow != std::stoi(m_CurrStep->value); state.return_value = 1; break;
+		case StepSubType::current_item_bar: state.ShowCurrentItemBar = (int)state.ShowCurrentItemBar != std::stoi(m_CurrStep->value); state.return_value = 1; break;
 		}
 		break;
 	}
@@ -230,11 +229,11 @@ int GuiUnitTest::ProcessStep()
 		switch (m_CurrStep->step_sub_type)
 		{
 		case (StepSubType::config):	return 1;
-		case StepSubType::treeview:			m_State.ShowTreeviewWindow = false; break;
-		case StepSubType::toolbar:			m_State.ShowToolbar = false; break;
-		case StepSubType::eventlog:			m_State.ShowEventLogWindow = false; break;
-		case StepSubType::detail_pages:		m_State.ShowDetailPagesWindow = false; break;
-		case StepSubType::current_item_bar: m_State.ShowCurrentItemBar = false; break;
+		case StepSubType::treeview:			state.ShowTreeviewWindow = false; break;
+		case StepSubType::toolbar:			state.ShowToolbar = false; break;
+		case StepSubType::eventlog:			state.ShowEventLogWindow = false; break;
+		case StepSubType::detail_pages:		state.ShowDetailPagesWindow = false; break;
+		case StepSubType::current_item_bar: state.ShowCurrentItemBar = false; break;
 		}
 	}
 	}

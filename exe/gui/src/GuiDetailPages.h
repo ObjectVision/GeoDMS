@@ -146,17 +146,17 @@ private:
 class GuiDetailPages : GuiBaseComponent
 {
 public:
-	void Update(bool* p_open);
+	void Update(bool* p_open, GuiState& state);
 private:
     //std::string PropertyTypeToPropertyName(PropertyTypes pt);
     //void AddProperty(PropertyTypes pt);
-    void UpdateGeneralProperties();
-    void UpdateAllProperties();
-    void UpdateExploreProperties();
-    void UpdateStatistics();
+    void UpdateGeneralProperties(GuiState& state);
+    void UpdateAllProperties(GuiState& state);
+    void UpdateExploreProperties(GuiState& state);
+    void UpdateStatistics(GuiState& state);
     void FilterStatistics();
-    void DrawProperties(std::vector<std::vector<PropertyEntry>> &properties);
-	GuiState                                m_State;
+    void DrawProperties(GuiState& state, std::vector<std::vector<PropertyEntry>> &properties);
+
     HTMLGuiComponentFactory                 m_Buff;
     std::vector<std::vector<PropertyEntry>> m_GeneralProperties;
     std::vector<std::vector<PropertyEntry>> m_AllProperties;

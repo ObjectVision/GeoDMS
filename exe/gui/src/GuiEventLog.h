@@ -9,12 +9,12 @@ public:
     ~GuiEventLog();
     static void GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
     static void GeoDMSExceptionMessage(CharPtr msg);
-    void Update(bool* p_open);
+    void Update(bool* p_open, GuiState& state);
 
 private:
     ImColor ConvertSeverityTypeIDToColor(SeverityTypeID st);
     void ClearLog();
-    bool EventFilter(SeverityTypeID st);
+    bool EventFilter(SeverityTypeID st, GuiState& state);
     static void AddLog(SeverityTypeID st, std::string msg);
     static int   Stricmp(const char* s1, const char* s2);
     static int   Strnicmp(const char* s1, const char* s2, int n);
@@ -28,5 +28,5 @@ private:
     bool                  AutoScroll;
     bool                  ScrollToBottom;
 
-    GuiState              m_State;
+    //GuiState              m_State;
 };

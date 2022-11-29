@@ -5,10 +5,8 @@ class GuiCurrentItemComponent : GuiBaseComponent
 {
 public:
 	GuiCurrentItemComponent();
-	void Update();
+	void Update(GuiState& state);
 
 private:
-	//static int TextCallBack(ImGuiInputTextCallbackData* data);
-	GuiState			      m_State;
 	std::vector<char>		  m_Buf;
 };

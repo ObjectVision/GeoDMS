@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <list>
+#include <queue>
 
 #include "TreeItem.h"
 #include "AbstrDataItem.h"
@@ -56,7 +57,14 @@ enum class GuiEvents
 	OpenInMemoryDataView,
 	OpenNewDefaultViewWindow,
 	OpenConfigSource,
-	Close
+	ToggleShowTreeViewWindow,
+	ToggleShowEventLogWindow,
+	ToggleShowDetailPagesWindow,
+	ToggleShowCurrentItemBar,
+	ToggleShowToolbar,
+	StepToErrorSource,
+	StepToRootErrorSource,
+	Close,
 };
 
 class GuiTreeItemsHolder
@@ -83,17 +91,17 @@ public:
 
 	void Add(GuiEvents event)
 	{
-		m_Queue.push_back(event);
+		m_Queue.push(event);
 	}
 
 	GuiEvents Pop()
 	{
-		auto event = m_Queue.back();
-		m_Queue.pop_back();
+		auto event = m_Queue.front();
+		m_Queue.pop();
 		return event;
 	}
 private:
-	std::vector<GuiEvents> m_Queue;
+	std::queue<GuiEvents> m_Queue;
 };
 
 class FlagStateManager
@@ -216,7 +224,7 @@ struct OptionsEventLog
 class TreeItemHistory
 {
 public:
-	TreeItemHistory();
+	TreeItemHistory(); // TODO: TreeItem* alive state not guaranteed, replace with full item name lookup
 	void Insert(TreeItem* new_item);
 	TreeItem* GetNext();
 	TreeItem* GetPrevious();
@@ -228,55 +236,73 @@ private:
 	std::list<TreeItem*> m_History;
 };
 
+class GuiEventQueues
+{
+public:
+	// singleton
+	static GuiEventQueues* getInstance();
+	~GuiEventQueues()
+	{
+		if (instance)
+			delete instance;
+	}
+
+	// event queues
+	EventQueue MainEvents;
+	EventQueue CurrentItemBarEvents;
+	EventQueue TreeViewEvents;
+	EventQueue TableViewEvents;
+	EventQueue MapViewEvents;
+	EventQueue DetailPagesEvents;
+	EventQueue GuiMenuFileComponentEvents;
+
+private:
+	GuiEventQueues() {}
+	static GuiEventQueues* instance;
+};
+
+
+
 class GuiState
 {
 public:
 	GuiState() {}
+	~GuiState();
 	GuiState(const GuiState&) = delete;
-	void clear();
+	auto clear() -> void;
 
-	static int return_value;
+	int return_value					= 0;
 
 	// option window flags
-	static bool ShowOptionsWindow;
-	static bool ShowDetailPagesOptionsWindow;
-	static bool ShowEventLogOptionsWindow;
+	bool ShowOptionsWindow				= false;
+	bool ShowDetailPagesOptionsWindow	= false;
+	bool ShowEventLogOptionsWindow		= false;
+	bool ShowOpenFileWindow				= false;
+	bool ShowConfigSource				= false;
+	bool ShowTreeviewWindow				= false;
+	bool ShowDetailPagesWindow			= false;
+	bool ShowDemoWindow					= false;
+	bool ShowEventLogWindow				= false;
+	bool ShowToolbar					= false;
+	bool ShowStatusBar					= false;
+	bool ShowCurrentItemBar				= false;
+	bool MapViewIsActive				= false;
+	bool TableViewIsActive				= false;
 
-	static bool ShowOpenFileWindow;
-	static bool ShowConfigSource;
-	static bool ShowTreeviewWindow;
-	static bool ShowDetailPagesWindow;
-	static bool ShowDemoWindow;
-	static bool ShowEventLogWindow;
-	static bool ShowToolbar;
-	static bool ShowStatusBar;
-	static bool ShowCurrentItemBar;
-	static bool MapViewIsActive;
-	static bool TableViewIsActive;
+	StringStateManager configFilenameManager;
+	StringStateManager errorDialogMessage;
+	StringStateManager contextMessage;
 
-	static StringStateManager configFilenameManager;
-	static StringStateManager errorDialogMessage;
-	static StringStateManager contextMessage;
+	// history
+	TreeItemHistory TreeItemHistoryList;
 
 	// jump to letter in TreeView
-	static std::pair<std::string, std::string> m_JumpLetter;
-
-	// sparse dms tree
-	static GuiSparseTree m_SparseTree;
+	std::pair<std::string, std::string> m_JumpLetter; //TODO: on the fly lookup, synchronize evaluation with key press
 
 	// option structs
-	static OptionsEventLog m_OptionsEventLog;
+	OptionsEventLog m_OptionsEventLog;
 
-	// event queues
-	static EventQueue MainEvents;
-	static EventQueue CurrentItemBarEvents;
-	static EventQueue TreeViewEvents;
-	static EventQueue TableViewEvents;
-	static EventQueue MapViewEvents;
-	static EventQueue DetailPagesEvents;
-	static EventQueue GuiMenuFileComponentEvents;
 
-	static TreeItemHistory TreeItemHistoryList;
 
 	TreeItem* GetRoot() { return m_Root; }
 	TreeItem* GetCurrentItem() { return m_CurrentItem; }
@@ -291,8 +317,8 @@ public:
 	void   SetWindowOpenStatusFlagsOnFirstUse();
 
 private:
-	static TreeItem* m_Root;
-	static TreeItem* m_CurrentItem;
+	SharedPtr<TreeItem> m_Root;
+	SharedPtr<TreeItem> m_CurrentItem;
 };
 
 class GuiBaseComponent
@@ -305,8 +331,8 @@ private:
 };
 
 // Helper functions
-std::vector<std::string> DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/");
-std::string GetExeFilePath();
+auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
+auto GetExeFilePath() -> std::string;
 ImVec2 SetCursorPosToOptionsIconInWindowHeader();
 void   SetClipRectToIncludeOptionsIconInWindowHeader();
 bool   MouseHooversOptionsIconInWindowHeader();
