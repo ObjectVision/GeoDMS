@@ -1,3 +1,5 @@
+#GeoDMS
+
 Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems. 
 
 This folder contains the C++ and a bit of Delphi source code to compile the GeoDMS.
