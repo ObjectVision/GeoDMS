@@ -161,6 +161,9 @@ template <typename T> void Assign(T& lhs, Undefined)    { MakeUndefinedOrZero(lh
 template <typename T>
 inline bool IsDefined(const T& v) { return v != UNDEFINED_VALUE(T); }
 
+template <typename Field>
+inline bool IsDefined(const std::vector<Field>& v) { return v.size(); }
+
 #if defined(MG_USE_QNAN)
 inline bool IsDefined(Float32 v) { return !isnan(v); }
 inline bool IsDefined(Float64 v) { return !isnan(v); }

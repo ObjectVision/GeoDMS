@@ -60,12 +60,6 @@ inline void MakeUndefinedOrZero(std::vector<Field>& v)
 }
 
 template <typename Field>
-inline bool IsDefined(const std::vector<Field>& v) 
-{ 
-	return v.size(); 
-}
-
-template <typename Field>
 std::vector<Field> UndefinedOrZero (const std::vector<Field>*) { return std::vector<Field>(); }
 
 

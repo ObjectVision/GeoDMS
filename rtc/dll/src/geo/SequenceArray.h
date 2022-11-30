@@ -127,7 +127,7 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 #include "dbg/Check.h"
 #include "geo/IndexRange.h"
 #include "geo/SequenceTraits.h"
-#include "geo/SeqVector.h"
+//#include "geo/SeqVector.h"
 #include "ptr/WeakPtr.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/Token.h"
@@ -255,6 +255,26 @@ private:
 	WeakPtr<const SequenceArrayType> m_Container;
 	const_seq_iterator               m_CSeqPtr;
 };
+
+template <typename T, typename A>
+bool operator < (const std::vector<T, A>& lhs, SA_ConstReference<T> rhs) noexcept
+{
+	return IsDefined(lhs)
+		? rhs.IsDefined()
+		? lex_compare(lhs.begin(), lhs.end(), cbegin_ptr(rhs), cend_ptr(rhs))
+		: false
+		: rhs.IsDefined();
+}
+
+inline bool operator < (const SharedStr& lhs, SA_ConstReference<char> rhs) noexcept
+{
+	return lhs.IsDefined()
+		? rhs.IsDefined()
+		? lex_compare(lhs.begin(), lhs.end(), cbegin_ptr(rhs), cend_ptr(rhs))
+		: false
+		: rhs.IsDefined();
+}
+
 
 //=======================================
 // SequenceArray<T>::reference

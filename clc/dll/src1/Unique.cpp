@@ -181,7 +181,7 @@ template<sequence_or_string V>
 typename sequence_traits<V>::container_type
 GetUniqueValues(const AbstrDataItem* adi)
 {
-	using ValueSet = std::set<V>;
+	using ValueSet = std::set<V, std::less<void> >;
 	ValueSet values;
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
@@ -195,7 +195,12 @@ GetUniqueValues(const AbstrDataItem* adi)
 		{
 		redo:
 			if (IsDefined(*i))
-				values.insert(*i);
+			{
+				auto sequenceRef = *i;
+				auto insertPos = values.lower_bound(sequenceRef);
+				if (insertPos != values.end() && values.key_comp()(sequenceRef, *insertPos))
+					values.insert(insertPos, *i);
+			}
 			auto pi = i;
 			while (++i != e)
 				if (!(*i == *pi))
