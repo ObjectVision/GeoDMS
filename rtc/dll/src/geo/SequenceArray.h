@@ -893,7 +893,7 @@ sequence_vector<T>::sequence_vector(CIter i, CIter e)
 {
 	auto srcDataSize = CalcActualDataSize(i, e);
 
-	this->Reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC_STR("sequence_vector from span"));
+	this->reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC_STR("sequence_vector from span"));
 
 	auto ri = this->m_Indices.begin();
 

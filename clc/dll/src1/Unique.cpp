@@ -80,37 +80,28 @@ redo:
 	return std::vector<V>( buffer, lastValuePtr );
 }
 
-template <class _InIt1, class _InIt2, class _OutIt, class _Pr>
-_CONSTEXPR20 _OutIt set_union_by_move(_InIt1 _First1, _InIt1 _Last1, _InIt2 _First2, _InIt2 _Last2, _OutIt _Dest, _Pr _Pred) {
-	// OR sets [_First1, _Last1) and [_First2, _Last2)
-	_Adl_verify_range(_First1, _Last1);
-	_Adl_verify_range(_First2, _Last2);
-	auto _UFirst1 = _Get_unwrapped(_First1);
-	const auto _ULast1 = _Get_unwrapped(_Last1);
-	auto _UFirst2 = _Get_unwrapped(_First2);
-	const auto _ULast2 = _Get_unwrapped(_Last2);
-	_DEBUG_ORDER_SET_UNWRAPPED(_InIt2, _UFirst1, _ULast1, _Pred);
-	_DEBUG_ORDER_SET_UNWRAPPED(_InIt1, _UFirst2, _ULast2, _Pred);
-	auto _UDest = _Get_unwrapped_unverified(_Dest);
-	for (; _UFirst1 != _ULast1 && _UFirst2 != _ULast2; ++_UDest) {
-		if (_DEBUG_LT_PRED(_Pred, *_UFirst1, *_UFirst2)) { // copy first
-			*_UDest = std::move(*_UFirst1);
-			++_UFirst1;
+template <typename Iter, typename Pred>
+_CONSTEXPR20 auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
+{
+	for (; first1 != last1 && first2 != last2; ++dest) {
+		if (pred(*first1, *first2)) { // copy first
+			*dest = std::move(*first1);
+			++first1;
 		}
-		else if (_Pred(*_UFirst2, *_UFirst1)) { // copy second
-			*_UDest = std::move(*_UFirst2);
-			++_UFirst2;
+		else if (pred(*first2, *first1)) { // copy second
+			*dest = std::move(*first2);
+			++first2;
 		}
 		else { // advance both
-			*_UDest = std::move(*_UFirst1);
-			++_UFirst1;
-			++_UFirst2;
+			*dest = std::move(*first1);
+			++first1;
+			++first2;
 		}
 	}
 
-	_UDest = fast_move(_UFirst1, _ULast1, _UDest);
-	_Seek_wrapped(_Dest, fast_move(_UFirst2, _ULast2, _UDest));
-	return _Dest;
+	dest = fast_move(first1, last1, dest);
+	dest = fast_move(first2, last2, dest);
+	return dest;
 }
 
 template <typename V>
