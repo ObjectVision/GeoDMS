@@ -192,7 +192,11 @@ template <> struct has_fixed_elem_size<SharedStr>                : std::false_ty
 
 template <typename T> constexpr bool has_fixed_elem_size_v = has_fixed_elem_size<T>::value;
 
+template <class _Ty>
+concept fixed_elem = has_fixed_elem_size_v<_Ty>;
 
+template <class _Ty>
+concept sequence_or_string = !has_fixed_elem_size_v<_Ty>;
 
 //----------------------------------------------------------------------
 // Section      : type converters

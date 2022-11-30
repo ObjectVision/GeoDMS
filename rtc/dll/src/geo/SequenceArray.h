@@ -595,6 +595,18 @@ private:
 	friend struct SA_Reference<T>;
 };
 
+inline size_t payload(const SharedStr& v) { return v.ssize(); }
+template <typename Seq> size_t payload(const Seq& v) { return v.size(); }
+
+template <typename CIter>
+std::size_t CalcActualDataSize(CIter first, CIter last)
+{
+	std::size_t result = 0;
+	for (; first != last; ++first)
+		result += payload(*first);
+	return result;
+}
+
 //=======================================
 // sequence_array
 //=======================================
@@ -820,15 +832,13 @@ private:
 
 	RTC_CALL void appendRange(const_data_iterator first, const_data_iterator last);
 
-	RTC_CALL data_size_type calcActualDataSize() const;
-
-	RTC_CALL static data_size_type CalcActualDataSize(const_iterator first, const_iterator last);
+protected:
+	auto calcActualDataSize() const->data_size_type;
 
 #if defined(MG_DEBUG)
 	RTC_CALL void checkActualDataSize() const;
 	RTC_CALL void checkConsecutiveness() const;
 #endif
-
 	seq_vector_t   m_Indices;            // for identifying allocated sequences
 	data_vector_t  m_Values;             // for sequential storage of sequences of T (the memory pool)
 	data_size_type m_ActualDataSize = 0; // no of elements in allocated sequences (not abandoned elements)
@@ -861,13 +871,50 @@ struct sequence_vector : sequence_array<T>
 	{
 		this->Lock(dms_rw_mode::write_only_all);
 	}
-	RTC_CALL sequence_vector(const_iterator i, const_iterator e);
+	template<typename CIter>
+	sequence_vector(CIter i, CIter e);
 	~sequence_vector()
 	{
 		if (this->IsAssigned())
 			this->UnLock();
 	}
 };
+
+//=======================================
+// sequence_array
+//=======================================
+
+// sequence_array constructors
+
+template <typename T>
+template <typename CIter>
+sequence_vector<T>::sequence_vector(CIter i, CIter e)
+	:	sequence_vector()
+{
+	auto srcDataSize = CalcActualDataSize(i, e);
+
+	this->Reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC_STR("sequence_vector from span"));
+
+	auto ri = this->m_Indices.begin();
+
+	while (i != e)
+	{
+		this->allocateSequenceRange(ri, begin_ptr(*i), end_ptr(*i));
+		++ri;
+		++i;
+	}
+	dms_assert(this->calcActualDataSize() == this->actual_data_size());
+	dms_assert(srcDataSize == this->actual_data_size());
+	dms_assert(!this->IsDirty());
+}
+
+template <typename T>
+auto sequence_array<T>::calcActualDataSize() const -> data_size_type
+{
+	MGD_CHECKDATA(IsLocked());
+	return CalcActualDataSize(begin(), end());
+}
+
 
 //=======================================
 // sequence for sequence_array elements
