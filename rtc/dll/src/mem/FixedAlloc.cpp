@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 /*
 	fixed_allocator is an allocator that has an efficient
 	memory management implementation for allocating limited-size objects.
@@ -51,6 +22,9 @@ granted by an additional written contract for support, assistance and/or develop
 	This allocator fulfills the allocator requirements as described in
 	section 20.1 of the April 1995 WP and the STL specification, as
 	documented by A. Stephanov & M. Lee, December 6, 1994.
+
+	Future directions:
+	- allocate_at_least(size_t n) -> span of actual 2^K allocated bytes
 */
 
 #include "RtcPCH.h"
@@ -63,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/mpf.h"
 #include "mem/FixedAlloc.h"
 #include "set/VectorFunc.h"
+#include "utl/IncrementalLock.h"
 #include "utl/MemGuard.h"
 #include "dbg/SeverityType.h"
 
@@ -176,7 +151,7 @@ struct VirtualAllocPageAllocator
 
 	BYTE_PTR get_reserved_block(BlockSize_type sz)
 	{
-		dms_assert( sz <= blockSize && sz > blockSize / 2);
+		dms_assert( sz <= blockSize && sz > 0);
 
 		if (!nrUncommitedBlocks)
 		{
@@ -191,21 +166,21 @@ struct VirtualAllocPageAllocator
 	}
 	void commit(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= blockSize && sz > blockSize / 2);
+		assert(sz && sz <= blockSize);
 
 		VirtualAllocPage::commit(ptr, blockSize);
 	}
 
 	void release(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= blockSize && sz > blockSize / 2);
+		assert(sz && sz <= blockSize);
 
 		VirtualAllocPage::release(ptr, blockSize);
 	}
 
 	void recommit(BYTE_PTR ptr, BlockSize_type sz)
 	{
-		dms_assert(sz <= blockSize && sz > blockSize / 2);
+		assert(sz && sz <= blockSize);
 
 		VirtualAllocPage::recommit(ptr, blockSize);
 	}
@@ -265,14 +240,21 @@ struct FreeStackAllocator
 		if (!inner.blockSize)
 			return FreeStackAllocSummary(0, 0, 0, 0);
 
-		std::scoped_lock lock(allocSection);
+		SizeT pageCount, totalBytes = 0;
+		SizeT nrAllocated;
+		SizeT nrFreed;
+		SizeT nrUncommitted;
+		SizeT nrAllocatedBytes;
+		{
+			std::scoped_lock lock(allocSection);
 
-		SizeT pageCount = inner.pages.size();
-		SizeT totalBytes = 0; for (const auto& page : inner.pages) totalBytes += page.PageSize();
-		SizeT nrAllocated = NrAllocatedBlocks();
-		SizeT nrFreed = freestack.size();
-		SizeT nrUncommitted = inner.nrUncommitedBlocks;
-		SizeT nrAllocatedBytes = inner.blockSize * nrAllocated;
+			pageCount = inner.pages.size();
+			totalBytes = 0; for (const auto& page : inner.pages) totalBytes += page.PageSize();
+			nrAllocated = NrAllocatedBlocks();
+			nrFreed = freestack.size();
+			nrUncommitted = inner.nrUncommitedBlocks;
+			nrAllocatedBytes = inner.blockSize * nrAllocated;
+		}
 		reportF(SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.blockSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
 		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2BlockSize, nrUncommitted << inner.log2BlockSize);
@@ -289,7 +271,7 @@ static UInt32 g_ElemAllocCounter = 0;
 const UInt8 log2_extended_segment_size = 20;
 
 constexpr UInt32 nr_bits_in_byte = 8;
-constexpr UInt32 ALLOC_ELEMSIZE_MIN_BITS = 13; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;     // 2^13 ==  8[kB]
+constexpr UInt32 ALLOC_ELEMSIZE_MIN_BITS =  3; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;     // 2^13 ==  8[kB]
 constexpr UInt32 ALLOC_ELEMSIZE_MAX_BITS = 28; //  log2_extended_segment_size + mpf::log2_v<sizeof(Float64) * 2>; // 2^28 ==256[MB]
 constexpr SizeT ALLOC_ELEMSIZE_MIN = 1 << ALLOC_ELEMSIZE_MIN_BITS;
 constexpr SizeT ALLOC_ELEMSIZE_MAX = 1 << ALLOC_ELEMSIZE_MAX_BITS;
@@ -386,19 +368,18 @@ constexpr block_index_t BlockListIndex(SizeT sz)
 		return result;
 #else // defined(MG_MULTIPLE_SLOTS)
 		SizeT org_sz = sz;
-
-		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
+		assert(sz);
+//		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
 		assert(sz <= ALLOC_ELEMSIZE_MAX);
 
 		--sz;
 		sz >>= ALLOC_ELEMSIZE_MIN_BITS;
-		static_assert((1 << (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) & ~0xFFF0) == 0);
 		block_index_t result = highest_bit_rank(sz);
 
 		assert(result >= 0);
 		assert(result < NR_ELEM_ALLOC);
 		assert(org_sz <= BlockSize(result) * QWordSize);
-		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : ALLOC_ELEMSIZE_MIN / 2));
+		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : 0));
 		return result;
 #endif //defined(MG_MULTIPLE_SLOTS)
 }
@@ -412,7 +393,9 @@ bool IsIntegralPowerOf2OrZero(SizeT sz)
 bool SpecialSize(SizeT sz)
 {
 	//return sz >= ALLOC_ELEMSIZE_MIN && sz <= ALLOC_ELEMSIZE_MAX && IsIntegralPowerOf2OrZero(sz);
-	return sz > ALLOC_ELEMSIZE_MIN / 2 && sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
+//	return sz > ALLOC_ELEMSIZE_MIN / 2 && sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
+	assert(sz);
+	return sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
 }
 
 #endif defined(MG_CACHE_ALLOC)
@@ -425,16 +408,17 @@ bool SpecialSize(SizeT sz)
 void* AllocateFromStock_impl(size_t sz)
 {
 #if defined(MG_CACHE_ALLOC)
+	assert(sz);
 
 	if (SpecialSize(sz))
 	{
 		auto i = BlockListIndex(sz);
-		dms_assert(i < NR_ELEM_ALLOC);
+		assert(i < NR_ELEM_ALLOC);
 
 		auto& freeStack = GetFreeStackAllocator(i);
 		return freeStack.allocate(sz);
 	}
-
+	assert(sz > ALLOC_ELEMSIZE_MAX);
 #endif //defined(MG_CACHE_ALLOC)
 	SizeT blockSize = ((sz + (QWordSize - 1)) & ~(QWordSize - 1)) / QWordSize;
 
@@ -446,31 +430,27 @@ void* AllocateFromStock_impl(size_t sz)
 
 void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
+	if (!sz)
+		return nullptr;
+
 	auto result = AllocateFromStock_impl(sz);
 
 #if defined(MG_DEBUG_ALLOCATOR)
-	if (sz)
-		RegisterAlloc(result, sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	else
-	{
-		dms_assert(result == nullptr);
-	}
+	RegisterAlloc(result, sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
 	ConsiderReporting();
-
 	return result;
 }
 
 void LeaveToStock(void* ptr, size_t sz) {
-
-#if defined(MG_DEBUG_ALLOCATOR)
-	if (sz)
-		RemoveAlloc(ptr, sz);
-	else
+	if (!sz)
 	{
 		dms_assert(ptr == nullptr);
+		return;
 	}
+#if defined(MG_DEBUG_ALLOCATOR)
+	RemoveAlloc(ptr, sz);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
 #if defined(MG_CACHE_ALLOC)
@@ -571,12 +551,20 @@ void PostReporting()
 		if (s_ReportingRequestPending)
 			ReportFixedAllocStatus();
 		}
+	,	true
 	);
 }
+
+static std::atomic<UInt32> s_ConsiderReportingReentranceCounter = 0;
 
 void ConsiderReporting()
 {
 	static Timer t;
+	
+	if (s_ConsiderReportingReentranceCounter)
+		return;
+
+	StaticMtIncrementalLock<s_ConsiderReportingReentranceCounter> preventReentrance;
 	if (t.PassedSecs(30))
 		PostReporting();
 }
@@ -587,14 +575,12 @@ void ConsiderReporting()
 #include <map>
 #include "dbg/DebugReporter.h"
 
-SharedStr SequenceArrayString() { static auto result = SharedStr("SequenceArray"); return result; }
-SharedStr IndexedString() { static auto result = SharedStr("IndexedString"); return result; }
-
 struct alloc_register_t
 {
-	std::map<void*, std::pair<SharedStr, size_t>> map;
+	std::map<void*, std::pair<CharPtr, size_t>> map;
 	std::mutex mutex;
 };
+
 auto& GetAllocRegister()
 {
 	static alloc_register_t allocRegister;
@@ -607,8 +593,7 @@ void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 	auto lock = std::scoped_lock(reg.mutex);
 
 	dms_assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
-	reg.map[ptr] = std::pair<SharedStr, size_t>{ srcStr, sz };
-
+	reg.map[ptr] = std::pair<CharPtr, size_t>{ srcStr, sz };
 }
 
 void RemoveAlloc(void* ptr, size_t sz)
@@ -632,7 +617,7 @@ void ReportAllocs()
 	for (auto& registeredAlloc : reg.map)
 	{
 		SizeT sz = registeredAlloc.second.second;
-		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first.c_str());
+		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first);
 		fequencyCounts[sz]++;
 	}
 

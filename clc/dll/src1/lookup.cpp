@@ -112,7 +112,7 @@ public:
 			auto tn = domainA->GetNrTiles();
 			auto wrappedValuesArray = MakeValuesArray(arg2A);
 			if (IsMultiThreaded3() && (tn > 1) && !res->HasRepetitiveUsers())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + ": lookup"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + : lookup"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -218,7 +218,7 @@ public:
 		auto valuesData = std::any_cast<typename DataArrayBase<V>::locked_cseq_t>(wrappedValuesArray);
 		dms_assert(valuesData);
 
-		CalcTile(resultData, indexData, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		CalcTile(resultData, indexData, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
 	void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData MG_DEBUG_ALLOCATOR_SRC_ARG) const

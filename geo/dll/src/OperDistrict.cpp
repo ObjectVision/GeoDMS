@@ -96,7 +96,7 @@ struct DistrictOperator : public UnaryOperator
 			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj());
 			dms_assert(inputGrid);
 
-			auto resLock = CreateHeapTileArray<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC_STR("OperDistrict: resLock"));
+			auto resLock = CreateHeapTileArray<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
 			
 			district_type nrDistricts = 0;
 

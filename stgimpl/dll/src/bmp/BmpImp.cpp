@@ -656,7 +656,7 @@ Boolean BmpImp::GetRle8Row(row_t rowNumber, UByte *buf) const
 		buf_width = 25;
 	}
 
-	OwningPtrSizedArray<UByte> c( buf_width MG_DEBUG_ALLOCATOR_SRC_STR("BmpImp"));
+	OwningPtrSizedArray<UByte> c( buf_width MG_DEBUG_ALLOCATOR_SRC("BmpImp"));
 
 	cur_read = 0;
 	cur_pos = -1;

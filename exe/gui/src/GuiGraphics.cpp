@@ -1,6 +1,6 @@
 #include "GuiGraphics.h"
 #include <stdio.h>
-#include "utl/Environment.h"
+//#include "utl/Environment.h"
 #include "filesystem"
 #include <stb_image.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -8,7 +8,7 @@
 #endif
 //#include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
-#include "ptr/SharedStr.h"
+//#include "ptr/SharedStr.h"
 
 static void glfw_error_callback(int error, const char* description)
 {

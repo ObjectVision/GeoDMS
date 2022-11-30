@@ -91,7 +91,7 @@ public:
 				,	[idOper, res, retainedDomainUnit](AbstrDataObject* self, tile_id t) {
 						idOper->Calculate(self, retainedDomainUnit.get_ptr(), t); // write into the same tile.
 					}
-					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := id()")
+					MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := id()")
 				);
 				res->m_DataObject = lazyTileFunctor.release();
 			};
@@ -125,7 +125,7 @@ public:
 
 		auto resData = result->GetWritableTile(t, dms_rw_mode::write_only_all);
 		auto resRange = e1->GetTileRange(t);
-		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC(borrowedDataHandle->md_SrcStr));
+		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC("borrowedDataHandle->md_SrcStr"));
 	}
 
 	void CalcTile(sequence_traits<E1>::seq_t resData, Unit<E1>::range_t resRange MG_DEBUG_ALLOCATOR_SRC_ARG) const

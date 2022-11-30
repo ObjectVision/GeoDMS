@@ -172,16 +172,16 @@ Iter fast_copy(CIter first, CIter last, Iter target)
 	return std::copy(first, last, target);
 }
 
-template <typename Iter> inline
-Iter
-fast_move(Iter first, Iter last, Iter target)
+template <typename Iter>
+inline auto fast_move(Iter first, Iter last, Iter target)
+-> typename std::enable_if_t < !std::is_trivially_copy_assignable_v<typename std::iterator_traits<Iter>::value_type>, Iter>
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
 	using T = std::iterator_traits< Iter>::value_type;
 
 	static_assert(! is_bitvalue_v<T>);
-	static_assert(! std::is_trivially_move_assignable_v< T >);
+	static_assert(! std::is_trivially_copy_assignable_v< T >);
 #endif
 
 //	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
@@ -236,9 +236,12 @@ fast_copy(const T* first, const T* last, T* target)
 	return target+n;
 }
 
-template <typename T> inline
-typename std::enable_if<std::is_trivially_move_assignable_v<T>, T*>::type
-fast_move(T* first, T* last, T* target)
+
+template<typename T> concept trivially_assignable = std::is_trivially_assignable_v<T, T>;
+
+template <typename Iter> 
+inline auto fast_move(Iter first, Iter last, Iter target)
+-> typename std::enable_if_t < std::is_trivially_copy_assignable_v<typename std::iterator_traits<Iter>::value_type>, Iter>
 {
 	return fast_copy(first, last, target);
 }

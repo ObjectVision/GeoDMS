@@ -108,7 +108,7 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 					}
 
 					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t);
-					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 					auto resI = resData.begin();
 
 					for (auto i=data.begin(), e=data.end(); i!=e; ++resI, ++i)
@@ -304,7 +304,7 @@ struct RegexReplaceOperator : CommonOperGroup, QuaternaryOperator
 					}
 
 					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t);
-					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr + ": RegexReplaceOperator.data_reserve()"));
+					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr + : RegexReplaceOperator.data_reserve()"));
 					auto resI = resData.begin();
 
 					for (auto i=data.begin(), e=data.end(); i!=e; ++resI, ++i)

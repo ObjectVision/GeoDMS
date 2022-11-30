@@ -125,7 +125,7 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 	     valuesEnd   = valuesLock.end();
 
 	SizeT n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC_STR("ModusTotByIndex: index"));
+	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("ModusTotByIndex: index"));
 
 	SizeT
 		*i = index.begin(),
@@ -323,7 +323,7 @@ void ModusPartByIndex(
 
 	SizeT n = valuesEnd - valuesBegin;
 
-	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC_STR("ModusPartByIndex: index"));
+	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("ModusPartByIndex: index"));
 
 	SizeT
 		*i = index.begin(),
@@ -564,7 +564,7 @@ void WeightedModusTotByIndex(
 	OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem);
 
 	UInt32 n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC_STR("WeightModusTotByIndex: index"));
+	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC("WeightModusTotByIndex: index"));
 
 	UInt32
 		*i = index.begin(),
@@ -797,7 +797,7 @@ void WeightedModusPartByIndex(
 
 	auto n = valuesEnd - valuesBegin;
 
-	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC_STR("WeightedModusPartByIndex: index"));
+	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("WeightedModusPartByIndex: index"));
 
 	SizeT
 		*i = index.begin(),

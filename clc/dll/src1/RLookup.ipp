@@ -77,7 +77,7 @@ public:
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
 
 			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, std::move(index) MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + ": RLookup()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
 			else
 			{
 				DataWriteLock resLock(res);

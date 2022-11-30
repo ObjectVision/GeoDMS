@@ -553,7 +553,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		readBuffer = makeResource<dataBufType>();
 	}
 	dataBufType& data = GetAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC_STR("gdal_vect: ReadPolyData"));
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(
@@ -617,7 +617,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 		readBuffer = makeResource<dataBufType>();
 	}
 	dataBufType& data = GetAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC_STR("gdal_vect"));
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(

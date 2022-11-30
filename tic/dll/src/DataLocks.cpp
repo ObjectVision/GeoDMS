@@ -287,7 +287,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTil
 	if (!adi->m_FileName.empty())
 		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
 	else
-		reset(CreateAbstrHeapTileFunctor(adi, mustClear MG_DEBUG_ALLOCATOR_SRC(adi->md_FullName + ": DataWriteLock")).release() );
+		reset(CreateAbstrHeapTileFunctor(adi, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
 
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)

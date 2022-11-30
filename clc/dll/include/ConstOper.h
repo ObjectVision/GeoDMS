@@ -63,7 +63,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 		if (!tileSPtr)
 		{
 			tileSPtr = std::make_shared<tile<V>>();
-			resizeSO(*tileSPtr, m_MaxTileSize, false MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+			resizeSO(*tileSPtr, m_MaxTileSize, false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 			fast_fill(tileSPtr->begin(), tileSPtr->end(), m_Value);
 
 			m_ActiveTile = tileSPtr;
@@ -131,7 +131,7 @@ struct AbstrConstOperator : public BinaryOperator
 
 			auto tn = arg2U->GetTiledRangeData()->GetNrTiles();
 			if (tn > 1 || tn == 1 && arg2U->GetTiledRangeData()->GetTileSize(0) >= 256)
-				res->m_DataObject = CreateConstFunctor(arg1A, arg2U MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + ": ConstFunctor()"));
+				res->m_DataObject = CreateConstFunctor(arg1A, arg2U MG_DEBUG_ALLOCATOR_SRC("ConstFunctor()"));
 			else
 			{
 				DataWriteLock resLock(res);

@@ -98,7 +98,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && !res->HasRepetitiveUsers())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + GetGroup()->GetName().c_str()) );
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -170,7 +170,7 @@ public:
 		auto arg2Data = const_array_cast<Arg2ValueType>(arg2A)->GetTile(af & AF2_ISPARAM ? 0 : t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, arg2Data, af MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		CalcTile(resData, arg1Data, arg2Data, af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
 	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, sequence_traits<Arg2ValueType>::cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;

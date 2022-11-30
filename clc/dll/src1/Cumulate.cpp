@@ -238,7 +238,7 @@ namespace Cumulate
 			{
 				auto partRange = partitionSet->GetTileRange(tp);
 				SizeT partRangeSize = Cardinality(partRange);
-				OwningPtrSizedArray<ResultValueType> valueArray( partRangeSize MG_DEBUG_ALLOCATOR_SRC_STR("Cumulate: valueArray"));
+				OwningPtrSizedArray<ResultValueType> valueArray( partRangeSize MG_DEBUG_ALLOCATOR_SRC("Cumulate: valueArray"));
 				TInitAssigner init;
 				for (auto valuePtr = valueArray.begin(), valueEnd = valueArray.end(); valuePtr!=valueEnd; ++valuePtr)
 					init(*valuePtr);

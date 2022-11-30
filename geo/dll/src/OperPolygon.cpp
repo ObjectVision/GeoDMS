@@ -354,7 +354,7 @@ public:
 		dbg_assert(cumulSize == resData.get_sa().actual_data_size());
 
 		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), 0);
-		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 
 		// ==== then resize each resulting polygon according to the nr of seen points.
 		for (PolygonIndex i=0; i!=nrPolys; ++i)
@@ -373,7 +373,7 @@ public:
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
 		{
-			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: currOrdinals"));
+			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
 			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
 		}
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
@@ -1060,7 +1060,7 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters( te MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: polyTileCounters"));
+			OwningPtrSizedArray<UInt32> polyTileCounters( te MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
 
 			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
 
@@ -1371,7 +1371,7 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters(te MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: polyTileCounters"));
+			OwningPtrSizedArray<UInt32> polyTileCounters(te MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
 
 			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
 

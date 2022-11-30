@@ -215,7 +215,7 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return ConstShadowTile(this MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+			return ConstShadowTile(this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
@@ -230,7 +230,7 @@ DataArrayBase<V>::GetDataWrite(tile_id t, dms_rw_mode rwMode)
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return MutableShadowTile(this, rwMode MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+			return MutableShadowTile(this, rwMode MG_DEBUG_ALLOCATOR_SRC("MutableShadowTile this->md_SrcStr"));
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());

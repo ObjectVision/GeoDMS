@@ -111,7 +111,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 			{
 				const tile_spec& tf = std::get<0>(m_State);
 				tile_data resData;
-				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC(md_SrcStr));
+				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC("md_SrcStr"));
 				tf.aFunc(GetSeq(resData), tf.pState);
 				m_State.emplace<1>(std::move(resData));
 			}
@@ -210,7 +210,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 	{
 		tileSPtr = std::make_shared<tile_data>(); // done by GetWritableTile
 
-		resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 
 		m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;
 		m_ApplyFunc(const_cast<LazyTileFunctor<V, ApplyFunc>*>(this), t);
