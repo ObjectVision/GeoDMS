@@ -1,4 +1,4 @@
-#GeoDMS
+# GeoDMS
 
 Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems. 
 
