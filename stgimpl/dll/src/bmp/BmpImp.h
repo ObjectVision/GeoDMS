@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/OwningPtr.h"
 
 #include <vector>
-#include "geo/seqvector.h"
+#include "geo/BaseBounds.h"
 
 typedef struct tagBITMAPFILEHEADER BITMAPFILEHEADER;
 typedef struct tagBITMAPINFOHEADER BITMAPINFOHEADER;

@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__SER_POLYSTREAM_H)
 #define __SER_POLYSTREAM_H
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "ptr/OwningPtrArray.h"
 #include "ser/BinaryStream.h"
 #include "set/QuickContainers.h"

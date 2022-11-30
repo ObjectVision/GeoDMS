@@ -31,8 +31,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "SpiritTools.h"
 
+#include "geo/BaseBounds.h"
 #include "geo/MinMax.h"
-#include "geo/seqvector.h"
 #include "ptr/IterCast.h"
 #include "utl/mySPrintF.h"
 

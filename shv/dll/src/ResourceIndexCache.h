@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __SHV_INDEXCACHE_H
 #define __SHV_INDEXCACHE_H
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "ptr/WeakPtr.h"
 
 #include <vector>

@@ -79,7 +79,6 @@
     <ClInclude Include="src\geo\IsNotUndef.h" />
     <ClInclude Include="src\geo\neighbouriter.h" />
     <ClInclude Include="src\geo\PointIndexBuffer.h" />
-    <ClInclude Include="src\geo\SeqVector.h" />
     <ClInclude Include="src\geo\Undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp" />

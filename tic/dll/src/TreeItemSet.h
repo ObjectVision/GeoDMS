@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicBase.h"
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "set/QuickContainers.h"
 
 //----------------------------------------------------------------------

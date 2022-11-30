@@ -42,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <windows.h>
 #include <sqlext.h>
 
-#include "geo/seqvector.h"
+#include "geo/BaseBounds.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"

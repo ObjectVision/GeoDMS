@@ -31,7 +31,6 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 
 #include "geo/IsNotUndef.h"
-#include "geo/SeqVector.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "set/DataCompare.h"

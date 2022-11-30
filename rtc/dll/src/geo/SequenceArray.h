@@ -127,7 +127,6 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 #include "dbg/Check.h"
 #include "geo/IndexRange.h"
 #include "geo/SequenceTraits.h"
-//#include "geo/SeqVector.h"
 #include "ptr/WeakPtr.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/Token.h"
