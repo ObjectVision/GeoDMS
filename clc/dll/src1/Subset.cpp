@@ -260,7 +260,10 @@ struct SelectMetaOperator : public BinaryOperator
 		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder); // does this set result to Failed when 
 		dms_assert(res);
 		auto resExpr = ExprList(m_SelectOper, conditionExpr);
-		res->SetDC(GetOrCreateDataController(resExpr));
+		assert(!resExpr.EndP());
+		auto resDC = GetOrCreateDataController(resExpr);
+		assert(resDC);
+		res->SetDC(resDC);
 		resultHolder = res;
 
 		TokenID resSubName;
