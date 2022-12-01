@@ -263,16 +263,16 @@ struct tile_write_channel
 			GetNextTile();
 	}
 
-	template <typename CIter>
+	template <std::random_access_iterator CIter>
 	void Write(CIter first, CIter last)
 	{
-		SizeT numElems = std::distance(first, last);
+		SizeT numElems = last - first; // std::distance(first, last)
 		while (true)
 		{
 			SizeT numWritable = NrFreeInTile();
 			SizeT numWrite = Min<SizeT>(numWritable, numElems);
 			CIter oldFirst = first;
-			std::advance(first, numWrite);
+			first += numWrite; // std::advance(first, numWrite);
 			fast_copy(oldFirst, first, Curr());
 			numElems -= numWrite;
 			if (!numElems)
@@ -283,6 +283,33 @@ struct tile_write_channel
 			GetNextTile();
 		}
 	}
+
+	template <typename CIter>
+	void Write(CIter first, CIter last)
+	{
+		if (first == last)
+			return;
+
+		while (true)
+		{
+			auto nrRemaining = NrFreeInTile();
+			auto tileIter = Curr();
+			assert(first != last);
+
+			while (nrRemaining--)
+			{
+				*tileIter++ = *first++;
+				if (first == last)
+				{
+					m_Cursor.second = m_LockedSeq.size() - nrRemaining;	
+					return;
+				}
+			}
+
+			GetNextTile();
+		}
+	}
+
 	template <typename CIter>
 	void Write(CIter first, SizeT numElems)
 	{
