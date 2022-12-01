@@ -28,7 +28,7 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 
 # Contact
-Feel free to contact us for support on landuse modeling, transport modeling or geographic scientific computing type projects.
+Feel free to contact us for support on landuse modeling, transport modeling or geographic scientific computing.
 
 Company: Object Vision BV  
 Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)  
