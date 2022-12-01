@@ -11,13 +11,10 @@ Build instructions for GeoDMS can be found at our [wiki compilation page](https:
 # Terms of use
 This open source software; you can use, redistribute, and/or
 modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation
-on the condition that this readme file is provided and all copyright 
-notices in the source code are preserved.
+(the License) as published by the Free Software Foundation.
 
-See LICENSE.TXT for terms of distribution or look at our web site:
-https://www.geodms.nl/Licence
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
+For redistribution consult the GNU GPL2 license at [LICENSE.md](LICENSE.md), our [wiki](https://www.geodms.nl/Licence)
+or [https://www.gnu.org/licenses/old-licenses/gpl-2.0.html](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 
 You can use, redistribute and/or modify this library source code file
 
