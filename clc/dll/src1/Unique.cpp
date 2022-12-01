@@ -73,8 +73,7 @@ redo:
 		}
 	assert(i == e);
 
-	DataCompare<V> comp;
-	std::sort(buffer, bufferCursor, comp);
+	std::sort(buffer, bufferCursor);
 
 	auto lastValuePtr = std::unique(buffer, bufferCursor);
 	return std::vector<V>( buffer, lastValuePtr );
@@ -112,7 +111,7 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right)
 
 	if (!result.empty())
 	{
-		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<V>());
+		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<void>());
 		result.erase(actualEnd, result.end());
 	}
 	return result;
@@ -128,7 +127,6 @@ std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData
 
 	std::vector<V> result;
 	tile_offset m = size / 2;
-//	std::vector<V> firstHalf, secondHalf;
 
 	std::future<std::vector<V>> firstHalf = throttled_async([&tileData, index, m]() {
 		return GetTileUniqueValues<V>(tileData, index, m);
@@ -178,11 +176,9 @@ std::vector<V> GetUniqueValues(const AbstrDataItem* adi)
 }
 
 template<sequence_or_string V>
-typename sequence_traits<V>::container_type
-GetUniqueValues(const AbstrDataItem* adi)
+auto GetUniqueValues(const AbstrDataItem* adi) -> auto
 {
-	using ValueSet = std::set<V, std::less<void> >;
-	ValueSet values;
+	std::set<V, std::less<void> > values;
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
 
@@ -208,7 +204,7 @@ GetUniqueValues(const AbstrDataItem* adi)
 		}
 		dms_assert(i == e);
 	}
-	return { values.begin(), values.end() };
+	return values;
 }
 
 
@@ -268,30 +264,12 @@ public:
 		:	AbstrUniqueOperator(ArgType::GetStaticClass())
 	{}
 
-	// TODO, std::set vervangen door make_index 
 	void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1A) const override
 	{
 		auto values = GetUniqueValues<V>(arg1A);
 
 		res->SetCount(values.size());
 		
-/*
-		DataWriteLock resSubLock(resSub);
-		ResultSubType* resultSub = mutable_array_cast<V>(resSubLock);
-		dms_assert(resultSub);
-
-		auto resSubData = resultSub->GetDataWrite();
-		dms_assert(resSubData.size() == values.size());
-
-		auto
-			vi = values.begin(),
-			ve = values.end();
-		auto ri = resSubData.begin();
-		for (; vi!=ve; ++ri, ++vi)
-   			*ri = *vi;
-
-		resSubLock.Commit();
-*/
 		locked_tile_write_channel<V> resWriter(resSub);
 		resWriter.Write(values.begin(), values.end());
 		dms_assert(resWriter.IsEndOfChannel());

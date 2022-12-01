@@ -272,7 +272,7 @@ struct tile_write_channel
 			SizeT numWritable = NrFreeInTile();
 			SizeT numWrite = Min<SizeT>(numWritable, numElems);
 			CIter oldFirst = first;
-			first += numWrite;
+			std::advance(first, numWrite);
 			fast_copy(oldFirst, first, Curr());
 			numElems -= numWrite;
 			if (!numElems)
