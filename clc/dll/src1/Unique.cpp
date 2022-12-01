@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "TileChannel.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -274,6 +275,7 @@ public:
 
 		res->SetCount(values.size());
 		
+/*
 		DataWriteLock resSubLock(resSub);
 		ResultSubType* resultSub = mutable_array_cast<V>(resSubLock);
 		dms_assert(resultSub);
@@ -289,6 +291,11 @@ public:
    			*ri = *vi;
 
 		resSubLock.Commit();
+*/
+		locked_tile_write_channel<V> resWriter(resSub);
+		resWriter.Write(values.begin(), values.end());
+		dms_assert(resWriter.IsEndOfChannel());
+		resWriter.Commit();
 	}
 };
 
