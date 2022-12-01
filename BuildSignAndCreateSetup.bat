@@ -8,7 +8,9 @@ set DMS_VERSION_PATCH=1
 set geodms_rootdir=%cd%
 
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
-cd ..\tst
+cd ..
+md tst
+cd tst
 git pull
 cd %geodms_rootdir%
 
@@ -65,7 +67,7 @@ cd %geodms_rootdir%
 echo on
 :afterD64UnitTest
 
-set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe
+set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe
 REM CHOICE /M  "Sign binaries? No running instances that lock them?"
 REM if ErrorLevel 2 goto :afterSign1
 REM "%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "bin\release\x64\GeoDmsRun.exe" "bin\release\x64\GeoDmsGui.exe" "bin\release\x64\GeoDmsCaller.exe" "bin\release\x64\rtc.dll" "bin\release\x64\tic.dll" "bin\release\x64\sym.dll" "bin\release\x64\stx.dll" "bin\release\x64\geo.dll" "bin\release\x64\stg.dll" "bin\release\x64\stgimpl.dll" "bin\release\x64\clc1.dll" "bin\release\x64\clc2.dll" "bin\release\x64\Shv.dll"
