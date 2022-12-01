@@ -30,7 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 # Contact
 Feel free to contact us for any landuse modeling, transport modeling or general geographic related questions.
 
-Object Vision BV
+Object Vision BV  
 Website:  [https://objectvision.nl](https://objectvision.nl)  
 Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538
 Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)  
