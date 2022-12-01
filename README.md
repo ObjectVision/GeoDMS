@@ -3,6 +3,7 @@ Geographic Data & Model Software (GeoDMS) is a platform for developing Geographi
 Where fast generic, landuse modeling and routing algorithms are implemented in c++ and exposed through the GeoDMS scripting language.
 
 # Getting started
+If you are new to GeoDMS the [GeoDMS academy](https://www.geodms.nl/GeoDMS_Academy) walks you through some of the basic features of the language.
 
 # Compilation
 Documentation on installing and using the Geographic Data & Model Server software can be found at:
