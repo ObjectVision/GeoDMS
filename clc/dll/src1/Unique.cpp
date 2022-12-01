@@ -197,7 +197,7 @@ GetUniqueValues(const AbstrDataItem* adi)
 			{
 				auto sequenceRef = *i;
 				auto insertPos = values.lower_bound(sequenceRef);
-				if (insertPos != values.end() && values.key_comp()(sequenceRef, *insertPos))
+				if (insertPos == values.end() || values.key_comp()(sequenceRef, *insertPos))
 					values.insert(insertPos, *i);
 			}
 			auto pi = i;
