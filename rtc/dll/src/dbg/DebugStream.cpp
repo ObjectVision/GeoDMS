@@ -255,9 +255,9 @@ void DebugOutStream::PrintSpaces()
 {
 	UInt32 nrSpaces = GetCallCount() * 3;
 	const char* spaces16 = "                ";
-
+	char buffer[16];
 	NewLine();
-	*this << StreamableDataTime() << mySSPrintF("[%3d]", GetThreadID()).c_str();
+	*this << StreamableDataTime() << myFixedBufferAsCharPtrRange(buffer, 16, "[%3d]", GetThreadID());
 	if (nrSpaces)
 	{
 		for (; nrSpaces >= 16; nrSpaces -= 16)

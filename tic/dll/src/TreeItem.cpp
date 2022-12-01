@@ -320,11 +320,6 @@ TreeItem::~TreeItem ()
 
 	dms_assert(_GetFirstSubItem() == 0);
 
-#if defined(MG_DEBUGREPORTER)
-	if (HasInterest())
-		DBG_DebugReport();
-#endif 
-
 	if (mc_RefItem)
 		SetReferredItem(nullptr);
 

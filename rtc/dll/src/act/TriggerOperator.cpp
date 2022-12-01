@@ -182,9 +182,7 @@ void DecRemainingTargetCount()
 	if (false) // g_RemainingTargetCount == 340000 || g_RemainingTargetCount == 325000 || g_RemainingTargetCount == 290000)
 	{
 		sd_ReportedDone = true;
-		AddMainThreadOper(
-			DBG_DebugReport
-		);
+		AddMainThreadOper(DBG_DebugReport, true);
 	}
 
 #endif defined(MG_DEBUGREPORTER)
