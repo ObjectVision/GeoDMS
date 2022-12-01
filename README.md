@@ -1,14 +1,16 @@
 # GeoDMS
+Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
+Where fast generic, landuse modeling and routing algorithms are implemented in c++ and exposed through the GeoDMS scripting language.
 
-Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems. 
+# Getting started
 
-This folder contains the C++ and a bit of Delphi source code to compile the GeoDMS.
-
+# Compilation
 Documentation on installing and using the Geographic Data & Model Server software can be found at:
 http://www.geodms.nl/
 
 The contained code is (c) Object Vision BV, unless stated otherwise, 
 
+# Terms of use
 This open source software; you can use, redistribute, and/or
 modify it under the terms of the GNU General Public License version 2 
 (the License) as published by the Free Software Foundation
@@ -27,10 +29,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 
-
+# Contact
 Object Vision BV
 De Boelelaan 1085 - F 538
 1081 HV  AMSTERDAM - the Netherlands
 t: +31-20-598.9083
-w: www.ObjectVision.Nl/
-e: info@objectvision.nl
+w: www.objectvision.nl
+e: info(at)objectvision.nl
