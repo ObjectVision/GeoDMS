@@ -93,6 +93,17 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{43041446-F114-4F3C-8750-B147FD69766E}"
 	ProjectSection(SolutionItems) = preProject
 		BuildSignAndCreateSetup.bat = BuildSignAndCreateSetup.bat
+		DmsDebug.props = DmsDebug.props
+		DmsDef.props = DmsDef.props
+		DmsRelease.props = DmsRelease.props
+		license.txt = license.txt
+		readme-dms.txt = readme-dms.txt
+		README.md = README.md
+		TestDebugFast.bat = TestDebugFast.bat
+		TestDebugUnit.bat = TestDebugUnit.bat
+		TestReleaseFast.bat = TestReleaseFast.bat
+		TestReleaseUnit.bat = TestReleaseUnit.bat
+		vcpkginstall.bat = vcpkginstall.bat
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NSIS", "NSIS", "{F6034506-5822-49C4-B88A-ECF5818E44C3}"
