@@ -133,9 +133,8 @@ private: // copying this is not allowed
 private: // copying this is not allowed
 	friend SharedCharArray* SharedCharArray_CreateEmptyImpl();
 
-	using allocator_i = my_allocator<size_t>;
-//	using allocator_t = std::allocator<T>;
-
+	using allocator_i = std::allocator<size_t>; // my_allocator<size_t>;
+	
 	void SetSize (size_t i) { m_Size = i; }
 
 	SharedArray() = delete;
