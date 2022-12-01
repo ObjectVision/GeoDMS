@@ -32,7 +32,7 @@ Feel free to contact us for landuse modeling, transport modeling or geographic s
 
 Object Vision BV  
 Website:  [https://objectvision.nl](https://objectvision.nl)  
-Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538
+Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538  
 Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)  
 Phone:    +31-20-598.9083  
 Wiki:     [https://GeoDMS.nl  ](https://www.geodms.nl/) 
