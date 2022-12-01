@@ -36,8 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "geo/Geometry.h"
-#include "geo/SeqVector.h"
-//#include "set/ResourceCollection.h"
+#include "geo/BaseBounds.h"
 #include "utl/swap.h"
 
 #include <boost/utility.hpp>

@@ -125,6 +125,10 @@ T UndefinedOrZero(const T* x) { return UndefinedValue(x); }
 template <typename T>
 T UndefinedOrMax(const T* x) { return UndefinedValue(x); }
 
+template <typename Field, typename Alloc>
+std::vector<Field, Alloc> UndefinedOrZero(const std::vector<Field, Alloc>*) { return std::vector<Field>(); }
+
+
 //----------------------------------------------------------------------
 // Section      : MakeUndefined operator; override for burdensome copy constructibles (to avoid return by value)
 //----------------------------------------------------------------------
@@ -140,6 +144,20 @@ inline void MakeUndefinedOrZero(T& v)
 {
 	v = UNDEFINED_OR_ZERO(T); 
 }
+
+template <typename Field, typename Alloc>
+inline void MakeUndefined(std::vector<Field, Alloc>& vec)
+{
+	if (vec.size())
+		vec = std::vector<Field, Alloc>();
+}
+
+template <typename Field, typename Alloc>
+inline void MakeUndefinedOrZero(std::vector<Field, Alloc>& vec)
+{
+	MakeUndefined(vec);
+}
+
 
 //----------------------------------------------------------------------
 // Undefined value and its casting to Basic types for typed Undefined creation
@@ -160,6 +178,9 @@ template <typename T> void Assign(T& lhs, Undefined)    { MakeUndefinedOrZero(lh
 
 template <typename T>
 inline bool IsDefined(const T& v) { return v != UNDEFINED_VALUE(T); }
+
+template <typename Field>
+inline bool IsDefined(const std::vector<Field>& v) { return v.size(); }
 
 #if defined(MG_USE_QNAN)
 inline bool IsDefined(Float32 v) { return !isnan(v); }

@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <boost/noncopyable.hpp>
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "set/vectorfunc.h"
 #include "set/Token.h"
 

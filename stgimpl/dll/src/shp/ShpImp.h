@@ -37,8 +37,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/IterRange.h"
 #include "geo/PointOrder.h"
 #include "geo/Range.h"
+#include "geo/BaseBounds.h"
 #include "geo/SequenceArray.h"
-#include "geo/seqvector.h"
 #include "geo/GeoSequence.h"
 
 #include "stdio.h"

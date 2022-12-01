@@ -30,7 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_SET_VECTORMAP_H
 
 #include "geo/Pair.h"
-#include "geo/seqvector.h"
+#include "geo/BaseBounds.h"
 #include "set/CompareFirst.h"
 
 #include <vector>

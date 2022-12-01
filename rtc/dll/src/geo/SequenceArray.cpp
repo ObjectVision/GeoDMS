@@ -324,6 +324,7 @@ SA_Reference<T>::SA_Reference(SequenceArrayType* container, seq_iterator seqPtr)
 
 // sequence_array constructors
 
+/* REMOVE ???*
 template <typename T>
 sequence_vector<T>::sequence_vector(const_iterator i, const_iterator e)
 {
@@ -345,6 +346,7 @@ sequence_vector<T>::sequence_vector(const_iterator i, const_iterator e)
 	dms_assert(srcDataSize == this->actual_data_size());
 	dms_assert(!this->IsDirty());
 }
+*/
 
 template <typename T>
 sequence_array<T>::sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth)
@@ -811,24 +813,6 @@ void sequence_array<T>::appendRange(const_data_iterator first, const_data_iterat
 
 	m_Values.appendRange(first, last);
 	m_ActualDataSize += (last - first);
-}
-
-template <typename T>
-typename sequence_array<T>::data_size_type 
-sequence_array<T>::calcActualDataSize() const
-{
-	MGD_CHECKDATA(IsLocked());
-	return CalcActualDataSize(begin(), end());
-}
-
-template <typename T>
-typename sequence_array<T>::data_size_type
-sequence_array<T>::CalcActualDataSize(const_iterator first, const_iterator last)
-{
-	data_size_type result = 0;
-	for (; first != last; ++first)
-		result += first->size();
-	return result;
 }
 
 template <typename T>
