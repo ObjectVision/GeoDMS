@@ -189,11 +189,11 @@ struct MlModel
 
 		//	============== second derivative
 
-			for (param_index k = 0; k!=nrK; ++k) 
+			value_type* fisherRow = &(m_Fisher[0]);
+			for (param_index k = 0; k!=nrK; ++k)
 			{
-				value_type* fisherRow = &( m_Fisher[k*nrK] );
 //				for (param_index kk = 0; kk!=nrK; ++fisherRow, ++kk)
-				param_index kk = k; fisherRow += k;
+				param_index kk = k;
 				{
 
 					value_type result = value_type();
@@ -203,8 +203,9 @@ struct MlModel
 							*	( m_DataProvider.GetD(i, j,  k) - currExpD[k ] )
 							*	( m_DataProvider.GetD(i, j, kk) - currExpD[kk] );
 
-					*fisherRow += result;
+					fisherRow[k] += result;
 				}
+				fisherRow += k;
 			}
 		}
 	}

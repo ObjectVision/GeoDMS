@@ -301,8 +301,8 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 
 void ShpImp::ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep)
 {
-	m_SeqPoints.Resize(0,      nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC_STR("Shp: SeqPoints"));
-	m_SeqParts .Resize(nrRecs, nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC_STR("Shp: SeqParts"));
+	m_SeqPoints.Resize(0,      nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC("Shp: SeqPoints"));
+	m_SeqParts .Resize(nrRecs, nrRecs, nrSeqsToKeep MG_DEBUG_ALLOCATOR_SRC("Shp: SeqParts"));
 	m_NrRecs = nrRecs;
 }
 

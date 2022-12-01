@@ -348,8 +348,8 @@ SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
 
 #if defined(MG_DEBUG_ALLOCATOR)
 
-RTC_CALL SharedStr SequenceArrayString();
-RTC_CALL SharedStr IndexedString();
+//RTC_CALL SharedStr SequenceArrayString();
+//RTC_CALL SharedStr IndexedString();
 
 #endif defined(MG_DEBUG_ALLOCATOR)
 

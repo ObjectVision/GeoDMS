@@ -588,7 +588,7 @@ public:
 
 			dms_assert(data.size() == recordCount);
 			if (recordsPerFrame == recordCount)
-				data.get_sa().data_reserve(GetActualSizeEstimate() MG_DEBUG_ALLOCATOR_SRC_STR("ODBC"));
+				data.get_sa().data_reserve(GetActualSizeEstimate() MG_DEBUG_ALLOCATOR_SRC("ODBC"));
 
 			sequence_array<char>::iterator stringPtr = data.begin() + recordsRead;
 

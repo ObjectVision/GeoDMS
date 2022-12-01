@@ -598,7 +598,7 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 		bmpInfo.bmiHeader.biSizeImage
 			=	abs(bmpInfo.bmiHeader.biHeight) * ((bmpInfo.bmiHeader.biWidth * (bmpInfo.bmiHeader.biBitCount+7)/8 + 0x03) & ~0x03);
 
-	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage MG_DEBUG_ALLOCATOR_SRC_STR("SaveBitmap"));
+	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage MG_DEBUG_ALLOCATOR_SRC("SaveBitmap"));
 
 	bmpInfo.bmiHeader.biCompression=BI_RGB;
 	GetDIBits(hdc,hBitmap,0,bmpInfo.bmiHeader.biHeight,pBuf.begin(), &bmpInfo, DIB_RGB_COLORS);

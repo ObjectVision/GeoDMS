@@ -42,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <vector>	// ColDescriptions
 #include "stdio.h"	// FP
 
-#include "geo/seqvector.h"
+#include "geo/BaseBounds.h"
 #include "mci/ValueClassID.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"

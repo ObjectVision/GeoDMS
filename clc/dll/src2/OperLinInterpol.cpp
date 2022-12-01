@@ -86,7 +86,7 @@ void DoInterpolateLinear(
 	iter_x_t xi = xCoords.begin();
 	UInt32   n  = xCoords.size();
 
-	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC_STR( "DoInterpolateLinear: index"));
+	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC( "DoInterpolateLinear: index"));
 	UInt32* indexBegin = index.begin();
 	UInt32* indexEnd   = indexBegin+n;
 	make_index(indexBegin, indexEnd, xi);

@@ -56,7 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 void InitOutput(sequence_traits<SharedStr>::seq_t& outputs, const length_finder_array& lengthFinderArray)
 {
 	dms_assert(outputs.size() == lengthFinderArray.size());
-	outputs.get_sa().data_reserve(lengthFinderArray.GetTotalLength() MG_DEBUG_ALLOCATOR_SRC_STR("OperAccUniStr: outputs.get_sa().data_reserve()"));
+	outputs.get_sa().data_reserve(lengthFinderArray.GetTotalLength() MG_DEBUG_ALLOCATOR_SRC("OperAccUniStr: outputs.get_sa().data_reserve()"));
 
 	sequence_traits<SharedStr>::container_type::iterator
 		outputsItr = outputs.begin(),

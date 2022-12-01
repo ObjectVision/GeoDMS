@@ -81,8 +81,8 @@ struct Inverted_rel {
 private:
 	void InitData(DomType nrD, SizeT nrV)
 	{
-		m_First_rel = OwningPtrSizedArray<DomType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC_STR("dijkstra: m_First_rel"));
-		m_Next_rel = OwningPtrSizedArray<DomType>(nrD, Undefined() MG_DEBUG_ALLOCATOR_SRC_STR("dijkstra: m_Next_rel"));
+		m_First_rel = OwningPtrSizedArray<DomType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_First_rel"));
+		m_Next_rel = OwningPtrSizedArray<DomType>(nrD, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_Next_rel"));
 	}
 	template <typename ValType> void Assign(ValType v, ValType nrV, DomType d)
 	{

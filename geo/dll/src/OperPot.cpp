@@ -88,7 +88,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 			for (tile_id ti = 0; ti != te; ++ti)
 				MakeUpperBound(maxDataTileSize, Convert<Point<UInt32>>(Size(resDomainUnit->GetTileRangeAsIRect(ti))));
 
-			OwningPtrSizedArray<result_tile_protector> resTileAddition(te MG_DEBUG_ALLOCATOR_SRC_STR("OperPot: resTileAddition"));
+			OwningPtrSizedArray<result_tile_protector> resTileAddition(te MG_DEBUG_ALLOCATOR_SRC("OperPot: resTileAddition"));
 
 			auto kernelInfo = CreateKernelInfo(weightGridA, Size(weightRect), maxDataTileSize);
 			for (tile_id ti = 0; ti != te; ++ti)

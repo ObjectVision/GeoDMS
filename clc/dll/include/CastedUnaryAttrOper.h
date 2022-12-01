@@ -79,7 +79,7 @@ public:
 			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers())
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + ": " + GetGroup()->GetName().c_str()));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
 			}
 			else
 			{
@@ -151,7 +151,7 @@ public:
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}
-						MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := MappingOperator()")
+						MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := MappingOperator()")
 					);
 					res->m_DataObject = lazyTileFunctor.release();
 				}

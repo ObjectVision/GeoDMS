@@ -560,9 +560,6 @@
     <ClInclude Include="src\ser\DebugOutStream.h">
       <Filter>Debug Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\geo\SeqVector.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="src\ptr\Resource.h">
       <Filter>Smart Pointers</Filter>
     </ClInclude>

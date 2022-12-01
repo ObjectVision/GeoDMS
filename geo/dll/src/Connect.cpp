@@ -955,14 +955,14 @@ public:
 			}
 
 			typename sequence_traits<typename ResultSubType::value_type>::container_type
-				resultSubData(maxResCount MG_DEBUG_ALLOCATOR_SRC_STR("Connect: resultSubData.indices"));
+				resultSubData(maxResCount MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.indices"));
 			SizeT actualDataSize = 0;
 			for (tile_id t=0, tn = arg1A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 				actualDataSize += const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t).get_sa().actual_data_size();
 
-			resultSubData.data_reserve( actualDataSize + arg2Count MG_DEBUG_ALLOCATOR_SRC_STR("Connect: resultSubData.sequences"));
+			resultSubData.data_reserve( actualDataSize + arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
 
-			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count MG_DEBUG_ALLOCATOR_SRC_STR("Connect: nrOrgEntityData"));
+			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
 			R* nrOrgEntityDataPtr = nrOrgEntityData.begin();
 			R* nrOrgEntityIter = nrOrgEntityDataPtr;
 
@@ -1124,7 +1124,7 @@ public:
 			MGD_CHECKDATA(resSubData.get_sa().IsLocked());
 			MGD_CHECKDATA(resultSubData.IsLocked());
 
-			resSubData.get_sa().data_reserve(resultSubData.actual_data_size() MG_DEBUG_ALLOCATOR_SRC_STR("Connect: resultSubData.data_reserve"));
+			resSubData.get_sa().data_reserve(resultSubData.actual_data_size() MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.data_reserve"));
 
 			auto ri = resSubData.begin();
 			ri = fast_copy(resultSubData.begin(), resStreetEnd, ri);

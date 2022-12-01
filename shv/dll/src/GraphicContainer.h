@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TreeItem.h"
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/OwningPtr.h"
 #include "set/VectorFunc.h"

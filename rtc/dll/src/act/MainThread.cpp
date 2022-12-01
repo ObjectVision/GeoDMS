@@ -107,9 +107,9 @@ std::vector < std::function<void()>>  s_OperQueue;
 
 leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
 
-void AddMainThreadOper(std::function<void()>&& func)
+void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 {
-	if (IsMainThread())
+	if (IsMainThread() && !postAlways)
 	{
 		ProcessMainThreadOpers();
 		func();

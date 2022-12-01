@@ -334,7 +334,7 @@ struct partitioning_info_t
 		DataReadLock lock(m_AtomicRegionPartitioningDI);
 		auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
 		MG_DEBUGCODE( md_NrAtomicRegions = nrAtomicRegions);
-		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions MG_DEBUG_ALLOCATOR_SRC_STR("DiscrAlloc: m_AtomicRegionPartitioningData"));
+		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
 		m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
 	}
 

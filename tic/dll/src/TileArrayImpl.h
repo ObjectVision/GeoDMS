@@ -180,9 +180,9 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(t);
 	if (rwMode == dms_rw_mode::read_write)
-		resizeSO(*tilePtr, tileSize, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		resizeSO(*tilePtr, tileSize, true MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 	else
-		reallocSO(*tilePtr, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		reallocSO(*tilePtr, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 
 	dms_assert(tilePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
@@ -220,9 +220,9 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(0);
 	if (rwMode == dms_rw_mode::read_write)
-		resizeSO(m_Seq, tileSize, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		resizeSO(m_Seq, tileSize, true MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 	else
-		reallocSO(m_Seq, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		reallocSO(m_Seq, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
 
 	return locked_seq_t(TileRef(this), GetSeq(m_Seq));

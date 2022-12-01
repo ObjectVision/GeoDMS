@@ -205,7 +205,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	auto trd = domain->GetTiledRangeData();
 	OverlayLayerVisitor visitor;
 	visitor.m_NrTiles     = domain->GetNrTiles();
-	visitor.m_ProdIdMapDO = CreateHeapTileArray<ProdID>(trd, nullptr, false MG_DEBUG_ALLOCATOR_SRC_STR("Overlay: m_ProdIdMapDO")).release();
+	visitor.m_ProdIdMapDO = CreateHeapTileArray<ProdID>(trd, nullptr, false MG_DEBUG_ALLOCATOR_SRC("Overlay: m_ProdIdMapDO")).release();
 //		std::make_unique<HeapTileArray<ProdID>>(trd, false);
 
 //	REMOVE DataWriteLock prodIdMapLock(visitor.m_ProdIdMap);

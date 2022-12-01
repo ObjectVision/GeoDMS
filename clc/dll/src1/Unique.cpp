@@ -31,7 +31,6 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 
 #include "geo/IsNotUndef.h"
-#include "geo/SeqVector.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "set/DataCompare.h"
@@ -41,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "TileChannel.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -48,64 +48,59 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
 
 template <typename V>
-std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, SizeT index, UInt32 size)
+std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size)
 {
-	dms_assert(size <= BUFFER_SIZE<V>);
-	dms_assert(size > 0);
+	// PRECONDITIONS
+	assert(size <= BUFFER_SIZE<V>);
+	assert(size > 0);
+	assert(index <= seq.size());
+	assert(index + size <= seq.size());
 
-	V buffer[BUFFER_SIZE<V>];
-	dms_assert(index + size <= seq.size());
-	fast_copy(seq.begin() + index, seq.begin() + index + size, buffer);
+	V buffer[BUFFER_SIZE<V>]; V* bufferCursor = buffer;
+	//	fast_copy(seq.begin() + index, seq.begin() + index + size, buffer);
 
-	DataCompare<V> comp;
-	std::sort(buffer, buffer + size, comp);
+	//	copy only values that are defined and not equal to their predecessor
+	auto i = seq.begin() + index, e = i + size;
 
-	UInt32 nrNulls = 0;
+redo:
+		if (IsNotUndef(*i))
+			*bufferCursor++ = *i;
+		auto pi = i;
+		while (++i != e)
+		{
+			if (*i != *pi)
+				goto redo;
+		}
+	assert(i == e);
 
-	while (true)
-	{
-		if (nrNulls == size)
-			return {};
-		if (IsNotUndef(buffer[nrNulls]))
-			break;
-		++nrNulls;
-	}
-	auto firstValuePtr = buffer + nrNulls;
-	auto lastValuePtr = std::unique(firstValuePtr, buffer+size);
-	return std::vector<V>( firstValuePtr, lastValuePtr );
+	std::sort(buffer, bufferCursor);
+
+	auto lastValuePtr = std::unique(buffer, bufferCursor);
+	return std::vector<V>( buffer, lastValuePtr );
 }
 
-template <class _InIt1, class _InIt2, class _OutIt, class _Pr>
-_CONSTEXPR20 _OutIt set_union_by_move(_InIt1 _First1, _InIt1 _Last1, _InIt2 _First2, _InIt2 _Last2, _OutIt _Dest, _Pr _Pred) {
-	// OR sets [_First1, _Last1) and [_First2, _Last2)
-	_Adl_verify_range(_First1, _Last1);
-	_Adl_verify_range(_First2, _Last2);
-	auto _UFirst1 = _Get_unwrapped(_First1);
-	const auto _ULast1 = _Get_unwrapped(_Last1);
-	auto _UFirst2 = _Get_unwrapped(_First2);
-	const auto _ULast2 = _Get_unwrapped(_Last2);
-	_DEBUG_ORDER_SET_UNWRAPPED(_InIt2, _UFirst1, _ULast1, _Pred);
-	_DEBUG_ORDER_SET_UNWRAPPED(_InIt1, _UFirst2, _ULast2, _Pred);
-	auto _UDest = _Get_unwrapped_unverified(_Dest);
-	for (; _UFirst1 != _ULast1 && _UFirst2 != _ULast2; ++_UDest) {
-		if (_DEBUG_LT_PRED(_Pred, *_UFirst1, *_UFirst2)) { // copy first
-			*_UDest = std::move(*_UFirst1);
-			++_UFirst1;
+template <typename Iter, typename Pred>
+_CONSTEXPR20 auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
+{
+	for (; first1 != last1 && first2 != last2; ++dest) {
+		if (pred(*first1, *first2)) { // copy first
+			*dest = std::move(*first1);
+			++first1;
 		}
-		else if (_Pred(*_UFirst2, *_UFirst1)) { // copy second
-			*_UDest = std::move(*_UFirst2);
-			++_UFirst2;
+		else if (pred(*first2, *first1)) { // copy second
+			*dest = std::move(*first2);
+			++first2;
 		}
 		else { // advance both
-			*_UDest = std::move(*_UFirst1);
-			++_UFirst1;
-			++_UFirst2;
+			*dest = std::move(*first1);
+			++first1;
+			++first2;
 		}
 	}
 
-	_UDest = fast_move(_UFirst1, _ULast1, _UDest);
-	_Seek_wrapped(_Dest, fast_move(_UFirst2, _ULast2, _UDest));
-	return _Dest;
+	dest = fast_move(first1, last1, dest);
+	dest = fast_move(first2, last2, dest);
+	return dest;
 }
 
 template <typename V>
@@ -116,7 +111,7 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right)
 
 	if (!result.empty())
 	{
-		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<V>());
+		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<void>());
 		result.erase(actualEnd, result.end());
 	}
 	return result;
@@ -125,14 +120,13 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right)
 #include <future>
 
 template <typename V>
-std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, SizeT index, SizeT size)
+std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size)
 {
 	if (size <= BUFFER_SIZE<V>)
 		return GetUniqueValuesDirect<V>(tileData, index, size);
 
 	std::vector<V> result;
-	SizeT m = size / 2;
-//	std::vector<V> firstHalf, secondHalf;
+	tile_offset m = size / 2;
 
 	std::future<std::vector<V>> firstHalf = throttled_async([&tileData, index, m]() {
 		return GetTileUniqueValues<V>(tileData, index, m);
@@ -148,8 +142,7 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 	dms_assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles == 1)
 	{
-//		ReadableTileLock tileLock(ado, t);
-		SizeT tileSize = ado->GetTiledRangeData()->GetTileSize(t);
+		auto tileSize = ado->GetTiledRangeData()->GetTileSize(t);
 		return GetTileUniqueValues<V>(ado->GetTile(t), 0, tileSize);
 	}
 
@@ -165,12 +158,10 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 }
 
 
-template<typename V> 
+template<fixed_elem V>
 std::vector<V> GetUniqueValues(const AbstrDataItem* adi)
 {
 	dms_assert(adi && adi->GetInterestCount());
-
-	DataReadLock lck(adi);
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
 
@@ -182,6 +173,38 @@ std::vector<V> GetUniqueValues(const AbstrDataItem* adi)
 			return GetUniqueWallValues<V>(ado, 0, tn);
 	}
 	return {};
+}
+
+template<sequence_or_string V>
+auto GetUniqueValues(const AbstrDataItem* adi) -> auto
+{
+	std::set<V, std::less<void> > values;
+
+	const DataArray<V>* ado = const_array_cast<V>(adi);
+
+	for (tile_id t = 0, tn = ado->GetTiledRangeData()->GetNrTiles(); t != tn; ++t)
+	{
+		auto tileData = ado->GetTile(t);
+		auto i = tileData.begin(), e = tileData.end();
+
+		if (i != e)
+		{
+		redo:
+			if (IsDefined(*i))
+			{
+				auto sequenceRef = *i;
+				auto insertPos = values.lower_bound(sequenceRef);
+				if (insertPos == values.end() || values.key_comp()(sequenceRef, *insertPos))
+					values.insert(insertPos, *i);
+			}
+			auto pi = i;
+			while (++i != e)
+				if (!(*i == *pi))
+					goto redo;
+		}
+		dms_assert(i == e);
+	}
+	return values;
 }
 
 
@@ -241,29 +264,16 @@ public:
 		:	AbstrUniqueOperator(ArgType::GetStaticClass())
 	{}
 
-	// TODO, std::set vervangen door make_index 
 	void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1A) const override
 	{
-		typedef std::vector<V> ValueSet;
-		ValueSet values = GetUniqueValues<V>(arg1A);
+		auto values = GetUniqueValues<V>(arg1A);
 
 		res->SetCount(values.size());
 		
-		DataWriteLock resSubLock(resSub);
-		ResultSubType* resultSub = mutable_array_cast<V>(resSubLock);
-		dms_assert(resultSub);
-
-		auto resSubData = resultSub->GetDataWrite();
-		dms_assert(resSubData.size() == values.size());
-
-		auto
-			vi = values.begin(),
-			ve = values.end();
-		auto ri = resSubData.begin();
-		for (; vi!=ve; ++ri, ++vi)
-   			*ri = *vi;
-
-		resSubLock.Commit();
+		locked_tile_write_channel<V> resWriter(resSub);
+		resWriter.Write(values.begin(), values.end());
+		dms_assert(resWriter.IsEndOfChannel());
+		resWriter.Commit();
 	}
 };
 
