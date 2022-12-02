@@ -97,40 +97,6 @@ GuiState::~GuiState()
     clear();
 }
 
-bool GuiTreeItemsHolder::contains(TreeItem* item)
-{
-    if (std::find(m_TreeItems.begin(), m_TreeItems.end(), item) != m_TreeItems.end())
-        return true;
-    return false;
-}
-
-void GuiTreeItemsHolder::add(TreeItem* item)
-{
-    m_TreeItems.push_back(item);
-}
-
-void GuiTreeItemsHolder::add(const AbstrDataItem* adi)
-{
-    m_DataHolder.push_back(adi);
-}
-
-void GuiTreeItemsHolder::clear()
-{
-    m_TreeItems.clear();
-    m_DataHolder.clear();
-}
-
-SizeT GuiTreeItemsHolder::size()
-{
-    return m_TreeItems.size();
-}
-
-std::vector<InterestPtr<TreeItem*>>& GuiTreeItemsHolder::get()
-{
-    return m_TreeItems;
-}
-
-
 GuiBaseComponent::GuiBaseComponent(){}
 GuiBaseComponent::~GuiBaseComponent(){}
 void GuiBaseComponent::Update(){}

@@ -67,20 +67,6 @@ enum class GuiEvents
 	Close,
 };
 
-class GuiTreeItemsHolder
-{
-public:
-	bool contains(TreeItem* item);
-	void add(TreeItem* item);
-	void add(const AbstrDataItem* adi);
-	void clear();
-	SizeT size();
-	std::vector<InterestPtr<TreeItem*>>& get();
-private:
-	std::vector<InterestPtr<TreeItem*>> m_TreeItems;
-	std::vector<InterestPtr<const AbstrDataItem*>> m_DataHolder;
-};
-
 class EventQueue
 {
 public:

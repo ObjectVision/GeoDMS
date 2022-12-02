@@ -47,6 +47,8 @@ void GuiTreeViewComponent::Update(bool* p_open, GuiState& state)
         m_TemporaryJumpItem = state.GetCurrentItem();
     }
 
+    //const ImVec2 size(100,10000);
+    //ImGui::SetNextWindowContentSize(size);
     if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
