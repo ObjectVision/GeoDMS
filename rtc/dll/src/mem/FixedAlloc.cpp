@@ -118,12 +118,6 @@ struct VirtualAllocPage
 //		VirtualAlloc(ptr, sz, MEM_RESET_UNDO, PAGE_READWRITE);
 	}
 
-	BYTE_PTR reserve_block_log2(block_index_t log2BlockSize, BlockCount_type blockIndex)
-	{
-		auto ptr = begin() + (SizeT(blockIndex) << log2BlockSize);
-		return ptr;
-	}
-
 private:
 	BYTE_PTR pagePtr;
 	SizeT BLOCK_PAGE_SIZE;
@@ -139,6 +133,7 @@ struct VirtualAllocPageAllocator
 	block_index_t log2BlockSize = 0;
 	BlockSize_type blockSize = 0;
 	SizeT nextPageSize = 0;
+	BYTE_PTR lastPagePtr = nullptr;
 
 	void Init_log2(block_index_t log2BlockSize_)
 	{
@@ -147,6 +142,7 @@ struct VirtualAllocPageAllocator
 		dms_assert(std::popcount(blockSize) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
 		nextPageSize = blockSize;
 		nextPageSize *= 2;
+		MakeMax(nextPageSize, 1 << 20);
 	}
 
 	BYTE_PTR get_reserved_block(BlockSize_type sz)
@@ -160,9 +156,10 @@ struct VirtualAllocPageAllocator
 
 			if (nextPageSize < PAGE_SIZE) // double up to 1[GB]
 				nextPageSize <<= 1;
+			lastPagePtr = pages.back().begin();
 		}
 		dms_assert(nrUncommitedBlocks);
-		return pages.back().reserve_block_log2(log2BlockSize, --nrUncommitedBlocks);
+		return lastPagePtr + (SizeT(--nrUncommitedBlocks) << log2BlockSize);
 	}
 	void commit(BYTE_PTR ptr, BlockSize_type sz)
 	{
@@ -260,8 +257,51 @@ struct FreeStackAllocator
 		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2BlockSize, nrUncommitted << inner.log2BlockSize);
 	}
 };
+/*
+struct FreeListAllocator
+{
+	VirtualAllocPageAllocator inner;
+	BYTE_PTR freelist = nullptr, 
+	BlockCount_type blockCount = 0;
+	mutable std::mutex allocSection;
 
-std::allocator<UInt64> s_BlockAllocator;
+	void Init_log2(block_index_t log2BlockSize_) { inner.Init_log2(log2BlockSize_); }
+
+	auto NrAllocatedBlocks() const { return blockCount; }
+	std::pair<BYTE_PTR, bool> get_reserved_or_reset_block(BlockSize_type sz)
+	{
+		std::scoped_lock lock(allocSection);
+
+		blockCount++;
+
+		if (freestack.empty())
+			return { inner.get_reserved_block(sz), true };
+
+		auto ptr = freestack.back(); freestack.pop_back();
+		return { ptr, false };
+	}
+	BYTE_PTR allocate(BlockSize_type sz)
+	{
+		auto reserved_or_rest_block = get_reserved_or_reset_block(sz);
+		if (reserved_or_rest_block.second)
+			inner.commit(reserved_or_rest_block.first, sz);
+		else
+			inner.recommit(reserved_or_rest_block.first, sz);
+		return reserved_or_rest_block.first;
+	}
+	void add_to_freestack(BYTE_PTR ptr, BlockSize_type sz)
+	{
+		std::scoped_lock lock(allocSection);
+		blockCount--;
+		freestack.emplace_back(ptr);
+	}
+	void deallocate(BYTE_PTR ptr, BlockSize_type sz)
+	{
+		inner.release(ptr, sz);
+		add_to_freestack(ptr, sz);
+	}
+};
+*/
 
 const std::size_t QWordSize = sizeof(UInt64);
 static UInt32 g_ElemAllocCounter = 0;
