@@ -14,26 +14,6 @@
 #include "dbg/SeverityType.h"
 #include "IconsFontRemixIcon.h"
 
-class GuiTreeNode
-{
-private:
-	TreeItem* m_TreeItem = nullptr;
-	ProgressState m_State = PS_None; // synchronized using TreeItem update callback
-	std::vector<GuiTreeNode> m_Branches;
-};
-
-static void OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state)
-{
-	int i = 0;
-}
-
-struct GuiSparseTree
-{
-	static std::mutex m_Lock; // synchronization primitive
-	GuiTreeNode m_Root;
-	std::map<TreeItem*, GuiTreeNode*> m_TreeItemToTreeNode;
-};
-
 enum GuiWindowOpenFlags
 {
 	GWOF_TreeView = 1,
