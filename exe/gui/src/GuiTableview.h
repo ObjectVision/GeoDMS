@@ -17,6 +17,6 @@ private:
 
 	std::vector<std::vector<std::string>> m_DataStringBuffer;
 	GuiState           m_State;
-	GuiTreeItemsHolder m_ActiveItems;
+	//GuiTreeItemsHolder m_ActiveItems;
 	bool			   m_UpdateData = false;
 };

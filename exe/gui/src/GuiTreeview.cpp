@@ -33,6 +33,48 @@
 
 #include "GuiTreeview.h"
 #include "GuiStyles.h"
+#include <functional>
+
+GuiTreeNode::GuiTreeNode(TreeItem* item)
+{
+    m_item = item;
+    m_depth = GetDepthFromTreeItem();
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
+
+}
+
+GuiTreeNode::~GuiTreeNode()
+{
+    if (m_item)
+        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
+}
+
+auto GuiTreeNode::Draw() -> bool
+{
+    return false;
+}
+
+GuiTree* GuiTree::instance = 0;
+GuiTree* GuiTree::getInstance(TreeItem* root)
+{
+    if (!instance) 
+    {
+        instance = new GuiTree(root);
+        return instance;
+    }
+    else
+        return instance;
+}
+
+void GuiTree::Draw()
+{
+
+}
+
+auto GuiTree::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void
+{
+
+}
 
 GuiTreeViewComponent::~GuiTreeViewComponent() 
 {}

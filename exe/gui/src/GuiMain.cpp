@@ -491,7 +491,7 @@ int GuiMainComponent::MainLoop()
 
             if (m_State.GetRoot())
             {
-                DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
+                //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
                 m_State.GetRoot()->UpdateMetaInfo();
             }
         }
