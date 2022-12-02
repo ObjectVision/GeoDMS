@@ -76,7 +76,7 @@ public:
 			auto index = MakeIndex(arg2A, arg2_DomainUnit);
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
 
-			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers())
+			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (ElementWeight(arg1A) <= ElementWeight(res)) && (nrTiles > arg2_DomainUnit->GetNrTiles()))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
 			else
 			{
