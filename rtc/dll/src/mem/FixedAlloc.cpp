@@ -271,7 +271,7 @@ static UInt32 g_ElemAllocCounter = 0;
 const UInt8 log2_extended_segment_size = 20;
 
 constexpr UInt32 nr_bits_in_byte = 8;
-constexpr UInt32 ALLOC_ELEMSIZE_MIN_BITS =  3; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;     // 2^13 ==  8[kB]
+constexpr UInt32 ALLOC_ELEMSIZE_MIN_BITS = 13; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;      // 2^13 ==  8[kB]
 constexpr UInt32 ALLOC_ELEMSIZE_MAX_BITS = 28; //  log2_extended_segment_size + mpf::log2_v<sizeof(Float64) * 2>; // 2^28 ==256[MB]
 constexpr SizeT ALLOC_ELEMSIZE_MIN = 1 << ALLOC_ELEMSIZE_MIN_BITS;
 constexpr SizeT ALLOC_ELEMSIZE_MAX = 1 << ALLOC_ELEMSIZE_MAX_BITS;
@@ -392,10 +392,9 @@ bool IsIntegralPowerOf2OrZero(SizeT sz)
 
 bool SpecialSize(SizeT sz)
 {
-	//return sz >= ALLOC_ELEMSIZE_MIN && sz <= ALLOC_ELEMSIZE_MAX && IsIntegralPowerOf2OrZero(sz);
-//	return sz > ALLOC_ELEMSIZE_MIN / 2 && sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
 	assert(sz);
-	return sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
+	return sz > ALLOC_ELEMSIZE_MIN / 2 && sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
+//	return sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
 }
 
 #endif defined(MG_CACHE_ALLOC)
@@ -418,7 +417,6 @@ void* AllocateFromStock_impl(size_t sz)
 		auto& freeStack = GetFreeStackAllocator(i);
 		return freeStack.allocate(sz);
 	}
-	assert(sz > ALLOC_ELEMSIZE_MAX);
 #endif //defined(MG_CACHE_ALLOC)
 	SizeT blockSize = ((sz + (QWordSize - 1)) & ~(QWordSize - 1)) / QWordSize;
 
