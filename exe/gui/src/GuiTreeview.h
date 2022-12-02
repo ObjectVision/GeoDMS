@@ -12,7 +12,7 @@ private:
 	void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem);
 	bool IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped);
 
-	TreeItem*   m_TemporaryJumpItem = nullptr;
+	TreeItem* m_TemporaryJumpItem = nullptr;
 
 	ImGuiTreeNodeFlags m_BaseFlags  = ImGuiWindowFlags_AlwaysAutoResize | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 };
