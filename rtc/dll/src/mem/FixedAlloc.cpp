@@ -15,8 +15,8 @@
 	FreeListAllocator(i) can allocate and deallocate small objects of size 8*2^i < 4[kB], thus i < 12-3. 
 	Memory is provided by the FreeStackAlocator(i) that can store 2^9=512 small objects. deallocated small object remain committed.
 
-	It keeps a wait free unused counter.
-	It keeps a wait-free freelist inside the deallocated object storage for reallocation.
+	It keeps a lock-free unused counter.
+	It keeps a lock-free freelist inside the deallocated object storage for reallocation.
 
 	Both benefit from the following advantages over malloc, VirtualAlloc and HeapAlloc
 	- requiring the object size at destruction
@@ -362,7 +362,7 @@ struct FreeListAllocator
 		assert(freeStackAllocator);
 		assert(freeListPtr.is_lock_free());
 
-		// first try the free list - wait free
+		// first try the free list - lock-free
 		tagged_sos_ptr currFreeTaggedPtr = freeListPtr.load(std::memory_order::consume);
 		while (currFreeTaggedPtr.get_ptr()) {
 			SOS_PTR poppedFreeListPtr = reinterpret_cast<tagged_sos_ptr*>(currFreeTaggedPtr.get_ptr())->get_ptr();
@@ -377,7 +377,7 @@ struct FreeListAllocator
 		}
 		assert(currFreeTaggedPtr.get_ptr() == nullptr);
 
-		// then try reserved small objects - wait free
+		// then try reserved small objects - lock-free
 		while (true)
 		{
 			UInt32 currTaggedNrReservedSosses = taggedNrReservedSosses;
