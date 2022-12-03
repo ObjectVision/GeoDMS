@@ -58,7 +58,7 @@
 
 #include <memory>
 
-#define MG_CACHE_ALLOC
+//#define MG_CACHE_ALLOC
 
 #define MG_DEBUG_ALLOC true
 #define MG_DEBUG_ALLOC_SMALL false
@@ -110,8 +110,6 @@ void RemoveAlloc(void* ptr, size_t n);
 
 void PostReporting();
 void ConsiderReporting();
-
-std::allocator<UInt64> s_QWordArrayAllocator;
 
 template<typename Unsigned>
 constexpr alloc_index_t highest_bit_rank(Unsigned value)
@@ -208,25 +206,25 @@ struct VirtualAllocChunkArray
 				nextChunkSize <<= 1;
 			lastChunkPtr = chunks.back().begin();
 		}
-		dms_assert(nrResevedButUncommitedObjectStores);
+		assert(nrResevedButUncommitedObjectStores);
 		auto currReservedButUncommittedObjectStoreIndex = --nrResevedButUncommitedObjectStores;
 		return lastChunkPtr + (SizeT(currReservedButUncommittedObjectStoreIndex) << log2ObjectStoreSize);
 	}
 	void commit(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize && objectSize <= objectStoreSize);
+		assert(objectSize > objectSizeSize/2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::commit(ptr, objectSize, objectStoreSize);
 	}
 
 	void release(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize && objectSize <= objectStoreSize);
+		assert(objectSize > objectSizeSize / 2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::release(ptr, objectSize);
 	}
 
 	void recommit(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize && objectSize <= objectStoreSize);
+		assert(objectSize > objectSizeSize / 2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::recommit(ptr, objectSize);
 	}
 };
@@ -485,9 +483,10 @@ ElemAllocComponent s_Initialize;
 #endif defined(MG_CACHE_ALLOC)
 
 //----------------------------------------------------------------------
-// inmplement interface
+// implement interface
 //----------------------------------------------------------------------
 
+std::allocator<UInt64> s_QWordArrayAllocator;
 
 void* AllocateFromStock_impl(size_t objectSize)
 {
@@ -526,9 +525,8 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-#endif //defined(MG_DEBUG_ALLOCATOR)
-
 	ConsiderReporting();
+#endif //defined(MG_DEBUG_ALLOCATOR)
 	return result;
 }
 
@@ -538,11 +536,12 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 		dms_assert(objectPtr == nullptr);
 		return;
 	}
+#if defined(MG_CACHE_ALLOC)
+
 #if defined(MG_DEBUG_ALLOCATOR)
 	RemoveAlloc(objectPtr, objectSize);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
-#if defined(MG_CACHE_ALLOC)
 	auto i = BlockListIndex(objectSize);
 	if (i < FIRST_PAGE_INDEX)
 	{
@@ -596,8 +595,10 @@ void ReportFixedAllocStatus()
 // clean-up
 //----------------------------------------------------------------------
 
+
 ElemAllocComponent::ElemAllocComponent()
 {
+#if defined(MG_CACHE_ALLOC)
 	if (g_ElemAllocCounter++)
 		return;
 
@@ -611,14 +612,19 @@ ElemAllocComponent::ElemAllocComponent()
 //	_CrtSetBreakAlloc(6548); 
 //	Known leak: iconv-2.dll->relocatable.c->DllMail contains  shared_library_fullname = strdup(location); which leaks 44 bytes of memory
 #endif
+#endif //defined(MG_CACHE_ALLOC)
 
 }
 
 ElemAllocComponent::~ElemAllocComponent()
 {
+#if defined(MG_CACHE_ALLOC)
 	if (--g_ElemAllocCounter)
 		return;
+#endif //defined(MG_CACHE_ALLOC)
 }
+
+#if defined(MG_CACHE_ALLOC)
 
 #include "dbg/Timer.h"
 
@@ -727,3 +733,4 @@ static AllocReporter s_Reporter;
 
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
+#endif // defined(MG_CACHE_ALLOC)
