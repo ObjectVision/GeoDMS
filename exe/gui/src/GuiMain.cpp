@@ -284,7 +284,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
     //TODO: build in timer for checks?
-    static std::string changed_files_result;
+    static std::string changed_files_result; 
     auto changed_files = DMS_ReportChangedFiles(true);
     if (changed_files)
     {
