@@ -1,23 +1,38 @@
 /*
-	fixed_allocator is an allocator that has an efficient
-	memory management implementation for allocating limited-size objects.
-	It can only allocate and deallocate objects of the same size by
-	maintaining a linked list of free areas. The area that is managed
-	is allocated by a suppying allocator, called ArrayAlloc, which is used
-	to claim large blocks at a time.
+	FixedAlloc provides an allocator that has an efficient memory management.
+
+	FreeStackAllocator(i) can allocate and deallocate objectStores that span 2^i pages (4kB), thus 2^(i+12) bytes.
+	It mantains a FreeStack of deallocated objectStores for reallocation. Allocated objects must have accessible memory.
+
+	ObjectStore Memory is provided by VirtualAllocChunkArray(i), which manages a vector of VirtualAllocChunks(i+j)
+	to reserve address space for chunks of 2^j objectStores at a time. 
+	A VirtualAllocChunkArray can commit address space per objectStore and has a deallocate and recommit policy.
+
+	TODO: It may have a lazy MEM_RESET (following deallocation) and MEM_RESET_UNDO (for reallocation) policy 
+		to adapt to RAM page reclaimation as needed without decommitting hot deallocated objects.
+	NOW: release leaves the memory of deallocated objectStores always committed and recommit doesn't have to do anything.
+
+	FreeListAllocator(i) can allocate and deallocate small objects of size 8*2^i < 4[kB], thus i < 12-3. 
+	Memory is provided by the FreeStackAlocator(i) that can store 2^9=512 small objects. deallocated small object remain committed.
+
+	It keeps a wait free unused counter.
+	It keeps a wait-free freelist inside the deallocated object storage for reallocation.
+
+	Both benefit from the following advantages over malloc, VirtualAlloc and HeapAlloc
+	- requiring the object size at destruction
+	- keeping memory reserved for reuse during a process
+	- betting on having many objects of the same size due to default sized tiling, thus making recycling 
 
 	Complexity:
 
 	Apart from the incidental large block allocation, allocation and
 	deallocation is done in constant time.
 
-	Template Parameters:
-
-	BclokAlloc, the original allocator for type T
-
 	Defines:
 
-	define MG_DEBUG_ALLOCATOR to maintain allocation statistics.
+	#define MG_CACHE_ALLOC to enable these allocators; when undefined, default allocation is used.
+	#define MG_DEBUG_ALLOCATOR to maintain allocation statistics.
+	#define MG_DEBUG_ALLOCATOR_SMALL to maintain allocation statistics on small object too.
 
 	This allocator fulfills the allocator requirements as described in
 	section 20.1 of the April 1995 WP and the STL specification, as
@@ -48,9 +63,49 @@
 #define MG_DEBUG_ALLOC true
 #define MG_DEBUG_ALLOC_SMALL false
 
+// =========================================  implementation
+
+// =========================================  types and constants section
+
+#if defined(MG_CACHE_ALLOC)
+
+using ChunkSize_type = UInt32;
+using object_size_t = UInt32;
+using objectstore_count_t = UInt32;
+using alloc_index_t = UInt8;
+
+using BYTE = unsigned char;
+using BYTE_PTR = BYTE*;
+
+constexpr alloc_index_t log2_min_chunk_size = 20;
+constexpr alloc_index_t log2_max_chunk_size = 30;
+constexpr alloc_index_t log2_default_tile_elem_count = 16;
+constexpr alloc_index_t log2_max_elem_size = 4; // sizeof(DPoint) == sizof(IndexRange<UInt64>) == 16
+
+
+constexpr ChunkSize_type MIN_CHUNK_SIZE = 1 << log2_min_chunk_size;
+constexpr ChunkSize_type MAX_CHUNK_SIZE = 1 << log2_max_chunk_size;
+
+constexpr UInt32 nr_bits_in_byte = 8;
+constexpr UInt32 ALLOC_OBJSSIZE_MIN_BITS = 03; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;      // 2^03 ==  8[B]
+constexpr UInt32 ALLOC_PAGESIZE_MIN_BITS = 12; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;      // 2^12 ==  4[kB]
+constexpr UInt32 ALLOC_OBJSSIZE_MAX_BITS = 28; //  log2_extended_segment_size + mpf::log2_v<sizeof(Float64) * 2>; // 2^28 ==256[MB]
+constexpr SizeT ALLOC_OBJSSIZE_MIN = 1 << ALLOC_OBJSSIZE_MIN_BITS;
+constexpr SizeT ALLOC_PAGESIZE_MIN = 1 << ALLOC_PAGESIZE_MIN_BITS;
+constexpr SizeT ALLOC_OBJSSIZE_MAX = 1 << ALLOC_OBJSSIZE_MAX_BITS;
+constexpr UInt32 FIRST_PAGE_INDEX = ALLOC_PAGESIZE_MIN_BITS - ALLOC_OBJSSIZE_MIN_BITS;
+
+constexpr alloc_index_t NR_ELEM_ALLOC = ALLOC_OBJSSIZE_MAX_BITS - ALLOC_OBJSSIZE_MIN_BITS + 1;
+
+constexpr SizeT ALLOC_LIMIT = 0x1000000000000000;
+
+// =========================================  forward decl section
+
 #if defined(MG_DEBUG_ALLOCATOR)
+
 void RegisterAlloc(void* ptr, size_t n MG_DEBUG_ALLOCATOR_SRC_ARG);
 void RemoveAlloc(void* ptr, size_t n);
+
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
 void PostReporting();
@@ -58,285 +113,206 @@ void ConsiderReporting();
 
 std::allocator<UInt64> s_QWordArrayAllocator;
 
-using PageSize_type = UInt32;
-using BlockSize_type = UInt32;
-using BlockCount_type = UInt32;
-using block_index_t = UInt8;
-
-using BYTE_PTR = char*;
-
-constexpr UInt8 log2_page_size = 30;
-constexpr PageSize_type PAGE_SIZE = 1 << log2_page_size;
-
 template<typename Unsigned>
-constexpr block_index_t highest_bit_rank(Unsigned value)
+constexpr alloc_index_t highest_bit_rank(Unsigned value)
 {
 	return sizeof(Unsigned)*8 - std::countl_zero(value);
 }
 
+// =========================================  VirtualAlloc section
+
 #include <Windows.h>
 
-struct VirtualAllocPage
+struct VirtualAllocChunk
 {
-	VirtualAllocPage(SizeT BLOCK_PAGE_SIZE_)
-		: BLOCK_PAGE_SIZE(BLOCK_PAGE_SIZE_)
+	VirtualAllocChunk(SizeT chunkSize_)
+		: chunkSize(chunkSize_)
 	{
-		WaitForAvailableMemory(BLOCK_PAGE_SIZE_);
-		pagePtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, BLOCK_PAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS));
+		WaitForAvailableMemory(chunkSize_);
+		chunkPtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, chunkSize_, MEM_RESERVE, PAGE_NOACCESS));
 	}
 
-	VirtualAllocPage(VirtualAllocPage&& rhs) noexcept
-		: pagePtr(rhs.pagePtr)
-		, BLOCK_PAGE_SIZE(rhs.BLOCK_PAGE_SIZE)
+	VirtualAllocChunk(VirtualAllocChunk&& rhs) noexcept
+		: chunkPtr(rhs.chunkPtr)
+		, chunkSize(rhs.chunkSize)
 	{
-		rhs.pagePtr = nullptr;
+		rhs.chunkPtr = nullptr;
 	}
 
-	~VirtualAllocPage()
+	~VirtualAllocChunk()
 	{
-		if (pagePtr)
-			VirtualFree(pagePtr, 0, MEM_RELEASE);
+		if (chunkPtr)
+			VirtualFree(chunkPtr, 0, MEM_RELEASE);
 	}
 
-	SizeT   PageSize() const { return BLOCK_PAGE_SIZE; }
+	SizeT   ChunkSize() const { return chunkSize; }
 
-	BYTE_PTR begin() const { return pagePtr; }
-	BYTE_PTR end  () const { return begin() + PageSize(); }
+	BYTE_PTR begin() const { return chunkPtr; }
+	BYTE_PTR end  () const { return begin() + ChunkSize(); }
 
-	static void commit(BYTE_PTR ptr, BlockSize_type sz)
+	// commit release and recommit are done without reference to the actual block in which the object memory will be (re)committed or was committed.
+	static void commit(BYTE_PTR objectPtr, object_size_t objectSize, object_size_t objectStoreSize)
 	{
-		dms_assert(sz);
-		VirtualAlloc(ptr, sz, MEM_COMMIT, PAGE_READWRITE);
+		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2
+		//		VirtualAlloc(objectPtr, objectSize, MEM_COMMIT, PAGE_READWRITE);
+		VirtualAlloc(objectPtr, objectStoreSize, MEM_COMMIT, PAGE_READWRITE); // next occupant may use more of this store
 	}
 
-	static void release(BYTE_PTR ptr, BlockSize_type sz)
+	static void release(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
-//		VirtualAlloc(ptr, sz, MEM_RESET, PAGE_NOACCESS);
+//		VirtualAlloc(objectPtr, objectSize, MEM_RESET, PAGE_NOACCESS);
 	}
-	static void recommit(BYTE_PTR ptr, BlockSize_type sz)
+
+	static void recommit(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
-//		VirtualAlloc(ptr, sz, MEM_RESET_UNDO, PAGE_READWRITE);
+//		VirtualAlloc(objectPtr, objectSize, MEM_RESET_UNDO, PAGE_READWRITE);
 	}
 
 private:
-	BYTE_PTR pagePtr;
-	SizeT BLOCK_PAGE_SIZE;
+	BYTE_PTR chunkPtr;
+	SizeT chunkSize;
 };
 
 
-struct VirtualAllocPageAllocator
+struct VirtualAllocChunkArray
 {
-	using page_type = VirtualAllocPage;
+	std::vector<VirtualAllocChunk> chunks;
+	objectstore_count_t nrResevedButUncommitedObjectStores = 0;
+	alloc_index_t log2ObjectStoreSize = 0;
+	object_size_t objectStoreSize = 0;
+	SizeT nextChunkSize = 0;
+	BYTE_PTR lastChunkPtr = nullptr;
 
-	std::vector<page_type> pages;
-	BlockCount_type nrUncommitedBlocks = 0;
-	block_index_t log2BlockSize = 0;
-	BlockSize_type blockSize = 0;
-	SizeT nextPageSize = 0;
-	BYTE_PTR lastPagePtr = nullptr;
+	VirtualAllocChunkArray() {}
+	VirtualAllocChunkArray(const VirtualAllocChunkArray&) = delete;
+	VirtualAllocChunkArray(VirtualAllocChunkArray&&) = delete;
 
-	void Init_log2(block_index_t log2BlockSize_)
+	void Init_log2(alloc_index_t log2ObjectStoreSize_) // first block will be created at first call to get_reserved_objectstore
 	{
-		log2BlockSize = log2BlockSize_;
-		blockSize = 1 << log2BlockSize;
-		dms_assert(std::popcount(blockSize) == 1); // blockSize is assumed to be a power of 2. if and only if  !(blockSize & (blockSize-1))
-		nextPageSize = blockSize;
-		nextPageSize *= 2;
-		MakeMax(nextPageSize, 1 << 20);
+		log2ObjectStoreSize = log2ObjectStoreSize_;
+		objectStoreSize = 1 << log2ObjectStoreSize;
+		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2.
+		nextChunkSize = objectStoreSize;
+		nextChunkSize *= 2;
+		MakeMax(nextChunkSize, MIN_CHUNK_SIZE);
 	}
 
-	BYTE_PTR get_reserved_block(BlockSize_type sz)
+	BYTE_PTR get_reserved_objectstore()
 	{
-		dms_assert( sz <= blockSize && sz > 0);
-
-		if (!nrUncommitedBlocks)
+		if (!nrResevedButUncommitedObjectStores)
 		{
-			pages.emplace_back(nextPageSize);
-			nrUncommitedBlocks = nextPageSize >> log2BlockSize;
+			chunks.emplace_back(nextChunkSize);
+			nrResevedButUncommitedObjectStores = nextChunkSize >> log2ObjectStoreSize;
 
-			if (nextPageSize < PAGE_SIZE) // double up to 1[GB]
-				nextPageSize <<= 1;
-			lastPagePtr = pages.back().begin();
+			if (nextChunkSize < MAX_CHUNK_SIZE) // double up to 1[GB]
+				nextChunkSize <<= 1;
+			lastChunkPtr = chunks.back().begin();
 		}
-		dms_assert(nrUncommitedBlocks);
-		return lastPagePtr + (SizeT(--nrUncommitedBlocks) << log2BlockSize);
+		dms_assert(nrResevedButUncommitedObjectStores);
+		auto currReservedButUncommittedObjectStoreIndex = --nrResevedButUncommitedObjectStores;
+		return lastChunkPtr + (SizeT(currReservedButUncommittedObjectStoreIndex) << log2ObjectStoreSize);
 	}
-	void commit(BYTE_PTR ptr, BlockSize_type sz)
+	void commit(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(sz && sz <= blockSize);
-
-		VirtualAllocPage::commit(ptr, blockSize);
-	}
-
-	void release(BYTE_PTR ptr, BlockSize_type sz)
-	{
-		assert(sz && sz <= blockSize);
-
-		VirtualAllocPage::release(ptr, blockSize);
+		assert(objectSize && objectSize <= objectStoreSize);
+		VirtualAllocChunk::commit(ptr, objectSize, objectStoreSize);
 	}
 
-	void recommit(BYTE_PTR ptr, BlockSize_type sz)
+	void release(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(sz && sz <= blockSize);
+		assert(objectSize && objectSize <= objectStoreSize);
+		VirtualAllocChunk::release(ptr, objectSize);
+	}
 
-		VirtualAllocPage::recommit(ptr, blockSize);
+	void recommit(BYTE_PTR ptr, object_size_t objectSize)
+	{
+		assert(objectSize && objectSize <= objectStoreSize);
+		VirtualAllocChunk::recommit(ptr, objectSize);
 	}
 };
 
-using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
-
-FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
-{
-	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
-}
+// =========================================  FreeStackAllocator definition section
 
 struct FreeStackAllocator
 {
-	VirtualAllocPageAllocator inner;
-	std::vector<BYTE_PTR> freestack;
-	BlockCount_type blockCount = 0;
+	VirtualAllocChunkArray inner;
+	std::vector<BYTE_PTR> freeStack;
 	mutable std::mutex allocSection;
 
-	void Init_log2(block_index_t log2BlockSize_) { inner.Init_log2(log2BlockSize_); }
+	void Init_log2(alloc_index_t log2ObjectStoreSize) 
+	{ 
+		inner.Init_log2(log2ObjectStoreSize); 
+	}
 
-	auto NrAllocatedBlocks() const { return blockCount; }
-	std::pair<BYTE_PTR, bool> get_reserved_or_reset_block(BlockSize_type sz)
+	std::pair<BYTE_PTR, bool> get_reserved_or_reset_objectstore()
 	{
+		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
 		std::scoped_lock lock(allocSection);
 
-		blockCount++;
-		if (freestack.empty())
-			return { inner.get_reserved_block(sz), true };
+		if (freeStack.empty())
+			return { inner.get_reserved_objectstore(), true };
 
-		auto ptr = freestack.back(); freestack.pop_back();
+		auto ptr = freeStack.back(); freeStack.pop_back();
 		return { ptr, false };
 	}
-	BYTE_PTR allocate(BlockSize_type sz)
+
+	BYTE_PTR allocate(object_size_t objectSize)
 	{
-		auto reserved_or_rest_block = get_reserved_or_reset_block(sz);
+		auto reserved_or_rest_block = get_reserved_or_reset_objectstore();
 		if (reserved_or_rest_block.second)
-			inner.commit(reserved_or_rest_block.first, sz);
+			inner.commit(reserved_or_rest_block.first, objectSize);
 		else
-			inner.recommit(reserved_or_rest_block.first, sz);
+			inner.recommit(reserved_or_rest_block.first, objectSize);
 		return reserved_or_rest_block.first;
 	}
-	void add_to_freestack(BYTE_PTR ptr, BlockSize_type sz)
+
+	BYTE_PTR allocate() { return allocate(inner.objectStoreSize); }
+
+	void add_to_freestack(BYTE_PTR ptr)
 	{
-		std::scoped_lock lock(allocSection);
-		blockCount--;
-		freestack.emplace_back(ptr);
+		std::scoped_lock lock(allocSection); // critical section here too
+		freeStack.emplace_back(ptr);
 	}
-	void deallocate(BYTE_PTR ptr, BlockSize_type sz)
+	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		inner.release(ptr, sz);
-		add_to_freestack(ptr, sz);
-	}
+		assert(objectSize);
+		assert(objectSize <= inner.objectStoreSize);
+		assert(objectSize > inner.objectStoreSize / 2);
 
-	FreeStackAllocSummary ReportStatus() const
-	{
-		if (!inner.blockSize)
-			return FreeStackAllocSummary(0, 0, 0, 0);
-
-		SizeT pageCount, totalBytes = 0;
-		SizeT nrAllocated;
-		SizeT nrFreed;
-		SizeT nrUncommitted;
-		SizeT nrAllocatedBytes;
-		{
-			std::scoped_lock lock(allocSection);
-
-			pageCount = inner.pages.size();
-			totalBytes = 0; for (const auto& page : inner.pages) totalBytes += page.PageSize();
-			nrAllocated = NrAllocatedBlocks();
-			nrFreed = freestack.size();
-			nrUncommitted = inner.nrUncommitedBlocks;
-			nrAllocatedBytes = inner.blockSize * nrAllocated;
-		}
-		reportF(SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
-			inner.blockSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
-		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2BlockSize, nrUncommitted << inner.log2BlockSize);
+		inner.release(ptr, objectSize); // still thread-local ownership during release of object's memory
+		add_to_freestack(ptr); // will sync with other threads
 	}
 };
-/*
-struct FreeListAllocator
-{
-	VirtualAllocPageAllocator inner;
-	BYTE_PTR freelist = nullptr, 
-	BlockCount_type blockCount = 0;
-	mutable std::mutex allocSection;
 
-	void Init_log2(block_index_t log2BlockSize_) { inner.Init_log2(log2BlockSize_); }
-
-	auto NrAllocatedBlocks() const { return blockCount; }
-	std::pair<BYTE_PTR, bool> get_reserved_or_reset_block(BlockSize_type sz)
-	{
-		std::scoped_lock lock(allocSection);
-
-		blockCount++;
-
-		if (freestack.empty())
-			return { inner.get_reserved_block(sz), true };
-
-		auto ptr = freestack.back(); freestack.pop_back();
-		return { ptr, false };
-	}
-	BYTE_PTR allocate(BlockSize_type sz)
-	{
-		auto reserved_or_rest_block = get_reserved_or_reset_block(sz);
-		if (reserved_or_rest_block.second)
-			inner.commit(reserved_or_rest_block.first, sz);
-		else
-			inner.recommit(reserved_or_rest_block.first, sz);
-		return reserved_or_rest_block.first;
-	}
-	void add_to_freestack(BYTE_PTR ptr, BlockSize_type sz)
-	{
-		std::scoped_lock lock(allocSection);
-		blockCount--;
-		freestack.emplace_back(ptr);
-	}
-	void deallocate(BYTE_PTR ptr, BlockSize_type sz)
-	{
-		inner.release(ptr, sz);
-		add_to_freestack(ptr, sz);
-	}
-};
-*/
-
-const std::size_t QWordSize = sizeof(UInt64);
-static UInt32 g_ElemAllocCounter = 0;
-
-#if defined(MG_CACHE_ALLOC)
-
-const UInt8 log2_extended_segment_size = 20;
-
-constexpr UInt32 nr_bits_in_byte = 8;
-constexpr UInt32 ALLOC_ELEMSIZE_MIN_BITS =  3; //  log2_default_segment_size - mpf::log2_v<nr_bits_in_byte>;     // 2^13 ==  8[kB]
-constexpr UInt32 ALLOC_ELEMSIZE_MAX_BITS = 28; //  log2_extended_segment_size + mpf::log2_v<sizeof(Float64) * 2>; // 2^28 ==256[MB]
-constexpr SizeT ALLOC_ELEMSIZE_MIN = 1 << ALLOC_ELEMSIZE_MIN_BITS;
-constexpr SizeT ALLOC_ELEMSIZE_MAX = 1 << ALLOC_ELEMSIZE_MAX_BITS;
-
-//#define MG_MULTIPLE_SLOTS
-#if defined(MG_MULTIPLE_SLOTS)
-constexpr UInt32 NR_SLOT_BITS = 0;
-constexpr UInt32 NR_SLOTS = 1 << NR_SLOT_BITS;
-constexpr block_index_t NR_ELEM_ALLOC = (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) * NR_SLOTS + 1;
-#else // defined(MG_MULTIPLE_SLOTS)
-constexpr block_index_t NR_ELEM_ALLOC = ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS + 1;
-#endif //defined(MG_MULTIPLE_SLOTS)
-
-constexpr SizeT ALLOC_LIMIT = 0x1000000000000000;
-
-//----------------------------------------------------------------------
-// fixed_allocator arrays
-//----------------------------------------------------------------------
-
-// for each ALLOC_ELEMSIZE_MIN..ALLOC_ELEMSIZE_MAX
-using FreeStackAllocatorArray = FreeStackAllocator[ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS + 1];
+// =========================================  FreeStackAllocator instance section
 
 #if defined(MG_DEBUG)
-FreeStackAllocatorArray* sd_FSA_ptr = nullptr;
+struct FreeStackAllocatorArray* sd_FSA_ptr = nullptr;
 #endif
+
+constexpr alloc_index_t NR_FREE_STACK_ALLOCS = ALLOC_OBJSSIZE_MAX_BITS - ALLOC_PAGESIZE_MIN_BITS + 1;
+
+
+struct FreeStackAllocatorArray
+{
+	FreeStackAllocatorArray()
+	{
+		for (alloc_index_t i = ALLOC_PAGESIZE_MIN_BITS; i <= ALLOC_OBJSSIZE_MAX_BITS; ++i)
+			(*this)[i - ALLOC_PAGESIZE_MIN_BITS].Init_log2(i);
+#if defined(MG_DEBUG)
+		sd_FSA_ptr = this;
+#endif
+	}
+	FreeStackAllocator& operator [](alloc_index_t i)
+	{ 
+		assert(i < NR_FREE_STACK_ALLOCS);
+		return freeStackAllocators[i]; 
+	}
+
+private:
+	FreeStackAllocator freeStackAllocators[NR_FREE_STACK_ALLOCS];
+};
+
 
 FreeStackAllocatorArray& GetFreeStackAllocatorArray()
 {
@@ -344,99 +320,167 @@ FreeStackAllocatorArray& GetFreeStackAllocatorArray()
 	return singleton;
 }
 
-std::mutex s_fsaCS;
-
-FreeStackAllocator& GetFreeStackAllocator(block_index_t i)
+FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 {
 	auto& fsa = GetFreeStackAllocatorArray()[i];
-	if (!fsa.inner.blockSize)
-	{
-		auto lock = std::scoped_lock(s_fsaCS);
-		if (!fsa.inner.blockSize)
-			fsa.Init_log2(i + ALLOC_ELEMSIZE_MIN_BITS);
-		dms_assert(fsa.inner.blockSize);
-#if defined(MG_DEBUG)
-		sd_FSA_ptr = &GetFreeStackAllocatorArray();
-#endif
-	}
+	assert(fsa.inner.objectStoreSize);
 	return fsa;
 }
 
+// =========================================  FreeListAllocator definition section
 
-ElemAllocComponent s_Initialize; // TODO: REMOVE
+#include <boost/lockfree/stack.hpp>
+#include <boost/lockfree/detail/freelist.hpp>
+#include <boost/lockfree/detail/tagged_ptr_ptrcompression.hpp>
+
+struct FreeListAllocator
+{
+	using SOS_PTR = BYTE_PTR; // pointer to Small Object Storage;
+	using tagged_sos_ptr = boost::lockfree::detail::tagged_ptr<BYTE>; // 48 bit pointer, 16 bit tag to make ABA issue unlikely, depends on 64 bit CAS
+
+	FreeStackAllocator* freeStackAllocator = nullptr;
+	alloc_index_t log2SosSize = 0;
+	object_size_t sosSize = 0;
+	objectstore_count_t nrSosPerObjectStore = 0;
+
+	std::atomic<tagged_sos_ptr> freeListPtr;
+	std::atomic<UInt32> taggedNrReservedSosses = 0;
+
+	mutable std::mutex allocSection;
+	std::atomic<SOS_PTR> firstSosInCurrObjectStore = nullptr;
+	
+
+	void Init_log2(alloc_index_t log2SosSize_)
+	{ 
+		log2SosSize = log2SosSize_;
+		sosSize = 1 << log2SosSize_;
+		freeStackAllocator = &(GetFreeStackAllocatorArray()[log2SosSize_ - ALLOC_OBJSSIZE_MIN_BITS]);
+		nrSosPerObjectStore = (freeStackAllocator->inner.objectStoreSize >> log2SosSize_);
+		assert(nrSosPerObjectStore == 512);
+	}
+
+	SOS_PTR allocate(object_size_t smallObjectSize)
+	{
+		assert(freeStackAllocator);
+		assert(freeListPtr.is_lock_free());
+
+		// first try the free list - wait free
+		tagged_sos_ptr currFreeTaggedPtr = freeListPtr.load(std::memory_order::consume);
+		while (currFreeTaggedPtr.get_ptr()) {
+			SOS_PTR poppedFreeListPtr = reinterpret_cast<tagged_sos_ptr*>(currFreeTaggedPtr.get_ptr())->get_ptr();
+			tagged_sos_ptr newFreeTaggedPtr(poppedFreeListPtr, currFreeTaggedPtr.get_next_tag());
+
+			if (freeListPtr.compare_exchange_weak(currFreeTaggedPtr, newFreeTaggedPtr))
+			{
+				auto ptr = currFreeTaggedPtr.get_ptr();
+				assert(ptr);
+				return ptr;
+			}
+		}
+		assert(currFreeTaggedPtr.get_ptr() == nullptr);
+
+		// then try reserved small objects - wait free
+		while (true)
+		{
+			UInt32 currTaggedNrReservedSosses = taggedNrReservedSosses;
+			while (currTaggedNrReservedSosses & 0x0000FFFF)
+			{
+				UInt32 newTaggedNrReservedSosses = currTaggedNrReservedSosses - 1; // same tag, one less reserved
+				auto currfirstSosInCurrObjectStore = firstSosInCurrObjectStore.load(std::memory_order::acquire);
+				if (taggedNrReservedSosses.compare_exchange_weak(currTaggedNrReservedSosses, newTaggedNrReservedSosses))
+				{
+					assert(currTaggedNrReservedSosses & 0x0000FFFF);
+					assert(newTaggedNrReservedSosses == currTaggedNrReservedSosses - 1);
+					return currfirstSosInCurrObjectStore + (SizeT(newTaggedNrReservedSosses & 0x0000FFFF) << log2SosSize);
+				}
+			}
+
+			// critical section from here: allocate a ObjectStore from freeStackAllocator
+			std::scoped_lock lock(allocSection);
+			// already done ?
+			if (currTaggedNrReservedSosses == taggedNrReservedSosses)
+			{
+				firstSosInCurrObjectStore = freeStackAllocator->allocate();
+				taggedNrReservedSosses = nrSosPerObjectStore + ((currTaggedNrReservedSosses & 0xFFFF0000) + 0x00010000); // grant next tag
+			}
+		}
+	}
+	void deallocate(SOS_PTR smallObjectPtr, object_size_t objectSize)
+	{
+		assert(objectSize);
+		assert(objectSize <= sosSize);
+		assert(objectSize > sosSize/2 || sosSize == 8);
+
+		tagged_sos_ptr currFreeListTaggedPtr = freeListPtr.load(std::memory_order::consume);
+		while (true)
+		{
+			*reinterpret_cast<tagged_sos_ptr*>(smallObjectPtr) = currFreeListTaggedPtr;
+			if (freeListPtr.compare_exchange_weak(currFreeListTaggedPtr, tagged_sos_ptr(smallObjectPtr, currFreeListTaggedPtr.get_tag())))
+				break;
+		}
+	}
+};
+
+// =========================================  FreeListAllocator instance section
+
+#if defined(MG_DEBUG)
+struct FreeListAllocatorArray* sd_FLA_ptr = nullptr;
+#endif
+
+constexpr alloc_index_t NR_FREE_LIST_ALLOCS = ALLOC_PAGESIZE_MIN_BITS - ALLOC_OBJSSIZE_MIN_BITS;
+
+struct FreeListAllocatorArray
+{
+	FreeListAllocatorArray()
+	{
+		for (alloc_index_t i = ALLOC_OBJSSIZE_MIN_BITS; i < ALLOC_PAGESIZE_MIN_BITS; ++i)
+			(*this)[i- ALLOC_OBJSSIZE_MIN_BITS].Init_log2(i);
+#if defined(MG_DEBUG)
+		sd_FLA_ptr = this;
+#endif
+	}
+	FreeListAllocator& operator [](alloc_index_t i)
+	{
+		assert(i < NR_FREE_LIST_ALLOCS);
+		return freeListAllocators[i];
+	}
+
+private:
+	FreeListAllocator freeListAllocators[NR_FREE_LIST_ALLOCS];
+};
 
 
-constexpr SizeT BlockSize(block_index_t i) {
-	assert(i < NR_ELEM_ALLOC);
-#if defined(MG_MULTIPLE_SLOTS)
-	static_assert(std::popcount(NR_SLOTS) == 1);
-
-	constexpr UInt32 SLOT_MASK = NR_SLOTS - 1;
-	auto exp_bits = (i + SLOT_MASK) >> NR_SLOT_BITS;
-	auto slot_nr = (i + SLOT_MASK & SLOT_MASK) + 1;
-
-	return ((ALLOC_ELEMSIZE_MIN / 2 + (slot_nr << (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS - 1))) << exp_bits) / QWordSize;
-#else // defined(MG_MULTIPLE_SLOTS)
-	return (SizeT(1) << (ALLOC_ELEMSIZE_MIN_BITS + i)) / QWordSize;
-#endif //defined(MG_MULTIPLE_SLOTS)
+FreeListAllocatorArray& GetFreeListAllocatorArray() // todo: wrap in ComponentService to avoid checking static initialisation all the time
+{
+	static FreeListAllocatorArray singleton;
+	return singleton;
 }
 
-
-
-constexpr block_index_t BlockListIndex(SizeT sz) 
+FreeListAllocator& GetFreeListAllocator(alloc_index_t i) 
 {
-#if defined(MG_MULTIPLE_SLOTS)
+	auto& fla = GetFreeListAllocatorArray()[i];
+	assert(fla.freeStackAllocator);
+	return fla;
+}
+
+//----------------------------------------------------------------------
+// fixed_allocator arrays
+//----------------------------------------------------------------------
+
+constexpr alloc_index_t BlockListIndex(SizeT sz)
+{
 	SizeT org_sz = sz;
-
-		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
-		assert(sz <= ALLOC_ELEMSIZE_MAX);
-
-		--sz;
-		sz >>= ALLOC_ELEMSIZE_MIN_BITS;
-		static_assert((1 << (ALLOC_ELEMSIZE_MAX_BITS - ALLOC_ELEMSIZE_MIN_BITS) & ~0xFFF0) == 0);
-		block_index_t result = highest_bit_rank(sz);
-
-		auto discard_bits = (result + (ALLOC_ELEMSIZE_MIN_BITS - NR_SLOT_BITS - 1));
-		auto slot = (((((org_sz + (1 << discard_bits) - 1) >> discard_bits) - 1) & (NR_SLOTS - 1))) + 1;
-		assert(slot > 0);
-		assert(slot <= NR_SLOTS);
-		result = (result << NR_SLOT_BITS) + slot - NR_SLOTS;
-		assert(result >= 0);
-		assert(result < NR_ELEM_ALLOC);
-		assert(org_sz <= BlockSize(result) * QWordSize);
-		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : ALLOC_ELEMSIZE_MIN / 2));
-		return result;
-#else // defined(MG_MULTIPLE_SLOTS)
-		SizeT org_sz = sz;
-		assert(sz);
-//		assert(sz > ALLOC_ELEMSIZE_MIN / 2);
-		assert(sz <= ALLOC_ELEMSIZE_MAX);
-
-		--sz;
-		sz >>= ALLOC_ELEMSIZE_MIN_BITS;
-		block_index_t result = highest_bit_rank(sz);
-
-		assert(result >= 0);
-		assert(result < NR_ELEM_ALLOC);
-		assert(org_sz <= BlockSize(result) * QWordSize);
-		assert(org_sz > (result ? BlockSize(result - 1) * QWordSize : 0));
-		return result;
-#endif //defined(MG_MULTIPLE_SLOTS)
-}
-
-
-bool IsIntegralPowerOf2OrZero(SizeT sz)
-{
-	return !((sz - 1) & sz);
-}
-
-bool SpecialSize(SizeT sz)
-{
-	//return sz >= ALLOC_ELEMSIZE_MIN && sz <= ALLOC_ELEMSIZE_MAX && IsIntegralPowerOf2OrZero(sz);
-//	return sz > ALLOC_ELEMSIZE_MIN / 2 && sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
 	assert(sz);
-	return sz <= ALLOC_ELEMSIZE_MAX; // && IsIntegralPowerOf2OrZero(sz);
+	assert(sz <= ALLOC_OBJSSIZE_MAX);
+
+	--sz;
+	sz >>= ALLOC_OBJSSIZE_MIN_BITS;
+	return highest_bit_rank(sz);
 }
+
+
+static UInt32 g_ElemAllocCounter = 0;
+ElemAllocComponent s_Initialize;
 
 #endif defined(MG_CACHE_ALLOC)
 
@@ -445,77 +489,89 @@ bool SpecialSize(SizeT sz)
 //----------------------------------------------------------------------
 
 
-void* AllocateFromStock_impl(size_t sz)
+void* AllocateFromStock_impl(size_t objectSize)
 {
+
 #if defined(MG_CACHE_ALLOC)
-	assert(sz);
-
-	if (SpecialSize(sz))
+	assert(objectSize);
+	auto i = BlockListIndex(objectSize);
+	if (i < FIRST_PAGE_INDEX)
 	{
-		auto i = BlockListIndex(sz);
-		assert(i < NR_ELEM_ALLOC);
-
-		auto& freeStack = GetFreeStackAllocator(i);
-		return freeStack.allocate(sz);
+		auto& freeStack = GetFreeListAllocator(i);
+		return freeStack.allocate(objectSize);
 	}
-	assert(sz > ALLOC_ELEMSIZE_MAX);
+	i -= FIRST_PAGE_INDEX;
+	if (i < NR_FREE_STACK_ALLOCS)
+	{
+		auto& freeStack = GetFreeStackAllocator(i);
+		return freeStack.allocate(objectSize);
+	}
+	assert(objectSize > ALLOC_OBJSSIZE_MAX);
 #endif //defined(MG_CACHE_ALLOC)
-	SizeT blockSize = ((sz + (QWordSize - 1)) & ~(QWordSize - 1)) / QWordSize;
 
-	WaitForAvailableMemory(blockSize * QWordSize);
-	auto result = s_QWordArrayAllocator.allocate(blockSize);
+	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
+
+	WaitForAvailableMemory(qWordCount * sizeof(UInt64));
+	auto result = s_QWordArrayAllocator.allocate(qWordCount);
 	return result;
 
 }
 
-void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	if (!sz)
+	if (!objectSize)
 		return nullptr;
 
-	auto result = AllocateFromStock_impl(sz);
+	auto result = AllocateFromStock_impl(objectSize);
 
 #if defined(MG_DEBUG_ALLOCATOR)
-	RegisterAlloc(result, sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
 	ConsiderReporting();
 	return result;
 }
 
-void LeaveToStock(void* ptr, size_t sz) {
-	if (!sz)
+void LeaveToStock(void* objectPtr, size_t objectSize) {
+	if (!objectSize)
 	{
-		dms_assert(ptr == nullptr);
+		dms_assert(objectPtr == nullptr);
 		return;
 	}
 #if defined(MG_DEBUG_ALLOCATOR)
-	RemoveAlloc(ptr, sz);
+	RemoveAlloc(objectPtr, objectSize);
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
 #if defined(MG_CACHE_ALLOC)
-	if (SpecialSize(sz))
+	auto i = BlockListIndex(objectSize);
+	if (i < FIRST_PAGE_INDEX)
 	{
-		auto i = BlockListIndex(sz);
-		dms_assert(i < NR_ELEM_ALLOC);
-
-		auto bytePtr = reinterpret_cast<BYTE_PTR>(ptr);
-
-		auto& freeStack = GetFreeStackAllocator(i);
-		return freeStack.deallocate(bytePtr, sz);
+		auto& alloc = GetFreeListAllocator(i);
+		return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
 	}
+	i -= FIRST_PAGE_INDEX;
+	if (i < NR_FREE_STACK_ALLOCS)
+	{
+		auto& alloc = GetFreeStackAllocator(i);
+		return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+	}
+
 #endif //defined(MG_CACHE_ALLOC)
 
-	SizeT blockSize = ((sz + (QWordSize - 1)) & ~(QWordSize - 1)) / QWordSize;
-	s_QWordArrayAllocator.deallocate(reinterpret_cast<UInt64*>(ptr), blockSize);
+	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
+	s_QWordArrayAllocator.deallocate(reinterpret_cast<UInt64*>(objectPtr), qWordCount);
 }
+
+//----------------------------------------------------------------------
+// Reporting
+//----------------------------------------------------------------------
 
 std::atomic<bool> s_ReportingRequestPending = false;
 
 void ReportFixedAllocStatus()
 {
 	s_ReportingRequestPending = false;
-
+/*
 #if defined(MG_CACHE_ALLOC)
 
 	reportD(SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
@@ -532,20 +588,9 @@ void ReportFixedAllocStatus()
 	);
 
 #endif //defined(MG_CACHE_ALLOC)
+*/
+
 }
-
-
-#if defined(MG_CACHE_ALLOC)
-
-bool AreAllFreestackAllocatorsEmpty()
-{
-	for (const auto& fsa : GetFreeStackAllocatorArray())
-		if (fsa.NrAllocatedBlocks())
-			return false;
-	return true;
-}
-
-#endif //defined(MG_CACHE_ALLOC)
 
 //----------------------------------------------------------------------
 // clean-up
@@ -559,9 +604,10 @@ ElemAllocComponent::ElemAllocComponent()
 	SetMainThreadID();
 
 	GetFreeStackAllocatorArray();
+	GetFreeListAllocatorArray();
 
 #if defined(MG_DEBUG)
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF /*| _CRTDBG_CHECK_CRT_DF | _CRTDBG_CHECK_ALWAYS_DF*/);
+//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF /*| _CRTDBG_CHECK_CRT_DF | _CRTDBG_CHECK_ALWAYS_DF*/);
 //	_CrtSetBreakAlloc(6548); 
 //	Known leak: iconv-2.dll->relocatable.c->DllMail contains  shared_library_fullname = strdup(location); which leaks 44 bytes of memory
 #endif
@@ -572,14 +618,6 @@ ElemAllocComponent::~ElemAllocComponent()
 {
 	if (--g_ElemAllocCounter)
 		return;
-
-#if defined(MG_CACHE_ALLOC)
-
-	if (!AreAllFreestackAllocatorsEmpty())
-		ReportFixedAllocStatus();
-
-#endif //defined(MG_CACHE_ALLOC)
-
 }
 
 #include "dbg/Timer.h"
@@ -650,7 +688,7 @@ void ReportAllocs()
 {
 	auto& reg = GetAllocRegister();
 	auto lock = std::scoped_lock(reg.mutex);
-	BlockCount_type i = 0;
+	objectstore_count_t i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;
 	reportD(SeverityTypeID::ST_MinorTrace, "All Registered Memory Blocks");
@@ -686,7 +724,6 @@ struct AllocReporter : DebugReporter
 };
 
 static AllocReporter s_Reporter;
-
 
 #endif //defined(MG_DEBUG_ALLOCATOR)
 
