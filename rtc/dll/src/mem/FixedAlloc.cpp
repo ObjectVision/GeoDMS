@@ -523,10 +523,13 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 	auto result = AllocateFromStock_impl(objectSize);
 
+#if defined(MG_CACHE_ALLOC)
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	ConsiderReporting();
 #endif //defined(MG_DEBUG_ALLOCATOR)
+#endif //defined(MG_CACHE_ALLOC)
+
 	return result;
 }
 
