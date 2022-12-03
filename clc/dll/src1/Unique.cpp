@@ -183,6 +183,24 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	resWriter.Commit();
 }
 
+template <typename Iter, typename Pred>
+Iter make_strict_monotonous(Iter first, Iter last, Pred pred)
+{
+	if (first == last)
+		return last;
+	Iter result = first;
+	while (++first != last && pred(*result, *first))
+		++result;
+	if (first == last)
+		return last;
+	assert(result != first);
+	while (++first != last)
+		if (pred(*result, *first))
+			*++result = std::move(*first);
+
+	return ++result;
+}
+
 template<sequence_or_string V>
 void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi)
 {
@@ -194,7 +212,7 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		using index_type = typename cardinality_type<E>::type;
 		std::vector<index_type> index(allValues.size());
 		make_index(index.begin(), index.end(), allValues.begin());
-		auto indexEnd = std::unique(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
+		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
 		index.erase(indexEnd, index.end());
 
 		res->SetCount(index.size());
