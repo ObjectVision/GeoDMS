@@ -1400,7 +1400,7 @@ UInt32 TRecordSet::RecordCount()
 		minimum	=	0,
 		maximum	=  16; // skips 4 silly seeks when bigger 
 
-	Check(SQLSetStmtAttr(Handle(), SQL_ATTR_RETRIEVE_DATA, nullptr, 0));
+	Check(SQLSetStmtAttr(Handle(), SQL_ATTR_RETRIEVE_DATA, SQL_RD_OFF, 0));
 
 	while (maximum != (1 << (8 * sizeof(maximum)-1)) && SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, maximum) != SQL_NO_DATA)
 		maximum *= 2;

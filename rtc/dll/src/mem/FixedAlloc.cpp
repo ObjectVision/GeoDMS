@@ -59,6 +59,7 @@
 #include <memory>
 
 //#define MG_CACHE_ALLOC
+//#define MG_CACHE_ALLOC_SMALL
 
 #define MG_DEBUG_ALLOC true
 #define MG_DEBUG_ALLOC_SMALL false
@@ -326,6 +327,7 @@ FreeStackAllocator& GetFreeStackAllocator(alloc_index_t i)
 }
 
 // =========================================  FreeListAllocator definition section
+#if defined(MG_CACHE_ALLOC_SMALL)
 
 #include <boost/lockfree/stack.hpp>
 #include <boost/lockfree/detail/freelist.hpp>
@@ -461,6 +463,8 @@ FreeListAllocator& GetFreeListAllocator(alloc_index_t i)
 	return fla;
 }
 
+#endif //defined(MG_CACHE_ALLOC_SMALL)
+
 //----------------------------------------------------------------------
 // fixed_allocator arrays
 //----------------------------------------------------------------------
@@ -496,16 +500,21 @@ void* AllocateFromStock_impl(size_t objectSize)
 	auto i = BlockListIndex(objectSize);
 	if (i < FIRST_PAGE_INDEX)
 	{
+#if defined(MG_CACHE_ALLOC_SMALL)
 		auto& freeStack = GetFreeListAllocator(i);
 		return freeStack.allocate(objectSize);
+#endif //defined(MG_CACHE_ALLOC_SMALL)
 	}
-	i -= FIRST_PAGE_INDEX;
-	if (i < NR_FREE_STACK_ALLOCS)
+	else
 	{
-		auto& freeStack = GetFreeStackAllocator(i);
-		return freeStack.allocate(objectSize);
+		i -= FIRST_PAGE_INDEX;
+		if (i < NR_FREE_STACK_ALLOCS)
+		{
+			auto& freeStack = GetFreeStackAllocator(i);
+			return freeStack.allocate(objectSize);
+		}
+		assert(objectSize > ALLOC_OBJSSIZE_MAX);
 	}
-	assert(objectSize > ALLOC_OBJSSIZE_MAX);
 #endif //defined(MG_CACHE_ALLOC)
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
@@ -548,16 +557,20 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 	auto i = BlockListIndex(objectSize);
 	if (i < FIRST_PAGE_INDEX)
 	{
+#if defined(MG_CACHE_ALLOC_SMALL)
 		auto& alloc = GetFreeListAllocator(i);
 		return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+#endif //defined(MG_CACHE_ALLOC_SMALL)
 	}
-	i -= FIRST_PAGE_INDEX;
-	if (i < NR_FREE_STACK_ALLOCS)
+	else
 	{
-		auto& alloc = GetFreeStackAllocator(i);
-		return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+		i -= FIRST_PAGE_INDEX;
+		if (i < NR_FREE_STACK_ALLOCS)
+		{
+			auto& alloc = GetFreeStackAllocator(i);
+			return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+		}
 	}
-
 #endif //defined(MG_CACHE_ALLOC)
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
@@ -608,7 +621,9 @@ ElemAllocComponent::ElemAllocComponent()
 	SetMainThreadID();
 
 	GetFreeStackAllocatorArray();
+#if defined(MG_CACHE_ALLOC_SMALL)
 	GetFreeListAllocatorArray();
+#endif //defined(MG_CACHE_ALLOC_SMALL)
 
 #if defined(MG_DEBUG)
 //	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF /*| _CRTDBG_CHECK_CRT_DF | _CRTDBG_CHECK_ALWAYS_DF*/);
