@@ -454,7 +454,7 @@ RtcStreamLock::RtcStreamLock()
 {
 	if (!s_nrRtcStreamLocks++)
 	{
-
+		SetMainThreadID();
 #ifdef MG_CRTLOG
 		_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF|_CRTDBG_ALLOC_MEM_DF /*| _CRTDBG_CHECK_CRT_DF*/ );
 #endif //  MG_CRTLOG
