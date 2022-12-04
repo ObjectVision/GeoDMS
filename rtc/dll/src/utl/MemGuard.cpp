@@ -63,7 +63,7 @@ struct memory_info {
 
 	bool SufficientFreeSpace(std::size_t requestedSize) const
 	{
-		if (!MaxPhysMemoryLoad())
+		if (!MaxPhysMemoryLoad() || MaxPhysMemoryLoad() == 100)
 			return true;
 		percentage_type expectedPhysicalMemoryLoad = ExpectedMemoryLoad(requestedSize);
 		return expectedPhysicalMemoryLoad <= MaxPhysMemoryLoad();
@@ -106,7 +106,7 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			AddMainThreadOper([] 
 				{
 					reportD(SeverityTypeID::ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
-					DBG_DebugReport();
+//					DBG_DebugReport();
 				}
 			, true);
 		}

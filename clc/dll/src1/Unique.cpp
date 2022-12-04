@@ -43,7 +43,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TileChannel.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 
+#include "rlookup.h"
 
 template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
 
@@ -80,7 +82,7 @@ redo:
 }
 
 template <typename Iter, typename Pred>
-_CONSTEXPR20 auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
+auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
 {
 	for (; first1 != last1 && first2 != last2; ++dest) {
 		if (pred(*first1, *first2)) { // copy first
@@ -159,52 +161,68 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 
 
 template<fixed_elem V>
-std::vector<V> GetUniqueValues(const AbstrDataItem* adi)
+void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi)
 {
 	dms_assert(adi && adi->GetInterestCount());
 
 	const DataArray<V>* ado = const_array_cast<V>(adi);
-
+	std::vector<V> values;
 	SizeT count = ado->GetTiledRangeData()->GetElemCount();
 	if (count)
 	{
 		tile_id tn = ado->GetTiledRangeData()->GetNrTiles();
 		if (tn)
-			return GetUniqueWallValues<V>(ado, 0, tn);
+			values = GetUniqueWallValues<V>(ado, 0, tn);
 	}
-	return {};
+
+	res->SetCount(values.size());
+
+	locked_tile_write_channel<V> resWriter(resSub);
+	resWriter.Write(values.begin(), values.end());
+	dms_assert(resWriter.IsEndOfChannel());
+	resWriter.Commit();
+}
+
+template <typename Iter, typename Pred>
+Iter make_strict_monotonous(Iter first, Iter last, Pred pred)
+{
+	if (first == last)
+		return last;
+	Iter result = first;
+	while (++first != last && pred(*result, *first))
+		++result;
+	if (first == last)
+		return last;
+	assert(result != first);
+	while (++first != last)
+		if (pred(*result, *first))
+			*++result = std::move(*first);
+
+	return ++result;
 }
 
 template<sequence_or_string V>
-auto GetUniqueValues(const AbstrDataItem* adi) -> auto
+void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi)
 {
-	std::set<V, std::less<void> > values;
+	auto allValues = const_array_cast<V>(adi)->GetDataRead();
 
-	const DataArray<V>* ado = const_array_cast<V>(adi);
-
-	for (tile_id t = 0, tn = ado->GetTiledRangeData()->GetNrTiles(); t != tn; ++t)
+	using ConstDataIter = DataArrayBase<V>::const_iterator;
+	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues]<typename E>(const Unit<E>*arg2Domain)
 	{
-		auto tileData = ado->GetTile(t);
-		auto i = tileData.begin(), e = tileData.end();
+		using index_type = typename cardinality_type<E>::type;
+		std::vector<index_type> index;
+		make_index(index, allValues.size(), allValues.begin());
+		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
+		index.erase(indexEnd, index.end());
 
-		if (i != e)
-		{
-		redo:
-			if (IsDefined(*i))
-			{
-				auto sequenceRef = *i;
-				auto insertPos = values.lower_bound(sequenceRef);
-				if (insertPos == values.end() || values.key_comp()(sequenceRef, *insertPos))
-					values.insert(insertPos, *i);
-			}
-			auto pi = i;
-			while (++i != e)
-				if (!(*i == *pi))
-					goto redo;
-		}
-		dms_assert(i == e);
-	}
-	return values;
+		res->SetCount(index.size());
+
+		locked_tile_write_channel<V> resWriter(resSub);
+		for (auto i : index)
+			resWriter.Write(allValues[i]);
+		dms_assert(resWriter.IsEndOfChannel());
+		resWriter.Commit();
+	});
 }
 
 
@@ -266,14 +284,7 @@ public:
 
 	void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1A) const override
 	{
-		auto values = GetUniqueValues<V>(arg1A);
-
-		res->SetCount(values.size());
-		
-		locked_tile_write_channel<V> resWriter(resSub);
-		resWriter.Write(values.begin(), values.end());
-		dms_assert(resWriter.IsEndOfChannel());
-		resWriter.Commit();
+		GetUniqueValues<V>(res, resSub, arg1A);
 	}
 };
 

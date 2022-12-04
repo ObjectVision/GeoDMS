@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "GeoPCH.h"
 #pragma hdrstop
 
+#include "geo/DynamicPoint.h"
 #include "geo/Conversions.h"
 #include "mci/CompositeCast.h"
 #include "ptr/OwningPtrSizedArray.h"
@@ -47,10 +48,11 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 #include "ValueFiller.h"
 
-#include "OperAttrUni.h"
 #include "CastedUnaryAttrOper.h"
+#include "OperAttrUni.h"
 #include "Prototypes.h"
 #include "UnitCreators.h"
+
 
 #include <numeric>
 
@@ -165,8 +167,6 @@ struct Sequence2ScalarFunc
 // *****************************************************************************
 //									ArcLength Operator
 // *****************************************************************************
-
-#include "geo/DynamicPoint.h"
 
 template <class P>
 struct ArcLengthFunc : Sequence2ScalarFunc<P>
