@@ -268,7 +268,7 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
 {
-	if (fid >= FontSizeCategory::COUNT)
+	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
 
 	if (! m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor])
