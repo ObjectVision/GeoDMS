@@ -126,12 +126,8 @@ void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V
 
 	SizeT n = valuesEnd - valuesBegin;
 	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("ModusTotByIndex: index"));
-
-	SizeT
-		*i = index.begin(),
-		*e = i + n;
-
-	make_index(i, e, valuesBegin);
+	auto i = index.begin(), e = index.end(); assert(e - i == n);
+	make_index_in_existing_span(i, e, valuesBegin);
 
 	SizeT maxC = 0;
 	resData = UNDEFINED_VALUE(V);
@@ -324,12 +320,8 @@ void ModusPartByIndex(
 	SizeT n = valuesEnd - valuesBegin;
 
 	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("ModusPartByIndex: index"));
-
-	SizeT
-		*i = index.begin(),
-		*e = i + n;
-
-	make_indexP(i, e, indexGetter, valuesBegin);
+	auto i = index.begin(), e = index.end(); assert(e - i == n);
+	make_indexP_in_existing_span(i, e, indexGetter, valuesBegin);
 
 	while (i != e)
 	{
@@ -563,14 +555,10 @@ void WeightedModusTotByIndex(
 	     valuesEnd     = valuesLock.end();
 	OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem);
 
-	UInt32 n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<UInt32> index(n MG_DEBUG_ALLOCATOR_SRC("WeightModusTotByIndex: index"));
-
-	UInt32
-		*i = index.begin(),
-		*e = i + n;
-
-	make_index(i, e, valuesBegin);
+	auto n = valuesEnd - valuesBegin;
+	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("WeightModusTotByIndex: index"));
+	auto i = index.begin(), e = index.end(); assert(e - i == n);
+	make_index_in_existing_span(i, e, valuesBegin);
 
 	Float64 maxC = MIN_VALUE(Float64);
 	resData = UNDEFINED_OR_ZERO(V);
@@ -795,15 +783,10 @@ void WeightedModusPartByIndex(
 	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, no_tile);
 	OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem);
 
-	auto n = valuesEnd - valuesBegin;
-
+	SizeT n = valuesEnd - valuesBegin;
 	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC("WeightedModusPartByIndex: index"));
-
-	SizeT
-		*i = index.begin(),
-		*e = i + n;
-
-	make_indexP(i, e, indexGetter, valuesBegin);
+	auto i = index.begin(), e = index.end(); assert(e - i == n);
+	make_indexP_in_existing_span(i, e, indexGetter, valuesBegin);
 
 	while (i != e)
 	{

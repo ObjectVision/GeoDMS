@@ -47,6 +47,8 @@ typedef rnd_engine_type::result_type rnd_seed_type;
 // Section      : use PointSelector at random
 //----------------------------------------------------------------------
 
+/* REMOVE ?
+* 
 template<typename PointType>
 struct RndPointGenerator
 {
@@ -63,6 +65,7 @@ private:
 	SA_ConstReference<PointType> m_Polygon;
 	mutable rnd_engine_type      m_RndEngine;
 };
+*/
 
 #endif // __RTC_GEO_RNDPOINT_H
 

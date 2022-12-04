@@ -111,21 +111,22 @@ inline OutPtr convert_copy(InPtr si, InPtr se, OutPtr di, Functor functor)
 	return di;
 }
 
-template<class FI, class T> inline
-void assign_fill(FI first, FI last, const T& v)
-{
-	for (; first != last; ++first)
-		Assign(*first, v);
-}
-
 template <typename FI>
-void fill_id(FI first, FI last)
+void span_fill_sequential_index_numbers(FI first, FI last)
 {
 	SizeT count = 0;
 	for(; first != last; ++ first, ++count)
 		*first = count;
 }
-
+template <typename Container>
+void insert_sequential_index_numbers(Container& c, SizeT n)
+{
+	assert(c.size() == 0);
+	SizeT count = 0;
+	c.reserve(n);
+	while (count != n)
+		c.emplace_back(count++);
+}
 
 //=======================================
 // Vector functions

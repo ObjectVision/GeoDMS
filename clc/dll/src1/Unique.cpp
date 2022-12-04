@@ -82,7 +82,7 @@ redo:
 }
 
 template <typename Iter, typename Pred>
-_CONSTEXPR20 auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
+auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter dest, Pred pred) -> Iter
 {
 	for (; first1 != last1 && first2 != last2; ++dest) {
 		if (pred(*first1, *first2)) { // copy first
@@ -210,8 +210,8 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues]<typename E>(const Unit<E>*arg2Domain)
 	{
 		using index_type = typename cardinality_type<E>::type;
-		std::vector<index_type> index(allValues.size());
-		make_index(index.begin(), index.end(), allValues.begin());
+		std::vector<index_type> index;
+		make_index(index, allValues.size(), allValues.begin());
 		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
 		index.erase(indexEnd, index.end());
 
@@ -223,7 +223,6 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		dms_assert(resWriter.IsEndOfChannel());
 		resWriter.Commit();
 	});
-
 }
 
 

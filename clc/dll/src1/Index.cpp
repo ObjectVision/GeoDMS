@@ -107,7 +107,7 @@ struct IndexOperator : public AbstrIndexOperator
 			[&res, adi] <typename D> (const Unit<D>*du) 
 			{
 				make_index_container(
-					mutable_array_cast<D>(res)->GetDataWrite(),
+					mutable_array_cast<D>(res)->GetDataWrite(no_tile, dms_rw_mode::write_only_all),
 					const_array_cast<V>(adi)->GetDataRead(),
 					du->GetRange(),
 					TYPEID(elem_traits<D>)
@@ -178,9 +178,9 @@ public:
 		const ArgType* di = const_array_cast<V>(adi);
 		dms_assert(di);
 
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
-		make_index(resData.begin(), resData.end(), di->GetDataRead().begin());
+		make_index_in_existing_span(resData.begin(), resData.end(), di->GetDataRead().begin());
 	}
 };
 
