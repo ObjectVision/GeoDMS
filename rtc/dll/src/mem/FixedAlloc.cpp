@@ -58,8 +58,9 @@
 
 #include <memory>
 
-//#define MG_CACHE_ALLOC
-//#define MG_CACHE_ALLOC_SMALL
+#define MG_CACHE_ALLOC
+#define MG_CACHE_ALLOC_SMALL
+#define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
 
 #define MG_DEBUG_ALLOC true
 #define MG_DEBUG_ALLOC_SMALL false
@@ -484,6 +485,24 @@ constexpr alloc_index_t BlockListIndex(SizeT sz)
 static UInt32 g_ElemAllocCounter = 0;
 ElemAllocComponent s_Initialize;
 
+#if defined(MG_CACHE_ALLOC_ONLY_SPECIALSIZE)
+
+bool IsIntegralPowerOf2OrZero(SizeT sz)
+{
+	return !((sz - 1) & sz);
+}
+
+bool SpecialSize(SizeT sz)
+{
+	return sz >= (1 << log2_default_segment_size) / 8 && IsIntegralPowerOf2OrZero(sz) && sz <= (1 << log2_default_segment_size) * sizeof(Float64) * 2;
+}
+
+#else
+
+bool SpecialSize(SizeT sz) { return true;  }
+
+#endif //defined(MG_CACHE_ALLOC_ONLY_SPECIALSIZE)
+
 #endif defined(MG_CACHE_ALLOC)
 
 //----------------------------------------------------------------------
@@ -507,13 +526,16 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 	else
 	{
-		i -= FIRST_PAGE_INDEX;
-		if (i < NR_FREE_STACK_ALLOCS)
+		if (SpecialSize(objectSize))
 		{
-			auto& freeStack = GetFreeStackAllocator(i);
-			return freeStack.allocate(objectSize);
+			i -= FIRST_PAGE_INDEX;
+			if (i < NR_FREE_STACK_ALLOCS)
+			{
+				auto& freeStack = GetFreeStackAllocator(i);
+				return freeStack.allocate(objectSize);
+			}
+			assert(objectSize > ALLOC_OBJSSIZE_MAX);
 		}
-		assert(objectSize > ALLOC_OBJSSIZE_MAX);
 	}
 #endif //defined(MG_CACHE_ALLOC)
 
@@ -564,11 +586,14 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 	}
 	else
 	{
-		i -= FIRST_PAGE_INDEX;
-		if (i < NR_FREE_STACK_ALLOCS)
+		if (SpecialSize(objectSize))
 		{
-			auto& alloc = GetFreeStackAllocator(i);
-			return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+			i -= FIRST_PAGE_INDEX;
+			if (i < NR_FREE_STACK_ALLOCS)
+			{
+				auto& alloc = GetFreeStackAllocator(i);
+				return alloc.deallocate(reinterpret_cast<BYTE_PTR>(objectPtr), objectSize);
+			}
 		}
 	}
 #endif //defined(MG_CACHE_ALLOC)
