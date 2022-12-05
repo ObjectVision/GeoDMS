@@ -7,19 +7,20 @@ class GuiTreeNode
 public:
 	GuiTreeNode() {};
 	GuiTreeNode(TreeItem* item);
+	GuiTreeNode(TreeItem* item, bool is_open);
 	~GuiTreeNode();
 	void SetItem(TreeItem* item) { m_item = item; };
 	auto Draw() -> bool;
 
 private:
-	auto GetDepthFromTreeItem() -> UInt8 { return 0; };
-	auto DrawItemArrow() -> bool { return 0; };
-	auto DrawItemIcon() -> bool { return 0; };
-	auto DrawItemText() -> bool { return 0; };
+	auto GetDepthFromTreeItem() -> UInt8;
+	auto DrawItemDropDown() -> bool;
+	auto DrawItemIcon() -> bool;
+	auto DrawItemText() -> bool;
 
-	TreeItem*                     m_item = nullptr;
+	TreeItem* m_item = nullptr;
 	NotificationCode m_state = NotificationCode::NC2_DetermineChange;
-	std::vector<GuiTreeNode>      m_branch;
+	std::vector<GuiTreeNode> m_branch;
 
 	// visualization members
 	bool  m_is_open = false;
@@ -43,8 +44,10 @@ public:
 private:
 	GuiTree(TreeItem* root)
 	{
-		m_root = GuiTreeNode(root);
+		m_root = GuiTreeNode(root, true);
+		m_startnode = &m_root;
 	};
+	
 	UInt64       m_max_count = 0;
 	GuiTreeNode  m_root;
 	GuiTreeNode* m_startnode = &m_root;

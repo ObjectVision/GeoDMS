@@ -35,12 +35,24 @@
 #include "GuiStyles.h"
 #include <functional>
 
+void SetTreeViewIcon(GuiTextureID id)
+{
+    ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight())); //TODO: +5 magic number
+}
+
 GuiTreeNode::GuiTreeNode(TreeItem* item)
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
+}
 
+GuiTreeNode::GuiTreeNode(TreeItem* item, bool is_open)
+{
+    m_item = item;
+    m_is_open = is_open;
+    m_depth = GetDepthFromTreeItem();
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
 }
 
 GuiTreeNode::~GuiTreeNode()
@@ -49,8 +61,65 @@ GuiTreeNode::~GuiTreeNode()
         DMS_TreeItem_ReleaseStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
 }
 
+auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
+{
+    assert(m_item);
+    return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size();
+}
+
+auto GuiTreeNode::DrawItemDropDown() -> bool
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const ImVec2 padding = style.FramePadding;
+
+    const float text_offset_x = g.FontSize + padding.x * 2;           // Collapser arrow width + Spacing
+    const float text_offset_y = ImMax(padding.y, window->DC.CurrLineTextBaseOffset);                    // Latch before ItemSize changes it
+    const ImVec2 label_size = ImGui::CalcTextSize(m_item->GetName().c_str(), m_item->GetName().c_str() + std::string(m_item->GetName().c_str()).size(), false);
+    const float text_width = g.FontSize + label_size.x + padding.x * 2;  // Include collapser
+    ImVec2 text_pos(window->DC.CursorPos.x + text_offset_x, window->DC.CursorPos.y + text_offset_y);
+    const ImVec2 arrow_button_size(g.FontSize - 2.0f, g.FontSize + g.Style.FramePadding.y * 2.0f);
+    const ImU32 text_col = ImGui::GetColorU32(ImGuiCol_Text);
+    ImGui::RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, m_is_open ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
+    
+    /*if (ImGui::ArrowButtonEx(("##>" + m_item->GetFullName()).c_str(), m_is_open ? ImGuiDir_Down : ImGuiDir_Right, arrow_button_size, 0))
+    {
+        m_is_open = !m_is_open; // toggle
+    }*/
+    
+    return 0;
+}
+
+auto GuiTreeNode::DrawItemIcon() -> bool
+{
+    assert(m_item);
+    auto vsflags = SHV_GetViewStyleFlags(m_item); // calls UpdateMetaInfo
+    if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
+    else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
+    else if (vsflags & ViewStyleFlags::vsfTableView) { SetTreeViewIcon(GuiTextureID::TV_table); }
+    else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { SetTreeViewIcon(GuiTextureID::TV_palette); }
+    else if (vsflags & ViewStyleFlags::vsfContainer) { SetTreeViewIcon(GuiTextureID::TV_container); }
+    else { SetTreeViewIcon(GuiTextureID::TV_unit_transparant); }
+    return 0;
+}
+
+auto GuiTreeNode::DrawItemText() -> bool
+{
+    assert(m_item);
+    //ImGui::Selectable();
+    ImGui::Text(m_item->GetName().c_str());
+    return 0;
+}
+
 auto GuiTreeNode::Draw() -> bool
 {
+    DrawItemDropDown();
+    ImGui::SameLine();
+    DrawItemIcon();
+    ImGui::SameLine();
+    DrawItemText();
+
     return false;
 }
 
@@ -68,7 +137,7 @@ GuiTree* GuiTree::getInstance(TreeItem* root)
 
 void GuiTree::Draw()
 {
-
+    m_startnode->Draw();
 }
 
 auto GuiTree::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void
@@ -81,8 +150,10 @@ GuiTreeViewComponent::~GuiTreeViewComponent()
 
 void GuiTreeViewComponent::Update(bool* p_open, GuiState& state)
 {
-    auto event_queues = GuiEventQueues::getInstance();
+    GuiTree* tree = nullptr;
+    bool use_default_tree = false;
 
+    auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())
     {
         event_queues->TreeViewEvents.Pop();
@@ -97,11 +168,26 @@ void GuiTreeViewComponent::Update(bool* p_open, GuiState& state)
         return;
     }
 
-    if (state.GetRoot())
-        CreateTree(state);
+    if (!use_default_tree)
+    {
+        if (state.GetRoot())
+            tree = GuiTree::getInstance(state.GetRoot());
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        SetKeyboardFocusToThisHwnd();
+        if (tree)
+        {
+            // visualize tree
+
+            tree->Draw();
+        }
+    }
+    else 
+    {
+        if (state.GetRoot())
+            CreateTree(state);
+
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            SetKeyboardFocusToThisHwnd();
+    }
 
     ImGui::End();
 }
@@ -178,11 +264,6 @@ bool IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
         ancestorCandidate = ancestorCandidate->GetParent();
     }
     return false;
-}
-
-void SetTreeViewIcon(GuiTextureID id)
-{
-    ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight()));
 }
 
 bool IsContainerWithTables(TreeItem* container)
