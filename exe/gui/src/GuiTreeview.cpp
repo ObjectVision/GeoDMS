@@ -80,14 +80,32 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     const float text_width = g.FontSize + label_size.x + padding.x * 2;  // Include collapser
     ImVec2 text_pos(window->DC.CursorPos.x + text_offset_x, window->DC.CursorPos.y + text_offset_y);
     const ImVec2 arrow_button_size(g.FontSize - 2.0f, g.FontSize + g.Style.FramePadding.y * 2.0f);
-    const ImU32 text_col = ImGui::GetColorU32(ImGuiCol_Text);
+    /*const ImU32 text_col = ImGui::GetColorU32(ImGuiCol_Text);
     ImGui::RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, m_is_open ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
-    
-    /*if (ImGui::ArrowButtonEx(("##>" + m_item->GetFullName()).c_str(), m_is_open ? ImGuiDir_Down : ImGuiDir_Right, arrow_button_size, 0))
+    */
+
+    /*if (ImGui::ArrowButton(("##>" + m_item->GetFullName()).c_str(), m_is_open ? ImGuiDir_Down : ImGuiDir_Right))
     {
         m_is_open = !m_is_open; // toggle
     }*/
+
+    auto cur_pos = ImGui::GetCursorPos();
+    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+235.0)); 
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
+
     
+
+    if (ImGui::Button(m_is_open ? ICON_RI_MIN : ICON_RI_PLUS))
+    {
+        m_is_open = !m_is_open;
+    }
+    ImGui::PopStyleColor(2);
+    auto test = ImGui::GetCursorPos();
+    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y));
+    auto test1 = ImGui::GetCursorPos();
+
     return 0;
 }
 
@@ -115,8 +133,12 @@ auto GuiTreeNode::DrawItemText() -> bool
 auto GuiTreeNode::Draw() -> bool
 {
     DrawItemDropDown();
-    ImGui::SameLine();
+    auto test1 = ImGui::GetCursorPos();
+    ImGui::SameLine(); // SameLine moves cursor back to last draw position..
+    auto test2 = ImGui::GetCursorPos();
     DrawItemIcon();
+    ImGui::SameLine();
+    ImGui::Text(ICON_RI_MIN);
     ImGui::SameLine();
     DrawItemText();
 
