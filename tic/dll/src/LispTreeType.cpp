@@ -136,6 +136,7 @@ namespace token {
 
 	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
 	TIC_CALL TokenID select_many = GetTokenID_st("select_many");
+	TIC_CALL TokenID relate_attr = GetTokenID_st("relate_attr");
 	TIC_CALL TokenID select_afew = GetTokenID_st("select_afew");
 	TIC_CALL TokenID select_many_uint8 = GetTokenID_st("select_many_uint8");
 	TIC_CALL TokenID select_afew_uint8 = GetTokenID_st("select_afew_uint8");

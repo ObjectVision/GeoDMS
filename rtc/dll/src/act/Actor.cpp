@@ -821,7 +821,8 @@ ErrMsgPtr Actor::GetFailReason() const
 
 bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 {
-	dms_assert(ft != FR_None);
+	assert(msg);
+	assert(ft != FR_None);
 	SupplInterestListPtr supplInterestWaste;
 	{
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
@@ -829,7 +830,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 		if (GetFailType() && GetFailType() <= ft)
 			return false;
 
-		dms_assert(msg->Why().IsDefined() && !msg->Why().empty());
+		assert(msg->Why().IsDefined() && !msg->Why().empty());
 
 		msg->TellWhere(this);
 		s_ActorFailReasonAssoc.assoc(this, msg);
@@ -911,7 +912,11 @@ void Actor::Fail(const Actor* src, FailType ft) const
 
 void Actor::Fail(const Actor* src) const
 {
-	DoFail(src->GetFailReason(), src->GetFailType()); 
+	auto failType = src->GetFailType();
+	auto failReason = src->GetFailReason();
+	assert(failType != FR_None);
+	assert(failReason);
+	DoFail(failReason, failType); 
 }
 
 //----------------------------------------------------------------------

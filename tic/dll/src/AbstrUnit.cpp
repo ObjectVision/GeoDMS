@@ -615,7 +615,7 @@ SharedStr AbstrUnit::GetSignature() const
 
 auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 {
-	if (IsDefaultUnit() )
+	if (IsDefaultUnit() || IsCacheItem() || !GetTreeParent())
 		return SharedStr(GetValueType()->GetID());
 	return base_type::GetScriptName(context);
 }

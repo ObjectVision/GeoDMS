@@ -1746,9 +1746,9 @@ const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 
 auto TreeItem::GetScriptName(const TreeItem* context) const -> SharedStr
 {
-	dms_assert(*GetName().c_str());
-	dms_assert(context);
-	dms_assert(context->GetTreeParent());
+	assert(*GetName().c_str());
+	assert(context);
+	assert(context->GetTreeParent());
 
 	return context->GetTreeParent()->GetFindableName(this);
 }

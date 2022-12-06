@@ -102,6 +102,7 @@ namespace token {
 	extern TIC_CALL TokenID select_orgrel_uint32;
 	extern TIC_CALL TokenID select_many;
 	extern TIC_CALL TokenID select_afew;
+	extern TIC_CALL TokenID relate_attr;
 	extern TIC_CALL TokenID select_many_uint8;
 	extern TIC_CALL TokenID select_afew_uint8;
 	extern TIC_CALL TokenID select_many_uint16;
