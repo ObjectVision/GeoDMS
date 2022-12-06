@@ -90,7 +90,8 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     }*/
 
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+235.0)); 
+    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+3.0));
+    
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
@@ -101,10 +102,15 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     {
         m_is_open = !m_is_open;
     }
+    ImGui::SameLine();
+    ImGui::SetCursorPosY(cur_pos.y);
+    //auto new_pos_x = ImGui::GetCursorPosX();
+    //ImGui::SetCursorPos(ImVec2(new_pos_x, cur_pos.y));
+
     ImGui::PopStyleColor(2);
-    auto test = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y));
-    auto test1 = ImGui::GetCursorPos();
+    //auto test = ImGui::GetCursorPos();
+    //ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y));
+    //auto test1 = ImGui::GetCursorPos();
 
     return 0;
 }
@@ -133,12 +139,10 @@ auto GuiTreeNode::DrawItemText() -> bool
 auto GuiTreeNode::Draw() -> bool
 {
     DrawItemDropDown();
-    auto test1 = ImGui::GetCursorPos();
-    ImGui::SameLine(); // SameLine moves cursor back to last draw position..
-    auto test2 = ImGui::GetCursorPos();
+    //auto test1 = ImGui::GetCursorPos();
+    //ImGui::SameLine(); // SameLine moves cursor back to last draw position..
+    //auto test2 = ImGui::GetCursorPos();
     DrawItemIcon();
-    ImGui::SameLine();
-    ImGui::Text(ICON_RI_MIN);
     ImGui::SameLine();
     DrawItemText();
 
