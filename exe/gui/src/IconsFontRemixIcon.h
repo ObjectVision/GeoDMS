@@ -9,3 +9,5 @@
 #define ICON_RI_TOOLS      "\xEF\x88\x9B" // U+F21B
 #define ICON_RI_SETTINGS   "\xEF\x83\xA6" // U+F0E6
 #define ICON_RI_PINN_ON    "\xEF\x80\xB7" // U+F037
+#define ICON_RI_MIN        "\xEF\x86\xAE" // U+F1AE
+#define ICON_RI_PLUS       "\xEE\xA8\x92" // U+EA12
