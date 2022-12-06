@@ -85,7 +85,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			auto tn = e->GetNrTiles();
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && !res->HasRepetitiveUsers() && (ElementWeight(arg1A) <= ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && (ElementWeight(arg1A) <= ElementWeight(res)))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{

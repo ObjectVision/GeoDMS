@@ -59,7 +59,7 @@
 #include <memory>
 
 #define MG_CACHE_ALLOC
-#define MG_CACHE_ALLOC_SMALL
+//#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
 
 #define MG_DEBUG_ALLOC true
@@ -214,19 +214,19 @@ struct VirtualAllocChunkArray
 	}
 	void commit(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize > objectSizeSize/2 && objectSize <= objectStoreSize);
+		assert(objectSize > objectStoreSize /2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::commit(ptr, objectSize, objectStoreSize);
 	}
 
 	void release(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize > objectSizeSize / 2 && objectSize <= objectStoreSize);
+		assert(objectSize > objectStoreSize / 2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::release(ptr, objectSize);
 	}
 
 	void recommit(BYTE_PTR ptr, object_size_t objectSize)
 	{
-		assert(objectSize > objectSizeSize / 2 && objectSize <= objectStoreSize);
+		assert(objectSize > objectStoreSize / 2 && objectSize <= objectStoreSize);
 		VirtualAllocChunk::recommit(ptr, objectSize);
 	}
 };
@@ -607,6 +607,7 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 //----------------------------------------------------------------------
 
 std::atomic<bool> s_ReportingRequestPending = false;
+
 
 void ReportFixedAllocStatus()
 {

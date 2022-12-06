@@ -152,8 +152,8 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 
 	struct lazy_tile_record
 	{
-		std::mutex                  m_Mutex;
-		std::weak_ptr< tile_data >  m_TileFutureWPtr;
+		std::mutex                    m_Mutex;
+		std::shared_ptr< tile_data >  m_TileFutureSPtr; // keep it !
 	};
 
 	using cache_t = std::unique_ptr<lazy_tile_record[]>;
@@ -191,7 +191,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 
 //	auto lock = std::scoped_lock(m_ActiveTiles[t].m_Mutex);
 
-	auto tileSPtr = m_ActiveTiles[t].m_TileFutureWPtr.lock();
+	auto tileSPtr = m_ActiveTiles[t].m_TileFutureSPtr;
 	dms_assert(tileSPtr); // called only from within m_Func
 	dms_assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
@@ -205,14 +205,14 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 
 	auto lock = std::scoped_lock(m_ActiveTiles[t].m_Mutex);
 
-	auto tileSPtr = m_ActiveTiles[t].m_TileFutureWPtr.lock();
+	auto tileSPtr = m_ActiveTiles[t].m_TileFutureSPtr;
 	if (!tileSPtr)
 	{
 		tileSPtr = std::make_shared<tile_data>(); // done by GetWritableTile
 
 		resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 
-		m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;
+		m_ActiveTiles[t].m_TileFutureSPtr = tileSPtr;
 		m_ApplyFunc(const_cast<LazyTileFunctor<V, ApplyFunc>*>(this), t);
 	}
 	dms_assert(tileSPtr);
@@ -227,6 +227,8 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 
 inline UInt32 ElementWeight(const AbstrDataItem* adi)
 {
+	return 0;
+
 	if (adi->HasVoidDomainGuarantee())
 		return 0;
 	auto bitSize = adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize(); // bool => 1; UInt32 => 32; DPoint == 128
