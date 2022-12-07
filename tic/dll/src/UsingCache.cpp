@@ -276,9 +276,9 @@ void UsingCache::UpdateUsings() const
 		TokenID url = *i;
 		const TreeItem* ns = FindNamespace(url);
 	   	if (!ns)
-			throwErrorF("UsingCache", "%s\nCannot find reference in Using = \"%s\"", 
-				m_Context->GetSourceName().c_str(),
-				GetTokenStr(url).c_str()
+			throwErrorF("UsingCache", "Cannot find reference in Using = \"%s\"\n%s"
+			,	GetTokenStr(url).c_str()
+			,	m_Context->GetSourceName().c_str()
 			);
 		AddUsingInternal(ns);
 	}
