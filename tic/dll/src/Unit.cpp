@@ -764,6 +764,11 @@ void CountableUnitBase<V>::SetRange(const range_t& range)
 	if (this->IsCacheItem())
 		return;
 
+//	if (!UpdateMetaInfoDetectionLock::IsLocked())
+//		this->DoInvalidate();
+//	this->SetDC(nullptr);
+//	this->SetReferredItem(nullptr);
+
 	if (oldRangeDataPtr)
 	{
 		dms_assert(!UpdateMarker::IsLoadingConfig());
