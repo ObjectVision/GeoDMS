@@ -3280,7 +3280,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		goto data_ready; // may have been arranged in an alternative thread.
 	if (IsDataItem(this))
 	{
-		if (!AsDataItem(this)->GetAbstrValuesUnit()->PrepareDataUsage(drlFlags))
+		auto avu = AsDataItem(this)->GetAbstrValuesUnit();
+		if (!avu->IsCacheItem() && !avu->PrepareDataUsage(drlFlags))
 			return false;
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());

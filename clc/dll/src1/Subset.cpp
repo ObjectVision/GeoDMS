@@ -295,20 +295,20 @@ struct SelectMetaOperator : public BinaryOperator
 	}
 };
 
-struct RelateAttrOperator : public BinaryOperator
+struct RelateAttrOperator : public TernaryOperator
 {
 	RelateAttrOperator(AbstrOperGroup& cog)
-		: BinaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrDataItem::GetStaticClass())
+		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
 	{}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
 	{
-		assert(args.size() == 2);
+		assert(args.size() == 3);
 
 		const TreeItem* attrContainer = GetItem(args[0]);
 
-		auto containerExpr = metaCallArgs.Left();
-		auto orgRelExpr = metaCallArgs.Right().Left();
+//		auto containerExpr = metaCallArgs.Left();
+		auto orgRelExpr = metaCallArgs.Right().Right().Left();
 		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
 		auto orgRelDC = GetDC(orgRelCalc);
 		MG_CHECK(orgRelDC);
@@ -316,13 +316,20 @@ struct RelateAttrOperator : public BinaryOperator
 		auto orgRelItem = orgRelDC->MakeResult();
 		MG_CHECK(orgRelItem);
 		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
-		MG_USERCHECK2(orgRelA, "org_rel data-item expected as 2nd argument");
+		MG_USERCHECK2(orgRelA, "org_rel data-item expected as 3rd argument");
 
-		const AbstrUnit* domain = orgRelA->GetAbstrDomainUnit();
-		assert(domain);
 
-		const AbstrUnit* valuesUnit = orgRelA->GetAbstrValuesUnit();
-		assert(valuesUnit);
+		auto domainItem = GetItem(args[1]);
+		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
+		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
+
+//		auto orgRelItem= GetItem(args[2]);
+//		assert(orgRelItem == orgRelDC->MakeResult());
+//		const AbstrDataItem* orgRelA = AsDynamicDataItem(orgRelItem);
+//		MG_USERCHECK2(orgRelA, "org_rel data-item expected as 3rd argument");
+
+		const AbstrUnit* sourceDomain = orgRelA->GetAbstrValuesUnit();
+		assert(sourceDomain);
 /*
 		const ValueClass* vc = domain->GetValueType();
 		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(m_ResultClass);
@@ -352,10 +359,10 @@ struct RelateAttrOperator : public BinaryOperator
 			if (!IsDataItem(subItem))
 				continue;
 			auto subDataItem = AsDataItem(subItem);
-			if (!valuesUnit->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
+			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto subDataID = subDataItem->GetID();
-			auto resSub = CreateDataItem(resultHolder, subDataID, domain, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 
@@ -503,8 +510,8 @@ namespace {
 	SelectMetaOperator operMetaA16(cog_subset_a_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_orgrel_uint16);
 	SelectMetaOperator operMetaA32(cog_subset_a_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_orgrel_uint32);
 
-	oper_arg_policy oap_Relate[2] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never };
-	SpecialOperGroup cog_relate_attr(token::relate_attr, 2, oap_Relate, oper_policy::dont_cache_result);
+	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_never };
+	SpecialOperGroup cog_relate_attr(token::relate_attr, 3, oap_Relate, oper_policy::dont_cache_result);
 	RelateAttrOperator operRA(cog_relate_attr);
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>> subsetDataOperInstances;
