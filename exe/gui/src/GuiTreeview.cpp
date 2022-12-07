@@ -89,8 +89,9 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
         m_is_open = !m_is_open; // toggle
     }*/
 
+    float offset = 1;
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+3.0));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+offset));
     
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
@@ -102,8 +103,11 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     {
         m_is_open = !m_is_open;
     }
-    ImGui::SameLine();
-    ImGui::SetCursorPosY(cur_pos.y);
+    //ImGui::SetCursorPos({ window->DC.CursorPosPrevLine.x ,window->DC.CursorPosPrevLine.y-offset });
+    auto spacing_w = g.Style.ItemSpacing.x;
+    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
+    //ImGui::SetCursorPosY(cur_pos.y);
     //auto new_pos_x = ImGui::GetCursorPosX();
     //ImGui::SetCursorPos(ImVec2(new_pos_x, cur_pos.y));
 
