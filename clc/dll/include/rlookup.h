@@ -185,7 +185,7 @@ void rlookup2index_array_unchecked(Vec& resData,
 	auto a2Db = arg2Data.begin();
 
 	// First, make a index mapping E2->E2  for arg2.
-	std::vector<UInt32> index(arg2Data.size()); 
+	std::vector<UInt32> index;
 
 	// Sort index 
 	make_index(index, arg2Data.size(), a2Db);
