@@ -94,27 +94,18 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+offset));
     
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
-
-    
 
     if (ImGui::Button(m_is_open ? ICON_RI_MIN : ICON_RI_PLUS))
     {
         m_is_open = !m_is_open;
     }
-    //ImGui::SetCursorPos({ window->DC.CursorPosPrevLine.x ,window->DC.CursorPosPrevLine.y-offset });
+
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
     window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
-    //ImGui::SetCursorPosY(cur_pos.y);
-    //auto new_pos_x = ImGui::GetCursorPosX();
-    //ImGui::SetCursorPos(ImVec2(new_pos_x, cur_pos.y));
-
-    ImGui::PopStyleColor(2);
-    //auto test = ImGui::GetCursorPos();
-    //ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y));
-    //auto test1 = ImGui::GetCursorPos();
+    ImGui::PopStyleColor(3);
 
     return 0;
 }
@@ -165,9 +156,25 @@ GuiTree* GuiTree::getInstance(TreeItem* root)
         return instance;
 }
 
+auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
+{
+    return ImGui::GetContentRegionAvail().y > 0; //TODO: check if this makes sense
+}
+
+auto GuiTree::DrawBranch(GuiTreeNode& node) -> void
+{
+    // loop over all next nodes
+    node.Draw();
+}
+
 void GuiTree::Draw()
 {
-    m_startnode->Draw();
+    auto m_currnode = m_startnode;
+    while (SpaceIsAvailableForTreeNode())
+    {
+        DrawBranch(*m_currnode);
+        // set new currnode, step to parent
+    }
 }
 
 auto GuiTree::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void

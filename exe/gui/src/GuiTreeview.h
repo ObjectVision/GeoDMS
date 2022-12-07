@@ -47,7 +47,10 @@ private:
 		m_root = GuiTreeNode(root, true);
 		m_startnode = &m_root;
 	};
-	
+
+	auto DrawBranch(GuiTreeNode& node) -> void;
+	auto SpaceIsAvailableForTreeNode() -> bool;
+
 	UInt64       m_max_count = 0;
 	GuiTreeNode  m_root;
 	GuiTreeNode* m_startnode = &m_root;
