@@ -181,15 +181,14 @@ namespace { // DebugOutStreamBuff is local
 			if (m_Data.empty())
 				return;
 
-			if (GetThreadID() == 1)
-				Flush(std::move(m_Data));
-			else
-				AddMainThreadOper([bufferCopy = std::move(m_Data)]() mutable {
+			AddMainThreadOper([bufferCopy = std::move(m_Data)]() mutable {
 					if (!s_nrRtcStreamLocks)
 						return;
 					leveled_critical_section::scoped_lock lock(*g_DebugStream);
 					DebugOutStreamBuff::Flush(std::move(bufferCopy));
-				});
+				}
+			, true
+			);
 			dms_assert(m_Data.empty());
 		}
 		bool AtEnd() const override { return false; }
