@@ -1057,6 +1057,8 @@ void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC)
 
 void OperationContext::AddDependency(const DataController* dcRef)
 {
+	if (!dcRef)
+		return;
 	dms_assert(!IsScheduled());
 	dms_assert(IsMainThread());
 	dms_assert(dcRef);
