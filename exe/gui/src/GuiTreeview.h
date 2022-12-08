@@ -9,18 +9,26 @@ public:
 	GuiTreeNode(TreeItem* item);
 	GuiTreeNode(TreeItem* item, bool is_open);
 	~GuiTreeNode();
-	void SetItem(TreeItem* item) { m_item = item; };
+	auto SetItem(TreeItem* item) -> void { m_item = item; };
+	auto GetItem() -> TreeItem* { return m_item; };
+	auto SetState(NotificationCode new_state) -> void;
+	auto GetState() -> NotificationCode;
+	auto GetFirstSibling() -> GuiTreeNode*;
+	auto 
+
 	auto Draw() -> bool;
 
 private:
+	auto Init(TreeItem* item) -> void;
 	auto GetDepthFromTreeItem() -> UInt8;
 	auto DrawItemDropDown() -> bool;
 	auto DrawItemIcon() -> bool;
 	auto DrawItemText() -> bool;
 
-	TreeItem* m_item = nullptr;
-	NotificationCode m_state = NotificationCode::NC2_DetermineChange;
-	std::vector<GuiTreeNode> m_branch;
+	TreeItem*                m_item = nullptr;
+	GuiTreeNode*             m_parent = nullptr;
+	std::vector<GuiTreeNode> m_children;
+	NotificationCode         m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
 	bool  m_is_open = false;
@@ -30,7 +38,8 @@ private:
 class GuiTree
 {
 public:
-	static GuiTree* getInstance(TreeItem* root);
+	static auto getInstance(TreeItem* root) -> GuiTree*;
+	static auto getInstance()->GuiTree*;
 
 	~GuiTree()
 	{
@@ -38,24 +47,28 @@ public:
 			delete instance;
 	}
 
-	void Draw();
+	auto Draw() -> void;
+	auto TryInsert(TreeItem* item) -> void;
+	auto GetNode(TreeItem* item) -> GuiTreeNode&;
 
 	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void;
 private:
 	GuiTree(TreeItem* root)
 	{
-		m_root = GuiTreeNode(root, true);
-		m_startnode = &m_root;
+		m_Root = GuiTreeNode(root, true);
+		//m_treeitem_to_guitreenode.insert(std::pair<TreeItem*, GuiTreeNode>(root, {root, true}));
+		//m_startnode = &m_treeitem_to_guitreenode.at(root);
 	};
 
+	auto SetNextCurrNode(GuiTreeNode& node) -> void;
 	auto DrawBranch(GuiTreeNode& node) -> void;
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;
-	GuiTreeNode  m_root;
-	GuiTreeNode* m_startnode = &m_root;
+	GuiTreeNode  m_Root;
+	GuiTreeNode* m_startnode = nullptr;
 
-	std::map<TreeItem*, GuiTreeNode*> m_treeitem_to_guitreenode;
+	//std::map<TreeItem*, GuiTreeNode> m_treeitem_to_guitreenode;
 	static GuiTree* instance;
 };
 

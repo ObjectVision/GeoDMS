@@ -42,17 +42,21 @@ void SetTreeViewIcon(GuiTextureID id)
 
 GuiTreeNode::GuiTreeNode(TreeItem* item)
 {
-    m_item = item;
-    m_depth = GetDepthFromTreeItem();
-    DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
+    this->Init(item);
 }
 
 GuiTreeNode::GuiTreeNode(TreeItem* item, bool is_open)
 {
-    m_item = item;
+    this->Init(item);
     m_is_open = is_open;
+}
+
+auto GuiTreeNode::Init(TreeItem* item) -> void
+{
+    m_item = item;
     m_depth = GetDepthFromTreeItem();
-    DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, nullptr);
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTree::OnTreeItemChanged, m_item, this);
+    item->UpdateMetaInfo();
 }
 
 GuiTreeNode::~GuiTreeNode()
@@ -131,6 +135,21 @@ auto GuiTreeNode::DrawItemText() -> bool
     return 0;
 }
 
+auto GuiTreeNode::SetState(NotificationCode new_state) -> void
+{
+    m_state = new_state;
+}
+
+auto GuiTreeNode::GetState() -> NotificationCode
+{
+    return m_state;
+}
+
+auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
+{
+    return &m_children.at(0);
+}
+
 auto GuiTreeNode::Draw() -> bool
 {
     DrawItemDropDown();
@@ -145,7 +164,7 @@ auto GuiTreeNode::Draw() -> bool
 }
 
 GuiTree* GuiTree::instance = 0;
-GuiTree* GuiTree::getInstance(TreeItem* root)
+auto GuiTree::getInstance(TreeItem* root) -> GuiTree*
 {
     if (!instance) 
     {
@@ -155,6 +174,12 @@ GuiTree* GuiTree::getInstance(TreeItem* root)
     else
         return instance;
 }
+auto GuiTree::getInstance() -> GuiTree*
+{
+    if (instance)
+        return instance;
+    return nullptr;
+}
 
 auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
 {
@@ -163,8 +188,135 @@ auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
 
 auto GuiTree::DrawBranch(GuiTreeNode& node) -> void
 {
-    // loop over all next nodes
+    if (node.GetState() < NotificationCode::NC2_MetaReady)
+        return;
+
+    auto next_item = node.GetFirstSibling();
+    while (next_item)
+    {
+        tree->TryInsert(next_item);
+        auto& tree_node = tree->GetNode(next_item);
+
+
+
+        // status color
+        auto status = DMS_TreeItem_GetProgressState(nextSubItem);
+        auto failed = nextSubItem->IsFailed();
+
+        if (status == NotificationCode::NC2_Updating) // ti not ready
+        {
+            nextSubItem = nextSubItem->GetNextItem(); // TODO: do display treeitem, but do not try to process subitems.
+            continue;
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));//IM_COL32(255, 0, 102, 255));//;
+        // set TreeView icon
+        auto vsflags = SHV_GetViewStyleFlags(nextSubItem); // calls UpdateMetaInfo
+        if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
+        else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
+        else if (vsflags & ViewStyleFlags::vsfTableView) { SetTreeViewIcon(GuiTextureID::TV_table); }
+        else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { SetTreeViewIcon(GuiTextureID::TV_palette); }
+        else if (vsflags & ViewStyleFlags::vsfContainer) { SetTreeViewIcon(GuiTextureID::TV_container); }
+        else { SetTreeViewIcon(GuiTextureID::TV_unit_transparant); }
+        ImGui::SameLine(); // icon same line as TreeNode
+
+        if (IsAncestor(nextSubItem, state.GetCurrentItem()))
+            ImGui::SetNextItemOpen(true);
+
+        auto treeItemIsOpen = ImGui::TreeNodeEx(nextSubItem->GetName().c_str(), nextSubItem->_GetFirstSubItem() ? useFlags : useFlags | ImGuiTreeNodeFlags_Leaf);
+
+        // keyboard focus event
+        if (IsKeyboardFocused())
+            UpdateStateAfterItemClick(state, nextSubItem);
+
+        // click event
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) // item is clicked
+        {
+            SetKeyboardFocusToThisHwnd();
+            UpdateStateAfterItemClick(state, nextSubItem);
+        }
+
+        // double click event
+        if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+
+        // right-mouse popup menu
+        if (ImGui::BeginPopupContextItem())
+        {
+            auto base_style_color = ImGui::GetStyleColorVec4(0);
+            auto current_style_color = ImGui::GetStyleColorVec4(1);
+            ImGui::PopStyleColor(2);
+            if (ImGui::Button("Edit Config Source       Ctrl-E"))
+                event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
+
+            if (ImGui::Button("Default View"))
+                event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+
+            if (ImGui::Button("Map View                 CTRL-M"))
+                event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
+
+            if (ImGui::Button("Table View               CTRL-D"))
+                event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+
+            //if (ImGui::Button("Close"))
+            //    ImGui::CloseCurrentPopup();
+            //ImGui::PushStyleColor(ImGuiCol_Text, GetColorU32(style_color));
+            ImGui::EndPopup();
+            ImGui::PushStyleColor(ImGuiCol_Text, base_style_color);
+            ImGui::PushStyleColor(ImGuiCol_Text, current_style_color);
+        }
+
+        // alphabetical letter jump
+        if ((!state.m_JumpLetter.first.empty() && !state.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(state, nextSubItem))
+        {
+            UpdateStateAfterItemClick(state, nextSubItem);
+            ImGui::SetScrollHereY();
+            m_TemporaryJumpItem = nullptr;
+        }
+
+        if (treeItemIsOpen)
+        {
+            // drop event
+            if (ImGui::BeginDragDropSource())
+            {
+                ImGui::SetDragDropPayload("TreeItemPtr", nextSubItem->GetFullName().c_str(), strlen(nextSubItem->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
+                ImGui::TextUnformatted(nextSubItem->GetName().c_str());
+                ImGui::EndDragDropSource();
+            }
+
+            // jump event
+            if (m_TemporaryJumpItem && m_TemporaryJumpItem == nextSubItem)
+            {
+                UpdateStateAfterItemClick(state, nextSubItem);
+                ImGui::SetScrollHereY();
+                m_TemporaryJumpItem = nullptr;
+            }
+
+            if (nextSubItem->m_State.GetProgress() >= PS_MetaInfo)
+                CreateBranch(state, nextSubItem);
+            ImGui::TreePop();
+        }
+        ImGui::PopStyleColor();
+
+        next_item = next_item->GetNextItem();
+    }
     node.Draw();
+}
+
+auto SetNextCurrNode(GuiTreeNode& node) -> void
+{
+
+}
+
+auto GuiTree::TryInsert(TreeItem* item) -> void
+{
+    if (not m_treeitem_to_guitreenode.contains(item))
+        m_treeitem_to_guitreenode.insert(std::pair<TreeItem*, GuiTreeNode>(item, { item, false }));
+}
+
+auto GuiTree::GetNode(TreeItem* item) -> GuiTreeNode&
+{
+    return m_treeitem_to_guitreenode.at(item);
 }
 
 void GuiTree::Draw()
@@ -173,13 +325,14 @@ void GuiTree::Draw()
     while (SpaceIsAvailableForTreeNode())
     {
         DrawBranch(*m_currnode);
-        // set new currnode, step to parent
+        SetNextCurrNode(*m_currnode);
     }
 }
 
 auto GuiTree::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void
 {
-
+    auto tree_node = (GuiTreeNode*)clientHandle;
+    tree_node->SetState(state);
 }
 
 GuiTreeViewComponent::~GuiTreeViewComponent() 
