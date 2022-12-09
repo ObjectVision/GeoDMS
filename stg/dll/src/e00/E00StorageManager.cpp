@@ -249,7 +249,7 @@ void E00StorageManager::DoCreateStorage(const TreeItem* storageHolder)
 					)
 				)
 			);
-	checked_domain<SPoint>(gridData);
+	checked_domain<SPoint>(gridData, "GridData");
 	MG_CHECK2
 	(
 		gridData, 

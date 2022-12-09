@@ -67,9 +67,9 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 
-		checked_domain<Void>(args[1]);
+		checked_domain<Void>(args[1], "a2");
 		if (args.size() >= 3)
-			checked_domain<Void>(args[2]);
+			checked_domain<Void>(args[2], "a3");
 
 
 		if (!resultHolder)
@@ -169,9 +169,9 @@ struct RegexMatchOperator : CommonOperGroup, TernaryOperator
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
-		checked_domain<Void>(args[1]);
+		checked_domain<Void>(args[1], "a2");
 		if (args.size() >= 3)
-			checked_domain<Void>(args[2]);
+			checked_domain<Void>(args[2], "a3");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(e1, Unit<Bool>::GetStaticClass()->CreateDefault());
@@ -260,10 +260,10 @@ struct RegexReplaceOperator : CommonOperGroup, QuaternaryOperator
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 
-		checked_domain<Void>(args[1]);
-		checked_domain<Void>(args[2]);
+		checked_domain<Void>(args[1], "a2");
+		checked_domain<Void>(args[2], "a3");
 		if (args.size() >= 4)
-			checked_domain<Void>(args[3]);
+			checked_domain<Void>(args[3], "a4");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(e1, arg1A->GetAbstrValuesUnit());

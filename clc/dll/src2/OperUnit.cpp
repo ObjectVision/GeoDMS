@@ -93,7 +93,7 @@ bool DefaultUnitOperator::CreateResult(TreeItemDualRef& resultHolder, const ArgS
 
 	if (!resultHolder)
 	{
-		checked_domain<Void>(args[0]);
+		checked_domain<Void>(args[0], "a1");
 		SharedStr typeName = GetValue<Arg1Type::value_type>(args[0], 0);
 		resultHolder = GetUnitClass(GetTokenID_mt(typeName.c_str()))->CreateDefault();
 	}
@@ -357,7 +357,7 @@ public:
 		const AbstrUnit* arg2 = AsUnit(args[1]);
 		dms_assert(arg2);
 
-		checked_domain<Void>(args[0]);
+		checked_domain<Void>(args[0], "a1");
 
 		SharedStr baseUnitName = GetCurrValue<Arg1Type::value_type>(args[0], 0);
 		AbstrUnit* result = arg2->GetUnitClass()->CreateTmpUnit(resultHolder);
@@ -444,8 +444,8 @@ public:
 
 		const Arg1Type *arg1 = AsUnit(args[0]);
 		dms_assert(arg1);
-		checked_domain<Void>(args[1]);
-		checked_domain<Void>(args[2]);
+		checked_domain<Void>(args[1], "a2");
+		checked_domain<Void>(args[2], "a3");
 
 		dms_assert(AsUnit(args[3])->GetUnitClass() == GetResultClass());
 		if (!resultHolder)
@@ -567,8 +567,8 @@ public:
 		const AbstrUnit* arg1 = debug_cast<const AbstrUnit*>(args[0]);
 
 		dms_assert(arg1);
-		checked_domain<Void>(args[1]);
-		checked_domain<Void>(args[2]);
+		checked_domain<Void>(args[1], "a2");
+		checked_domain<Void>(args[2], "a3");
 
 		if (!resultHolder)
 		{
@@ -1025,7 +1025,7 @@ struct AbstrTiledUnitFromSizeOper: UnaryOperator
 		dms_assert(args.size() == 1);
 
 		const AbstrDataItem* a1 = AsDataItem(args[0]);
-		checked_domain<Void>(a1);
+		checked_domain<Void>(a1, "a1");
 
 		if (!resultHolder)
 		{

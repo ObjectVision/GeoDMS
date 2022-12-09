@@ -2588,7 +2588,7 @@ public:
 		const AbstrDataItem* ggTypeNamesA = AsDataItem(args[0]);
 		dms_assert(ggTypeNamesA);
 
-		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]));
+		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
 
 		const AbstrUnit* allocUnit = debug_cast<const AbstrUnit*>(GetItem(args[1]));
 

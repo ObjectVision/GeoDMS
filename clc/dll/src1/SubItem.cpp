@@ -60,7 +60,7 @@ struct SubItemOperator: public BinaryOperator
 		dms_assert(arg1->IsCacheItem());
 		if (!resultHolder) {
 			dms_assert(!mustCalc);
-			checked_domain<Void>(args[1]);
+			checked_domain<Void>(args[1], "a2");
 
 			SharedStr subItemName = GetCurrValue<SharedStr>(args[1], 0);
 			const TreeItem* subItem = arg1->GetCurrItem(subItemName);

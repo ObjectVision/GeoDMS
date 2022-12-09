@@ -199,7 +199,7 @@ public:
 		dms_assert(arg1A);
 		dms_assert(arg2);
 
-		checked_domain<Void>(arg1A);
+		checked_domain<Void>(arg1A, "a1");
 		const Unit<SPoint>* domain = const_unit_cast<SPoint>(arg1A->GetAbstrValuesUnit());
 		dms_assert(domain);
 

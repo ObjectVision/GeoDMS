@@ -139,7 +139,7 @@ public:
 
 		dms_assert(adiGridImp && adiStartPointGrid && adiStartPointImp);
 
-		const Unit<GridType>* gridSet  = checked_domain<GridType>(adiGridImp);
+		const Unit<GridType>* gridSet  = checked_domain<GridType>(adiGridImp, "a1");
 		const Unit<ImpType>*  impUnit  = const_unit_cast<ImpType>(adiGridImp->GetAbstrValuesUnit());
 		const AbstrUnit*      startSet = adiStartPointGrid->GetAbstrDomainUnit();
 
@@ -147,9 +147,9 @@ public:
 		dms_assert(impUnit );
 		dms_assert(startSet);
 
-		gridSet->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), "e1", "v2", UM_Throw);
-		startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), "e2", "e3", UM_Throw);
-		impUnit->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), "v1", "v3", UM_Throw);
+		gridSet ->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), "e1", "v2", UM_Throw);
+		startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit (), "e2", "e3", UM_Throw);
+		impUnit ->UnifyValues(adiStartPointImp->GetAbstrValuesUnit (), "v1", "v3", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(gridSet, impUnit);

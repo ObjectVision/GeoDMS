@@ -1213,15 +1213,16 @@ public:
 
 		dms_assert(adiLinkImp && adiLinkF1 && adiLinkF2);
 		dms_assert((adiOrgMassLimit != nullptr) == (adiDstMassLimit != nullptr));
-		const Unit<LinkType>* e        = checked_domain<LinkType>(adiLinkImp);
+		const Unit<LinkType>* e        = checked_domain<LinkType>(adiLinkImp, "Link Impedance");
 		const Unit<NodeType>* v        = const_unit_cast<NodeType>(adiLinkF1->GetAbstrValuesUnit());
 		const Unit<ImpType>* impUnit = const_unit_cast<ImpType>(adiLinkImp->GetAbstrValuesUnit());
-		const AbstrUnit*      x = adiStartPointNode ? adiStartPointNode->GetAbstrDomainUnit() : v;
-		const AbstrUnit*      y = adiEndPointNode ? adiEndPointNode->GetAbstrDomainUnit() : v;
-		const AbstrUnit* orgZones = flags(df & DijkstraFlag::OD) ? (adiStartPoinOrgZone ? adiStartPoinOrgZone->GetAbstrValuesUnit() : x) : Unit<Void>::GetStaticClass()->CreateDefault();
-		const AbstrUnit* dstZones = adiEndPointDstZone ? adiEndPointDstZone->GetAbstrValuesUnit() : y;
+		const Unit<NodeType>* x = adiStartPointNode ? checked_domain<NodeType>(adiStartPointNode, "startPoint Node_rel") : v;
+		const Unit<NodeType>* y = adiEndPointNode   ? checked_domain<NodeType>(adiEndPointNode, "endPoint Node_rel") : v;
+		const Unit<NodeType>* orgZones = flags(df & DijkstraFlag::OD) ? (adiStartPoinOrgZone ? const_unit_cast<NodeType>(adiStartPoinOrgZone->GetAbstrValuesUnit()) : x) : nullptr;
+		const Unit<NodeType>* dstZones = adiEndPointDstZone ? const_unit_cast<NodeType>(adiEndPointDstZone->GetAbstrValuesUnit()) : y;
+		const AbstrUnit* orgZonesOrVoid = orgZones ? orgZones : Unit<Void>::GetStaticClass()->CreateDefault();
 
-		dms_assert(e && v && impUnit && x && y && orgZones && dstZones);
+		dms_assert(e && v && impUnit && x && y && (orgZones || !flags(df & DijkstraFlag::OD))&& dstZones);
 		e->UnifyDomain(adiLinkF1->GetAbstrDomainUnit(), "Links", "Domain of FromNode_rel attribute", UM_Throw);
 		e->UnifyDomain(adiLinkF2->GetAbstrDomainUnit(), "Links", "Domain of ToNode_rel attribute", UM_Throw);
 		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), "Nodes", "Values of FromNode_rel attribute", UM_Throw);
@@ -1241,14 +1242,14 @@ public:
 
 		if (adiOrgMaxImp) // maxDist
 		{
-			orgZones->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZonesOrVoid->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMassLimit) // limitMass
 		{
 			dms_assert(adiDstMassLimit);
 			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgMassLimit", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
-			orgZones->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZonesOrVoid->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), "DstZones", "Domain of DstMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 
@@ -1262,7 +1263,7 @@ public:
 		// interaction parameters
 		if (adiOrgMinImp)
 		{
-			orgZones->UnifyDomain(adiOrgMinImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMinImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZonesOrVoid->UnifyDomain(adiOrgMinImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMinImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			imp2Unit->UnifyValues(adiOrgMinImp->GetAbstrValuesUnit(), "Imp2Unit", "Values of OrgMinImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiDstMinImp)
@@ -1274,7 +1275,7 @@ public:
 		{
 			dms_assert(adiDistDecayBetaParam);
 			dms_assert(adiDstMass);
-			orgZones->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZonesOrVoid->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		MG_CHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
 		MG_CHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
@@ -1289,7 +1290,7 @@ public:
 		if (adiOrgAlpha)
 		{
 			dms_assert(adiOrgMass);
-			orgZones->UnifyDomain(adiOrgAlpha->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgAlpha attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			orgZonesOrVoid->UnifyDomain(adiOrgAlpha->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgAlpha attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		const AbstrUnit* resultUnit;
 		AbstrUnit* mutableResultUnit;
@@ -1333,10 +1334,10 @@ public:
 			:	nullptr;
 
 		AbstrDataItem* resOrgFactor = flags(df & DijkstraFlag::ProdOrgFactor)
-			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZones, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZonesOrVoid, adiOrgMass->GetAbstrValuesUnit())
 			: nullptr;
 		AbstrDataItem* resOrgDemand = flags(df & DijkstraFlag::ProdOrgDemand)
-			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZones, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZonesOrVoid, adiOrgMass->GetAbstrValuesUnit())
 			: nullptr;
 		AbstrDataItem* resDstFactor = flags(df & DijkstraFlag::ProdDstFactor)
 			? CreateDataItem(resultContext, GetTokenID_mt("C_j"), dstZones, adiOrgMass->GetAbstrValuesUnit())
@@ -1346,14 +1347,14 @@ public:
 			: nullptr;
 
 		AbstrDataItem* resOrgMaxImp = flags(df & DijkstraFlag::ProdOrgMaxImp)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_MaxImp"), orgZones, impUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_MaxImp"), orgZonesOrVoid, impUnit)
 			: nullptr;
 
 		AbstrDataItem* resLinkFlow = flags(df & DijkstraFlag::ProdLinkFlow)
 			? CreateDataItem(resultContext, GetTokenID_mt("Link_flow"), e, adiOrgMass->GetAbstrValuesUnit())
 			: nullptr;
 		AbstrDataItem* resSrcZone = flags(df & DijkstraFlag::ProdOdOrgZone_rel)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZones)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_rel"), resultUnit, orgZonesOrVoid)
 			: nullptr;
 		if (resSrcZone) resSrcZone->SetTSF(DSF_Categorical);
 
@@ -1489,7 +1490,7 @@ public:
 			NetworkInfo<NodeType, ZoneType, ImpType> networkInfo(
 				v->GetCount(), e->GetCount()
 			,	x->GetCount(), y->GetCount()
-			,	orgZones->GetCount(), dstZones->GetCount()
+			,	orgZonesOrVoid->GetCount(), dstZones->GetCount()
 			,	ZoneInfo<NodeType, ZoneType, ImpType>{startpointNodeData.begin(), startpointImpData.begin(), startpointOrgZoneData.begin()}
 			,	ZoneInfo<NodeType, ZoneType, ImpType>{endPoint_Node_rel_Data.begin(), endpointImpData.begin(), endpointDstZoneData.begin()}
 			);

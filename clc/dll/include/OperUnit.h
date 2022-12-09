@@ -185,7 +185,7 @@ public:
 		dms_assert(args.size() == 2);
 
 		const AbstrDataItem* adi = AsDataItem(args[0]);
-		checked_domain<Void>(args[0]);
+		checked_domain<Void>(args[0], "a1");
 
 		const AbstrUnit* arg2A = AsUnit(args[1]);
 		dms_assert(arg2A);
@@ -280,7 +280,7 @@ public:
 		dms_assert(arg1A->GetUnitClass() == GetArgClass(0));
 		dms_assert(arg1A->GetUnitClass() == GetResultClass());
 
-		checked_domain<Void>(args[1]);
+		checked_domain<Void>(args[1], "a2");
 
 		AbstrUnit* result = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder);
 		resultHolder = result;

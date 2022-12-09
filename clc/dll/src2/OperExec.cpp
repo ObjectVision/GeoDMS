@@ -111,7 +111,7 @@ struct OperExec : UnaryOperator
 		if (mustCalc)
 		{
 			// Construct commandline from args
-			checked_domain<Void>(args[0]);
+			checked_domain<Void>(args[0], "a1");
 			SharedStr cmd = GetValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[0]), 0);
 
 			// Execute 
@@ -158,8 +158,8 @@ struct OperExecInDir : BinaryOperator
 		if (mustCalc)
 		{
 			// Construct commandline from args
-			checked_domain<Void>(args[0]);
-			checked_domain<Void>(args[1]);
+			checked_domain<Void>(args[0], "a1");
+			checked_domain<Void>(args[1], "a2");
 			SharedStr cmd = GetTheCurrValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[0]));
 			SharedStr dir = GetTheCurrValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[1]));
 
@@ -189,9 +189,9 @@ struct OperCmdInDir : TernaryOperator
 		if (mustCalc)
 		{
 			// Construct commandline from args
-			checked_domain<Void>(args[0]);
-			checked_domain<Void>(args[1]);
-			checked_domain<Void>(args[2]);
+			checked_domain<Void>(args[0], "a1");
+			checked_domain<Void>(args[1], "a2");
+			checked_domain<Void>(args[2], "a3");
 			SharedStr module  = GetTheCurrValue<SharedStr>(args[0]);
 			SharedStr cmdLine = GetTheCurrValue<SharedStr>(args[1]);
 			SharedStr dirPath = GetTheCurrValue<SharedStr>(args[2]);
@@ -254,7 +254,7 @@ struct OperExecDllN : public VariadicOperator
 			std::vector<SharedStr> argDataStr(args.size());
 			for (UInt32 n = args.size(), i=0; i!=n; ++i)
 			{
-				checked_domain<Void>(args[i]);
+				checked_domain<Void>(args[i], "one of the args");
 				argDataStr[i] = GetValue<SharedStr>(debug_cast<const AbstrDataItem*>(args[i]), 0);
 			}
 			dms_assert(args.size() >= 2);

@@ -121,10 +121,10 @@ struct ReadArrayOperator: public QuinaryOperator
 		const TreeItem* arg1 = args[0];
 		dms_assert(arg1);
 
-		checked_domain<Void>(args[0]);
-		checked_domain<Void>(args[3]);
+		checked_domain<Void>(args[0], "a1");
+		checked_domain<Void>(args[3], "a4");
 		if (args.size() >= 5)
-			checked_domain<Void>(args[4]);
+			checked_domain<Void>(args[4], "a5");
 
 		const AbstrUnit* adu = AsUnit(args[1]);
 		const AbstrUnit* avu = AsUnit(args[2]);
@@ -217,7 +217,7 @@ struct ReadElemsOperator: public QuaternaryOperator
 		adu->UnifyDomain(AsDataItem(args[2])->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (args.size() >= 4)
-			checked_domain<Void>(args[3]);
+			checked_domain<Void>(args[3], "a4");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(adu, avu);
@@ -322,8 +322,8 @@ struct ReadLinesOperator: public TernaryOperator
 		const TreeItem* arg1 = args[0];
 		dms_assert(arg1);
 
-		checked_domain<Void>(args[0]);
-		checked_domain<Void>(args[2]);
+		checked_domain<Void>(args[0], "a1");
+		checked_domain<Void>(args[2], "a3");
 
 		const AbstrUnit* adu = AsUnit(args[1]);
 		const AbstrUnit* avu = Unit<SharedStr>::GetStaticClass()->CreateDefault();

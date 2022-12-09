@@ -420,7 +420,7 @@ public:
 		const AbstrDataItem* ggTypeNamesA = debug_cast<const AbstrDataItem*>(args[0]);
 		dms_assert(ggTypeNamesA);
 
-		const Unit<UInt8>* ggTypeSet = checked_domain<UInt8>(args[0]);
+		const Unit<UInt8>* ggTypeSet = checked_domain<UInt8>(args[0], "a1");
 
 		const AbstrUnit* gridDomain = debug_cast<const AbstrUnit*>(args[1]);
 

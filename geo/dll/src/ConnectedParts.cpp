@@ -75,7 +75,7 @@ public:
 		arg1A->GetAbstrDomainUnit()->UnifyDomain(arg2A->GetAbstrDomainUnit());
 		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit());
 
-		MG_CHECK(checked_domain<LinkType>(arg1A) == checked_domain<LinkType>(arg2A));
+		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
 		AbstrUnit* res = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);

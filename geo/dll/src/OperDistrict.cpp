@@ -168,8 +168,8 @@ public:
 		dms_assert(domain);
 		dms_assert(values);
 
-		checked_domain<Void>(radiusA);
-		checked_domain<Void>(isCircleA);
+		checked_domain<Void>(radiusA, "a1");
+		checked_domain<Void>(isCircleA, "a2");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain, values, COMPOSITION(T));
