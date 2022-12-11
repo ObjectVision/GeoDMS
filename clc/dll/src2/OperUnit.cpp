@@ -587,8 +587,8 @@ public:
 			T lb = GetTheCurrValue<T>(args[1]);
 			T ub = GetTheCurrValue<T>(args[2]);
 
-			MG_USERCHECK2(IsDefined(lb), "Error in range-operator: lowerBound (arg2) is UNDEFINED");
-			MG_USERCHECK2(IsDefined(ub), "Error in range-operator: upperBound (arg3) is UNDEFINED");
+			MG_USERCHECK2(IsDefined(lb), "lowerBound (arg2) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
+			MG_USERCHECK2(IsDefined(ub), "upperBound (arg3) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
 
 			Range<T> bounds(lb, ub);
 			assert(IsLowerBound(bounds.first, bounds.second));

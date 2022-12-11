@@ -51,7 +51,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "OperArgPolicy.h"
 
 #include "TreeItemFlags.h"
-//#include "DataController.h"
 
 //----------------------------------------------------------------------
 // class  : TreeItem Facets

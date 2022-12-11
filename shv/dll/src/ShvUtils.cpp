@@ -928,7 +928,8 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	SharedPtr<AbstrUnit> paletteDomain = const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit());
 	SharedPtr<AbstrDataItem> breakAttrPtr = breakAttr;
-//	dms_assert(paletteDomain->HasConfigData());
+	SharedUnitInterestPtr breakValues = AbstrValuesUnit(breakAttr);
+	breakValues->GetPreparedCount();
 
 	SizeT nrBreaks = Min<SizeT>(sortedUniqueValueCache.size(), DEFAULT_MAX_NR_BREAKS);
 	auto result = ClassifyJenksFisher(sortedUniqueValueCache, nrBreaks, true); // callsClassifyUniqueValues if breakAttr.size() >= sortedUniqueValueCache.size()

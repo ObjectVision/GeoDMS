@@ -190,6 +190,7 @@ public: // TODO G8: Re-encapsulate
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
+TIC_CALL const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
 
 
 #endif

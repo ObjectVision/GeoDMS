@@ -1255,6 +1255,25 @@ struct InterestReporter : DebugReporter
 	}
 };
 
+// *****************************************************************************
+// Section:    AbstrValuesUnit for arrow, move to generic display location
+// *****************************************************************************
+
+const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
+{
+	dms_assert(adi);
+	while (true)
+	{
+		auto au = adi->GetAbstrValuesUnit();
+		if (!au->IsDefaultUnit())
+			return au;
+		adi = AsDataItem(adi->GetCurrRefItem());
+		if (!adi)
+			return nullptr;
+	}
+}
+
+
 InterestReporter sd_InterestSetReporter;
 
 
