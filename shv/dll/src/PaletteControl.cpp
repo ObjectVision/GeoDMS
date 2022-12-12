@@ -380,7 +380,7 @@ void PaletteControl::CreateColumnsImpl()
 
 	if	(	m_ThemeAttr 
 		&&	classIds->UnifyDomain(m_PaletteDomain)
-		&&	classIds->CanBeDomain()  && classIds->GetCount() <= 256
+		&&	classIds->CanBeDomain()  && classIds->GetPreparedCount() <= 256
 		&&	(!m_Layer || (!m_Layer->IsTopographic() && !m_Layer->HasEditAttr()))
 		)
 	{

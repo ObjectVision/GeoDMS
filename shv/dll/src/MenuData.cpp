@@ -102,6 +102,7 @@ SubMenu::~SubMenu()
 	switch (m_MenuDataRef.size() - m_StartSize)
 	{
 	case 1: {
+		// merge singleton submenu with its submenu caption menu item
 		auto& subMenu = m_MenuDataRef.end()[-2];
 		auto& subMenuItem = m_MenuDataRef.back();
 
@@ -114,8 +115,10 @@ SubMenu::~SubMenu()
 		subMenu.m_Host = subMenuItem.m_Host;
 		// don't inherit level
 	}
+	[[fallthrough]]; // now that singleton submenu has been cleared, consider it as empty.
 	case 0:
-		m_MenuDataRef.pop_back(); // remove empty sub-menu
+		// remove empty (or cleared) sub-menu
+		m_MenuDataRef.pop_back();
 	}
 }
 

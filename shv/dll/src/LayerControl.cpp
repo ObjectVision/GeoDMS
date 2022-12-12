@@ -196,7 +196,6 @@ public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
 		:	DualPointCaretController(owner, new RectCaret, target, origin, EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS)
 		,	m_HooverRect( owner->ViewRect() )
-		,	m_Activated(false)
 	{}
 protected:
 	bool Move(EventInfo& eventInfo) override
@@ -275,8 +274,8 @@ protected:
 private:
 	std::shared_ptr<LayerControlBase> m_HooverObj;
 	GRect                             m_HooverRect;
-	bool                              m_Activated;
-	bool                              m_Above;
+	bool                              m_Activated = false;
+	bool                              m_Above = false;
 };
 
 bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)

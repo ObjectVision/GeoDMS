@@ -194,8 +194,6 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 	ItemSchemaControllerWriter(ItemSchemaController* self, ItemSchemaView* isv, UInt32 nrItems)
 		:	ItemSchemaControllerWriterBase(isv, nrItems, self->m_RootItems.size())
 		,	m_ISC(self)
-		,	loc(0,0)
-		,	nodeIndex(0)
 		,	labelTextLock(isv->m_SchemaLabelText)
 		,	locationLock (isv->m_SchemaLocation)
 		,	f1Lock       (isv->m_F1)
@@ -236,8 +234,8 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 
 	WeakPtr<ItemSchemaController> m_ISC;
 	SPoint loc;
-	UInt32 nodeIndex;
-	UInt32 rootIndex;
+	UInt32 nodeIndex = 0;
+	UInt32 rootIndex = 0;
 private:
 	DataWriteLock labelTextLock, locationLock, f1Lock, f2Lock;
 };
