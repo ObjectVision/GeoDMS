@@ -836,6 +836,18 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		ArgRef argRef;
 		if (!mustCalcArg) 
 		{ // DomainContainer and ValuesContainer and SubsetContainer
+			LispRef argExpr = cursor.Left();
+			if (!argExpr.IsSymb())
+			{
+				auto errMsgTxt = mySSPrintF(
+					"meta-function %s expects an item reference as argument %d, but an expression was given.\n"
+					"Consider defining and using a separate item as %s"
+					, og->GetName()
+					, currArg + 1
+					, AsFLispSharedStr(argExpr)
+				);
+				holder->Fail(errMsgTxt, FR_MetaInfo);
+			}
 			if (oap == oper_arg_policy::calc_as_result)
 			{
 				// skip condition argument for select_xxxx meta functions
