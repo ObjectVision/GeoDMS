@@ -8,15 +8,20 @@ public:
 	GuiTreeNode() {};
 	GuiTreeNode(TreeItem* item);
 	GuiTreeNode(TreeItem* item, bool is_open);
+	GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open);
 	~GuiTreeNode();
 	auto SetItem(TreeItem* item) -> void { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
+	auto GetOpenStatus() -> bool { return m_is_open; };
 	auto SetState(NotificationCode new_state) -> void;
+	auto AddChildren() -> void;
 	auto GetState() -> NotificationCode;
 	auto GetFirstSibling() -> GuiTreeNode*;
-	auto 
+	auto GetSiblingIterator() -> std::list<GuiTreeNode>::iterator;
+	auto GetSiblingEnd() -> std::list<GuiTreeNode>::iterator;
 
 	auto Draw() -> bool;
+	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
 
 private:
 	auto Init(TreeItem* item) -> void;
@@ -25,13 +30,14 @@ private:
 	auto DrawItemIcon() -> bool;
 	auto DrawItemText() -> bool;
 
-	TreeItem*                m_item = nullptr;
-	GuiTreeNode*             m_parent = nullptr;
-	std::vector<GuiTreeNode> m_children;
-	NotificationCode         m_state = NotificationCode::NC2_Invalidated;
+	TreeItem*              m_item = nullptr;
+	GuiTreeNode*           m_parent = nullptr;
+	std::list<GuiTreeNode> m_children;
+	NotificationCode       m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
-	bool  m_is_open = false;
+	bool m_has_been_openend = false;
+	bool m_is_open = false;
 	UInt8 m_depth = 0;
 };
 
@@ -47,28 +53,24 @@ public:
 			delete instance;
 	}
 
-	auto Draw() -> void;
-	auto TryInsert(TreeItem* item) -> void;
-	auto GetNode(TreeItem* item) -> GuiTreeNode&;
+	auto Draw(GuiState& state) -> void;
 
-	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode state) -> void;
 private:
 	GuiTree(TreeItem* root)
 	{
 		m_Root = GuiTreeNode(root, true);
-		//m_treeitem_to_guitreenode.insert(std::pair<TreeItem*, GuiTreeNode>(root, {root, true}));
-		//m_startnode = &m_treeitem_to_guitreenode.at(root);
+		m_startnode = &m_Root;
+		m_Parent = nullptr;
 	};
 
-	auto SetNextCurrNode(GuiTreeNode& node) -> void;
-	auto DrawBranch(GuiTreeNode& node) -> void;
+	auto DrawBranch(GuiTreeNode& node, GuiState& state) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;
 	GuiTreeNode  m_Root;
+	GuiTreeNode* m_Parent;
 	GuiTreeNode* m_startnode = nullptr;
 
-	//std::map<TreeItem*, GuiTreeNode> m_treeitem_to_guitreenode;
 	static GuiTree* instance;
 };
 
