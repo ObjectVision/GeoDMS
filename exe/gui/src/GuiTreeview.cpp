@@ -51,7 +51,7 @@ UInt32 GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed)
 
 void SetTreeViewIcon(GuiTextureID id)
 {
-    ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight())); //TODO: +5 magic number
+    ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight()));
 }
 
 GuiTreeNode::GuiTreeNode(TreeItem* item)
@@ -62,14 +62,14 @@ GuiTreeNode::GuiTreeNode(TreeItem* item)
 GuiTreeNode::GuiTreeNode(TreeItem* item, bool is_open)
 {
     this->Init(item);
-    m_is_open = is_open;
+    SetOpenStatus(is_open);
 }
 
 GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
 {
     this->Init(item);
     m_parent = parent;
-    m_is_open = is_open;
+    SetOpenStatus(is_open);
 }
 
 auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
@@ -82,8 +82,12 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
+    m_state = (NotificationCode)DMS_TreeItem_GetProgressState(m_item); // calling UpdateMetaInfo for item A can UpdateMetaInfo of item B
+
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
-    item->UpdateMetaInfo();
+
+    if (m_state < NotificationCode::NC2_MetaReady)
+        item->UpdateMetaInfo();
 }
 
 GuiTreeNode::~GuiTreeNode()
@@ -120,26 +124,20 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
         m_is_open = !m_is_open; // toggle
     }*/
 
-    float offset = 1;
+    float offset = 0;
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y+offset));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
     
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
+    ImGui::PushID(m_item);
     if (ImGui::Button(m_is_open ? ICON_RI_MIN : ICON_RI_PLUS))
     {
-        
-
-        m_is_open = !m_is_open;
-
-        if (m_is_open && !m_has_been_openend && m_state>= NotificationCode::NC2_MetaReady) // children known at this point
-        {
-            AddChildren();
-            m_has_been_openend = true; // add children once and only once
-        }
+        SetOpenStatus(!GetOpenStatus());
     }
+    ImGui::PopID();
 
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
@@ -152,7 +150,7 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
 auto GuiTreeNode::DrawItemIcon() -> bool
 {
     assert(m_item);
-    auto vsflags = SHV_GetViewStyleFlags(m_item); // calls UpdateMetaInfo
+    auto vsflags = SHV_GetViewStyleFlags(m_item); // TODO: check if this calls UpdateMetaInfo
     if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
     else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
     else if (vsflags & ViewStyleFlags::vsfTableView) { SetTreeViewIcon(GuiTextureID::TV_table); }
@@ -174,6 +172,17 @@ auto GuiTreeNode::DrawItemText() -> bool
     ImGui::Text(m_item->GetName().c_str());
     ImGui::PopStyleColor();
     return 0;
+}
+
+auto GuiTreeNode::SetOpenStatus(bool do_open) -> void
+{ 
+    m_is_open = do_open;
+
+    if (m_is_open && !m_has_been_openend && m_state >= NotificationCode::NC2_MetaReady) // children known at this point
+    {
+        AddChildren();
+        m_has_been_openend = true; // add children once and only once
+    }
 }
 
 auto GuiTreeNode::SetState(NotificationCode new_state) -> void
@@ -250,8 +259,8 @@ auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
 
 auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state) -> bool
 {
-    if (!SpaceIsAvailableForTreeNode())
-        return false;
+    //if (!SpaceIsAvailableForTreeNode())
+    //    return false;
 
     if (node.GetState() < NotificationCode::NC2_MetaReady)
         return true;
@@ -295,7 +304,7 @@ void GuiTree::Draw(GuiState& state)
         return;
 
     auto m_currnode = m_startnode;
-    m_Root.Draw();
+    m_Root->Draw();
     DrawBranch(*m_currnode, state);
 }
 

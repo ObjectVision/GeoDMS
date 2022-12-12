@@ -12,6 +12,7 @@ public:
 	~GuiTreeNode();
 	auto SetItem(TreeItem* item) -> void { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
+	auto SetOpenStatus(bool do_open) -> void;
 	auto GetOpenStatus() -> bool { return m_is_open; };
 	auto SetState(NotificationCode new_state) -> void;
 	auto AddChildren() -> void;
@@ -58,17 +59,15 @@ public:
 private:
 	GuiTree(TreeItem* root)
 	{
-		m_Root = GuiTreeNode(root, true);
-		m_startnode = &m_Root;
-		m_Parent = nullptr;
+		m_Root = std::make_unique<GuiTreeNode>(root, true);
+		m_startnode = m_Root.get();
 	};
 
 	auto DrawBranch(GuiTreeNode& node, GuiState& state) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;
-	GuiTreeNode  m_Root;
-	GuiTreeNode* m_Parent;
+	std::unique_ptr<GuiTreeNode> m_Root;
 	GuiTreeNode* m_startnode = nullptr;
 
 	static GuiTree* instance;
