@@ -22,7 +22,7 @@ public:
 	auto GetSiblingEnd() -> std::list<GuiTreeNode>::iterator;
 	auto IsLeaf() -> bool;
 
-	auto Draw() -> bool;
+	auto Draw(GuiState& state) -> bool;
 	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
 
 private:
@@ -30,7 +30,7 @@ private:
 	auto GetDepthFromTreeItem() -> UInt8;
 	auto DrawItemDropDown() -> bool;
 	auto DrawItemIcon() -> bool;
-	auto DrawItemText() -> bool;
+	auto DrawItemText(GuiState& state) -> bool;
 
 	TreeItem*              m_item = nullptr;
 	GuiTreeNode*           m_parent = nullptr;
@@ -81,7 +81,6 @@ public:
 private:
 	auto CreateBranch(GuiState& state, TreeItem* branch) -> bool;
 	auto CreateTree(GuiState& state) -> bool;
-	auto UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem) -> void;
 	auto IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped) -> bool;
 
 	TreeItem* m_TemporaryJumpItem = nullptr;
