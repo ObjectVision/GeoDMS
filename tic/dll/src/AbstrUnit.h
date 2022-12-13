@@ -168,6 +168,7 @@ public:
 	virtual tile_offset GetTileCount(tile_id t) const;
 	virtual row_id GetBase () const;
 	TIC_CALL bool IsOrdinalAndZeroBased() const;
+	TIC_CALL row_id GetEstimatedCount() const;
 
 	virtual AbstrValue* CreateAbstrValueAtIndex(SizeT i) const;
 	virtual SizeT GetIndexForAbstrValue(const AbstrValue&) const;

@@ -689,6 +689,11 @@ bool AbstrUnit::IsOrdinalAndZeroBased() const
 	return GetNrDimensions() == 1 && GetBase() == 0;
 }
 
+row_id AbstrUnit::GetEstimatedCount() const
+{
+	return GetCount();
+}
+
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
 {
 	row_id count = GetCount();

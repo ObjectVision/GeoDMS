@@ -221,25 +221,6 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 	return locked_cseq_t(make_SharedThing(std::move(tileSPtr)), GetConstSeq(*tileSPtr) );
 }
 
-//----------------------------------------------------------------------
-// Building blocks for LazyTileFunctor heristics
-//----------------------------------------------------------------------
-
-inline UInt32 ElementWeight(const AbstrDataItem* adi)
-{
-	return 0;
-
-	if (adi->HasVoidDomainGuarantee())
-		return 0;
-	auto bitSize = adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize(); // bool => 1; UInt32 => 32; DPoint == 128
-	if (!bitSize)
-		return 256; // string weight
-	if (adi->GetValueComposition() != ValueComposition::Single)
-		return bitSize * 32; // Sequence<UInt8> -> 256 too
-	return  bitSize;
-}
-
-
 #endif //!defined(__TIC_TILEFUNCTORIMPL_H)
 
 

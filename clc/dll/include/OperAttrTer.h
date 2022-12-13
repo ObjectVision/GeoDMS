@@ -107,7 +107,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 			auto tn = e->GetNrTiles();
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && (ElementWeight(arg1A) + ElementWeight(arg2A) + ElementWeight(arg3A) <= ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) + LTF_ElementWeight(arg3A) <= LTF_ElementWeight(res)))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, arg3A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{

@@ -51,6 +51,17 @@ enum ArgFlags
 	AF2_HASUNDEFINED= 0x020,
 	AF3_HASUNDEFINED= 0x200,
 };
+// *****************************************************************************
+// Section:     PerformanceEstimationData
+// *****************************************************************************
+
+struct PerformanceEstimationData
+{
+	calc_time_t expectedTime;
+	SizeT resultingMemory;
+	SizeT workingMemory = 0;
+	UInt16 extraTasks = 0;
+};
 
 // *****************************************************************************
 // Section:     Operator
@@ -82,7 +93,7 @@ public:
 		auto argSeq = GetItems(args);
 		return CreateResult(resultHolder, argSeq, true);
 	}
-
+	TIC_CALL virtual auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData;
 
 	arg_index             NrSpecifiedArgs()        const { return m_ArgClassesEnd - m_ArgClassesBegin; }
 	arg_index             NrOptionalArgs()         const { dms_assert(NrSpecifiedArgs() >= m_NrOptionalArgs);  return m_NrOptionalArgs; }

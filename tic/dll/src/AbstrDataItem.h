@@ -191,6 +191,8 @@ TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
 TIC_CALL const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
+TIC_CALL UInt32 ElementWeight(const AbstrDataItem* adi);
+TIC_CALL UInt32 LTF_ElementWeight(const AbstrDataItem* adi);
 
 
 #endif

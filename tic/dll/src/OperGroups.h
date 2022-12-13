@@ -47,6 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 
 struct Actor;
+using calc_time_t = double;
 
 // template <typename ExpectedType> using expected = std::variant<ExpectedType, ErrMsg>;
 using ArgRef = std::variant<FutureData, SharedTreeItem>;
@@ -99,6 +100,8 @@ struct AbstrOperGroup : SharedObj
 	bool IsDepreciated        () const { return m_Policy & oper_policy::depreciated; }
 	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
 
+	auto GetCalcFactor        () const { return m_CalcFactor; }
+
 	void SetCanExplainValue() { m_Policy = 	oper_policy(m_Policy | oper_policy::can_explain_value); }
 
 	virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const =0;
@@ -136,6 +139,7 @@ private:
 
 protected:
 	oper_policy     m_Policy;
+	calc_time_t     m_CalcFactor = 1.0;
 };
 
 struct CommonOperGroup: AbstrOperGroup

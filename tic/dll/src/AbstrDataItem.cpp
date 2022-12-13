@@ -1061,6 +1061,27 @@ const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 }
 
 //----------------------------------------------------------------------
+// Building blocks for LazyTileFunctor heristics
+//----------------------------------------------------------------------
+
+inline UInt32 ElementWeight(const AbstrDataItem* adi)
+{
+	if (adi->HasVoidDomainGuarantee())
+		return 0;
+	auto bitSize = adi->GetAbstrValuesUnit()->GetValueType()->GetBitSize(); // bool => 1; UInt32 => 32; DPoint == 128
+	if (!bitSize)
+		return 256; // string weight
+	if (adi->GetValueComposition() != ValueComposition::Single)
+		return bitSize * 32; // Sequence<UInt8> -> 256 too
+	return  bitSize;
+}
+
+UInt32 LTF_ElementWeight(const AbstrDataItem* adi)
+{
+	return 0;
+}
+
+//----------------------------------------------------------------------
 //	InterestCount management
 //----------------------------------------------------------------------
 

@@ -66,7 +66,22 @@ bool Operator::CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& arg
 	throwIllegalAbstract(MG_POS, "Operator::CreateResult");
 }
 
-oper_arg_policy Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const
+auto Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const -> oper_arg_policy
 {
 	return GetGroup()->GetArgPolicy(argNr, firstArgValue);
+}
+
+#include "AbstrDataItem.h"
+#include "AbstrUnit.h"
+
+TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData
+{
+	CreateResultCaller(resultHolder, args, nullptr);
+
+	if (!IsDataItem(resultHolder.GetNew()))
+		return {0, 0};
+	auto adi = AsDataItem(resultHolder.GetNew());
+	auto nrElements = adi->GetAbstrDomainUnit()->GetEstimatedCount();
+	auto resultingMemory = nrElements * ElementWeight(adi);
+	return { calc_time_t(nrElements), resultingMemory };
 }
