@@ -22,7 +22,7 @@ public:
 	auto GetSiblingEnd() -> std::list<GuiTreeNode>::iterator;
 	auto IsLeaf() -> bool;
 
-	auto Draw(GuiState& state) -> bool;
+	auto Draw(GuiState& state, TreeItem*& jump_item) -> bool;
 	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
 
 private:
@@ -30,7 +30,7 @@ private:
 	auto GetDepthFromTreeItem() -> UInt8;
 	auto DrawItemDropDown() -> bool;
 	auto DrawItemIcon() -> bool;
-	auto DrawItemText(GuiState& state) -> bool;
+	auto DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool;
 
 	TreeItem*              m_item = nullptr;
 	GuiTreeNode*           m_parent = nullptr;
@@ -57,12 +57,12 @@ public:
 	~GuiTree();
 
 
-	auto Draw(GuiState& state) -> void;
+	auto Draw(GuiState& state, TreeItem*& jump_item) -> void;
 
 private:
 
 
-	auto DrawBranch(GuiTreeNode& node, GuiState& state) -> bool;
+	auto DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;

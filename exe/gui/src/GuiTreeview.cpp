@@ -103,6 +103,20 @@ auto SetTreeViewIcon(GuiTextureID id) -> void
     ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight()));
 }
 
+auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
+{
+    if (!descendant)
+        return false;
+    auto ancestorCandidate = descendant->GetParent();
+    while (ancestorCandidate)
+    {
+        if (ancestorCandidate == ancestorTarget)
+            return true;
+        ancestorCandidate = ancestorCandidate->GetParent();
+    }
+    return false;
+}
+
 GuiTreeNode::GuiTreeNode(TreeItem* item)
 {
     this->Init(item);
@@ -194,7 +208,7 @@ auto GuiTreeNode::DrawItemIcon() -> bool
     return 0;
 }
 
-auto GuiTreeNode::DrawItemText(GuiState& state) -> bool
+auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
 {
     assert(m_item);
     auto event_queues = GuiEventQueues::getInstance();
@@ -237,10 +251,15 @@ auto GuiTreeNode::DrawItemText(GuiState& state) -> bool
         ImGui::EndDragDropSource();
     }
 
+    // jump event
+    if (jump_item && jump_item == m_item)
+    {
+        UpdateStateAfterItemClick(state, m_item);
+        ImGui::SetScrollHereY();
+        jump_item = nullptr;
+    }
 
     // alphabetical letter jump
-    
-    // jump event
 
     ImGui::PopID();
 
@@ -307,7 +326,7 @@ auto GuiTreeNode::IsLeaf() -> bool
     return true;
 }
 
-auto GuiTreeNode::Draw(GuiState& state) -> bool
+auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
 {
     DrawItemDropDown();
     //auto test1 = ImGui::GetCursorPos();
@@ -315,7 +334,7 @@ auto GuiTreeNode::Draw(GuiState& state) -> bool
     //auto test2 = ImGui::GetCursorPos();
     DrawItemIcon();
     ImGui::SameLine();
-    DrawItemText(state);
+    DrawItemText(state, jump_item);
 
     return false;
 }
@@ -329,9 +348,9 @@ auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
     return ImGui::GetContentRegionAvail().y > 0;
 }
 
-auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state) -> bool
+auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
 {
-    //if (!SpaceIsAvailableForTreeNode())
+    //if (!SpaceIsAvailableForTreeNode()) //TODO: implement use of this
     //    return false;
 
     if (node.GetState() < NotificationCode::NC2_MetaReady)
@@ -340,17 +359,16 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state) -> bool
     auto next_node = node.GetSiblingIterator();
     while (next_node != node.GetSiblingEnd())
     {
+        if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
+            next_node->SetOpenStatus(true);
 
-        //if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
-        //    ImGui::SetNextItemOpen(true);
-
-        next_node->Draw(state);
+        next_node->Draw(state, jump_item);
 
         if (next_node->GetOpenStatus())
         {
             if (next_node->GetState() >= PS_MetaInfo)
             {
-                if (!DrawBranch(*next_node, state))
+                if (!DrawBranch(*next_node, state, jump_item))
                 {
                     return false;
                 }
@@ -362,15 +380,15 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state) -> bool
     return true;
 }
 
-auto GuiTree::Draw(GuiState& state) -> void
+auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
 {
     if (!m_startnode)
         return;
 
     auto m_currnode = m_startnode;
-    m_Root->Draw(state);
+    m_Root->Draw(state, jump_item);
     if (m_Root->GetOpenStatus())
-        DrawBranch(*m_currnode, state);
+        DrawBranch(*m_currnode, state, jump_item);
 }
 
 GuiTreeViewComponent::~GuiTreeViewComponent() 
@@ -413,7 +431,7 @@ auto GuiTreeViewComponent::Update(bool* p_open, GuiState& state) -> void
         {
             // visualize tree
 
-            m_tree->Draw(state);
+            m_tree->Draw(state, m_TemporaryJumpItem);
         }
     }
     else 
@@ -462,20 +480,6 @@ auto GuiTreeViewComponent::IsAlphabeticalKeyJump(GuiState& state, TreeItem* next
         return true;
     }
 
-    return false;
-}
-
-auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
-{
-    if (!descendant)
-        return false;
-    auto ancestorCandidate = descendant->GetParent();
-    while (ancestorCandidate)
-    {
-        if (ancestorCandidate == ancestorTarget)
-            return true;
-        ancestorCandidate = ancestorCandidate->GetParent();
-    }
     return false;
 }
 
