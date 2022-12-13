@@ -132,8 +132,10 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
+    auto icon = IsLeaf() ? " " : m_is_open ? ICON_RI_MIN : ICON_RI_PLUS;
+
     ImGui::PushID(m_item);
-    if (ImGui::Button(m_is_open ? ICON_RI_MIN : ICON_RI_PLUS))
+    if (ImGui::Button(icon))
     {
         SetOpenStatus(!GetOpenStatus());
     }
@@ -221,6 +223,17 @@ auto GuiTreeNode::GetSiblingEnd() -> std::list<GuiTreeNode>::iterator
     return m_children.end();
 }
 
+auto GuiTreeNode::IsLeaf() -> bool
+{
+    if (!m_item)
+        return false;
+
+    if (m_item->HasSubItems())
+        return false;
+
+    return true;
+}
+
 auto GuiTreeNode::Draw() -> bool
 {
     DrawItemDropDown();
@@ -305,7 +318,8 @@ void GuiTree::Draw(GuiState& state)
 
     auto m_currnode = m_startnode;
     m_Root->Draw();
-    DrawBranch(*m_currnode, state);
+    if (m_Root->GetOpenStatus())
+        DrawBranch(*m_currnode, state);
 }
 
 GuiTreeViewComponent::~GuiTreeViewComponent() 

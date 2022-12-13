@@ -20,6 +20,7 @@ public:
 	auto GetFirstSibling() -> GuiTreeNode*;
 	auto GetSiblingIterator() -> std::list<GuiTreeNode>::iterator;
 	auto GetSiblingEnd() -> std::list<GuiTreeNode>::iterator;
+	auto IsLeaf() -> bool;
 
 	auto Draw() -> bool;
 	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
