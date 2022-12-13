@@ -157,28 +157,6 @@ namespace gdalVectImpl {
 		return ValueComposition::Unknown;
 	}
 
-	// *****************************************************************************
-	//
-	// use of TNameSet
-	//
-	// *****************************************************************************
-
-	struct TOgrNameSet : TNameSet
-	{
-		static const UInt32 MAX_ITEM_NAME_SIZE = 64;
-
-		TOgrNameSet(OGRFeatureDefn* featureDefn, const Actor* context)
-			: TNameSet(MAX_ITEM_NAME_SIZE)
-		{
-			for (SizeT i = 0, numFields = featureDefn->GetFieldCount(); i != numFields; ++i)
-			{
-				WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
-				InsertFieldName(fieldDefn->GetNameRef());
-			}
-			//		CheckAmbiguity(context, "GDAL/OGR Layer Attribute names", "item names");
-		}
-	};
-
 }	// namespace gdal2VectImpl
 
 // ------------------------------------------------------------------------
@@ -1653,8 +1631,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	{
 		WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
 		auto subType = fieldDefn->GetSubType();
-		auto raw_item_name = SharedStr(fieldDefn->GetNameRef());
-		SharedStr itemName = as_item_name(raw_item_name.begin(), raw_item_name.end());
+		auto raw_item_name = fieldDefn->GetNameRef();
+		SharedStr itemName = as_item_name(raw_item_name, raw_item_name + StrLen(raw_item_name));
 		TreeItem* tiColumn = layerDomain->GetItem(itemName.c_str());
 		
 		auto valueType = gdalVectImpl::OGR2ValueClass(fieldDefn->GetType(), fieldDefn->GetSubType());
