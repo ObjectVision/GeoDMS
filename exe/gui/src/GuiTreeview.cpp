@@ -177,7 +177,15 @@ auto GuiTreeNode::DrawItemText(GuiState& state) -> bool
     const bool is_selected = (m_item == state.GetCurrentItem());
     ImGui::PushID(m_item);
     if (ImGui::Selectable(m_item->GetName().c_str(), is_selected)) // m_selectable_name.c_str()
+    {
         UpdateStateAfterItemClick(state, m_item);
+    }
+    else if (ImGui::IsItemClicked())
+    {
+        UpdateStateAfterItemClick(state, m_item);
+    }
+
+
 
     // keyboard selection event
     if (IsKeyboardFocused())
@@ -186,6 +194,19 @@ auto GuiTreeNode::DrawItemText(GuiState& state) -> bool
     // double click event
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+
+    // drag-drop event
+    if (ImGui::BeginDragDropSource())
+    {
+        ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
+        ImGui::TextUnformatted(m_item->GetName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // right-mouse popup menu
+    // alphabetical letter jump
+    
+    // jump event
 
     ImGui::PopID();
 
@@ -290,12 +311,6 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state) -> bool
         //    ImGui::SetNextItemOpen(true);
 
         next_node->Draw(state);
-
-        
-        // right-mouse popup menu
-        // alphabetical letter jump
-        // drop event
-        // jump event
 
         if (next_node->GetOpenStatus())
         {

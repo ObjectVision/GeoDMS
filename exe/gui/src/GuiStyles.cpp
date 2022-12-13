@@ -38,7 +38,7 @@ int GuiIcon::GetHeight()
     return m_Height;
 }
 
-bool GuiIcon::LoadTextureFromFile(std::string iconPath)
+bool GuiIcon::LoadTextureFromFile(std::string iconPath) // TODO: adaptive use of OpenGL 2/3 functions depending on platform, see https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_opengl2.cpp#L238
 {
     // Load from file
     unsigned char* image_data;
