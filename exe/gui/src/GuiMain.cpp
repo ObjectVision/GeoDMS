@@ -50,8 +50,7 @@ GuiMainComponent::GuiMainComponent()
 GuiMainComponent::~GuiMainComponent()
 {
     m_View.CloseAll();
-
-    //m_ItemsHolder.clear();
+    m_TreeviewComponent.clear();
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);

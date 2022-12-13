@@ -46,23 +46,21 @@ private:
 class GuiTree
 {
 public:
-	static auto getInstance(TreeItem* root) -> GuiTree*;
-	static auto getInstance()->GuiTree*;
-
-	~GuiTree()
-	{
-		if (instance)
-			delete instance;
-	}
-
-	auto Draw(GuiState& state) -> void;
-
-private:
 	GuiTree(TreeItem* root)
 	{
 		m_Root = std::make_unique<GuiTreeNode>(root, true);
 		m_startnode = m_Root.get();
 	};
+	//static auto getInstance(TreeItem* root) -> GuiTree*;
+	//static auto getInstance()->GuiTree*;
+
+	~GuiTree();
+
+
+	auto Draw(GuiState& state) -> void;
+
+private:
+
 
 	auto DrawBranch(GuiTreeNode& node, GuiState& state) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
@@ -78,14 +76,16 @@ class GuiTreeViewComponent : GuiBaseComponent
 {
 public:
 	~GuiTreeViewComponent();
-	void Update(bool* p_open, GuiState& state);
+	auto Update(bool* p_open, GuiState& state) -> void;
+	auto clear() -> void;
 private:
-	bool CreateBranch(GuiState& state, TreeItem* branch);
-	bool CreateTree(GuiState& state);
-	void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem);
-	bool IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped);
+	auto CreateBranch(GuiState& state, TreeItem* branch) -> bool;
+	auto CreateTree(GuiState& state) -> bool;
+	auto UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem) -> void;
+	auto IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped) -> bool;
 
 	TreeItem* m_TemporaryJumpItem = nullptr;
-
 	ImGuiTreeNodeFlags m_BaseFlags  = ImGuiWindowFlags_AlwaysAutoResize | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+
+	std::unique_ptr<GuiTree> m_tree;
 };

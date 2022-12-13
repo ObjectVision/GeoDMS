@@ -106,23 +106,6 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
-    const ImVec2 padding = style.FramePadding;
-
-    const float text_offset_x = g.FontSize + padding.x * 2;           // Collapser arrow width + Spacing
-    const float text_offset_y = ImMax(padding.y, window->DC.CurrLineTextBaseOffset);                    // Latch before ItemSize changes it
-    const ImVec2 label_size = ImGui::CalcTextSize(m_item->GetName().c_str(), m_item->GetName().c_str() + std::string(m_item->GetName().c_str()).size(), false);
-    const float text_width = g.FontSize + label_size.x + padding.x * 2;  // Include collapser
-    ImVec2 text_pos(window->DC.CursorPos.x + text_offset_x, window->DC.CursorPos.y + text_offset_y);
-    const ImVec2 arrow_button_size(g.FontSize - 2.0f, g.FontSize + g.Style.FramePadding.y * 2.0f);
-    /*const ImU32 text_col = ImGui::GetColorU32(ImGuiCol_Text);
-    ImGui::RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y), text_col, m_is_open ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
-    */
-
-    /*if (ImGui::ArrowButton(("##>" + m_item->GetFullName()).c_str(), m_is_open ? ImGuiDir_Down : ImGuiDir_Right))
-    {
-        m_is_open = !m_is_open; // toggle
-    }*/
 
     float offset = 0;
     auto cur_pos = ImGui::GetCursorPos();
@@ -171,6 +154,15 @@ auto GuiTreeNode::DrawItemText() -> bool
     auto failed = m_item->IsFailed();
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
+    /*const bool is_selected = (iterator == state.TreeItemHistoryList.GetCurrentIterator());
+    if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
+    {
+        state.SetCurrentItem(*iterator);
+        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+        event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+        event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+    }*/
     ImGui::Text(m_item->GetName().c_str());
     ImGui::PopStyleColor();
     return 0;
@@ -247,10 +239,10 @@ auto GuiTreeNode::Draw() -> bool
     return false;
 }
 
-GuiTree* GuiTree::instance = 0;
+/*GuiTree* GuiTree::instance = 0;
 auto GuiTree::getInstance(TreeItem* root) -> GuiTree*
 {
-    if (!instance) 
+    if (!instance)
     {
         instance = new GuiTree(root);
         return instance;
@@ -263,6 +255,12 @@ auto GuiTree::getInstance() -> GuiTree*
     if (instance)
         return instance;
     return nullptr;
+}*/
+
+GuiTree::~GuiTree()
+{
+    //if (instance)
+    //    delete instance;
 }
 
 auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
@@ -325,7 +323,12 @@ void GuiTree::Draw(GuiState& state)
 GuiTreeViewComponent::~GuiTreeViewComponent() 
 {}
 
-void GuiTreeViewComponent::Update(bool* p_open, GuiState& state)
+auto GuiTreeViewComponent::clear() -> void
+{
+    m_tree.release();
+}
+
+auto GuiTreeViewComponent::Update(bool* p_open, GuiState& state) -> void
 {
     GuiTree* tree = nullptr;
     bool use_default_tree = false;
@@ -347,14 +350,17 @@ void GuiTreeViewComponent::Update(bool* p_open, GuiState& state)
 
     if (!use_default_tree)
     {
-        if (state.GetRoot())
-            tree = GuiTree::getInstance(state.GetRoot());
+        if (!m_tree && state.GetRoot())
+            m_tree = std::make_unique<GuiTree>(state.GetRoot());
 
-        if (tree)
+        //if (state.GetRoot())
+        //    tree = GuiTree::getInstance(state.GetRoot());
+
+        if (m_tree)
         {
             // visualize tree
 
-            tree->Draw(state);
+            m_tree->Draw(state);
         }
     }
     else 
