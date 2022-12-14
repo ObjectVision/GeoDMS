@@ -77,7 +77,7 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		{
 			ScalarType currRow   = polyBegin[*currPointIndexPtr].Row();
 			ScalarType currWidth = CalcWidth<ScalarType>(polyBegin, polyEnd,  polyBegin[*currPointIndexPtr]);
-			DensityType deltaDoubleArea = (prevWidth + currWidth) * (currRow - prevRow);
+			DensityType deltaDoubleArea = DensityType(prevWidth + currWidth) * (DensityType(currRow) - DensityType(prevRow));
 
 			DBG_TRACE(("currPoint  %s", AsString(polyBegin[*currPointIndexPtr]).c_str()));
 			DBG_TRACE(("currWidth  %s", AsString(currWidth).c_str()));
