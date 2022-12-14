@@ -212,6 +212,8 @@ template <typename T> struct elem_of                   { typedef T        type; 
 template <typename T> struct elem_of<std::vector<T> >  { typedef T        type; };
 template <>           struct elem_of<SharedStr>        { typedef CharType type; };
 
+template <typename T> using elem_of_t = typename elem_of<T>::type;
+
 template <typename T> struct scalar_of                 { typedef T type; };
 template <typename T> struct scalar_of<Range<T> >      { typedef typename scalar_of<T>::type type; };
 template <typename T> struct scalar_of<std::vector<T> >{ typedef typename scalar_of<T>::type type; };

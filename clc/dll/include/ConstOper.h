@@ -63,7 +63,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 		if (!tileSPtr)
 		{
 			tileSPtr = std::make_shared<tile<V>>();
-			resizeSO(*tileSPtr, m_MaxTileSize, false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
+			tileSPtr->resizeSO(m_MaxTileSize, false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 			fast_fill(tileSPtr->begin(), tileSPtr->end(), m_Value);
 
 			m_ActiveTile = tileSPtr;

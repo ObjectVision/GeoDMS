@@ -71,7 +71,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 template <typename V>
-void CloseShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
+void CloseMutableShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
 {
 	auto trd = sourceTileArray->GetTiledRangeData();
 	SizeT nrElem = trd->GetElemCount();
@@ -93,19 +93,25 @@ void CloseShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>:
 }
 
 template <typename V>
-struct shadow_tile : tile<V>
+struct mutable_shadow_tile : tile<V>
 {
 	using tile<V>::tile;
 
-	~shadow_tile()
+	~mutable_shadow_tile()
 	{
 		if (m_SourceTileArray)
-			CloseShadow<V>(m_SourceTileArray, GetConstSeq(*this));
+			CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this));
 	}
 
 	SharedPtr< DataArrayBase<V> > m_SourceTileArray;
 };
 
+template <typename V>
+struct const_shadow_tile : tile<V>
+{
+	using tile<V>::tile;
+	std::vector< typename DataArrayBase<V>::locked_cseq_t > m_Seqs;
+};
 
 template <typename V>
 void InitMutableShadow(DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr, const AbstrTileRangeData* trd, dms_rw_mode rwMode MG_DEBUG_ALLOCATOR_SRC_ARG)
@@ -147,14 +153,14 @@ void InitConstShadow(const DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr
 
 	U64Grid<V> shadowData(Size(range), shadowTilePtr->begin());
 
-	parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowTilePtr, &shadowData, shadowRangeBase = range.first](tile_id t)
-	{
-		I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
-		auto tileData = tileFunctor->GetTile(t);
-		dms_assert(Cardinality(tileRange) == tileData.size());
+	parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowData, shadowRangeBase = range.first](tile_id t)
+		{
+			I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
+			auto tileData = tileFunctor->GetTile(t);
+			dms_assert(Cardinality(tileRange) == tileData.size());
 
-		RectCopy(shadowData, U64Grid<const V>(Size(tileRange), tileData.begin()), shadowRangeBase - tileRange.first);
-	}
+			RectCopy(shadowData, U64Grid<const V>(Size(tileRange), tileData.begin()), shadowRangeBase - tileRange.first);
+		}
 	);
 }
 
@@ -164,26 +170,72 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 	auto trd = tileFunctor->GetTiledRangeData();
 	dms_assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<shadow_tile<V>> shadowTilePtr = new shadow_tile<V>;
+	SharedPtr<mutable_shadow_tile<V>> shadowTilePtr = new mutable_shadow_tile<V>;
 
 	InitMutableShadow(tileFunctor, shadowTilePtr.get_ptr(), trd, rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	if (rwMode >= dms_rw_mode::read_write)
 		shadowTilePtr->m_SourceTileArray = tileFunctor;
-	return { TileRef(shadowTilePtr.get_ptr()) , GetSeq(*shadowTilePtr) };
+	return { TileRef(shadowTilePtr.get_ptr()), GetSeq(*shadowTilePtr) };
 }
 
-template <typename V>
+template <fixed_elem V>
 auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
 {
-//	auto mst = MutableShadowTile(di, dms_rw_mode::read_only);
-//	return { mst.get_ptr(), GetConstSeq(mst)};
 	auto trd = tileFunctor->GetTiledRangeData();
-	dms_assert(trd->GetNrTiles() != 1);
+	assert(trd->GetNrTiles() != 1);
 
 	SharedPtr<tile<V>> shadowTilePtr = new tile<V>; // normal tile
 
 	InitConstShadow<V>(tileFunctor, shadowTilePtr.get_ptr(), trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
+	return { TileCRef(shadowTilePtr.get_ptr()), GetConstSeq(*shadowTilePtr) };
+}
+
+template <sequence_or_string V>
+auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+{
+	auto trd = tileFunctor->GetTiledRangeData();
+	auto tn = trd->GetNrTiles();
+	assert(tn != 1);
+
+	using element_type = elem_of_t<V>;
+	SharedPtr<const_shadow_tile<V>> shadowTilePtr = new const_shadow_tile<V>; // normal tile, but keep using data sequences from original tles
+	if (tn != 0)
+	{
+		shadowTilePtr->m_Seqs.reserve(tn);
+		for (tile_id t = 0; t != tn; ++t)
+			shadowTilePtr->m_Seqs.emplace_back(tileFunctor->GetTile(t));
+
+		auto minValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_begin();
+		for (tile_id t = 1; t != tn; ++t)
+		{
+			auto currValuePtr = shadowTilePtr->m_Seqs[t].get_sa().data_begin();
+			MakeMin(minValuePtr, currValuePtr);
+			MG_CHECK((reinterpret_cast<const char*>(currValuePtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
+		}
+
+		SizeT nrElem = trd->GetRangeSize();
+		shadowTilePtr->resizeSO(nrElem, true MG_DEBUG_ALLOCATOR_SRC("ConstShadowSequenceArrayTile "));
+
+		auto range = trd->GetRangeAsI64Rect();
+		dms_assert(Cardinality(range) == nrElem);
+
+		U64Grid<IndexRange<SizeT>> shadowData(Size(range), &*shadowTilePtr->index_begin());
+
+		parallel_tileloop_if_separable<V>(tn, [shadowTilePtr, trd, &shadowData, shadowRangeBase = range.first, minValuePtr](tile_id t)
+			{
+				I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
+				auto tileData = shadowTilePtr->m_Seqs[t];
+				dms_assert(Cardinality(tileRange) == tileData.size());
+
+				RectCopyAndAddConst< IndexRange<SizeT>>(shadowData
+					, U64Grid<const IndexRange<SizeT>>(Size(tileRange), tileData.get_sa().index_begin())
+					, shadowRangeBase - tileRange.first
+					, tileData.get_sa().data_begin() - minValuePtr
+				);
+			}
+		);
+	}
 	return { TileCRef(shadowTilePtr.get_ptr()) , GetConstSeq(*shadowTilePtr) };
 }
 

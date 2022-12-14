@@ -910,6 +910,9 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og, LispPtr metaCallArgs)
 {
 	dms_assert(ac);
+	assert(holder);
+	if (holder->WasFailed(FR_MetaInfo))
+		return false;
 	bool result;
 	try {
 		auto args = ApplyMetaFunc_GetArgs(holder, ac, og, metaCallArgs);
@@ -997,7 +1000,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 
 	bool resultFlag = ApplyMetaFunc_impl(holder, ac, og, metaCallArgs);
 
-	dms_assert(resultFlag != holder->WasFailed(FR_MetaInfo));
+	dms_assert(resultFlag || holder->WasFailed(FR_MetaInfo));
 
 	dms_assert(holder->GetIsInstantiated() || holder->WasFailed(FR_MetaInfo));
 	holder->SetIsInstantiated(); // REMOVE if the above assert is PROVEN.

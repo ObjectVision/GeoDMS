@@ -40,8 +40,8 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename R, typename T=R>
 struct fast_copier
 {
-	using ResType = R;
-	using ArgType = T;
+//	using ResType = R;
+//	using ArgType = T;
 
 	using pointer = ptr_type_t<R>;
 	using const_pointer = ptr_type_t<const T>;
@@ -49,6 +49,22 @@ struct fast_copier
 	void operator() (const_pointer first, const_pointer last, pointer target) const
 	{
 		fast_copy(first, last, target);
+	}
+};
+
+template <typename R, typename D>
+struct fast_copier_and_const_adder
+{
+	D increment;
+
+	using pointer = ptr_type_t<R>;
+	using const_pointer = ptr_type_t<const R>;
+
+	void operator() (const_pointer first, const_pointer last, pointer target) const
+	{
+		auto targetEnd = fast_copy(first, last, target);
+		while (target != targetEnd)
+			*target++ += increment;
 	}
 };
 
@@ -98,7 +114,13 @@ void RectOper(TGridBase<R, Ux> dst, TGridBase<const T, Ux> src, Point<signed_typ
 template <typename R, typename T, typename Ux>
 void RectCopy(TGridBase<R, Ux> dst, TGridBase<const T, Ux> src, Point<signed_type_t<Ux>> displacement)
 {
-	RectOper<R, T, Ux, fast_copier<R, T> >(dst, src, displacement);
+	RectOper<R, T, Ux>(dst, src, displacement, fast_copier<R, T>{} );
+}
+
+template <typename R, typename Ux, typename D>
+void RectCopyAndAddConst(TGridBase<R, Ux> dst, TGridBase<const R, Ux> src, Point<signed_type_t<Ux>> displacement, D increment)
+{
+	RectOper<R, R, Ux>(dst, src, displacement, fast_copier_and_const_adder<R, D>{increment});
 }
 
 #endif //!defined(__RTC_MEM_RECTCOPY_H)

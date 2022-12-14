@@ -49,6 +49,12 @@ struct IndexRange : Couple<T>
 
 	IndexRange(Undefined): Couple<T>(Undefined() ) {}
 
+	void operator +=(T inc)
+	{
+		first += inc;
+		second += inc;
+	}
+
 	bool empty() const { return first == second; }
 	T    size () const { return second - first; }
 };

@@ -800,18 +800,31 @@ public:
 	{
 		m_Values.reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
-	data_size_type data_size()  const
+	auto data_size() const
 	{
 		return m_Values.size();
 	}
-	data_size_type actual_data_size()  const
+	auto data_begin() const
+	{
+		return m_Values.begin();
+	}
+	auto actual_data_size() const
 	{
 		return m_ActualDataSize;
 	}
-	data_size_type data_capacity() const
+	auto data_capacity() const
 	{
 		return m_Values.capacity();
 	}
+	auto index_begin()
+	{
+		return m_Indices.begin();
+	}
+	auto index_begin() const
+	{
+		return m_Indices.begin();
+	}
+
 
 	RTC_CALL bool allocate_data(data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL bool allocate_data(data_vector_t& oldData, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
