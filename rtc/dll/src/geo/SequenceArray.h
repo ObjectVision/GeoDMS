@@ -796,6 +796,8 @@ public:
 	RTC_CALL void reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Resize(data_size_type expectedDataSize, seq_size_type expectedSeqsSize, seq_size_type nrSeqs MG_DEBUG_ALLOCATOR_SRC_ARG);
 
+	void SetValues(data_vector_t newValues) { m_Values = std::move(newValues); }
+
 	void data_reserve(data_size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		m_Values.reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -807,6 +809,10 @@ public:
 	auto data_begin() const
 	{
 		return m_Values.begin();
+	}
+	auto data_end() const
+	{
+		return m_Values.end();
 	}
 	auto actual_data_size() const
 	{

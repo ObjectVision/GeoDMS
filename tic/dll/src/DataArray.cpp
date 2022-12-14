@@ -207,12 +207,18 @@ auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_
 			shadowTilePtr->m_Seqs.emplace_back(tileFunctor->GetTile(t));
 
 		auto minValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_begin();
+		auto maxValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_end();
 		for (tile_id t = 1; t != tn; ++t)
 		{
-			auto currValuePtr = shadowTilePtr->m_Seqs[t].get_sa().data_begin();
-			MakeMin(minValuePtr, currValuePtr);
-			MG_CHECK((reinterpret_cast<const char*>(currValuePtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
+			auto currValueBeginPtr = shadowTilePtr->m_Seqs[t].get_sa().data_begin();
+			auto currValueEndPtr = shadowTilePtr->m_Seqs[t].get_sa().data_end();
+			MakeMin(minValuePtr, currValueBeginPtr);
+			MakeMax(maxValuePtr, currValueEndPtr);
+
+			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
 		}
+		shadowTilePtr->SetValues(sequence_obj<element_type>(alloc_data<element_type>(const_cast<element_type*>(minValuePtr), const_cast<element_type*>(maxValuePtr), 0)));
 
 		SizeT nrElem = trd->GetRangeSize();
 		shadowTilePtr->resizeSO(nrElem, true MG_DEBUG_ALLOCATOR_SRC("ConstShadowSequenceArrayTile "));

@@ -83,7 +83,8 @@ public:
 	typedef typename seq_t::difference_type         difference_type;
 
 	sequence_obj() {}
-	sequence_obj(provider_t* provider) : m_Provider(provider) {}
+	explicit sequence_obj(provider_t* provider) : m_Provider(provider) {}
+	explicit sequence_obj(alloc_data<V> allocData) : m_Data(std::move(allocData)) {}
 	sequence_obj(sequence_obj&& rhs) noexcept
 		:	sequence_obj()
 	{
@@ -161,12 +162,12 @@ public:
 		dms_assert(m_Data.size() == oldSize + 1);
 		m_Data.back() = v;
 	}
-	void   erase(iterator b, iterator e) { MGD_CHECKDATA(IsLocked()); destroy_range(b, e);  raw_move(e, end(), b); cut(size() - (e - b)); }
-	void   cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); m_Provider->cut(m_Data, newNrElems); }
-	void   clear ()                      { MGD_CHECKDATA(IsLocked()); m_Provider->clear(m_Data); dms_assert(empty()); }
+	void erase(iterator b, iterator e) { MGD_CHECKDATA(IsLocked()); destroy_range(b, e);  raw_move(e, end(), b); cut(size() - (e - b)); }
+	void cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); m_Provider->cut(m_Data, newNrElems); }
+	void clear ()                      { MGD_CHECKDATA(IsLocked()); m_Provider->clear(m_Data); dms_assert(empty()); }
 
-	void   Reset (provider_t* provider) { Reset(); m_Provider = provider; }
-	void   Reset()
+	void Reset (provider_t* provider) { Reset(); m_Provider = provider; }
+	void Reset()
 	{
 		MGD_CHECKDATA(!IsLocked()); 
 
@@ -178,10 +179,10 @@ public:
 		m_Provider = nullptr;
 	}
 
-	bool   IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
-	bool   CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
-	bool   IsAssigned() const { return m_Provider; }
-	bool   IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }
+	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
+	bool CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
+	bool IsAssigned() const { return m_Provider; }
+	bool IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const { return m_Provider->CloneForSeqs(); }
 

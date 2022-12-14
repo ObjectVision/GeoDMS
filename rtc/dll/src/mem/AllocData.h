@@ -53,7 +53,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	alloc_data(alloc_data&& rhs) noexcept
 		: alloc_data()
 	{
-		this->operator =(rhs);
+		this->operator =(std::move(rhs));
 	}
 	alloc_data& operator = (alloc_data&& rhs) noexcept
 	{
