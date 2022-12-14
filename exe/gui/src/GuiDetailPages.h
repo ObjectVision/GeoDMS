@@ -134,13 +134,11 @@ private:
     std::string GetHrefFromTag();
 
     std::vector<char>             m_Buff;
-    int                           m_refIndex;
     HTMLParserState               m_ParserState;
     std::map<HTMLTagType, UInt16> m_OpenTags;
     Tag                           m_Tag;
     std::string                   m_Text;
     UInt16                        m_ColumnIndex;
-    GuiState                      m_State;
 };
 
 class GuiDetailPages : GuiBaseComponent

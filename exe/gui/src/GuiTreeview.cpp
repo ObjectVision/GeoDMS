@@ -483,18 +483,6 @@ auto GuiTreeViewComponent::IsAlphabeticalKeyJump(GuiState& state, TreeItem* next
     return false;
 }
 
-auto IsContainerWithTables(TreeItem* container) -> bool
-{
-    auto nextItem = container->_GetFirstSubItem();
-    while (nextItem && nextItem->GetParent() == container)
-    {
-        if (IsDataItem(nextItem))
-            return true;
-        nextItem = container->GetNextItem();
-    }
-    return false;
-}
-
 auto GuiTreeViewComponent::CreateBranch(GuiState& state, TreeItem* branch) -> bool
 {
     auto event_queues = GuiEventQueues::getInstance();

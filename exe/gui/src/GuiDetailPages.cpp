@@ -46,6 +46,7 @@ HTMLGuiComponentFactory::HTMLGuiComponentFactory()
     m_OpenTags[HTMLTagType::HORIZONTALLINE] = 0;
     m_OpenTags[HTMLTagType::HEADING]        = 0;
 }
+
 HTMLGuiComponentFactory::~HTMLGuiComponentFactory(){}
 void HTMLGuiComponentFactory::WriteBytes(const Byte* data, streamsize_t size)
 {
@@ -201,7 +202,6 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
 
 void HTMLGuiComponentFactory::InterpretBytes(std::vector<std::vector<PropertyEntry>> &properties)
 {
-    m_refIndex = 0;
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
     for (auto &chr : m_Buff)
