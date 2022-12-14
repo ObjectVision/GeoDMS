@@ -837,6 +837,13 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		if (!mustCalcArg) 
 		{ // DomainContainer and ValuesContainer and SubsetContainer
 			LispRef argExpr = cursor.Left();
+			if (oap == oper_arg_policy::calc_as_result)
+			{
+				// skip condition argument for select_xxxx meta functions
+				assert(currArg == 1); // only this one
+				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				continue;
+			}
 			if (!argExpr.IsSymb())
 			{
 				auto errMsgTxt = mySSPrintF(
@@ -847,13 +854,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 					, AsFLispSharedStr(argExpr)
 				);
 				holder->Fail(errMsgTxt, FR_MetaInfo);
-			}
-			if (oap == oper_arg_policy::calc_as_result)
-			{
-				// skip condition argument for select_xxxx meta functions
-				assert(currArg == 1); // only this one
-				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
-				continue;
+				return {};
 			}
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
