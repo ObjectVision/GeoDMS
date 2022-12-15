@@ -5,13 +5,28 @@
 #include "ser/AsString.h"
 #include "TicInterface.h"
 
-std::list<EventLogItem> GuiEventLog::m_Items;
-UInt32 GuiEventLog::m_MaxLogLines = 32000; // perform rollover after max loglines have been reached
+std::vector<EventLogItem> GuiEventLog::m_Items;
+std::vector<UInt64>       GuiEventLog::m_FilteredItemIndices;
+std::string               GuiEventLog::m_FilterText = "";
+OptionsEventLog           GuiEventLog::m_FilterEvents;
+
+auto FilterLogMessage(std::string_view original_message, std::string& filtered_message, std::string& link)
+{
+    filtered_message = original_message;
+    auto link_opening = original_message.find("[[");
+    auto link_closing = original_message.rfind("]]"); // assume at most one link occurence per log entry
+
+    if (link_opening != std::string_view::npos && link_closing != std::string_view::npos)
+    {
+        link = original_message.substr(link_opening + 2, link_closing - link_opening - 2);
+        filtered_message.replace(link_opening, link_closing + 2 - link_opening, "");
+    }
+}
 
 GuiEventLog::GuiEventLog()
 {
     ClearLog();
-    m_Iterator.Init(m_Items.begin(), 0);
+    //m_Iterator.Init(m_Items.begin(), 0);
     AutoScroll = true;
     ScrollToBottom = false;
 };
@@ -22,6 +37,21 @@ GuiEventLog::~GuiEventLog()
     //for (int i = 0; i < History.Size; i++)
     //    free(History[i]);
 };
+
+
+auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
+{
+    if (ImGui::Begin("Eventlog options", p_open, NULL))
+    {
+        if (ImGui::Checkbox("show minor-trace messages", &m_FilterEvents.ShowMessageTypeMinorTrace)) {Refilter();}
+        if (ImGui::Checkbox("show major-trace messages", &m_FilterEvents.ShowMessageTypeMajorTrace)) { Refilter(); }
+        if (ImGui::Checkbox("show warning messages", &m_FilterEvents.ShowMessageTypeWarning)) { Refilter(); }
+        if (ImGui::Checkbox("show error messages", &m_FilterEvents.ShowMessageTypeError)) { Refilter(); }
+        if (ImGui::Checkbox("show nothing messages", &m_FilterEvents.ShowMessageTypeNothing)) { Refilter(); }
+
+        ImGui::End();
+    }
+}
 
 auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
 {
@@ -63,11 +93,37 @@ auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void
     //}
 }
 
-auto GuiEventLog::DrawItem(EventLogItem &item) -> void
+auto GuiEventLog::OnItemClick(GuiState& state, EventLogItem* item) -> void
 {
-    ImVec4 color = ConvertSeverityTypeIDToColor(item.m_Severity_type);
+    if (!item)
+        return;
+
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), item->m_Link.c_str());
+    auto jump_item = best_item_ref.first;
+
+    if (jump_item)
+    {
+        auto event_queues = GuiEventQueues::getInstance();
+        state.SetCurrentItem(const_cast<TreeItem*>(jump_item));
+        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+        event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+    }
+}
+
+auto GuiEventLog::GetItem(size_t index) -> EventLogItem*
+{
+    if (m_FilteredItemIndices.empty()) // no filter
+        return &m_Items.at(index);
+    else
+        return &m_Items.at(m_FilteredItemIndices.at(index));
+}
+
+auto GuiEventLog::DrawItem(EventLogItem *item) -> void
+{
+    ImVec4 color = ConvertSeverityTypeIDToColor(item->m_Severity_type);
     ImGui::PushStyleColor(ImGuiCol_Text, color);
-    ImGui::TextUnformatted(item.m_Text.c_str());
+    ImGui::TextUnformatted(item->m_Text.c_str());
     ImGui::PopStyleColor();
 }
 
@@ -80,9 +136,10 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
-    if (!m_Items.empty() && m_Iterator.GetIterator() == m_Items.end())
-        m_Iterator.Init(m_Items.begin());
+    // events
+    auto event_queues = GuiEventQueues::getInstance();
 
+    // focus
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
@@ -98,39 +155,12 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    // TODO: display items starting from the bottom
-    /*if (ImGui::SmallButton("Test SeverityTypeID messages"))
+    // filter
+    ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
+    if (ImGui::InputText("##filter", &m_FilterText, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
     {
-        AddLog(SeverityTypeID::ST_MinorTrace, "ST_MinorTrace: this is a minor trace message.");
-        AddLog(SeverityTypeID::ST_MajorTrace, "ST_MajorTrace: this is a major trace message.");
-        AddLog(SeverityTypeID::ST_Warning, "ST_Warning: this is a warning message.");
-        AddLog(SeverityTypeID::ST_Error, "ST_Error: this is an error message.");
-        AddLog(SeverityTypeID::ST_FatalError, "ST_FatalError: this is a fatal error message.");
-        AddLog(SeverityTypeID::ST_DispError, "ST_DispError: this is a disp error message.");
-        AddLog(SeverityTypeID::ST_Nothing, "ST_Nothing: this is a nothing message.");
-    }*/
-
-
-    /*if (ImGui::SmallButton("Clear")) { ClearLog(); }
-    ImGui::SameLine();
-    bool copy_to_clipboard = ImGui::SmallButton("Copy");
-
-    ImGui::Separator();
-
-    // Options menu
-    if (ImGui::BeginPopup("Options"))
-    {
-        ImGui::Checkbox("Auto-scroll", &AutoScroll);
-        ImGui::EndPopup();
+        
     }
-
-    // Options, Filter
-    if (ImGui::Button("Options"))
-        ImGui::OpenPopup("Options");
-    ImGui::SameLine();*/
-    
-    //Filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
-    //ImGui::Separator();
 
     // Reserve enough left-over height for 1 separator + 1 input text
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
@@ -143,108 +173,28 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
         ImGui::EndPopup();
     }
 
-    //ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
-    //if (copy_to_clipboard)
-    //    ImGui::LogToClipboard();
-
-    /*for (auto& item : m_Items)
-    {
-        if (!Filter.PassFilter(item.m_Text.c_str()) || !EventFilter(item.m_Severity_type, state))
-            continue;
-
-        ImVec4 color = ConvertSeverityTypeIDToColor(item.m_Severity_type);
-        ImGui::PushStyleColor(ImGuiCol_Text, color);
-        ImGui::TextUnformatted(item.m_Text.c_str());
-        ImGui::PopStyleColor();
-
-        if (ImGui::IsItemClicked())
-        {
-            SetKeyboardFocusToThisHwnd();
-            if (!item.m_Link.empty())
-            {
-
-            }
-        }  
-    }*/
-
     ImGuiListClipper clipper;
-    clipper.Begin(m_Items.size());
+    bool has_item_filter = !m_FilteredItemIndices.empty();
+    if (has_item_filter)
+        clipper.Begin(m_FilteredItemIndices.size());
+    else
+        clipper.Begin(m_Items.size());
 
-    auto iterator = m_Iterator.GetIterator();
+    //auto iterator = m_Iterator.GetIterator();
 
     bool first_pass = true;
     while (clipper.Step())
-    {
-        if (first_pass) 
+    {        
+        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)
         {
-            if (!m_Items.empty())
-                DrawItem(*m_Items.begin());
-
-            first_pass = false;
-            continue;
-        }
-
-        if (!first_pass && !m_Iterator.CompareStartPositions(clipper.DisplayStart))
-        {
-            m_Iterator.SetStartPosition(clipper.DisplayStart);
-            iterator = m_Iterator.GetIterator();
-        }
-        
-        for (int i = 0; i < clipper.DisplayEnd - clipper.DisplayStart; i++)
-        {
-            DrawItem(*iterator);
+            auto item_ptr = GetItem(row);
+            DrawItem(item_ptr);
             if (ImGui::IsItemClicked())
             {
                 SetKeyboardFocusToThisHwnd();
-                if (!iterator->m_Link.empty())
-                {
-                    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), iterator->m_Link.c_str());
-                    auto jump_item = best_item_ref.first;
-
-                    if (jump_item)
-                    {
-                        auto event_queues = GuiEventQueues::getInstance();
-                        state.SetCurrentItem(const_cast<TreeItem*>(jump_item));
-                        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                        event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-                    }
-                }
+                OnItemClick(state, item_ptr);
             }
-
-            iterator = std::next(iterator);
         }
-
-        /*if (clipper.DisplayStart == 0 && clipper.DisplayEnd == 1)
-        {
-            DrawItem(*m_Items.begin());
-            continue;
-        }
-        else if (!m_Iterator.CompareStartPositions(clipper.DisplayStart))
-        {
-            m_Iterator.SetStartPosition(clipper.DisplayStart);
-        }
-
-        
-        for (int i = 0; i < clipper.DisplayEnd - clipper.DisplayStart; i++)
-        {
-            DrawItem(*iterator);
-            iterator = std::next(iterator);
-
-            if (iterator == m_Items.end())
-                break;
-        }*/
-
-
-        /*for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
-        {
-
-
-            ImVec4 color = ConvertSeverityTypeIDToColor(m_Items[i].first);
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::TextUnformatted(item.c_str());
-            ImGui::PopStyleColor();
-        }*/
     }
 
     //if (copy_to_clipboard)
@@ -306,51 +256,67 @@ auto GuiEventLog::ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor
     return color;
 }
 
-auto GuiEventLog::ClearLog() -> void
+auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog *options) -> bool
 {
-    m_Items.clear();
-};
-
-auto GuiEventLog::EventFilter(SeverityTypeID st, GuiState& state) -> bool
-{
-    switch (st)
+    switch (item->m_Severity_type)
     {
     case SeverityTypeID::ST_MinorTrace:
-        return state.m_OptionsEventLog.ShowMessageTypeMinorTrace;
+        return options->ShowMessageTypeMinorTrace;
     case SeverityTypeID::ST_MajorTrace:
-        return state.m_OptionsEventLog.ShowMessageTypeMajorTrace;
+        return options->ShowMessageTypeMajorTrace;
     case SeverityTypeID::ST_Warning:
-        return state.m_OptionsEventLog.ShowMessageTypeWarning;
+        return options->ShowMessageTypeWarning;
     case SeverityTypeID::ST_Error:
     case SeverityTypeID::ST_DispError:
     case SeverityTypeID::ST_FatalError:
-        return state.m_OptionsEventLog.ShowMessageTypeError;
+        return options->ShowMessageTypeError;
     case SeverityTypeID::ST_Nothing:
-        return state.m_OptionsEventLog.ShowMessageTypeNothing;
+        return options->ShowMessageTypeNothing;
     }
-    return true;
+    return false;
 }
 
-auto FilterLogMessage(std::string_view original_message, std::string &filtered_message, std::string &link)
+auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool
 {
-    filtered_message = original_message;
-    auto link_opening = original_message.find("[[");
-    auto link_closing = original_message.rfind("]]"); // assume at most one link occurence per log entry
+    if (item->m_Text.contains(filter_text))
+        return true;
+    return false;
+}
 
-    if (link_opening != std::string_view::npos && link_closing != std::string_view::npos)
+auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool
+{
+    if (ItemPassesEventFilter(item, options) && ItemPassesTextFilter(item, filter_text))
+        return true;
+    return false;
+}
+
+auto GuiEventLog::ClearLog() -> void
+{
+    m_Items.clear();
+    m_FilteredItemIndices.clear();
+};
+
+auto GuiEventLog::Refilter() -> void
+{
+    m_FilteredItemIndices.clear();
+
+    UInt64 index = 0;
+    for (auto& item : m_Items)
     {
-        link = original_message.substr(link_opening+2, link_closing-link_opening-2);
-        filtered_message.replace(link_opening, link_closing + 2 - link_opening, "");
+        if (ItemPassesFilter(&item, &m_FilterEvents, m_FilterText))
+            m_FilteredItemIndices.push_back(index);
+
+        index++;
     }
 }
 
 auto GuiEventLog::AddLog(SeverityTypeID severity_type, std::string original_message) -> void
 {
-    if (m_Items.size() > m_MaxLogLines)
-        m_Items.pop_front();
-
     std::string filtered_message = "";
     std::string link = "";
     FilterLogMessage(original_message, filtered_message, link);
     m_Items.emplace_back(severity_type, filtered_message, link);
+
+    if (ItemPassesFilter(&m_Items.back(), &m_FilterEvents, m_FilterText))
+        m_FilteredItemIndices.push_back(m_Items.size()-1);
 };

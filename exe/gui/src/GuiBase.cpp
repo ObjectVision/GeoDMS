@@ -1,8 +1,9 @@
+#include "GuiBase.h"
+
 #include <filesystem>
 #include <iterator>
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "GuiBase.h"
 #include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
 #include <Windows.h>
@@ -22,6 +23,18 @@ GuiEventQueues* GuiEventQueues::getInstance()
     }
     else
         return instance;
+}
+
+bool ImGui::InputText(const char* label, std::string* str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+{
+    IM_ASSERT((flags & ImGuiInputTextFlags_CallbackResize) == 0);
+    flags |= ImGuiInputTextFlags_CallbackResize;
+
+    InputTextCallback_UserData cb_user_data;
+    cb_user_data.Str = str;
+    cb_user_data.ChainCallback = callback;
+    cb_user_data.ChainCallbackUserData = user_data;
+    return InputText(label, (char*)str->c_str(), str->capacity() + 1, flags, InputTextCallback, &cb_user_data);
 }
 
 TreeItemHistory::TreeItemHistory()

@@ -47,6 +47,43 @@ enum class GuiEvents
 	Close,
 };
 
+static auto InputTextCallback(ImGuiInputTextCallbackData* data) -> int;
+
+struct InputTextCallback_UserData
+{
+	std::string* Str;
+	ImGuiInputTextCallback ChainCallback;
+	void* ChainCallbackUserData;
+};
+
+auto InputTextCallback(ImGuiInputTextCallbackData* data) -> int
+{
+	InputTextCallback_UserData* user_data = (InputTextCallback_UserData*)data->UserData;
+	if (data->EventFlag == ImGuiInputTextFlags_CallbackResize)
+	{
+		// Resize string callback
+		// If for some reason we refuse the new length (BufTextLen) and/or capacity (BufSize) we need to set them back to what we want.
+		std::string* str = user_data->Str;
+		IM_ASSERT(data->Buf == str->c_str());
+		str->resize(data->BufTextLen);
+		data->Buf = (char*)str->c_str();
+	}
+	else if (user_data->ChainCallback)
+	{
+		// Forward to user callback, if any
+		data->UserData = user_data->ChainCallbackUserData;
+		return user_data->ChainCallback(data);
+	}
+	return 0;
+}
+
+namespace ImGui
+{
+	// ImGui::InputText() with std::string
+	// Because text input needs dynamic resizing, we need to setup a callback to grow the capacity
+	IMGUI_API bool InputText(const char* label, std::string* str, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
+}
+
 class EventQueue
 {
 public:
@@ -178,15 +215,6 @@ private:
 	std::vector<std::string> m_NextStrings;
 };
 
-struct OptionsEventLog
-{
-	bool ShowMessageTypeMinorTrace  = true;
-	bool ShowMessageTypeMajorTrace  = true;
-	bool ShowMessageTypeWarning     = true;
-	bool ShowMessageTypeError       = true;
-	bool ShowMessageTypeNothing     = true;
-};
-
 class TreeItemHistory
 {
 public:
@@ -264,11 +292,6 @@ public:
 
 	// jump to letter in TreeView
 	std::pair<std::string, std::string> m_JumpLetter; //TODO: on the fly lookup, synchronize evaluation with key press
-
-	// option structs
-	OptionsEventLog m_OptionsEventLog;
-
-
 
 	TreeItem* GetRoot() { return m_Root; }
 	TreeItem* GetCurrentItem() { return m_CurrentItem; }

@@ -2,7 +2,14 @@
 #include <imgui.h>
 #include "GuiBase.h"
 
-
+struct OptionsEventLog
+{
+    bool ShowMessageTypeMinorTrace = true;
+    bool ShowMessageTypeMajorTrace = true;
+    bool ShowMessageTypeWarning = true;
+    bool ShowMessageTypeError = true;
+    bool ShowMessageTypeNothing = true;
+};
 
 struct EventLogItem
 {
@@ -11,61 +18,34 @@ struct EventLogItem
     std::string    m_Link = "";
 };
 
-class EventLogIterator
-{
-public:
-    auto Init(std::list<EventLogItem>::iterator iterator, UInt32 index=0) -> void
-    {
-        m_Index = index;
-        m_Start = iterator;
-    }
-
-    auto GetIterator() -> std::list<EventLogItem>::iterator
-    {
-        return m_Start;
-    }
-
-    auto SetStartPosition(UInt32 new_start) -> void
-    {
-        Int32 pos_dif = new_start - m_Index;
-        std::advance(m_Start, pos_dif);
-        m_Index = new_start;
-    }
-
-    auto CompareStartPositions(UInt32 new_start) -> bool
-    {
-        if (new_start == m_Index)
-            return true;
-        return false;
-    }
-
-private:
-    std::list<EventLogItem>::iterator m_Start;
-    UInt32 m_Index = 0;
-};
+auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options) -> bool;
+auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool;
+auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool;
 
 class GuiEventLog : GuiBaseComponent
 {
 public:
     GuiEventLog();
     ~GuiEventLog();
+    auto ShowEventLogOptionsWindow(bool* p_open) -> void;
     auto static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void;
     auto static GeoDMSExceptionMessage(CharPtr msg) -> void;
     auto Update(bool* p_open, GuiState& state) -> void;
 
 private:
-    auto DrawItem(EventLogItem& item) -> void;
+    auto OnItemClick(GuiState& state, EventLogItem* item) -> void;
+    auto GetItem(size_t index) -> EventLogItem*;
+    auto DrawItem(EventLogItem* item) -> void;
     auto ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor;
     auto ClearLog() -> void;
-    auto EventFilter(SeverityTypeID st, GuiState& state) -> bool;
-    
+    auto Refilter() -> void;
     auto static AddLog(SeverityTypeID severity_type, std::string original_message) -> void;
 
-    char                  InputBuf[256];
-    static std::list<EventLogItem> m_Items;
-    EventLogIterator m_Iterator;
-    static UInt32 m_MaxLogLines;
-    ImGuiTextFilter       Filter;
-    bool                  AutoScroll;
-    bool                  ScrollToBottom;
+    static std::vector<EventLogItem> m_Items;
+    static std::vector<UInt64>       m_FilteredItemIndices;
+    static std::string               m_FilterText;
+    static OptionsEventLog           m_FilterEvents;
+
+    bool AutoScroll;
+    bool ScrollToBottom;
 };

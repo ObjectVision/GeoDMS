@@ -647,10 +647,10 @@ void GuiMainComponent::Update()
 
     // option windows
     if (m_State.ShowOptionsWindow)
-        m_Options.Update(&m_State.ShowOptionsWindow);
+        m_Options.Update(&m_State.ShowOptionsWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
-        ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
+        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
     ImGui::End();
 }
