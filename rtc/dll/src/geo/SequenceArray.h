@@ -779,14 +779,14 @@ public:
 	bool IsLocked()        const { return m_Indices.IsLocked() && m_Values.IsLocked  (); }
 #endif
 	bool CanWrite()        const { return m_Indices.CanWrite       () && m_Values.CanWrite  (); }
-	bool IsAssigned()      const { return m_Indices.IsAssigned     () && m_Values.IsAssigned(); }
+	bool IsAssigned()      const { return m_Indices.IsAssigned     (); }
 	bool IsHeapAllocated() const { return m_Indices.IsHeapAllocated() && m_Values.IsHeapAllocated(); }
 
 	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Lock  (dms_rw_mode rwMode);
 
 	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
-	void UnLock() { allocate_data(0 MG_DEBUG_ALLOCATOR_SRC_SA); m_Indices.UnLock(); m_Values.UnLock(); }
+	void UnLock() { m_Indices.UnLock(); m_Values.UnLock(); }
 	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
@@ -796,7 +796,15 @@ public:
 	RTC_CALL void reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Resize(data_size_type expectedDataSize, seq_size_type expectedSeqsSize, seq_size_type nrSeqs MG_DEBUG_ALLOCATOR_SRC_ARG);
 
-	void SetValues(data_vector_t newValues) { m_Values = std::move(newValues); }
+	void SetValues(data_vector_t newValues) 
+	{ 
+		MGD_CHECKDATA(m_Values.IsLocked());
+		m_Values.UnLock();
+		m_Values = std::move(newValues); 
+		MGD_CHECKDATA(!m_Values.IsLocked());
+		m_Values.Lock(dms_rw_mode::read_only);
+		MGD_CHECKDATA(m_Values.IsLocked());
+	}
 
 	void data_reserve(data_size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{

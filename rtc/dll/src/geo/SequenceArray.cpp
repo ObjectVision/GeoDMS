@@ -551,7 +551,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	dms_assert(oldData.empty());
 	dms_assert(oldData.IsAssigned());
 	dms_assert(oldData.IsHeapAllocated());
-	dms_assert(m_Values.IsAssigned());
+//	dms_assert(m_Values.IsAssigned());
 	MGD_CHECKDATA(oldData.IsLocked());
 	MGD_CHECKDATA(m_Values.IsLocked());
 
@@ -573,7 +573,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 		}
 	}
 
-	if (m_Values.IsHeapAllocated())
+	if (m_Values.IsHeapAllocated() || !m_Values.IsAssigned())
 		m_Values.swap(oldData);
 	else
 	{
@@ -864,6 +864,9 @@ template <typename T>
 void sequence_array<T>::checkActualDataSize() const
 {
 	MGD_CHECKDATA(IsLocked());
+	if (!m_Values.IsAssigned())
+		return;
+
 	SizeT as = calcActualDataSize(); // O(#elements)
 	dms_assert(as == m_ActualDataSize);
 }
