@@ -88,7 +88,7 @@ public:
 	sequence_obj(sequence_obj&& rhs) noexcept
 		:	sequence_obj()
 	{
-		MGD_CHECK(!IsLocked());
+		MGD_CHECKDATA(!IsLocked());
 		operator =(std::move(rhs));
 	}
 	~sequence_obj() 
