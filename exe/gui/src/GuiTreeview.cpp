@@ -305,12 +305,12 @@ auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
     return &m_children.front();
 }
 
-auto GuiTreeNode::GetSiblingIterator() -> std::list<GuiTreeNode>::iterator
+auto GuiTreeNode::GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator
 {
     return m_children.begin();
 }
 
-auto GuiTreeNode::GetSiblingEnd() -> std::list<GuiTreeNode>::iterator
+auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
 {
     return m_children.end();
 }

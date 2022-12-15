@@ -9,7 +9,10 @@ public:
 	GuiTreeNode(TreeItem* item);
 	GuiTreeNode(TreeItem* item, bool is_open);
 	GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open);
+	//GuiTreeNode(GuiTreeNode&& other) noexcept;
 	~GuiTreeNode();
+
+	//auto Reset() -> void;
 	auto SetItem(TreeItem* item) -> void { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
 	auto SetOpenStatus(bool do_open) -> void;
@@ -18,8 +21,8 @@ public:
 	auto AddChildren() -> void;
 	auto GetState() -> NotificationCode;
 	auto GetFirstSibling() -> GuiTreeNode*;
-	auto GetSiblingIterator() -> std::list<GuiTreeNode>::iterator;
-	auto GetSiblingEnd() -> std::list<GuiTreeNode>::iterator;
+	auto GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator;
+	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
 	auto IsLeaf() -> bool;
 
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> bool;
@@ -32,10 +35,10 @@ private:
 	auto DrawItemIcon() -> bool;
 	auto DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool;
 
-	TreeItem*              m_item = nullptr;
-	GuiTreeNode*           m_parent = nullptr;
-	std::list<GuiTreeNode> m_children;
-	NotificationCode       m_state = NotificationCode::NC2_Invalidated;
+	TreeItem*                m_item = nullptr;
+	GuiTreeNode*             m_parent = nullptr;
+	std::vector<GuiTreeNode> m_children;
+	NotificationCode         m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
 	bool m_has_been_openend = false;
