@@ -7,11 +7,6 @@
 #include "TicInterface.h"
 #include "ser/AsString.h"
 
-GuiCurrentItemComponent::GuiCurrentItemComponent()
-{
-    m_Buf.resize(1024); // TODO: remove magic number
-}
-
 auto GuiCurrentItemComponent::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -86,11 +81,6 @@ void GuiCurrentItemComponent::Update(GuiState &state)
     {
         if (event_queues->CurrentItemBarEvents.HasEvents()) // new current item
         {
-            //event_queues->CurrentItemBarEvents.Pop();
-            //m_Buf.assign(m_Buf.size(), char());
-            //auto tmpPath = state.GetCurrentItem() ? state.GetCurrentItem()->GetFullName() : SharedStr("");
-            //std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
-            
             m_string_buf.resize(state.GetCurrentItem() ? std::strlen(state.GetCurrentItem()->GetFullName().c_str()) : 0);
             m_string_buf = state.GetCurrentItem()->GetFullName().c_str();
         }
@@ -99,15 +89,10 @@ void GuiCurrentItemComponent::Update(GuiState &state)
 
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
 
-
-        //ImGui::InputText(const char* label, std::string * str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
-        //if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
         if (ImGui::InputText("##CurrentItem", &m_string_buf, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
         {
             if (state.GetRoot())
             {
-                //TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_string_buf.c_str(), &unfound_part); // reinterpret_cast<char*> (&m_Buf[0])
-                
                 auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_string_buf.c_str());
                 auto jump_item = best_item_ref.first;
                 if (jump_item)

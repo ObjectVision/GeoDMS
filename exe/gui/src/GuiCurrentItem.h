@@ -11,11 +11,9 @@ namespace ImGui
 class GuiCurrentItemComponent : GuiBaseComponent
 {
 public:
-	GuiCurrentItemComponent();
 	auto Update(GuiState& state) -> void;
 
 private:
 	auto DrawHistoryTreeItemDropdownList(GuiState &state) -> void;
-	std::vector<char>		  m_Buf;
 	std::string m_string_buf;
 };
