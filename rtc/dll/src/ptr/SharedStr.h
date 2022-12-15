@@ -144,11 +144,11 @@ inline bool IsDefined(const SharedCharArray* sca) { return sca != nullptr; }
 
 struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copyable> >
 {
-	typedef SharedCharArray            array_type;
-	typedef array_type*                pointer;
-	typedef const array_type*          const_pointer;
-	typedef array_type::iterator       iterator;
-	typedef array_type::const_iterator const_iterator;
+	using array_type = SharedCharArray;
+	using pointer = array_type*;
+	using const_pointer = const array_type*;
+	using iterator = array_type::iterator;
+	using const_iterator = array_type::const_iterator;
 
 	SharedCharArrayPtr(pointer p=0) noexcept : WeakPtrWrap(p) {}
 
@@ -197,8 +197,9 @@ struct WeakStr: WeakPtrWrap<SharedCharArrayPtr>
 struct SharedStr : SharedPtrWrap<SharedCharArrayPtr> 
 {
 private:
-	typedef SharedPtrWrap base_type;
-	typedef SharedCharArray::size_t size_t;
+	using base_type = SharedPtrWrap;
+	using size_t = SharedCharArray::size_t;
+
 public:
 	RTC_CALL SharedStr() noexcept;
 	SharedStr(CharPtr begin, CharPtr end): base_type(SharedCharArray_Create(begin, end) ){}
@@ -255,7 +256,6 @@ public:
 
 	MutableCharPtrRange GetAsMutableRange() { MakeUnique(); return MutableCharPtrRange(const_cast<char*>(begin()), const_cast<char*>(send())); }
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
-//REMOVE	CharPtrRange AsRange() const { return has_ptr() ? get_ptr()->GetAsRange() : CharPtrRange(); }
 
 	RTC_CALL void resize(SizeT sz);
 

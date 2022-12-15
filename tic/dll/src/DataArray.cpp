@@ -215,8 +215,8 @@ auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_
 			MakeMin(minValuePtr, currValueBeginPtr);
 			MakeMax(maxValuePtr, currValueEndPtr);
 
-			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
-			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
 		}
 		shadowTilePtr->SetValues(sequence_obj<element_type>(alloc_data<element_type>(const_cast<element_type*>(minValuePtr), const_cast<element_type*>(maxValuePtr), 0)));
 
