@@ -414,7 +414,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_FittingPolicyScroll))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
@@ -465,12 +465,31 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             {
                 if (m_FilteredStatistics.empty())
                     UpdateStatistics(state);
-                //ImGui::InputTextMultiline("##statistics", const_cast<char*>(m_Statistics.c_str()), m_Statistics.size(), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
                 DrawProperties(state, m_FilteredStatistics);
             }
             ImGui::EndTabItem();
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
         }
 
         ImGui::EndTabBar();
