@@ -12,6 +12,34 @@ GuiCurrentItemComponent::GuiCurrentItemComponent()
     m_Buf.resize(1024); // TODO: remove magic number
 }
 
+auto GuiCurrentItemComponent::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
+{
+    auto event_queues = GuiEventQueues::getInstance();
+    if (ImGui::BeginCombo("##treeitem_history_list", NULL, ImGuiComboFlags_NoPreview))
+    {
+        auto iterator = state.TreeItemHistoryList.GetEndIterator();
+        while (iterator != state.TreeItemHistoryList.GetBeginIterator())
+        {
+            std::advance(iterator, -1);
+
+            if (!*iterator)
+                break;
+
+            const bool is_selected = (iterator == state.TreeItemHistoryList.GetCurrentIterator());
+            if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
+            {
+                state.SetCurrentItem(*iterator);
+                event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
+                event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
+                event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
+                event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
+
+
 void GuiCurrentItemComponent::Update(GuiState &state)
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -25,34 +53,7 @@ void GuiCurrentItemComponent::Update(GuiState &state)
             std::copy(tmpPath.begin(), tmpPath.end(), m_Buf.begin());
         }
 
-        static ImGuiComboFlags flags = ImGuiComboFlags_None | ImGuiComboFlags_NoPreview;
-
-        const char* items[] = { "AAAA", "BBBB", "CCCC", "DDDD", "EEEE", "FFFF", "GGGG", "HHHH", "IIII", "JJJJ", "KKKK", "LLLLLLL", "MMMM", "OOOOOOO" };
-        static int item_current_idx = 0; // Here we store our selection data as an index.
-        const char* combo_preview_value = items[item_current_idx];  // Pass in the preview value visible before opening the combo (it could be anything)
-        if (ImGui::BeginCombo("##combo 1", combo_preview_value, flags))
-        {
-            auto iterator = state.TreeItemHistoryList.GetEndIterator();
-            while (iterator != state.TreeItemHistoryList.GetBeginIterator())
-            {
-                std::advance(iterator, -1);
-             
-                if (!*iterator)
-                    break;
-
-                const bool is_selected = (iterator == state.TreeItemHistoryList.GetCurrentIterator());
-                if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
-                {
-                    state.SetCurrentItem(*iterator);
-                    event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                    event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                    event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-                }
-            }
-
-            ImGui::EndCombo();
-        }
+        DrawHistoryTreeItemDropdownList(state);
 
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
         if (ImGui::InputText("##CurrentItem", reinterpret_cast<char*> (&m_Buf[0]), m_Buf.size(), ImGuiInputTextFlags_EnterReturnsTrue))
