@@ -12,20 +12,6 @@ GuiCurrentItemComponent::GuiCurrentItemComponent()
     m_Buf.resize(1024); // TODO: remove magic number
 }
 
-int TextCallBacka(ImGuiInputTextCallbackData* data)
-{
-    int i = 0;
-    /*switch (data->EventFlag)
-    {
-    case ImGuiInputTextFlags_CallbackAlways:
-    {
-        int i = 0;
-        break;
-    }
-    }*/
-    return 1;
-}
-
 void GuiCurrentItemComponent::Update(GuiState &state)
 {
     auto event_queues = GuiEventQueues::getInstance();

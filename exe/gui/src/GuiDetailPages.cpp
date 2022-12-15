@@ -105,7 +105,6 @@ void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry
     }
     else if (m_Tag.text.substr(0, 3) == "<TR")
     {
-        m_ColumnIndex = 0;
         m_OpenTags[HTMLTagType::TABLEROW]++;
         if (!properties.back().empty())
             properties.emplace_back();
@@ -149,7 +148,6 @@ void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry
                     properties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
             }
             m_Text.clear();
-            m_ColumnIndex++;
         }
     }
     else if (m_Tag.text == "<HR/>")
