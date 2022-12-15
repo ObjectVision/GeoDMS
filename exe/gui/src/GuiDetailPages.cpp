@@ -46,6 +46,7 @@ HTMLGuiComponentFactory::HTMLGuiComponentFactory()
     m_OpenTags[HTMLTagType::HORIZONTALLINE] = 0;
     m_OpenTags[HTMLTagType::HEADING]        = 0;
 }
+
 HTMLGuiComponentFactory::~HTMLGuiComponentFactory(){}
 void HTMLGuiComponentFactory::WriteBytes(const Byte* data, streamsize_t size)
 {
@@ -104,7 +105,6 @@ void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry
     }
     else if (m_Tag.text.substr(0, 3) == "<TR")
     {
-        m_ColumnIndex = 0;
         m_OpenTags[HTMLTagType::TABLEROW]++;
         if (!properties.back().empty())
             properties.emplace_back();
@@ -148,7 +148,6 @@ void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry
                     properties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
             }
             m_Text.clear();
-            m_ColumnIndex++;
         }
     }
     else if (m_Tag.text == "<HR/>")
@@ -201,7 +200,6 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
 
 void HTMLGuiComponentFactory::InterpretBytes(std::vector<std::vector<PropertyEntry>> &properties)
 {
-    m_refIndex = 0;
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
     for (auto &chr : m_Buff)
@@ -416,7 +414,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();
 
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_FittingPolicyScroll))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {
@@ -467,12 +465,31 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             {
                 if (m_FilteredStatistics.empty())
                     UpdateStatistics(state);
-                //ImGui::InputTextMultiline("##statistics", const_cast<char*>(m_Statistics.c_str()), m_Statistics.size(), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
                 DrawProperties(state, m_FilteredStatistics);
             }
             ImGui::EndTabItem();
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
+        {
+            ImGui::EndTabItem();
         }
 
         ImGui::EndTabBar();

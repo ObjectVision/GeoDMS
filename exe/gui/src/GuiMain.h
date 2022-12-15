@@ -35,7 +35,6 @@ private:
 	void InterpretCommandLineParameters();
 
 	GLFWwindow*				        m_Window				= nullptr;
-	//std::shared_ptr<GuiEventQueues> m_EventQueues			= std::make_shared<GuiEventQueues>();
 	GuiState						m_State					= {};
 	GuiInput						m_Input					= {};
 	GuiMenuComponent				m_MenuComponent			= {};

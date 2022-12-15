@@ -2,31 +2,50 @@
 #include <imgui.h>
 #include "GuiBase.h"
 
+struct OptionsEventLog
+{
+    bool ShowMessageTypeMinorTrace = true;
+    bool ShowMessageTypeMajorTrace = true;
+    bool ShowMessageTypeWarning = true;
+    bool ShowMessageTypeError = true;
+    bool ShowMessageTypeNothing = true;
+};
+
+struct EventLogItem
+{
+    SeverityTypeID m_Severity_type = SeverityTypeID::ST_Nothing;
+    std::string    m_Text = "";
+    std::string    m_Link = "";
+};
+
+auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options) -> bool;
+auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool;
+auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool;
+
 class GuiEventLog : GuiBaseComponent
 {
 public:
     GuiEventLog();
     ~GuiEventLog();
-    static void GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
-    static void GeoDMSExceptionMessage(CharPtr msg);
-    void Update(bool* p_open, GuiState& state);
+    auto ShowEventLogOptionsWindow(bool* p_open) -> void;
+    auto static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void;
+    auto static GeoDMSExceptionMessage(CharPtr msg) -> void;
+    auto Update(bool* p_open, GuiState& state) -> void;
 
 private:
-    ImColor ConvertSeverityTypeIDToColor(SeverityTypeID st);
-    void ClearLog();
-    bool EventFilter(SeverityTypeID st, GuiState& state);
-    static void AddLog(SeverityTypeID st, std::string msg);
-    static int   Stricmp(const char* s1, const char* s2);
-    static int   Strnicmp(const char* s1, const char* s2, int n);
-    static char* Strdup(const char* s);
-    static void  Strtrim(char* s);
+    auto OnItemClick(GuiState& state, EventLogItem* item) -> void;
+    auto GetItem(size_t index) -> EventLogItem*;
+    auto DrawItem(EventLogItem* item) -> void;
+    auto ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor;
+    auto ClearLog() -> void;
+    auto Refilter() -> void;
+    auto static AddLog(SeverityTypeID severity_type, std::string original_message) -> void;
 
-    char                  InputBuf[256];
-    static std::vector<std::pair<SeverityTypeID,std::string>> m_Items;
-    static UInt32 m_MaxLogLines;
-    ImGuiTextFilter       Filter;
-    bool                  AutoScroll;
-    bool                  ScrollToBottom;
+    static std::vector<EventLogItem> m_Items;
+    static std::vector<UInt64>       m_FilteredItemIndices;
+    static std::string               m_FilterText;
+    static OptionsEventLog           m_FilterEvents;
 
-    //GuiState              m_State;
+    bool AutoScroll;
+    bool ScrollToBottom;
 };

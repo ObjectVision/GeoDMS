@@ -33,7 +33,7 @@ GuiOptions::GuiOptions()
     std::copy(tmp_ed.begin(), tmp_ed.end(), m_DmsEditorPath.begin());
 }
 
-void GuiOptions::Update(bool* p_open)
+void GuiOptions::Update(bool* p_open, GuiState &state)
 {
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Options", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar))
@@ -47,6 +47,8 @@ void GuiOptions::Update(bool* p_open)
             {
                 static bool dark_mode = false;
                 ImGui::Checkbox("Dark mode", &dark_mode);
+                ImGui::Checkbox("Show eventlog options", &state.ShowEventLogOptionsWindow);
+
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Advanced"))
@@ -128,19 +130,4 @@ void GuiOptions::Update(bool* p_open)
 
     }
     ImGui::End();
-}
-
-void ShowEventLogOptionsWindow(bool* p_open)
-{
-    auto m_State = GuiState();
-    if (ImGui::Begin("Options eventlog", p_open, NULL))
-    {
-        ImGui::Checkbox("show minor-trace messages", &m_State.m_OptionsEventLog.ShowMessageTypeMinorTrace);
-        ImGui::Checkbox("show major-trace messages", &m_State.m_OptionsEventLog.ShowMessageTypeMajorTrace);
-        ImGui::Checkbox("show warning messages", &m_State.m_OptionsEventLog.ShowMessageTypeWarning);
-        ImGui::Checkbox("show error messages", &m_State.m_OptionsEventLog.ShowMessageTypeError);
-        ImGui::Checkbox("show nothing messages", &m_State.m_OptionsEventLog.ShowMessageTypeNothing);
-
-        ImGui::End();
-    }
 }

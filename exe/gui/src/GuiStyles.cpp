@@ -38,7 +38,7 @@ int GuiIcon::GetHeight()
     return m_Height;
 }
 
-bool GuiIcon::LoadTextureFromFile(std::string iconPath)
+bool GuiIcon::LoadTextureFromFile(std::string iconPath) // TODO: adaptive use of OpenGL 2/3 functions depending on platform, see https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_opengl2.cpp#L238
 {
     // Load from file
     unsigned char* image_data;
@@ -125,7 +125,7 @@ void SetGuiFont(std::string font_filename)
     std::string fontFileName = exePath + font_filename; //"misc/fonts/DroidSans.ttf";
     std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
     if (std::filesystem::exists(fontFileName))
-        auto test = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 15.0f);
+        auto test = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
 
     static ImWchar ranges[] = { 0xEA01, 0xf2DE, 0 };
     ImFontConfig config;

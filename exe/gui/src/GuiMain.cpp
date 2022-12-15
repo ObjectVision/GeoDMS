@@ -50,8 +50,7 @@ GuiMainComponent::GuiMainComponent()
 GuiMainComponent::~GuiMainComponent()
 {
     m_View.CloseAll();
-
-    //m_ItemsHolder.clear();
+    m_TreeviewComponent.clear();
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -284,7 +283,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
     //TODO: build in timer for checks?
-    static std::string changed_files_result;
+    static std::string changed_files_result; 
     auto changed_files = DMS_ReportChangedFiles(true);
     if (changed_files)
     {
@@ -492,7 +491,7 @@ int GuiMainComponent::MainLoop()
             if (m_State.GetRoot())
             {
                 //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
-                m_State.GetRoot()->UpdateMetaInfo();
+                //m_State.GetRoot()->UpdateMetaInfo();
             }
         }
 
@@ -648,10 +647,10 @@ void GuiMainComponent::Update()
 
     // option windows
     if (m_State.ShowOptionsWindow)
-        m_Options.Update(&m_State.ShowOptionsWindow);
+        m_Options.Update(&m_State.ShowOptionsWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
-        ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
+        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
     ImGui::End();
 }

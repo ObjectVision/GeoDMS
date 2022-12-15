@@ -4,9 +4,9 @@
 class GuiCurrentItemComponent : GuiBaseComponent
 {
 public:
-	GuiCurrentItemComponent();
-	void Update(GuiState& state);
+	auto Update(GuiState& state) -> void;
 
 private:
-	std::vector<char>		  m_Buf;
+	auto DrawHistoryTreeItemDropdownList(GuiState &state) -> void;
+	std::string m_string_buf;
 };
