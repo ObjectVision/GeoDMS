@@ -198,25 +198,17 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
                 SetKeyboardFocusToThisHwnd();
                 if (!iterator->m_Link.empty())
                 {
-                    // TODO: move this part to separate func, duplicate code also occuring in GuiCurrentItem
-                    auto unfound_part = IString::Create("");
-                    TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), iterator->m_Link.c_str(), &unfound_part);
+                    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), iterator->m_Link.c_str());
+                    auto jump_item = best_item_ref.first;
 
-                    //auto jumpItem = SetJumpItemFullNameToOpenInTreeView(m_State.GetRoot(), DivideTreeItemFullNameIntoTreeItemNames(reinterpret_cast<char*> (&m_Buf[0])));
-                    if (jumpItem)
+                    if (jump_item)
                     {
                         auto event_queues = GuiEventQueues::getInstance();
-                        state.SetCurrentItem(jumpItem);
+                        state.SetCurrentItem(const_cast<TreeItem*>(jump_item));
                         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                         event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
-                    if (!unfound_part->empty())
-                    {
-                        // TODO: do something with unfound part
-                    }
-
-                    unfound_part->Release(unfound_part);
                 }
             }
 
