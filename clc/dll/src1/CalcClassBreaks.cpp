@@ -371,7 +371,7 @@ CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCo
 // breakAttr functions
 //----------------------------------------------------------------------
 
-void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data)
+void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData)
 {
 	DataWriteLock breakLock(breakAttr);
 

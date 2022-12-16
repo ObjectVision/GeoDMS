@@ -885,7 +885,7 @@ TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<fiel
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear, const SharedObj* abstrValuesRangeData MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());

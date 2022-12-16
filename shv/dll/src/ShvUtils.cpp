@@ -922,18 +922,17 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 	SizeT count = thematicAttr->GetAbstrDomainUnit()->GetCount();
 
 	ValueCountPairContainer sortedUniqueValueCache;
+	SharedPtr<const SharedObj> thematicValuesRangeData;
 	if (count)
 	{
 		ItemReadLock readLock(thematicAttr->GetCurrRangeItem());
 		DataReadLock lck(thematicAttr);
 		sortedUniqueValueCache = GetCounts(thematicAttr, MAX_PAIR_COUNT);
+		thematicValuesRangeData = thematicAttr->GetRefObj()->GetAbstrValuesRangeData();
 	}
 
 	SharedPtr<AbstrUnit> paletteDomain = const_cast<AbstrUnit*>(breakAttr->GetAbstrDomainUnit());
 	SharedPtr<AbstrDataItem> breakAttrPtr = breakAttr;
-	SharedUnitInterestPtr breakValues = AbstrValuesUnit(breakAttr);
-	if (breakValues && !breakValues->IsCacheItem())
-		breakValues->GetPreparedCount();
 
 	SizeT nrBreaks = Min<SizeT>(sortedUniqueValueCache.size(), DEFAULT_MAX_NR_BREAKS);
 	auto result = ClassifyJenksFisher(sortedUniqueValueCache, nrBreaks, true); // callsClassifyUniqueValues if breakAttr.size() >= sortedUniqueValueCache.size()
@@ -944,7 +943,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain, siwlMovedPaletteDomain = std::move(siwlPaletteDomain), breakAttrPtr, siwlBreakAttr, nrBreaks, resultCopy = std::move(result), aNr, dv_wptr]() {
+	dv->AddGuiOper([tsActive, paletteDomain, siwlMovedPaletteDomain = std::move(siwlPaletteDomain), breakAttrPtr, siwlBreakAttr, nrBreaks, resultCopy = std::move(result), thematicValuesRangeData, aNr, dv_wptr]() {
 		UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
 		paletteDomain->SetCount(nrBreaks);
 
@@ -953,7 +952,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 		*siwlMovedPaletteDomain = ItemWriteLock(); 
 		breakAttrPtr->MarkTS(tsActive);
 
-		FillBreakAttrFromArray(breakAttrPtr, resultCopy);
+		FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
 		if (aNr != AN_AspectCount)
 		{
 			auto dv = dv_wptr.lock(); if (!dv) return;

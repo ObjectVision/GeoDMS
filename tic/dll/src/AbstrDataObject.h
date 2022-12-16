@@ -116,6 +116,7 @@ public:
 //	Values Cardinality
 	TIC_CALL virtual row_id GetValuesRangeCount() const { return UNDEFINED_VALUE(row_id); }
 	TIC_CALL virtual bool   IsFirstValueZero() const { return false;  }
+	TIC_CALL virtual SharedPtr<const SharedObj> GetAbstrValuesRangeData() const = 0;
 
 //	Data Access
 	TIC_CALL virtual auto CreateReadableTileData(tile_id t) const ->AbstrReadableTileData * = 0;

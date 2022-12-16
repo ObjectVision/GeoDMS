@@ -105,7 +105,7 @@ CLC1_CALL ValueCountPairContainer GetCounts    (const AbstrDataItem* adi, SizeT 
 CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc);
 
 CLC1_CALL break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, bool separateZero);
-CLC1_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data);
+CLC1_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData);
 
 //----------------------------------------------------------------------
 // breakAttr functions

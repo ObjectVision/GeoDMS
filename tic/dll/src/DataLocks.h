@@ -150,7 +150,7 @@ struct PreparedDataReadLock : SuspendTrigger::FencedBlocker, DataReadLock
 struct DataWriteLock : SharedPtr<AbstrDataObject>
 {
 	DataWriteLock() = default;
-	TIC_CALL DataWriteLock(AbstrDataItem*, dms_rw_mode rwm = dms_rw_mode::write_only_all); // was lockTile 
+	TIC_CALL DataWriteLock(AbstrDataItem*, dms_rw_mode rwm = dms_rw_mode::write_only_all, const SharedObj* abstrValuesRangeData = nullptr); // was lockTile 
 
 	TIC_CALL DataWriteLock(DataWriteLock&&) noexcept = default;
 	TIC_CALL ~DataWriteLock();
