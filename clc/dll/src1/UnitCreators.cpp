@@ -147,20 +147,20 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 			}
 	}
 
-	for (arg_index i = nrSkippedArgs + 1; i != args.size(); ++i)
+	for (arg_index i = nrSkippedArgs; i != args.size(); ++i)
 	{
 		// al other considered arguments
 		const AbstrUnit*arg2 = AsDataItem(args[i])->GetAbstrValuesUnit();
 		dms_assert(arg2);
 
-		if (arg1->GetValueType() != arg2->GetValueType())
+		if (arg2 != arg1 && arg1->GetValueType() != arg2->GetValueType())
 			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1->GetValueType()->GetName().c_str(), arg2->GetValueType()->GetName().c_str());
 
-		if (catUnit && !catUnit->UnifyDomain(arg2, "", "", UnifyMode(UM_AllowDefaultRight)))
+		if (catUnit && arg2 != catUnit && !catUnit->UnifyDomain(arg2, "", "", UnifyMode()))
 		{
 			auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
 			auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-			catUnit->UnifyDomain(arg2, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			catUnit->UnifyDomain(arg2, leftRole.c_str(), rightRole.c_str(), UM_Throw);
 		}
 
 		const UnitMetric* a2MetricPtr = arg2->GetMetric();
