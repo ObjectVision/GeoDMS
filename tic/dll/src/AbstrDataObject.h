@@ -273,11 +273,15 @@ auto mutable_array_checkedcast(AbstrDataObject* ptr) -> TileFunctor<V>*
 }
 
 
+#include "TiledRangeData.h"
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>;
+TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>;
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<AbstrDataObject>;
+template<typename V>
+TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or_void_data<field_of_t<V>>* valuesRangeDataPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<V>>;
+
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<AbstrDataObject>;
 auto CreateFileTileArray(const AbstrDataItem* adi, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp, SafeFileWriterArray* sfwa)->std::unique_ptr<AbstrDataObject>;
 
 struct ReadableTileLock : TileCRef // TODO G8: REMOVE

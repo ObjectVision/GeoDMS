@@ -83,9 +83,6 @@ public:
 		auto valuesUnitA = AsUnit(arg1A->GetAbstrValuesUnit()->GetCurrRangeItem());
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-//		visit<typelists::fields>(valuesUnit, [tileDataRange, maxTileSize, arg1A, res]<typename V>(const Unit<V>*valuesUnit) {
-
-
 		auto constTileFunctor = make_unique_ConstTileFunctor<TR>(tileDataRange, valuesUnit->m_RangeDataPtr, maxTileSize, const_array_cast<TR>(arg1A)->GetIndexedValue(0) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		return constTileFunctor.release();
 	}
