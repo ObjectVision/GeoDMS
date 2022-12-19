@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "xct/DmsException.h"
 
 #include "AbstrCalculator.h"
+#include "DataArray.h"
 #include "DataStoreManagerCaller.h"
 #include "FreeDataManager.h"
 #include "ParallelTiles.h"
@@ -50,6 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
+#include "UnitProcessor.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DATALOCKS 0
@@ -264,7 +266,7 @@ auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWrit
 // DataWriteLock
 //----------------------------------------------------------------------
 
-DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTile 
+DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedObj* abstrValuesRangeData) // was lockTile 
 {
 	dms_assert(std::uncaught_exceptions() == 0);
 
@@ -287,8 +289,21 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTil
 	if (!adi->m_FileName.empty())
 		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
 	else
-		reset(CreateAbstrHeapTileFunctor(adi, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
+		reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
+/*
+	if (abstrValuesRangeData)
+	{
+		MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
+		visit<typelists::ranged_unit_objects>(adi->GetAbstrValuesUnit(), [this, abstrValuesRangeData]<typename T>(const Unit<T>*)
+		{
+			auto tileFunctor = dynamic_cast<DataArray<T>*>(this->get_ptr()); // ValueComposition ?
+			assert(tileFunctor);
+			if (tileFunctor)
+				tileFunctor->InitValueRangeData(dynamic_cast<const range_or_void_data<T>*>(abstrValuesRangeData));
+		});
+	}
+*/		
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)
 		CopyData(adi->GetRefObj(), get());

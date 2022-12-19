@@ -127,7 +127,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 
 const AbstrTileRangeData* AbstrUnit::GetTiledRangeData() const
 {
-	throwIllegalAbstract(MG_POS, "GetTiledRangeData");
+	return nullptr;
 }
 
 UInt32 AbstrUnit::GetNrDataItemsOut() const

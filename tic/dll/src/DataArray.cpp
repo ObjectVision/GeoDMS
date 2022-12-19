@@ -215,8 +215,8 @@ auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_
 			MakeMin(minValuePtr, currValueBeginPtr);
 			MakeMax(maxValuePtr, currValueEndPtr);
 
-			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
-			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(V::value_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
 		}
 		shadowTilePtr->SetValues(sequence_obj<element_type>(alloc_data<element_type>(const_cast<element_type*>(minValuePtr), const_cast<element_type*>(maxValuePtr), 0)));
 
@@ -723,10 +723,9 @@ containsUndefined:
 		return allDefinedInRange ? DCM_CheckDefined : DCM_CheckBoth;
 	}
 containsOutOfRange:
-	return 
-		(dcm & DCM_CheckDefined) || !AllDefined(b, e)
-			?	DCM_CheckBoth
-			:	DCM_CheckRange;
+	if (dcm & DCM_CheckDefined) return DCM_CheckBoth;
+	if (!AllDefined(b, e)) return DCM_CheckBoth;
+	return DCM_CheckRange;
 }
 
 template <typename CI>
@@ -770,8 +769,13 @@ DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
 	else
 	{
-		auto valuesRange = GetValueRangeData()->GetRange();
 		std::atomic<UInt32> dcm = DCM_None;
+		typename Unit<field_of_t<V>>::range_t valuesRange = {};
+		auto valuesRangeData = GetValueRangeData();
+		if (!valuesRangeData)
+			dcm = DCM_CheckRange;
+		else
+			valuesRange = valuesRangeData->GetRange();
 		parallel_tileloop(GetTiledRangeData()->GetNrTiles(),
 			[&dcm, this, valuesRange](tile_id t)->void
 			{
@@ -779,17 +783,14 @@ DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 				{
 					auto data = GetDataRead(t);
 
-					DataCheckMode localDcm = CheckMode(
-						data.begin()
-						, data.end()
-						, valuesRange
-						, DataCheckMode(dcm.load())
-					);
+					DataCheckMode localDcm = CheckMode(data.begin(), data.end(), valuesRange, DataCheckMode(dcm.load()) );
 
 					dcm |= localDcm;
 				}
 			}
 		);
+		if (!valuesRangeData)
+			dcm &= ~DCM_CheckRange;
 		return DataCheckMode(dcm.load());
 	}
 }
@@ -799,9 +800,10 @@ void DataArrayBase<V>::DoSimplifyCheckMode(DataCheckMode& dcm) const
 {
 	if constexpr (has_var_range_field_v<V>)
 	{
+		if (dcm != DCM_CheckBoth)
+			return;
 		auto vrd = GetValueRangeData();
-		MG_CHECK(vrd);
-		if (dcm == DCM_CheckBoth && vrd && !ContainsUndefined(vrd->GetRange()))
+		if (vrd && !ContainsUndefined(vrd->GetRange()))
 			dcm = DCM_CheckRange; // implies excluding UNDEFINED_VALUE()
 	}
 	else
@@ -876,7 +878,7 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
+TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {
 	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
 	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -885,7 +887,19 @@ TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<fiel
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto instantiateThis = & CreateHeapTileArrayU<UInt32>;
+
+template<typename V>
+TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or_void_data<field_of_t<V>>* valuesRangeDataPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<V>>
+{
+	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
+
+	if constexpr (has_var_range_v<V>)
+		newTileFunctor->InitValueRangeData( valuesRangeDataPtr );
+	return newTileFunctor;
+}
+
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
@@ -897,30 +911,37 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear M
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
+
 		reportF(SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles), ", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+	if (!abstrValuesRangeData)
+		abstrValuesRangeData = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem())->GetTiledRangeData();
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	switch (adi->GetValueComposition())
 	{
 	case ValueComposition::Single:
 		visit<typelists::fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
-				auto ht = CreateHeapTileArray<value_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-				resultHolder.reset(ht.release());
+//				if (abstrValuesRangeData)
+					resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+//				else
+//					resultHolder.reset(CreateHeapTileArrayU<value_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
 		visit<typelists::sequence_fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
-				auto ht = CreateHeapTileArray<element_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-				resultHolder.reset(ht.release());
-			}
+//				if (abstrValuesRangeData)
+					resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+//				else
+//					resultHolder.reset(CreateHeapTileArrayU<element_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+		}
 		);
 		break;
 

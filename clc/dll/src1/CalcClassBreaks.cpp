@@ -241,26 +241,32 @@ ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_
 	return MergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
 }
 
-ValueCountPairContainer PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
+CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 {
 	PreparedDataReadLock lck(adi);
-	return GetCounts(adi, maxPairCount);	
+	
+	return GetCounts(adi, maxPairCount);
 }
 
-ValueCountPairContainer GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
+auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainer
 {
-	dms_assert(adi && adi->GetInterestCount());
-
-	DataReadLock lck(adi);
-
 	SizeT count = adi->GetAbstrDomainUnit()->GetCount();
-	if(count)
+	if (count)
 	{
 		tile_id tn = adi->GetAbstrDomainUnit()->GetNrTiles();
 		if (tn)
 			return GetWallCounts(adi, 0, tn, maxPairCount);
 	}
 	return ValueCountPairContainer();
+}
+
+CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
+{
+	dms_assert(adi && adi->GetInterestCount());
+
+	DataReadLock lck(adi);
+
+	return { GetCounts_Impl(adi, maxPairCount), adi->GetCurrRefObj()->GetAbstrValuesRangeData() }; // from lock
 }
 
 //----------------------------------------------------------------------
@@ -371,9 +377,9 @@ CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCo
 // breakAttr functions
 //----------------------------------------------------------------------
 
-void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data)
+void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData)
 {
-	DataWriteLock breakLock(breakAttr);
+	DataWriteLock breakLock(breakAttr, data.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
 
 	dms_assert(data.size() == breakLock->GetNrFeaturesNow());
 	breakLock->SetValuesAsFloat64Array(tile_loc(no_tile, 0), data.size(), begin_ptr(data));
@@ -402,20 +408,20 @@ break_array ClassifyUniqueValues(const ValueCountPairContainer& vcpc, SizeT k)
 	return result;
 }
 
-break_array ClassifyUniqueValues(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc)
+break_array ClassifyUniqueValues(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
 	dms_assert(breakAttr);
 
 	auto ba = ClassifyUniqueValues(vcpc, breakAttr->GetAbstrDomainUnit()->GetCount());
-	FillBreakAttrFromArray(breakAttr, ba);
+	FillBreakAttrFromArray(breakAttr, ba, abstrValuesRangeData);
 	return ba;
 }
 
-break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc)
+break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
 	dms_assert(breakAttr);
 
-	DataWriteLock breakObj( breakAttr);
+	DataWriteLock breakObj(breakAttr, vcpc.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
 	dms_assert(breakAttr->GetDataObjLockCount() < 0);
 
 	break_array ba;
@@ -453,15 +459,16 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 	return ba;
 }
 
-break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc)
+break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
 	dms_assert(breakAttr);
 
-	DataWriteLock breakObj(breakAttr);
+	DataWriteLock breakObj(breakAttr, dms_rw_mode::write_only_all, abstrValuesRangeData);
 	dms_assert(breakAttr->GetDataObjLockCount() < 0);
 
 	UInt32 k = breakAttr->GetAbstrDomainUnit()->GetCount();
 	UInt32 m = vcpc.size();
+
 	dms_assert(m<= vcpc.m_Total);
 
 	break_array faLimits;
@@ -489,9 +496,9 @@ break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairCo
 
 }
 
-break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc)
+break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
-	DataWriteLock breakObj(breakAttr);
+	DataWriteLock breakObj(breakAttr, dms_rw_mode::write_only_all, abstrValuesRangeData);
 
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
 
@@ -835,11 +842,11 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	return result;
 }
 
-break_array ClassifyJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, bool separateZero)
+break_array ClassifyJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData, bool separateZero)
 {
 	dms_assert(breakAttr);
 
 	auto ba = ClassifyJenksFisher(vcpc, breakAttr->GetAbstrDomainUnit()->GetCount(), separateZero);
-	FillBreakAttrFromArray(breakAttr, ba);
+	FillBreakAttrFromArray(breakAttr, ba, abstrValuesRangeData);
 	return ba;
 }

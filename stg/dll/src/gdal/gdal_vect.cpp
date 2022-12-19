@@ -994,19 +994,17 @@ void SetPointGeometryForFeature(OGRFeature * feature, PointType b, ValueComposit
 	feature->SetGeometry(&pt);
 }
 
-template<typename PointType>
-void SetArcGeometryForFeature(OGRFeature* feature, PointType b, ValueComposition vc)
+template<typename SequenceType>
+void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposition vc)
 {
 	dms_assert(vc == ValueComposition::Sequence);
 	auto OGRLine = (OGRLineString*)OGRGeometryFactory::createGeometry(wkbLineString);
 
-	typedef typename sequence_traits<PointType>::container_type SequenceArray;
-	typename DataArrayBase<PointType>::const_reference sequence = b;
+	typedef typename sequence_traits<SequenceType>::container_type SequenceArray;
+//	typename DataArrayBase<SequenceType>::const_reference sequence = b;
 
-	for (auto&& [y, x] : sequence) { // points in reverse order
-		OGRPoint pt;
-		pt.setX(x);
-		pt.setY(y);
+	for (auto&& [y, x] : b) { // points in reverse order
+		OGRPoint pt(x, y);
 		OGRLine->addPoint(&pt);
 	}
 	feature->SetGeometry((OGRGeometry*)OGRLine);
@@ -1072,26 +1070,23 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 				}
 				case ValueComposition::Sequence:
 				{
-					typedef typename sequence_traits<value_type>::container_type sequence_type;
+					using sequence_type = typename sequence_traits<value_type>::container_type;
+
 					auto darray = debug_valcast<const DataArray<sequence_type>*>(ado)->GetDataRead(t);
 					auto b = darray.begin(), e = darray.end();
 					dms_assert(tileFeatureIndex < (e - b));
 
-					SetArcGeometryForFeature(feature, *(b+tileFeatureIndex), vc);
+					SetArcGeometryForFeature(feature, b[tileFeatureIndex], vc);
 
 					break;
 				}
 				case ValueComposition::Polygon: {
-					typedef typename sequence_traits<value_type  >::container_type PolygonType;
-					typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
+					using PolygonType = typename sequence_traits<value_type  >::container_type;
+//					typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
 					
 					auto polyData = debug_valcast<const DataArray<PolygonType>*>(ado)->GetDataRead(t);
 
-					typename PolygonArray::const_iterator
-					polygonIter = polyData.begin(),
-					polygonEnd = polyData.end();
-
-					SetPolygonGeometryForFeature(feature, *(polygonIter+tileFeatureIndex), vc);
+					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex], vc);
 				}
 				break;
 			}

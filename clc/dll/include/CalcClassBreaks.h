@@ -93,10 +93,13 @@ private:
 	void operator = (const ValueCountPairContainer&) = delete;
 };
 
+using AbstrValuesRangeDataPtrType = SharedPtr<const SharedObj>;
+using CountsResultType = std::pair<ValueCountPairContainer, AbstrValuesRangeDataPtrType>;
+
 const UInt32 MAX_PAIR_COUNT = 4096;
 
-CLC1_CALL ValueCountPairContainer PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
-CLC1_CALL ValueCountPairContainer GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
+CLC1_CALL CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
+CLC1_CALL CountsResultType GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
 
 //----------------------------------------------------------------------
 // class break functions
@@ -105,21 +108,21 @@ CLC1_CALL ValueCountPairContainer GetCounts    (const AbstrDataItem* adi, SizeT 
 CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc);
 
 CLC1_CALL break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, bool separateZero);
-CLC1_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data);
+CLC1_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData);
 
 //----------------------------------------------------------------------
 // breakAttr functions
 //----------------------------------------------------------------------
 
-CLC1_CALL break_array ClassifyUniqueValues (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc);
-CLC1_CALL break_array ClassifyEqualCount   (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc);
-CLC1_CALL break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc);
-CLC1_CALL break_array ClassifyLogInterval  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc);
-CLC1_CALL break_array ClassifyJenksFisher  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, bool separateZero);
-inline break_array ClassifyNZJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc) { return ClassifyJenksFisher(breakAttr, vcpc, true ); }
-inline break_array ClassifyCRJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc) { return ClassifyJenksFisher(breakAttr, vcpc, false); }
+CLC1_CALL break_array ClassifyUniqueValues (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC1_CALL break_array ClassifyEqualCount   (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC1_CALL break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC1_CALL break_array ClassifyLogInterval  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC1_CALL break_array ClassifyJenksFisher  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData, bool separateZero);
+inline break_array ClassifyNZJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData) { return ClassifyJenksFisher(breakAttr, vcpc, abstrValuesRangeData, true ); }
+inline break_array ClassifyCRJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData) { return ClassifyJenksFisher(breakAttr, vcpc, abstrValuesRangeData, false); }
 
 
-using ClassBreakFunc = break_array (*)(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc);
+using ClassBreakFunc = break_array (*)(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
 
 #endif // !defined(__SHV_CLASSBREAKS_H)
