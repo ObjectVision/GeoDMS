@@ -59,6 +59,7 @@ void CheckFlags(DijkstraFlag df)
 	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp));
 	MG_CHECK(!flags(df & DijkstraFlag::Bidirectional) || !flags(df & DijkstraFlag::BidirFlag));
 	MG_CHECK(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance));
+	MG_CHECK(((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::None) || ((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::EuclidFlags));
 }
 // *****************************************************************************
 //									Helper structs
@@ -1118,13 +1119,16 @@ class DijkstraMatrOperator : public VariadicOperator
 		if (flags(df & DijkstraFlag::OrgNode)) ++nrArgs;
 		if (flags(df & DijkstraFlag::OrgImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::OrgZone)) ++nrArgs;
+		if (flags(df & DijkstraFlag::OrgZoneLoc)) ++nrArgs;
 		if (flags(df & DijkstraFlag::OrgMinImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstNode)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstZone)) ++nrArgs;
+		if (flags(df & DijkstraFlag::DstZoneLoc)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstMinImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::ImpCut)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstLimit)) nrArgs += 2;
+		if (flags(df & DijkstraFlag::UseEuclidicFilter)) nrArgs += 1; // requires OrgZoneLoc and DstZoneLoc
 		if (flags(df & DijkstraFlag::UseAltLinkImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::Interaction)) nrArgs += 2;
 		if (flags(df & DijkstraFlag::DistDecay)) nrArgs += 1;
@@ -1182,32 +1186,36 @@ public:
 
 		MG_CHECK(args.size() == CalcNrArgs(df)); // did user specify correctly?
 
-		const AbstrDataItem* adiLinkImp = AsDataItem(args[argCounter++]); 
-		const AbstrDataItem* adiLinkF1  = AsDataItem(args[argCounter++]);
-		const AbstrDataItem* adiLinkF2  = AsDataItem(args[argCounter++]);
+		const AbstrDataItem* adiLinkImp             = AsDataItem(args[argCounter++]); 
+		const AbstrDataItem* adiLinkF1              = AsDataItem(args[argCounter++]);
+		const AbstrDataItem* adiLinkF2              = AsDataItem(args[argCounter++]);
 		const AbstrDataItem* adiLinkBidirFlag       = flags(df & DijkstraFlag::BidirFlag) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiStartPointNode      = flags(df & DijkstraFlag::OrgNode) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiStartPointImpedance = flags(df & DijkstraFlag::OrgImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiStartPoinOrgZone    = flags(df & DijkstraFlag::OrgZone) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiOrgZoneLocation     = flags(df & DijkstraFlag::OrgZoneLoc) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiEndPointNode        = flags(df & DijkstraFlag::DstNode) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiEndPointImpedance   = flags(df & DijkstraFlag::DstImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiEndPointDstZone     = flags(df & DijkstraFlag::DstZone) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiDstZoneLocation     = flags(df & DijkstraFlag::DstZoneLoc) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
-		const AbstrDataItem* adiOrgMaxImp    = flags(df & DijkstraFlag::ImpCut) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiOrgMassLimit = flags(df & DijkstraFlag::DstLimit) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiDstMassLimit = flags(df & DijkstraFlag::DstLimit) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiOrgMaxImp           = flags(df & DijkstraFlag::ImpCut) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiOrgMassLimit        = flags(df & DijkstraFlag::DstLimit) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiDstMassLimit        = flags(df & DijkstraFlag::DstLimit) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
-		const AbstrDataItem* adiLinkAltImp = flags(df & DijkstraFlag::UseAltLinkImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiEuclidicSqrDist     = flags(df & DijkstraFlag::UseEuclidicFilter) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
-		const AbstrDataItem* adiOrgMinImp = flags(df & DijkstraFlag::OrgMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiDstMinImp = flags(df & DijkstraFlag::DstMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiLinkAltImp      = flags(df & DijkstraFlag::UseAltLinkImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+
+		const AbstrDataItem* adiOrgMinImp  = flags(df & DijkstraFlag::OrgMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiDstMinImp  = flags(df & DijkstraFlag::DstMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiOrgMass    = flags(df & DijkstraFlag::Interaction) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // orgMass
 		const AbstrDataItem* adiDstMass    = flags(df & DijkstraFlag::Interaction) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // dstMassLimit
 		const AbstrDataItem* adiDistDecayBetaParam  = flags(df & DijkstraFlag::DistDecay) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // DecayBeta
 		const AbstrDataItem* adiDistLogitAlphaParam = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogitAlpha
-		const AbstrDataItem* adiDistLogitBetaParam = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogitBeta
+		const AbstrDataItem* adiDistLogitBetaParam  = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogitBeta
 		const AbstrDataItem* adiDistLogitGammaParam = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogistGamma
-		const AbstrDataItem* adiOrgAlpha   = flags(df & DijkstraFlag::InteractionAlpha) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // demand alpha
+		const AbstrDataItem* adiOrgAlpha            = flags(df & DijkstraFlag::InteractionAlpha) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // demand alpha
 
 		dms_assert(argCounter == args.size()); // all arguments have been processed.
 
@@ -1228,17 +1236,19 @@ public:
 		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), "Nodes", "Values of FromNode_rel attribute", UM_Throw);
 		v->UnifyDomain(adiLinkF2->GetAbstrValuesUnit(), "Nodes", "Values of ToNode_rel attribute", UM_Throw);
 		if (adiLinkBidirFlag) e->UnifyDomain(adiLinkBidirFlag->GetAbstrDomainUnit(), "Links", "Domain of Bidirectional flag attribute", UM_Throw);
-		if (adiLinkBidirFlag) MG_CHECK(adiLinkBidirFlag->GetAbstrValuesUnit()->IsKindOf(Unit<Bool>::GetStaticClass()));
+		if (adiLinkBidirFlag) MG_USERCHECK(adiLinkBidirFlag->GetAbstrValuesUnit()->IsKindOf(Unit<Bool>::GetStaticClass()));
 
 		if (adiStartPointNode) v->UnifyDomain(adiStartPointNode->GetAbstrValuesUnit(), "NodeSet", "Domain of StartLink Node_rel", UM_Throw);
 		if (adiStartPointImpedance) x->UnifyDomain(adiStartPointImpedance->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink Impedance", UM_Throw);
 		if (adiStartPoinOrgZone) x->UnifyDomain(adiStartPoinOrgZone->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink OrgZone_rel", UM_Throw);
 		if (adiStartPointImpedance) impUnit->UnifyValues(adiStartPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "StartLink Impedances", UM_Throw);
+		if (adiOrgZoneLocation) orgZones->UnifyDomain(adiOrgZoneLocation->GetAbstrDomainUnit(), "OrgZones", "OrgZoneLoc", UM_Throw);
 
 		if (adiEndPointNode) v->UnifyDomain(adiEndPointNode->GetAbstrValuesUnit(), "NodeSet", "Domain of EndLink Node_rel ", UM_Throw);
 		if (adiEndPointImpedance) y->UnifyDomain(adiEndPointImpedance->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink Impedance", UM_Throw);
 		if (adiEndPointDstZone) y->UnifyDomain(adiEndPointDstZone->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink OrgZone_rel", UM_Throw);
 		if (adiEndPointImpedance) impUnit->UnifyValues(adiEndPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "EndLink Impedances", UM_Throw);
+		if (adiDstZoneLocation) dstZones->UnifyDomain(adiDstZoneLocation->GetAbstrDomainUnit(), "DstZones", "DstZoneLoc", UM_Throw);
 
 		if (adiOrgMaxImp) // maxDist
 		{
@@ -1251,6 +1261,13 @@ public:
 			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgMassLimit", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
 			orgZonesOrVoid->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), "DstZones", "Domain of DstMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
+		}
+
+		if (adiEuclidicSqrDist)
+		{
+			assert(adiOrgZoneLocation);
+			assert(adiDstZoneLocation);
+			MG_USERCHECK(!adiEuclidicSqrDist || adiEuclidicSqrDist->HasVoidDomainGuarantee());
 		}
 
 		const Unit<ImpType>* imp2Unit= impUnit;
@@ -1277,11 +1294,11 @@ public:
 			dms_assert(adiDstMass);
 			orgZonesOrVoid->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
-		MG_CHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
-		MG_CHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
-		MG_CHECK(!adiDistLogitBetaParam || adiDistLogitBetaParam->HasVoidDomainGuarantee());
-		MG_CHECK(!adiDistLogitGammaParam || adiDistLogitGammaParam->HasVoidDomainGuarantee());
-		dms_assert(adiDistDecayBetaParam || (!adiOrgMass && !adiDstMass));
+		MG_USERCHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
+		MG_USERCHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
+		MG_USERCHECK(!adiDistLogitBetaParam || adiDistLogitBetaParam->HasVoidDomainGuarantee());
+		MG_USERCHECK(!adiDistLogitGammaParam || adiDistLogitGammaParam->HasVoidDomainGuarantee());
+		assert(adiDistDecayBetaParam || (!adiOrgMass && !adiDstMass));
 		if (adiDstMass) // DstMass
 		{
 			dms_assert(adiOrgMass);
