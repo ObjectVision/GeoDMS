@@ -14,7 +14,8 @@ enum class HTMLTagType
     LINEBREAK = 6,
     HORIZONTALLINE = 7,
     HEADING = 8,         // <H1>...<H6>
-    UNKNOWN = 10
+    UNKNOWN = 10,
+    COUNT = 11
 };
 
 enum class HTMLParserState
@@ -54,14 +55,18 @@ struct PropertyEntry
     std::string         text;
 };
 
+using RowData = std::vector<PropertyEntry>;
+using TableData = std::vector<RowData>;
+
 class HTMLGuiComponentFactory : public OutStreamBuff
 {
 public:
+
     HTMLGuiComponentFactory();
     virtual ~HTMLGuiComponentFactory();
 
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    void InterpretBytes(std::vector<std::vector<PropertyEntry>>& properties);
+    void InterpretBytes(TableData& tableProperties);
 
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -69,13 +74,13 @@ public:
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
-    void InterpretTag(std::vector<std::vector<PropertyEntry>>& properties);
+    void InterpretTag(TableData& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
 
     std::vector<char>             m_Buff;
     HTMLParserState               m_ParserState;
-    std::map<HTMLTagType, UInt16> m_OpenTags;
+    UInt16                        m_OpenTags[int(HTMLTagType::COUNT)] = {};
     Tag                           m_Tag;
     std::string                   m_Text;
 };
@@ -90,13 +95,13 @@ private:
     void UpdateExploreProperties(GuiState& state);
     void UpdateStatistics(GuiState& state);
     void FilterStatistics();
-    void DrawProperties(GuiState& state, std::vector<std::vector<PropertyEntry>> &properties);
+    void DrawProperties(GuiState& state, TableData& properties);
 
-    HTMLGuiComponentFactory                 m_Buff;
-    std::vector<std::vector<PropertyEntry>> m_GeneralProperties;
-    std::vector<std::vector<PropertyEntry>> m_AllProperties;
-    std::vector<std::vector<PropertyEntry>> m_ExploreProperties;
-    std::vector<std::vector<PropertyEntry>> m_FilteredStatistics;
-    std::string                             m_Statistics;
-    UInt8                                   m_ColumnIndex = 0;
+    HTMLGuiComponentFactory m_Buff;
+    TableData m_GeneralProperties;
+    TableData m_AllProperties;
+    TableData m_ExploreProperties;
+    TableData m_FilteredStatistics;
+    std::string m_Statistics;
+    UInt8       m_ColumnIndex = 0;
 };
