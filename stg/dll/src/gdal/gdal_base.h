@@ -155,6 +155,13 @@ GDALDataType gdalDataType(ValueClassID tid);
 
 // *****************************************************************************
 
+struct sr_releaser {
+	void operator ()(OGRSpatialReference* p) const;
+};
+using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
+
+// *****************************************************************************
+
 OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc); // TODO move OGR helper funcs to gdal_vect.cpp
 OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc);
 SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
@@ -162,7 +169,7 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 CPLStringList GetOptionArray(const TreeItem* optionsItem);
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
-OGRSpatialReference* GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
+sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
 
 struct GDALDatasetHandle
 {

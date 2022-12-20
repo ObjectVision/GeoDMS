@@ -640,9 +640,13 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return wktPrjStr;
 }
 
-OGRSpatialReference* GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
+void sr_releaser::operator ()(OGRSpatialReference* p) const 
+{ 
+	OSRRelease(p); 
+}
+
+sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
 {
-	OGRSpatialReference* srs = nullptr;
 	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
 	{
 		if (not (IsDataItem(subItem) and subItem->IsStorable()))
@@ -652,12 +656,9 @@ OGRSpatialReference* GetOGRSpatialReferenceFromDataItems(const TreeItem* storage
 
 		auto wktString = GetWktProjectionFromValuesUnit(subDI);
 		if (not wktString.empty())
-		{
-			srs = new OGRSpatialReference(wktString.c_str());
-			return srs;
-		}
+			return sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} };
 	}
-	return srs;
+	return {};
 }
 
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
