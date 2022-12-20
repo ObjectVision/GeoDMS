@@ -6,6 +6,7 @@
 
 enum class HTMLTagType
 {
+    UNKNOWN = 0,
     BODY = 1,            // <BODY>
     TABLE = 2,           // <TABLE>
     TABLEROW = 3,        // <TR>
@@ -14,16 +15,16 @@ enum class HTMLTagType
     LINEBREAK = 6,
     HORIZONTALLINE = 7,
     HEADING = 8,         // <H1>...<H6>
-    UNKNOWN = 10,
-    COUNT = 11
+    COUNT = 9
 };
 
 enum class HTMLParserState
 {
+    NONE = 0,
     TAGOPEN = 1,
     TAGCLOSE = 2,
     TEXT = 3,
-    NONE = 4
+//    NONE = 4
 };
 
 class Tag
@@ -79,7 +80,7 @@ private:
     std::string GetHrefFromTag();
 
     std::vector<char>             m_Buff;
-    HTMLParserState               m_ParserState;
+    HTMLParserState               m_ParserState = HTMLParserState::NONE;
     UInt16                        m_OpenTags[int(HTMLTagType::COUNT)] = {};
     Tag                           m_Tag;
     std::string                   m_Text;

@@ -160,6 +160,8 @@ private:
 	HANDLE                  m_Handle;
 };
 
+using start_process_result_t = std::pair<HANDLE, HANDLE>;
+
 RTC_CALL SharedStr AsDateTimeString(const FileDateTime& t);
 RTC_CALL SharedStr GetCurrentTimeStr();
 RTC_CALL SharedStr GetSessionStartTimeStr();
@@ -182,6 +184,7 @@ RTC_CALL bool   IsFileOrDirWritable(WeakStr fileOrDirName);
 RTC_CALL void   GetWritePermission(WeakStr fileName);
 RTC_CALL FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName);
 RTC_CALL void   MakeDirsForFile(WeakStr fileName);
+RTC_CALL start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);
 RTC_CALL bool   HasDosDelimiters(CharPtr source);
 RTC_CALL bool   HasDosDelimiters(CharPtrRange source);
