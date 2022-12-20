@@ -608,7 +608,7 @@ static void ImGui_ImplGlfw_UpdateMouseData()
             // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
             // When multi-viewports are enabled, all Dear ImGui positions are same as OS positions.
             if (io.WantSetMousePos)
-                glfwSetCursorPos(window, (double)(mouse_pos_prev.x - viewport->Pos.x), (double)(mouse_pos_prev.y - viewport->Pos.y));
+                glfwSetCursorPos(window, (double)mouse_pos_prev.x - (double)viewport->Pos.x, (double)mouse_pos_prev.y - (double)viewport->Pos.y);
 
             // (Optional) Fallback to provide mouse position when focused (ImGui_ImplGlfw_CursorPosCallback already provides this when hovered or captured)
             if (bd->MouseWindow == NULL)

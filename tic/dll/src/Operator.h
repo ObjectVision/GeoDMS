@@ -79,6 +79,9 @@ public:
 //	Returns FALSE in case of suspension; throw on matching failure
 	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs = LispPtr()) const
 	{
+		if (resultHolder && !resultHolder.IsTmp())
+			return;
+
 		dms_assert(!CanExplainValue()); // or this method should be overridden.
 		auto argSeq = GetItems(args);
 		bool actualResult = CreateResult(resultHolder, argSeq, false);

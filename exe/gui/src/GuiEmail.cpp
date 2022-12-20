@@ -19,7 +19,7 @@ bool GuiEmail::SendMailUsingDefaultWindowsEmailApplication(std::string message)
 
 	std::wstring mailCommand =   std::wstring() + L"mailto:support@objectvision.nl"+ L"?subject=GeoDMS Bugreport&body=" + body;
 
-	auto result = ShellExecute(0, NULL, mailCommand.c_str(), NULL, NULL, SW_SHOWNORMAL); //SW_SHOWNOACTIVATE);
+	auto result = ShellExecuteW(0, NULL, mailCommand.c_str(), NULL, NULL, SW_SHOWNORMAL); //SW_SHOWNOACTIVATE);
 
 	return true;
 }

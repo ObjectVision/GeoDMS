@@ -36,16 +36,7 @@ end;
 std::string Tag::href = "";
 
 HTMLGuiComponentFactory::HTMLGuiComponentFactory() 
-{
-    m_OpenTags[HTMLTagType::BODY]           = 0;
-    m_OpenTags[HTMLTagType::TABLE]          = 0;
-    m_OpenTags[HTMLTagType::TABLEROW]       = 0;
-    m_OpenTags[HTMLTagType::TABLEDATA]      = 0;
-    m_OpenTags[HTMLTagType::LINK]           = 0;
-    m_OpenTags[HTMLTagType::LINEBREAK]      = 0;
-    m_OpenTags[HTMLTagType::HORIZONTALLINE] = 0;
-    m_OpenTags[HTMLTagType::HEADING]        = 0;
-}
+{}
 
 HTMLGuiComponentFactory::~HTMLGuiComponentFactory(){}
 void HTMLGuiComponentFactory::WriteBytes(const Byte* data, streamsize_t size)
@@ -89,72 +80,72 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 
 }
 
-void HTMLGuiComponentFactory::InterpretTag(std::vector<std::vector<PropertyEntry>> &properties)
+void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
 {
     // open tags
     if (m_Tag.text.substr(0, 5) == "<BODY")
-        m_OpenTags[HTMLTagType::BODY]++;
+        m_OpenTags[int(HTMLTagType::BODY)]++;
     else if (m_Tag.text.substr(0, 2) == "<A")
     {
-        m_OpenTags[HTMLTagType::LINK]++;
+        m_OpenTags[int(HTMLTagType::LINK)]++;
         m_Tag.href = GetHrefFromTag();
     }
     else if (m_Tag.text.substr(0, 6) == "<TABLE")
     {
-        m_OpenTags[HTMLTagType::TABLE]++;
+        m_OpenTags[int(HTMLTagType::TABLE)]++;
     }
     else if (m_Tag.text.substr(0, 3) == "<TR")
     {
-        m_OpenTags[HTMLTagType::TABLEROW]++;
-        if (!properties.back().empty())
-            properties.emplace_back();
+        m_OpenTags[int(HTMLTagType::TABLEROW)]++;
+        if (!tableProperties.back().empty())
+            tableProperties.emplace_back();
     }
     else if (m_Tag.text.substr(0, 3) == "<TD")
-        m_OpenTags[HTMLTagType::TABLEDATA]++;
+        m_OpenTags[int(HTMLTagType::TABLEDATA)]++;
     else if (m_Tag.text.substr(0, 3) == "<H2"){}
 
     // close tags
     else if (m_Tag.text == "</BODY>")
-        m_OpenTags[HTMLTagType::BODY]--;
+        m_OpenTags[int(HTMLTagType::BODY)]--;
     else if (m_Tag.text == "</H2>")
     {
         m_Tag.href.clear();
-        properties.emplace_back();
-        properties.back().emplace_back(PET_HEADING, m_Text);
+        tableProperties.emplace_back();
+        tableProperties.back().emplace_back(PET_HEADING, m_Text);
         m_Text.clear();
     }
     else if (m_Tag.text == "</TABLE>")
     {
-        m_OpenTags[HTMLTagType::TABLE]--;
+        m_OpenTags[int(HTMLTagType::TABLE)]--;
     }
     else if (m_Tag.text == "</TR>")
-        m_OpenTags[HTMLTagType::TABLEROW]--;
+        m_OpenTags[int(HTMLTagType::TABLEROW)]--;
     else if (m_Tag.text == "</A>")
-        m_OpenTags[HTMLTagType::LINK]--;
+        m_OpenTags[int(HTMLTagType::LINK)]--;
     else if (m_Tag.text == "</TD>")
     {
-        if (m_OpenTags[HTMLTagType::TABLEDATA] > 0)
+        if (m_OpenTags[int(HTMLTagType::TABLEDATA)] > 0)
         {
-            m_OpenTags[HTMLTagType::TABLEDATA]--;
+            m_OpenTags[int(HTMLTagType::TABLEDATA)]--;
 
             if (!m_Tag.href.empty())
             {
-                properties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
+                tableProperties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
                 m_Tag.href.clear();
             }
             else
             {
                 if (!m_Text.empty())
-                    properties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
+                    tableProperties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
             }
             m_Text.clear();
         }
     }
     else if (m_Tag.text == "<HR/>")
     {
-        if (!properties.back().empty())
-            properties.emplace_back();
-        properties.back().emplace_back(PET_SEPARATOR, m_Text);
+        if (!tableProperties.back().empty())
+            tableProperties.emplace_back();
+        tableProperties.back().emplace_back(PET_SEPARATOR, m_Text);
     }
 
 }
@@ -198,7 +189,7 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
     return false;
 }
 
-void HTMLGuiComponentFactory::InterpretBytes(std::vector<std::vector<PropertyEntry>> &properties)
+void HTMLGuiComponentFactory::InterpretBytes(TableData& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
@@ -231,7 +222,7 @@ void HTMLGuiComponentFactory::InterpretBytes(std::vector<std::vector<PropertyEnt
         case HTMLParserState::TAGCLOSE:
         {
             m_Tag.text += chr;
-            InterpretTag(properties);
+            InterpretTag(tableProperties);
             m_Tag.text.clear();
             break;
         }
@@ -316,7 +307,7 @@ void GuiDetailPages::UpdateStatistics(GuiState& state)
     FilterStatistics();
 }
 
-void GuiDetailPages::DrawProperties(GuiState& state, std::vector<std::vector<PropertyEntry>>& properties)
+void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
 {
     auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise

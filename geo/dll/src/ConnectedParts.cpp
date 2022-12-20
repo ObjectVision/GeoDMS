@@ -143,20 +143,21 @@ public:
 							rb[ currNode ] = nrParts;
 
 							LinkType currLink = link1[currNode];
-							while (currLink != UNDEFINED_VALUE(LinkType))
+							while (currLink < nrE)
 							{
-								NodeType otherNode = node2Data[currLink]; dms_assert(otherNode < nrV);
-								nodeStack.push_back(otherNode);			
+								NodeType otherNode = node2Data[currLink]; 
+								if (otherNode <  nrV)
+									nodeStack.push_back(otherNode);			
 								currLink = nextLink1[currLink];
 							}
 							currLink = link2[currNode];
-							while (currLink != UNDEFINED_VALUE(LinkType))
+							while (currLink < nrE)
 							{
-								NodeType otherNode = node1Data[currLink]; dms_assert(otherNode < nrV);
-								nodeStack.push_back(otherNode);			
+								NodeType otherNode = node1Data[currLink];
+								if (otherNode < nrV)
+									nodeStack.push_back(otherNode);
 								currLink = nextLink2[currLink];
 							}
-
 						}
 					}
 					while (!nodeStack.empty());

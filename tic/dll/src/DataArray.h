@@ -162,8 +162,8 @@ struct DataArrayBase : AbstrDataObject
 			return &*s_SingletonRangeData;
 		}
 	}
-	TICTOC_CALL SharedPtr<const SharedObj> GetAbstrValuesRangeData() const override
-	{
+	TICTOC_CALL SharedPtr<const SharedObj> GetAbstrValuesRangeData() const override 
+	{ 
 		if constexpr (has_var_range_v < field_of_t<V>>)
 			return GetValueRangeData();
 		return nullptr;

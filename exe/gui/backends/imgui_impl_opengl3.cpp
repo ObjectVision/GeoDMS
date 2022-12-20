@@ -98,6 +98,8 @@
 #include <stdint.h>     // intptr_t
 #endif
 
+#include "dbg/Check.h"
+
 // Clang warnings with -Weverything
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -239,7 +241,8 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
     {
         // Query GL_VERSION in desktop GL 2.x, the string will start with "<major>.<minor>"
         const char* gl_version = (const char*)glGetString(GL_VERSION);
-        sscanf(gl_version, "%d.%d", &major, &minor);
+        auto nrScanned = sscanf(gl_version, "%d.%d", &major, &minor);
+        MG_CHECK(nrScanned == 2);
     }
     bd->GlVersion = (GLuint)(major * 100 + minor * 10);
 #else
@@ -635,7 +638,8 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
 
     // Parse GLSL version string
     int glsl_version = 130;
-    sscanf(bd->GlslVersionString, "#version %d", &glsl_version);
+    auto nrScanned = sscanf(bd->GlslVersionString, "#version %d", &glsl_version);
+    MG_CHECK(nrScanned == 1);
 
     const GLchar* vertex_shader_glsl_120 =
         "uniform mat4 ProjMtx;\n"

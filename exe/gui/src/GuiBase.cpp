@@ -123,10 +123,10 @@ auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string s
 
 auto GetExeFilePath() -> std::string
 {
-    wchar_t buffer[MAX_PATH];
-    GetModuleFileName(NULL, buffer, MAX_PATH);
-    auto exePath = std::wstring(std::filesystem::path(std::move(buffer)).remove_filename());
-    return std::string(exePath.begin(), exePath.end());
+    wchar_t wBuffer[MAX_PATH];
+    GetModuleFileNameW(NULL, wBuffer, MAX_PATH);
+    auto exePath = std::filesystem::path(std::move(wBuffer)).remove_filename();
+    return exePath.string();
 }
 
 ImVec2 SetCursorPosToOptionsIconInWindowHeader()

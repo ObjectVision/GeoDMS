@@ -187,7 +187,7 @@ void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
     wndClassData.hCursor = NULL;
     wndClassData.hbrBackground = HBRUSH(COLOR_WINDOW + 1);
     wndClassData.lpszMenuName = NULL;
-    wndClassData.lpszClassName = (LPCWSTR)m_ViewIt->m_Name.c_str(); //m_Views.at(m_ViewIndex).m_Name.c_str();
+    wndClassData.lpszClassName = m_ViewIt->m_Name.c_str(); //m_Views.at(m_ViewIndex).m_Name.c_str();
     wndClassData.hIconSm = NULL;
 
     RegisterClassEx(&wndClassData);
@@ -226,18 +226,18 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     RegisterViewAreaWindowClass(instance);
     auto vs = m_ViewIt->m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_ViewIt->m_HWND = CreateWindowEx(
-        0L,                                                             // no extended styles
-        (LPCWSTR)m_ViewIt->m_Name.c_str(),                                    // MapView control class 
-        (LPCWSTR)NULL,                                                  // text for window title bar 
-        vs,                                                             // styles
-        CW_USEDEFAULT,                                                  // horizontal position 
-        CW_USEDEFAULT,                                                  // vertical position
-        crMax.x - crMin.x,                                              // width
-        crMax.y - crMin.y,                                              // height 
-        m_ViewIt->m_HWNDParent,                           // handle to parent
-        (HMENU)NULL,                                                    // no menu
-        instance,                                                       // instance owning this window 
-        m_ViewIt->m_DataView //m_DataView                                       
+        0L,                            // no extended styles
+        m_ViewIt->m_Name.c_str(),      // MapView control class 
+        nullptr,                       // text for window title bar 
+        vs,                            // styles
+        CW_USEDEFAULT,                 // horizontal position 
+        CW_USEDEFAULT,                 // vertical position
+        crMax.x - crMin.x,             // width
+        crMax.y - crMin.y,             // height 
+        m_ViewIt->m_HWNDParent,        // handle to parent
+        nullptr,                       // no menu
+        instance,                      // instance owning this window 
+        m_ViewIt->m_DataView           //m_DataView                                       
     );
 
     if (!m_ViewIt->m_HWND)

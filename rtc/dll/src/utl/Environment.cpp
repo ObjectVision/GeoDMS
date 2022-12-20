@@ -1031,48 +1031,54 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 //  -----------------------------------------------------------------------
 
 // Child process used by exec expressions for executables; Create; Execute and Wait for termination
-DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine) 
-{ 
-   PROCESS_INFORMATION piProcInfo; 
-   STARTUPINFO siStartInfo; 
- 
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	STARTUPINFO siStartInfo;
+	PROCESS_INFORMATION piProcInfo;
+
 	// Set up members of STARTUPINFO structure. 
-   ZeroMemory( &siStartInfo, sizeof(STARTUPINFO) );
-   ZeroMemory( &piProcInfo, sizeof(PROCESS_INFORMATION) );
-   siStartInfo.cb = sizeof(STARTUPINFO); 
-//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
- 
-   // Create the child process.
-   BOOL res = CreateProcess
-   (
-      moduleName,
-	  cmdLine,        // command line can be rewritten
-      NULL,           // process security attributes 
-      NULL,           // primary thread security attributes 
-      TRUE,           // handles are inherited 
-      0,              // creation flags		
-      NULL,           // use parent's environment 
-      NULL,           // use parent's current directory 
-      &siStartInfo,   // STARTUPINFO pointer 
-      &piProcInfo
+	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
+	siStartInfo.cb = sizeof(STARTUPINFO);
+	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
+
+	   // Create the child process.
+	BOOL res = CreateProcessA
+	(
+		cmdLine,
+		nullptr,        // command line can be rewritten
+		NULL,           // process security attributes 
+		NULL,           // primary thread security attributes 
+		TRUE,           // handles are inherited 
+		0,              // creation flags		
+		NULL,           // use parent's environment 
+		NULL,           // use parent's current directory 
+		&siStartInfo,   // STARTUPINFO pointer 
+		&piProcInfo
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
 		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName, cmdLine);
+	return { piProcInfo.hProcess, piProcInfo.hThread };
+}
 
-    // Wait until child process exits.
+DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
+{
+	auto childProcess = StartChildProcess(moduleName, cmdLine);
+
+	// Wait until child process exits.
 	UINT32 waitCounter = 0;
-	while (auto resWFSO = WaitForSingleObject(piProcInfo.hProcess, INFINITE))
+	while (auto resWFSO = WaitForSingleObject(childProcess.first, INFINITE))
 	{
 		++waitCounter;
 	}
 	DWORD exitCode;
-	res = GetExitCodeProcess(piProcInfo.hProcess, &exitCode);
+	BOOL res = GetExitCodeProcess(childProcess.first, &exitCode);
 	if (!res)
 		throwLastSystemError("ExecuteChildProcess(%s, %s) failed to return an exitcode", moduleName, cmdLine);
 
-	CloseHandle(piProcInfo.hThread);
-	CloseHandle(piProcInfo.hProcess);
+	CloseHandle(childProcess.second);
+	CloseHandle(childProcess.first);
 
 	return exitCode;
 };

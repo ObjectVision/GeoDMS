@@ -128,67 +128,71 @@ ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 
 ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories)
 {
-	assert(args.size() - 2 >= nrSkippedArgs); // PRECONDITION
-	const AbstrUnit* arg1 = AsDataItem(args[nrSkippedArgs])->GetAbstrValuesUnit(); // the first considered argument
-	dms_assert(arg1);
-	const UnitMetric* a1MetricPtr = arg1->GetMetric();
-	const UnitProjection* a1ProjectionPtr = arg1->GetProjection();
-	dms_assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
+	arg_index nrArgs = args.size();
+	assert(nrSkippedArgs < nrArgs); // PRECONDITION
+
+	const AbstrUnit* arg1_ValuesUnit = AsDataItem(args[nrSkippedArgs])->GetAbstrValuesUnit(); // the first considered argument
+	assert(arg1_ValuesUnit);
+	const UnitMetric* a1MetricPtr = arg1_ValuesUnit->GetMetric();
+	const UnitProjection* a1ProjectionPtr = arg1_ValuesUnit->GetProjection();
+	assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection
 
 	const AbstrUnit* catUnit = nullptr;
 	arg_index cat_unit_index = nrSkippedArgs;
 	if (mustCheckCategories)
 	{
-		for (; cat_unit_index != args.size(); ++cat_unit_index)
+		for (; cat_unit_index != nrArgs; ++cat_unit_index)
 			if (AsDataItem(args[cat_unit_index])->GetTSF(DSF_Categorical))
 			{
-				catUnit = AsDataItem(args[cat_unit_index])->GetAbstrValuesUnit();
+				catUnit = AbstrValuesUnit( AsDataItem(args[cat_unit_index]) );
 				break;
 			}
 	}
 
-	for (arg_index i = nrSkippedArgs + 1; i != args.size(); ++i)
+	for (arg_index i = nrSkippedArgs; i != nrArgs; ++i)
 	{
 		// al other considered arguments
-		const AbstrUnit*arg2 = AsDataItem(args[i])->GetAbstrValuesUnit();
-		dms_assert(arg2);
+		const AbstrUnit*currArg_ValuesUnit = AsDataItem(args[i])->GetAbstrValuesUnit();
+		dms_assert(currArg_ValuesUnit);
 
-		if (arg1->GetValueType() != arg2->GetValueType())
-			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1->GetValueType()->GetName().c_str(), arg2->GetValueType()->GetName().c_str());
+		if (currArg_ValuesUnit != arg1_ValuesUnit && arg1_ValuesUnit->GetValueType() != currArg_ValuesUnit->GetValueType())
+			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1_ValuesUnit->GetValueType()->GetName().c_str(), currArg_ValuesUnit->GetValueType()->GetName().c_str());
 
-		if (catUnit && !catUnit->UnifyDomain(arg2, "", "", UnifyMode(UM_AllowDefaultRight)))
+		if (catUnit && currArg_ValuesUnit != catUnit && !catUnit->UnifyDomain(currArg_ValuesUnit, "", "", UnifyMode()))
 		{
 			auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
 			auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-			catUnit->UnifyDomain(arg2, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			catUnit->UnifyDomain(currArg_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UM_Throw);
 		}
 
-		const UnitMetric* a2MetricPtr = arg2->GetMetric();
+		const UnitMetric* currArg_MetricPtr = currArg_ValuesUnit->GetMetric();
 		if (!IsEmpty(a1MetricPtr))
 		{
-			if ((!IsEmpty(a2MetricPtr)) && !(*a1MetricPtr == *a2MetricPtr))
-				throwCompatibleError(gr, nrSkippedArgs, i, "Metric", arg1->GetMetricStr(FormattingFlags::ThousandSeparator).c_str(), arg2->GetMetricStr(FormattingFlags::ThousandSeparator).c_str());
+			if ((!IsEmpty(currArg_MetricPtr)) && !(*a1MetricPtr == *currArg_MetricPtr))
+				throwCompatibleError(gr, nrSkippedArgs, i, "Metric", arg1_ValuesUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str(), currArg_ValuesUnit->GetMetricStr(FormattingFlags::ThousandSeparator).c_str());
 		}
-		else if (!IsEmpty(a2MetricPtr))
+		else if (!IsEmpty(currArg_MetricPtr))
 		{
 			// empty metrics are overruled
-			a1MetricPtr = a2MetricPtr;
-			arg1        = arg2;
+			a1MetricPtr = currArg_MetricPtr;
+			arg1_ValuesUnit        = currArg_ValuesUnit;
 		}
 
-		const UnitProjection* a2ProjectionPtr = arg2->GetProjection();
+		const UnitProjection* currArg_ProjectionPtr = currArg_ValuesUnit->GetProjection();
 		if (a1ProjectionPtr)
 		{
-			if (a2ProjectionPtr && !(*a1ProjectionPtr == *a2ProjectionPtr))
-				throwCompatibleError(gr, nrSkippedArgs, i, "Projection", arg1->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str(), arg2->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str());
+			if (currArg_ProjectionPtr && !(*a1ProjectionPtr == *currArg_ProjectionPtr))
+				throwCompatibleError(gr, nrSkippedArgs, i, "Projection", arg1_ValuesUnit->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str(), currArg_ValuesUnit->GetProjectionStr(FormattingFlags::ThousandSeparator).c_str());
 		}
-		else if (a2ProjectionPtr)
+		else if (currArg_ProjectionPtr)
 		{
 			// empty projections are overruled
-			a1ProjectionPtr = a2ProjectionPtr;
-			arg1            = arg2;
+			a1ProjectionPtr = currArg_ProjectionPtr;
+			arg1_ValuesUnit            = currArg_ValuesUnit;
 		}
-		dms_assert(IsEmpty(a2MetricPtr) || !a2ProjectionPtr); // this code assumes units never have both a metric and a projection
+		dms_assert(IsEmpty(currArg_MetricPtr) || !currArg_ProjectionPtr); // this code assumes units never have both a metric and a projection
 	}
-	return arg1;
+	MG_CHECK(!catUnit || catUnit == arg1_ValuesUnit);
+
+	return arg1_ValuesUnit;
 }
