@@ -1367,10 +1367,11 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 
 		if (not layerHandle)
 		{
-			OGRSpatialReference* ogrSR = nullptr;
 			OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-			ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); error_frame.ThrowUpWhateverCameUp();
-			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR, eGType, layerOptionArray); error_frame.ThrowUpWhateverCameUp();
+			auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder);
+			
+			error_frame.ThrowUpWhateverCameUp();
+			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR.get(), eGType, layerOptionArray); error_frame.ThrowUpWhateverCameUp();
 			SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layerHandle, layerName, disi);
 		}
 
@@ -1450,10 +1451,9 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	if (not layer)
 	{
-		OGRSpatialReference* ogrSR = nullptr;
 		OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-		ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
-		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
+		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
+		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR.get(), eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
 	}
 
