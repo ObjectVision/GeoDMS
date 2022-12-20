@@ -61,6 +61,9 @@ public:
 	{
 		dms_assert(args.size() >= 2);
 
+		if (resultHolder)
+			return;
+
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		dms_assert(arg1A);
 		const AbstrUnit* arg1_DomainUnit = arg1A->GetAbstrDomainUnit();

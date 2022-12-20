@@ -57,20 +57,20 @@ struct AbstrOperAccTotUni: UnaryOperator
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
+
+		if (resultHolder)
+			return;
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 
-		if (!resultHolder)
-		{
-			auto argSeq = GetItems(args);
-			resultHolder = CreateCacheDataItem(
-				Unit<Void>::GetStaticClass()->CreateDefault(),
-				(*m_UnitCreatorPtr)(GetGroup(), argSeq),
-				m_ValueComposition
-			);
-		}
+		auto argSeq = GetItems(args);
+		resultHolder = CreateCacheDataItem(
+			Unit<Void>::GetStaticClass()->CreateDefault(),
+			(*m_UnitCreatorPtr)(GetGroup(), argSeq),
+			m_ValueComposition
+		);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override
@@ -151,6 +151,9 @@ struct AbstrOperAccPartUni: BinaryOperator
 	{
 		MG_PRECONDITION(args.size() == 2);
 
+		if (resultHolder)
+			return;
+
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		dms_assert(arg1A);
@@ -163,12 +166,8 @@ struct AbstrOperAccPartUni: BinaryOperator
 		const AbstrUnit* p2 = arg2A->GetAbstrValuesUnit();
 		MG_PRECONDITION(p2);
 
-		if (!resultHolder)
-		{
-			auto argSeq = GetItems(args);
-			resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
-		}
-
+		auto argSeq = GetItems(args);
+		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override

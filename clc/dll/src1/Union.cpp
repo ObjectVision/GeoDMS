@@ -251,63 +251,27 @@ public:
    // Override Operator
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
 	{
-		arg_index n = args.size()-1;
-		dms_assert(n>=1);
+		arg_index n = args.size() - 1;
+		dms_assert(n >= 1);
 
 		const AbstrUnit* resultDomain = AsUnit(GetItem(args[0]));
 
-		const AbstrDataItem *arg1A = AsDataItem(args[1]);
-		arg_index arg1_VU_index = 1;
-		dms_assert(arg1A);
-		const AbstrUnit* arg1_ValuesUnit = arg1A->GetAbstrValuesUnit();
-		dms_assert(arg1_ValuesUnit);
+		auto constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), true);
 
 		auto vc = COMPOSITION(V);
-		Unify(vc, arg1A->GetValueComposition());
-
-		const AbstrUnit* catUnit = nullptr;
-		arg_index cat_unit_index = 1;
-		for (; cat_unit_index <= n; ++cat_unit_index)
+		bool isCategorical = false;
+		for (arg_index i = 1; i <= n; ++i)
 		{
-			auto argA = AsDataItem(args[cat_unit_index]);
-			if (argA->GetTSF(DSF_Categorical))
-			{
-				catUnit = argA->GetAbstrValuesUnit();
-				break;
-			}
+			if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
+				isCategorical = true;
+			Unify(vc, AsDataItem(args[i])->GetValueComposition());
 		}
-		for (arg_index i=2; i<=n; ++i)
-		{
-			auto argA = AsDataItem(args[i]);
-			const AbstrUnit* currArg_ValuesUnit = argA->GetAbstrValuesUnit();
-			dms_assert(currArg_ValuesUnit);
-			if (catUnit && !catUnit->UnifyDomain(currArg_ValuesUnit, "", "", UnifyMode(UM_AllowDefaultRight)))
-			{
-				auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
-				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-				catUnit->UnifyDomain(currArg_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight | UM_Throw));
-			}
-
-			if (!currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, "", "", UM_AllowDefault))
-			{
-				auto leftRole = mySSPrintF("Values of argument %d", arg1_VU_index + 1);
-				auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-				currArg_ValuesUnit->UnifyValues(arg1_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefault | UM_Throw));
-			}
-
-			if (arg1_ValuesUnit->IsDefaultUnit())
-			{
-				arg1_ValuesUnit = currArg_ValuesUnit;
-				arg1_VU_index = i;
-			}
-			Unify(vc, argA->GetValueComposition());
-		}
-		MG_CHECK(!catUnit || catUnit == arg1_ValuesUnit);
 
 		if (resultHolder)
 			return;
-		resultHolder = CreateCacheDataItem(resultDomain, arg1_ValuesUnit, vc );
-		if (catUnit)
+
+		resultHolder = CreateCacheDataItem(resultDomain, constUnitRef, vc );
+		if (isCategorical)
 			resultHolder->SetTSF(DSF_Categorical);
 	}
 

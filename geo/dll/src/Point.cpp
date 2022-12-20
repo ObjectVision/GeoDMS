@@ -73,6 +73,9 @@ public:
 	// Override Operator
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
 	{
+		if (resultHolder)
+			return;
+
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		dms_assert(arg1A);
@@ -90,8 +93,7 @@ public:
 		const AbstrUnit* entity2 = arg2A->GetAbstrDomainUnit();
 		entity1->UnifyDomain(entity2, "e1", "e2", UM_Throw);
 
-		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(entity1, arg3);
+		resultHolder = CreateCacheDataItem(entity1, arg3);
 		dms_assert(resultHolder);
 	}
 

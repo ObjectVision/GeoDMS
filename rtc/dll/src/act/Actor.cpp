@@ -836,12 +836,13 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 		s_ActorFailReasonAssoc.assoc(this, msg);
 		m_State.SetFailure(ft);
 		if (msg->MustReport())
-			reportF(ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning
-				, "[[%s]] %s"
-				,	msg->m_FullName
-				,	msg->m_Why
-				);
-
+		{
+			auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
+			if (msg->m_FullName.empty())
+				reportD(st, msg->m_Why.c_str());
+			else
+				reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+		}
 
 		// data generation is no longer needed
 		if (ft <= FR_Data)
