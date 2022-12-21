@@ -18,7 +18,7 @@ vcpkg install boost boost-locale ms-gsl openssl openssl-windows sqlite3[rtree] g
 echo "Base packages installed ? Continue to install GeoDmsGui packages ?"
 pause
 
- vcpkg install imgui[docking-experimental] glfw3 opengl stb glew
+vcpkg install imgui[docking-experimental] glfw3 opengl stb glew
 echo "GeoDmsGui packages installed ? Continue to install yasm and cgal package ?
 pause
 

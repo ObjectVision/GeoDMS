@@ -1345,7 +1345,6 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 	SharedStr fieldName;
 	TokenID layerID;
 	int geometryFieldCount = 0;
-	OGRLayer* layerHandle;
 	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame error_frame;
@@ -1356,11 +1355,10 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		if (not (IsDataItem(subItem) and subItem->IsStorable()))
 			continue;
 
-		layerHandle = NULL;
 		unitItem = GetLayerHolderFromDataItem(storageHolder, subItem);
 		layerDomain = AsDynamicUnit(unitItem);
 		layerName = unitItem->GetName().c_str();
-		layerHandle = result.dsh_->GetLayerByName(layerName.c_str()); error_frame.ThrowUpWhateverCameUp();
+		OGRLayer* layerHandle = result.dsh_->GetLayerByName(layerName.c_str()); error_frame.ThrowUpWhateverCameUp();
 
 		if (not layerHandle && (DataSourceHasNamelessLayer(datasourceName)))
 			layerHandle = result.dsh_->GetLayer(0);
