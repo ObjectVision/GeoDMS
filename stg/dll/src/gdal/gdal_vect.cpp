@@ -991,7 +991,7 @@ void SetPointGeometryForFeature(OGRFeature * feature, PointType b, ValueComposit
 	OGRPoint pt;
 	pt.setX(b.Col());
 	pt.setY(b.Row());
-	feature->SetGeometry(&pt);
+	feature->SetGeometry(&pt); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename SequenceType>
@@ -1007,7 +1007,7 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 		OGRPoint pt(x, y);
 		OGRLine->addPoint(&pt);
 	}
-	feature->SetGeometry((OGRGeometry*)OGRLine);
+	feature->SetGeometry((OGRGeometry*)OGRLine); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename PointType>
@@ -1044,7 +1044,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 
 	OGRMultiPoly->addGeometry(OGRPoly);
 
-	feature->SetGeometry((OGRGeometry*)OGRMultiPoly);
+	feature->SetGeometry((OGRGeometry*)OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
