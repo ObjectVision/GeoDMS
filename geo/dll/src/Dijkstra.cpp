@@ -5,6 +5,8 @@
 
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
+#include "geo/Point.h"
+#include "mci/ValueClassID.h"
 #include "utl/scoped_exit.h"
 
 #include "LockLevels.h"
@@ -61,6 +63,11 @@ void CheckFlags(DijkstraFlag df)
 	MG_CHECK(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance));
 	MG_CHECK(((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::None) || ((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::EuclidFlags));
 }
+
+
+using sqr_dist_t = UInt32;
+using euclid_location_t = SPoint;
+
 // *****************************************************************************
 //									Helper structs
 // *****************************************************************************
@@ -70,6 +77,7 @@ struct ZoneInfo {
 	const NodeType* Node_rel;
 	const ImpType * Impedances;
 	const ZoneType* Zone_rel;
+	const euclid_location_t* Zone_location;
 };
 
 template <typename NodeType, typename ZoneType, typename ImpType>
@@ -151,10 +159,11 @@ struct NodeZoneConnector
 	NodeZoneConnector() {}
 //	NodeZoneConnector(const NodeZoneConnector&) {}
 
-	void Init(const network_info& networkInfo, DijkstraFlag df)
+	void Init(const network_info& networkInfo, DijkstraFlag df, sqr_dist_t euclidSqrDist)
 	{
 		m_NetworkInfoPtr = &networkInfo;
 		m_CurrSrcZoneTick = UNDEFINED_VALUE(ZoneType);
+		m_EuclidSqrDist = euclidSqrDist;
 		if (!m_ResImpPerDstZone) // init wasn't already done?
 		{
 
@@ -169,6 +178,7 @@ struct NodeZoneConnector
 			}
 			if (m_NetworkInfoPtr->endPoints.Zone_rel)
 				m_FoundYPerDstZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundYPerDstZone"));
+			m_OrgZoneLocations = networkInfo.startPoints.Zone_location;
 		}
 	}
 
@@ -177,7 +187,7 @@ struct NodeZoneConnector
 		return !m_LastCommittedSrcZone;
 	}
 
-	void ResetSrc()
+	void ResetSrc(ZoneType orgZone)
 	{
 		++m_CurrSrcZoneTick;
 		if (IsDense())
@@ -188,13 +198,26 @@ struct NodeZoneConnector
 		}
 		else
 			m_FoundYPerRes.clear();
+
+		if (m_OrgZoneLocations)
+			m_OrgZoneLocation = m_OrgZoneLocations[orgZone];
 	}
+
 	bool CommitY(ZoneType y, ImpType dstImp)
 	{
 		dms_assert(IsDefined(m_CurrSrcZoneTick));
 		dms_assert(y < m_NetworkInfoPtr->nrY);
 		ZoneType dstZone = m_NetworkInfoPtr->endPoints.Zone_rel ? m_NetworkInfoPtr->endPoints.Zone_rel[y] : y;
 		dms_assert(dstZone < m_NetworkInfoPtr->nrDstZones);
+
+		if (m_OrgZoneLocations)
+		{
+			auto dstLocation = m_NetworkInfoPtr->endPoints.Zone_location[dstZone];
+			auto sqrDist = SqrDist<sqr_dist_t>(dstLocation, m_OrgZoneLocation);
+			if (sqrDist > m_EuclidSqrDist)
+				return false;
+		}
+
 		if (IsDense())
 		{
 			dms_assert(!m_LastCommittedSrcZone);
@@ -341,6 +364,9 @@ struct NodeZoneConnector
 	OwningPtrSizedArray<ZoneType> m_FoundResPerY;       // optional(sparse && ProdLinkFlow): Found Y -> Res
 
 	OwningPtrSizedArray<ZoneType> m_LastCommittedSrcZone;
+	const euclid_location_t*      m_OrgZoneLocations = nullptr;
+	euclid_location_t             m_OrgZoneLocation = UNDEFINED_VALUE(euclid_location_t);
+	sqr_dist_t                    m_EuclidSqrDist = 0;
 };
 
 // *****************************************************************************
@@ -390,6 +416,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 ,	const ImpType * orgMaxImpedances, bool orgMaxImpedancesHasVoidDomain
 ,	const MassType* srcMassLimitPtr, bool srcMassLimitHasVoidDomain
 ,	const MassType* dstMassPtr, bool dstMassHasVoidDomain
+,   sqr_dist_t euclidicSqrDist
 
 ,	const GraphInfo<NodeType, LinkType, ImpType>& graph
 ,	const Inverted_rel<ZoneType>& node_endPoint_inv
@@ -475,9 +502,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				dms_assert(orgZone < ni.nrOrgZones);
 				dms_assert(dh.Empty());
 
-				if (!nzc.m_ResImpPerDstZone) // initialized ?
+				if (!nzc.m_ResImpPerDstZone) // initialized before?
 				{
-					nzc.Init(ni, df);
+					nzc.Init(ni, df, euclidicSqrDist);
 					dh.Init(ni.nrV, useSrcZoneStamps, useTraceBack);
 				}
 
@@ -506,7 +533,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				dh.m_MaxImp = (orgMaxImpedances) ? orgMaxImpedances[orgMaxImpedancesHasVoidDomain ? 0 : orgZone] : MAX_VALUE(ImpType);
 
 				dh.ResetImpedances();
-				nzc.ResetSrc();
+				nzc.ResetSrc(orgZone);
 
 				// ===================== InsertNode for all statPoints of current orgZone
 				for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
@@ -568,7 +595,6 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
 					if (ni.endPoints.Impedances) // check if max cumulative mass has been reached.
 					{
-//						dms_assert(ni.endPoints.Zone_rel);
 						while (IsDefined(y))
 						{
 							dms_assert(y < ni.nrY);
@@ -596,19 +622,13 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 							if (nzc.CommitY(yy, dstImp))
 							{
+								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+								dms_assert(dstZone < ni.nrDstZones);
 								if (flags(df & DijkstraFlag::VerboseLogging))
-								{
-									ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-									dms_assert(dstZone < ni.nrDstZones);
-									reportF(SeverityTypeID::ST_MajorTrace, "Committed to DstZone %1% at impedance %2% through endPoint %3%"
-										, dstZone, dstImp, yy
-									);
-								}
+									reportF(SeverityTypeID::ST_MajorTrace, "Committed to DstZone %1% at impedance %2% through endPoint %3%", dstZone, dstImp, yy);
 
 								if (dstMassPtr)
 								{
-									ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-									dms_assert(dstZone < ni.nrDstZones);
 									cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
 									if (cumulativeMass >= maxSrcMass)
 										MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
@@ -624,22 +644,17 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						while (IsDefined(y))
 						{
 							dms_assert(y < ni.nrY);
+							ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
+							dms_assert(dstZone < ni.nrDstZones);
+
+							if (flags(df & DijkstraFlag::VerboseLogging))
+								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with DstZone %2% at impedance %3% through endPoint %4%", currNode, dstZone, currImp, y);
+
 							if (nzc.CommitY(y, currImp) && dstMassPtr)
 							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
-								dms_assert(dstZone < ni.nrDstZones);
 								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
 								if (cumulativeMass >= maxSrcMass)
 									MakeMin(dh.m_MaxImp, currImp); // no new zones will be finalized that are beyond this zone. 
-							}
-
-							if (flags(df & DijkstraFlag::VerboseLogging))
-							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
-								dms_assert(dstZone < ni.nrDstZones);
-								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with DstZone %2% at impedance %3% through endPoint %4%"
-									, currNode, dstZone, currImp, y
-								);
 							}
 
 							y = node_endPoint_inv.NextOrNone(y);
@@ -1093,6 +1108,7 @@ class DijkstraMatrOperator : public VariadicOperator
 	typedef ArgNodeType SrcNodeType; // x->V:       Node bij iedere x uit de instapset 
 	typedef ArgImpType  SrcDistType; // x->Imp:    impedance vanuit SrcZone tot aan iedere startmode
 	typedef ArgZoneType SrcZoneType; // x->SrcZone: SrcZone waar deze instap toe behoort
+	using ZoneLocType = DataArray<euclid_location_t>;
 
 	typedef ArgNodeType DstNodeType; // y->V:       Node bij iedere y uit de uitstapeset
 	typedef ArgImpType  DstDistType; // y->Imp:    impedance van endnode totaan de EndZone
@@ -1242,13 +1258,26 @@ public:
 		if (adiStartPointImpedance) x->UnifyDomain(adiStartPointImpedance->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink Impedance", UM_Throw);
 		if (adiStartPoinOrgZone) x->UnifyDomain(adiStartPoinOrgZone->GetAbstrDomainUnit(), "StartLinks", "Domain of StartLink OrgZone_rel", UM_Throw);
 		if (adiStartPointImpedance) impUnit->UnifyValues(adiStartPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "StartLink Impedances", UM_Throw);
-		if (adiOrgZoneLocation) orgZones->UnifyDomain(adiOrgZoneLocation->GetAbstrDomainUnit(), "OrgZones", "OrgZoneLoc", UM_Throw);
-
+		if (adiOrgZoneLocation)
+		{
+			assert(adiDstZoneLocation); // Guaranteed by CheckParams
+			assert(adiEuclidicSqrDist); // Guaranteed by CheckParams
+			orgZones->UnifyDomain(adiOrgZoneLocation->GetAbstrDomainUnit(), "OrgZones", "OrgZoneLoc", UM_Throw);
+			MG_USERCHECK(adiOrgZoneLocation->GetValueComposition() == ValueComposition::Single);
+			MG_USERCHECK(adiOrgZoneLocation->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueWrap<euclid_location_t>::GetStaticClass()->GetValueClassID());
+		}
 		if (adiEndPointNode) v->UnifyDomain(adiEndPointNode->GetAbstrValuesUnit(), "NodeSet", "Domain of EndLink Node_rel ", UM_Throw);
 		if (adiEndPointImpedance) y->UnifyDomain(adiEndPointImpedance->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink Impedance", UM_Throw);
 		if (adiEndPointDstZone) y->UnifyDomain(adiEndPointDstZone->GetAbstrDomainUnit(), "EndLinks", "Domain of EndLink OrgZone_rel", UM_Throw);
 		if (adiEndPointImpedance) impUnit->UnifyValues(adiEndPointImpedance->GetAbstrValuesUnit(), "LinkImpedances", "EndLink Impedances", UM_Throw);
-		if (adiDstZoneLocation) dstZones->UnifyDomain(adiDstZoneLocation->GetAbstrDomainUnit(), "DstZones", "DstZoneLoc", UM_Throw);
+		if (adiDstZoneLocation)
+		{
+			assert(adiOrgZoneLocation); // Guaranteed by CheckParams
+			assert(adiEuclidicSqrDist); // Guaranteed by CheckParams
+			dstZones->UnifyDomain(adiDstZoneLocation->GetAbstrDomainUnit(), "DstZones", "DstZoneLoc", UM_Throw);
+			MG_USERCHECK(adiDstZoneLocation->GetValueComposition() == ValueComposition::Single);
+			MG_USERCHECK(adiDstZoneLocation->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueWrap<euclid_location_t>::GetStaticClass()->GetValueClassID());
+		}
 
 		if (adiOrgMaxImp) // maxDist
 		{
@@ -1265,9 +1294,12 @@ public:
 
 		if (adiEuclidicSqrDist)
 		{
-			assert(adiOrgZoneLocation);
-			assert(adiDstZoneLocation);
+			assert(adiOrgZoneLocation); // Guaranteed by CheckParams
+			assert(adiDstZoneLocation); // Guaranteed by CheckParams
 			MG_USERCHECK(!adiEuclidicSqrDist || adiEuclidicSqrDist->HasVoidDomainGuarantee());
+
+			MG_USERCHECK(adiEuclidicSqrDist->GetValueComposition() == ValueComposition::Single);
+			MG_USERCHECK(adiEuclidicSqrDist->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueWrap<sqr_dist_t>::GetStaticClass()->GetValueClassID());
 		}
 
 		const Unit<ImpType>* imp2Unit= impUnit;
@@ -1391,6 +1423,33 @@ public:
 
 		if (mustCalc)
 		{
+			DataReadLock arg1Lock(adiLinkImp);
+			DataReadLock argLinkF1Lock(adiLinkF1);
+			DataReadLock argLinkF2Lock(adiLinkF2);
+			DataReadLock argLinkFlagLock(adiLinkBidirFlag);
+			DataReadLock arg4Lock(adiStartPointNode);
+			DataReadLock arg5Lock(adiStartPointImpedance);
+			DataReadLock arg6Lock(adiStartPoinOrgZone);
+			DataReadLock arg7Lock(adiEndPointNode);
+			DataReadLock arg8Lock(adiEndPointImpedance);
+			DataReadLock arg9Lock(adiEndPointDstZone);
+
+			DataReadLock argALock(adiOrgMaxImp);
+			DataReadLock argBLock(adiOrgMassLimit);
+			DataReadLock argCLock(adiDstMassLimit);
+			DataReadLock argWLock(adiLinkAltImp);
+			DataReadLock argOrgMassLock(adiOrgMass);
+			DataReadLock argDstMassLock(adiDstMass);
+			DataReadLock argDistDecayB(adiDistDecayBetaParam);
+			DataReadLock argDistLogitA(adiDistLogitAlphaParam);
+			DataReadLock argDistLogitB(adiDistLogitBetaParam);
+			DataReadLock argDistLogitC(adiDistLogitGammaParam);
+			DataReadLock argOrgAlphaLock(adiOrgAlpha);
+
+			DataReadLock argOrgZoneLocationLock(adiOrgZoneLocation);
+			DataReadLock argDstZoneLocationLock(adiDstZoneLocation);
+			DataReadLock argEuclidicSqrDistLock(adiEuclidicSqrDist);
+
 			const ArgImpType* argLinkImp = const_array_cast<ImpType>(adiLinkImp);
 			const ArgNodeType* argLinkF1 = const_array_cast<NodeType>(adiLinkF1);
 			const ArgNodeType* argLinkF2 = const_array_cast<NodeType>(adiLinkF2);
@@ -1398,9 +1457,11 @@ public:
 			const SrcNodeType* argStartPointNode = const_opt_array_checkedcast<NodeType >(adiStartPointNode);
 			const SrcDistType* argStartPointImpedance = const_opt_array_checkedcast<ImpType  >(adiStartPointImpedance);
 			const SrcZoneType* argStartPoinOrgZone = const_opt_array_checkedcast<ZoneType >(adiStartPoinOrgZone);
+			const ZoneLocType* argOrgZoneLocation  = const_opt_array_checkedcast<euclid_location_t >(adiOrgZoneLocation);
 			const DstNodeType* argEndPointNode = const_opt_array_checkedcast<NodeType >(adiEndPointNode);
 			const DstDistType* argEndPointImpedance = const_opt_array_checkedcast<ImpType  >(adiEndPointImpedance);
 			const DstZoneType* argEndPointDstZone = const_opt_array_checkedcast<ZoneType >(adiEndPointDstZone);
+			const ZoneLocType* argDstZoneLocation = const_opt_array_checkedcast<euclid_location_t >(adiDstZoneLocation);
 			const ArgImpType* argOrgMinImp = const_opt_array_checkedcast<ImpType  >(adiOrgMinImp);
 			const ArgImpType* argDstMinImp = const_opt_array_checkedcast<ImpType  >(adiDstMinImp);
 			const ArgImpType* argOrgMaxImp = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp);
@@ -1425,28 +1486,10 @@ public:
 
 			bool isBidirectional = flags(df & (DijkstraFlag::Bidirectional|DijkstraFlag::BidirFlag));
 			
-			DataReadLock arg1Lock(adiLinkImp);
-			DataReadLock argLinkF1Lock(adiLinkF1);
-			DataReadLock argLinkF2Lock(adiLinkF2);
-			DataReadLock argLinkFlagLock(adiLinkBidirFlag);
-			DataReadLock arg4Lock(adiStartPointNode);
-			DataReadLock arg5Lock(adiStartPointImpedance);
-			DataReadLock arg6Lock(adiStartPoinOrgZone);
-			DataReadLock arg7Lock(adiEndPointNode);
-			DataReadLock arg8Lock(adiEndPointImpedance);
-			DataReadLock arg9Lock(adiEndPointDstZone);
 
-			DataReadLock argALock(adiOrgMaxImp);
-			DataReadLock argBLock(adiOrgMassLimit);
-			DataReadLock argCLock(adiDstMassLimit);
-			DataReadLock argWLock(adiLinkAltImp);
-			DataReadLock argOrgMassLock(adiOrgMass);
-			DataReadLock argDstMassLock(adiDstMass);
-			DataReadLock argDistDecayB(adiDistDecayBetaParam);
-			DataReadLock argDistLogitA(adiDistLogitAlphaParam);
-			DataReadLock argDistLogitB(adiDistLogitBetaParam);
-			DataReadLock argDistLogitC(adiDistLogitGammaParam);
-			DataReadLock argOrgAlphaLock(adiOrgAlpha);
+			sqr_dist_t euclidicSqrDist = MAX_VALUE(sqr_dist_t); 
+			if (adiEuclidicSqrDist)
+				euclidicSqrDist = const_array_cast<sqr_dist_t>(adiEuclidicSqrDist)->GetTile(0)[0];
 
 			CheckDefineMode(adiLinkImp, "Link_impedance");
 			CheckNoneMode  (adiLinkF1, "Link_Node1_rel");
@@ -1477,9 +1520,11 @@ public:
 			         SrcNodeType ::locked_cseq_t startpointNodeData    = argStartPointNode      ? argStartPointNode     ->GetLockedDataRead() :          SrcNodeType ::locked_cseq_t();
 			typename SrcDistType ::locked_cseq_t startpointImpData     = argStartPointImpedance ? argStartPointImpedance->GetLockedDataRead() : typename SrcDistType ::locked_cseq_t();
 			         SrcZoneType ::locked_cseq_t startpointOrgZoneData = argStartPoinOrgZone    ? argStartPoinOrgZone   ->GetLockedDataRead() :          SrcZoneType ::locked_cseq_t();
+					 ZoneLocType ::locked_cseq_t orgZoneLocationData   = argOrgZoneLocation     ? argOrgZoneLocation    ->GetLockedDataRead() :          ZoneLocType ::locked_cseq_t();
 			         DstNodeType ::locked_cseq_t endPoint_Node_rel_Data= argEndPointNode        ? argEndPointNode       ->GetLockedDataRead() :          DstNodeType ::locked_cseq_t();
 			typename DstDistType ::locked_cseq_t endpointImpData       = argEndPointImpedance   ? argEndPointImpedance  ->GetLockedDataRead() : typename DstDistType ::locked_cseq_t();
 			         DstZoneType ::locked_cseq_t endpointDstZoneData   = argEndPointDstZone     ? argEndPointDstZone    ->GetLockedDataRead() :          DstZoneType ::locked_cseq_t();
+					 ZoneLocType ::locked_cseq_t dstZoneLocationData   = argDstZoneLocation     ? argDstZoneLocation    ->GetLockedDataRead() :          ZoneLocType ::locked_cseq_t();
 			typename ArgImpType  ::locked_cseq_t orgMinImpData         = argOrgMinImp           ? argOrgMinImp          ->GetLockedDataRead() : typename ArgImpType  ::locked_cseq_t();
 			typename ArgImpType  ::locked_cseq_t dstMinImpData         = argDstMinImp           ? argDstMinImp          ->GetLockedDataRead() : typename ArgImpType  ::locked_cseq_t();
 			typename ArgImpType  ::locked_cseq_t orgMaxImpedances      = argOrgMaxImp           ? argOrgMaxImp          ->GetLockedDataRead() : typename ArgImpType  ::locked_cseq_t();
@@ -1508,8 +1553,8 @@ public:
 				v->GetCount(), e->GetCount()
 			,	x->GetCount(), y->GetCount()
 			,	orgZonesOrVoid->GetCount(), dstZones->GetCount()
-			,	ZoneInfo<NodeType, ZoneType, ImpType>{startpointNodeData.begin(), startpointImpData.begin(), startpointOrgZoneData.begin()}
-			,	ZoneInfo<NodeType, ZoneType, ImpType>{endPoint_Node_rel_Data.begin(), endpointImpData.begin(), endpointDstZoneData.begin()}
+			,	ZoneInfo<NodeType, ZoneType, ImpType>{startpointNodeData.begin(), startpointImpData.begin(), startpointOrgZoneData.begin(), orgZoneLocationData.begin()}
+			,	ZoneInfo<NodeType, ZoneType, ImpType>{endPoint_Node_rel_Data.begin(), endpointImpData.begin(), endpointDstZoneData.begin(), dstZoneLocationData.begin()}
 			);
 
 			dms_assert(linkImpData.size() == networkInfo.nrE); typename sequence_traits<ImpType>::cseq_t::const_iterator linkImpDataPtr = linkImpData.begin();
@@ -1551,6 +1596,7 @@ public:
 						, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 						, orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
 						, dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
+						, euclidicSqrDist
 						, graph
 						, node_endPoint_inv
 						, (df & ~DijkstraFlag::InteractionOrMaxImp) | DijkstraFlag::Counting
@@ -1608,6 +1654,7 @@ public:
 			,	orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 			,	orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
 			,	dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
+			,	euclidicSqrDist
 			,	graph, node_endPoint_inv
 			,	df
 			,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
