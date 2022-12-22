@@ -230,6 +230,7 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
+#include "proj.h"
 
 gdalThread::gdalThread()
 {
@@ -238,7 +239,8 @@ gdalThread::gdalThread()
 		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-
+			tlsProjContext = proj_context_create();
+		
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
@@ -248,6 +250,7 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
+		proj_context_destroy(tlsProjContext);
 		CPLPopFileFinder();
 	}
 }
