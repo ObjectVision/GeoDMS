@@ -1744,7 +1744,18 @@ namespace
 	CommonOperGroup dm32Group("dijkstra_m", oper_policy::allow_extra_args);
 	CommonOperGroup dm64Group("dijkstra_m64", oper_policy::allow_extra_args);
 
+	CommonOperGroup itGroup("impedance_table", oper_policy::allow_extra_args);
+	CommonOperGroup im32Group("impedance_matrix", oper_policy::allow_extra_args);
+	CommonOperGroup im64Group("impedance_matrix_od64", oper_policy::allow_extra_args);
+
+
 	DijkstraOperListType dsOpers  (&dsGroup  , DijkstraFlag());
 	DijkstraOperListType dm32Opers(&dm32Group, DijkstraFlag(DijkstraFlag::OD));
 	DijkstraOperListType dm64Opers(&dm64Group, DijkstraFlag(DijkstraFlag::OD | DijkstraFlag::UInt64_Od));
+
+	DijkstraOperListType itOpers(&itGroup, DijkstraFlag());
+	DijkstraOperListType im32Opers(&im32Group, DijkstraFlag(DijkstraFlag::OD));
+	DijkstraOperListType im64Opers(&im64Group, DijkstraFlag(DijkstraFlag::OD | DijkstraFlag::UInt64_Od));
+
+
 }

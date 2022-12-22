@@ -268,8 +268,8 @@ gdalComponent::gdalComponent()
 			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
 			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-//			GDALAllRegister(); // can throw
-//			OGRRegisterAll(); // can throw
+			GDALAllRegister(); // can throw
+			OGRRegisterAll(); // can throw
 		}
 		catch (...)
 		{
