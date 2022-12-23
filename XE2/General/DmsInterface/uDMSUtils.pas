@@ -816,7 +816,7 @@ begin
   if not Assigned(tiGeometry) then
   begin
     tiContainer := ti;
-  retry1:
+ retry1:
     for col := 1 to SHV_DataContainer_GetItemCount(tiContainer, auCommon, 1, true) do
     begin
       tiGeometry := SHV_DataContainer_GetItem(tiContainer, auCommon, col-1, 1, true);
@@ -827,6 +827,11 @@ begin
       tiContainer := auCommon;
       goto retry1;
     end;
+    tiGeometry := DMS_TreeItem_GetItem(ti, './Geometry', DMS_AbstrDataItem_GetStaticClass);
+    if Assigned(tiGeometry) and TreeItem_IsShapeAttr(tiGeometry) then goto geometryFound;
+
+    tiGeometry := DMS_TreeItem_GetItem(auCommon, './Geometry', DMS_AbstrDataItem_GetStaticClass);
+    if Assigned(tiGeometry) and TreeItem_IsShapeAttr(tiGeometry) then goto geometryFound;
     tiGeometry := nil;
   end;
 
@@ -843,7 +848,6 @@ geometryFound: // create context in ViewData
     DMS_PropDef_SetValueAsCharArray(GetPropDef(pdStorageType), vda, 'shp');
     DMS_PropDef_SetValueAsCharArray(GetPropDef(pdStorageName), vda, PSourceChar( SourceString(ChangeFileExt(fn, '.shp')) ));
   end;
-
   tiContainer := ti;
 
 retry2:
