@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <gdal_priv.h>
 #include <limits>
 #include <format>
+struct pj_ctx;
 
 enum dms_CPLErr;
 class GDALDataset;
@@ -57,6 +58,9 @@ struct gdalThread
 {
 	STGDLL_CALL gdalThread();
 	STGDLL_CALL ~gdalThread();
+
+private:
+	pj_ctx* tlsProjContext;
 };
 
 struct gdalComponent : gdalDynamicLoader
