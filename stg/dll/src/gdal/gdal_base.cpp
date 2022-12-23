@@ -239,7 +239,6 @@ gdalThread::gdalThread()
 		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-			tlsProjContext = proj_context_create();
 		
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
@@ -250,7 +249,7 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-		proj_context_destroy(tlsProjContext);
+		OSRCleanup();
 		CPLPopFileFinder();
 	}
 }

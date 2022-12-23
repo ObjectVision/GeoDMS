@@ -58,9 +58,6 @@ struct gdalThread
 {
 	STGDLL_CALL gdalThread();
 	STGDLL_CALL ~gdalThread();
-
-private:
-	pj_ctx* tlsProjContext;
 };
 
 struct gdalComponent : gdalDynamicLoader
@@ -189,6 +186,7 @@ struct GDALDatasetHandle
 
 	struct deleter {
 		void operator ()(GDALDataset* dsh) {
+			gdalThread cleanupProjAfterItDidItsPjThings; // see https://github.com/ObjectVision/GeoDMS/issues/11
 			GDALClose(GDALDataset::ToHandle(dsh)); 
 		};
 	};
