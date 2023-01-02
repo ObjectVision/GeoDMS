@@ -164,7 +164,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 
     // Reserve enough left-over height for 1 separator + 1 input text
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-    ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar); //-footer_height_to_reserve
+    ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysAutoResize); //-footer_height_to_reserve
     
     // right-click event
     if (ImGui::BeginPopupContextWindow())
@@ -180,9 +180,6 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     else
         clipper.Begin(m_Items.size());
 
-    //auto iterator = m_Iterator.GetIterator();
-
-    bool first_pass = true;
     while (clipper.Step())
     {        
         for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++)

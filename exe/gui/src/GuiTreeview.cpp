@@ -391,15 +391,15 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
         DrawBranch(*m_currnode, state, jump_item);
 }
 
-GuiTreeViewComponent::~GuiTreeViewComponent() 
+GuiTreeView::~GuiTreeView() 
 {}
 
-auto GuiTreeViewComponent::clear() -> void
+auto GuiTreeView::clear() -> void
 {
     m_tree.release();
 }
 
-auto GuiTreeViewComponent::Update(bool* p_open, GuiState& state) -> void
+auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 {
     GuiTree* tree = nullptr;
     bool use_default_tree = false;
@@ -446,7 +446,7 @@ auto GuiTreeViewComponent::Update(bool* p_open, GuiState& state) -> void
     ImGui::End();
 }
 
-auto GuiTreeViewComponent::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
+auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
 {
     static bool loop;
     static bool passedCurrentItem;
@@ -483,7 +483,7 @@ auto GuiTreeViewComponent::IsAlphabeticalKeyJump(GuiState& state, TreeItem* next
     return false;
 }
 
-auto GuiTreeViewComponent::CreateBranch(GuiState& state, TreeItem* branch) -> bool
+auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
 {
     auto event_queues = GuiEventQueues::getInstance();
     TreeItem* nextSubItem = branch->_GetFirstSubItem();
@@ -581,7 +581,7 @@ auto GuiTreeViewComponent::CreateBranch(GuiState& state, TreeItem* branch) -> bo
     return true;
 }
 
-auto GuiTreeViewComponent::CreateTree(GuiState& state) -> bool
+auto GuiTreeView::CreateTree(GuiState& state) -> bool
 {
     ImGuiTreeNodeFlags useFlags = state.GetRoot() == state.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags;
     auto status = DMS_TreeItem_GetProgressState(state.GetRoot());
