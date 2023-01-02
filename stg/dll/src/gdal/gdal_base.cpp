@@ -239,7 +239,7 @@ gdalThread::gdalThread()
 		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-		
+			
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
@@ -249,7 +249,8 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-		OSRCleanup();
+//		OSRCleanup();
+		CPLCleanupTLS();
 		CPLPopFileFinder();
 	}
 }
