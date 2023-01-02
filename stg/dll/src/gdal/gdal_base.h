@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <gdal_priv.h>
 #include <limits>
 #include <format>
+struct pj_ctx;
 
 enum dms_CPLErr;
 class GDALDataset;
@@ -185,6 +186,7 @@ struct GDALDatasetHandle
 
 	struct deleter {
 		void operator ()(GDALDataset* dsh) {
+			gdalThread cleanupProjAfterItDidItsPjThings; // see https://github.com/ObjectVision/GeoDMS/issues/11
 			GDALClose(GDALDataset::ToHandle(dsh)); 
 		};
 	};

@@ -3,7 +3,8 @@ echo "Did this start from Visual Studio 2022 Command Prompt for x64 ? No->Ctrl-B
 echo "CurrDir should now be in the geodms folder ! No ? - >Ctrl-Break"
 echo "Don't forget to install dev/tst, Intel IPP, and NSIS >= 3.08 too !"
 pause
-cd ..
+c:
+cd \dev
 
 git clone https://github.com/Microsoft/vcpkg
 

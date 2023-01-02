@@ -80,7 +80,7 @@ public:
 		return i->second; 
 	}
 
-	void SetValue(ItemType* item, ParamType value) override
+	bool  SetValueImpl(ItemType* item, ParamType value)
 	{ 
 		dms_assert(IsMetaThread());
 
@@ -89,24 +89,36 @@ public:
 
 		auto lock = std::scoped_lock(m_Mutex);
 		auto i = m_Data.lower_bound(item);
+
 		if (i == m_Data.end() || i->first != item)
 		{
-			if (value != PropType())
-			{
-				m_Data.insert(i, DataType::value_type(item, value));
-				item->AddPropAssoc(this);
-			}
+			if (value == PropType())
+				return false;
+
+			// insert
+			m_Data.insert(i, DataType::value_type(item, value));
+			item->AddPropAssoc(this);
+			return true;
 		}
-		else // replace
+		if (value != PropType())
 		{
-			if (value != PropType())
-				i->second = value;
-			else
-			{
-				m_Data.erase(i);
-				item->SubPropAssoc(this);
-			}
+			if (value == i->second)
+				return false;
+			// replace
+			i->second = value;
+			return true;
 		}
+		// remove
+		m_Data.erase(i);
+		item->SubPropAssoc(this);
+		return true;
+	}
+
+	void SetValue(ItemType* item, ParamType value) override
+	{
+		if (!SetValueImpl(item, value))
+			return;
+
 		if (this->GetChgMode() != chg_mode::none)
 		{
 			if (this->GetChgMode() == chg_mode::invalidate)

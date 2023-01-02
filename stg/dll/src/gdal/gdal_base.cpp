@@ -230,6 +230,7 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
+#include "proj.h"
 
 gdalThread::gdalThread()
 {
@@ -238,7 +239,7 @@ gdalThread::gdalThread()
 		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-
+		
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
@@ -248,6 +249,7 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
+		OSRCleanup();
 		CPLPopFileFinder();
 	}
 }
@@ -268,8 +270,8 @@ gdalComponent::gdalComponent()
 			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
 			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-//			GDALAllRegister(); // can throw
-//			OGRRegisterAll(); // can throw
+			GDALAllRegister(); // can throw
+			OGRRegisterAll(); // can throw
 		}
 		catch (...)
 		{
