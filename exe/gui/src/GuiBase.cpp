@@ -102,7 +102,7 @@ auto GuiState::clear() -> void
     if (m_Root.has_ptr())
         m_Root->EnableAutoDelete();
 
-    m_Root.reset();   
+    m_Root.reset();
 }
 
 GuiState::~GuiState()

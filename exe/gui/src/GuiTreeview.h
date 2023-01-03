@@ -9,7 +9,8 @@ public:
 	GuiTreeNode(TreeItem* item);
 	GuiTreeNode(TreeItem* item, bool is_open);
 	GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open);
-	//GuiTreeNode(GuiTreeNode&& other) noexcept;
+	GuiTreeNode(GuiTreeNode&& other) noexcept;
+
 	~GuiTreeNode();
 
 	//auto Reset() -> void;
@@ -38,7 +39,7 @@ private:
 	TreeItem*                m_item = nullptr;
 	GuiTreeNode*             m_parent = nullptr;
 	std::vector<GuiTreeNode> m_children;
-	NotificationCode         m_state = NotificationCode::NC2_Invalidated;
+	std::atomic<NotificationCode> m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
 	bool m_has_been_openend = false;

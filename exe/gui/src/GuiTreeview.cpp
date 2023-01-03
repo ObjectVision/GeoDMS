@@ -135,6 +135,25 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
     SetOpenStatus(is_open);
 }
 
+GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
+{
+    DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, other.m_item, &other);
+    m_item     = other.m_item;
+    m_parent   = other.m_parent;
+    m_children = std::move(other.m_children);
+    m_state.store(other.m_state);
+    m_depth = other.m_depth;
+    m_has_been_openend = other.m_has_been_openend;
+    m_is_open = other.m_is_open;
+    
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
+
+    // clean other
+    other.m_item = nullptr;
+    other.m_parent = nullptr;
+    other.m_children.clear();
+}
+
 auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
 {
     auto tree_node = (GuiTreeNode*)clientHandle;
@@ -156,7 +175,7 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 GuiTreeNode::~GuiTreeNode()
 {
     if (m_item)
-        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, nullptr);
+        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
 
 auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
@@ -290,7 +309,7 @@ auto GuiTreeNode::AddChildren() -> void
     TreeItem* next_subitem = m_item->_GetFirstSubItem();
     while (next_subitem)
     {
-        m_children.emplace_back(next_subitem, this, false);
+        m_children.emplace_back(next_subitem, false);
         next_subitem = next_subitem->GetNextItem();
     }
 }
