@@ -220,14 +220,12 @@ void gdalCleanup()
 		CPLSetErrorHandler(gdalComponentImpl::s_OldErrorHandler);
 		gdalComponentImpl::s_OldErrorHandler = nullptr;
 	}
-	//proj_cleanup();
-	
-	//CPLCleanupMasterMutex();
-	CPLCleanupTLS();
+
 	GDALDestroyDriverManager();
 	OGRCleanupAll();
-	proj_cleanup();
+	//proj_cleanup();
 	OSRCleanup();
+	CPLCleanupTLS();
 }
 
 gdalDynamicLoader::gdalDynamicLoader()
