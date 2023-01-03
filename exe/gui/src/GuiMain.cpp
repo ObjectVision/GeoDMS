@@ -50,7 +50,7 @@ GuiMainComponent::GuiMainComponent()
 GuiMainComponent::~GuiMainComponent()
 {
     m_View.CloseAll();
-    m_TreeviewComponent.clear();
+    m_Treeview.clear();
     m_State.clear();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -237,6 +237,7 @@ void GuiMainComponent::CloseCurrentConfig()
 {
     m_View.CloseAll();
     m_State.clear();
+    m_Treeview.clear();
 }
 
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
@@ -620,10 +621,10 @@ void GuiMainComponent::Update()
     }
 
     // Update all GeoDMSGui components
-    m_MenuComponent.Update(m_State, m_View);
+    m_Menu.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
-        m_CurrentItemComponent.Update(m_State);
+        m_CurrentItem.Update(m_State);
 
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
@@ -632,7 +633,7 @@ void GuiMainComponent::Update()
         m_DetailPages.Update(&m_State.ShowDetailPagesWindow, m_State);
 
     if (m_State.ShowTreeviewWindow)
-        m_TreeviewComponent.Update(&m_State.ShowTreeviewWindow, m_State);
+        m_Treeview.Update(&m_State.ShowTreeviewWindow, m_State);
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);

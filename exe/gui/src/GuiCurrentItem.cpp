@@ -7,7 +7,7 @@
 #include "TicInterface.h"
 #include "ser/AsString.h"
 
-auto GuiCurrentItemComponent::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
+auto GuiCurrentItem::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
 {
     auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::BeginCombo("##treeitem_history_list", NULL, ImGuiComboFlags_NoPreview))
@@ -34,7 +34,7 @@ auto GuiCurrentItemComponent::DrawHistoryTreeItemDropdownList(GuiState& state) -
     }
 }
 
-void GuiCurrentItemComponent::Update(GuiState &state)
+void GuiCurrentItem::Update(GuiState &state)
 {
     auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::BeginMenuBar())
@@ -42,7 +42,7 @@ void GuiCurrentItemComponent::Update(GuiState &state)
         if (event_queues->CurrentItemBarEvents.HasEvents()) // new current item
         {
             m_string_buf.resize(state.GetCurrentItem() ? std::strlen(state.GetCurrentItem()->GetFullName().c_str()) : 0);
-            m_string_buf = state.GetCurrentItem()->GetFullName().c_str();
+            m_string_buf = state.GetCurrentItem() ? state.GetCurrentItem()->GetFullName().c_str() : "";
         }
 
         DrawHistoryTreeItemDropdownList(state);

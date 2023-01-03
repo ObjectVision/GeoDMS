@@ -63,22 +63,18 @@ public:
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> void;
 
 private:
-
-
 	auto DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;
 	std::unique_ptr<GuiTreeNode> m_Root;
 	GuiTreeNode* m_startnode = nullptr;
-
-	static GuiTree* instance;
 };
 
-class GuiTreeViewComponent : GuiBaseComponent
+class GuiTreeView : GuiBaseComponent
 {
 public:
-	~GuiTreeViewComponent();
+	~GuiTreeView();
 	auto Update(bool* p_open, GuiState& state) -> void;
 	auto clear() -> void;
 private:

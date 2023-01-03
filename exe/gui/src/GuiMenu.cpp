@@ -26,7 +26,7 @@
 #include <shobjidl.h> 
 #include <codecvt>
 
-void GuiMenuComponent::Update(GuiState& state, GuiView& ViewPtr)
+void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
 {
     ImGui::SetNextItemOpen(true, 0);
     if (ImGui::BeginMainMenuBar())
@@ -34,30 +34,30 @@ void GuiMenuComponent::Update(GuiState& state, GuiView& ViewPtr)
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
             SetKeyboardFocusToThisHwnd();
 
-        m_FileComponent.Update(state);
-        m_EditComponent.Update(state);
-        m_ViewComponent.Update(state);
-        m_ToolsComponent.Update(state);
-        m_WindowComponent.Update(ViewPtr);
-        m_HelpComponent.Update(state);
+        m_File.Update(state);
+        m_Edit.Update(state);
+        m_View.Update(state);
+        m_Tools.Update(state);
+        m_Window.Update(ViewPtr);
+        m_Help.Update(state);
 
         ImGui::EndMainMenuBar();
     }
 }
 
-GuiMenuFileComponent::GuiMenuFileComponent()
+GuiMenuFile::GuiMenuFile()
 {
     m_fileDialog.SetTitle("Open Configuration File");
     m_fileDialog.SetTypeFilters({ ".dms" });
     GetRecentAndPinnedFiles();
 }
 
-GuiMenuFileComponent::~GuiMenuFileComponent()
+GuiMenuFile::~GuiMenuFile()
 {
     SetRecentAndPinnedFiles();
 }
 
-void GuiMenuFileComponent::GetRecentAndPinnedFiles()
+void GuiMenuFile::GetRecentAndPinnedFiles()
 {
     m_PinnedFiles = GetGeoDmsRegKeyMultiString("PinnedFiles");
     m_RecentFiles = GetGeoDmsRegKeyMultiString("RecentFiles");
@@ -65,13 +65,13 @@ void GuiMenuFileComponent::GetRecentAndPinnedFiles()
     CleanRecentOrPinnedFiles(m_RecentFiles);
 }
 
-void GuiMenuFileComponent::SetRecentAndPinnedFiles() 
+void GuiMenuFile::SetRecentAndPinnedFiles() 
 {
     SetGeoDmsRegKeyMultiString("PinnedFiles", m_PinnedFiles);
     SetGeoDmsRegKeyMultiString("RecentFiles", m_RecentFiles);
 }
 
-std::vector<std::string>::iterator GuiMenuFileComponent::CleanRecentOrPinnedFiles(std::vector<std::string> &m_Files)
+std::vector<std::string>::iterator GuiMenuFile::CleanRecentOrPinnedFiles(std::vector<std::string> &m_Files)
 {
     // recent files
     auto it_rf = m_Files.begin();
@@ -88,7 +88,7 @@ std::vector<std::string>::iterator GuiMenuFileComponent::CleanRecentOrPinnedFile
     return it_rf;
 }
 
-Int32 GuiMenuFileComponent::ConfigIsInRecentOrPinnedFiles(std::string cfg, std::vector<std::string> &m_Files)
+Int32 GuiMenuFile::ConfigIsInRecentOrPinnedFiles(std::string cfg, std::vector<std::string> &m_Files)
 {
     auto it = std::find(m_Files.begin(), m_Files.end(), cfg);
     if (it == m_Files.end())
@@ -96,12 +96,12 @@ Int32 GuiMenuFileComponent::ConfigIsInRecentOrPinnedFiles(std::string cfg, std::
     return it - m_Files.begin();
 }
 
-void GuiMenuFileComponent::AddPinnedOrRecentFile(std::string cfg, std::vector<std::string>& m_Files)
+void GuiMenuFile::AddPinnedOrRecentFile(std::string cfg, std::vector<std::string>& m_Files)
 {
     m_Files.emplace_back(cfg);
 }
 
-void GuiMenuFileComponent::RemovePinnedOrRecentFile(std::string cfg, std::vector<std::string>& m_Files)
+void GuiMenuFile::RemovePinnedOrRecentFile(std::string cfg, std::vector<std::string>& m_Files)
 {
     auto it_rf = m_Files.begin();
     for (int i = 0; i < m_Files.size(); i++)
@@ -114,7 +114,7 @@ void GuiMenuFileComponent::RemovePinnedOrRecentFile(std::string cfg, std::vector
     }
 }
 
-void GuiMenuFileComponent::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& state, std::vector<std::string>& m_Files)
+void GuiMenuFile::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& state, std::vector<std::string>& m_Files)
 {
     auto ind = ConfigIsInRecentOrPinnedFiles(state.configFilenameManager._Get(), m_Files);
     auto it = m_Files.begin();
@@ -188,7 +188,7 @@ std::string StartWindowsFileDialog()
     return result_file;
 }
 
-void GuiMenuFileComponent::Update(GuiState& state)
+void GuiMenuFile::Update(GuiState& state)
 {
     auto event_queues = GuiEventQueues::getInstance();
 
@@ -306,7 +306,7 @@ void GuiMenuFileComponent::Update(GuiState& state)
     }
 }
 
-void GuiMenuEditComponent::Update(GuiState& state)
+void GuiMenuEdit::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Edit"))
     {
@@ -323,7 +323,7 @@ void GuiMenuEditComponent::Update(GuiState& state)
     }
 }
 
-void GuiMenuViewComponent::Update(GuiState& state)
+void GuiMenuView::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("View"))
     {
@@ -374,7 +374,7 @@ void GuiMenuViewComponent::Update(GuiState& state)
     }
 }
 
-void GuiMenuToolsComponent::Update(GuiState& state)
+void GuiMenuTools::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Tools"))
     {
@@ -387,7 +387,7 @@ void GuiMenuToolsComponent::Update(GuiState& state)
     }
 }
 
-void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
+void GuiMenuWindow::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMenu("Window"))
     {
@@ -462,7 +462,7 @@ void GuiMenuWindowComponent::Update(GuiView& ViewPtr)
     }
 }
 
-void GuiMenuHelpComponent::Update(GuiState& state)
+void GuiMenuHelp::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Help"))
     {

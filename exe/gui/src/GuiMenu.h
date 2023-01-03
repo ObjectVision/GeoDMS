@@ -6,11 +6,11 @@
 #include "imfilebrowser.h"
 
 
-class GuiMenuFileComponent : GuiBaseComponent
+class GuiMenuFile : GuiBaseComponent
 {
 public:
-	GuiMenuFileComponent();
-	~GuiMenuFileComponent();
+	GuiMenuFile();
+	~GuiMenuFile();
 	void Update(GuiState& state);
 	ImGui::FileBrowser m_fileDialog; // https://github.com/AirGuanZ/imgui-filebrowser
 private:
@@ -26,7 +26,7 @@ private:
 	std::vector<std::string> m_RecentFiles;
 };
 
-class GuiMenuEditComponent : GuiBaseComponent
+class GuiMenuEdit : GuiBaseComponent
 {
 public:
 	void Update(GuiState& state);
@@ -34,7 +34,7 @@ public:
 private:
 };
 
-class GuiMenuViewComponent : GuiBaseComponent
+class GuiMenuView : GuiBaseComponent
 {
 public:
 	void Update(GuiState& state);
@@ -42,7 +42,7 @@ public:
 private:
 };
 
-class GuiMenuToolsComponent : GuiBaseComponent
+class GuiMenuTools : GuiBaseComponent
 {
 public:
 	void Update(GuiState& state);
@@ -50,7 +50,7 @@ public:
 private:
 };
 
-class GuiMenuWindowComponent : GuiBaseComponent
+class GuiMenuWindow : GuiBaseComponent
 {
 public:
 	void Update(GuiView& ViewPtr);
@@ -58,7 +58,7 @@ public:
 private:
 };
 
-class GuiMenuHelpComponent : GuiBaseComponent
+class GuiMenuHelp : GuiBaseComponent
 {
 public:
 	void Update(GuiState& state);
@@ -66,16 +66,16 @@ public:
 private:
 };
 
-class GuiMenuComponent : GuiBaseComponent
+class GuiMenu : GuiBaseComponent
 {
 public:
 	void Update(GuiState& state, GuiView& ViewPtr);
-	GuiMenuFileComponent	  m_FileComponent;
+	GuiMenuFile	    m_File;
 
 private:
-	GuiMenuEditComponent	  m_EditComponent;
-	GuiMenuViewComponent	  m_ViewComponent;
-	GuiMenuToolsComponent	  m_ToolsComponent;
-	GuiMenuWindowComponent	  m_WindowComponent;
-	GuiMenuHelpComponent	  m_HelpComponent;
+	GuiMenuEdit		m_Edit;
+	GuiMenuView		m_View;
+	GuiMenuTools	m_Tools;
+	GuiMenuWindow	m_Window;
+	GuiMenuHelp		m_Help;
 };

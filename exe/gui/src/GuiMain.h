@@ -34,21 +34,21 @@ private:
 	void TraverseTreeItemHistoryIfRequested();
 	void InterpretCommandLineParameters();
 
-	GLFWwindow*				        m_Window				= nullptr;
-	GuiState						m_State					= {};
-	GuiInput						m_Input					= {};
-	GuiMenuComponent				m_MenuComponent			= {};
-	GuiTreeViewComponent			m_TreeviewComponent		= {};
-	GuiCurrentItemComponent			m_CurrentItemComponent	= {};
-	GuiToolbar						m_Toolbar				= {};
-	GuiEventLog						m_EventLog				= {};
-	GuiView							m_View					= {};
-	GuiOptions						m_Options				= {};
-	GuiStatusBar					m_StatusBar				= {};
-	GuiUnitTest						m_GuiUnitTest			= {};
-	GuiDetailPages					m_DetailPages			= {};
-	int 							m_FirstFrames			= 1;
-	bool							m_NoConfig				= false;
+	GLFWwindow*				        m_Window		= nullptr;
+	GuiState						m_State			= {};
+	GuiInput						m_Input			= {};
+	GuiMenu							m_Menu			= {};
+	GuiTreeView						m_Treeview		= {};
+	GuiCurrentItem					m_CurrentItem	= {};
+	GuiToolbar						m_Toolbar		= {};
+	GuiEventLog						m_EventLog		= {};
+	GuiView							m_View			= {};
+	GuiOptions						m_Options		= {};
+	GuiStatusBar					m_StatusBar		= {};
+	GuiUnitTest						m_GuiUnitTest	= {};
+	GuiDetailPages					m_DetailPages	= {};
+	int 							m_FirstFrames	= 1;
+	bool							m_NoConfig		= false;
 
 	std::unique_ptr<CDebugLog> m_DebugLog;
 };
