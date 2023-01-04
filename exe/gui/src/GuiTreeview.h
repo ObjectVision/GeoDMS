@@ -25,12 +25,12 @@ public:
 	auto GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator;
 	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
 	auto IsLeaf() -> bool;
+	auto Init(TreeItem* item) -> void;
 
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> bool;
 	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
 
 private:
-	auto Init(TreeItem* item) -> void;
 	auto GetDepthFromTreeItem() -> UInt8;
 	auto DrawItemDropDown() -> bool;
 	auto DrawItemIcon() -> bool;
@@ -39,7 +39,7 @@ private:
 	TreeItem*                m_item = nullptr;
 	GuiTreeNode*             m_parent = nullptr;
 	std::vector<GuiTreeNode> m_children;
-	std::atomic<NotificationCode> m_state = NotificationCode::NC2_Invalidated;
+	NotificationCode m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
 	bool m_has_been_openend = false;
@@ -50,17 +50,18 @@ private:
 class GuiTree
 {
 public:
-	GuiTree(TreeItem* root)
+	GuiTree() {}
+	/*GuiTree(TreeItem* root)
 	{
-		m_Root = std::make_unique<GuiTreeNode>(root, true);
+		m_Root = GuiTreeNode(root, true);//std::make_unique<GuiTreeNode>(root, true);
 		m_startnode = m_Root.get();
-	};
+	};*/
 	//static auto getInstance(TreeItem* root) -> GuiTree*;
 	//static auto getInstance()->GuiTree*;
 
 	~GuiTree();
-
-
+	auto Init(GuiState& state) -> void;
+	auto IsInitialized() -> bool;
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> void;
 
 private:
@@ -68,7 +69,8 @@ private:
 	auto SpaceIsAvailableForTreeNode() -> bool;
 
 	UInt64       m_max_count = 0;
-	std::unique_ptr<GuiTreeNode> m_Root;
+	bool		 m_is_initialized = false;
+	GuiTreeNode  m_Root = {};
 	GuiTreeNode* m_startnode = nullptr;
 };
 
@@ -86,5 +88,5 @@ private:
 	TreeItem* m_TemporaryJumpItem = nullptr;
 	ImGuiTreeNodeFlags m_BaseFlags  = ImGuiWindowFlags_AlwaysAutoResize | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
-	std::unique_ptr<GuiTree> m_tree;
+	GuiTree m_tree;
 };

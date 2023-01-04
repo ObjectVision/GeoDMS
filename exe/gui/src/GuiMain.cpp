@@ -467,7 +467,6 @@ int GuiMainComponent::MainLoop()
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
 
-        break;
         //break; // TODO: REMOVE, test for mem leaks
 
         // Start the Dear ImGui frame
@@ -478,6 +477,8 @@ int GuiMainComponent::MainLoop()
         // Error dialogue
         if (ShowErrorDialogIfNecessary())
             break;
+
+        
 
         // Updated source files
         ShowSourceFileChangeDialogIfNecessary();
@@ -504,8 +505,12 @@ int GuiMainComponent::MainLoop()
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
 
+        
+
         // update all gui components
         Update();
+
+        
 
         // rendering
         ImGui::Render();
@@ -539,6 +544,8 @@ int GuiMainComponent::MainLoop()
             m_FirstFrames--;
 
         m_GuiUnitTest.Step();
+    
+        //break;
     }
 
     // Persistently store gui state in registry
