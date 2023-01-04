@@ -1046,7 +1046,7 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	BOOL res = CreateProcessA
 	(
 		moduleName,
-		cmdLine,        // command line can be rewritten
+		cmdLine,		// command line can be rewritten
 		NULL,           // process security attributes 
 		NULL,           // primary thread security attributes 
 		TRUE,           // handles are inherited 

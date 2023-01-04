@@ -157,7 +157,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem *TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(fullPathCmd.c_str());
+            StartChildProcess(NULL, const_cast<Char *>(fullPathCmd.c_str()));
         }
 
         break;
