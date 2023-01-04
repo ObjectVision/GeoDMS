@@ -132,6 +132,8 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
         Refilter();
     }
 
+    ImGui::Separator();
+
     // Reserve enough left-over height for 1 separator + 1 input text
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
     ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysAutoResize); //-footer_height_to_reserve
