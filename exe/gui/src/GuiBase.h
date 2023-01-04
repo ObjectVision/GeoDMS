@@ -235,10 +235,9 @@ class GuiEventQueues
 public:
 	// singleton
 	static GuiEventQueues* getInstance();
+	static auto DeleteInstance() -> void;
 	~GuiEventQueues()
 	{
-		if (instance)
-			delete instance;
 	}
 
 	// event queues

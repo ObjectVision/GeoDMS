@@ -49,9 +49,10 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    m_View.CloseAll();
+    m_View.CloseAll(); 
     m_Treeview.clear();
     m_State.clear();
+    GuiEventQueues::DeleteInstance();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
@@ -453,6 +454,7 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(m_Window))
     {
+        
         if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
         else 
@@ -464,6 +466,9 @@ int GuiMainComponent::MainLoop()
 
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
+
+        break;
+        //break; // TODO: REMOVE, test for mem leaks
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
