@@ -136,8 +136,6 @@ void Button::UpdateModal(GuiView& view)
 
 GuiToolbar::GuiToolbar()
 {
-    //m_Buf.resize(1024); // TODO: magic number, remove
-
     // TableView buttons
     m_TableViewButtons.emplace_back(TB_Export,                              GV_save,                        -1,     ButtonType::MODAL, "Save to file as semicolon delimited text", false);                 // SHV_DataView_GetExportInfo(m_DataView, @nrRows, @nrCols, @nrDotRows, @nrDotCols, @fullFileNameBaseStr) then format as 569 dmscontrol.pas
     m_TableViewButtons.emplace_back(TB_TableCopy,                           GV_copy,                        -1,     ButtonType::SINGLE, "Copy To ClipBoard as SemiColon delimited Text", false);
