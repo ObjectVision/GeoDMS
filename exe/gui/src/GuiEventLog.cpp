@@ -10,7 +10,7 @@ std::vector<UInt64>       GuiEventLog::m_FilteredItemIndices;
 std::string               GuiEventLog::m_FilterText = "";
 OptionsEventLog           GuiEventLog::m_FilterEvents;
 
-auto FilterLogMessage(std::string_view original_message, std::string& filtered_message, std::string& link)
+auto ReplaceLinkInLogMessageIfNecessary(std::string_view original_message, std::string& filtered_message, std::string& link)
 {
     filtered_message = original_message;
     auto link_opening = original_message.find("[[");
@@ -26,7 +26,6 @@ auto FilterLogMessage(std::string_view original_message, std::string& filtered_m
 GuiEventLog::GuiEventLog()
 {
     ClearLog();
-    //m_Iterator.Init(m_Items.begin(), 0);
     AutoScroll = true;
     ScrollToBottom = false;
 };
@@ -34,8 +33,6 @@ GuiEventLog::GuiEventLog()
 GuiEventLog::~GuiEventLog()
 {
     ClearLog();
-    //for (int i = 0; i < History.Size; i++)
-    //    free(History[i]);
 };
 
 
@@ -55,42 +52,15 @@ auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
 
 auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
 {
-    //if (st == SeverityTypeID::ST_Error || st == SeverityTypeID::ST_FatalError || st == SeverityTypeID::ST_DispError)
-    //    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
-    AddLog(st, msg);//msg);
-    //if (st == SeverityTypeID::ST_Error || st == SeverityTypeID::ST_FatalError || st == SeverityTypeID::ST_DispError)
-    //    ImGui::PopStyleColor();
+    AddLog(st, msg);
 }
 
 auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void
 {
-    // add popup on error or fatal error
-    //AddLog(SeverityTypeID::ST_Error, msg);
-
     GuiState state;
     ImGui::OpenPopup("Error");
     state.errorDialogMessage.Set(msg);
-
-
-    /*static bool open_error_window = true;
-    //if (ImGui::Begin("ERRORBOT", &open_error_window, ImGuiWindowFlags_None))
-    //{
-        ImGui::OpenPopup("Errordialog");
-        if (ImGui::BeginPopupModal("Errordialog", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            ImGui::InputTextMultiline("##ErrorDialog", const_cast<char*>(msg), sizeof(msg), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16));
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-            ImGui::EndPopup();
-        }
-        // knop OK mag weg
-        // knop terminate Vervangen door Abort
-        // alleen mail knop bij "contact object vision" in tekst DMSException.cpp 367
-
-
-        // Early out if the window is collapsed, as an optimization.
-        //ImGui::End();*/
-        return;
-    //}
+    return;
 }
 
 auto GuiEventLog::OnItemClick(GuiState& state, EventLogItem* item) -> void
@@ -159,7 +129,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     if (ImGui::InputText("##filter", &m_FilterText, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
     {
-        
+        Refilter();
     }
 
     // Reserve enough left-over height for 1 separator + 1 input text
@@ -311,7 +281,7 @@ auto GuiEventLog::AddLog(SeverityTypeID severity_type, std::string original_mess
 {
     std::string filtered_message = "";
     std::string link = "";
-    FilterLogMessage(original_message, filtered_message, link);
+    ReplaceLinkInLogMessageIfNecessary(original_message, filtered_message, link);
     m_Items.emplace_back(severity_type, filtered_message, link);
 
     if (ItemPassesFilter(&m_Items.back(), &m_FilterEvents, m_FilterText))
