@@ -287,6 +287,16 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     return 0;
 }
 
+auto GuiTreeNode::clear() -> void
+{
+    if (m_item)
+    {
+        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
+        m_item = nullptr;
+        m_children.clear();
+    }
+}
+
 auto GuiTreeNode::SetOpenStatus(bool do_open) -> void
 { 
     m_is_open = do_open;
@@ -428,11 +438,17 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
         DrawBranch(*m_currnode, state, jump_item);
 }
 
+auto GuiTree::clear() -> void
+{
+    m_Root.clear();
+}
+
 GuiTreeView::~GuiTreeView() 
 {}
 
 auto GuiTreeView::clear() -> void
 {
+    m_tree.clear();
 }
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void

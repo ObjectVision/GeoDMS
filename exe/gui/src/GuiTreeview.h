@@ -13,6 +13,8 @@ public:
 
 	~GuiTreeNode();
 
+	auto clear() -> void;
+
 	//auto Reset() -> void;
 	auto SetItem(TreeItem* item) -> void { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
@@ -63,6 +65,7 @@ public:
 	auto Init(GuiState& state) -> void;
 	auto IsInitialized() -> bool;
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> void;
+	auto clear() -> void;
 
 private:
 	auto DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool;
