@@ -245,7 +245,7 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("gdal.vect", "cannot open layer %s, invalid sql string %s,\n%s"
+			throwErrorF("gdal.vect", "cannot find layer with name %s, invalid sql string %s,\n%s"
 			,	m_NameID.GetStr().c_str()
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
@@ -265,6 +265,11 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (m_Layer)
 			m_Layer->SetNextByIndex(0);
+		
+		auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI()); // TODO: check why container is also tried to be opened as layer
+		if (!m_Layer && !is_container)
+			throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+
 		m_IsOwner = false;
 	}
 }
