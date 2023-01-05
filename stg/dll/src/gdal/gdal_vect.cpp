@@ -1604,6 +1604,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
+				// TODO: interpret geometry type if possible from WKT
 				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
 				gdal_vc = ValueComposition::String;
 			}
