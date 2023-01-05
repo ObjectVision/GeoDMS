@@ -137,7 +137,7 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
 
 GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
 {
-    DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, other.m_item, &other);
+    //DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, other.m_item, &other);
     m_item     = other.m_item;
     m_parent   = other.m_parent;
     m_children = std::move(other.m_children);
@@ -149,9 +149,9 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 
     // clean other
-    other.m_item = nullptr;
-    other.m_parent = nullptr;
-    other.m_children.clear();
+    //other.m_item = nullptr;
+    //other.m_parent = nullptr;
+    //other.m_children.clear();
 }
 
 auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
