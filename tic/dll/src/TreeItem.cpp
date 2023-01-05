@@ -2186,7 +2186,7 @@ auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheIte
 	// just check values unit (again?)
 	const AbstrUnit* avu = dataItemSelf->GetAbstrValuesUnit();
 	const AbstrUnit* svu = cacheDataItem->GetAbstrValuesUnit();
-	MG_CHECK( avu->UnifyValues(svu, "", "", UnifyMode(UM_AllowDefaultLeft)) ); // GUARANTEED BY CheckResultItem
+	MG_CHECK( avu->UnifyValues(svu, "", "", UnifyMode(UM_AllowDefault)) ); // GUARANTEED BY CheckResultItem
 
 	// ===== this -> convert(this, formalValuesUnit) if result was DefaultUnit or allowably different.
 	if ((svu->GetCurrRangeItem() != avu->GetCurrRangeItem()) && !avu->IsDefaultUnit())
