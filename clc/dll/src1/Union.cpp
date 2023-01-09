@@ -34,6 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/StringBounds.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
+#include "dbg/SeverityType.h"
 #include "set/VectorFunc.h"
 
 #include "CheckedDomain.h"
@@ -264,7 +265,7 @@ public:
 		catch (const DmsException& x)
 		{
 			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
-			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data", x.Why());
+			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s", x.AsErrMsg()->Why().c_str());
 			hadToTryWithoutCategoricalCheck = true;
 		}
 
