@@ -188,6 +188,8 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 	:	GdalMetaInfo(storageHolder, adi)
 	,	m_GdalVectSM(gdv)
 {
+	assert(storageHolder->DoesContain(adi)); // PRECONDITION
+
 	const TreeItem* adiParent = adi;
 	while (true) {
 		if (sqlStringPropDefPtr->HasNonDefaultValue(adiParent))
@@ -196,31 +198,45 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			return;
 		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 
 	adiParent = adi;
 	while (true) {
 		if (IsUnit(adiParent))
-			goto found;
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
-		//if (!IsUnit(adiParent) && !IsDataItem(adiParent)) // support containers with same domain unit as parent.
-		//	adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 	adiParent = adi;
 	while (true) {
 		if (!IsDataItem(adiParent))
-			goto found;
-		if (adiParent == storageHolder)
-			adi->ThrowFail("Cannot determine Layer item", FR_Data);
-		adiParent = adi->GetTreeParent();
-	}
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 
-found:
-	m_NameID = adiParent->GetID();
+		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
+			break;
+		}
+		adiParent = adi->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
+	}
 }
 
 void GdalVectlMetaInfo::OnOpen()
