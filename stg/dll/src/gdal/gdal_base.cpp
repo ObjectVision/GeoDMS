@@ -818,16 +818,30 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		}
 	}
 
+	GDALAllRegister(); // try opening with all drivers
+/*
 	// Check if driver can be found
 	if (driverArray.empty())
 	{
-		auto driver_short_name = FileExtensionToGDALDriverShortName(CPLGetExtension(datasourceName.c_str()));
-		if (not driver_short_name.empty())
-			driverArray.AddString(driver_short_name.c_str());
+		auto result = CPLGetExtension(datasourceName.c_str()); // TLS ! 
+		if (stricmp(result, "tif") == 0)
+			driverArray.AddString("GTiff");
 		else
 			GDALAllRegister(); // try opening with all drivers
 	}
-
+	if (!driverArray.empty())
+	{
+		auto n = driverArray.size();
+		for (auto i=0; i != n; ++i)
+		{
+			auto driverPtr = GetGDALDriverManager()->GetDriverByName(driverArray[i]);
+			MG_CHECK(driverPtr);
+			auto result2 = GetGDALDriverManager()->RegisterDriver(driverPtr);
+			if (!result2)
+				throwErrorF("GDAL", "driver '%s' not found", driverArray[i]);
+		}
+	}
+*/
 	if (rwMode == dms_rw_mode::read_only)
 	{
 		GDALDatasetHandle result = GDALDataset::FromHandle( 
