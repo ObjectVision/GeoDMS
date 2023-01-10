@@ -294,6 +294,7 @@ auto GuiTreeNode::clear() -> void
         DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
         m_item = nullptr;
         m_children.clear();
+        m_has_been_openend = false;
     }
 }
 
@@ -441,6 +442,7 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
 auto GuiTree::clear() -> void
 {
     m_Root.clear();
+    m_is_initialized = false;
 }
 
 GuiTreeView::~GuiTreeView() 
