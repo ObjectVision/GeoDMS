@@ -758,38 +758,41 @@ auto GDALDriverSupportsUpdating(SharedStr datasourceName) -> bool
 auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::string
 {
 	std::string driverShortName = {};
-	if (ext.contains("shp") || ext.contains("dbf") || ext.contains("shx"))
+	if (ext  =="shp" || ext == "dbf" || ext == "shx")
 		return "ESRI Shapefile";
 
-	else if (ext.contains("gpkg"))
+	else if (ext == "gpkg")
 		return "GPKG";
 
-	else if (ext.contains("csv"))
+	else if (ext == "csv")
 		return "CSV";
 
-	else if (ext.contains("gml") || ext.contains("xml"))
+	else if (ext  == "gml" || ext == "xml")
 		return "GML";
 
-	else if (ext.contains("gdb"))
+	else if (ext == "gdb")
 		return "FileGDB";
 
-	else if (ext.contains("json") || ext.contains("geojson"))
+	else if (ext == "json" || ext == "geojson")
 		return "GeoJSON";
 
-	else if (ext.contains("tif") || ext.contains("tiff"))
+	else if (ext == "tif" || ext == "tiff")
 		return "GTiff";
 
-	else if (ext.contains("nc"))
+	else if (ext == "nc")
 		return "netCDF";
 
-	else if (ext.contains("hdf") || ext.contains("h4") || ext.contains("hdf4") || ext.contains("he2") || ext.contains("h5") || ext.contains("hdf5") || ext.contains("he5"))
+	else if (ext == "hdf" || ext == "h4" || ext == "hdf4" || ext == "he2" || ext == "h5" || ext == "hdf5" || ext == "he5")
 		return "HDF5";
 
-	else if (ext.contains("png"))
+	else if (ext == "png")
 		return "PNG";
 
-	else if (ext.contains("jpeg") || ext.contains("jpg") || ext.contains("jfif ") || ext.contains("jfi") || ext.contains("jif"))
+	else if (ext == "jpeg" || ext == "jpg" || ext == "jfif" || ext == "jfi" || ext == "jif")
 		return "JPEG";
+
+	else if (ext == "bmp")
+		return "BMP";
 
 	return {};
 }
@@ -800,19 +803,19 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 	if (knownDriverShortName == "ESRI Shapefile")
 		RegisterOGRShape();
 
-	else if (knownDriverShortName.contains("GPKG"))
+	else if (knownDriverShortName == "GPKG")
 		RegisterOGRGeoPackage();
 
-	else if (knownDriverShortName.contains("CSV"))
+	else if (knownDriverShortName == "CSV")
 		RegisterOGRCSV();
 
-	else if (knownDriverShortName.contains("GML"))
+	else if (knownDriverShortName == "GML")
 		RegisterOGRGML();
 
-	else if (knownDriverShortName.contains("FileGDB"))
+	else if (knownDriverShortName == "FileGDB")
 		RegisterOGROpenFileGDB(); // RegisterOGROpenFileGDB();
 
-	else if (knownDriverShortName.contains("GeoJSON"))
+	else if (knownDriverShortName == "GeoJSON")
 	{
 		RegisterOGRGeoJSON();
 		RegisterOGRGeoJSONSeq();
@@ -835,11 +838,14 @@ auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view knownDrive
 		GDALRegister_HDF5();
 		GDALRegister_HDF5Image();
 	}
-	else if (knownDriverShortName.contains("PNG"))
+	else if (knownDriverShortName == "PNG")
 		GDALRegister_PNG();
 
-	else if (knownDriverShortName.contains("JPEG"))
+	else if (knownDriverShortName == "JPEG")
 		GDALRegister_JPEG();
+
+	else if (knownDriverShortName == "BMP")
+		GDALRegister_BMP();
 }
 
 auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
