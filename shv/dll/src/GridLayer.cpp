@@ -125,10 +125,16 @@ void GridLayer::SelectPoint(const CrdPoint& pnt, EventID eventID)
 	bool changed;
 	if ( IsIncluding(tr.Apply( Convert<CrdRect>(gridRect) ), pnt) )
 	{
+		DataWriteLock writeLock(
+			const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+			CompoundWriteType(eventID)
+		);
 		IPoint gridLoc = RoundDown<4>( tr.Reverse(pnt) );
 		SizeT gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
 
-		changed = SelectFeatureIndex(gridIdx, eventID);
+		changed = SelectFeatureIndex(writeLock, gridIdx, eventID);
+		if (changed)
+			writeLock.Commit();
 	}
 	else
 		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EID_LBUTTONDBLCLK );

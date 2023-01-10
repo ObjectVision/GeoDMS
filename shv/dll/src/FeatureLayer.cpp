@@ -669,11 +669,11 @@ void FeatureLayer::SelectPoint(const CrdPoint& worldPnt, EventID eventID)
 	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
 	if (!SuspendTrigger::DidSuspend() && featureItem->PrepareData())
 	{
-		DataReadLock lck(featureItem); 
+		DataReadLock lck(featureItem);
 		dms_assert(lck.IsLocked());
 		featureIndex = _FindFeatureByPoint(
 			GetGeoTransformation().Reverse(worldPnt),
-			featureItem->GetRefObj(), 
+			featureItem->GetRefObj(),
 			featureItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID()
 		);
 	}
@@ -681,8 +681,16 @@ void FeatureLayer::SelectPoint(const CrdPoint& worldPnt, EventID eventID)
 		return;
 
 	InvalidationBlock lock(this);
-	if (SelectFeatureIndex(featureIndex, eventID))
+	DataWriteLock writeLock(
+		const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+		CompoundWriteType(eventID)
+	);
+
+	if (SelectFeatureIndex(writeLock, featureIndex, eventID))
+	{
+		writeLock.Commit();
 		lock.ProcessChange();
+	}
 }
 
 SizeT GraphicPointLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)
@@ -727,7 +735,7 @@ bool SelectPointsInRect(
 		if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
 		{
 			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(entityID, eventID);
+			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
 		}
 		++b;
 	}
@@ -773,7 +781,7 @@ bool SelectPointsInCircle(
 		if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
 		{
 			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(entityID, eventID);
+			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
 		}
 		++b;
 	}
@@ -820,7 +828,7 @@ bool SelectPointsInPolygon(
 			if (IsInside(first, last, worldPnt))
 			{
 				SizeT entityID = b - data.begin();
-				result |= layer->SelectFeatureIndex(entityID, eventID);
+				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
 			}
 		}
 		++b;
