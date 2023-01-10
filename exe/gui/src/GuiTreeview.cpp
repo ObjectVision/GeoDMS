@@ -365,6 +365,11 @@ auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
     DrawItemIcon();
     ImGui::SameLine();
     DrawItemText(state, jump_item);
+    
+    // Modify y-spacing between TreeView items
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const UInt8 offset = 4;
+    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return false;
 }
