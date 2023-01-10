@@ -755,45 +755,63 @@ auto GDALDriverSupportsUpdating(SharedStr datasourceName) -> bool
 	return true;
 }
 
+#include <boost/algorithm/string.hpp>
+
 auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::string
 {
-	std::string driverShortName = {};
-	if (ext  =="shp" || ext == "dbf" || ext == "shx")
-		return "ESRI Shapefile";
+	if (ext.size() == 3) // reduce the number of actually evaluated iffs.
+	{
+		if (boost::iequals(ext, "shp") || ext == "dbf" || ext == "shx")
+			return "ESRI Shapefile";
 
-	else if (ext == "gpkg")
-		return "GPKG";
+		else if (ext == "csv")
+			return "CSV";
 
-	else if (ext == "csv")
-		return "CSV";
+		else if (ext == "gml" || ext == "xml")
+			return "GML";
 
-	else if (ext  == "gml" || ext == "xml")
-		return "GML";
+		else if (ext == "gdb")
+			return "FileGDB";
 
-	else if (ext == "gdb")
-		return "FileGDB";
+		else if (ext == "tif")
+			return "GTiff";
 
-	else if (ext == "json" || ext == "geojson")
-		return "GeoJSON";
+		else if (ext == "hdf" || ext == "he2" || ext == "he5")
+			return "HDF5";
 
-	else if (ext == "tif" || ext == "tiff")
-		return "GTiff";
+		else if (ext == "png")
+			return "PNG";
 
-	else if (ext == "nc")
-		return "netCDF";
+		else if (ext == "jpg" || ext == "jfi" || ext == "jif")
+			return "JPEG";
 
-	else if (ext == "hdf" || ext == "h4" || ext == "hdf4" || ext == "he2" || ext == "h5" || ext == "hdf5" || ext == "he5")
-		return "HDF5";
+		else if (ext == "bmp")
+			return "BMP";
+	}
+	else
+	{
+		if (ext == "gpkg")
+			return "GPKG";
 
-	else if (ext == "png")
-		return "PNG";
+		else if (ext == "json" || ext == "geojson")
+			return "GeoJSON";
 
-	else if (ext == "jpeg" || ext == "jpg" || ext == "jfif" || ext == "jfi" || ext == "jif")
-		return "JPEG";
+		else if (ext == "tiff")
+			return "GTiff";
 
-	else if (ext == "bmp")
-		return "BMP";
+		else if (ext == "nc")
+			return "netCDF";
 
+		else if (ext == "h4" || ext == "hdf4" || ext == "h5" || ext == "hdf5")
+			return "HDF5";
+
+		else if (ext == "png")
+			return "PNG";
+
+		else if (ext == "jpeg" || ext == "jfif")
+			return "JPEG";
+
+	}
 	return {};
 }
 
