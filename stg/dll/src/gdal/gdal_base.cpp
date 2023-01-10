@@ -220,15 +220,18 @@ void gdalCleanup()
 		CPLSetErrorHandler(gdalComponentImpl::s_OldErrorHandler);
 		gdalComponentImpl::s_OldErrorHandler = nullptr;
 	}
-//	proj_cleanup();
-	OSRCleanup();
-	OGRCleanupAll();
+
 	GDALDestroyDriverManager();
+	OGRCleanupAll();
+	//proj_cleanup();
+	OSRCleanup();
+	CPLCleanupTLS();
 }
 
 gdalDynamicLoader::gdalDynamicLoader()
 {
 }
+
 
 #include "proj.h"
 
@@ -271,8 +274,9 @@ gdalComponent::gdalComponent()
 			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
 			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-			GDALAllRegister(); // can throw
-			OGRRegisterAll(); // can throw
+			// Note: moved registering of drivers to Gdal_DoOpenStorage
+			//GDALAllRegister(); // can throw
+			//OGRRegisterAll(); // can throw
 		}
 		catch (...)
 		{
@@ -446,30 +450,54 @@ GDALDataType gdalDataType(ValueClassID tid)
 	return GDT_Unknown;
 }
 
-SharedStr FileExtensionToGDALDriverShortName(SharedStr ext)
+auto GetListOfDriverFileExts(GDALDriver* driver) -> std::vector<std::string>
 {
-	auto driverManager = GetGDALDriverManager();
-	SizeT driverCount = driverManager->GetDriverCount();
-	auto DriverShortName = ext;
+	std::vector<std::string> driver_exts;
+	CPLStringList driver_cpl_exts(CSLTokenizeString(driver->GetMetadataItem(GDAL_DMD_EXTENSIONS)));
+	auto ext_count = CSLCount(driver_cpl_exts);
 
-	for (SizeT i = 0; i != driverCount; i++)
+	for (SizeT i = 0; i != ext_count; i++) // loop over extensions of driver i
+		driver_exts.push_back(CSLGetField(driver_cpl_exts, i));
+
+	return driver_exts;
+}
+
+auto GetListOfRegsiteredGDALDriverShortNames(std::vector<GDALDriver*> &registered_drivers) -> std::vector<std::string>
+{
+	std::vector<std::string> registered_drivers_shortnames;
+	for (auto driver : registered_drivers)
+		registered_drivers_shortnames.push_back(GDALGetDriverShortName(driver));
+
+	return registered_drivers_shortnames;
+}
+
+auto GetListOfRegisteredGDALDrivers() -> std::vector<GDALDriver*>
+{
+	std::vector<GDALDriver*> registered_drivers;
+	auto driver_manager = GetGDALDriverManager();
+	auto driver_count = driver_manager->GetDriverCount();
+
+	for (int i = 0; i != driver_count; i++)
+		registered_drivers.push_back(driver_manager->GetDriver(i));
+
+	return registered_drivers;
+}
+
+auto FileExtensionToGDALDriverShortName(std::string ext) -> std::string
+{
+	std::string driver_short_name = {};
+	auto registered_drivers = GetListOfRegisteredGDALDrivers();
+	for (auto driver : registered_drivers)
 	{
-		auto driver = driverManager->GetDriver(i);
-		CPLStringList driverExts(CSLTokenizeString(driver->GetMetadataItem(GDAL_DMD_EXTENSIONS)));
-		auto extCount = CSLCount(driverExts);
-
-		for (SizeT j = 0; j != extCount; j++) // loop over extensions of driver i
+		auto driver_exts = GetListOfDriverFileExts(driver);
+		for (auto driver_ext : driver_exts)
 		{
-			auto driverExt = SharedStr(CSLGetField(driverExts, j));
-			if (ext == driverExt)
-			{
-				DriverShortName = GDALGetDriverShortName(driver); // found
-				return DriverShortName;
-			}
+			if (driver_ext == ext)
+				driver_short_name = GDALGetDriverShortName(driver); // found
 		}
 	}
 
-	return DriverShortName;
+	return driver_short_name;
 }
 
 int DataItemsWriteStatusInfo::getNumberOfLayers()
@@ -790,6 +818,30 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		}
 	}
 
+	GDALAllRegister(); // try opening with all drivers
+/*
+	// Check if driver can be found
+	if (driverArray.empty())
+	{
+		auto result = CPLGetExtension(datasourceName.c_str()); // TLS ! 
+		if (stricmp(result, "tif") == 0)
+			driverArray.AddString("GTiff");
+		else
+			GDALAllRegister(); // try opening with all drivers
+	}
+	if (!driverArray.empty())
+	{
+		auto n = driverArray.size();
+		for (auto i=0; i != n; ++i)
+		{
+			auto driverPtr = GetGDALDriverManager()->GetDriverByName(driverArray[i]);
+			MG_CHECK(driverPtr);
+			auto result2 = GetGDALDriverManager()->RegisterDriver(driverPtr);
+			if (!result2)
+				throwErrorF("GDAL", "driver '%s' not found", driverArray[i]);
+		}
+	}
+*/
 	if (rwMode == dms_rw_mode::read_only)
 	{
 		GDALDatasetHandle result = GDALDataset::FromHandle( 
@@ -797,7 +849,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 					, (rwMode > dms_rw_mode::read_only) ? GA_Update : GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR
 					, driverArray
 					, optionArray
-					, nullptr
+					, nullptr // papszSiblingFiles
 				)
 		);
 
@@ -820,11 +872,6 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) &&	!std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	if (driverArray.empty())
-	{
-		SharedStr ext = SharedStr(CPLGetExtension(datasourceName.c_str()));
-		driverArray.AddString(FileExtensionToGDALDriverShortName(ext).c_str());
-	}
 	MG_CHECK(driverArray.size() == 1);
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverArray[0]);
 	if (!driver)

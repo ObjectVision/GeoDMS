@@ -541,10 +541,11 @@ void* AllocateFromStock_impl(size_t objectSize)
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
-	WaitForAvailableMemory(qWordCount * sizeof(UInt64));
+	if (i >= FIRST_PAGE_INDEX)
+		WaitForAvailableMemory(qWordCount * sizeof(UInt64));
+
 	auto result = s_QWordArrayAllocator.allocate(qWordCount);
 	return result;
-
 }
 
 void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)

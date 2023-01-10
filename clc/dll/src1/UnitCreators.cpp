@@ -158,11 +158,11 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		if (currArg_ValuesUnit != arg1_ValuesUnit && arg1_ValuesUnit->GetValueType() != currArg_ValuesUnit->GetValueType())
 			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1_ValuesUnit->GetValueType()->GetName().c_str(), currArg_ValuesUnit->GetValueType()->GetName().c_str());
 
-		if (catUnit && currArg_ValuesUnit != catUnit && !catUnit->UnifyDomain(currArg_ValuesUnit, "", "", UnifyMode()))
+		if (catUnit && currArg_ValuesUnit != catUnit && !catUnit->UnifyDomain(currArg_ValuesUnit, "", "", UM_AllowDefaultRight))
 		{
 			auto leftRole = mySSPrintF("Values of argument %d", cat_unit_index + 1);
 			auto rightRole = mySSPrintF("Values of argument %d", i + 1);
-			catUnit->UnifyDomain(currArg_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UM_Throw);
+			catUnit->UnifyDomain(currArg_ValuesUnit, leftRole.c_str(), rightRole.c_str(), UnifyMode(UM_AllowDefaultRight|UM_Throw));
 		}
 
 		const UnitMetric* currArg_MetricPtr = currArg_ValuesUnit->GetMetric();

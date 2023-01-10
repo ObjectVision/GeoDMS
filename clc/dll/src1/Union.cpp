@@ -34,6 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/StringBounds.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"
+#include "dbg/SeverityType.h"
 #include "set/VectorFunc.h"
 
 #include "CheckedDomain.h"
@@ -256,16 +257,27 @@ public:
 
 		const AbstrUnit* resultDomain = AsUnit(GetItem(args[0]));
 
-		auto constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), true);
+		ConstUnitRef constUnitRef;
+		bool hadToTryWithoutCategoricalCheck = false;
+		try {
+			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), true);
+		}
+		catch (const DmsException& x)
+		{
+			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
+			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s", x.AsErrMsg()->Why().c_str());
+			hadToTryWithoutCategoricalCheck = true;
+		}
 
 		auto vc = COMPOSITION(V);
 		bool isCategorical = false;
-		for (arg_index i = 1; i <= n; ++i)
-		{
-			if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
-				isCategorical = true;
-			Unify(vc, AsDataItem(args[i])->GetValueComposition());
-		}
+		if (!hadToTryWithoutCategoricalCheck)
+			for (arg_index i = 1; i <= n; ++i)
+			{
+				if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
+					isCategorical = true;
+				Unify(vc, AsDataItem(args[i])->GetValueComposition());
+			}
 
 		if (resultHolder)
 			return;

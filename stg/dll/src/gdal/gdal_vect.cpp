@@ -188,6 +188,8 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 	:	GdalMetaInfo(storageHolder, adi)
 	,	m_GdalVectSM(gdv)
 {
+	assert(storageHolder->DoesContain(adi)); // PRECONDITION
+
 	const TreeItem* adiParent = adi;
 	while (true) {
 		if (sqlStringPropDefPtr->HasNonDefaultValue(adiParent))
@@ -196,31 +198,45 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			return;
 		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 
 	adiParent = adi;
 	while (true) {
 		if (IsUnit(adiParent))
-			goto found;
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
-		//if (!IsUnit(adiParent) && !IsDataItem(adiParent)) // support containers with same domain unit as parent.
-		//	adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 	adiParent = adi;
 	while (true) {
 		if (!IsDataItem(adiParent))
-			goto found;
-		if (adiParent == storageHolder)
-			adi->ThrowFail("Cannot determine Layer item", FR_Data);
-		adiParent = adi->GetTreeParent();
-	}
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 
-found:
-	m_NameID = adiParent->GetID();
+		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
+			break;
+		}
+		adiParent = adi->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
+	}
 }
 
 void GdalVectlMetaInfo::OnOpen()
@@ -245,7 +261,7 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("gdal.vect", "cannot open layer %s, invalid sql string %s,\n%s"
+			throwErrorF("gdal.vect", "cannot find layer with name %s, invalid sql string %s,\n%s"
 			,	m_NameID.GetStr().c_str()
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
@@ -265,6 +281,11 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (m_Layer)
 			m_Layer->SetNextByIndex(0);
+		
+		auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI()); // TODO: check why container is also tried to be opened as layer
+		if (!m_Layer && !is_container)
+			throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+
 		m_IsOwner = false;
 	}
 }
@@ -991,7 +1012,7 @@ void SetPointGeometryForFeature(OGRFeature * feature, PointType b, ValueComposit
 	OGRPoint pt;
 	pt.setX(b.Col());
 	pt.setY(b.Row());
-	feature->SetGeometry(&pt);
+	feature->SetGeometry(&pt); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename SequenceType>
@@ -1007,7 +1028,7 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 		OGRPoint pt(x, y);
 		OGRLine->addPoint(&pt);
 	}
-	feature->SetGeometry((OGRGeometry*)OGRLine);
+	feature->SetGeometry((OGRGeometry*)OGRLine); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename PointType>
@@ -1044,7 +1065,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 
 	OGRMultiPoly->addGeometry(OGRPoly);
 
-	feature->SetGeometry((OGRGeometry*)OGRMultiPoly);
+	feature->SetGeometry((OGRGeometry*)OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
@@ -1604,6 +1625,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
+				// TODO: interpret geometry type if possible from WKT
 				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
 				gdal_vc = ValueComposition::String;
 			}

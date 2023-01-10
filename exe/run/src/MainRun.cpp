@@ -11,6 +11,7 @@
 #include "ptr/AutoDeletePtr.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
+#include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
 
 #include "AbstrDataItem.h"
@@ -165,6 +166,8 @@ int main(int argc, char** argv)
 	DMS_CALL_BEGIN
 		DMS_RegisterMsgCallback(logMsg, nullptr);
 
+		auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
+
 	//	CDebugCOutHandle debugCout; //Produce debug output always
 		DBG_INIT_COUT; 
 
@@ -186,8 +189,6 @@ int main(int argc, char** argv)
 		return main2(argc, argv);
 
 	DMS_CALL_END
-	DMS_ReleaseMsgCallback(logMsg, nullptr);
-
 	return 2;
 }
 
