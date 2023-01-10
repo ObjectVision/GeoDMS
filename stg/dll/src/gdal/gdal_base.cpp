@@ -1039,4 +1039,6 @@ GDAL_SimpleReader::GDAL_SimpleReader()
 {
 	GDALRegisterTrustedDriverFromKnownDriverShortName("JPEG");
 	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
 }
