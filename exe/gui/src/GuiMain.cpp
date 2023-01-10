@@ -49,9 +49,10 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    m_View.CloseAll(); 
-    m_Treeview.clear();
-    m_State.clear();
+    CloseCurrentConfig();
+    //m_View.CloseAll(); 
+    //m_Treeview.clear();
+    //m_State.clear();
     GuiEventQueues::DeleteInstance();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -237,8 +238,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_View.CloseAll();
-    m_State.clear();
     m_Treeview.clear();
+    m_State.clear();
 }
 
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
