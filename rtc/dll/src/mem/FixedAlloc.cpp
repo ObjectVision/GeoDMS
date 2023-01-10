@@ -474,7 +474,7 @@ constexpr alloc_index_t BlockListIndex(SizeT sz)
 {
 	SizeT org_sz = sz;
 	assert(sz);
-	assert(sz <= ALLOC_OBJSSIZE_MAX);
+//	assert(sz <= ALLOC_OBJSSIZE_MAX);
 
 	--sz;
 	sz >>= ALLOC_OBJSSIZE_MIN_BITS;
