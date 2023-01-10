@@ -83,6 +83,8 @@ struct GDAL_SimpleReader : gdalComponent
 {
 	typedef UInt32 color_type;
 	typedef std::vector<UInt8> band_data;
+	STGDLL_CALL GDAL_SimpleReader();
+
 	struct buffer_type
 	{
 		band_data redBand, greenBand, blueBand, transBand;

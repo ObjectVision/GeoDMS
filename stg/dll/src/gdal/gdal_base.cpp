@@ -797,7 +797,7 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
 {
 
-	if (knownDriverShortName.contains("ESRI Shapefile"))
+	if (knownDriverShortName == "ESRI Shapefile")
 		RegisterOGRShape();
 
 	else if (knownDriverShortName.contains("GPKG"))
@@ -819,28 +819,27 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 		RegisterOGRESRIJSON();
 		RegisterOGRTopoJSON();
 	}
-
-	else if (knownDriverShortName.contains("PNG"))
-		GDALRegister_PNG();
-
-	else if (knownDriverShortName.contains("JPEG"))
-		GDALRegister_JPEG();
 }
 
-auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view ext) -> void
+auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
 {
-	if (ext.contains("GTiff"))
+	if (knownDriverShortName == "GTiff")
 		GDALRegister_GTiff();
 
-	else if (ext.contains("netCDF"))
+	else if (knownDriverShortName == "netCDF")
 		GDALRegister_netCDF();
 
-	else if (ext.contains("HDF5"))
+	else if (knownDriverShortName == "HDF5")
 	{
 		GDALRegister_BAG();
 		GDALRegister_HDF5();
 		GDALRegister_HDF5Image();
 	}
+	else if (knownDriverShortName.contains("PNG"))
+		GDALRegister_PNG();
+
+	else if (knownDriverShortName.contains("JPEG"))
+		GDALRegister_JPEG();
 }
 
 auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
@@ -1016,6 +1015,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	return result;
 }
+
 // *****************************************************************************
 
 CrdTransformation GetTransformation(gdal_transform gdalTr)
@@ -1029,4 +1029,14 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 			shp2dms_order(gdalTr[0], gdalTr[3]), 
 			shp2dms_order(gdalTr[1], gdalTr[5])
 		);
+}
+
+// *****************************************************************************
+
+#include "gdal_grid.h"
+
+GDAL_SimpleReader::GDAL_SimpleReader()
+{
+	GDALRegisterTrustedDriverFromKnownDriverShortName("JPEG");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
 }

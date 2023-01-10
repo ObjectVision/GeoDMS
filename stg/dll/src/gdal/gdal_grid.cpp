@@ -629,10 +629,27 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 	dms_assert(resultCode == CE_None);
 }
 
+struct SimpleGridDriverNames : CPLStringList
+{
+	SimpleGridDriverNames()
+	{
+		AddString("JPEG");
+		AddString("PNG");
+		AddString("GTiff");
+		AddString("BMP");
+	}
+};
+
+const SimpleGridDriverNames& GetSimpleGridDataDriverNames()
+{
+	static SimpleGridDriverNames result;
+	return result;
+}
+
 WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 {
 	GDAL_ErrorFrame frame;
-	GDALDatasetHandle dsHnd = (GDALDataset*)GDALOpen(fileName, GA_ReadOnly);
+	GDALDatasetHandle dsHnd = (GDALDataset*)GDALOpenEx(fileName, GA_ReadOnly, GetSimpleGridDataDriverNames(), nullptr, nullptr);
 	if (!dsHnd)
 	{
 		reportD(SeverityTypeID::ST_Warning, "Failed to open wmts tile, likely due to a corrupted download, delete the file for redownload.");
