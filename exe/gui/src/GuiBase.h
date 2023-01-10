@@ -227,7 +227,7 @@ public:
 	std::list<TreeItem*>::iterator GetEndIterator();
 private:
 	std::list<TreeItem*>::iterator m_Iterator;
-	std::list<TreeItem*> m_History;
+	std::list<TreeItem*> m_History; // TODO: replace std::list with std::vector
 };
 
 class GuiEventQueues
@@ -235,10 +235,9 @@ class GuiEventQueues
 public:
 	// singleton
 	static GuiEventQueues* getInstance();
+	static auto DeleteInstance() -> void;
 	~GuiEventQueues()
 	{
-		if (instance)
-			delete instance;
 	}
 
 	// event queues

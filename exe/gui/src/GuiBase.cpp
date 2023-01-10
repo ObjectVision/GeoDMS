@@ -14,7 +14,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-GuiEventQueues* GuiEventQueues::instance = 0;
+GuiEventQueues* GuiEventQueues::instance = nullptr;
 GuiEventQueues* GuiEventQueues::getInstance()
 {
     if (!instance) {
@@ -23,6 +23,13 @@ GuiEventQueues* GuiEventQueues::getInstance()
     }
     else
         return instance;
+}
+
+auto GuiEventQueues::DeleteInstance() -> void
+{
+    if (instance)
+        delete instance;
+
 }
 
 bool ImGui::InputText(const char* label, std::string* str, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
@@ -102,7 +109,7 @@ auto GuiState::clear() -> void
     if (m_Root.has_ptr())
         m_Root->EnableAutoDelete();
 
-    m_Root.reset();   
+    m_Root.reset();
 }
 
 GuiState::~GuiState()

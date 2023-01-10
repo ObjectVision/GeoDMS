@@ -165,8 +165,8 @@ namespace gdalVectImpl {
 
 gdalVectComponent::gdalVectComponent()
 {
-	if (!gdalVectImpl::s_ComponentCount)
-		OGRRegisterAll(); // can throw
+	//if (!gdalVectImpl::s_ComponentCount)
+	//	OGRRegisterAll(); // can throw
 
 	++gdalVectImpl::s_ComponentCount;
 }

@@ -135,6 +135,25 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
     SetOpenStatus(is_open);
 }
 
+GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
+{
+    //DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, other.m_item, &other);
+    m_item     = other.m_item;
+    m_parent   = other.m_parent;
+    m_children = std::move(other.m_children);
+    m_state = other.m_state; //m_state.store(other.m_state);
+    m_depth = other.m_depth;
+    m_has_been_openend = other.m_has_been_openend;
+    m_is_open = other.m_is_open;
+    
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
+
+    // clean other
+    //other.m_item = nullptr;
+    //other.m_parent = nullptr;
+    //other.m_children.clear();
+}
+
 auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
 {
     auto tree_node = (GuiTreeNode*)clientHandle;
@@ -156,7 +175,7 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 GuiTreeNode::~GuiTreeNode()
 {
     if (m_item)
-        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, nullptr);
+        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
 
 auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
@@ -268,6 +287,17 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     return 0;
 }
 
+auto GuiTreeNode::clear() -> void
+{
+    if (m_item)
+    {
+        DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
+        m_item = nullptr;
+        m_children.clear();
+        m_has_been_openend = false;
+    }
+}
+
 auto GuiTreeNode::SetOpenStatus(bool do_open) -> void
 { 
     m_is_open = do_open;
@@ -290,7 +320,7 @@ auto GuiTreeNode::AddChildren() -> void
     TreeItem* next_subitem = m_item->_GetFirstSubItem();
     while (next_subitem)
     {
-        m_children.emplace_back(next_subitem, this, false);
+        m_children.emplace_back(next_subitem, false);
         next_subitem = next_subitem->GetNextItem();
     }
 }
@@ -335,12 +365,35 @@ auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
     DrawItemIcon();
     ImGui::SameLine();
     DrawItemText(state, jump_item);
+    
+    // Modify y-spacing between TreeView items
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const UInt8 offset = 4;
+    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return false;
 }
 
+auto GuiTree::IsInitialized() -> bool
+{
+    return m_is_initialized;
+}
+
+auto GuiTree::Init(GuiState& state) -> void
+{
+    if (state.GetRoot())
+    {
+        m_Root.Init(state.GetRoot());
+        m_Root.SetOpenStatus(true);
+        m_startnode = &m_Root;
+        m_is_initialized = true;
+    }
+}
+
 GuiTree::~GuiTree()
 {
+    //if (m_Root)
+    //    m_Root.release();
 }
 
 auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
@@ -386,9 +439,15 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
         return;
 
     auto m_currnode = m_startnode;
-    m_Root->Draw(state, jump_item);
-    if (m_Root->GetOpenStatus())
+    m_Root.Draw(state, jump_item);
+    if (m_Root.GetOpenStatus())
         DrawBranch(*m_currnode, state, jump_item);
+}
+
+auto GuiTree::clear() -> void
+{
+    m_Root.clear();
+    m_is_initialized = false;
 }
 
 GuiTreeView::~GuiTreeView() 
@@ -396,7 +455,7 @@ GuiTreeView::~GuiTreeView()
 
 auto GuiTreeView::clear() -> void
 {
-    m_tree.release();
+    m_tree.clear();
 }
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
@@ -411,6 +470,9 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
         m_TemporaryJumpItem = state.GetCurrentItem();
     }
 
+    if (!m_tree.IsInitialized() && state.GetRoot())
+        m_tree.Init(state);
+
     //const ImVec2 size(100,10000);
     //ImGui::SetNextWindowContentSize(size);
     if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
@@ -419,7 +481,16 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
-    if (!use_default_tree)
+    if (!m_tree.IsInitialized())
+    {
+        ImGui::End();
+        return;
+    }
+
+    m_tree.Draw(state, m_TemporaryJumpItem);
+
+
+    /*if (!use_default_tree)
     {
         if (!m_tree && state.GetRoot())
             m_tree = std::make_unique<GuiTree>(state.GetRoot());
@@ -433,8 +504,8 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 
             m_tree->Draw(state, m_TemporaryJumpItem);
         }
-    }
-    else 
+    }*/
+    if (use_default_tree)
     {
         if (state.GetRoot())
             CreateTree(state);

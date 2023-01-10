@@ -49,9 +49,11 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    m_View.CloseAll();
-    m_Treeview.clear();
-    m_State.clear();
+    CloseCurrentConfig();
+    //m_View.CloseAll(); 
+    //m_Treeview.clear();
+    //m_State.clear();
+    GuiEventQueues::DeleteInstance();
 
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
@@ -157,7 +159,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem *TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(fullPathCmd.c_str());
+            StartChildProcess(NULL, const_cast<Char *>(fullPathCmd.c_str()));
         }
 
         break;
@@ -236,8 +238,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_View.CloseAll();
-    m_State.clear();
     m_Treeview.clear();
+    m_State.clear();
 }
 
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
@@ -453,6 +455,7 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(m_Window))
     {
+        
         if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
         else 
@@ -465,6 +468,8 @@ int GuiMainComponent::MainLoop()
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
 
+        //break; // TODO: REMOVE, test for mem leaks
+
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -473,6 +478,8 @@ int GuiMainComponent::MainLoop()
         // Error dialogue
         if (ShowErrorDialogIfNecessary())
             break;
+
+        
 
         // Updated source files
         ShowSourceFileChangeDialogIfNecessary();
@@ -499,8 +506,12 @@ int GuiMainComponent::MainLoop()
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
 
+        
+
         // update all gui components
         Update();
+
+        
 
         // rendering
         ImGui::Render();
@@ -534,6 +545,8 @@ int GuiMainComponent::MainLoop()
             m_FirstFrames--;
 
         m_GuiUnitTest.Step();
+    
+        //break;
     }
 
     // Persistently store gui state in registry

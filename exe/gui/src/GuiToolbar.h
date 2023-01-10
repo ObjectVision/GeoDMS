@@ -9,7 +9,6 @@ enum class ButtonType
 	TOGGLE,
 	TRISTATE,
 	MODAL,
-	
 };
 
 class Button
@@ -45,8 +44,6 @@ public:
 	void Update(bool* p_open, GuiState& state, GuiView& view);
 
 private:
-	//GuiState			      m_State;
-	std::vector<char>		  m_Buf;
 	std::vector<Button>		  m_TableViewButtons;
 	std::vector<Button>		  m_MapViewButtons;
 };
