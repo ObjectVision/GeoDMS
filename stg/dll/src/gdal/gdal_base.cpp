@@ -785,6 +785,12 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 	else if (ext.contains("hdf") || ext.contains("h4") || ext.contains("hdf4") || ext.contains("he2") || ext.contains("h5") || ext.contains("hdf5") || ext.contains("he5"))
 		return "HDF5";
 
+	else if (ext.contains("png"))
+		return "PNG";
+
+	else if (ext.contains("jpeg") || ext.contains("jpg") || ext.contains("jfif ") || ext.contains("jfi") || ext.contains("jif"))
+		return "JPEG";
+
 	return {};
 }
 
@@ -813,6 +819,12 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 		RegisterOGRESRIJSON();
 		RegisterOGRTopoJSON();
 	}
+
+	else if (knownDriverShortName.contains("PNG"))
+		GDALRegister_PNG();
+
+	else if (knownDriverShortName.contains("JPEG"))
+		GDALRegister_JPEG();
 }
 
 auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view ext) -> void
@@ -831,7 +843,7 @@ auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view ext) -> vo
 	}
 }
 
-auto GDALRegisterTrustedSpecificDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
+auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
 {
 	if (knownDriverShortName.empty())
 		return {};
@@ -842,10 +854,10 @@ auto GDALRegisterTrustedSpecificDriverFromKnownDriverShortName(std::string_view 
 	return GetGDALDriverManager()->GetDriverByName(&knownDriverShortName.front()) ? std::string(knownDriverShortName) : "";
 }
 
-auto GDALRegisterTrustedSpecificDriverFromFileExtension(std::string_view ext) -> std::string
+auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> std::string
 {
 	auto knownDriverShortName = FileExtensionToKnownGDALDriverShortName(ext);
-	return GDALRegisterTrustedSpecificDriverFromKnownDriverShortName(knownDriverShortName);
+	return GDALRegisterTrustedDriverFromKnownDriverShortName(knownDriverShortName);
 }
 
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
@@ -919,7 +931,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		std::string driverShortName = {};
 		for (auto i = 0; i != n; ++i)
 		{
-			driverShortName = GDALRegisterTrustedSpecificDriverFromKnownDriverShortName(driverArray[i]);
+			driverShortName = GDALRegisterTrustedDriverFromKnownDriverShortName(driverArray[i]);
 			if (driverShortName.empty())
 			{
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driverArray[i]);
@@ -929,7 +941,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	}
 	else // try to register driver based on file extension and known file formats
 	{
-		std::string driverShortName = GDALRegisterTrustedSpecificDriverFromFileExtension(ext);
+		std::string driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
 		if (!driverShortName.empty())
 			driverArray.AddString(driverShortName.c_str());
 		else
