@@ -221,7 +221,7 @@ private:
 // class  : InfoController
 //----------------------------------------------------------------------
 
-namespace  InfoController
+namespace InfoController
 {
 	void SelectFocusElem(LayerSet* ls, const CrdPoint& worldPoint, EventID eventID);
 };

@@ -498,13 +498,13 @@ void GraphicLayer::SelectDistrict(const CrdPoint& pnt, EventID eventID)
 	throwErrorD("SelectDistrict", "Active Layer is not a GridLayer");
 }
 
-bool GraphicLayer::SelectFeatureIndex(SizeT featureIndex, EventID eventID)
+bool GraphicLayer::SelectFeatureIndex(AbstrDataObject* selAttrObj, SizeT featureIndex, EventID eventID)
 {
 	SizeT i = Feature2EntityIndex(featureIndex);
 	if (!(eventID & EID_REQUEST_SEL))
 		return SetFocusEntityIndex(i, eventID & EID_LBUTTONDBLCLK);
 
-	return SelectEntityIndex(i, eventID);
+	return SelectEntityIndex(selAttrObj, i, eventID);
 }
 
 bool GraphicLayer::IsFeatureSelected(SizeT featureIndex) const
@@ -562,7 +562,7 @@ SharedStr GraphicLayer::GetCurrClassLabel() const
 	);
 }
 
-bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
+bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID)
 {
 	dms_assert((eventID & EID_REQUEST_SEL) && !(eventID & EID_REQUEST_INFO));
 
@@ -572,18 +572,18 @@ bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
 	bool doToggle = (eventID & EID_CTRLKEY );
 
 	AbstrDataItem* selAttr = GetEditAttr();
-	InvalidationBlock changeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
+//	InvalidationBlock changeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 
 	ClassID currClassID;
 	bool doSetClassID = HasEditAttr() && IsDefined(currClassID = GetCurrClassID());
 
 //	bool resetExistingValues = (!doSetClassID) && IsCreateNewEvent(eventID);
 	bool keepExistingValues = doSetClassID || !IsCreateNewEvent(eventID);
-	DataWriteLock writeLock(selAttr, DmsRwChangeType(!keepExistingValues));
+//	DataWriteLock writeLock(selAttr, DmsRwChangeType(!keepExistingValues));
 
 	if (doSetClassID)
 	{ 
-		auto selData = mutable_array_cast<ClassID>(writeLock)->GetDataWrite();
+		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetDataWrite();
 		if (ClassID(selData[selectedIndex]) == currClassID)
 			goto cancel;
 
@@ -591,7 +591,7 @@ bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
 	}
 	else
 	{
-		auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite();
+		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetDataWrite();
 
 		// oldValue  FALSE   TRUE
 		// ========  ======  =====
@@ -613,8 +613,8 @@ bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
 	else
 		InvalidateDraw(); // change 
 
-	writeLock.Commit(); // increases TimeStamp
-	changeLock.ProcessChange(); // absorbes GetLastTS without DoInvalidate
+//	writeLock.Commit(); // increases TimeStamp
+//	changeLock.ProcessChange(); // absorbes GetLastTS without DoInvalidate
 	return true;
 
 cancel:

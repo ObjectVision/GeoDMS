@@ -468,6 +468,7 @@ bool RectPanController::Exec(EventInfo& eventInfo)
 //----------------------------------------------------------------------
 
 #include "act/InvalidationBlock.h"
+#include "Theme.h"
 
 void SelectPoint(GraphicLayer* layer, const CrdPoint& worldPoint, EventID eventID)
 {
@@ -477,8 +478,15 @@ void SelectPoint(GraphicLayer* layer, const CrdPoint& worldPoint, EventID eventI
 	else
 	{
 		InvalidationBlock lock(layer);
-		if (layer->SelectFeatureIndex(UNDEFINED_VALUE(SizeT), eventID))
+		DataWriteLock writeLock(
+			const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()),
+			CompoundWriteType(eventID)
+		);
+		if (layer->SelectFeatureIndex(writeLock, UNDEFINED_VALUE(SizeT), eventID))
+		{
+			writeLock.Commit();
 			lock.ProcessChange();
+		}
 	}
 }
 

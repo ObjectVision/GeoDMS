@@ -114,7 +114,7 @@ public:
 	void SelectAll(bool select);
 
 //	feature support (feature ID -> entity ID in ExtKey, in GridLayer, feature==rastercell
-	bool SelectFeatureIndex(SizeT featureIndex, EventID eventID);
+	bool SelectFeatureIndex(AbstrDataObject* selAttrObj, SizeT featureIndex, EventID eventID);
 	bool IsFeatureSelected(SizeT featureIndex) const;
 
 	bool VisibleLevel(Float64 currNrPixelsPerUnit) const;
@@ -133,7 +133,7 @@ protected:
 	const IndexCollector*  GetIndexCollector() const;
 //	const IndexCollector*  GetFeatureIndexCollector() const;
 
-	bool SelectEntityIndex  (SizeT selectedIndex, EventID eventID);
+	bool SelectEntityIndex  (AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID);
 	bool SetFocusEntityIndex(SizeT focussedIndex, bool showDetails);
 	bool IsEntitySelected   (SizeT entityID) const;
 
