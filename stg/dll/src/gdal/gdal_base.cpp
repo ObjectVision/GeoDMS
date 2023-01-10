@@ -761,54 +761,54 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 {
 	if (ext.size() == 3) // reduce the number of actually evaluated iffs.
 	{
-		if (boost::iequals(ext, "shp") || ext == "dbf" || ext == "shx")
+		if (boost::iequals(ext, "shp") || boost::iequals(ext, "dbf") || boost::iequals(ext, "shx"))
 			return "ESRI Shapefile";
 
-		else if (ext == "csv")
+		else if (boost::iequals(ext, "csv"))
 			return "CSV";
 
-		else if (ext == "gml" || ext == "xml")
+		else if (boost::iequals(ext, "gml") || boost::iequals(ext, "xml"))
 			return "GML";
 
-		else if (ext == "gdb")
+		else if (boost::iequals(ext, "gdb"))
 			return "FileGDB";
 
-		else if (ext == "tif")
+		else if (boost::iequals(ext, "tif"))
 			return "GTiff";
 
-		else if (ext == "hdf" || ext == "he2" || ext == "he5")
+		else if (boost::iequals(ext, "hdf") || boost::iequals(ext, "he2") || boost::iequals(ext, "he5"))
 			return "HDF5";
 
-		else if (ext == "png")
+		else if (boost::iequals(ext, "png"))
 			return "PNG";
 
-		else if (ext == "jpg" || ext == "jfi" || ext == "jif")
+		else if (boost::iequals(ext, "jpg") || boost::iequals(ext, "jfi") || boost::iequals(ext, "jif"))
 			return "JPEG";
 
-		else if (ext == "bmp")
+		else if (boost::iequals(ext, "bmp"))
 			return "BMP";
 	}
 	else
 	{
-		if (ext == "gpkg")
+		if (boost::iequals(ext, "gpkg"))
 			return "GPKG";
 
-		else if (ext == "json" || ext == "geojson")
+		else if (boost::iequals(ext, "json") || boost::iequals(ext, "geojson"))
 			return "GeoJSON";
 
-		else if (ext == "tiff")
+		else if (boost::iequals(ext, "tiff"))
 			return "GTiff";
 
-		else if (ext == "nc")
+		else if (boost::iequals(ext, "nc"))
 			return "netCDF";
 
-		else if (ext == "h4" || ext == "hdf4" || ext == "h5" || ext == "hdf5")
+		else if (boost::iequals(ext, "h4") || boost::iequals(ext, "hdf4") || boost::iequals(ext, "h5") || boost::iequals(ext, "hdf5"))
 			return "HDF5";
 
-		else if (ext == "png")
+		else if (boost::iequals(ext, "png"))
 			return "PNG";
 
-		else if (ext == "jpeg" || ext == "jfif")
+		else if (boost::iequals(ext, "jpeg") || boost::iequals(ext, "jfif"))
 			return "JPEG";
 
 	}
