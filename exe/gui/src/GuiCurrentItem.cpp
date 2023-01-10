@@ -46,6 +46,21 @@ void GuiCurrentItem::Update(GuiState &state)
         }
 
         DrawHistoryTreeItemDropdownList(state);
+        
+        if (ImGui::ArrowButton("previous", ImGuiDir_Left))
+        {
+
+            auto item = state.TreeItemHistoryList.GetPrevious();
+            if (item)
+                state.SetCurrentItem(item);
+        }
+
+        if (ImGui::ArrowButton("next", ImGuiDir_Right))
+        {
+            auto item = state.TreeItemHistoryList.GetNext();
+            if (item)
+                state.SetCurrentItem(item);
+        }
 
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
 

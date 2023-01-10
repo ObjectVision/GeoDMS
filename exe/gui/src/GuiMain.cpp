@@ -479,8 +479,6 @@ int GuiMainComponent::MainLoop()
         if (ShowErrorDialogIfNecessary())
             break;
 
-        
-
         // Updated source files
         ShowSourceFileChangeDialogIfNecessary();
 

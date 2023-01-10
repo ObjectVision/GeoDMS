@@ -79,7 +79,6 @@ TreeItem* TreeItemHistory::GetNext()
 
 TreeItem* TreeItemHistory::GetPrevious()
 {
-    auto test = std::distance(m_History.begin(), m_Iterator);
     if (std::distance(m_Iterator, m_History.begin()))
     {
         std::advance(m_Iterator, -1);
