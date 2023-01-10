@@ -149,7 +149,10 @@ template <class V>
 std::size_t DataArrayBase<V>::GetNrTileBytesNow(tile_id t, bool calcStreamSize) const
 {
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
-	return NrBytesOf(GetTile(t), calcStreamSize);
+	auto tile = GetTile(t);
+	if (tile.size() == 0)
+		return std::size_t(-1); // can be anything
+	return NrBytesOf(tile, calcStreamSize);
 }
 
 template <class V>

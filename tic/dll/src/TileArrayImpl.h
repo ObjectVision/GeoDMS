@@ -233,7 +233,7 @@ auto HeapSingleArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
 	dms_assert(t == 0); // PRECONDITION
 
-	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
+	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0) || m_Seq.size() == 0);
 
 	return locked_cseq_t(TileCRef(this), GetConstSeq(m_Seq));
 }
