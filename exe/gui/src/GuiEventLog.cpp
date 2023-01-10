@@ -113,7 +113,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    // window specific options button
+    /*// window specific options button
     auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();
     SetClipRectToIncludeOptionsIconInWindowHeader();
     ImGui::Text(ICON_RI_SETTINGS);
@@ -123,7 +123,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
             state.ShowEventLogOptionsWindow = true;
     }
     ImGui::SetCursorPos(old_cpos);
-    ImGui::PopClipRect();
+    ImGui::PopClipRect();*/
 
     // filter
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
@@ -149,6 +149,13 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     bool has_item_filter = !m_FilteredItemIndices.empty();
     if (has_item_filter)
         clipper.Begin(m_FilteredItemIndices.size());
+    else if (m_FilteredItemIndices.size() == 1 && m_FilteredItemIndices.at(0)==-1)
+    {
+        ImGui::EndChild();
+        ImGui::Separator();
+        ImGui::End();
+        return;
+    }
     else
         clipper.Begin(m_Items.size());
 
@@ -178,7 +185,6 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 
     ImGui::EndChild();
     ImGui::Separator();
-
     ImGui::End();
 }; 
 
@@ -277,6 +283,8 @@ auto GuiEventLog::Refilter() -> void
 
         index++;
     }
+    if (m_FilteredItemIndices.empty())
+        m_FilteredItemIndices.push_back(-1); // special empty search result indicator
 }
 
 auto GuiEventLog::AddLog(SeverityTypeID severity_type, std::string original_message) -> void

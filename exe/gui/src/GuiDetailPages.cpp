@@ -391,7 +391,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         m_Statistics.clear();
     }
 
-    // window specific options button
+    /*// window specific options button
     auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();
     SetClipRectToIncludeOptionsIconInWindowHeader();
     ImGui::Text(ICON_RI_SETTINGS);
@@ -403,7 +403,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
     ImGui::SetCursorPos(old_cpos);
-    ImGui::PopClipRect();
+    ImGui::PopClipRect();*/
 
     if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_FittingPolicyScroll))
     {
