@@ -423,7 +423,7 @@ int GuiMainComponent::Init()
 
     SetDmsWindowIcon(m_Window);
     SetGuiFont("misc/fonts/DroidSans.ttf");
-
+    //SetGuiFont("misc/fonts/Cambria-01.ttf"); // from C:\Windows\Fonts
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 

@@ -38,11 +38,11 @@
 auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt32
 {
     if (isFailed)
-        return IM_COL32(255, 0, 0, 255);
+        return IM_COL32(0, 0, 0, 255);
 
     switch (status)
     {
-    case NotificationCode::NC2_FailedFlag || NotificationCode::NC2_Invalidated: return IM_COL32(255, 0, 0, 255);
+    case NotificationCode::NC2_FailedFlag || NotificationCode::NC2_Invalidated: return IM_COL32(0, 0, 0, 255);
     case NotificationCode::NC2_DataReady: return IM_COL32(0, 153, 51, 255);
     case NotificationCode::NC2_Committed: return IM_COL32(82, 136, 219, 255);
     default: return IM_COL32(255, 0, 102, 255);
@@ -236,10 +236,18 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     auto status = DMS_TreeItem_GetProgressState(m_item);
     auto failed = m_item->IsFailed();
 
+    // red background for failed item
+    if (failed) 
+    {
+        auto draw_list = ImGui::GetWindowDrawList();
+        auto cur_pos = ImGui::GetCursorScreenPos();
+        auto text_size = ImGui::CalcTextSize(m_item->GetName().c_str());
+        draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x+text_size.x, cur_pos.y+text_size.y), IM_COL32(225, 6, 0, 255));
+    }
+
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     const bool is_selected = (m_item == state.GetCurrentItem());
     ImGui::PushID(m_item);
-
     if (ImGui::Selectable(m_item->GetName().c_str(), is_selected)) // m_selectable_name.c_str()
     {
         UpdateStateAfterItemClick(state, m_item);
