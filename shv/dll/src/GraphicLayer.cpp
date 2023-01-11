@@ -571,15 +571,10 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 
 	bool doToggle = (eventID & EID_CTRLKEY );
 
-	AbstrDataItem* selAttr = GetEditAttr();
-//	InvalidationBlock changeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
-
 	ClassID currClassID;
 	bool doSetClassID = HasEditAttr() && IsDefined(currClassID = GetCurrClassID());
 
-//	bool resetExistingValues = (!doSetClassID) && IsCreateNewEvent(eventID);
 	bool keepExistingValues = doSetClassID || !IsCreateNewEvent(eventID);
-//	DataWriteLock writeLock(selAttr, DmsRwChangeType(!keepExistingValues));
 
 	if (doSetClassID)
 	{ 
@@ -613,8 +608,6 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 	else
 		InvalidateDraw(); // change 
 
-//	writeLock.Commit(); // increases TimeStamp
-//	changeLock.ProcessChange(); // absorbes GetLastTS without DoInvalidate
 	return true;
 
 cancel:
