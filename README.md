@@ -1,5 +1,5 @@
 # GeoDMS
-Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
+Geographic  Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
 Where fast generic, landuse modeling and routing algorithms are implemented in C++ and exposed through the GeoDMS scripting language.
 
 # Getting started
