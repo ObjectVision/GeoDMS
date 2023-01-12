@@ -97,11 +97,11 @@ public:
 
 	virtual TokenID GetID() const override;
 
-	virtual void SelectPoint(const CrdPoint& pnt, EventID eventID) {};
-	virtual void SelectRect(const CrdRect& worldRect, EventID eventID) {};
-	virtual void SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) {};
+	virtual void SelectPoint(CrdPoint pnt, EventID eventID) {};
+	virtual void SelectRect(CrdRect worldRect, EventID eventID) {};
+	virtual void SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID) {};
 	virtual void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) {};
-	virtual void SelectDistrict(const CrdPoint& pnt, EventID eventID);
+	virtual void SelectDistrict(CrdPoint pnt, EventID eventID);
 
 	virtual CrdRect CalcSelectedFullWorldRect() const = 0;
 

@@ -661,7 +661,7 @@ SizeT FindNearestPoint(
 	return entityID;
 }
 
-void FeatureLayer::SelectPoint(const CrdPoint& worldPnt, EventID eventID)
+void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 {
 	const AbstrDataItem* featureItem = GetFeatureAttr();
 	dms_assert(featureItem);
@@ -841,7 +841,7 @@ bool SelectPointsInPolygon(
 #include "AbstrController.h"
 #include "ViewPort.h"
 
-void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -874,7 +874,7 @@ void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
 	}
 }
 
-void GraphicPointLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -892,7 +892,7 @@ void GraphicPointLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadi
 		dms_assert(lck.IsLocked());
 
 		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
-			[this, valuesItem, worldRadius, eventID, &worldPnt, &result] <typename P> (const Unit<P>*) 
+			[this, valuesItem, worldRadius, eventID, worldPnt, &result] <typename P> (const Unit<P>*) 
 			{
 				result = SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
 			}
@@ -923,12 +923,12 @@ void GraphicPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* las
 	{
 		DataReadLock lck(valuesItem); 
 		dms_assert(lck.IsLocked());
-		switch (valuesItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID())
-		{
-		#define INSTANTIATE(P) case VT_##P: result = SelectPointsInPolygon< scalar_of<P>::type >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID); break;
-			INSTANTIATE_SEQ_POINTS
-		#undef INSTANTIATE
-		}
+		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, first, last, polyRect, eventID, &result] <typename P> (const Unit<P>*)
+			{
+				result = SelectPointsInPolygon< typename scalar_of<P>::type >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID);
+			}
+		);
 	}
 	if	(result && !HasEntityAggr())
 	{
@@ -1029,7 +1029,7 @@ bool DrawPoints(
 	SelectionIdCPtr selectionsArray; dms_assert(!selectionsArray);
 	if (fd.m_SelValues) {
 		selectionsArray = fd.m_SelValues.value().begin();
-		dms_assert(selectionsArray);
+		MG_CHECK(selectionsArray);
 	}
 	bool selectedOnly = layer->ShowSelectedOnly();
 	dms_assert(selectionsArray || !selectedOnly);
@@ -1457,12 +1457,12 @@ SizeT GraphicArcLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDa
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void GraphicArcLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 {
 	throwItemError("SelectRect on ArcLayer Not Yet Implemented (NYI)");
 }
 
-void GraphicArcLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
 	throwItemError("SelectCircle on ArcLayer Not Yet Implemented (NYI)");
 }
@@ -1768,12 +1768,12 @@ SizeT GraphicPolygonLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const Abs
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void GraphicPolygonLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 {
 	throwItemError("SelectRect on PolygonLayer Not Yet Implemented (NYI)");
 }
 
-void GraphicPolygonLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
 	throwItemError("SelectCircle on PolygonLayer Not Yet Implemented (NYI)");
 }

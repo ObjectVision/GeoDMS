@@ -493,7 +493,7 @@ void GraphicLayer::SelectAll(bool select)
 	lock.Commit();
 }
 
-void GraphicLayer::SelectDistrict(const CrdPoint& pnt, EventID eventID)
+void GraphicLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 {
 	throwErrorD("SelectDistrict", "Active Layer is not a GridLayer");
 }

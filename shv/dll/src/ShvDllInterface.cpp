@@ -288,7 +288,7 @@ void OnDestroyDataView(DataView* self)
 		g_MsgQueue.end()
 	);
 }
-
+/*
 ActorVisitState DataView_Update(DataView* self)
 {
 	DMS_CALL_BEGIN
@@ -308,17 +308,29 @@ ActorVisitState DataView_Update(DataView* self)
 
 	return AVS_Ready; // assume fail, so we are done since we don't want to repeat failure
 }
+*/
 
-ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
+ActorVisitState DataView_Update(DataView* self)
 {
-	DMS_SE_CALL_BEGIN
+	DMS_CALL_BEGIN
 
 		ProcessMainThreadOpers();
 
 		if (self->UpdateView() != GVS_Continue)
 			return AVS_SuspendedOrFailed;  // come back if suspended and not failed
-		
+
 		return AVS_Ready;
+
+	DMS_CALL_END
+
+	return AVS_Ready;
+}
+
+ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
+{
+	DMS_SE_CALL_BEGIN
+
+		return DataView_Update(self);
 
 	DMS_SE_CALL_END
 
