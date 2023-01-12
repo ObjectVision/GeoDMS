@@ -184,7 +184,7 @@ auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
     return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size();
 }
 
-auto GuiTreeNode::DrawItemDropDown() -> bool
+auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
@@ -202,6 +202,7 @@ auto GuiTreeNode::DrawItemDropDown() -> bool
     ImGui::PushID(m_item);
     if (ImGui::Button(icon))
     {
+        UpdateStateAfterItemClick(state, m_item);
         SetOpenStatus(!GetOpenStatus());
     }
     ImGui::PopID();
@@ -366,7 +367,7 @@ auto GuiTreeNode::IsLeaf() -> bool
 
 auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
 {
-    DrawItemDropDown();
+    DrawItemDropDown(state);
     //auto test1 = ImGui::GetCursorPos();
     //ImGui::SameLine(); // SameLine moves cursor back to last draw position..
     //auto test2 = ImGui::GetCursorPos();

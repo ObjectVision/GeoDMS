@@ -34,7 +34,7 @@ public:
 
 private:
 	auto GetDepthFromTreeItem() -> UInt8;
-	auto DrawItemDropDown() -> bool;
+	auto DrawItemDropDown(GuiState& state) -> bool;
 	auto DrawItemIcon() -> bool;
 	auto DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool;
 
