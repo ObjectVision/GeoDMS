@@ -455,15 +455,14 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(m_Window))
     {
-        
-        if (--UpdateFrameCounter) // when waking up from an event, update n frames
+        //if (--UpdateFrameCounter) // when waking up from an event, update n frames
             glfwPollEvents();
-        else 
-        {
-            glfwWaitEventsTimeout(1.0);
-            if (UpdateFrameCounter == 0)
-                UpdateFrameCounter = frames_to_update;
-        }
+        //else 
+        //{
+        //    glfwWaitEventsTimeout(1.0);
+        //    if (UpdateFrameCounter == 0)
+        //        UpdateFrameCounter = frames_to_update;
+        //}
 
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
