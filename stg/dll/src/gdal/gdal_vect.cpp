@@ -282,8 +282,7 @@ void GdalVectlMetaInfo::OnOpen()
 		if (m_Layer)
 			m_Layer->SetNextByIndex(0);
 		
-		auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI()); // TODO: check why container is also tried to be opened as layer
-		if (!m_Layer && !is_container)
+		if (!m_Layer)
 			throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
 
 		m_IsOwner = false;
@@ -1665,7 +1664,9 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
-	if (curr->IsStorable() && curr->HasCalculator())
+	if (!curr->IsLoadable())
+		return;
+	if (curr->HasCalculator())
 		return;
 
 	if (IsUnit(curr))
