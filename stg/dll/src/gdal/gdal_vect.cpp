@@ -283,7 +283,11 @@ void GdalVectlMetaInfo::OnOpen()
 			m_Layer->SetNextByIndex(0);
 		
 		if (!m_Layer)
-			throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+		{
+			auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI());
+			if (!is_container)
+				throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+		}
 
 		m_IsOwner = false;
 	}
@@ -1664,8 +1668,6 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
-	if (!curr->IsLoadable())
-		return;
 	if (curr->HasCalculator())
 		return;
 
