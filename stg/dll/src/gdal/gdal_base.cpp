@@ -689,7 +689,7 @@ sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
 
 		auto wktString = GetWktProjectionFromValuesUnit(subDI);
 		if (not wktString.empty())
-			return sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} };
+			return sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} }; //TODO: is the sr_releaser called properly here?
 	}
 	return {};
 }
