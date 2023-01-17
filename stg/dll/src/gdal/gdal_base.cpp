@@ -197,7 +197,7 @@ void GDAL_ErrorFrame::ThrowUpWhateverCameUp()
 		return;
 	m_prev_proj_err_no = projErrNo; // avoid repeated calling from the nearing destructor.
 	auto pjCtx = GetProjectionContext();
-	auto projErrStr = SharedStr(proj_context_errno_string(pjCtx, m_prev_proj_err_no));
+	auto projErrStr = SharedStr(proj_context_errno_string(pjCtx, projErrNo));
 	throwErrorF("proj", "error(%d): %s", projErrNo, projErrStr.c_str());
 }
 
