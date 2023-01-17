@@ -206,6 +206,26 @@ void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char
 		m_err_no = err_no;
 		m_msg = msg;
 	}
+	auto projErrStr = GetProjectionContextErrorString();
+	if (projErrStr.empty())
+		return;
+
+	m_msg += mySSPrintF("\n%s", projErrStr.c_str());
+}
+
+SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
+{
+	auto pjCtx = reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
+	if (!pjCtx)
+		return {};
+	auto pjErrno = proj_context_errno(pjCtx);
+	if (!pjErrno)
+		return {};
+
+	return mySSPrintF("Proj(%d): %s"
+		, pjErrno
+		, proj_context_errno_string(pjCtx, pjErrno)
+	);
 }
 
 void gdalCleanup()

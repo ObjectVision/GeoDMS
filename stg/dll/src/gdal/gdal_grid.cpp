@@ -534,10 +534,19 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		{
 			if (m_hDS->GetRasterCount())
 			{
-				gdal_transform gdalTr;
-				m_hDS->GetGeoTransform(gdalTr);
-				gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-				gridDataDomain->SetDescr(SharedStr(m_hDS->GetProjectionRef()));
+				try {
+					GDAL_ErrorFrame frame;
+					gdal_transform gdalTr;
+					m_hDS->GetGeoTransform(gdalTr);
+
+					gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
+					gridDataDomain->SetDescr(SharedStr(m_hDS->GetProjectionRef()));
+					frame.ThrowUpWhateverCameUp();
+				}
+				catch (...)
+				{
+					gridDataDomain->CatchFail(FR_MetaInfo);
+				}
 			}
 		}
 	}

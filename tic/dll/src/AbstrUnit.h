@@ -210,8 +210,8 @@ public:
 	virtual void InviteUnitProcessor(const UnitProcessor& visitor) const = 0;
 
 // mag alleen vanuit Update of Create worden aangeroepen 
-	TIC_CALL virtual void SetMetric    (const UnitMetric    * m);
-	TIC_CALL virtual void SetProjection(const UnitProjection* p);
+	TIC_CALL virtual void SetMetric    (SharedPtr<const UnitMetric    > m);
+	TIC_CALL virtual void SetProjection(SharedPtr<const UnitProjection> p);
 	TIC_CALL void DuplFrom(const AbstrUnit* src);
 
 //	Override TreeItem virtuals

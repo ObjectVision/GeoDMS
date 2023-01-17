@@ -115,7 +115,7 @@ struct RangedUnit : UnitBase<V>
 	const UnitMetric* GetCurrMetric() const override;
 
 //	mag alleen vanuit Update of Create worden aangeroepen 
-	void SetMetric(const UnitMetric* m) override;
+	void SetMetric(SharedPtr < const UnitMetric> m) override;
 protected:
 	virtual void LoadRangeImpl (BinaryInpStream&);
 	virtual void StoreRangeImpl(BinaryOutStream&) const;
@@ -183,7 +183,7 @@ struct GeoUnitAdapter : U // all integral and float Point types
 	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
 // mag alleen vanuit Update of Create worden aangeroepen 
-	void SetProjection(const UnitProjection* p) override;
+	void SetProjection(SharedPtr < const UnitProjection> p) override;
 private:
 	mutable SharedPtr<const UnitProjection> m_Projection;
 };

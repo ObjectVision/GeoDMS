@@ -95,6 +95,7 @@ struct GDAL_ErrorFrame : gdalThread
 	SharedStr m_msg;
 
 	GDAL_ErrorFrame* m_Prev;
+	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 
 //STGDLL_CALL void gdalComponent_CreateMetaInfo(TreeItem* container, bool mustCalc);

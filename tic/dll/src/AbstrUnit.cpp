@@ -560,11 +560,11 @@ SharedStr AbstrUnit::GetNameOrCurrMetric(FormattingFlags ff) const
 }
 
 // should only be called from PrepareData
-void AbstrUnit::SetMetric(const UnitMetric* m)
+void AbstrUnit::SetMetric(SharedPtr<const UnitMetric> m)
 {
 }
 
-void AbstrUnit::SetProjection(const UnitProjection* p)
+void AbstrUnit::SetProjection(SharedPtr<const UnitProjection> p)
 {
 }
 

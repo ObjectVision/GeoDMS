@@ -363,13 +363,14 @@ public:
 		AbstrUnit* result = arg2->GetUnitClass()->CreateTmpUnit(resultHolder);
 		resultHolder = result;
 
-		SharedPtr<UnitMetric> m;
-		if (!baseUnitName.empty())
+		if (baseUnitName.empty())
+			result->SetMetric(nullptr);
+		else
 		{
-			m = new UnitMetric;
+			auto m = std::make_unique<UnitMetric>();
 			m->m_BaseUnits[baseUnitName] = 1;
+			result->SetMetric(m.release());
 		}
-		result->SetMetric(m);
 //		result->SetDataInMem();
 
 		return true;
@@ -474,9 +475,8 @@ public:
 		const UnitProjection* orgP = arg1->GetCurrProjection();
 		if (orgP)
 			trRel *= *orgP;
-		SharedPtr<UnitProjection> newP = new UnitProjection((orgP ? orgP->GetBaseUnit() : AsUnit(arg1->GetCurrUltimateItem())), trRel.Offset(), trRel.Factor());
-
-		result->SetProjection(newP);
+		auto newP = std::make_unique<UnitProjection>((orgP ? orgP->GetBaseUnit() : AsUnit(arg1->GetCurrUltimateItem())), trRel.Offset(), trRel.Factor());
+		result->SetProjection(newP.release());
 
 		if (mustCalc)
 		{
