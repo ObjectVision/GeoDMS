@@ -536,7 +536,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			{
 				gdal_transform gdalTr;
 				m_hDS->GetGeoTransform(gdalTr);
-				gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
+				gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr))); //TODO: is UnitProjection released
 				gridDataDomain->SetDescr(SharedStr(m_hDS->GetProjectionRef()));
 			}
 		}
