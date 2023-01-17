@@ -147,10 +147,10 @@ GetBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCache, WeakPtr<con
 
 		const AbstrDataObject* featureData = featureItem->GetCurrRefObj();
 
-		const AbstrBoundingBoxCache*& bbPtr = g_BB_Register[featureData];
-		if (!bbPtr)
-			bbPtr = new BoundingBoxCache<ScalarType>(featureData);
-		bbCache = bbPtr;
+		auto bbPtr = std::make_unique<BoundingBoxCache<ScalarType>> (featureData);
+		bbPtr->GlobalRegister(featureData);
+		bbCache = bbPtr.release();
+
 	}
 	return debug_cast<const BoundingBoxCache<ScalarType>*>(bbCache.get_ptr());
 }

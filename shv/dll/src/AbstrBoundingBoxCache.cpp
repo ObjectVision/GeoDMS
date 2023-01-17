@@ -46,10 +46,22 @@ AbstrBoundingBoxCache::AbstrBoundingBoxCache(const AbstrDataObject* featureData)
 
 AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 {
-	leveled_critical_section::scoped_lock lockBB_regeister(cs_BB);
-
-	g_BB_Register.erase(m_FeatureData);
+	if (m_HasBeenRegistered)
+	{
+		leveled_critical_section::scoped_lock lockBB_register(cs_BB);
+		g_BB_Register.erase(m_FeatureData);
+	}
 }
+
+void AbstrBoundingBoxCache::GlobalRegister(const AbstrDataObject* featureData)
+{
+	assert(cs_BB.isLocked()); // logic requires that the cs has been locked by the caller as part of the construction process.
+	const AbstrBoundingBoxCache*& bbPtr = g_BB_Register[featureData];
+	assert(bbPtr == nullptr);
+	bbPtr = this;
+	m_HasBeenRegistered = true;
+}
+
 
 DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
 {
