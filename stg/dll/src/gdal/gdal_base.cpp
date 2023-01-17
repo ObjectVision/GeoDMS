@@ -178,6 +178,7 @@ namespace gdalComponentImpl
 GDAL_ErrorFrame::GDAL_ErrorFrame()
 	: m_eErrClass(dms_CPLErr(CE_None) )
 	, m_Prev( gdalComponentImpl::s_ErrorFramePtr )
+	, m_prev_proj_err_no( GetProjectionContextErrNo() )
 {
 	gdalComponentImpl::s_ErrorFramePtr = this;
 }
@@ -189,6 +190,15 @@ void GDAL_ErrorFrame::ThrowUpWhateverCameUp()
 		auto errClass = ReleaseError();
 		gdalComponentImpl::ErrorHandlerImpl(CPLErr(errClass), m_err_no, m_msg.c_str());
 	}
+	auto projErrNo = GetProjectionContextErrNo();
+	if (!projErrNo)
+		return;
+	if (m_prev_proj_err_no == projErrNo)
+		return;
+	m_prev_proj_err_no = projErrNo; // avoid repeated calling from the nearing destructor.
+	auto pjCtx = GetProjectionContext();
+	auto projErrStr = SharedStr(proj_context_errno_string(pjCtx, m_prev_proj_err_no));
+	throwErrorF("proj", "error(%d): %s", projErrNo, projErrStr.c_str());
 }
 
 GDAL_ErrorFrame::~GDAL_ErrorFrame()  noexcept(false)
@@ -211,6 +221,19 @@ void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char
 		return;
 
 	m_msg += mySSPrintF("\n%s", projErrStr.c_str());
+}
+
+struct pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
+{
+	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
+}
+
+int GDAL_ErrorFrame::GetProjectionContextErrNo()
+{
+	auto pjCtx = GetProjectionContext();
+	if (!pjCtx)
+		return 0;
+	return proj_context_errno(pjCtx);
 }
 
 SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()

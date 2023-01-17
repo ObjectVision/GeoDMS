@@ -91,10 +91,13 @@ struct GDAL_ErrorFrame : gdalThread
 	bool HasError() const { return m_eErrClass >= CE_Failure; }
 
 	dms_CPLErr m_eErrClass;
-	int m_err_no = 0;
+	int m_err_no = 0, m_prev_proj_err_no = 0;
 	SharedStr m_msg;
 
 	GDAL_ErrorFrame* m_Prev;
+
+	STGDLL_CALL struct pj_ctx* GetProjectionContext();
+	STGDLL_CALL int GetProjectionContextErrNo();
 	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 
