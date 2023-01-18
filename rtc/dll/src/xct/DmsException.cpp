@@ -315,7 +315,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	if (sourceFile && *sourceFile)
 		result = mySSPrintF("%s(%d):\n", sourceFile, line);
 	if (isInternal)
-		result += "\nThis seems to be a GeoDms internal error; contact Object Vision or report this as issue at https://geodms.nl/mantis";
+		result += "\nThis seems to be a GeoDms internal error; contact Object Vision or report this as issue at https://github.com/ObjectVision/GeoDMS/issues";
 	return result;
 }
 
