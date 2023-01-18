@@ -73,6 +73,6 @@ enum class SourceDescrMode {
 	All = 3
 };
 
-SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
+TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
 
 #endif // __TIC_TREEITEMPROPS_H
