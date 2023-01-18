@@ -104,5 +104,7 @@ private:
     TableData m_ExploreProperties;
     TableData m_FilteredStatistics;
     std::string m_Statistics;
-    UInt8       m_ColumnIndex = 0;
+    std::string m_Configuration;
+    std::string m_SourceDescription;
+    std::string m_Metadata;
 };

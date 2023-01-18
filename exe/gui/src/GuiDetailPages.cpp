@@ -318,10 +318,10 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
     for (auto& row : properties)
     {
         ImGui::TableNextRow();
-        m_ColumnIndex = 0;
+        UInt8 column_index = 0;
         for (auto& col : row)
         {
-            ImGui::TableSetColumnIndex(m_ColumnIndex);
+            ImGui::TableSetColumnIndex(column_index);
             if (col.type == PET_HEADING)
             {
                 ImGui::Text(col.text.c_str());
@@ -356,13 +356,13 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             else if (col.type == PET_SEPARATOR)
             {
                 ImGui::Separator();
-                m_ColumnIndex++;
-                ImGui::TableSetColumnIndex(m_ColumnIndex);
+                column_index++;
+                ImGui::TableSetColumnIndex(column_index);
                 ImGui::Separator();
             }
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
-            m_ColumnIndex++;
+            column_index++;
         }
     }
     ImGui::EndTable();
