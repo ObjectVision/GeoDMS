@@ -55,7 +55,7 @@ public:
 	GridLayer(GraphicObject* owner);
 	~GridLayer();
 
-	void SelectDistrict(const CrdPoint& pnt, EventID eventID) override;
+	void SelectDistrict(CrdPoint pnt, EventID eventID) override;
 
 protected:
 //	override virtuals of GraphicObject
@@ -67,9 +67,9 @@ protected:
 
 //	override virtuals of GraphicLayer
 	void FillMenu(MouseEventDispatcher& med) override;
-	void SelectPoint  (const CrdPoint& pnt, EventID eventID) override;
-	void SelectRect   (const CrdRect& worldRect, EventID eventID) override;
-	void SelectCircle (const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectPoint  (CrdPoint pnt, EventID eventID) override;
+	void SelectRect   (CrdRect worldRect, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	CrdRect CalcSelectedFullWorldRect() const    override;
@@ -93,7 +93,7 @@ private:
 	void InvalidatePasteArea(); friend class PasteGridController;
 
 	CrdRect GetWorldExtents(feature_id featureIndex) const;
-	template <typename T> void SelectRegion(const CrdRect& worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID);
+	template <typename T> void SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID);
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
 

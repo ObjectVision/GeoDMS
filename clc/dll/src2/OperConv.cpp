@@ -316,7 +316,10 @@ void OGRCheck(OGRErr result)
 		case OGRERR_INVALID_HANDLE           : errMsg = "Invalid Handle";                        break;
 		default: errMsg = "Error code not defined in ogr_code.h";                                break; 
 	}
-	throwErrorF("OGR", "code %d: %s", result, errMsg);
+	auto projErrStr = GDAL_ErrorFrame::GetProjectionContextErrorString();
+	if (projErrStr.empty())
+		throwErrorF("OGR", "code %d: %s", result, errMsg);
+	throwErrorF("OGR", "code %d: %s\n%s", result, errMsg, projErrStr.c_str());
 }
 
 const AbstrUnit* CompositeBase(const AbstrUnit* proj)

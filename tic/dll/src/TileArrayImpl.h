@@ -162,10 +162,9 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 
 	for (tile_id t = 0; t != tn; ++t)
 	{
-		// TODO G8: make it non-virtually allocated arrays.
 		seqs[t] = new tile<V>;
-//		seqs[t]->Reset(heap_sequence_provider<typename elem_of<V>::type>::CreateProvider());
-		//		seqs[t]->resizeSO(trd->GetTileSize(t), mustClear);
+		auto tileSize = trd->GetTileSize(t);
+		reallocSO(*seqs[t], tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
 	}
 
 	m_Seqs = std::move(seqs);
@@ -177,13 +176,6 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
 
 	const auto& tilePtr = m_Seqs[t];
-
-	auto tileSize = this->GetTiledRangeData()->GetTileSize(t);
-	if (rwMode == dms_rw_mode::read_write)
-		resizeSO(*tilePtr, tileSize, true MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
-	else
-		reallocSO(*tilePtr, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
-
 	dms_assert(tilePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
 	return locked_seq_t(TileRef(tilePtr.get_ptr()), GetSeq(*tilePtr));
@@ -195,7 +187,9 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
 
 	const auto& tilePtr = m_Seqs[t];
-	dms_assert(tilePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
+
+	auto tileSize = this->GetTiledRangeData()->GetTileSize(t);
+	dms_assert(tilePtr->size() == tileSize);
 
 	return locked_cseq_t(TileCRef(tilePtr.get_ptr()), GetConstSeq(*tilePtr));
 }
@@ -211,6 +205,8 @@ HeapSingleArray<V>::HeapSingleArray(const AbstrTileRangeData* trd, bool mustClea
 	dms_assert(trd->GetNrTiles() == 1); // PRECONDITION
 
 	this->m_TileRangeData = trd;
+	auto tileSize = trd->GetTileSize(0);
+	reallocSO(m_Seq, tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapSingleArray<V>::ctor"));
 }
 
 template <typename V>
@@ -219,10 +215,6 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 	dms_assert(t == 0); // PRECONDITION
 
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(0);
-	if (rwMode == dms_rw_mode::read_write)
-		resizeSO(m_Seq, tileSize, true MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
-	else
-		reallocSO(m_Seq, tileSize, rwMode == dms_rw_mode::write_only_mustzero MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
 
 	return locked_seq_t(TileRef(this), GetSeq(m_Seq));
@@ -232,8 +224,7 @@ template <typename V>
 auto HeapSingleArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
 	dms_assert(t == 0); // PRECONDITION
-
-	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0) || m_Seq.size() == 0);
+	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
 
 	return locked_cseq_t(TileCRef(this), GetConstSeq(m_Seq));
 }

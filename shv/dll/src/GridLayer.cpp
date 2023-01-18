@@ -116,7 +116,7 @@ GridLayer::GridLayer(GraphicObject* owner)
 GridLayer::~GridLayer()
 {}
 
-void GridLayer::SelectPoint(const CrdPoint& pnt, EventID eventID)
+void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 {
 	CrdTransformation tr = GetGeoTransformation(); // grid to world transformer
 	IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
@@ -149,7 +149,7 @@ struct AbstrRowProcessor {
 };
 
 template <typename T>
-void GridLayer::SelectRegion(const CrdRect& worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID)
+void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID)
 {
 	if (HasEntityIndex())
 		throwErrorD("SelectRegion", "Cannot make a region selection on an indirect grid");
@@ -220,7 +220,7 @@ private:
 	Oper m_Oper;
 };
 
-void GridLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GridLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
 	ClassID currClassID;
 	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
@@ -253,7 +253,7 @@ private:
 	Oper     m_Oper;
 };
 
-void GridLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GridLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
 	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 
@@ -445,7 +445,7 @@ void District(
 	adi->throwItemError("Districting operation is not implemented for values of this type");
 }
 
-void GridLayer::SelectDistrict(const CrdPoint& pnt, EventID eventID)
+void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 {
 	DBG_START("GridLayer", "SelectDistrict", MG_DEBUG_DISTRICT);
 

@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "ShvDllPch.h"
 
 #include "FeatureLayer.h"
@@ -661,7 +633,7 @@ SizeT FindNearestPoint(
 	return entityID;
 }
 
-void FeatureLayer::SelectPoint(const CrdPoint& worldPnt, EventID eventID)
+void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 {
 	const AbstrDataItem* featureItem = GetFeatureAttr();
 	dms_assert(featureItem);
@@ -707,21 +679,13 @@ SizeT GraphicPointLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const Abstr
 }
 
 template <typename ScalarType>
-bool SelectPointsInRect(
-	GraphicPointLayer*     layer,
-	const AbstrDataObject* points,
-	const CrdRect&         geoRect,
-	EventID eventID)
+bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect geoRect, EventID eventID)
 {
-	typedef Point<ScalarType>    PointType;
-	typedef DataArray<PointType> DataArrayType;
+	using PointType = Point<ScalarType>;
 
-	const DataArrayType* da = debug_cast<const DataArrayType*>(points);
-
+	auto da = const_array_cast<PointType>(points);
 	auto data = da->GetDataRead();
-	auto
-		b = data.begin(),
-		e = data.end();
+	auto b = data.begin(), e = data.end();
 
 	DataWriteLock writeLock(
 		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), 
@@ -744,34 +708,54 @@ bool SelectPointsInRect(
 	return result;
 }
 
+template <typename ScalarType>
+bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect geoRect, EventID eventID)
+{
+	using PointType = Point<ScalarType>;
+	using ArcType = typename sequence_traits<PointType>::container_type ;
+
+	auto da = const_array_cast<ArcType>(arcs);
+
+	auto data = da->GetDataRead();
+	auto b = data.begin(), e = data.end();
+
+	DataWriteLock writeLock(
+		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()),
+		CompoundWriteType(eventID)
+	);
+
+	bool result = false;
+
+	while (b != e)
+	{
+		if (IsIncluding(geoRect, Convert<CrdRect>(Range<PointType>(b->begin(), b->end(), true, false))))
+		{
+			SizeT entityID = b - data.begin();
+			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+		}
+		++b;
+	}
+	if (result)
+		writeLock.Commit();
+	return result;
+}
 
 
 template <typename ScalarType>
-bool SelectPointsInCircle(
-	GraphicPointLayer*     layer,
-	const AbstrDataObject* points,
-	const CrdPoint& worldPnt, CrdType worldRadius,
-	EventID eventID)
+bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* points, CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
-	typedef Point<ScalarType>    PointType;
-	typedef DataArray<PointType> DataArrayType;
+	using PointType = Point<ScalarType>;
 
 	CrdRect worldRect  = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 	CrdPoint geoPnt    = layer->GetGeoTransformation().Reverse(worldPnt);
 	CrdRect geoRect    = layer->GetGeoTransformation().Reverse(worldRect);
 	CrdType geoRadius2 = Area(geoRect) / 4;
 
-	const DataArrayType* da = debug_cast<const DataArrayType*>(points);
-
+	auto da = const_array_cast<PointType>(points);
 	auto data = da->GetDataRead();
-	auto
-		b = data.begin(),
-		e = data.end();
+	auto b = data.begin(), e = data.end();
 
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), 
-		CompoundWriteType(eventID)
-	);
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 
 	bool result = false;
 
@@ -791,13 +775,48 @@ bool SelectPointsInCircle(
 }
 
 template <typename ScalarType>
-bool SelectPointsInPolygon(
-	GraphicPointLayer*     layer,
-	const AbstrDataObject* points,
-	CrdRect                polyWorldRect,
-	const CrdPoint*        first, 
-	const CrdPoint*        last,
-	EventID                eventID)
+bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+{
+	using PointType = Point<ScalarType>;
+	using ArcType = typename sequence_traits<PointType>::container_type;
+
+	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
+	CrdPoint geoPnt = layer->GetGeoTransformation().Reverse(worldPnt);
+	CrdRect geoRect = layer->GetGeoTransformation().Reverse(worldRect);
+	CrdType geoRadius2 = Area(geoRect) / 4;
+
+	PointType geoPntInT = Convert<PointType>(geoPnt);
+
+	auto da = const_array_cast<ArcType>(arcs);
+	auto data = da->GetDataRead();
+	auto b = data.begin(), e = data.end();
+
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
+
+	bool result = false;
+
+	for (; b != e; ++b)
+	{
+		auto arcRect = Range<CrdPoint>(b->begin(), b->end(), true, false);
+		if (IsIncluding(geoRect, arcRect))
+		{
+			for (const auto& p : *b)
+				if (SqrDist<CrdType>(geoPntInT, p) > geoRadius2)
+					goto nextArc;
+
+			SizeT entityID = b - data.begin();
+			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+		}
+	nextArc:
+		;
+	}
+	if (result)
+		writeLock.Commit();
+	return result;
+}
+
+template <typename ScalarType>
+bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect polyWorldRect, const CrdPoint* first, const CrdPoint* last, EventID eventID)
 {
 	typedef Point<ScalarType>    PointType;
 	typedef DataArray<PointType> DataArrayType;
@@ -841,7 +860,7 @@ bool SelectPointsInPolygon(
 #include "AbstrController.h"
 #include "ViewPort.h"
 
-void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -855,12 +874,13 @@ void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
 
 	if (valuesItem->PrepareData())
 	{
-		CrdRect geoRect = GetGeoTransformation().Reverse(worldRect);
+		auto layer2worldTransformation = GetGeoTransformation();
+		CrdRect geoRect = layer2worldTransformation.Reverse(worldRect);
 
 		DataReadLock lck(valuesItem); 
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(), 
+		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
 			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*) 
 			{
 				result = SelectPointsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
@@ -874,7 +894,7 @@ void GraphicPointLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
 	}
 }
 
-void GraphicPointLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
@@ -888,13 +908,19 @@ void GraphicPointLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadi
 
 	if (valuesItem->PrepareData())
 	{
-		DataReadLock lck(valuesItem); 
+		auto layer2worldTransformation = GetGeoTransformation();
+		CrdPoint geoPnt = layer2worldTransformation.Reverse(worldPnt);
+		CrdType  geoRadius = worldRadius;
+		if (!layer2worldTransformation.IsSingular())
+			geoRadius /= std::abs(layer2worldTransformation.Factor().X());
+
+		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
 		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
-			[this, valuesItem, worldRadius, eventID, &worldPnt, &result] <typename P> (const Unit<P>*) 
+			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
 			{
-				result = SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+				result = SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoPnt, geoRadius, eventID);
 			}
 		);
 	}
@@ -923,12 +949,12 @@ void GraphicPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* las
 	{
 		DataReadLock lck(valuesItem); 
 		dms_assert(lck.IsLocked());
-		switch (valuesItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID())
-		{
-		#define INSTANTIATE(P) case VT_##P: result = SelectPointsInPolygon< scalar_of<P>::type >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID); break;
-			INSTANTIATE_SEQ_POINTS
-		#undef INSTANTIATE
-		}
+		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, first, last, polyRect, eventID, &result] <typename P> (const Unit<P>*)
+			{
+				result = SelectPointsInPolygon< typename scalar_of<P>::type >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID);
+			}
+		);
 	}
 	if	(result && !HasEntityAggr())
 	{
@@ -1029,7 +1055,7 @@ bool DrawPoints(
 	SelectionIdCPtr selectionsArray; dms_assert(!selectionsArray);
 	if (fd.m_SelValues) {
 		selectionsArray = fd.m_SelValues.value().begin();
-		dms_assert(selectionsArray);
+		MG_CHECK(selectionsArray);
 	}
 	bool selectedOnly = layer->ShowSelectedOnly();
 	dms_assert(selectionsArray || !selectedOnly);
@@ -1457,14 +1483,70 @@ SizeT GraphicArcLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDa
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void GraphicArcLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 {
-	throwItemError("SelectRect on ArcLayer Not Yet Implemented (NYI)");
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(eventID & EID_REQUEST_SEL);
+	dms_assert(!(eventID & EID_REQUEST_INFO));
+
+	bool result = false;
+
+	if (valuesItem->PrepareData())
+	{
+		CrdRect geoRect = GetGeoTransformation().Reverse(worldRect);
+
+		DataReadLock lck(valuesItem);
+		dms_assert(lck.IsLocked());
+
+		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*)
+		{
+			result = SelectArcsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+		}
+		);
+	}
+	if (result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(worldRect + GetFeatureWorldExtents(), nullptr);
+	}
 }
 
-void GraphicArcLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
-	throwItemError("SelectCircle on ArcLayer Not Yet Implemented (NYI)");
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(eventID & EID_REQUEST_SEL);
+	dms_assert(!(eventID & EID_REQUEST_INFO));
+
+	bool result = false;
+
+	if (valuesItem->PrepareData())
+	{
+		auto layer2worldTransformation = GetGeoTransformation();
+
+		DataReadLock lck(valuesItem);
+		dms_assert(lck.IsLocked());
+
+		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, worldPnt, worldRadius, eventID, &result] <typename a_type> (const Unit<a_type>*)
+			{
+				result = SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+			}
+		);
+	}
+	if (result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(Inflate(worldPnt, CrdPoint(worldRadius, worldRadius)) + GetFeatureWorldExtents(), nullptr);
+	}
 }
 
 void GraphicArcLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID)
@@ -1768,14 +1850,70 @@ SizeT GraphicPolygonLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const Abs
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void GraphicPolygonLayer::SelectRect  (const CrdRect& worldRect, EventID eventID)
+void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 {
-	throwItemError("SelectRect on PolygonLayer Not Yet Implemented (NYI)");
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(eventID & EID_REQUEST_SEL);
+	dms_assert(!(eventID & EID_REQUEST_INFO));
+
+	bool result = false;
+
+	if (valuesItem->PrepareData())
+	{
+		CrdRect geoRect = GetGeoTransformation().Reverse(worldRect);
+
+		DataReadLock lck(valuesItem);
+		dms_assert(lck.IsLocked());
+
+		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*)
+		{
+			result = SelectArcsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+		}
+		);
+	}
+	if (result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(worldRect + GetFeatureWorldExtents(), nullptr);
+	}
 }
 
-void GraphicPolygonLayer::SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID)
+void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
 {
-	throwItemError("SelectCircle on PolygonLayer Not Yet Implemented (NYI)");
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(eventID & EID_REQUEST_SEL);
+	dms_assert(!(eventID & EID_REQUEST_INFO));
+
+	bool result = false;
+
+	if (valuesItem->PrepareData())
+	{
+		auto layer2worldTransformation = GetGeoTransformation();
+
+		DataReadLock lck(valuesItem);
+		dms_assert(lck.IsLocked());
+
+		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, worldPnt, worldRadius, eventID, &result] <typename a_type> (const Unit<a_type>*)
+			{
+				result = SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+			}
+		);
+	}
+	if (result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(Inflate(worldPnt, CrdPoint(worldRadius, worldRadius)) + GetFeatureWorldExtents(), nullptr);
+	}
 }
 
 void GraphicPolygonLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID)

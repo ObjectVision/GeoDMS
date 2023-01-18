@@ -662,7 +662,7 @@ RangedUnit<V>::GetCurrMetric() const
 }
 
 template <typename V>
-void RangedUnit<V>::SetMetric(const UnitMetric* m) 
+void RangedUnit<V>::SetMetric(SharedPtr<const UnitMetric> m)
 { 
 	m_Metric = m;
 }
@@ -984,10 +984,10 @@ const UnitProjection* GeoUnitAdapter<U>::GetCurrProjection() const
 }
 
 template <class U>
-void GeoUnitAdapter<U>::SetProjection(const UnitProjection* p) 
+void GeoUnitAdapter<U>::SetProjection(SharedPtr <const UnitProjection> p)
 { 
-	m_Projection = p;
-	dms_assert(!p || p->GetBaseUnit() != this); 
+	assert(!p || p->GetBaseUnit() != this);
+	m_Projection = std::move(p);
 }
 
 template <typename U>

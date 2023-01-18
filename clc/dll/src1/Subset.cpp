@@ -323,35 +323,8 @@ struct RelateAttrOperator : public TernaryOperator
 		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
 		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
 
-//		auto orgRelItem= GetItem(args[2]);
-//		assert(orgRelItem == orgRelDC->MakeResult());
-//		const AbstrDataItem* orgRelA = AsDynamicDataItem(orgRelItem);
-//		MG_USERCHECK2(orgRelA, "org_rel data-item expected as 3rd argument");
-
 		const AbstrUnit* sourceDomain = orgRelA->GetAbstrValuesUnit();
 		assert(sourceDomain);
-/*
-		const ValueClass* vc = domain->GetValueType();
-		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(m_ResultClass);
-		if (!resDomainCls)
-			resDomainCls = UnitClass::Find(vc->GetCrdClass());
-
-		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder); // does this set result to Failed when 
-		dms_assert(res);
-		auto resExpr = ExprList(m_SelectOper, conditionExpr);
-		assert(!resExpr.EndP());
-		auto resDC = GetOrCreateDataController(resExpr);
-		assert(resDC);
-		res->SetDC(resDC);
-		resultHolder = res;
-		TokenID resSubName;
-		LispRef resSubExpr;
-		if (m_ORCM != OrgRelCreationMode::none)
-		{
-			resSubName = (m_ORCM == OrgRelCreationMode::org_rel) ? s_Org_rel : s_nrOrgEntity;
-			resSubExpr = slSubItemCall(resExpr, resSubName.AsStrRange());
-		}
-*/
 		assert(resultHolder);
 
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -392,7 +365,7 @@ struct AbstrSelectDataOperator : TernaryOperator
 		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit());
+			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
 		if (mustCalc)
 		{
 			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());

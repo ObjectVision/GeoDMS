@@ -45,6 +45,8 @@ protected:
 	virtual ~AbstrBoundingBoxCache();
 
 public:
+	void GlobalRegister(const AbstrDataObject* featureData);
+
 	virtual DRect GetTileBounds(tile_id t) const = 0;
 	virtual DRect GetBounds(SizeT featureID) const =0;
 	virtual SizeT GetFeatureCount() const = 0;
@@ -56,6 +58,7 @@ public:
 
 protected:
 	const AbstrDataObject* m_FeatureData;
+	bool m_HasBeenRegistered = false;
 };
 
 #endif // __SHV_ABSTRBOUNDINGBOXCACHE_H

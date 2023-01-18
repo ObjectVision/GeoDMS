@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -785,49 +757,12 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 		return;
 	dms_assert(pr);
 	mc_Calculator = std::move(pr);
-	assert(!pr);
 }
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
 {
 	return static_cast<const TreeItem*>(Actor::GetInterestPtrOrNull().get_ptr()); 
 }
-
-/* REMOVE
-const TreeItem* TreeItem::DetermineReferredItem(const AbstrCalculator* ac) const
-{
-	dms_assert(ac);
-	const TreeItem* refItem = nullptr;
-	ac->MakeDataController();
-	if (ac->IsFailed())
-	{
-		Fail(ac);
-		return nullptr;
-	}
-	const DataController* dc = ac->GetDataController(); // GetDataController cannot throw if it is made before
-	if (dc)
-	{
-		try {
-			refItem = ac->MakeResultingTreeItem();
-			if (!refItem)
-			{
-				dms_assert(ac->WasFailed(FR_MetaInfo));
-				Fail(ac, FR_Determine);
-			}
-			dms_assert(!refItem || refItem == this || !refItem->InTemplate());
-			if (refItem == this)
-				refItem = nullptr;
-		}
-		catch (...)
-		{
-			CatchFail(FR_Determine);
-			dms_assert(!refItem);
-		}
-	}
-	return refItem;
-	
-}
-*/
 
 bool TreeItem::HasCalculatorImpl() const
 // if true this func guarantees that GetCalculator will return a non-null mc_Calculator

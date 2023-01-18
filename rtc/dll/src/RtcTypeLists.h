@@ -92,8 +92,9 @@ namespace typelists {
 	typedef boost::mpl::vector6<SPolygon, IPolygon, WPolygon, UPolygon, FPolygon, DPolygon > point_sequences;
 	typedef boost::mpl::vector4<SPolygon, IPolygon,  WPolygon, UPolygon>                     int__point_sequences;
 
-	typedef tl::jv2<int_points,  float_points>                                                 seq_points;
-	typedef tl::jv2<sint_points, float_points>                                                 seq_signed_points;
+	typedef tl::jv2<uint_points, float_points>                                               seq_unsinged_points;
+	typedef tl::jv2<sint_points, float_points>                                               seq_signed_points;
+	typedef tl::jv2<int_points,  float_points>                                               seq_points;
 #else
 	typedef boost::mpl::vector2<FPolygon,  DPolygon > sequences;
 	typedef boost::mpl::vector2<FPoint,    DPoint   > seq_points;
