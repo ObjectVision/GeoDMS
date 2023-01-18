@@ -89,22 +89,26 @@ private:
 class GuiDetailPages : GuiBaseComponent
 {
 public:
-	void Update(bool* p_open, GuiState& state);
+    auto Update(bool* p_open, GuiState& state) -> void;
 private:
-    void UpdateGeneralProperties(GuiState& state);
-    void UpdateAllProperties(GuiState& state);
-    void UpdateExploreProperties(GuiState& state);
-    void UpdateStatistics(GuiState& state);
-    void FilterStatistics();
-    void DrawProperties(GuiState& state, TableData& properties);
+    auto UpdateGeneralProperties(GuiState& state) -> void;
+    auto UpdateAllProperties(GuiState& state) -> void;
+    auto UpdateExploreProperties(GuiState& state) -> void;
+    auto UpdateStatistics(GuiState& state) -> void;
+    auto UpdateConfiguration(GuiState& state) -> void;
+    auto UpdateSourceDescription(GuiState& state) -> void;
+    auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
+    auto DrawProperties(GuiState& state, TableData& properties) -> void;
 
     HTMLGuiComponentFactory m_Buff;
     TableData m_GeneralProperties;
     TableData m_AllProperties;
     TableData m_ExploreProperties;
-    TableData m_FilteredStatistics;
-    std::string m_Statistics;
-    std::string m_Configuration;
-    std::string m_SourceDescription;
-    std::string m_Metadata;
+    TableData m_Statistics;
+    TableData m_SourceDescription;
+    TableData m_Configuration;
+    //std::string m_Statistics;
+    //std::string m_Configuration;
+    //std::string m_SourceDescription;
+    //std::string m_Metadata;
 };

@@ -279,20 +279,21 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     m_Buff.Reset();
 }
 
-void GuiDetailPages::FilterStatistics()
+void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::string separator="")
 {
-    auto lines = DivideTreeItemFullNameIntoTreeItemNames(m_Statistics, "\n");
+    result.clear();
+    auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
     for (auto& line : lines)
     {
-        auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, ":");
+        auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
         //properties.emplace_back();
         //properties.back().emplace_back(PET_HEADING, m_Text);
         if (!colon_separated_line.empty())
         {
-            m_FilteredStatistics.emplace_back();
+            result.emplace_back();
             for (auto& part : colon_separated_line)
             {
-                m_FilteredStatistics.back().emplace_back(PET_TEXT, part);
+                result.back().emplace_back(PET_TEXT, part);
             }
         }
     }
@@ -301,11 +302,44 @@ void GuiDetailPages::FilterStatistics()
 void GuiDetailPages::UpdateStatistics(GuiState& state)
 {
     SuspendTrigger::Resume();
-    m_FilteredStatistics.clear();
+    m_Statistics.clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    m_Statistics = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
-    FilterStatistics();
+    std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
+    StringToTable(statistics_string, m_Statistics, ":");
 }
+
+void GuiDetailPages::UpdateConfiguration(GuiState& state)
+{
+    //std::string statistics_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::All, true).c_str();
+    //StringToTable(statistics_string, m_FilteredStatistics);
+    //auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
+
+    /*Result: = DMS_TreeItem_GetExpr(ti);
+    if Assigned(didTrick) then didTrick^ : = false;
+    if Result = '' then
+        begin
+        tiCalc : = DMS_TreeItem_GetParseResult(ti);
+    if Assigned(tiCalc) then
+        begin
+        ti : = DMS_TreeItem_GetSourceObject(ti);
+    if Assigned(ti) then
+        Result : = 'assigned by parent to ' + TreeItem_GetFullName_Save(ti)
+    else
+        Result : = 'defined by parent as (in SLisp syntax): ' + DMS_ParseResult_GetAsSLispExpr(tiCalc, false);
+    if Assigned(didTrick) then didTrick^ : = true;
+    end*/
+
+
+}
+
+auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
+{
+    std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::Configured, true).c_str();
+    StringToTable(source_descr_string, m_SourceDescription);
+    auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
+}
+
+
 
 void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
 {
@@ -387,8 +421,10 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         m_GeneralProperties.clear();
         m_AllProperties.clear();
         m_ExploreProperties.clear();
-        m_FilteredStatistics.clear();
+        //m_FilteredStatistics.clear();
         m_Statistics.clear();
+        m_SourceDescription.clear();
+        //m_Statistics.clear();
     }
 
     /*// window specific options button
@@ -454,9 +490,9 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         {
             if (state.GetCurrentItem())
             {
-                if (m_FilteredStatistics.empty())
+                if (m_Statistics.empty())
                     UpdateStatistics(state);
-                DrawProperties(state, m_FilteredStatistics);
+                DrawProperties(state, m_Statistics);
             }
             ImGui::EndTabItem();
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -470,6 +506,12 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
         if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
         {
+            if (state.GetCurrentItem())
+            {
+                if (m_Configuration.empty())
+                    UpdateConfiguration(state);
+                //DrawProperties(state, m_FilteredStatistics);
+            }
             ImGui::EndTabItem();
         }
 
@@ -480,6 +522,12 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
         if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
         {
+            if (state.GetCurrentItem())
+            {
+                if (m_SourceDescription.empty())
+                    UpdateSourceDescription(state);
+                DrawProperties(state, m_SourceDescription);
+            }
             ImGui::EndTabItem();
         }
 
