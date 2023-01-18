@@ -826,8 +826,8 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 	SupplInterestListPtr supplInterestWaste;
 	{
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
-
-		if (GetFailType() && GetFailType() <= ft)
+		auto prevFT = GetFailType();
+		if (prevFT && prevFT <= ft)
 			return false;
 
 		assert(msg->Why().IsDefined() && !msg->Why().empty());

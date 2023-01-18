@@ -96,8 +96,8 @@ struct GDAL_ErrorFrame : gdalThread
 
 	GDAL_ErrorFrame* m_Prev;
 
-	STGDLL_CALL struct pj_ctx* GetProjectionContext();
-	STGDLL_CALL int GetProjectionContextErrNo();
+	STGDLL_CALL static struct pj_ctx* GetProjectionContext();
+	STGDLL_CALL static int GetProjectionContextErrNo();
 	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 

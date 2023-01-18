@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/VectorFunc.h"
 #include "stg/AbstrStorageManager.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 #include "LockLevels.h"
 
 #include "Unit.h"
@@ -55,7 +56,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include <functional>
 #include <iterator>
 #include <algorithm>
-
 
 // *****************************************************************************
 //			ConstAttrOperator
@@ -301,25 +301,37 @@ template<typename TR, typename TA> struct LatLongWgs842RD: ConvertFunc<TR, TA, l
 #include "geo/Transform.h"
 #include "Projection.h"
 
-void OGRCheck(OGRErr result)
+void OGRCheck(OGRSpatialReference* ref, OGRErr result, CharPtr format, const AbstrUnit* au)
 {
+	assert(ref);
+	if (result == OGRERR_NONE)
+		return;
+
 	CharPtr errMsg;
 	switch (result) {
-		case OGRERR_NONE                     : return;
-		case OGRERR_NOT_ENOUGH_DATA          : errMsg = "Not enough Data";                       break;
-		case OGRERR_NOT_ENOUGH_MEMORY        : errMsg = "Not enough Memory";                     break;
-		case OGRERR_UNSUPPORTED_GEOMETRY_TYPE: errMsg = "Unsupported Geometry Type";             break;
-		case OGRERR_UNSUPPORTED_OPERATION    : errMsg = "Unsupported Operation";                 break;
-		case OGRERR_CORRUPT_DATA             : errMsg = "Corrupt Data";                          break;
-		case OGRERR_FAILURE                  : errMsg = "Failure";                               break;
-		case OGRERR_UNSUPPORTED_SRS          : errMsg = "Unsupported Spatial Reference System";  break;
-		case OGRERR_INVALID_HANDLE           : errMsg = "Invalid Handle";                        break;
-		default: errMsg = "Error code not defined in ogr_code.h";                                break; 
+	case OGRERR_NOT_ENOUGH_DATA: errMsg = "Not enough Data";                       break;
+	case OGRERR_NOT_ENOUGH_MEMORY: errMsg = "Not enough Memory";                     break;
+	case OGRERR_UNSUPPORTED_GEOMETRY_TYPE: errMsg = "Unsupported Geometry Type";             break;
+	case OGRERR_UNSUPPORTED_OPERATION: errMsg = "Unsupported Operation";                 break;
+	case OGRERR_CORRUPT_DATA: errMsg = "Corrupt Data";                          break;
+	case OGRERR_FAILURE: errMsg = "Failure";                               break;
+	case OGRERR_UNSUPPORTED_SRS: errMsg = "Unsupported Spatial Reference System";  break;
+	case OGRERR_INVALID_HANDLE: errMsg = "Invalid Handle";                        break;
+	default: errMsg = "Error code not defined in ogr_code.h";                                break;
 	}
+	auto errMsgTxt = mySSPrintF("Cannot make a SpatialRefBlock from %s. OGRCheck code %d: %s"
+		, format
+		, result
+		, errMsg);
+
 	auto projErrStr = GDAL_ErrorFrame::GetProjectionContextErrorString();
-	if (projErrStr.empty())
-		throwErrorF("OGR", "code %d: %s", result, errMsg);
-	throwErrorF("OGR", "code %d: %s\n%s", result, errMsg, projErrStr.c_str());
+	if (!projErrStr.empty())
+	{
+		errMsgTxt += "\n";
+		errMsgTxt += projErrStr;
+	}
+	au->Fail(errMsgTxt, FR_Data);
+	au->ThrowFail();
 }
 
 const AbstrUnit* CompositeBase(const AbstrUnit* proj)
@@ -516,13 +528,11 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			if (resFormat && srcFormat != resFormat)
 			{
 				leveled_critical_section::scoped_lock lock(cs_SpatialRefBlockCreation);
-//				OGRCheck( m_Src.SetWellKnownGeogCS(srcFormat.c_str()) );
-//				OGRCheck( m_Dst.SetWellKnownGeogCS(resFormat.c_str()) );
 				m_OgrComponentHolder = new SpatialRefBlock;
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
-				OGRCheck( m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()) );
-				OGRCheck( m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()) );
+				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
+				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();
 				return;
 			}

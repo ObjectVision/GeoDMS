@@ -225,23 +225,25 @@ void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char
 
 struct pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
 {
-	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
+//	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
+//	return OSRGetProjTLSContext();
+	return nullptr;
 }
 
 int GDAL_ErrorFrame::GetProjectionContextErrNo()
 {
 	auto pjCtx = GetProjectionContext();
-	if (!pjCtx)
-		return 0;
+//	if (!pjCtx)
+//		return 0;
 	return proj_context_errno(pjCtx);
 }
 
 SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 {
-	auto pjCtx = reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
-	if (!pjCtx)
-		return {};
-	auto pjErrno = proj_context_errno(pjCtx);
+	auto pjCtx = GetProjectionContext();
+//	if (!pjCtx)
+//		return {};
+	auto pjErrno = GetProjectionContextErrNo();
 	if (!pjErrno)
 		return {};
 
