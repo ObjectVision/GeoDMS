@@ -515,10 +515,11 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
+        /*if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
         {
+            TODO: think about html editable functionality like export settings, reimplement?
             ImGui::EndTabItem();
-        }
+        }*/
 
         if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
         {
