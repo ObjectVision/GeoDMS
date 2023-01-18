@@ -557,7 +557,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 					gridDataDomain->SetDescr(SharedStr(projName));
 					static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
 					auto msa = gridDataDomain->GetCurrSubTreeItemByID(vpminsID);
-					if (!msa)
+					if (!msa && ogrSR)
 					{
 						auto unitSizeInMeters = 10.0 / GetUnitSizeInMeters(ogrSR);
 						if (unitSizeInMeters > 1.0)
