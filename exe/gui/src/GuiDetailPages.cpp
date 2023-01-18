@@ -334,7 +334,7 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
 
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
-    std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::Configured, true).c_str();
+    std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
 }

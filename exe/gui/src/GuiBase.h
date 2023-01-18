@@ -12,6 +12,7 @@
 #include "AbstrDataItem.h"
 #include "dbg/check.h"
 #include "dbg/SeverityType.h"
+#include "TreeItemProps.h"
 #include "IconsFontRemixIcon.h"
 
 enum GuiWindowOpenFlags
@@ -281,6 +282,7 @@ public:
 	bool ShowCurrentItemBar				= false;
 	bool MapViewIsActive				= false;
 	bool TableViewIsActive				= false;
+	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;
 	StringStateManager errorDialogMessage;
