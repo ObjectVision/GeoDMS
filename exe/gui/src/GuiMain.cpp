@@ -32,6 +32,7 @@
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 #include "dbg/DebugLog.h"
+#include "ShvDllInterface.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -45,6 +46,15 @@ GuiMainComponent::GuiMainComponent()
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
+    /*const TreeItem* tiContext,
+        CharPtr         sAction,
+        Int32           nCode,
+        Int32           x,
+        Int32           y,
+        bool            doAddHistory,
+        bool            isUrl,
+        bool			mustOpenDetailsPage*/
+    //SHV_SetCreateViewActionFunc(); //TODO: implement 
 }
 
 GuiMainComponent::~GuiMainComponent()
