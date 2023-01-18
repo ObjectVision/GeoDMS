@@ -475,7 +475,13 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		FutureSuppliers emptyFutureSupplierSet;
 //		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
 		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
-			[dv_wptr, ts, thematicAttrHolder, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr()), breakAttr = nbai.breakAttr, result_wptr, aNr, etc_wptr = std::weak_ptr(etc)](Explain::Context* context) {
+				[dv_wptr, ts, thematicAttrHolder
+					, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
+					, breakAttr = nbai.breakAttr
+					, result_wptr, aNr
+					, etc_wptr = std::weak_ptr(etc)
+					](Explain::Context* context) 
+			{
 				auto etc = etc_wptr.lock();
 				if (!etc)
 					return;
