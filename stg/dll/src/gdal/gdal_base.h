@@ -175,6 +175,7 @@ CPLStringList GetOptionArray(const TreeItem* optionsItem);
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
 sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
+void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutBase);
 
 struct GDALDatasetHandle
 {
@@ -194,6 +195,9 @@ struct GDALDatasetHandle
 			GDALClose(GDALDataset::ToHandle(dsh)); 
 		};
 	};
+
+	void UpdateBaseProjection(const AbstrUnit* uBase) const;
+
 	std::unique_ptr < GDALDataset, deleter > dsh_;
 };
 

@@ -1588,15 +1588,20 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "Unit.h"
 #include "UnitClass.h"
 
-void UpdateSpatialRef(AbstrDataItem* geometry, OGRSpatialReference* spatialRef)
+void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, OGRSpatialReference* spatialRef)
 {
-	dms_assert(geometry);
+	assert(geometry);
 	if (!spatialRef)
 		return;
 	CplString wkt;
 	spatialRef->exportToWkt(&wkt.m_Text);
 	if (wkt.m_Text)
 		geometry->SetDescr(SharedStr(wkt.m_Text));
+	auto gvu = geometry->GetAbstrValuesUnit();
+	auto gpr = gvu->GetProjection();
+	if (gpr && gpr->GetCompositeBase())
+		gvu = gpr->GetCompositeBase();
+	UpdateBaseProjection(spatialRef, const_cast<AbstrUnit*>(gvu));
 }
 
 #include "mci/ValueWrap.h"
@@ -1611,7 +1616,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	GDAL_ErrorFrame gdal_error_frame;
 
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
-	const AbstrUnit* vu = FindProjectionRef(storageHolder, layerDomain);
+	auto vu = FindProjectionRef(storageHolder, layerDomain);
 	if (!vu)
 		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
@@ -1639,7 +1644,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		}
 		dms_assert(geometry);
 		if (gdal_vc != ValueComposition::String)
-			UpdateSpatialRef(geometry, layer->GetSpatialRef());
+			UpdateSpatialRef(m_hDS, geometry, layer->GetSpatialRef());
 	}
 
 

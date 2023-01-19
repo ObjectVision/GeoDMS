@@ -1,40 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
 #pragma hdrstop
 
+#include <numbers>
 
 // *****************************************************************************
-//
 // Implementations of GdalVectSM
-//
 // *****************************************************************************
+
 #include "gdal_base.h"
 #include "gdal_vect.h"
 
@@ -275,6 +247,99 @@ void gdalCleanup()
 
 gdalDynamicLoader::gdalDynamicLoader()
 {
+}
+
+double GetUnitSizeInMeters(const OGRSpatialReference* sr)
+{
+	// GetNormProjParm(SRS_PP_SCALE_FACTOR, 1.0);
+	CharPtr unitName = sr->GetAttrValue("UNIT", 0);
+	CharPtr nrUnitsStr = sr->GetAttrValue("UNIT", 1);
+	auto nrUnits = Convert<Float64>(nrUnitsStr);
+	if (!stricmp(unitName, "radian")) {
+		nrUnits *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)); unitName = "km";
+	}
+	if (!stricmp(unitName, "degree")) {
+		nrUnits *= (40000.0 / 360.0); unitName = "km";
+	}
+	if (!stricmp(unitName, "km")) {
+		nrUnits *= 1000.0; unitName = "metre";
+	}
+	if (stricmp(unitName, "metre"))
+		throwErrorF("GetUnitSizeInMeters", "unknown OGRSpatialReference unitName: '%s'", unitName);
+	return nrUnits;
+}
+
+void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
+{
+	assert(uBase);
+	assert(dsh_);
+	auto mutUBase = const_cast<AbstrUnit*>(uBase);
+
+	auto ogrSR = dsh_->GetSpatialRef();
+	if (!ogrSR) 
+		ogrSR = dsh_->GetGCPSpatialRef();
+
+	if (uBase->GetDescr().empty())
+	{
+		CharPtr projName = projName = ogrSR->GetName();
+		if (projName == nullptr)
+			projName = dsh_->GetProjectionRef();
+
+		mutUBase->SetDescr(SharedStr(projName));
+	}
+
+	if (ogrSR)
+		::UpdateBaseProjection(ogrSR, mutUBase);
+}
+
+void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
+{
+	assert(IsMainThread());
+	assert(mutUBase);
+	mutUBase->UpdateMetaInfo();
+
+	OGRSpatialReference	directSR;
+	SharedStr wktPrjStr(mutUBase->GetFormat());
+
+	if (!wktPrjStr.empty())
+	{
+		GDAL_ErrorFrame	error_frame;
+
+		OGRErr err = directSR.SetFromUserInput(wktPrjStr.c_str());
+		if (err == OGRERR_NONE)
+			ogrSR = &directSR;
+	}
+
+	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
+	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
+	if (!msa)
+	{
+		auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
+		if (unitSizeInMeters > 1.0)
+		{
+			auto vpmins = CreateDataItem(mutUBase, vpminsID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
+
+			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
+			wrLock.get()->SetValueAsFloat64(0, 10.0 / unitSizeInMeters);
+			wrLock.Commit();
+		}
+	}
+
+	static TokenID pwwT = GetTokenID_st("PenWorldWidth");
+	auto pwwI = mutUBase->GetSubTreeItemByID(pwwT);
+	if (!pwwI)
+	{
+		auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
+		if (unitSizeInMeters > 1.0)
+		{
+			auto vpmins = CreateDataItem(mutUBase, pwwT, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
+
+			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
+			wrLock.get()->SetValueAsFloat64(0, 1.0 / unitSizeInMeters);
+			wrLock.Commit();
+		}
+	}
+
 }
 
 

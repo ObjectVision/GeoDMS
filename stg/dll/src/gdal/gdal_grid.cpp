@@ -499,11 +499,6 @@ netCDFSubdatasetInfo GetNetCDFSubdatasetInfo(std::string subDatasetItem)
 	return netcdf_info;
 }
 
-double GetUnitSizeInMeters(const OGRSpatialReference* sr)
-{
-	return sr->GetNormProjParm(SRS_PP_SCALE_FACTOR, 1.0);
-}
-
 // Property description for Tif
 void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
@@ -524,16 +519,11 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
 
 	if (!uBase)
-	{
 		uBase = FindProjectionBase(curr, gridDataDomain);
-	}
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 	
-	if (!uBase && sm != SM_AllTables)
-		return;
-
-	else if (uBase)
+	if (uBase)
 	{
 		if (IsOpen())
 		{
@@ -545,30 +535,10 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 					m_hDS->GetGeoTransform(gdalTr);
 
 					gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-					auto ogrSR = m_hDS->GetSpatialRef();
-					if (!ogrSR) ogrSR = m_hDS->GetGCPSpatialRef();
 
-					CharPtr projName = nullptr;
-					if (ogrSR)
-						projName = ogrSR->GetName();
-					if (projName == nullptr)
-						projName = m_hDS->GetProjectionRef();
+					// spatial ref info
+					m_hDS.UpdateBaseProjection(uBase);
 
-					gridDataDomain->SetDescr(SharedStr(projName));
-					static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
-					auto msa = gridDataDomain->GetCurrSubTreeItemByID(vpminsID);
-					if (!msa && ogrSR)
-					{
-						auto unitSizeInMeters = 10.0 / GetUnitSizeInMeters(ogrSR);
-						if (unitSizeInMeters > 1.0)
-						{
-							auto vpmins = CreateDataItem(gridDataDomain, vpminsID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
-
-							DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
-							wrLock.get()->SetValueAsFloat64(0, 10.0 / unitSizeInMeters);
-							wrLock.Commit();
-						}
-					}
 					frame.ThrowUpWhateverCameUp();
 				}
 				catch (...)
@@ -579,7 +549,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 	}
 
-	if (!sm == SM_AllTables)
+	if (sm != SM_AllTables)
 		return;
 
 	auto subDatasetList = m_hDS->GetMetadata("SUBDATASETS");
