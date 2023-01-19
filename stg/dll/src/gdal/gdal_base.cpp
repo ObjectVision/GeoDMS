@@ -255,11 +255,20 @@ double GetUnitSizeInMeters(const OGRSpatialReference* sr)
 	CharPtr unitName = sr->GetAttrValue("UNIT", 0);
 	CharPtr nrUnitsStr = sr->GetAttrValue("UNIT", 1);
 	auto nrUnits = Convert<Float64>(SharedStr(nrUnitsStr));
+
+	if (!stricmp(unitName, "degree")) 
+	{
+		if (nrUnits > 0.017 && nrUnits < 0.018) 
+			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
+			unitName = "radian"; 
+		else 
+		{ 
+			nrUnits *= (40000.0 / 360.0); 
+			unitName = "km"; 
+		}
+	}
 	if (!stricmp(unitName, "radian")) {
 		nrUnits *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)); unitName = "km";
-	}
-	if (!stricmp(unitName, "degree")) {
-		nrUnits *= (40000.0 / 360.0); unitName = "km";
 	}
 	if (!stricmp(unitName, "km")) {
 		nrUnits *= 1000.0; unitName = "metre";
@@ -275,46 +284,49 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	assert(dsh_);
 	auto mutUBase = const_cast<AbstrUnit*>(uBase);
 
-	auto ogrSR = dsh_->GetSpatialRef();
-	if (!ogrSR) 
-		ogrSR = dsh_->GetGCPSpatialRef();
+	auto ogrSR_ptr = dsh_->GetSpatialRef();
+	if (!ogrSR_ptr) 
+		ogrSR_ptr = dsh_->GetGCPSpatialRef();
 
 	if (uBase->GetDescr().empty() && ogrSR)
 	{
-		CharPtr projName = projName = ogrSR->GetName();
+		CharPtr projName = nullptr;
+		if (ogrSR_ptr) 
+			projName = ogrSR_ptr->GetName();
 		if (projName == nullptr)
 			projName = dsh_->GetProjectionRef();
 
 		mutUBase->SetDescr(SharedStr(projName));
 	}
 
-	if (ogrSR)
-		::UpdateBaseProjection(ogrSR, mutUBase);
+
+	OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
+	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
-void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
+void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutUBase)
 {
 	assert(IsMainThread());
 	assert(mutUBase);
 	mutUBase->UpdateMetaInfo();
 
-	OGRSpatialReference	directSR;
 	SharedStr wktPrjStr(mutUBase->GetFormat());
 
 	if (!wktPrjStr.empty())
 	{
 		GDAL_ErrorFrame	error_frame;
 
+		OGRSpatialReference	directSR;
 		OGRErr err = directSR.SetFromUserInput(wktPrjStr.c_str());
 		if (err == OGRERR_NONE)
-			ogrSR = &directSR;
+			ogrSR = std::move(directSR);
 	}
 
 	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
 	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
 	if (!msa)
 	{
-		auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
+		auto unitSizeInMeters = GetUnitSizeInMeters(&ogrSR);
 		if (unitSizeInMeters > 1.0)
 		{
 			auto vpmins = CreateDataItem(mutUBase, vpminsID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
@@ -324,22 +336,6 @@ void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
 			wrLock.Commit();
 		}
 	}
-
-	static TokenID pwwT = GetTokenID_st("PenWorldWidth");
-	auto pwwI = mutUBase->GetSubTreeItemByID(pwwT);
-	if (!pwwI)
-	{
-		auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
-		if (unitSizeInMeters > 1.0)
-		{
-			auto vpmins = CreateDataItem(mutUBase, pwwT, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
-
-			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
-			wrLock.get()->SetValueAsFloat64(0, 1.0 / unitSizeInMeters);
-			wrLock.Commit();
-		}
-	}
-
 }
 
 

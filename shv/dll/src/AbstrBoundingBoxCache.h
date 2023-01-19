@@ -45,7 +45,7 @@ protected:
 	virtual ~AbstrBoundingBoxCache();
 
 public:
-	void GlobalRegister(const AbstrDataObject* featureData);
+	void Register() { m_HasBeenRegistered = true; }
 
 	virtual DRect GetTileBounds(tile_id t) const = 0;
 	virtual DRect GetBounds(SizeT featureID) const =0;

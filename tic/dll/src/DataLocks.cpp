@@ -278,7 +278,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 	if (!adi)
 		return;
 
-	dms_assert((adi->GetTreeParent() == nullptr) or adi->GetTreeParent()->Was(PS_MetaInfo) or adi->GetTreeParent()->WasFailed(FR_MetaInfo));
+	assert((adi->GetTreeParent() == nullptr) or adi->GetTreeParent()->Was(PS_MetaInfo) or adi->GetTreeParent()->WasFailed(FR_MetaInfo) || IsMainThread());
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataWriteLockAtom::ctor") sg_ActorLockMap, adi);
 
