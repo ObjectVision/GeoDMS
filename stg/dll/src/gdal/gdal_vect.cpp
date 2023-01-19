@@ -1659,6 +1659,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 					DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
 					wrLock.get()->SetValueAsFloat64(0, 1.0 / unitSizeInMeters);
 					wrLock.Commit();
+					static auto pwwID = GetTokenID_st("PenWorldWidth");
+					dialogTypePropDefPtr->SetValue(vpmins, pwwID);
 				}
 			}
 
