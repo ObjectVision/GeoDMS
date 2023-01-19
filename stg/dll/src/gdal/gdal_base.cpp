@@ -254,7 +254,7 @@ double GetUnitSizeInMeters(const OGRSpatialReference* sr)
 	// GetNormProjParm(SRS_PP_SCALE_FACTOR, 1.0);
 	CharPtr unitName = sr->GetAttrValue("UNIT", 0);
 	CharPtr nrUnitsStr = sr->GetAttrValue("UNIT", 1);
-	auto nrUnits = Convert<Float64>(nrUnitsStr);
+	auto nrUnits = Convert<Float64>(SharedStr(nrUnitsStr));
 	if (!stricmp(unitName, "radian")) {
 		nrUnits *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)); unitName = "km";
 	}
