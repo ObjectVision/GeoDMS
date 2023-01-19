@@ -288,11 +288,10 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 		mutUBase->SetDescr(SharedStr(projName));
 	}
 
-	if (ogrSR)
-		::UpdateBaseProjection(ogrSR, mutUBase);
+	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
-void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
+void UpdateBaseProjection(const OGRSpatialReference*& ogrSR, AbstrUnit* mutUBase)
 {
 	assert(IsMainThread());
 	assert(mutUBase);
@@ -309,6 +308,8 @@ void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
 		if (err == OGRERR_NONE)
 			ogrSR = &directSR;
 	}
+	if (!ogrSR)
+		return;
 
 	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
 	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
@@ -324,22 +325,6 @@ void UpdateBaseProjection(const OGRSpatialReference* ogrSR, AbstrUnit* mutUBase)
 			wrLock.Commit();
 		}
 	}
-
-	static TokenID pwwT = GetTokenID_st("PenWorldWidth");
-	auto pwwI = mutUBase->GetSubTreeItemByID(pwwT);
-	if (!pwwI)
-	{
-		auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
-		if (unitSizeInMeters > 1.0)
-		{
-			auto vpmins = CreateDataItem(mutUBase, pwwT, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
-
-			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
-			wrLock.get()->SetValueAsFloat64(0, 1.0 / unitSizeInMeters);
-			wrLock.Commit();
-		}
-	}
-
 }
 
 
