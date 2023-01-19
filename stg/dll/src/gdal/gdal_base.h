@@ -175,7 +175,7 @@ CPLStringList GetOptionArray(const TreeItem* optionsItem);
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
 sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
-void UpdateBaseProjection(const OGRSpatialReference*& ogrSR, AbstrUnit* mutBase);
+void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase);
 double GetUnitSizeInMeters(const OGRSpatialReference* sr);
 
 struct GDALDatasetHandle

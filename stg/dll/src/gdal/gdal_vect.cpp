@@ -1588,13 +1588,11 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "Unit.h"
 #include "UnitClass.h"
 
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, const OGRSpatialReference*& spatialRef)
+void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, OGRSpatialReference& spatialRef)
 {
 	assert(geometry);
-	if (!spatialRef)
-		return;
 	CplString wkt;
-	spatialRef->exportToWkt(&wkt.m_Text);
+	spatialRef.exportToWkt(&wkt.m_Text);
 	if (wkt.m_Text)
 		geometry->SetDescr(SharedStr(wkt.m_Text));
 	auto gvu = geometry->GetAbstrValuesUnit();
@@ -1645,14 +1643,15 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		dms_assert(geometry);
 		if (gdal_vc != ValueComposition::String)
 		{
-			const OGRSpatialReference* ogrSR = layer->GetSpatialRef();
+			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+			OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr;
 			UpdateSpatialRef(m_hDS, geometry, ogrSR); // can reset ogrSR to the SR according to the format of the baseProjection unit.
 
 			static TokenID pwwT = GetTokenID_st("PenWorldWidth");
 			auto pwwI = geometry->GetSubTreeItemByID(pwwT);
 			if (!pwwI)
 			{
-				auto unitSizeInMeters = GetUnitSizeInMeters(ogrSR);
+				auto unitSizeInMeters = GetUnitSizeInMeters(&ogrSR);
 				if (unitSizeInMeters > 1.0)
 				{
 					auto vpmins = CreateDataItem(geometry, pwwT, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
