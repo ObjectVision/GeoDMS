@@ -53,16 +53,6 @@ AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 	}
 }
 
-void AbstrBoundingBoxCache::GlobalRegister(const AbstrDataObject* featureData)
-{
-	assert(cs_BB.isLocked()); // logic requires that the cs has been locked by the caller as part of the construction process.
-	const AbstrBoundingBoxCache*& bbPtr = g_BB_Register[featureData];
-	assert(bbPtr == nullptr);
-	bbPtr = this;
-	m_HasBeenRegistered = true;
-}
-
-
 DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
 {
 	throwIllegalAbstract(MG_POS, "AbstrBoundingBoxCache::GetBounds");

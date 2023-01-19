@@ -136,23 +136,23 @@ BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 
 template <typename ScalarType>
 const BoundingBoxCache<ScalarType>*
-GetBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCache, WeakPtr<const AbstrDataItem> featureItem, bool mustPrepare)
+GetBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureItem, bool mustPrepare)
 {
 	dms_assert(featureItem);
 	leveled_critical_section::scoped_lock lock(cs_BB);
+	DataReadLock readLock(featureItem);
+	dms_assert(featureItem->GetDataRefLockCount() > 0);
+
+	const AbstrDataObject* featureData = featureItem->GetCurrRefObj();
+	auto& bbCache = g_BB_Register[featureData];
 	if (!bbCache)
 	{
-		DataReadLock readLock(featureItem);
-		dms_assert(featureItem->GetDataRefLockCount() > 0);
-
-		const AbstrDataObject* featureData = featureItem->GetCurrRefObj();
-
 		auto bbPtr = std::make_unique<BoundingBoxCache<ScalarType>> (featureData);
-		bbPtr->GlobalRegister(featureData);
+		bbPtr->Register(); // remove from global cache upon destruction
 		bbCache = bbPtr.release();
-
 	}
-	return debug_cast<const BoundingBoxCache<ScalarType>*>(bbCache.get_ptr());
+	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
+	return debug_cast<const BoundingBoxCache<ScalarType>*>(bbCache);
 }
 
 template <typename ScalarType>
