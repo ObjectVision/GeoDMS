@@ -249,33 +249,42 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
-double GetUnitSizeInMeters(const OGRSpatialReference* sr)
+auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angular_unit) -> Float64
 {
-	// GetNormProjParm(SRS_PP_SCALE_FACTOR, 1.0);
-	CharPtr unitName = sr->GetAttrValue("UNIT", 0);
-	CharPtr nrUnitsStr = sr->GetAttrValue("UNIT", 1);
-	auto nrUnits = Convert<Float64>(SharedStr(nrUnitsStr));
-
-	if (!stricmp(unitName, "degree")) 
+	if (!stricmp(angular_unit.first, "degree"))
 	{
-		if (nrUnits > 0.017 && nrUnits < 0.018) 
+		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
 			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
-			unitName = "radian"; 
-		else 
-		{ 
-			nrUnits *= (40000.0 / 360.0); 
-			unitName = "km"; 
-		}
+			angular_unit.first = "radian";
+		else
+			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
 	}
-	if (!stricmp(unitName, "radian")) {
-		nrUnits *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)); unitName = "km";
+	if (!stricmp(angular_unit.first, "radian")) {
+		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>))*1000.0;
 	}
-	if (!stricmp(unitName, "km")) {
-		nrUnits *= 1000.0; unitName = "metre";
-	}
-	if (stricmp(unitName, "metre"))
-		throwErrorF("GetUnitSizeInMeters", "unknown OGRSpatialReference unitName: '%s'", unitName);
-	return nrUnits;
+	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
+}
+
+auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
+{
+	if (!stricmp(linear_unit.first, "km"))
+		return linear_unit.second *= 1000.0;
+	if (!stricmp(linear_unit.first, "m") || stricmp(linear_unit.first, "meter") || stricmp(linear_unit.first, "metre"))
+		return linear_unit.second;
+	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
+}
+
+auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64
+{
+	std::pair<CharPtr, Float64> linear_unit;
+	std::pair<CharPtr, Float64> angular_unit;
+	linear_unit.second = sr->GetLinearUnits(&linear_unit.first);
+	angular_unit.second = sr->GetAngularUnits(&angular_unit.first);
+
+	if (!strcmp(linear_unit.first, "unknown"))
+		return GetUnitSizeInMetersFromAngularProjection(angular_unit);
+	else
+		return GetUnitSizeInMetersFromLinearProjection(linear_unit);
 }
 
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
@@ -288,7 +297,7 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	if (!ogrSR_ptr) 
 		ogrSR_ptr = dsh_->GetGCPSpatialRef();
 
-	if (uBase->GetDescr().empty() && ogrSR)
+	if (uBase->GetDescr().empty() && ogrSR_ptr)
 	{
 		CharPtr projName = nullptr;
 		if (ogrSR_ptr) 

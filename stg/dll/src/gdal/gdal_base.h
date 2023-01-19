@@ -176,7 +176,7 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
 sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
 void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase);
-double GetUnitSizeInMeters(const OGRSpatialReference* sr);
+auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
 
 struct GDALDatasetHandle
 {
