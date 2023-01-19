@@ -279,7 +279,7 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	if (!ogrSR) 
 		ogrSR = dsh_->GetGCPSpatialRef();
 
-	if (uBase->GetDescr().empty())
+	if (uBase->GetDescr().empty() && ogrSR)
 	{
 		CharPtr projName = projName = ogrSR->GetName();
 		if (projName == nullptr)
