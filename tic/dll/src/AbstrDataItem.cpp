@@ -423,7 +423,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!GetAbstrValuesUnit()->UnifyValues(refvu, "", "", UnifyMode::UM_AllowDefault))
+		if (!myvu->UnifyValues(refvu, "", "", UnifyMode::UM_AllowDefaultLeft))
 		{
 			issueStr = "The specified ValuesUnit";
 			goto failResultMsg;
