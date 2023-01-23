@@ -305,9 +305,9 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 		if (projName == nullptr)
 			projName = dsh_->GetProjectionRef();
 
-		mutUBase->SetDescr(SharedStr(projName));
+		if (!mutUBase->IsCacheItem())
+			mutUBase->SetDescr(SharedStr(projName));
 	}
-
 
 	OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
 	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
