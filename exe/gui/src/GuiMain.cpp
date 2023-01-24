@@ -44,7 +44,7 @@ GuiMainComponent::GuiMainComponent()
 {
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
-    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);            // TODO: no longer works
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
     /*const TreeItem* tiContext,
         CharPtr         sAction,

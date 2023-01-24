@@ -216,19 +216,33 @@ private:
 	std::vector<std::string> m_NextStrings;
 };
 
-class TreeItemHistory
+struct ViewAction
+{
+	const TreeItem* tiContext = nullptr;
+	std::string     sAction   = "";
+	Int32           nCode     = 0;
+	Int32           x         = 0;
+	Int32           y         = 0;
+
+	bool operator==(ViewAction const& rhs) const 
+	{ 
+		return tiContext==rhs.tiContext && sAction==rhs.sAction && nCode==rhs.nCode && x==rhs.x && y==rhs.y;
+	}
+};
+
+class ViewActionHistory
 {
 public:
-	TreeItemHistory(); // TODO: TreeItem* alive state not guaranteed, replace with full item name lookup
-	void Insert(TreeItem* new_item);
-	TreeItem* GetNext();
-	TreeItem* GetPrevious();
-	std::list<TreeItem*>::iterator GetCurrentIterator();
-	std::list<TreeItem*>::iterator GetBeginIterator();
-	std::list<TreeItem*>::iterator GetEndIterator();
+	ViewActionHistory(); // TODO: TreeItem* alive state not guaranteed, replace with full item name lookup
+	auto Insert(ViewAction) -> void;
+	ViewAction GetNext();
+	ViewAction GetPrevious();
+	auto GetCurrentIterator() -> std::list<ViewAction>::iterator;
+	auto  GetBeginIterator() -> std::list<ViewAction>::iterator;
+	auto GetEndIterator() -> std::list<ViewAction>::iterator;
 private:
-	std::list<TreeItem*>::iterator m_Iterator;
-	std::list<TreeItem*> m_History; // TODO: replace std::list with std::vector
+	std::list<ViewAction>::iterator m_Iterator;
+	std::list<ViewAction> m_History; // TODO: replace std::list with std::vector
 };
 
 class GuiEventQueues
@@ -285,11 +299,11 @@ public:
 	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;
-	StringStateManager errorDialogMessage;
-	StringStateManager contextMessage;
 
-	// history
-	TreeItemHistory TreeItemHistoryList;
+	// singletons
+	static StringStateManager errorDialogMessage;
+	static StringStateManager contextMessage;
+	static TreeItemHistory TreeItemHistoryList;
 
 	// jump to letter in TreeView
 	std::pair<std::string, std::string> m_JumpLetter; //TODO: on the fly lookup, synchronize evaluation with key press
