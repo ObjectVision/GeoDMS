@@ -67,7 +67,9 @@ public:
     virtual ~HTMLGuiComponentFactory();
 
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    void InterpretBytes(TableData& tableProperties);
+    auto InterpretBytes(TableData& tableProperties) -> void;
+    auto InterpretBytesAsString() -> std::string;
+
 
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }

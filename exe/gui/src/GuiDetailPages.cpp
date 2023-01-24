@@ -189,6 +189,11 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
     return false;
 }
 
+auto HTMLGuiComponentFactory::InterpretBytesAsString() -> std::string
+{
+    return std::string(m_Buff.begin(), m_Buff.end());
+}
+
 void HTMLGuiComponentFactory::InterpretBytes(TableData& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
@@ -310,26 +315,13 @@ void GuiDetailPages::UpdateStatistics(GuiState& state)
 
 void GuiDetailPages::UpdateConfiguration(GuiState& state)
 {
-    //std::string statistics_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::All, true).c_str();
-    //StringToTable(statistics_string, m_FilteredStatistics);
-    //auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
-
-    /*Result: = DMS_TreeItem_GetExpr(ti);
-    if Assigned(didTrick) then didTrick^ : = false;
-    if Result = '' then
-        begin
-        tiCalc : = DMS_TreeItem_GetParseResult(ti);
-    if Assigned(tiCalc) then
-        begin
-        ti : = DMS_TreeItem_GetSourceObject(ti);
-    if Assigned(ti) then
-        Result : = 'assigned by parent to ' + TreeItem_GetFullName_Save(ti)
-    else
-        Result : = 'defined by parent as (in SLisp syntax): ' + DMS_ParseResult_GetAsSLispExpr(tiCalc, false);
-    if Assigned(didTrick) then didTrick^ : = true;
-    end*/
-
-
+    m_Configuration.clear();
+    InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
+    DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
+    auto conf_str = m_Buff.InterpretBytesAsString();
+    StringToTable(conf_str, m_Configuration);
+    m_Buff.Reset();
 }
 
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
@@ -338,8 +330,6 @@ auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
 }
-
-
 
 void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
 {
@@ -421,10 +411,9 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         m_GeneralProperties.clear();
         m_AllProperties.clear();
         m_ExploreProperties.clear();
-        //m_FilteredStatistics.clear();
+        m_Configuration.clear();
         m_Statistics.clear();
         m_SourceDescription.clear();
-        //m_Statistics.clear();
     }
 
     /*// window specific options button
@@ -510,7 +499,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             {
                 if (m_Configuration.empty())
                     UpdateConfiguration(state);
-                //DrawProperties(state, m_FilteredStatistics);
+                DrawProperties(state, m_Configuration);
             }
             ImGui::EndTabItem();
         }
