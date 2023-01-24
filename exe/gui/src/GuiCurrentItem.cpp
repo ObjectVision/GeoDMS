@@ -17,13 +17,13 @@ auto GuiCurrentItem::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
         {
             std::advance(iterator, -1);
 
-            if (!*iterator)
+            if (!iterator->tiContext)
                 break;
 
             const bool is_selected = (iterator == state.TreeItemHistoryList.GetCurrentIterator());
-            if (ImGui::Selectable((*iterator)->GetFullName().c_str(), is_selected))
+            if (ImGui::Selectable((iterator->tiContext)->GetFullName().c_str(), is_selected))
             {
-                state.SetCurrentItem(*iterator);
+                state.SetCurrentItem(iterator->tiContext);
                 event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                 event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                 event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -50,14 +50,14 @@ void GuiCurrentItem::Update(GuiState &state)
         if (ImGui::ArrowButton("previous", ImGuiDir_Left))
         {
 
-            auto item = state.TreeItemHistoryList.GetPrevious();
+            auto item = state.TreeItemHistoryList.GetPrevious().tiContext;
             if (item)
                 state.SetCurrentItem(item);
         }
 
         if (ImGui::ArrowButton("next", ImGuiDir_Right))
         {
-            auto item = state.TreeItemHistoryList.GetNext();
+            auto item = state.TreeItemHistoryList.GetNext().tiContext;
             if (item)
                 state.SetCurrentItem(item);
         }
