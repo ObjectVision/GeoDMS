@@ -54,6 +54,7 @@ GuiMainComponent::GuiMainComponent()
         bool            doAddHistory,
         bool            isUrl,
         bool			mustOpenDetailsPage*/
+    SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
     //SHV_SetCreateViewActionFunc(); //TODO: implement 
 }
 

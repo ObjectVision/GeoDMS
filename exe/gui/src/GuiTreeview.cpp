@@ -127,6 +127,12 @@ auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
     return false;
 }
 
+auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
+{
+    auto tree_node = (GuiTreeNode*)clientHandle;
+    tree_node->SetState(new_state);
+}
+
 GuiTreeNode::GuiTreeNode(TreeItem* item)
 {
     this->Init(item);
@@ -164,11 +170,7 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     //other.m_children.clear();
 }
 
-auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
-{
-    auto tree_node = (GuiTreeNode*)clientHandle;
-    tree_node->SetState(new_state);
-}
+
 
 auto GuiTreeNode::Init(TreeItem* item) -> void
 {

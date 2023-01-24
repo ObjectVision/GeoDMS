@@ -392,6 +392,18 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
     ImGui::EndTable();
 }
 
+auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
+                    CharPtr     sAction,
+                    Int32         nCode,
+                    Int32             x,
+                    Int32             y,
+                    bool   doAddHistory,
+                    bool          isUrl,
+                    bool	mustOpenDetailsPage) -> void
+{
+    GuiState::TreeItemHistoryList.GetBeginIterator();
+}
+
 void GuiDetailPages::Update(bool* p_open, GuiState& state)
 {
     if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
