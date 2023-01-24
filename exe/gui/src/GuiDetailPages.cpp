@@ -490,6 +490,11 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
         if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
         {
+            // TODO: See uDMSTreeViewFunctions.pas line 254
+            //DP_ValueInfo:
+            //    case funcID of
+            //    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
+            //    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
             ImGui::EndTabItem();
         }
 
