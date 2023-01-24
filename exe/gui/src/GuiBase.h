@@ -45,6 +45,7 @@ enum class GuiEvents
 	ToggleShowToolbar,
 	StepToErrorSource,
 	StepToRootErrorSource,
+	FocusValueInfoTab,
 	Close,
 };
 
