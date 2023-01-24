@@ -218,7 +218,7 @@ private:
 
 struct ViewAction
 {
-	const TreeItem* tiContext = nullptr;
+	TreeItem*       tiContext = nullptr;
 	std::string     sAction   = "";
 	Int32           nCode     = 0;
 	Int32           x         = 0;
@@ -303,7 +303,7 @@ public:
 	// singletons
 	static StringStateManager errorDialogMessage;
 	static StringStateManager contextMessage;
-	static TreeItemHistory TreeItemHistoryList;
+	static ViewActionHistory TreeItemHistoryList;
 
 	// jump to letter in TreeView
 	std::pair<std::string, std::string> m_JumpLetter; //TODO: on the fly lookup, synchronize evaluation with key press
