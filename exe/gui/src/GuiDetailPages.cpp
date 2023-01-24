@@ -401,7 +401,19 @@ auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
                     bool          isUrl,
                     bool	mustOpenDetailsPage) -> void
 {
-    GuiState::TreeItemHistoryList.GetBeginIterator();
+    if (not doAddHistory)
+        return;
+
+    auto event_queues = GuiEventQueues::getInstance();
+    if (!std::string(sAction).contains("dp.vi"))
+        return;
+
+    GuiState::TreeItemHistoryList.Insert({ const_cast<TreeItem*>(tiContext), sAction, nCode, x, y });
+
+    if (!mustOpenDetailsPage)
+        return;
+
+    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
 }
 
 void GuiDetailPages::Update(bool* p_open, GuiState& state)
@@ -419,13 +431,28 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
     if (event_queues->DetailPagesEvents.HasEvents()) // new current item
     {
-        event_queues->DetailPagesEvents.Pop();
-        m_GeneralProperties.clear();
-        m_AllProperties.clear();
-        m_ExploreProperties.clear();
-        m_Configuration.clear();
-        m_Statistics.clear();
-        m_SourceDescription.clear();
+        auto event = event_queues->DetailPagesEvents.Pop();
+        switch (event)
+        {
+        case GuiEvents::FocusValueInfoTab: 
+        {
+            // TODO: implement
+            break;
+        }
+        case GuiEvents::UpdateCurrentItem: 
+        {
+            m_GeneralProperties.clear();
+            m_AllProperties.clear();
+            m_ExploreProperties.clear();
+            m_Configuration.clear();
+            m_Statistics.clear();
+            m_SourceDescription.clear();
+            break;
+        }
+        default:    break;
+        }
+        
+
     }
 
     /*// window specific options button
