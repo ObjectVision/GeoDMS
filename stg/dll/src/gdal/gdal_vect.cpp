@@ -1703,7 +1703,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			if (curr != storageHolder)
 				return;
 			SharedStr currFullName = curr->GetFullName();
-			reportF(SeverityTypeID::ST_Warning, "'%s' has a calculation rule and has a storageHolder. If related attributes should be read from '%s', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
+			reportF(SeverityTypeID::ST_Warning, "'%s' has a calculation rule and has a configured data source. If related attributes should be read from '%s', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
 				, currFullName.c_str()
 				, GetNameStr().c_str()
 			);
