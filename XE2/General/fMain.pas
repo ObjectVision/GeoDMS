@@ -836,7 +836,7 @@ begin
     Options := Options + [ofNoChangeDir, ofFileMustExist];
     Title := 'Open configuration...';
     DefaultExt := 'dms';
-    Filter := 'Configuration files (*.dms, *.xml)|*.dms;*.xml';
+    Filter := 'Configuration files (*.dms)|*.dms';
     FilterIndex := 1;
 
     if not Execute then exit;
