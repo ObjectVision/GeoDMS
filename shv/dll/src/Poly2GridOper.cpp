@@ -381,69 +381,6 @@ SharedPtr<const AbstrBoundingBoxCache> GetBounds(const AbstrDataItem* polyAttr, 
 }
 
 
-// *****************************************************************************
-//									Poly2GridOper (PolygonAttr, GridSet)
-// *****************************************************************************
-
-CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class | oper_policy::allow_extra_args);
-
-class AbstrPoly2GridOperator : public BinaryOperator
-{
-protected:
-	AbstrPoly2GridOperator(const DataItemClass* polyAttrClass, const UnitClass* gridSetType)
-		:	BinaryOperator(&cog_poly2grid, AbstrDataItem::GetStaticClass()
-			,	polyAttrClass
-			,	gridSetType
-			)
-	{}
-
-	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
-	{
-		dms_assert(args.size() >= 2);
-		if (args.size() > 2 && !resultHolder)
-			// throwErrorD("poly2grid", "Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
-			reportD(SeverityTypeID::ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
-		const AbstrDataItem* polyAttr            = AsDataItem(args[0]); // can be segmented
-		const AbstrUnit*     gridDomainUnit      = AsUnit    (args[1]); // can be tiled
-
-		dms_assert(polyAttr); 
-		dms_assert(gridDomainUnit); 
-
-		const AbstrUnit* polyDomainUnit = polyAttr->GetAbstrDomainUnit();
-		dms_assert(polyDomainUnit);
-		if (polyDomainUnit->GetValueType() == ValueWrap<Void>::GetStaticClass())
-			polyDomainUnit = Unit<Bool>::GetStaticClass()->CreateDefault();
-
-		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(gridDomainUnit, polyDomainUnit);
-
-		if (!mustCalc)
-		{
-			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, false, true, countcolor_t(-1), false);
-		}
-		else
-		{
-			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-
-			DataReadLock arg1Lock(polyAttr);
-
-			auto bounds = GetBounds(polyAttr, false);
-
-			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
-
-			Calculate(resLock.get(), res->GetAbstrDomainUnit(), polyAttr, bounds);
-
-			resLock.Commit();
-		}
-		return true;
-	}
-	virtual void Calculate(AbstrDataObject* res, // tiled as gridDomainUnit
-		const AbstrUnit*             resDomain,
-		const AbstrDataItem*         polyAttr,
-		const AbstrBoundingBoxCache* boxesArray
-	) const= 0;
-};
-
 namespace poly2grid
 {
 	struct AbstrSequenceGetter
@@ -610,41 +547,88 @@ namespace poly2grid
 	}
 }
 
-struct Poly2GridOperator : public AbstrPoly2GridOperator
+// *****************************************************************************
+//									Poly2GridOper (PolygonAttr, GridSet)
+// *****************************************************************************
+
+CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class);
+CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class);
+
+struct Poly2GridOperator : public BinaryOperator
 {
-	Poly2GridOperator(const DataItemClass* polyAttrClass, const UnitClass* gridSetType)
-		:	AbstrPoly2GridOperator(polyAttrClass, gridSetType)
+	bool doUntiled;
+
+	Poly2GridOperator(const DataItemClass* polyAttrClass, const UnitClass* gridSetType, bool doUntiled_)
+		: BinaryOperator(doUntiled_ ? &cog_poly2grid_untiled : &cog_poly2grid, AbstrDataItem::GetStaticClass()
+			, polyAttrClass
+			, gridSetType
+		)
+		, doUntiled(doUntiled_)
 	{}
 
-	void Calculate(
-		AbstrDataObject* resObj,     // has gridDomain and domain of polyAttr as valuesUnit
-		const AbstrUnit* resDomain,
-		const AbstrDataItem* polyAttr, // can be segmented
-		const AbstrBoundingBoxCache* boxesArray
-	) const override
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		dms_assert(args.size() >= 2);
+		if (args.size() > 2 && !resultHolder)
+			// throwErrorD("poly2grid", "Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
+			reportD(SeverityTypeID::ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
+		const AbstrDataItem* polyAttr = AsDataItem(args[0]); // can be segmented
+		const AbstrUnit* gridDomainUnit = AsUnit(args[1]); // can be tiled
+
+		dms_assert(polyAttr);
+		dms_assert(gridDomainUnit);
+
+		const AbstrUnit* polyDomainUnit = polyAttr->GetAbstrDomainUnit();
+		dms_assert(polyDomainUnit);
+		if (polyDomainUnit->GetValueType() == ValueWrap<Void>::GetStaticClass())
+			polyDomainUnit = Unit<Bool>::GetStaticClass()->CreateDefault();
+
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(gridDomainUnit, polyDomainUnit);
+
+		if (!mustCalc)
+		{
+			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, false, true, countcolor_t(-1), false);
+		}
+		else
+		{
+			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+
+			DataReadLock arg1Lock(polyAttr);
+
+			auto bounds = GetBounds(polyAttr, false);
+
+			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+
+			Calculate(resLock.get(), res->GetAbstrDomainUnit(), polyAttr, bounds);
+
+			resLock.Commit();
+		}
+		return true;
+	}
+
+	// resObj: has gridDomain and domain of polyAttr as valuesUnit
+	// polyAttr can be segmented
+	void Calculate(AbstrDataObject* resObj, const AbstrUnit* resDomain, const AbstrDataItem* polyAttr, const AbstrBoundingBoxCache* boxesArray) const
 	{
 		bool isAllDefined = polyAttr->HasUndefinedValues();
 
 		// TODO G8: Avoid double work of polygons than intersect with multiple tiles: when going throuh the list, take neighbouring tiles into account such as with an ordered heap
 
-		parallel_tileloop(resObj->GetTiledRangeData()->GetNrTiles(), [resObj, resDomain, polyAttr, boxesArray](tile_id tg)
-			{
-				poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, tg);
+		auto poly2gridFunctor = [resObj, resDomain, polyAttr, boxesArray](tile_id tg)
+		{
+			poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, tg);
 
-				poly2grid::Dispatcher disp; 
-				disp.m_Data = &dispatcherTileData;
+			poly2grid::Dispatcher disp;
+			disp.m_Data = &dispatcherTileData;
 
-				polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
-			}
-		);
-/*
-		poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, no_tile);
+			polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
+		};
 
-		poly2grid::Dispatcher disp;
-		disp.m_Data = &dispatcherTileData;
-
-		polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
-*/
+		if (doUntiled)
+			poly2gridFunctor(no_tile);
+		else
+			parallel_tileloop(resObj->GetTiledRangeData()->GetNrTiles(), poly2gridFunctor);
 	}
 };
 
@@ -658,7 +642,7 @@ struct Poly2GridOperator : public AbstrPoly2GridOperator
 		typedef Unit<DomPoint> DomainUnitType;
 
 		DomainInst(const DataItemClass* polygonDataClass)
-			: Poly2GridOperator(polygonDataClass, DomainUnitType::GetStaticClass())
+			: Poly2GridOperator(polygonDataClass, DomainUnitType::GetStaticClass(), false)
 		{}
 	};
 
