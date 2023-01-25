@@ -93,7 +93,16 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
 {
     ImVec4 color = ConvertSeverityTypeIDToColor(item->m_Severity_type);
     ImGui::PushStyleColor(ImGuiCol_Text, color);
+    //ImGui::InputText("", &item->m_Text, 256, ImGuiInputTextFlags_ReadOnly, NULL, NULL);
+    //ImGui::InputText("", item->m_Text.c_str(), item->m_Text.size(), 0, NULL, NULL);
+    //ImGui::InputText("", &item->m_Text, ImGuiInputTextFlags_ReadOnly, nullptr, nullptr);
+    //ImGui::InputText("", item->m_Text.c_str());
     ImGui::TextUnformatted(item->m_Text.c_str());
+    if (ImGui::IsItemClicked())
+    { 
+        ImGui::SetClipboardText(item->m_Text.c_str());
+    }
+    //ImGui::Selectable()
     ImGui::PopStyleColor();
 }
 
@@ -172,7 +181,6 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
             }
         }
     }
-
     //if (copy_to_clipboard)
     //    ImGui::LogFinish();
 
