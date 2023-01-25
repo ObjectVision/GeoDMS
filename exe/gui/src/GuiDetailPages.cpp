@@ -4,6 +4,7 @@
 #include "TicInterface.h"
 #include "ClcInterface.h"
 #include "Xml/XMLOut.h"
+#include "Explain.h"
 
 #include "TreeItemProps.h"
 #include "TicPropDefConst.h"
@@ -304,16 +305,44 @@ void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::s
     }
 }
 
-void GuiDetailPages::UpdateStatistics(GuiState& state)
+auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
 {
-    SuspendTrigger::Resume();
+    SuspendTrigger::Resume(); // TODO: necessary?
     m_Statistics.clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
     StringToTable(statistics_string, m_Statistics, ":");
 }
 
-void GuiDetailPages::UpdateConfiguration(GuiState& state)
+auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
+{
+    return std::stoll(dpvi_str.substr(11, dpvi_str.size()));
+}
+
+auto GuiDetailPages::UpdateValueInfo(GuiState& state) -> void
+{
+    m_ValueInfo.clear();
+    auto current_view_action = *state.TreeItemHistoryList.GetCurrentIterator();
+    if (!current_view_action.sAction.contains("dp.vi.attr"))
+        return;
+
+
+    InterestPtr<TreeItem*> tmpInterest = current_view_action.tiContext->IsFailed() || current_view_action.tiContext->WasFailed() ? nullptr : current_view_action.tiContext;
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto dpvi_index = GetIndexFromDPVIsActionString(current_view_action.sAction);
+    DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, NULL, true);
+
+    m_Buff.InterpretBytes(m_ValueInfo); // Create detail page from html stream
+    m_Buff.Reset();
+    // TODO: See uDMSTreeViewFunctions.pas line 254
+//DP_ValueInfo:
+//    case funcID of
+//    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
+//    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
+
+}
+
+auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
 {
     m_Configuration.clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
@@ -424,6 +453,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
+    bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
 
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -436,7 +466,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         {
         case GuiEvents::FocusValueInfoTab: 
         {
-            // TODO: implement
+            set_value_info_selected = true;
+            m_ValueInfo.clear();
             break;
         }
         case GuiEvents::UpdateCurrentItem: 
@@ -446,6 +477,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             m_ExploreProperties.clear();
             m_Configuration.clear();
             m_Statistics.clear();
+            m_ValueInfo.clear();
             m_SourceDescription.clear();
             break;
         }
@@ -527,14 +559,15 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
                 SetKeyboardFocusToThisHwnd();
         }
 
-        if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
         {
-            // TODO: See uDMSTreeViewFunctions.pas line 254
-            //DP_ValueInfo:
-            //    case funcID of
-            //    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
-            //    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
+            if (m_ValueInfo.empty())
+                UpdateValueInfo(state);
+            DrawProperties(state, m_ValueInfo);
+
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();            
         }
 
         if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))

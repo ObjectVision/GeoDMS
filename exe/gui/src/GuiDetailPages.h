@@ -105,6 +105,7 @@ private:
     auto UpdateAllProperties(GuiState& state) -> void;
     auto UpdateExploreProperties(GuiState& state) -> void;
     auto UpdateStatistics(GuiState& state) -> void;
+    auto UpdateValueInfo(GuiState& state) -> void;
     auto UpdateConfiguration(GuiState& state) -> void;
     auto UpdateSourceDescription(GuiState& state) -> void;
     auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
@@ -115,6 +116,7 @@ private:
     TableData m_AllProperties;
     TableData m_ExploreProperties;
     TableData m_Statistics;
+    TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
     //std::string m_Statistics;
