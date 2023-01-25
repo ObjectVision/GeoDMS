@@ -265,6 +265,13 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     m_Buff.Reset();
 }
 
+auto GuiDetailPages::clear() -> void
+{
+    DMS_ExplainValue_Clear();
+    // TODO: Clear all detail pages
+}
+
+
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
 {
     m_AllProperties.clear();

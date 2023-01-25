@@ -91,6 +91,7 @@ private:
 class GuiDetailPages : GuiBaseComponent
 {
 public:
+    auto clear() -> void;
     auto Update(bool* p_open, GuiState& state) -> void;
     auto static OnViewAction(const TreeItem* tiContext,
         CharPtr     sAction,

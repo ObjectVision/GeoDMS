@@ -248,6 +248,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
 void GuiMainComponent::CloseCurrentConfig()
 {
+    m_DetailPages.clear();
     m_View.CloseAll();
     m_Treeview.clear();
     m_State.clear();
