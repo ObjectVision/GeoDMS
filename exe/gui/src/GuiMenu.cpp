@@ -14,6 +14,7 @@
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
+#include "TreeItemProps.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -325,6 +326,7 @@ void GuiMenuEdit::Update(GuiState& state)
 
 void GuiMenuView::Update(GuiState& state)
 {
+    auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::BeginMenu("View"))
     {
         ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
@@ -345,6 +347,15 @@ void GuiMenuView::Update(GuiState& state)
         }
         if (ImGui::BeginMenu("Source Descr variant"))
         {
+            if (ImGui::MenuItem("Configured Source Descriptions"))
+                state.SourceDescrMode = SourceDescrMode::Configured;
+            if (ImGui::MenuItem("ReadOnly Storage Managers"))
+                state.SourceDescrMode = SourceDescrMode::ReadOnly;
+            if (ImGui::MenuItem("Non ReadOnly Storage Managers"))
+                state.SourceDescrMode = SourceDescrMode::WriteOnly;
+            if (ImGui::MenuItem("All Storage Managers"))
+                state.SourceDescrMode = SourceDescrMode::All;
+
             ImGui::EndMenu();
         }
 

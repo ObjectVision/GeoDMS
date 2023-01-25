@@ -189,6 +189,11 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
     return false;
 }
 
+auto HTMLGuiComponentFactory::InterpretBytesAsString() -> std::string
+{
+    return std::string(m_Buff.begin(), m_Buff.end());
+}
+
 void HTMLGuiComponentFactory::InterpretBytes(TableData& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
@@ -310,36 +315,21 @@ void GuiDetailPages::UpdateStatistics(GuiState& state)
 
 void GuiDetailPages::UpdateConfiguration(GuiState& state)
 {
-    //std::string statistics_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::All, true).c_str();
-    //StringToTable(statistics_string, m_FilteredStatistics);
-    //auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
-
-    /*Result: = DMS_TreeItem_GetExpr(ti);
-    if Assigned(didTrick) then didTrick^ : = false;
-    if Result = '' then
-        begin
-        tiCalc : = DMS_TreeItem_GetParseResult(ti);
-    if Assigned(tiCalc) then
-        begin
-        ti : = DMS_TreeItem_GetSourceObject(ti);
-    if Assigned(ti) then
-        Result : = 'assigned by parent to ' + TreeItem_GetFullName_Save(ti)
-    else
-        Result : = 'defined by parent as (in SLisp syntax): ' + DMS_ParseResult_GetAsSLispExpr(tiCalc, false);
-    if Assigned(didTrick) then didTrick^ : = true;
-    end*/
-
-
+    m_Configuration.clear();
+    InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
+    DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
+    auto conf_str = m_Buff.InterpretBytesAsString();
+    StringToTable(conf_str, m_Configuration);
+    m_Buff.Reset();
 }
 
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
-    std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), SourceDescrMode::Configured, true).c_str();
+    std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
 }
-
-
 
 void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
 {
@@ -402,6 +392,30 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
     ImGui::EndTable();
 }
 
+auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
+                    CharPtr     sAction,
+                    Int32         nCode,
+                    Int32             x,
+                    Int32             y,
+                    bool   doAddHistory,
+                    bool          isUrl,
+                    bool	mustOpenDetailsPage) -> void
+{
+    if (not doAddHistory)
+        return;
+
+    auto event_queues = GuiEventQueues::getInstance();
+    if (!std::string(sAction).contains("dp.vi"))
+        return;
+
+    GuiState::TreeItemHistoryList.Insert({ const_cast<TreeItem*>(tiContext), sAction, nCode, x, y });
+
+    if (!mustOpenDetailsPage)
+        return;
+
+    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
+}
+
 void GuiDetailPages::Update(bool* p_open, GuiState& state)
 {
     if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
@@ -417,14 +431,28 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
     if (event_queues->DetailPagesEvents.HasEvents()) // new current item
     {
-        event_queues->DetailPagesEvents.Pop();
-        m_GeneralProperties.clear();
-        m_AllProperties.clear();
-        m_ExploreProperties.clear();
-        //m_FilteredStatistics.clear();
-        m_Statistics.clear();
-        m_SourceDescription.clear();
-        //m_Statistics.clear();
+        auto event = event_queues->DetailPagesEvents.Pop();
+        switch (event)
+        {
+        case GuiEvents::FocusValueInfoTab: 
+        {
+            // TODO: implement
+            break;
+        }
+        case GuiEvents::UpdateCurrentItem: 
+        {
+            m_GeneralProperties.clear();
+            m_AllProperties.clear();
+            m_ExploreProperties.clear();
+            m_Configuration.clear();
+            m_Statistics.clear();
+            m_SourceDescription.clear();
+            break;
+        }
+        default:    break;
+        }
+        
+
     }
 
     /*// window specific options button
@@ -501,6 +529,11 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
 
         if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
         {
+            // TODO: See uDMSTreeViewFunctions.pas line 254
+            //DP_ValueInfo:
+            //    case funcID of
+            //    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
+            //    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
             ImGui::EndTabItem();
         }
 
@@ -510,15 +543,16 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             {
                 if (m_Configuration.empty())
                     UpdateConfiguration(state);
-                //DrawProperties(state, m_FilteredStatistics);
+                DrawProperties(state, m_Configuration);
             }
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
+        /*if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
         {
+            TODO: think about html editable functionality like export settings, reimplement?
             ImGui::EndTabItem();
-        }
+        }*/
 
         if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
         {

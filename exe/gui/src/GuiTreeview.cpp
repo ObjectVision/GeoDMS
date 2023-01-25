@@ -49,7 +49,7 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     }
 }
 
-auto ShowRightMouseClickPopupWindowIfNeeded() -> void
+auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
 {
     // right-mouse popup menu
     if (ImGui::BeginPopupContextItem())
@@ -69,6 +69,16 @@ auto ShowRightMouseClickPopupWindowIfNeeded() -> void
 
         if (ImGui::Button("Table View               CTRL-D"))
             event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+
+        //url 
+        auto treeitem_metadata_url = TreeItemPropertyValue(state.GetCurrentItem(), urlPropDefPtr);
+        if (!treeitem_metadata_url.empty())
+        {
+            if (ImGui::Button("Open Metainfo url"))
+            {
+                ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+            }
+        }
 
         //if (ImGui::Button("Close"))
         //    ImGui::CloseCurrentPopup();
@@ -117,6 +127,12 @@ auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
     return false;
 }
 
+auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
+{
+    auto tree_node = (GuiTreeNode*)clientHandle;
+    tree_node->SetState(new_state);
+}
+
 GuiTreeNode::GuiTreeNode(TreeItem* item)
 {
     this->Init(item);
@@ -154,11 +170,7 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     //other.m_children.clear();
 }
 
-auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
-{
-    auto tree_node = (GuiTreeNode*)clientHandle;
-    tree_node->SetState(new_state);
-}
+
 
 auto GuiTreeNode::Init(TreeItem* item) -> void
 {
@@ -269,7 +281,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
         event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
     // right-mouse popup menu
-    ShowRightMouseClickPopupWindowIfNeeded();
+    ShowRightMouseClickPopupWindowIfNeeded(state);
 
     // drag-drop event
     if (ImGui::BeginDragDropSource())
@@ -622,7 +634,7 @@ auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
             event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
         // right-mouse popup menu
-        ShowRightMouseClickPopupWindowIfNeeded();
+        ShowRightMouseClickPopupWindowIfNeeded(state);
 
         // alphabetical letter jump
         if ((!state.m_JumpLetter.first.empty() && !state.m_JumpLetter.second.empty()) && IsAlphabeticalKeyJump(state, nextSubItem))

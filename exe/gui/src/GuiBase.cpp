@@ -44,12 +44,12 @@ bool ImGui::InputText(const char* label, std::string* str, ImGuiInputTextFlags f
     return InputText(label, (char*)str->c_str(), str->capacity() + 1, flags, InputTextCallback, &cb_user_data);
 }
 
-TreeItemHistory::TreeItemHistory()
+ViewActionHistory::ViewActionHistory()
 {
     m_Iterator = m_History.begin();
 }
 
-void TreeItemHistory::Insert(TreeItem* new_item)
+auto ViewActionHistory::Insert(ViewAction new_item) -> void
 {
     if (m_Iterator == m_History.end())
     {
@@ -64,43 +64,47 @@ void TreeItemHistory::Insert(TreeItem* new_item)
     m_Iterator = m_History.insert(std::next(m_Iterator), new_item);
 }
 
-TreeItem* TreeItemHistory::GetNext()
+ViewAction ViewActionHistory::GetNext()
 {
     if (std::distance(m_History.end(), m_Iterator))
     {
         if (std::next(m_Iterator) == m_History.end())
-            return NULL;
+            return {};
 
         std::advance(m_Iterator, 1);
         return *m_Iterator;
     }
-    return NULL;
+    return {};
 }
 
-TreeItem* TreeItemHistory::GetPrevious()
+ViewAction ViewActionHistory::GetPrevious()
 {
     if (std::distance(m_Iterator, m_History.begin()))
     {
         std::advance(m_Iterator, -1);
         return *m_Iterator;
     }
-    return NULL;
+    return {};
 }
 
-std::list<TreeItem*>::iterator TreeItemHistory::GetCurrentIterator()
+auto ViewActionHistory::GetCurrentIterator() -> std::list<ViewAction>::iterator
 {
     return m_Iterator;
 }
 
-std::list<TreeItem*>::iterator TreeItemHistory::GetBeginIterator()
+auto ViewActionHistory::GetBeginIterator() -> std::list<ViewAction>::iterator
 {
     return m_History.begin();
 }
 
-std::list<TreeItem*>::iterator TreeItemHistory::GetEndIterator()
+auto ViewActionHistory::GetEndIterator() -> std::list<ViewAction>::iterator
 {
     return m_History.end();
 }
+
+StringStateManager GuiState::errorDialogMessage;
+StringStateManager GuiState::contextMessage;
+ViewActionHistory GuiState::TreeItemHistoryList;
 
 auto GuiState::clear() -> void
 {

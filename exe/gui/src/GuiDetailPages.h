@@ -67,7 +67,9 @@ public:
     virtual ~HTMLGuiComponentFactory();
 
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    void InterpretBytes(TableData& tableProperties);
+    auto InterpretBytes(TableData& tableProperties) -> void;
+    auto InterpretBytesAsString() -> std::string;
+
 
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -90,6 +92,14 @@ class GuiDetailPages : GuiBaseComponent
 {
 public:
     auto Update(bool* p_open, GuiState& state) -> void;
+    auto static OnViewAction(const TreeItem* tiContext,
+        CharPtr     sAction,
+        Int32         nCode,
+        Int32             x,
+        Int32             y,
+        bool   doAddHistory,
+        bool          isUrl,
+        bool	mustOpenDetailsPage) -> void;
 private:
     auto UpdateGeneralProperties(GuiState& state) -> void;
     auto UpdateAllProperties(GuiState& state) -> void;

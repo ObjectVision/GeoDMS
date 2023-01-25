@@ -44,7 +44,7 @@ GuiMainComponent::GuiMainComponent()
 {
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
-    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);            // TODO: no longer works
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
     /*const TreeItem* tiContext,
         CharPtr         sAction,
@@ -54,6 +54,7 @@ GuiMainComponent::GuiMainComponent()
         bool            doAddHistory,
         bool            isUrl,
         bool			mustOpenDetailsPage*/
+    SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
     //SHV_SetCreateViewActionFunc(); //TODO: implement 
 }
 
@@ -98,7 +99,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             return;
         
         if (m_State.GetCurrentItem()!=m_State.GetRoot())
-            m_State.TreeItemHistoryList.Insert(m_State.GetCurrentItem());
+            m_State.TreeItemHistoryList.Insert({m_State.GetCurrentItem()});
         break;
     }
     case GuiEvents::ReopenCurrentConfiguration:
@@ -328,11 +329,11 @@ void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
     TreeItem* new_current_item = NULL;
     if (ImGui::IsMouseClicked(3)) // side-back mous button
     {
-        new_current_item = m_State.TreeItemHistoryList.GetPrevious();
+        new_current_item = m_State.TreeItemHistoryList.GetPrevious().tiContext;
     }
     if (ImGui::IsMouseClicked(4)) // side-front mouse button
     {
-        new_current_item = m_State.TreeItemHistoryList.GetNext();
+        new_current_item = m_State.TreeItemHistoryList.GetNext().tiContext;
     }
     if (new_current_item)
     {
