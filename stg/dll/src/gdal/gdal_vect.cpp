@@ -1693,11 +1693,22 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
-	if (curr->HasCalculator())
-		return;
 
 	if (IsUnit(curr))
 	{
+		if (curr->HasCalculator())
+		{
+			if (!IsReadOnly())
+				return;
+			if (curr != storageHolder)
+				return;
+			SharedStr currFullName = curr->GetFullName();
+			reportF(SeverityTypeID::ST_Warning, "'%s' has a calculation rule and has a storageHolder. If related attributes should be read from '%s', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
+				, currFullName.c_str()
+				, GetNameStr().c_str()
+			);
+		}
+
 		// Get Table Attr info (= fields of its features)
 		StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 		if (m_hDS)
@@ -1706,9 +1717,11 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			if (layer)
 				DoUpdateTable(storageHolder, AsUnit(curr), layer);
 		}
-
 		return;
 	}
+
+	if (curr->HasCalculator())
+		return;
 
 	if (curr != storageHolder || sm != SM_AllTables)
 		return;
