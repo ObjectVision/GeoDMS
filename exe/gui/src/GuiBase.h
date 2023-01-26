@@ -49,6 +49,30 @@ enum class GuiEvents
 	Close,
 };
 
+enum class GeoDMSWindowTypes
+{
+	TreeView,
+	DetailPages,
+	EventLog,
+	MapView,
+	TableView,
+	Options
+};
+
+/*auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
+{
+	switch (wt)
+	{
+	case GeoDMSWindowTypes::TreeView: return "TreeView";
+	case GeoDMSWindowTypes::DetailPages: return "DetailPages";
+	case GeoDMSWindowTypes::EventLog: return "EventLog";
+	case GeoDMSWindowTypes::MapView: return "MapView";
+	case GeoDMSWindowTypes::TableView: return "TableView";
+	case GeoDMSWindowTypes::Options: return "Options";
+	
+	}
+}*/
+
 static auto InputTextCallback(ImGuiInputTextCallbackData* data) -> int;
 
 struct InputTextCallback_UserData
