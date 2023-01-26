@@ -159,18 +159,18 @@ namespace gdalComponentImpl
 
 	void __stdcall ErrorHandler(CPLErr eErrClass, int err_no, const char *msg)
 	{
-		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-		reportF(gdalSeverity(eErrClass), "gdal %s(%d): %s%s%s "
+//		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
+		SeverityTypeID st = gdalSeverity(eErrClass);
+		MakeMin(st, SeverityTypeID::ST_Warning); // downplay gdal errors for now.
+
+		reportF(st, "gdal %s(%d): %s "
 			, gdal2CharPtr(eErrClass)
 			, err_no
-			, msg, ach ? " while " : ""
-			, ach ? ach->GetDescription() : ""
+			, msg
 		);
 
 		if (s_ErrorFramePtr)
 			s_ErrorFramePtr->RegisterError(dms_CPLErr(eErrClass), err_no, msg);
-//		else
-//			ErrorHandlerImpl(eErrClass, err_no, msg);
 	}
 
 }	// namespace gdalComponentImpl
@@ -1031,7 +1031,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("GDAL", "cannot open dataset %s \n%s"
+			throwErrorF("GDAL", "cannot open dataset %s \n\t%s"
 				, datasourceName.c_str()
 				, gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);
