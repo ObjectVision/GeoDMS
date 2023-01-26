@@ -247,7 +247,7 @@ std::string GetInitialWindowComposition()
         "Collapsed=0\n"
         "DockId=0x00000006,0\n"
         "\n";
-        /*"[Window][DMSView]\n"
+        "[Window][DMSView]\n"
         "Pos=377,83\n"
         "Size=1792,911\n"
         "Collapsed=0\n"
@@ -277,7 +277,7 @@ std::string GetInitialWindowComposition()
         "        DockNode    ID=0x00000004 Parent=0x00000005 SizeRef=381,662 Selected=0x89482BF9\n"
         "      DockNode      ID=0x00000006 Parent=0x00000007 SizeRef=1264,339 Selected=0xB76E45CC\n"
         "    DockNode        ID=0x00000008 Parent=0x0000000A SizeRef=1264,32 HiddenTabBar=1 Selected=0x51C70801\n"
-        "\n";*/
+        "\n";
     return result;
 }
 
@@ -304,7 +304,7 @@ auto SetWindowCompositionOnFirstUse() -> void
     if (not initial_window_composition.empty())
     {
         ImGui::LoadIniSettingsFromMemory(initial_window_composition.c_str());
-        SetWindowDockStateOnFirstUse();
+        //SetWindowDockStateOnFirstUse();
     }
     SaveIniToRegistry();
 }

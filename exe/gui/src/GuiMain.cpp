@@ -437,7 +437,7 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    //LoadIniFromRegistry();
+    LoadIniFromRegistry();
 
     // command line params
     InterpretCommandLineParameters();
@@ -626,8 +626,8 @@ void GuiMainComponent::Update()
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
 
-    if (m_FirstFrames>0)
-        LoadIniFromRegistry();
+    //if (m_FirstFrames>0)
+        
 
     // Update main window components
     m_Menu.Update(m_State, m_View);
