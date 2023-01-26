@@ -264,10 +264,8 @@ namespace
 	CommonOperGroup cog_Version("GeoDmsVersion", oper_policy::is_transient);
 	CommonOperGroup cog_Platform("GeoDmsPlatform", oper_policy::is_transient);
 	CommonOperGroup cog_BuildConfig("GeoDmsBuildConfig", oper_policy::is_transient);
-	CommonOperGroup cog_TypeModel("GeoDmsTypeModel", oper_policy::is_transient);
 
 	ConstParamOperator<Float64>            cpVersion(&cog_Version, DMS_GetVersionNumber());
 	ConstParamOperator<SharedStr, CharPtr> cpPlatform(&cog_Platform, DMS_GetPlatform());
 	ConstParamOperator<SharedStr, CharPtr> cpBuildConfig(&cog_BuildConfig, DMS_GetBuildConfig());
-	ConstParamOperator<SharedStr, CharPtr> cpTypeModel(&cog_TypeModel, DMS_GetTypeModel());
 }

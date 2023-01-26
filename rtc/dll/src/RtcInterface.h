@@ -79,7 +79,6 @@ RTC_CALL CharPtr DMS_CONV DMS_GetVersion();
 RTC_CALL Float64 DMS_CONV DMS_GetVersionNumber();
 RTC_CALL CharPtr DMS_CONV DMS_GetPlatform();
 RTC_CALL CharPtr DMS_CONV DMS_GetBuildConfig();
-RTC_CALL CharPtr DMS_CONV DMS_GetTypeModel();
 
 typedef void (DMS_CONV *VersionComponentCallbackFunc)(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName);
 
