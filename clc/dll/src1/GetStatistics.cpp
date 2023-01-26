@@ -184,6 +184,10 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 				os << "\n" << DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << ": " << binCounts[i];
 		}
 	}
+	else
+	{
+		os << "\n\nTo see all unique values and their frequency, you can open this attribute in a TableView and press the GroupBy button in the toolbar.";
+	}
 }
 CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
 {
@@ -322,7 +326,8 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 						}
 					);
 				}
-				WriteBinData(os, binCounts, di);
+				if (d)
+					WriteBinData(os, binCounts, di);
 			}
 			catch (...)
 			{
