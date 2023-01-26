@@ -694,6 +694,32 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	return { nullptr, {} };
 }
 
+BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
+{
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		return FindBestItem(supplRefID);
+	}
+	for (auto ti : m_SupplierArray)
+	{
+		if (!ti)
+			continue;
+		if (WasInFailed(ti))
+			return { ti, {} };
+		if (IsDataItem(ti.get_ptr()))
+		{
+			SharedDataItem adi = AsDataItem(ti.get_ptr());
+			adi->PrepareData();
+			
+			DataReadLock lock(adi);
+			if (adi->WasFailed(FR_Data))
+				return { adi, {} };
+		}
+	}
+	return { nullptr, {} };
+}
+
 // *****************************************************************************
 // struct SubstitutionBuffer 
 // *****************************************************************************

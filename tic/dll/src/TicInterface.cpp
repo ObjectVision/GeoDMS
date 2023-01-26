@@ -1001,6 +1001,8 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 
 	if (src)
 	{
+		assert(src->WasFailed());
+
 		// parent ?
 		auto context = src->GetTreeParent();
 		if (WasInFailed(context))
@@ -1097,6 +1099,16 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 			assert(sourceItem != src);
 			if (WasInFailed(sourceItem))
 				return { sourceItem, {} };
+		}
+
+		// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
+		if (src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
+		{
+			if (src->HasCalculator())
+			{
+				auto sc = src->GetCalculator();
+				return sc->FindPrimaryDataFailedItem();
+			}
 		}
 	}
 	return { nullptr, {} };

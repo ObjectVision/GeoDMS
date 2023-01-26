@@ -130,6 +130,7 @@ public:
 
 	TIC_CALL virtual bool CheckSyntax () const;
 	TIC_CALL BestItemRef FindErrorneousItem() const;
+	TIC_CALL BestItemRef FindPrimaryDataFailedItem() const;
 
 	TIC_CALL auto GetSourceItem() const->SharedPtr<const TreeItem>;  // directly referred persistent object.
 
