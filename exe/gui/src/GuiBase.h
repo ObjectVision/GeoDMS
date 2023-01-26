@@ -345,3 +345,4 @@ auto SetKeyboardFocusToThisHwnd() -> void;
 auto LoadIniFromRegistry() -> void;
 auto SaveIniToRegistry() -> void;
 auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;
+auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void;

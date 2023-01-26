@@ -52,7 +52,8 @@ enum PropertyEntryType
 
 struct PropertyEntry
 {
-    PropertyEntryType   type;
+    PropertyEntryType   type; 
+    bool background_is_red = false;
     std::string         text;
 };
 

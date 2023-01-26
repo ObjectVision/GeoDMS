@@ -112,7 +112,7 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
     {
         m_Tag.href.clear();
         tableProperties.emplace_back();
-        tableProperties.back().emplace_back(PET_HEADING, m_Text);
+        tableProperties.back().emplace_back(PET_HEADING, false, m_Text);
         m_Text.clear();
     }
     else if (m_Tag.text == "</TABLE>")
@@ -129,16 +129,18 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
         {
             m_OpenTags[int(HTMLTagType::TABLEDATA)]--;
 
+            if (m_Text.empty())
+                return;
+
+            bool text_contains_failreason = m_Text.contains("FailState") || m_Text.contains("FailReason");
+
             if (!m_Tag.href.empty())
             {
-                tableProperties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
+                tableProperties.back().emplace_back(PET_LINK, text_contains_failreason, CleanStringFromHtmlEncoding(m_Text));
                 m_Tag.href.clear();
             }
             else
-            {
-                if (!m_Text.empty())
-                    tableProperties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
-            }
+                    tableProperties.back().emplace_back(PET_TEXT, text_contains_failreason, CleanStringFromHtmlEncoding(m_Text));
             m_Text.clear();
         }
     }
@@ -146,7 +148,7 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
     {
         if (!tableProperties.back().empty())
             tableProperties.emplace_back();
-        tableProperties.back().emplace_back(PET_SEPARATOR, m_Text);
+        tableProperties.back().emplace_back(PET_SEPARATOR, false, m_Text);
     }
 
 }
@@ -306,7 +308,7 @@ void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::s
             result.emplace_back();
             for (auto& part : colon_separated_line)
             {
-                result.back().emplace_back(PET_TEXT, part);
+                result.back().emplace_back(PET_TEXT, false, part);
             }
         }
     }
@@ -382,6 +384,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
         for (auto& col : row)
         {
             ImGui::TableSetColumnIndex(column_index);
+            if (col.background_is_red)
+                SetTextBackgroundRed(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
                 ImGui::Text(col.text.c_str());
@@ -389,12 +393,11 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             else if (col.type == PET_LINK)
             {
                 ImGui::PushID(button_index++);
-
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
                 if (ImGui::Button(col.text.c_str()))
                 {
-                    auto unfound_part = IString::Create("");
+                    auto unfound_part = IString::Create(""); //TODO: replace with TreeItem_GetBest...
                     TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str(), &unfound_part);
                     if (jumpItem)
                     {
@@ -423,9 +426,7 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
             column_index++;
-
             OnItemClickItemTextTextToClipboard(col.text);
-
         }
     }
     ImGui::EndTable();

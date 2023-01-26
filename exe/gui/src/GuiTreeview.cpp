@@ -246,12 +246,13 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
 
     // red background for failed item
     if (failed) 
-    {
+        SetTextBackgroundRed(ImGui::CalcTextSize(m_item->GetName().c_str()));
+    /* {
         auto draw_list = ImGui::GetWindowDrawList();
         auto cur_pos = ImGui::GetCursorScreenPos();
         auto text_size = ImGui::CalcTextSize(m_item->GetName().c_str());
         draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x+text_size.x, cur_pos.y+text_size.y), IM_COL32(225, 6, 0, 255));
-    }
+    }*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     const bool is_selected = (m_item == state.GetCurrentItem());

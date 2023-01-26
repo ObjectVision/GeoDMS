@@ -318,3 +318,10 @@ auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void
         ImGui::SetTooltip("Copied to clipboard");
     }
 }
+
+auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void // std::string_view text
+{
+    auto draw_list = ImGui::GetWindowDrawList();
+    auto cur_pos = ImGui::GetCursorScreenPos();
+    draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x + background_rectangle_size.x, cur_pos.y + background_rectangle_size.y), IM_COL32(225, 6, 0, 255));
+}
