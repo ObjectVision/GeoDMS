@@ -1079,11 +1079,20 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				LispRef indexExpr = localExpr.Right().Left();
 				if (!indexExpr.IsSymb())
-					throwErrorD("ExprParser", "DataItem expected as left operand of arrow");
+					throwErrorF("Calculation Rule Parser", "named DataItem expected as left operand of the arrow operator: try defining an attribute with calculation rule '%s'"
+					, AsString(indexExpr)
+					);
 
 				SharedPtr<const TreeItem> indexItem = FindItem(indexExpr.GetSymbID());
+				if (!indexItem.get_ptr())
+					throwErrorF("Calculation Rule Parser", "reference '%s' not found (as left operand of the arrow operator)"
+					, AsString(indexExpr.GetSymbID())
+					);
 				if (!IsDataItem(indexItem.get_ptr()))
-					throwErrorD("ExprParser", "DataItem expected as left operand of arrow");
+					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '%s' refers to a %s"
+					, AsString(indexExpr.GetSymbID())
+					, AsString(indexItem->GetDynamicClass()->GetID())
+					);
 
 				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
 

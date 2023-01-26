@@ -305,7 +305,11 @@ begin
     SetCountedRef(m_tiConfigSettings, nil);
     SetCountedRef(m_tiRoot, nil);
     if Assigned(tiRoot) then
+    begin
+      frmMain.pnlEventlog.Visible := false; // suppress lbxEventLog.Update that Sends messages while the main thread is blocked.
+
       DMS_TreeItem_SetAutoDelete(tiRoot);
+    end;
   finally
     AuxClose;
     inherited;

@@ -1,40 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
 #pragma hdrstop
 
+#include <numbers>
 
 // *****************************************************************************
-//
 // Implementations of GdalVectSM
-//
 // *****************************************************************************
+
 #include "gdal_base.h"
 #include "gdal_vect.h"
 
@@ -275,6 +247,104 @@ void gdalCleanup()
 
 gdalDynamicLoader::gdalDynamicLoader()
 {
+}
+
+auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angular_unit) -> Float64
+{
+	if (!stricmp(angular_unit.first, "degree"))
+	{
+		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
+			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
+			angular_unit.first = "radian";
+		else
+			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
+	}
+	if (!stricmp(angular_unit.first, "radian")) {
+		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>))*1000.0;
+	}
+	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
+}
+
+auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
+{
+	if (!stricmp(linear_unit.first, "km"))
+		return linear_unit.second *= 1000.0;
+	if (!stricmp(linear_unit.first, "m") || stricmp(linear_unit.first, "meter") || stricmp(linear_unit.first, "metre"))
+		return linear_unit.second;
+	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
+}
+
+auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64
+{
+	std::pair<CharPtr, Float64> linear_unit;
+	std::pair<CharPtr, Float64> angular_unit;
+	linear_unit.second = sr->GetLinearUnits(&linear_unit.first);
+	angular_unit.second = sr->GetAngularUnits(&angular_unit.first);
+
+	if (!strcmp(linear_unit.first, "unknown"))
+		return GetUnitSizeInMetersFromAngularProjection(angular_unit);
+	else
+		return GetUnitSizeInMetersFromLinearProjection(linear_unit);
+}
+
+void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
+{
+	assert(uBase);
+	assert(dsh_);
+	auto mutUBase = const_cast<AbstrUnit*>(uBase);
+
+	auto ogrSR_ptr = dsh_->GetSpatialRef();
+	if (!ogrSR_ptr) 
+		ogrSR_ptr = dsh_->GetGCPSpatialRef();
+
+	if (uBase->GetDescr().empty() && ogrSR_ptr)
+	{
+		CharPtr projName = nullptr;
+		if (ogrSR_ptr) 
+			projName = ogrSR_ptr->GetName();
+		if (projName == nullptr)
+			projName = dsh_->GetProjectionRef();
+
+		if (!mutUBase->IsCacheItem())
+			mutUBase->SetDescr(SharedStr(projName));
+	}
+
+	OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
+	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
+}
+
+void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutUBase)
+{
+	assert(IsMainThread());
+	assert(mutUBase);
+	mutUBase->UpdateMetaInfo();
+
+	SharedStr wktPrjStr(mutUBase->GetFormat());
+
+	if (!wktPrjStr.empty())
+	{
+		GDAL_ErrorFrame	error_frame;
+
+		OGRSpatialReference	directSR;
+		OGRErr err = directSR.SetFromUserInput(wktPrjStr.c_str());
+		if (err == OGRERR_NONE)
+			ogrSR = std::move(directSR);
+	}
+
+	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
+	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
+	if (!msa)
+	{
+		auto unitSizeInMeters = GetUnitSizeInMeters(&ogrSR);
+		if (unitSizeInMeters > 1.0)
+		{
+			auto vpmins = CreateDataItem(mutUBase, vpminsID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
+
+			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
+			wrLock.get()->SetValueAsFloat64(0, 10.0 / unitSizeInMeters);
+			wrLock.Commit();
+		}
+	}
 }
 
 

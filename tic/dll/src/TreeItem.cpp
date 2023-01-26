@@ -561,7 +561,7 @@ const TreeItem* TreeItem::GetFirstSubItem() const
 
 const TreeItem* TreeItem::GetCurrFirstSubItem() const
 {
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo);
 	return _GetFirstSubItem();
 }
 
@@ -868,7 +868,7 @@ void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
 	if (metaInfo.index() == 0)
 	{
 		std::get<MetaFuncCurry>(metaInfo).operator()(holder, ac);
-		dms_assert(ac->GetHolder()->GetIsInstantiated());
+		assert(ac->GetHolder()->GetIsInstantiated() || ac->GetHolder()->WasFailed(FR_MetaInfo));
 	}
 }
 
@@ -1416,7 +1416,7 @@ const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 	if (!this)
 		return nullptr;
 
-	const TreeItem* subItem = GetCurrFirstSubItem(); // calls UpdateMetaInfo
+	const TreeItem* subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
 	{
 		if (!subItem)

@@ -943,22 +943,29 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain, siwlMovedPaletteDomain = std::move(siwlPaletteDomain), breakAttrPtr, siwlBreakAttr, nrBreaks, resultCopy = std::move(result), thematicValuesRangeData, aNr, dv_wptr]() {
-		UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
-		paletteDomain->SetCount(nrBreaks);
-
-		// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
-		// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
-		*siwlMovedPaletteDomain = ItemWriteLock(); 
-		breakAttrPtr->MarkTS(tsActive);
-
-		FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
-		if (aNr != AN_AspectCount)
+	dv->AddGuiOper([tsActive, paletteDomain
+			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
+			, breakAttrPtr, siwlBreakAttr, nrBreaks
+			, resultCopy = std::move(result)
+			, thematicValuesRangeData, aNr, dv_wptr
+			]() 
 		{
-			auto dv = dv_wptr.lock(); if (!dv) return;
-			CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
+			UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
+			paletteDomain->SetCount(nrBreaks);
+
+			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
+			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
+			*siwlMovedPaletteDomain = ItemWriteLock(); 
+			breakAttrPtr->MarkTS(tsActive);
+
+			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
+			if (aNr != AN_AspectCount)
+			{
+				auto dv = dv_wptr.lock(); if (!dv) return;
+				CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
+			}
 		}
-	});
+	);
 }
 
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)

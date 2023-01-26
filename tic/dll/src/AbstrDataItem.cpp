@@ -409,44 +409,30 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		return false;
 	const AbstrDataItem* adi = AsDataItem(refItem);
 
-	CharPtr issueStr;
+	SharedStr errMsgStr;
 	{
 		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
 		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
-		if (!mydu->UnifyDomain(refdu, "", "", UnifyMode::UM_AllowDefaultLeft))
-		{
-			issueStr = "The specified Domain";
+		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
-		}
 	}
 	dbg_assert(m_LastGetStateTS == refItem->m_LastGetStateTS || refItem->IsPassor());
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!GetAbstrValuesUnit()->UnifyValues(refvu, "", "", UnifyMode::UM_AllowDefault))
-		{
-			issueStr = "The specified ValuesUnit";
+		if (!myvu->UnifyValues(refvu, "the specified ValuesUnit", "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
-		}
 	}
 	if (adi->GetTSF(DSF_Categorical))
 	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "", "", UnifyMode::UM_AllowDefaultLeft))
-		{
-			issueStr = "The specified ValuesUnit ";
+		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft))
 			goto failResultMsg;
-		}
 		SetTSF(DSF_Categorical);
 	}
 	return true;
 
 failResultMsg:
-	auto msg = mySSPrintF("%s is incompatible with the result of the%s calculation '%s'"
-	,	issueStr
-	, adi->GetTSF(DSF_Categorical) ? " categorical" : ""
-	,	AsFLispSharedStr(GetAsLispRef(GetCurrMetaInfo({})))
-	);
-	Fail(msg, FR_Determine);
+	Fail(errMsgStr, FR_Determine);
 	return false;
 }
 

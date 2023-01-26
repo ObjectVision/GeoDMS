@@ -273,15 +273,12 @@ DataControllerMap::~DataControllerMap()
 {
 	#if defined(MG_DEBUG_DATA)
 
-
 		UInt32 n = size();
 		if (n)
 		{
 			TreeItemAdmLock::Report(); // present additional info. Note that some non-config specific items might be destroyed later
 
-			DataControllerMap::const_iterator
-				i = begin(),
-				e = end();
+			DataControllerMap::const_iterator i = begin(), e = end();
 			UInt32 c=0;
 			while (i!=e)
 			{

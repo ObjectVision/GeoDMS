@@ -463,28 +463,25 @@ end;
 procedure TfrmMain.LogMsg(msg: PMsgChar);
 var s: MsgString; p: UInt32;
 begin
+  if not pnlEventlog.Visible then exit;
+
   s := MsgString( msg );
-  if pnlEventlog.Visible then
+  p := CrPos(s); // count #bytes and not UFT8 chars
+
+  while (p > 0) do
   begin
-      p := CrPos(s); // count #bytes and not UFT8 chars
-
-      while (p > 0) do
-      begin
-        if (p > 1) then
-            lbxEventLog.Items.Add(Copy(s, 1, p - 1));
-        s := Copy(s, p+1, length(s) );
-        p := CrPos(s);
-      end;
-      if (length(s) > 0) then
-         lbxEventLog.Items.Add(s);
-      while (lbxEventLog.Items.Count > 500) do
-         lbxEventLog.Items.Delete(0);
-
-      lbxEventLog.ItemIndex := lbxEventLog.Items.Count - 1;
-      lbxEventLog.Update;
+    if (p > 1) then
+        lbxEventLog.Items.Add(Copy(s, 1, p - 1));
+    s := Copy(s, p+1, length(s) );
+    p := CrPos(s);
   end;
+  if (length(s) > 0) then
+     lbxEventLog.Items.Add(s);
+  while (lbxEventLog.Items.Count > 500) do
+     lbxEventLog.Items.Delete(0);
 
-//  StatusBarText[1] := msg;
+  lbxEventLog.ItemIndex := lbxEventLog.Items.Count - 1;
+  lbxEventLog.Update;
 end; // LogMsg
 
 procedure TfrmMain.lbxEventLogDblClick(Sender: TObject);
@@ -839,7 +836,7 @@ begin
     Options := Options + [ofNoChangeDir, ofFileMustExist];
     Title := 'Open configuration...';
     DefaultExt := 'dms';
-    Filter := 'Configuration files (*.dms, *.xml)|*.dms;*.xml';
+    Filter := 'Configuration files (*.dms)|*.dms';
     FilterIndex := 1;
 
     if not Execute then exit;

@@ -247,27 +247,27 @@ namespace {
 	CommonOperGroup cog_argmax8("argmax_uint8", oper_policy::allow_extra_args);
 	CommonOperGroup cog_argmin16("argmin_uint16", oper_policy::allow_extra_args);
 	CommonOperGroup cog_argmax16("argmax_uint16", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminC("certain_argmin", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxC("certain_argmax", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminK("known_argmin", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxK("known_argmax", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminC8("certain_argmin_uint8", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxC8("certain_argmax_uint8", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminK8("known_argmin_uint8", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxK8("known_argmax_uint8", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminC16("certain_argmin_uint16", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxC16("certain_argmax_uint16", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argminK16("known_argmin_uint16", oper_policy::allow_extra_args);
-	CommonOperGroup cog_argmaxK16("known_argmax_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC("argmin_alldefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC("argmax_alldefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK("argmin_ifdefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK("argmax_ifdefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC8("argmin_alldefined_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC8("argmax_alldefined_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK8("argmin_ifdefined_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK8("argmax_ifdefined_uint8", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminC16("argmin_alldefined_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxC16("argmax_alldefined_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argminK16("argmin_ifdefined_uint16", oper_policy::allow_extra_args);
+	CommonOperGroup cog_argmaxK16("argmax_ifdefined_uint16", oper_policy::allow_extra_args);
 
 	CommonOperGroup cog_minelem("min_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelem("max_elem", oper_policy::allow_extra_args);
 	CommonOperGroup cog_minelem_fast("min_elem_fast", oper_policy::allow_extra_args);
 	CommonOperGroup cog_maxelem_fast("max_elem_fast", oper_policy::allow_extra_args);
-	CommonOperGroup cog_minelemC("certain_min_elem", oper_policy::allow_extra_args);
-	CommonOperGroup cog_maxelemC("certain_max_elem", oper_policy::allow_extra_args);
-	CommonOperGroup cog_minelemK("known_min_elem", oper_policy::allow_extra_args);
-	CommonOperGroup cog_maxelemK("known_max_elem", oper_policy::allow_extra_args);
+	CommonOperGroup cog_minelemC("min_elem_alldefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_maxelemC("max_elem_alldefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_minelemK("min_elem_ifdefined", oper_policy::allow_extra_args);
+	CommonOperGroup cog_maxelemK("max_elem_ifdefined", oper_policy::allow_extra_args);
 
 
 	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpers   (cog_argmin);
