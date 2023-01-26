@@ -423,6 +423,9 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
             column_index++;
+
+            if (ImGui::IsItemClicked())
+                ImGui::SetClipboardText(col.text.c_str());
         }
     }
     ImGui::EndTable();
