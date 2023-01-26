@@ -24,10 +24,14 @@ auto GuiCurrentItem::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
             if (ImGui::Selectable((iterator->tiContext)->GetFullName().c_str(), is_selected))
             {
                 state.SetCurrentItem(iterator->tiContext);
+                //if (iterator->sAction.contains("dp.vi.attr"))
+                //    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
+                //else
+                    event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                 event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                 event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                 event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+                
             }
         }
         ImGui::EndCombo();
