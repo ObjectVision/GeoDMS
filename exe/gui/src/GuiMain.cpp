@@ -44,18 +44,9 @@ GuiMainComponent::GuiMainComponent()
 {
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
-    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);            // TODO: no longer works
+    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
-    /*const TreeItem* tiContext,
-        CharPtr         sAction,
-        Int32           nCode,
-        Int32           x,
-        Int32           y,
-        bool            doAddHistory,
-        bool            isUrl,
-        bool			mustOpenDetailsPage*/
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
-    //SHV_SetCreateViewActionFunc(); //TODO: implement 
 }
 
 GuiMainComponent::~GuiMainComponent()
@@ -248,6 +239,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
 void GuiMainComponent::CloseCurrentConfig()
 {
+    m_DetailPages.clear();
     m_View.CloseAll();
     m_Treeview.clear();
     m_State.clear();
@@ -326,21 +318,26 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 
 void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
 {
-    TreeItem* new_current_item = NULL;
+    ViewAction new_view_action = {};
     if (ImGui::IsMouseClicked(3)) // side-back mous button
     {
-        new_current_item = m_State.TreeItemHistoryList.GetPrevious().tiContext;
+        new_view_action = m_State.TreeItemHistoryList.GetPrevious();
     }
     if (ImGui::IsMouseClicked(4)) // side-front mouse button
     {
-        new_current_item = m_State.TreeItemHistoryList.GetNext().tiContext;
+        new_view_action = m_State.TreeItemHistoryList.GetNext();
     }
-    if (new_current_item)
+    if (new_view_action.tiContext)
     {
         auto event_queues = GuiEventQueues::getInstance();
-        m_State.SetCurrentItem(new_current_item);
+        m_State.SetCurrentItem(new_view_action.tiContext);
+
+        //if (new_view_action.sAction.contains("dp.vi.attr"))
+        //    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
+        //else
+            event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+        
         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
         event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     }
 }

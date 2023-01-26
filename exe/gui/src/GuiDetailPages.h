@@ -52,7 +52,8 @@ enum PropertyEntryType
 
 struct PropertyEntry
 {
-    PropertyEntryType   type;
+    PropertyEntryType   type; 
+    bool background_is_red = false;
     std::string         text;
 };
 
@@ -91,6 +92,7 @@ private:
 class GuiDetailPages : GuiBaseComponent
 {
 public:
+    auto clear() -> void;
     auto Update(bool* p_open, GuiState& state) -> void;
     auto static OnViewAction(const TreeItem* tiContext,
         CharPtr     sAction,
@@ -101,10 +103,12 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage) -> void;
 private:
+    auto ClearSpecificDetailPages(bool general=false, bool all_properties=false, bool explore_properties=false, bool statistics=false, bool value_info=false, bool source_description=false, bool configuration=false) -> void;
     auto UpdateGeneralProperties(GuiState& state) -> void;
     auto UpdateAllProperties(GuiState& state) -> void;
     auto UpdateExploreProperties(GuiState& state) -> void;
     auto UpdateStatistics(GuiState& state) -> void;
+    auto UpdateValueInfo(GuiState& state) -> void;
     auto UpdateConfiguration(GuiState& state) -> void;
     auto UpdateSourceDescription(GuiState& state) -> void;
     auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
@@ -115,10 +119,7 @@ private:
     TableData m_AllProperties;
     TableData m_ExploreProperties;
     TableData m_Statistics;
+    TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
-    //std::string m_Statistics;
-    //std::string m_Configuration;
-    //std::string m_SourceDescription;
-    //std::string m_Metadata;
 };

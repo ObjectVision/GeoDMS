@@ -163,11 +163,6 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     m_is_open = other.m_is_open;
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
-
-    // clean other
-    //other.m_item = nullptr;
-    //other.m_parent = nullptr;
-    //other.m_children.clear();
 }
 
 
@@ -251,12 +246,13 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
 
     // red background for failed item
     if (failed) 
-    {
+        SetTextBackgroundRed(ImGui::CalcTextSize(m_item->GetName().c_str()));
+    /* {
         auto draw_list = ImGui::GetWindowDrawList();
         auto cur_pos = ImGui::GetCursorScreenPos();
         auto text_size = ImGui::CalcTextSize(m_item->GetName().c_str());
         draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x+text_size.x, cur_pos.y+text_size.y), IM_COL32(225, 6, 0, 255));
-    }
+    }*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     const bool is_selected = (m_item == state.GetCurrentItem());
@@ -496,7 +492,7 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 
     //const ImVec2 size(100,10000);
     //ImGui::SetNextWindowContentSize(size);
-    if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("TreeView", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;

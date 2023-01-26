@@ -15,7 +15,7 @@
 #include <ogr_api.h>
 #include <cpl_csv.h>
 #include <ogrsf_frmts.h>
-
+#include <boost/algorithm/string.hpp>
 
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
@@ -131,18 +131,18 @@ namespace gdalComponentImpl
 
 	void __stdcall ErrorHandler(CPLErr eErrClass, int err_no, const char *msg)
 	{
-		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
-		reportF(gdalSeverity(eErrClass), "gdal %s(%d): %s%s%s "
+//		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
+		SeverityTypeID st = gdalSeverity(eErrClass);
+		MakeMin(st, SeverityTypeID::ST_Warning); // downplay gdal errors for now.
+
+		reportF(st, "gdal %s(%d): %s "
 			, gdal2CharPtr(eErrClass)
 			, err_no
-			, msg, ach ? " while " : ""
-			, ach ? ach->GetDescription() : ""
+			, msg
 		);
 
 		if (s_ErrorFramePtr)
 			s_ErrorFramePtr->RegisterError(dms_CPLErr(eErrClass), err_no, msg);
-//		else
-//			ErrorHandlerImpl(eErrClass, err_no, msg);
 	}
 
 }	// namespace gdalComponentImpl
@@ -251,7 +251,7 @@ gdalDynamicLoader::gdalDynamicLoader()
 
 auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angular_unit) -> Float64
 {
-	if (!stricmp(angular_unit.first, "degree"))
+	if (boost::iequals(angular_unit.first, "degree"))
 	{
 		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
 			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
@@ -259,7 +259,7 @@ auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angul
 		else
 			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
 	}
-	if (!stricmp(angular_unit.first, "radian")) {
+	if (boost::iequals(angular_unit.first, "radian")) {
 		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>))*1000.0;
 	}
 	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
@@ -267,9 +267,9 @@ auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angul
 
 auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
 {
-	if (!stricmp(linear_unit.first, "km"))
+	if (!strcmp(linear_unit.first, "km"))
 		return linear_unit.second *= 1000.0;
-	if (!stricmp(linear_unit.first, "m") || stricmp(linear_unit.first, "meter") || stricmp(linear_unit.first, "metre"))
+	if (!strcmp(linear_unit.first, "m") || boost::iequals(linear_unit.first, "meter") || boost::iequals(linear_unit.first, "metre"))
 		return linear_unit.second;
 	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
 }
@@ -1101,7 +1101,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("GDAL", "cannot open dataset %s \n%s"
+			throwErrorF("GDAL", "cannot open dataset %s \n\t%s"
 				, datasourceName.c_str()
 				, gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);

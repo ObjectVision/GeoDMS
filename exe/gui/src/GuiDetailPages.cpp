@@ -4,6 +4,7 @@
 #include "TicInterface.h"
 #include "ClcInterface.h"
 #include "Xml/XMLOut.h"
+#include "Explain.h"
 
 #include "TreeItemProps.h"
 #include "TicPropDefConst.h"
@@ -111,7 +112,7 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
     {
         m_Tag.href.clear();
         tableProperties.emplace_back();
-        tableProperties.back().emplace_back(PET_HEADING, m_Text);
+        tableProperties.back().emplace_back(PET_HEADING, false, m_Text);
         m_Text.clear();
     }
     else if (m_Tag.text == "</TABLE>")
@@ -128,16 +129,18 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
         {
             m_OpenTags[int(HTMLTagType::TABLEDATA)]--;
 
+            if (m_Text.empty())
+                return;
+
+            bool text_contains_failreason = m_Text.contains("FailState") || m_Text.contains("FailReason");
+
             if (!m_Tag.href.empty())
             {
-                tableProperties.back().emplace_back(PET_LINK, CleanStringFromHtmlEncoding(m_Text));
+                tableProperties.back().emplace_back(PET_LINK, text_contains_failreason, CleanStringFromHtmlEncoding(m_Text));
                 m_Tag.href.clear();
             }
             else
-            {
-                if (!m_Text.empty())
-                    tableProperties.back().emplace_back(PET_TEXT, CleanStringFromHtmlEncoding(m_Text));
-            }
+                    tableProperties.back().emplace_back(PET_TEXT, text_contains_failreason, CleanStringFromHtmlEncoding(m_Text));
             m_Text.clear();
         }
     }
@@ -145,7 +148,7 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
     {
         if (!tableProperties.back().empty())
             tableProperties.emplace_back();
-        tableProperties.back().emplace_back(PET_SEPARATOR, m_Text);
+        tableProperties.back().emplace_back(PET_SEPARATOR, false, m_Text);
     }
 
 }
@@ -254,9 +257,33 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
+auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool statistics, bool value_info, bool source_description, bool configuration) -> void
+{
+    if (general)
+        m_GeneralProperties.clear();
+
+    if (all_properties)
+        m_AllProperties.clear();
+
+    if (explore_properties)
+        m_ExploreProperties.clear();
+
+    if (statistics)
+        m_Statistics.clear();
+
+    if (value_info)
+        m_ValueInfo.clear();
+
+    if (source_description)
+        m_SourceDescription.clear();
+
+    if (configuration)
+        m_Configuration.clear();
+}
+
 void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 {
-    m_GeneralProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true);
@@ -264,9 +291,16 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     m_Buff.Reset();
 }
 
+auto GuiDetailPages::clear() -> void
+{
+    DMS_ExplainValue_Clear();
+    ClearSpecificDetailPages(true, true, true, true, true, true, true);
+}
+
+
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
 {
-    m_AllProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
@@ -276,7 +310,7 @@ void GuiDetailPages::UpdateAllProperties(GuiState& state)
 
 void GuiDetailPages::UpdateExploreProperties(GuiState& state)
 {
-    m_ExploreProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
@@ -298,24 +332,52 @@ void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::s
             result.emplace_back();
             for (auto& part : colon_separated_line)
             {
-                result.back().emplace_back(PET_TEXT, part);
+                result.back().emplace_back(PET_TEXT, false, part);
             }
         }
     }
 }
 
-void GuiDetailPages::UpdateStatistics(GuiState& state)
+auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
 {
-    SuspendTrigger::Resume();
-    m_Statistics.clear();
+    //SuspendTrigger::Resume(); // TODO: necessary?
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
     StringToTable(statistics_string, m_Statistics, ":");
 }
 
-void GuiDetailPages::UpdateConfiguration(GuiState& state)
+auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
 {
-    m_Configuration.clear();
+    return std::stoll(dpvi_str.substr(11, dpvi_str.size()));
+}
+
+auto GuiDetailPages::UpdateValueInfo(GuiState& state) -> void
+{
+    clear();
+    auto current_view_action = *state.TreeItemHistoryList.GetCurrentIterator();
+    if (!current_view_action.sAction.contains("dp.vi.attr"))
+        return;
+
+
+    InterestPtr<TreeItem*> tmpInterest = current_view_action.tiContext->IsFailed() || current_view_action.tiContext->WasFailed() ? nullptr : current_view_action.tiContext;
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto dpvi_index = GetIndexFromDPVIsActionString(current_view_action.sAction);
+    DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, NULL, true);
+
+    m_Buff.InterpretBytes(m_ValueInfo); // Create detail page from html stream
+    m_Buff.Reset();
+    // TODO: See uDMSTreeViewFunctions.pas line 254
+//DP_ValueInfo:
+//    case funcID of
+//    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
+//    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
+
+}
+
+auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
+{
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
     DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
@@ -326,6 +388,7 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
 
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
+    clear();
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
@@ -346,6 +409,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
         for (auto& col : row)
         {
             ImGui::TableSetColumnIndex(column_index);
+            if (col.background_is_red)
+                SetTextBackgroundRed(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
                 ImGui::Text(col.text.c_str());
@@ -353,12 +418,11 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             else if (col.type == PET_LINK)
             {
                 ImGui::PushID(button_index++);
-
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
                 if (ImGui::Button(col.text.c_str()))
                 {
-                    auto unfound_part = IString::Create("");
+                    auto unfound_part = IString::Create(""); //TODO: replace with TreeItem_GetBest...
                     TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str(), &unfound_part);
                     if (jumpItem)
                     {
@@ -387,6 +451,7 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
             column_index++;
+            OnItemClickItemTextTextToClipboard(col.text);
         }
     }
     ImGui::EndTable();
@@ -424,6 +489,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
+    bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
 
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -436,7 +502,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         {
         case GuiEvents::FocusValueInfoTab: 
         {
-            // TODO: implement
+            set_value_info_selected = true;
+            m_ValueInfo.clear();
             break;
         }
         case GuiEvents::UpdateCurrentItem: 
@@ -446,13 +513,12 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             m_ExploreProperties.clear();
             m_Configuration.clear();
             m_Statistics.clear();
+            m_ValueInfo.clear();
             m_SourceDescription.clear();
             break;
         }
         default:    break;
         }
-        
-
     }
 
     /*// window specific options button
@@ -527,14 +593,15 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
                 SetKeyboardFocusToThisHwnd();
         }
 
-        if (ImGui::BeginTabItem("Value info", 0, ImGuiTabItemFlags_None))
+        if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
         {
-            // TODO: See uDMSTreeViewFunctions.pas line 254
-            //DP_ValueInfo:
-            //    case funcID of
-            //    1: Result: = DMS_DataItem_ExplainAttrValueToXML(ti, xmlOut, p0, sExtraInfo, bShowHidden);
-            //    2: Result: = DMS_DataItem_ExplainGridValueToXML(ti, xmlOut, p1, p2, sExtraInfo, bShowHidden);
+            if (m_ValueInfo.empty())
+                UpdateValueInfo(state);
+            DrawProperties(state, m_ValueInfo);
+
             ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();            
         }
 
         if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
