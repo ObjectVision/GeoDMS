@@ -437,7 +437,7 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    LoadIniFromRegistry();
+    //LoadIniFromRegistry();
 
     // command line params
     InterpretCommandLineParameters();
@@ -626,6 +626,16 @@ void GuiMainComponent::Update()
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
 
+    if (m_FirstFrames>0)
+        LoadIniFromRegistry();
+
+    // Update main window components
+    m_Menu.Update(m_State, m_View);
+
+    if (m_State.ShowCurrentItemBar)
+        m_CurrentItem.Update(m_State);
+    ImGui::End();
+
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();
@@ -639,11 +649,6 @@ void GuiMainComponent::Update()
     }
 
     // Update all GeoDMSGui components
-    m_Menu.Update(m_State, m_View);
-
-    if (m_State.ShowCurrentItemBar)
-        m_CurrentItem.Update(m_State);
-
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
 
@@ -670,6 +675,4 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
-    
-    ImGui::End();
 }

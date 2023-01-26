@@ -190,7 +190,7 @@ void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availa
     ShowOptionsWindow       = false;
     ShowToolbar             = true;
     ShowCurrentItemBar      = true;
-    ShowStatusBar           = true;
+    ShowStatusBar           = false; // TODO: remove, merge content into event log
     SaveWindowOpenStatusFlags();
 }
 
@@ -235,7 +235,7 @@ std::string GetInitialWindowComposition()
         "Collapsed=0\n"
         "DockId=0x00000004,0\n"
         "\n"
-        "[Window][Treeview]\n"
+        "[Window][TreeView]\n"
         "Pos=8,83\n"
         "Size=367,254\n"
         "Collapsed=0\n"
@@ -246,8 +246,8 @@ std::string GetInitialWindowComposition()
         "Size=1264,339\n"
         "Collapsed=0\n"
         "DockId=0x00000006,0\n"
-        "\n"
-        "[Window][DMSView]\n"
+        "\n";
+        /*"[Window][DMSView]\n"
         "Pos=377,83\n"
         "Size=1792,911\n"
         "Collapsed=0\n"
@@ -277,19 +277,43 @@ std::string GetInitialWindowComposition()
         "        DockNode    ID=0x00000004 Parent=0x00000005 SizeRef=381,662 Selected=0x89482BF9\n"
         "      DockNode      ID=0x00000006 Parent=0x00000007 SizeRef=1264,339 Selected=0xB76E45CC\n"
         "    DockNode        ID=0x00000008 Parent=0x0000000A SizeRef=1264,32 HiddenTabBar=1 Selected=0x51C70801\n"
-        "\n";
+        "\n";*/
     return result;
 }
 
-void SetWindowCompositionOnFirstUse()
+auto SetWindowDockStateOnFirstUse() -> void
 {
-    SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGuiID dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+    ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
+    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+    //auto node_main_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
+    auto node_main_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
+    //auto node_main_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
+    //auto node_main_up = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.25f, nullptr, &dockspace_id);
+
+    ImGui::DockBuilderDockWindow("TreeView", node_main_left);
+    ImGui::DockBuilderFinish(dockspace_id);
 }
 
-void LoadIniFromRegistry()
+auto SetWindowCompositionOnFirstUse() -> void
 {
+    auto initial_window_composition = GetInitialWindowComposition();
+    if (not initial_window_composition.empty())
+    {
+        ImGui::LoadIniSettingsFromMemory(initial_window_composition.c_str());
+        SetWindowDockStateOnFirstUse();
+    }
+    SaveIniToRegistry();
+}
+
+auto LoadIniFromRegistry() -> void
+{
+
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
-    if (ini_registry_contents.empty())
+    if (ini_registry_contents.empty()) // first use
     {
         SetWindowCompositionOnFirstUse();
         ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
@@ -302,7 +326,7 @@ void LoadIniFromRegistry()
     }
 }
 
-void   SaveIniToRegistry()
+auto SaveIniToRegistry() -> void
 {
     std::string ini_contents = ImGui::SaveIniSettingsToMemory();
     SetGeoDmsRegKeyString("WindowComposition", ini_contents);
