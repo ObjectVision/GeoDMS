@@ -297,7 +297,6 @@ auto GuiDetailPages::clear() -> void
     ClearSpecificDetailPages(true, true, true, true, true, true, true);
 }
 
-
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
 {
     clear();

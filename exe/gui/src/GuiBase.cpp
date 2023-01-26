@@ -325,3 +325,18 @@ auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void // std::stri
     auto cur_pos = ImGui::GetCursorScreenPos();
     draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x + background_rectangle_size.x, cur_pos.y + background_rectangle_size.y), IM_COL32(225, 6, 0, 255));
 }
+
+auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
+{
+    switch (wt)
+    {
+    case GeoDMSWindowTypes::GeoDMSGui:   return "GeoDMSGui";
+    case GeoDMSWindowTypes::TreeView:    return "TreeView";
+    case GeoDMSWindowTypes::DetailPages: return "DetailPages";
+    case GeoDMSWindowTypes::EventLog:    return "EventLog";
+    case GeoDMSWindowTypes::MapView:     return "MapView";
+    case GeoDMSWindowTypes::TableView:   return "TableView";
+    case GeoDMSWindowTypes::Options:     return "Options";
+    default:                             return "Unknown";
+    }
+}
