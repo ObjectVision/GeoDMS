@@ -94,10 +94,9 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
     ImVec4 color = ConvertSeverityTypeIDToColor(item->m_Severity_type);
     ImGui::PushStyleColor(ImGuiCol_Text, color);
     ImGui::TextUnformatted(item->m_Text.c_str());
-    if (ImGui::IsItemClicked())
-    { 
-        ImGui::SetClipboardText(item->m_Text.c_str());
-    }
+
+    OnItemClickItemTextTextToClipboard(item->m_Text);
+
     ImGui::PopStyleColor();
 }
 

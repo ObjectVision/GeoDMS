@@ -424,8 +424,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
                 SetKeyboardFocusToThisHwnd();
             column_index++;
 
-            if (ImGui::IsItemClicked())
-                ImGui::SetClipboardText(col.text.c_str());
+            OnItemClickItemTextTextToClipboard(col.text);
+
         }
     }
     ImGui::EndTable();
@@ -493,8 +493,6 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
         default:    break;
         }
-        
-
     }
 
     /*// window specific options button

@@ -163,11 +163,6 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     m_is_open = other.m_is_open;
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
-
-    // clean other
-    //other.m_item = nullptr;
-    //other.m_parent = nullptr;
-    //other.m_children.clear();
 }
 
 

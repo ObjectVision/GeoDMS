@@ -338,9 +338,10 @@ private:
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
-ImVec2 SetCursorPosToOptionsIconInWindowHeader();
-void   SetClipRectToIncludeOptionsIconInWindowHeader();
-bool   MouseHooversOptionsIconInWindowHeader();
-void   SetKeyboardFocusToThisHwnd();
-void   LoadIniFromRegistry();
-void   SaveIniToRegistry();
+auto SetCursorPosToOptionsIconInWindowHeader() -> ImVec2;
+auto SetClipRectToIncludeOptionsIconInWindowHeader() -> void;
+auto MouseHooversOptionsIconInWindowHeader() -> bool;
+auto SetKeyboardFocusToThisHwnd() -> void;
+auto LoadIniFromRegistry() -> void;
+auto SaveIniToRegistry() -> void;
+auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;

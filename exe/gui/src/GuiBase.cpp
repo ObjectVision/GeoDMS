@@ -308,3 +308,13 @@ void   SaveIniToRegistry()
     SetGeoDmsRegKeyString("WindowComposition", ini_contents);
     reportF(SeverityTypeID::ST_MajorTrace, "Storing GeoDMS window composition in registry.");
 }
+
+auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void
+{
+    if (ImGui::IsItemClicked()) // TODO: duplicate code in EventLog
+        ImGui::SetClipboardText(&text.front());
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        ImGui::SetTooltip("Copied to clipboard");
+    }
+}
