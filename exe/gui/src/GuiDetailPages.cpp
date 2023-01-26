@@ -257,9 +257,33 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
+auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool statistics, bool value_info, bool source_description, bool configuration) -> void
+{
+    if (general)
+        m_GeneralProperties.clear();
+
+    if (all_properties)
+        m_AllProperties.clear();
+
+    if (explore_properties)
+        m_ExploreProperties.clear();
+
+    if (statistics)
+        m_Statistics.clear();
+
+    if (value_info)
+        m_ValueInfo.clear();
+
+    if (source_description)
+        m_SourceDescription.clear();
+
+    if (configuration)
+        m_Configuration.clear();
+}
+
 void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 {
-    m_GeneralProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true);
@@ -270,13 +294,13 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 auto GuiDetailPages::clear() -> void
 {
     DMS_ExplainValue_Clear();
-    // TODO: Clear all detail pages
+    ClearSpecificDetailPages(true, true, true, true, true, true, true);
 }
 
 
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
 {
-    m_AllProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
@@ -286,7 +310,7 @@ void GuiDetailPages::UpdateAllProperties(GuiState& state)
 
 void GuiDetailPages::UpdateExploreProperties(GuiState& state)
 {
-    m_ExploreProperties.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
@@ -316,8 +340,8 @@ void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::s
 
 auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
 {
-    SuspendTrigger::Resume(); // TODO: necessary?
-    m_Statistics.clear();
+    //SuspendTrigger::Resume(); // TODO: necessary?
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
     StringToTable(statistics_string, m_Statistics, ":");
@@ -330,7 +354,7 @@ auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
 
 auto GuiDetailPages::UpdateValueInfo(GuiState& state) -> void
 {
-    m_ValueInfo.clear();
+    clear();
     auto current_view_action = *state.TreeItemHistoryList.GetCurrentIterator();
     if (!current_view_action.sAction.contains("dp.vi.attr"))
         return;
@@ -353,7 +377,7 @@ auto GuiDetailPages::UpdateValueInfo(GuiState& state) -> void
 
 auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
 {
-    m_Configuration.clear();
+    clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
     DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
@@ -364,6 +388,7 @@ auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
 
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
+    clear();
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));

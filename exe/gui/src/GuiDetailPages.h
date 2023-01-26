@@ -103,6 +103,7 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage) -> void;
 private:
+    auto ClearSpecificDetailPages(bool general=false, bool all_properties=false, bool explore_properties=false, bool statistics=false, bool value_info=false, bool source_description=false, bool configuration=false) -> void;
     auto UpdateGeneralProperties(GuiState& state) -> void;
     auto UpdateAllProperties(GuiState& state) -> void;
     auto UpdateExploreProperties(GuiState& state) -> void;
@@ -121,8 +122,4 @@ private:
     TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
-    //std::string m_Statistics;
-    //std::string m_Configuration;
-    //std::string m_SourceDescription;
-    //std::string m_Metadata;
 };
