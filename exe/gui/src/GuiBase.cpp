@@ -120,9 +120,9 @@ GuiState::~GuiState()
     clear();
 }
 
-GuiBaseComponent::GuiBaseComponent(){}
-GuiBaseComponent::~GuiBaseComponent(){}
-void GuiBaseComponent::Update(){}
+GuiBaseComponent::GuiBaseComponent() {}
+GuiBaseComponent::~GuiBaseComponent() {}
+void GuiBaseComponent::Update() {}
 
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator) -> std::vector<std::string>
 {
@@ -172,25 +172,25 @@ void SetKeyboardFocusToThisHwnd()
 void GuiState::SaveWindowOpenStatusFlags()
 {
     UInt32 flags = 0;
-    flags = ShowTreeviewWindow      ? flags |= GWOF_TreeView        : flags &= ~GWOF_TreeView;
-    flags = ShowDetailPagesWindow   ? flags |= GWOF_DetailPages     : flags &= ~GWOF_DetailPages;
-    flags = ShowEventLogWindow      ? flags |= GWOF_EventLog        : flags &= ~GWOF_EventLog;
-    flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
-    flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
-    flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
-    flags = ShowStatusBar           ? flags |= GWOF_StatusBar       : flags &= ~GWOF_StatusBar;
-    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
+    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
+    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowStatusBar ? flags |= GWOF_StatusBar : flags &= ~GWOF_StatusBar;
+    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);
 }
 
 void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availability of registry param
 {
-    ShowTreeviewWindow      = true;
-    ShowDetailPagesWindow   = true;
-    ShowEventLogWindow      = true;
-    ShowOptionsWindow       = false;
-    ShowToolbar             = true;
-    ShowCurrentItemBar      = true;
-    ShowStatusBar           = false; // TODO: remove, merge content into event log
+    ShowTreeviewWindow = true;
+    ShowDetailPagesWindow = true;
+    ShowEventLogWindow = true;
+    ShowOptionsWindow = false;
+    ShowToolbar = true;
+    ShowCurrentItemBar = true;
+    ShowStatusBar = true;
     SaveWindowOpenStatusFlags();
 }
 
@@ -206,13 +206,13 @@ void GuiState::LoadWindowOpenStatusFlags()
     }
 
     // update open state based on flags
-    ShowTreeviewWindow      = flags & GWOF_TreeView;
-    ShowDetailPagesWindow   = flags & GWOF_DetailPages;
-    ShowEventLogWindow      = flags & GWOF_EventLog;
-    ShowOptionsWindow       = flags & GWOF_Options;
-    ShowToolbar             = flags & GWOF_ToolBar;
-    ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
-    ShowStatusBar           = flags & GWOF_StatusBar;
+    ShowTreeviewWindow = flags & GWOF_TreeView;
+    ShowDetailPagesWindow = flags & GWOF_DetailPages;
+    ShowEventLogWindow = flags & GWOF_EventLog;
+    ShowOptionsWindow = flags & GWOF_Options;
+    ShowToolbar = flags & GWOF_ToolBar;
+    ShowCurrentItemBar = flags & GWOF_CurrentItemBar;
+    ShowStatusBar = flags & GWOF_StatusBar;
 }
 
 std::string GetInitialWindowComposition()
@@ -235,7 +235,7 @@ std::string GetInitialWindowComposition()
         "Collapsed=0\n"
         "DockId=0x00000004,0\n"
         "\n"
-        "[Window][TreeView]\n"
+        "[Window][Treeview]\n"
         "Pos=8,83\n"
         "Size=367,254\n"
         "Collapsed=0\n"
@@ -246,7 +246,7 @@ std::string GetInitialWindowComposition()
         "Size=1264,339\n"
         "Collapsed=0\n"
         "DockId=0x00000006,0\n"
-        "\n";
+        "\n"
         "[Window][DMSView]\n"
         "Pos=377,83\n"
         "Size=1792,911\n"
@@ -281,39 +281,15 @@ std::string GetInitialWindowComposition()
     return result;
 }
 
-auto SetWindowDockStateOnFirstUse() -> void
+void SetWindowCompositionOnFirstUse()
 {
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGuiID dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-    ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
-    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
-
-    //auto node_main_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
-    auto node_main_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
-    //auto node_main_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
-    //auto node_main_up = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.25f, nullptr, &dockspace_id);
-
-    ImGui::DockBuilderDockWindow("TreeView", node_main_left);
-    ImGui::DockBuilderFinish(dockspace_id);
+    SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-auto SetWindowCompositionOnFirstUse() -> void
+void LoadIniFromRegistry()
 {
-    auto initial_window_composition = GetInitialWindowComposition();
-    if (not initial_window_composition.empty())
-    {
-        ImGui::LoadIniSettingsFromMemory(initial_window_composition.c_str());
-        //SetWindowDockStateOnFirstUse();
-    }
-    SaveIniToRegistry();
-}
-
-auto LoadIniFromRegistry() -> void
-{
-
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
-    if (ini_registry_contents.empty()) // first use
+    if (ini_registry_contents.empty())
     {
         SetWindowCompositionOnFirstUse();
         ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
@@ -326,7 +302,7 @@ auto LoadIniFromRegistry() -> void
     }
 }
 
-auto SaveIniToRegistry() -> void
+void   SaveIniToRegistry()
 {
     std::string ini_contents = ImGui::SaveIniSettingsToMemory();
     SetGeoDmsRegKeyString("WindowComposition", ini_contents);

@@ -60,7 +60,7 @@ GuiMainComponent::~GuiMainComponent()
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
 
-std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
+std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
 {
     //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
     std::string result = command.data();
@@ -75,7 +75,7 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     auto ln_part = result.find("%L");
 
     if (ln_part != std::string::npos)
-        result.replace(ln_part, ln_part+2, line);
+        result.replace(ln_part, ln_part + 2, line);
 
     return result;
 }
@@ -88,9 +88,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     {
         if (!m_State.GetCurrentItem())
             return;
-        
-        if (m_State.GetCurrentItem()!=m_State.GetRoot())
-            m_State.TreeItemHistoryList.Insert({m_State.GetCurrentItem()});
+
+        if (m_State.GetCurrentItem() != m_State.GetRoot())
+            m_State.TreeItemHistoryList.Insert({ m_State.GetCurrentItem() });
         break;
     }
     case GuiEvents::ReopenCurrentConfiguration:
@@ -153,15 +153,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             break;
 
         std::string filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
-        std::string line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
-        std::string command  = GetGeoDmsRegKey("DmsEditor").c_str();
+        std::string line = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
+        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
 
         if (!filename.empty() && !line.empty() && !command.empty())
         {
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
-            const TreeItem *TempItem = m_State.GetCurrentItem();
+            const TreeItem* TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(NULL, const_cast<Char *>(fullPathCmd.c_str()));
+            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
         }
 
         break;
@@ -197,7 +197,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             break;
         auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
         if (item_error_source.first)
-        { 
+        {
             m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
             auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -260,8 +260,8 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
-        if (ImGui::Button("Abort", ImVec2(120, 0))) 
-        { 
+        if (ImGui::Button("Abort", ImVec2(120, 0)))
+        {
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             return true;
@@ -289,7 +289,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
     //TODO: build in timer for checks?
-    static std::string changed_files_result; 
+    static std::string changed_files_result;
     auto changed_files = DMS_ReportChangedFiles(true);
     if (changed_files)
     {
@@ -335,8 +335,8 @@ void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
         //if (new_view_action.sAction.contains("dp.vi.attr"))
         //    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
         //else
-            event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-        
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+
         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
         event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     }
@@ -346,7 +346,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
 {
     int    argc = __argc;
     --argc;
-    char** argv = __argv; 
+    char** argv = __argv;
     ++argv;
 
     CharPtr firstParam = argv[0];
@@ -360,7 +360,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
     }
 
     ParseRegStatusFlags(argc, argv);
-    
+
     for (; argc; --argc, ++argv) {
         if ((*argv)[0] == '/')
         {
@@ -369,7 +369,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
                 m_NoConfig = true;
             if (!stricmp(cmd, "script")) // gui unit tests
             {
-                m_GuiUnitTest.LoadStepsFromScriptFile(*(argv+1));
+                m_GuiUnitTest.LoadStepsFromScriptFile(*(argv + 1));
                 argc--;
                 argv++;
             }
@@ -464,7 +464,7 @@ int GuiMainComponent::MainLoop()
     while (!glfwWindowShouldClose(m_Window))
     {
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
-            glfwPollEvents();
+        glfwPollEvents();
         //else 
         //{
         //    glfwWaitEventsTimeout(1.0);
@@ -511,12 +511,12 @@ int GuiMainComponent::MainLoop()
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
 
-        
+
 
         // update all gui components
         Update();
 
-        
+
 
         // rendering
         ImGui::Render();
@@ -550,7 +550,7 @@ int GuiMainComponent::MainLoop()
             m_FirstFrames--;
 
         m_GuiUnitTest.Step();
-    
+
         //break;
     }
 
@@ -604,8 +604,8 @@ void GuiMainComponent::Update()
     // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
     if (!opt_padding)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    
-    
+
+
     if (!ImGui::Begin("GeoDMSGui", nullptr, window_flags))
     {
         ImGui::End();
@@ -626,16 +626,6 @@ void GuiMainComponent::Update()
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     }
 
-    //if (m_FirstFrames>0)
-        
-
-    // Update main window components
-    m_Menu.Update(m_State, m_View);
-
-    if (m_State.ShowCurrentItemBar)
-        m_CurrentItem.Update(m_State);
-    ImGui::End();
-
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();
@@ -649,6 +639,11 @@ void GuiMainComponent::Update()
     }
 
     // Update all GeoDMSGui components
+    m_Menu.Update(m_State, m_View);
+
+    if (m_State.ShowCurrentItemBar)
+        m_CurrentItem.Update(m_State);
+
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
 
@@ -675,4 +670,6 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
+
+    ImGui::End();
 }
