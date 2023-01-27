@@ -634,6 +634,10 @@ void GuiMainComponent::Update()
         ImGui::DockBuilderRemoveNode(dockspace_id);
         auto central_node = ImGui::DockBuilderAddNode(dockspace_id);
         
+        //LocalFlags
+
+
+
         auto dock_id_up = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.2f, nullptr, &central_node);
         auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.2f, nullptr, &central_node);
         auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
@@ -644,6 +648,16 @@ void GuiMainComponent::Update()
         ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
         ImGui::DockBuilderDockWindow("EventLog", dock_id_down);
         ImGui::DockBuilderDockWindow("Toolbar", dock_id_up);
+
+        auto toolbar_node = ImGui::DockBuilderGetNode(dock_id_up);
+        auto treeview_node = ImGui::DockBuilderGetNode(dock_id_left);
+        auto eventlog_node = ImGui::DockBuilderGetNode(dock_id_down);
+        auto detailpages_node = ImGui::DockBuilderGetNode(dock_id_right);
+
+        toolbar_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        treeview_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        eventlog_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        detailpages_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
 
         ImGui::DockBuilderFinish(dockspace_id);
 
