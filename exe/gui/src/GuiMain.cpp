@@ -638,12 +638,14 @@ void GuiMainComponent::Update()
         }
     }
 
-    // Update all GeoDMSGui components
     m_Menu.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
+    
+    ImGui::End();
 
+    // Update all GeoDMSGui components
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
 
@@ -670,6 +672,4 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
-
-    ImGui::End();
 }
