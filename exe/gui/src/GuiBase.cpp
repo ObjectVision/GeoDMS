@@ -190,7 +190,7 @@ void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availa
     ShowOptionsWindow = false;
     ShowToolbar = true;
     ShowCurrentItemBar = true;
-    ShowStatusBar = true;
+    ShowStatusBar = false;
     SaveWindowOpenStatusFlags();
 }
 
@@ -235,7 +235,7 @@ std::string GetInitialWindowComposition()
         "Collapsed=0\n"
         "DockId=0x00000004,0\n"
         "\n"
-        "[Window][Treeview]\n"
+        "[Window][TreeView]\n"
         "Pos=8,83\n"
         "Size=367,254\n"
         "Collapsed=0\n"

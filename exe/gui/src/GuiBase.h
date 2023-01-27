@@ -301,15 +301,15 @@ public:
 	bool ShowEventLogOptionsWindow		= false;
 	bool ShowOpenFileWindow				= false;
 	bool ShowConfigSource				= false;
-	bool ShowTreeviewWindow				= false;
-	bool ShowDetailPagesWindow			= false;
+	bool ShowTreeviewWindow				= true;
+	bool ShowDetailPagesWindow			= true;
 	bool ShowDemoWindow					= false;
-	bool ShowEventLogWindow				= false;
-	bool ShowToolbar					= false;
+	bool ShowEventLogWindow				= true;
+	bool ShowToolbar					= true;
 	bool ShowStatusBar					= false;
-	bool ShowCurrentItemBar				= false;
-	bool MapViewIsActive				= false;
-	bool TableViewIsActive				= false;
+	bool ShowCurrentItemBar				= true;
+	bool MapViewIsActive				= false; //TODO: remove?
+	bool TableViewIsActive				= false; //TODO: remove?
 	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;

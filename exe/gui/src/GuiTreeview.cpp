@@ -492,7 +492,7 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 
     //const ImVec2 size(100,10000);
     //ImGui::SetNextWindowContentSize(size);
-    if (!ImGui::Begin("Treeview", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("TreeView", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;

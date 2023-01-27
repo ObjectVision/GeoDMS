@@ -437,7 +437,7 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    LoadIniFromRegistry();
+    //LoadIniFromRegistry();
 
     // command line params
     InterpretCommandLineParameters();
@@ -516,8 +516,6 @@ int GuiMainComponent::MainLoop()
         // update all gui components
         Update();
 
-
-
         // rendering
         ImGui::Render();
         int display_w, display_h;
@@ -539,15 +537,7 @@ int GuiMainComponent::MainLoop()
         glfwSwapBuffers(m_Window);
 
 
-        if (!m_FirstFrames)
-        {
-            // initializations after first n frames
-            if (!m_NoConfig)
-                m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
-            m_FirstFrames--;
-        }
-        else if (m_FirstFrames > 0)
-            m_FirstFrames--;
+
 
         m_GuiUnitTest.Step();
 
@@ -619,12 +609,12 @@ void GuiMainComponent::Update()
         ImGui::PopStyleVar(2);
 
     // Submit the DockSpace
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-    {
-        ImGuiID dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-    }
+    auto io = ImGui::GetIO();
+    //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+    //{
+    auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    //}
 
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
@@ -637,12 +627,44 @@ void GuiMainComponent::Update()
             return;
         }
     }
+    static auto first_time = true;
+    if (first_time) {
+        first_time = false;
+        ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+        ImGui::DockBuilderRemoveNode(dockspace_id);
+        auto central_node = ImGui::DockBuilderAddNode(dockspace_id);
+        
+        auto dock_id_up = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.2f, nullptr, &central_node);
+        auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.2f, nullptr, &central_node);
+        auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
+        auto dock_id_left = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Left, 0.2f, nullptr, &central_node);
+
+
+        ImGui::DockBuilderDockWindow("Detail Pages", dock_id_right);
+        ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
+        ImGui::DockBuilderDockWindow("EventLog", dock_id_down);
+        ImGui::DockBuilderDockWindow("Toolbar", dock_id_up);
+
+        ImGui::DockBuilderFinish(dockspace_id);
+
+        //auto treeview_id = ImGui::GetID("Treeview");
+        //auto central_node_tv = ImGui::DockBuilderAddNode(treeview_id);
+
+        //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node_tv, ImGuiDir_Down, 0.5f, nullptr, &central_node_tv);
+        //ImGui::DockBuilderDockWindow("EventLog", central_node_tv);
+        //ImGui::DockBuilderFinish(treeview_id);
+
+    }
 
     m_Menu.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
     
+
+
+
+
     ImGui::End();
 
     // Update all GeoDMSGui components
@@ -657,12 +679,28 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);
-
+    
     if (m_State.ShowStatusBar)
         m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
     m_View.UpdateAll(m_State);
 
+
+
+    if (!m_FirstFrames)
+    {
+
+
+        // initializations after first n frames
+        if (!m_NoConfig)
+            m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+        m_FirstFrames--;
+    }
+    else if (m_FirstFrames > 0)
+        m_FirstFrames--;
+
+
+    /*
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
@@ -671,5 +709,5 @@ void GuiMainComponent::Update()
         m_Options.Update(&m_State.ShowOptionsWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
-        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
+        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);*/
 }
