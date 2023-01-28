@@ -202,7 +202,7 @@ auto GuiEventLog::ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor
     }
     case SeverityTypeID::ST_MajorTrace:
     {
-        color = ImVec4(60.0f/255.0f, 179.0f/255.0f, 113.0f/255.0f, 1.0f);
+        //color = ImVec4(60.0f/255.0f, 179.0f/255.0f, 113.0f/255.0f, 1.0f);
         break;
     }
     case SeverityTypeID::ST_Warning:
