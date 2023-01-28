@@ -283,23 +283,29 @@ std::string GetInitialWindowComposition()
 
 void SetWindowCompositionOnFirstUse()
 {
-    SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
+    ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
+    //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-void LoadIniFromRegistry()
+auto LoadIniFromRegistry() -> bool
 {
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
     if (ini_registry_contents.empty())
     {
-        SetWindowCompositionOnFirstUse();
-        ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+        ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
+        return false;
     }
 
-    if (!ini_registry_contents.empty())
+    ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
+    return true;
+
+    //SetWindowCompositionOnFirstUse();
+    //ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    /*if (!ini_registry_contents.empty())
     {
         reportF(SeverityTypeID::ST_MajorTrace, "Loading GeoDMS window composition from registry.");
-        ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
-    }
+        
+    }*/
 }
 
 void   SaveIniToRegistry()

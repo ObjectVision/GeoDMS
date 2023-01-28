@@ -437,7 +437,7 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    //LoadIniFromRegistry();
+    m_DockingInitialized = LoadIniFromRegistry();
 
     // command line params
     InterpretCommandLineParameters();
@@ -628,7 +628,7 @@ void GuiMainComponent::Update()
         }
     }
     static auto first_time = true;
-    if (first_time) {
+    if (first_time && not m_DockingInitialized) {
         first_time = false;
         ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
         ImGui::DockBuilderRemoveNode(dockspace_id);
