@@ -439,7 +439,6 @@ int GuiMainComponent::Init()
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
     m_DockingInitialized = LoadIniFromRegistry();
 
-    // command line params
     InterpretCommandLineParameters();
 
     return 0;
