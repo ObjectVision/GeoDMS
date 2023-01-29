@@ -390,11 +390,23 @@ int GuiMainComponent::Init()
         return 1;
 
     auto glsl_version = SetGLFWWindowHints();
+    
     auto primary_monitor = glfwGetPrimaryMonitor();
     int xpos,ypos,width,height;
     glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
-    
     m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
+    //const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+    //glfwSetWindowMonitor(m_Window, primary_monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    //const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+    //glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    //glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    //glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    //glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+    //m_Window = glfwCreateWindow(mode->width, mode->height, "", primary_monitor, NULL);
+
 
     if (m_Window == NULL)
         return 1;
