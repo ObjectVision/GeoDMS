@@ -203,7 +203,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
-    auto icon = IsLeaf() ? " " : m_is_open ? ICON_RI_MIN : ICON_RI_PLUS;
+    auto icon = IsLeaf() ? " " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
     ImGui::PushID(m_item);
     if (ImGui::Button(icon))
