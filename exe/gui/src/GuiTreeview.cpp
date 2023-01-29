@@ -200,7 +200,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
     
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
     auto icon = IsLeaf() ? " " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
@@ -216,7 +216,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
     window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
-    ImGui::PopStyleColor(2);
+    ImGui::PopStyleColor(3);
 
     return 0;
 }
