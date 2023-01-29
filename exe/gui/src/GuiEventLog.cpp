@@ -108,6 +108,10 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
         ImGui::End();
         return;
     }
+    //ImGuiStyle &style = ImGui::GetStyle();
+    //style.ItemSpacing.y = 2.0;
+    //auto test = style.ItemSpacing.y;// = -1.0;
+        // style.ItemSpacing.y
 
     // events
     auto event_queues = GuiEventQueues::getInstance();

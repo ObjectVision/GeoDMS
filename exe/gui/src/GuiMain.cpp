@@ -390,8 +390,12 @@ int GuiMainComponent::Init()
         return 1;
 
     auto glsl_version = SetGLFWWindowHints();
+    auto primary_monitor = glfwGetPrimaryMonitor();
+    int xpos,ypos,width,height;
+    glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
+    
+    m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
 
-    m_Window = glfwCreateWindow(1280, 720, "", NULL, NULL);
     if (m_Window == NULL)
         return 1;
     glfwMakeContextCurrent(m_Window);
@@ -416,7 +420,7 @@ int GuiMainComponent::Init()
     //ImGui::StyleColorsClassic();
 
     // when viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiStyle &style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         style.WindowRounding = 0.0f;
