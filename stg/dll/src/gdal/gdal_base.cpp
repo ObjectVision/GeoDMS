@@ -336,7 +336,7 @@ SharedStr GetWktProjectionFromBaseProjectionUnit(const AbstrUnit* base)
 auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*
 {
 	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
-	auto curr_proj = valuesUnit->GetCurrProjection();
+	auto curr_proj = valuesUnit->GetProjection();
 	if (!curr_proj)
 		return valuesUnit;
 	auto result = curr_proj->GetCompositeBase();
