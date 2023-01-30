@@ -173,23 +173,16 @@ int GuiUnitTest::ProcessStep(GuiState& state)
 		{
 			if (state.GetRoot())
 			{
-				auto unfound_part = IString::Create("");
-				TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
+				auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str());
 
-				if (jumpItem)
+				if (jumpItem.first)
 				{
-					state.SetCurrentItem(jumpItem);
+					state.SetCurrentItem(const_cast<TreeItem*>(jumpItem.first));
 					event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
 					event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
 					event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
 					event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
 				}
-				if (!unfound_part->empty())
-				{
-					// TODO: do something with unfound part
-				}
-
-				unfound_part->Release(unfound_part);
 			}
 		}
 		}
@@ -207,13 +200,11 @@ int GuiUnitTest::ProcessStep(GuiState& state)
 		}
 		case (StepSubType::current_item):
 		{
-			auto unfound_part = IString::Create("");
-			TreeItem* check_item = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str(), &unfound_part);
-			if (!check_item)
+			auto check_item = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_CurrStep->value.c_str());
+			if (!check_item.first)
 				state.return_value = 1; // failed unit test 
-		    else if (check_item != state.GetCurrentItem())
+		    else if (check_item.first != state.GetCurrentItem())
 				state.return_value = 1;
-			unfound_part->Release(unfound_part);
 			break;
 		}
 		case StepSubType::treeview:			state.return_value = (int)state.ShowTreeviewWindow != std::stoi(m_CurrStep->value); state.return_value = 1; break; // TODO: continue implementation

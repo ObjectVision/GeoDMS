@@ -412,7 +412,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
                 SetTextBackgroundRed(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
-                ImGui::Text(col.text.c_str());
+                
+                ImGui::TextWrapped(col.text.c_str());//ImGui::Text(col.text.c_str());
             }
             else if (col.type == PET_LINK)
             {
@@ -421,17 +422,15 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
                 if (ImGui::Button(col.text.c_str()))
                 {
-                    auto unfound_part = IString::Create(""); //TODO: replace with TreeItem_GetBest...
-                    TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str(), &unfound_part);
-                    if (jumpItem)
+                    auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
+                    if (jumpItem.first)
                     {
-                        state.SetCurrentItem(jumpItem);
+                        state.SetCurrentItem(const_cast<TreeItem*>(jumpItem.first));
                         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
                         event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                         event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
-                    unfound_part->Release(unfound_part);
                 }
                 ImGui::PopID();
                 ImGui::PopStyleColor(2);
