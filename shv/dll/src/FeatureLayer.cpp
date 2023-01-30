@@ -23,6 +23,7 @@
 #include "UnitProcessor.h"
 
 #include "StgBase.h"
+#include "gdal/gdal_base.h"
 
 #include "AbstrCmd.h"
 #include "AbstrController.h"
@@ -342,6 +343,7 @@ FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
 			,	GetEnabledTheme(fontNameAspect [fr]).get()
 			,	GetEnabledTheme(fontAngleAspect[fr]).get()
 			,	GetThemeDomainEntity()
+			,	GetBaseProjectionUnitFromValuesUnit(GetFeatureAttr())
 			,	defFontPixelSize[fr]
 			,	defFontWorldSize[fr]
 			,	GetTokenID_mt(defFontNames[fr])
@@ -366,6 +368,7 @@ PenIndexCache* FeatureLayer::GetPenIndexCache(DmsColor defaultColor) const
 			,	GetEnabledTheme(AN_PenStyle).get()
 			,	GetThemeDomainEntity()
 			,	defaultColor
+			,	GetBaseProjectionUnitFromValuesUnit(GetFeatureAttr())
 			)
 		);
 	}

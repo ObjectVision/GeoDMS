@@ -102,7 +102,7 @@ private:
 };
 
 namespace {
-	static_quick_assoc<const AbstrUnit*, TokenID> s_FormatAssoc;
+	static_quick_assoc<const AbstrUnit*, TokenID> s_SpatialReferenceAssoc;
 }
 //----------------------------------------------------------------------
 // class  : AbstrUnit 
@@ -113,8 +113,8 @@ AbstrUnit::AbstrUnit() {}  // ctor calls for ~OwningPtr<DataItemsAssocPair> in c
 // DataItemsOut
 AbstrUnit::~AbstrUnit() 
 {
-	if (GetTSF(USF_HasFormat))
-		s_FormatAssoc.eraseExisting(this);
+	if (GetTSF(USF_HasSpatialReference))
+		s_SpatialReferenceAssoc.eraseExisting(this);
 }
 
 inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
@@ -356,29 +356,31 @@ bool AbstrUnit::HasVarRangeData() const
 	return AsUnit(this)->HasTiledRangeData() && !AsUnit(this)->GetValueType()->HasFixedValues();
 }
 
-void AbstrUnit::SetFormat(TokenID format)
+void AbstrUnit::SetSpatialReference(TokenID format)
 {
 	dms_assert(!format.empty());
 	SetTSF(
-		USF_HasFormat,
-		s_FormatAssoc.assoc(this, format)
+		USF_HasSpatialReference,
+		s_SpatialReferenceAssoc.assoc(this, format)
 	);
 }
 
-TokenID AbstrUnit::GetFormat () const
+TokenID AbstrUnit::GetSpatialReference() const
 {
-	if (GetTSF(USF_HasFormat))
-		return s_FormatAssoc.GetExisting(this);
+	if (GetTSF(USF_HasSpatialReference))
+		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
 		return TokenID(m->m_BaseUnits.begin()->first);
 	return TokenID::GetEmptyID();
 }
 
-TokenID AbstrUnit::GetCurrFormat() const
+TokenID AbstrUnit::GetCurrSpatialReference() const
 {
-	if (GetTSF(USF_HasFormat))
-		return s_FormatAssoc.GetExisting(this);
+	assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
+
+	if (GetTSF(USF_HasSpatialReference))
+		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
 		return TokenID(m->m_BaseUnits.begin()->first);
@@ -602,8 +604,8 @@ void AbstrUnit::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) 
 	base_type::CopyProps(result, copyContext);
 
 	AbstrUnit* resultUnit = debug_cast<AbstrUnit*>(result);
-	if (GetTSF(USF_HasFormat) || resultUnit->GetTSF(USF_HasFormat))
-		resultUnit->SetFormat(GetFormat());
+	if (GetTSF(USF_HasSpatialReference) || resultUnit->GetTSF(USF_HasSpatialReference))
+		resultUnit->SetSpatialReference(GetSpatialReference());
 	if (GetTSF(USF_HasConfigRange))
 		resultUnit->SetTSF(USF_HasConfigRange);
 }
@@ -885,11 +887,30 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
 {
   public:
 	FormatPropDef()
-		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
 	{}
 	// override base class
-	ApiType GetValue(const AbstrUnit* item) const override { return item->GetFormat(); }
-	void SetValue(AbstrUnit* item, ParamType val) override{ item->SetFormat(val); }
+	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
+	void SetValue(AbstrUnit* item, ParamType val) override
+	{ 
+		auto fullName = SharedStr(item->GetFullName());
+		reportF(SeverityTypeID::ST_Warning, "%s: depreciated specification of the format property: use SpatialReference=\"%s\""
+			, fullName
+			, val
+		);
+		item->SetSpatialReference(val); 
+	}
+};
+
+class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
+{
+public:
+	SpatialReferencePropDef()
+		: PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+	{}
+	// override base class
+	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
+	void SetValue(AbstrUnit* item, ParamType val) override { item->SetSpatialReference(val); }
 };
 
 struct MetricPropDef : ReadOnlyPropDef<AbstrUnit, SharedStr>

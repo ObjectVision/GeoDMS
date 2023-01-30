@@ -249,49 +249,10 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
-auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64> &angular_unit) -> Float64
-{
-	if (boost::iequals(angular_unit.first, "degree"))
-	{
-		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
-			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
-			angular_unit.first = "radian";
-		else
-			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
-	}
-	if (boost::iequals(angular_unit.first, "radian")) {
-		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>))*1000.0;
-	}
-	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
-}
-
-auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
-{
-	if (!strcmp(linear_unit.first, "km"))
-		return linear_unit.second *= 1000.0;
-	if (!strcmp(linear_unit.first, "m") || boost::iequals(linear_unit.first, "meter") || boost::iequals(linear_unit.first, "metre"))
-		return linear_unit.second;
-	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
-}
-
-auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64
-{
-	std::pair<CharPtr, Float64> linear_unit;
-	std::pair<CharPtr, Float64> angular_unit;
-	linear_unit.second = sr->GetLinearUnits(&linear_unit.first);
-	angular_unit.second = sr->GetAngularUnits(&angular_unit.first);
-
-	if (!strcmp(linear_unit.first, "unknown"))
-		return GetUnitSizeInMetersFromAngularProjection(angular_unit);
-	else
-		return GetUnitSizeInMetersFromLinearProjection(linear_unit);
-}
-
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 {
 	assert(uBase);
 	assert(dsh_);
-	auto mutUBase = const_cast<AbstrUnit*>(uBase);
 
 	auto ogrSR_ptr = dsh_->GetSpatialRef();
 	if (!ogrSR_ptr) 
@@ -305,46 +266,149 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 		if (projName == nullptr)
 			projName = dsh_->GetProjectionRef();
 
-		if (!mutUBase->IsCacheItem())
-			mutUBase->SetDescr(SharedStr(projName));
+//		if (!uBase->IsCacheItem() && uBase->GetDescr().empty())
+//			const_cast<AbstrUnit*>(uBase)->SetDescr(SharedStr(projName));
 	}
 
-	OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
-	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
+	std::optional<OGRSpatialReference> ogrSR;
+	if (ogrSR_ptr) 
+		ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
+	CheckSpatialReference(ogrSR, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
-void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutUBase)
+SharedStr GetAsWkt(const OGRSpatialReference* sr)
+{
+	assert(sr);
+	CplString pszEsriwkt;
+	auto err = sr->exportToWkt(&pszEsriwkt.m_Text);
+
+	if (err != OGRERR_NONE)
+		return {};
+	return SharedStr(pszEsriwkt.m_Text);
+}
+
+auto GetSpatialReferenceFromUserInput(SharedStr wktPrjStr) -> std::pair<OGRSpatialReference, OGRErr>
+{
+	assert(!wktPrjStr.empty());
+
+	gdalComponent lock_use_gdal;
+
+	GDAL_ErrorFrame	error_frame;
+
+	OGRSpatialReference	src;
+	OGRErr err = src.SetFromUserInput(wktPrjStr.c_str());
+
+	error_frame.ReleaseError();
+
+	return { src, err };
+}
+
+SharedStr GetWkt(const OGRSpatialReference* sr)
+{
+	assert(sr);
+
+	GDAL_ErrorFrame	error_frame;
+
+	auto wktPrjStr = GetAsWkt(sr);
+
+	error_frame.ReleaseError();
+
+	return wktPrjStr;
+}
+
+SharedStr GetWktProjectionFromBaseProjectionUnit(const AbstrUnit* base)
+{
+	gdalComponent lock_use_gdal;
+
+	auto srStr = SharedStr(base->GetSpatialReference());
+
+	if (srStr.empty())
+		return {};
+
+	auto srOrErr = GetSpatialReferenceFromUserInput(srStr);
+
+	if (srOrErr.second != OGRERR_NONE)
+		return {};
+
+	return GetWkt(&srOrErr.first);
+}
+
+auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*
+{
+	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
+	auto curr_proj = valuesUnit->GetCurrProjection();
+	if (!curr_proj)
+		return valuesUnit;
+	auto result = curr_proj->GetCompositeBase();
+	assert(result);
+	return result;
+}
+
+SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
+{
+	auto baseProjectionUnit = GetBaseProjectionUnitFromValuesUnit(adi);
+	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
+}
+
+/* REMOVE
+void sr_releaser::operator ()(OGRSpatialReference* p) const
+{
+	OSRRelease(p);
+}
+*/
+
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
+{
+	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
+	{
+		if (not (IsDataItem(subItem) and subItem->IsStorable()))
+			continue;
+
+		auto subDI = AsDataItem(subItem);
+
+		auto baseProjectionUnit = GetBaseProjectionUnitFromValuesUnit(subDI);
+		auto wktPrjStr = SharedStr(baseProjectionUnit->GetSpatialReference());
+
+		if (wktPrjStr.empty())
+			continue;
+		auto srOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
+		if (srOrErr.second != OGRERR_NONE)
+			return srOrErr.first;
+	}
+	return {};
+}
+
+void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+{
+	assert(fromGDAL);
+	assert(fromConfig);
+	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
+		throwErrorF("GDAL", "SpatialReferenceSystem of GDAL'%s' differs from baseProjectionUnit's projection ");
+}
+
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
 {
 	assert(IsMainThread());
-	assert(mutUBase);
-	mutUBase->UpdateMetaInfo();
+	assert(uBase);
+//	uBase->UpdateMetaInfo();
 
-	SharedStr wktPrjStr(mutUBase->GetFormat());
-
-	if (!wktPrjStr.empty())
+	SharedStr wktPrjStr(uBase->GetSpatialReference());
+	if (wktPrjStr.empty())
 	{
-		GDAL_ErrorFrame	error_frame;
-
-		OGRSpatialReference	directSR;
-		OGRErr err = directSR.SetFromUserInput(wktPrjStr.c_str());
-		if (err == OGRERR_NONE)
-			ogrSR = std::move(directSR);
+		auto fullName = SharedStr(uBase->GetFullName());
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
+		return;
 	}
-
-	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
-	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
-	if (!msa)
+	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
+	if (spOrErr.second != OGRERR_NONE)
 	{
-		auto unitSizeInMeters = GetUnitSizeInMeters(&ogrSR);
-		if (unitSizeInMeters > 1.0)
-		{
-			auto vpmins = CreateDataItem(mutUBase, vpminsID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
-
-			DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
-			wrLock.get()->SetValueAsFloat64(0, 10.0 / unitSizeInMeters);
-			wrLock.Commit();
-		}
+		auto fullName = SharedStr(uBase->GetFullName());
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has projection with error %d", fullName, spOrErr.second);
 	}
+	if (ogrSR)
+		CheckCompatibility(&*ogrSR, &spOrErr.first);
+	else
+		ogrSR = spOrErr.first;
 }
 
 
@@ -400,6 +464,11 @@ gdalComponent::gdalComponent()
 		}
 	}
 	++gdalComponentImpl::s_ComponentCount;
+}
+
+bool gdalComponent::isActive()
+{
+	return gdalComponentImpl::s_ComponentCount > 0;
 }
 
 gdalComponent::~gdalComponent()
@@ -755,58 +824,54 @@ GDAL_ConfigurationOptionsFrame::~GDAL_ConfigurationOptionsFrame()
 	CPLSetThreadLocalConfigOptions(m_DefaultConfigurationOptions);
 }
 
-SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
+auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64>& angular_unit) -> Float64
 {
-	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
-	auto curr_proj = valuesUnit->GetCurrProjection();
-
-	auto base = curr_proj ? curr_proj->GetCompositeBase() : valuesUnit;
-
-	gdalComponent lock_use_gdal;
-	SharedStr wktPrjStr(base->GetFormat());
-
-	if (wktPrjStr.empty()) return {};
-
-	GDAL_ErrorFrame	error_frame;
-
-	OGRSpatialReference	m_Src;
-	OGRErr err = m_Src.SetFromUserInput(wktPrjStr.c_str());
-	CplString pszEsriwkt;
-	m_Src.exportToWkt(&pszEsriwkt.m_Text);
-
-	if (err == OGRERR_NONE)
+	if (boost::iequals(angular_unit.first, "degree"))
 	{
-		wktPrjStr = pszEsriwkt.m_Text;
+		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
+			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
+			angular_unit.first = "radian";
+		else
+			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
 	}
+	if (boost::iequals(angular_unit.first, "radian")) {
+		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)) * 1000.0;
+	}
+	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
+}
+
+auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear_unit) -> Float64
+{
+	if (!strcmp(linear_unit.first, "km"))
+		return linear_unit.second *= 1000.0;
+	if (!strcmp(linear_unit.first, "m") || boost::iequals(linear_unit.first, "meter") || boost::iequals(linear_unit.first, "metre"))
+		return linear_unit.second;
+	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
+}
+
+auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64
+{
+	std::pair<CharPtr, Float64> linear_unit;
+	std::pair<CharPtr, Float64> angular_unit;
+	linear_unit.second = sr->GetLinearUnits(&linear_unit.first);
+	angular_unit.second = sr->GetAngularUnits(&angular_unit.first);
+
+	if (!strcmp(linear_unit.first, "unknown"))
+		return GetUnitSizeInMetersFromAngularProjection(angular_unit);
 	else
-	{
-		wktPrjStr = "";
-	}
-
-	error_frame.ReleaseError();
-
-	return wktPrjStr;
+		return GetUnitSizeInMetersFromLinearProjection(linear_unit);
 }
 
-void sr_releaser::operator ()(OGRSpatialReference* p) const 
-{ 
-	OSRRelease(p); 
-}
-
-sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
+auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 {
-	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
-	{
-		if (not (IsDataItem(subItem) and subItem->IsStorable()))
-			continue;
-
-		auto subDI = AsDataItem(subItem);
-
-		auto wktString = GetWktProjectionFromValuesUnit(subDI);
-		if (not wktString.empty())
-			return sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} }; //TODO: is the sr_releaser called properly here?
-	}
-	return {};
+	assert(projectionBaseUnit);
+	auto projStr = SharedStr(projectionBaseUnit->GetSpatialReference());
+	if (projStr.empty())
+		return 1.0;
+	auto spOrErr = GetSpatialReferenceFromUserInput(projStr);
+	if (spOrErr.second == OGRERR_NONE)
+		return 1.0;
+	return GetUnitSizeInMeters(&spOrErr.first);
 }
 
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)

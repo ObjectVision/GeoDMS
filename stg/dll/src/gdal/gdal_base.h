@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 
+#include <optional>
+
 #include "ptr/WeakPtr.h"
 #include "geo/Transform.h"
 
@@ -64,6 +66,8 @@ struct gdalComponent : gdalDynamicLoader
 {
 	STGDLL_CALL gdalComponent();
 	STGDLL_CALL ~gdalComponent();
+
+	static bool isActive();
 
 	STGDLL_CALL static void CreateMetaInfo(TreeItem* container, bool mustCalc);
 	
@@ -160,10 +164,12 @@ GDALDataType gdalDataType(ValueClassID tid);
 
 // *****************************************************************************
 
+/* REMOVE
 struct sr_releaser {
 	void operator ()(OGRSpatialReference* p) const;
 };
 using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
+*/
 
 // *****************************************************************************
 
@@ -173,10 +179,13 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
 CPLStringList GetOptionArray(const TreeItem* optionsItem);
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
+STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
-sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
-void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase);
-auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
+SharedStr GetAsWkt(const OGRSpatialReference* sr);
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
+//auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
+STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 
 struct GDALDatasetHandle
 {

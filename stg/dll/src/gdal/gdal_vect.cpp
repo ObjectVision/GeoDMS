@@ -1393,7 +1393,8 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 			auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder);
 			
 			error_frame.ThrowUpWhateverCameUp();
-			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR.get(), eGType, layerOptionArray); error_frame.ThrowUpWhateverCameUp();
+			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); 
+			error_frame.ThrowUpWhateverCameUp();
 			SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layerHandle, layerName, disi);
 		}
 
@@ -1475,7 +1476,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
 		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
-		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR.get(), eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
+		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
 	}
 
@@ -1588,18 +1589,16 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "Unit.h"
 #include "UnitClass.h"
 
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, OGRSpatialReference& spatialRef)
+void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
 {
 	assert(geometry);
-	CplString wkt;
-	spatialRef.exportToWkt(&wkt.m_Text);
-	if (wkt.m_Text)
-		geometry->SetDescr(SharedStr(wkt.m_Text));
-	auto gvu = geometry->GetAbstrValuesUnit();
-	auto gpr = gvu->GetProjection();
-	if (gpr && gpr->GetCompositeBase())
-		gvu = gpr->GetCompositeBase();
-	UpdateBaseProjection(spatialRef, const_cast<AbstrUnit*>(gvu));
+	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
+	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
+	if (!spatialRef)
+		return;
+	auto wkt = GetAsWkt(&*spatialRef);
+	if (!wkt.empty())
+		geometry->SetDescr(wkt);
 }
 
 #include "mci/ValueWrap.h"
@@ -1644,26 +1643,10 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		if (gdal_vc != ValueComposition::String)
 		{
 			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
-			OGRSpatialReference ogrSR; if (ogrSR_ptr) ogrSR = *ogrSR_ptr;
-			UpdateSpatialRef(m_hDS, geometry, ogrSR); // can reset ogrSR to the SR according to the format of the baseProjection unit.
-
-			static TokenID pwwT = GetTokenID_st("PenWorldWidth");
-			auto pwwI = geometry->GetSubTreeItemByID(pwwT);
-			if (!pwwI)
-			{
-				auto unitSizeInMeters = GetUnitSizeInMeters(&ogrSR);
-				if (unitSizeInMeters > 1.0)
-				{
-					auto vpmins = CreateDataItem(geometry, pwwT, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<Float64>::GetStaticClass()->CreateDefault());
-
-					DataWriteLock wrLock(vpmins, dms_rw_mode::write_only_all);
-					wrLock.get()->SetValueAsFloat64(0, 1.0 / unitSizeInMeters);
-					wrLock.Commit();
-					static auto pwwID = GetTokenID_st("PenWorldWidth");
-					dialogTypePropDefPtr->SetValue(vpmins, pwwID);
-				}
-			}
-
+			std::optional<OGRSpatialReference> ogrSR; 
+			if (ogrSR_ptr) 
+				ogrSR = *ogrSR_ptr;
+			UpdateSpatialRef(m_hDS, geometry, ogrSR);
 		}
 	}
 

@@ -52,11 +52,12 @@ FontIndexCache::FontIndexCache(
 	,	const Theme* fontNameTheme
 	,	const Theme* fontAngleTheme
 	,	const AbstrUnit* entityDomain
+	,	const AbstrUnit* projectionBaseUnit
 	,	Float64 defFontSize
 	,	Float64 defWorldSize
 	,	TokenID defFontNameID
 	,	UInt16  defFontAngle
-	)	:	ResourceIndexCache(fontSizeTheme, worldSizeTheme, defFontSize, defWorldSize, entityDomain)
+	)	:	ResourceIndexCache(fontSizeTheme, worldSizeTheme, defFontSize, defWorldSize, entityDomain, projectionBaseUnit)
 		,	m_DefaultFontNameId(defFontNameID)
 		,	m_DefaultFontAngle (defFontAngle )
 		,	m_LastNrPointsPerPixel(-1.0) 
@@ -149,10 +150,10 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 		{
 			//	OPTIMIZATION FOR WHEN ALL THEMES USE THE SAME OR NO ENTITY CLASSIFICATION
 			AddKeys(
-				m_PixelWidthValueGetter ? m_PixelWidthValueGetter->CreatePaletteGetter() : 0
-			,	m_WorldWidthValueGetter ? m_WorldWidthValueGetter->CreatePaletteGetter() : 0
-			,	m_FontNameValueGetter   ? m_FontNameValueGetter  ->CreatePaletteGetter() : 0
-			,	m_FontAngleValueGetter  ? m_FontAngleValueGetter ->CreatePaletteGetter() : 0
+				m_PixelWidthValueGetter ? m_PixelWidthValueGetter->CreatePaletteGetter() : nullptr
+			,	m_WorldWidthValueGetter ? m_WorldWidthValueGetter->CreatePaletteGetter() : nullptr
+			,	m_FontNameValueGetter   ? m_FontNameValueGetter  ->CreatePaletteGetter() : nullptr
+			,	m_FontAngleValueGetter  ? m_FontAngleValueGetter ->CreatePaletteGetter() : nullptr
 			,	classIdUnit->GetCount()
 			);
 			AddUndefinedKey();

@@ -92,7 +92,7 @@ const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also 
 const TreeItemStatusFlags TSF_Reserved23                  = 0x00800000; // unallocated bit
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
-const UnitItemStatusFlags USF_HasFormat                   = 0x01000000;
+const UnitItemStatusFlags USF_HasSpatialReference         = 0x01000000;
 const UnitItemStatusFlags USF_HasConfigRange              = 0x02000000;
 
 // REMOVE, TODO: CONSIDER STORING THE FOLLOWING PER TILE
