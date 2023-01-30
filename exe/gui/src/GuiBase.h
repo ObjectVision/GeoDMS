@@ -38,6 +38,7 @@ enum class GuiEvents
 	OpenInMemoryDataView,
 	OpenNewDefaultViewWindow,
 	OpenConfigSource,
+	OpenEditPaletteWindow,
 	ToggleShowTreeViewWindow,
 	ToggleShowEventLogWindow,
 	ToggleShowDetailPagesWindow,
