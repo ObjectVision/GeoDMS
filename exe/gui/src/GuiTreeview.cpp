@@ -474,6 +474,12 @@ auto GuiTreeView::clear() -> void
     m_tree.clear();
 }
 
+
+auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
+{
+
+}
+
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 {
     GuiTree* tree = nullptr;

@@ -46,6 +46,7 @@ GuiMainComponent::GuiMainComponent()
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
+    DMS_RegisterStateChangeNotification(&m_Treeview.OnStateChange, nullptr);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
