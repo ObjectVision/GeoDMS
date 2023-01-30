@@ -216,7 +216,7 @@ struct GDAL_TransactionFrame
 	GDAL_TransactionFrame(GDALDataset *dsh)
 	{
 		dsh_ = dsh;
-		dsh_->StartTransaction();
+		dsh_->StartTransaction(true); // TODO: force flag specifically added to write using OpenFileGDB, sideeffects?
 	}
 	~GDAL_TransactionFrame()
 	{

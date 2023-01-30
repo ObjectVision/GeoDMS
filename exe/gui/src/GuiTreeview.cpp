@@ -480,7 +480,7 @@ auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self,
     if (notificationCode == NotificationCode::CC_CreateMdiChild)
     { 
         auto event_queues = GuiEventQueues::getInstance();
-        //event_queues.
+        //event_queues->MapViewEvents.Add();
     }
     
 }
