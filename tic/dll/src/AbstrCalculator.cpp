@@ -709,12 +709,12 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 			return { ti, {} };
 		if (IsDataItem(ti.get_ptr()))
 		{
-			SharedDataItem adi = AsDataItem(ti.get_ptr());
-			adi->PrepareData();
+			SharedDataItemInterestPtr adi = AsDataItem(ti.get_ptr());
+			adi->PrepareDataUsage(DrlType::Certain);
 			
 			DataReadLock lock(adi);
 			if (adi->WasFailed(FR_Data))
-				return { adi, {} };
+				return { adi.get_ptr(), {}};
 		}
 	}
 	return { nullptr, {} };

@@ -995,7 +995,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 #include "SupplCache.h"
 #include "TreeItemProps.h"
 
-TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
+TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 
@@ -1102,7 +1102,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 		}
 
 		// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
-		if (src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
+		if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
 		{
 			if (src->HasCalculator())
 			{
@@ -1117,7 +1117,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src)
 BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 {
 	try {
-		return TreeItem_GetErrorSource(src);
+		return TreeItem_GetErrorSource(src, true);
 	}
 	catch (const DmsException& x)
 	{

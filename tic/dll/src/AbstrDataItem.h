@@ -177,7 +177,7 @@ public: // TODO G8: Re-encapsulate
 	friend struct DomainUnitPropDef;
 	friend struct ValuesUnitPropDef;
 
-	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src);
+	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers);
 
 //	Serialization
 	DECL_RTTI(TIC_CALL, TreeItemClass)
