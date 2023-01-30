@@ -477,7 +477,12 @@ auto GuiTreeView::clear() -> void
 
 auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
 {
-
+    if (notificationCode == NotificationCode::CC_CreateMdiChild)
+    { 
+        auto event_queues = GuiEventQueues::getInstance();
+        //event_queues.
+    }
+    
 }
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
