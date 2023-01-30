@@ -336,7 +336,7 @@ SharedStr GetWktProjectionFromBaseProjectionUnit(const AbstrUnit* base)
 auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*
 {
 	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
-	auto curr_proj = valuesUnit->GetCurrProjection();
+	auto curr_proj = valuesUnit->GetProjection();
 	if (!curr_proj)
 		return valuesUnit;
 	auto result = curr_proj->GetCompositeBase();
@@ -383,7 +383,12 @@ void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* from
 	assert(fromGDAL);
 	assert(fromConfig);
 	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
-		throwErrorF("GDAL", "SpatialReferenceSystem of GDAL'%s' differs from baseProjectionUnit's projection ");
+		throwErrorF("GDAL", "SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
+			"\nDataset's SpatialReference:\n%s"
+			"\nbaseProjectionUnit's SpatialReference:\n%s"
+		, GetAsWkt(fromGDAL).c_str()
+		, GetAsWkt(fromConfig).c_str()
+		);
 }
 
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
