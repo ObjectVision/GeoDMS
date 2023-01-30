@@ -91,6 +91,7 @@ struct PenIndexCache : ResourceIndexCache
 	,	const Theme* penStyleTheme
 	,	const AbstrUnit* entityDomain
 	,	DmsColor defaultPenColor
+	,	const AbstrUnit* projectionBaseUnit
 	);
 
 	void UpdateForZoomLevel(Float64 worldUnitsPerPixel, Float64 subPixelFactor) const;

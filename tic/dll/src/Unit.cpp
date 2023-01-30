@@ -162,12 +162,12 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 			if (!IsDefaultUnit())
 			{
 				LispRef baseUnitMetricExpr;
-				auto format = GetFormat();
-				if (format)
+				auto sr = GetSpatialReference();
+				if (sr)
 				{
-					// BaseUnit( 'format', result ) provides a format specific identity
-					auto formatStr = format.AsStrRange();
-					baseUnitMetricExpr = LispRef(formatStr.m_CharPtrRange.first, formatStr.m_CharPtrRange.second);
+					// BaseUnit( 'sr', result ) provides a format specific identity
+					auto srStr = sr.AsStrRange();
+					baseUnitMetricExpr = LispRef(srStr.m_CharPtrRange.first, srStr.m_CharPtrRange.second);
 				}
 				else
 				{

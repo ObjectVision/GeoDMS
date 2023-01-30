@@ -556,20 +556,12 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 {
 	dms_assert(IsMainThread());
 	m_SpecContainer = specContainer;
-	TokenID format;
 	float ScaleCorrection = 360.0;
 	SharedStr unit("");
 
 	SharedTreeItemInterestPtr unitItem = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("unit"));
 	if (unitItem)
 		unit = GetTheValue<SharedStr>(unitItem.get_ptr());
-
-	if (m_WorldCrdUnit)
-		format = m_WorldCrdUnit->GetFormat();
-	if (format)
-	{
-		// TODO: use GDAL to get format
-	}
 
 	SharedTreeItemInterestPtr hostItem = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("host"));
 	auto hostName = GetTheValue<SharedStr>(hostItem.get_ptr());

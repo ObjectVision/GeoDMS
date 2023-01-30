@@ -53,6 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include "StgBase.h"
+#include "gdal/gdal_base.h"
 
 #include "CaretOperators.h"
 #include "Carets.h"
@@ -1027,9 +1028,10 @@ void ViewPort::SetROI(const CrdRect& r)
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
 	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
 
-	CrdType minSize = GetSubItemValue(m_WorldCrdUnit,  vpminsID, 10.0);
+	CrdType minSize = GetSubItemValue(m_WorldCrdUnit,  vpminsID, -1.0);
 	CrdType maxSize = GetSubItemValue(m_WorldCrdUnit,  vpmaxsID, 40000.0e+9);
-
+	if (minSize == -1.0)
+		minSize = 10.0 / GetUnitSizeInMeters(m_WorldCrdUnit);
 	CrdRect rr = r;
 	LimitRange(rr.first.Row(), rr.second.Row(), minSize, maxSize);
 	LimitRange(rr.first.Col(), rr.second.Col(), minSize, maxSize);

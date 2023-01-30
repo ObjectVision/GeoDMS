@@ -53,6 +53,7 @@ struct FontIndexCache : ResourceIndexCache
 	,	const Theme* fontNameTheme   // FontNames as string
 	,	const Theme* fontAngleTheme
 	,	const AbstrUnit* entityDomain
+	,	const AbstrUnit* projectionBaseUnit
 	,	Float64 defFontPixelSize
 	,	Float64 defFontWorldSize
 	,	TokenID defFontNameID

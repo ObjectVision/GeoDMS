@@ -821,8 +821,9 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 		if (!m_FontIndexCache)
 			m_FontIndexCache.assign(
 				new FontIndexCache(
-					0, 0, fontTheme.get(), 0
+					nullptr, nullptr, fontTheme.get(), nullptr
 				,	fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault() // theme domain entity
+				,	nullptr
 				,	cellHeight, 0, GetTokenID_mt(defFontNames[fr]), 0
 				)
 			);

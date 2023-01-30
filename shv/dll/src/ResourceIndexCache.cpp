@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Theme.h"
 #include "ThemeValueGetter.h"
 
+#include "gdal/gdal_base.h"
+
 //----------------------------------------------------------------------
 // struct  : PenIndexCache
 //----------------------------------------------------------------------
@@ -45,7 +47,9 @@ ResourceIndexCache::ResourceIndexCache(
 		,	const Theme* worldWidthTheme  // Additional zoom-level dependent factor of Character Height in World Coord Units
 		,	Float64 defPixelSize
 		,	Float64 defWorldSize
-		,	const AbstrUnit* entityDomain)
+		,	const AbstrUnit* entityDomain
+		,	const AbstrUnit* projectionBaseUnit
+		)
 	:	m_EntityDomainCount(entityDomain->GetCount() )
 	,	m_PixelWidthValueGetter(NULL)
 	,	m_WorldWidthValueGetter(NULL)
@@ -77,6 +81,8 @@ ResourceIndexCache::ResourceIndexCache(
 		else
 			m_WorldWidthValueGetter = worldWidthTheme->GetValueGetter();
 	}
+	else if (m_DefaultWorldWidth > 0)
+		m_DefaultWorldWidth = GetUnitSizeInMeters(projectionBaseUnit);
 }
 
 bool ResourceIndexCache::CompareValueGetter(const AbstrThemeValueGetter* additionalTheme) const

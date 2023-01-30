@@ -56,7 +56,9 @@ protected:
 	,	const Theme* worldSizeTheme  // Additional zoom-level dependent factor of Character Height in World Coord Units
 	,	Float64 defPixelSize
 	,	Float64 defWorldSize
-	,	const AbstrUnit* entityDomain);
+	,	const AbstrUnit* entityDomain
+	,	const AbstrUnit* projectionBaseUnit
+	);
 
 	bool CompareValueGetter(const AbstrThemeValueGetter* additionalTheme) const;
 	bool IsDifferent(Float64 nrPixelsPerWorldUnit, Float64 subPixelFactor) const;

@@ -109,14 +109,14 @@ public:
 	virtual bool HasTiledRangeData() const = 0;
 	virtual const AbstrTileRangeData* GetTiledRangeData() const;
 	TIC_CALL bool HasVarRangeData() const;
-	TIC_CALL void SetFormat(TokenID format);
+	TIC_CALL void SetSpatialReference(TokenID format);
 
-	TIC_CALL TokenID   GetFormat             () const;
-	TIC_CALL TokenID   GetCurrFormat         () const;
-	TIC_CALL SharedStr GetMetricStr          (FormattingFlags ff) const;
-	TIC_CALL SharedStr GetCurrMetricStr      (FormattingFlags ff) const;
-	TIC_CALL SharedStr GetFormattedMetricStr () const;
-	TIC_CALL SharedStr GetProjectionStr      (FormattingFlags ff) const;
+	TIC_CALL TokenID   GetSpatialReference    () const;
+	TIC_CALL TokenID   GetCurrSpatialReference() const;
+	TIC_CALL SharedStr GetMetricStr           (FormattingFlags ff) const;
+	TIC_CALL SharedStr GetCurrMetricStr       (FormattingFlags ff) const;
+	TIC_CALL SharedStr GetFormattedMetricStr  () const;
+	TIC_CALL SharedStr GetProjectionStr       (FormattingFlags ff) const;
 
 	TIC_CALL SharedDataItemInterestPtr GetLabelAttr() const;
 	TIC_CALL ActorVisitState VisitLabelAttr(const ActorVisitor& visitor, SharedDataItemInterestPtr& labelLock) const;
