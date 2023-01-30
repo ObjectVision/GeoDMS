@@ -41,7 +41,7 @@ struct SafeFileWriterArray;
 #include "xct/ErrMsg.h"
 
 #include "TreeItem.h"
-TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src); // impl in TicInterface.cpp
+TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers); // impl in TicInterface.cpp
 
 /********** defines                                        **********/
 

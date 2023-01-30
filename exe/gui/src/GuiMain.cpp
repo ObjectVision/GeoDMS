@@ -195,7 +195,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     {
         if (!m_State.GetCurrentItem())
             break;
-        auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
+        auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem(), true);
         if (item_error_source.first)
         { 
             m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
@@ -215,7 +215,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         TreeItem* prev_item_error_source = m_State.GetCurrentItem();
         while (true)
         {
-            auto item_error_source = TreeItem_GetErrorSource(prev_item_error_source);
+            auto item_error_source = TreeItem_GetErrorSource(prev_item_error_source, true);
             if (!item_error_source.first)
             {
                 if (prev_item_error_source)
