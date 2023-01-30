@@ -46,6 +46,7 @@ GuiMainComponent::GuiMainComponent()
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
+    DMS_RegisterStateChangeNotification(&m_Treeview.OnStateChange, nullptr);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
@@ -60,7 +61,7 @@ GuiMainComponent::~GuiMainComponent()
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
 }
 
-std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line) 
+std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
 {
     //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
     std::string result = command.data();
@@ -75,7 +76,7 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     auto ln_part = result.find("%L");
 
     if (ln_part != std::string::npos)
-        result.replace(ln_part, ln_part+2, line);
+        result.replace(ln_part, ln_part + 2, line);
 
     return result;
 }
@@ -88,9 +89,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     {
         if (!m_State.GetCurrentItem())
             return;
-        
-        if (m_State.GetCurrentItem()!=m_State.GetRoot())
-            m_State.TreeItemHistoryList.Insert({m_State.GetCurrentItem()});
+
+        if (m_State.GetCurrentItem() != m_State.GetRoot())
+            m_State.TreeItemHistoryList.Insert({ m_State.GetCurrentItem() });
         break;
     }
     case GuiEvents::ReopenCurrentConfiguration:
@@ -153,15 +154,15 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             break;
 
         std::string filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
-        std::string line     = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
-        std::string command  = GetGeoDmsRegKey("DmsEditor").c_str();
+        std::string line = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
+        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
 
         if (!filename.empty() && !line.empty() && !command.empty())
         {
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
-            const TreeItem *TempItem = m_State.GetCurrentItem();
+            const TreeItem* TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(NULL, const_cast<Char *>(fullPathCmd.c_str()));
+            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
         }
 
         break;
@@ -197,7 +198,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
             break;
         auto item_error_source = TreeItem_GetErrorSource(m_State.GetCurrentItem());
         if (item_error_source.first)
-        { 
+        {
             m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
             auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -260,8 +261,8 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
-        if (ImGui::Button("Abort", ImVec2(120, 0))) 
-        { 
+        if (ImGui::Button("Abort", ImVec2(120, 0)))
+        {
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             return true;
@@ -289,7 +290,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
     //TODO: build in timer for checks?
-    static std::string changed_files_result; 
+    static std::string changed_files_result;
     auto changed_files = DMS_ReportChangedFiles(true);
     if (changed_files)
     {
@@ -335,8 +336,8 @@ void GuiMainComponent::TraverseTreeItemHistoryIfRequested()
         //if (new_view_action.sAction.contains("dp.vi.attr"))
         //    event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
         //else
-            event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-        
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+
         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
         event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
     }
@@ -346,7 +347,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
 {
     int    argc = __argc;
     --argc;
-    char** argv = __argv; 
+    char** argv = __argv;
     ++argv;
 
     CharPtr firstParam = argv[0];
@@ -360,7 +361,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
     }
 
     ParseRegStatusFlags(argc, argv);
-    
+
     for (; argc; --argc, ++argv) {
         if ((*argv)[0] == '/')
         {
@@ -369,7 +370,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
                 m_NoConfig = true;
             if (!stricmp(cmd, "script")) // gui unit tests
             {
-                m_GuiUnitTest.LoadStepsFromScriptFile(*(argv+1));
+                m_GuiUnitTest.LoadStepsFromScriptFile(*(argv + 1));
                 argc--;
                 argv++;
             }
@@ -390,8 +391,24 @@ int GuiMainComponent::Init()
         return 1;
 
     auto glsl_version = SetGLFWWindowHints();
+    
+    auto primary_monitor = glfwGetPrimaryMonitor();
+    int xpos,ypos,width,height;
+    glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
+    m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
+    //const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
 
-    m_Window = glfwCreateWindow(1280, 720, "", NULL, NULL);
+    //glfwSetWindowMonitor(m_Window, primary_monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    //const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+
+    //glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    //glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    //glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    //glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+    //m_Window = glfwCreateWindow(mode->width, mode->height, "", primary_monitor, NULL);
+
+
     if (m_Window == NULL)
         return 1;
     glfwMakeContextCurrent(m_Window);
@@ -416,7 +433,7 @@ int GuiMainComponent::Init()
     //ImGui::StyleColorsClassic();
 
     // when viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiStyle &style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         style.WindowRounding = 0.0f;
@@ -437,9 +454,8 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    LoadIniFromRegistry();
+    m_DockingInitialized = LoadIniFromRegistry();
 
-    // command line params
     InterpretCommandLineParameters();
 
     return 0;
@@ -464,7 +480,7 @@ int GuiMainComponent::MainLoop()
     while (!glfwWindowShouldClose(m_Window))
     {
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
-            glfwPollEvents();
+        glfwPollEvents();
         //else 
         //{
         //    glfwWaitEventsTimeout(1.0);
@@ -511,12 +527,10 @@ int GuiMainComponent::MainLoop()
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
 
-        
+
 
         // update all gui components
         Update();
-
-        
 
         // rendering
         ImGui::Render();
@@ -539,18 +553,10 @@ int GuiMainComponent::MainLoop()
         glfwSwapBuffers(m_Window);
 
 
-        if (!m_FirstFrames)
-        {
-            // initializations after first n frames
-            if (!m_NoConfig)
-                m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
-            m_FirstFrames--;
-        }
-        else if (m_FirstFrames > 0)
-            m_FirstFrames--;
+
 
         m_GuiUnitTest.Step();
-    
+
         //break;
     }
 
@@ -604,8 +610,8 @@ void GuiMainComponent::Update()
     // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
     if (!opt_padding)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    
-    
+
+
     if (!ImGui::Begin("GeoDMSGui", nullptr, window_flags))
     {
         ImGui::End();
@@ -619,12 +625,12 @@ void GuiMainComponent::Update()
         ImGui::PopStyleVar(2);
 
     // Submit the DockSpace
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-    {
-        ImGuiID dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-    }
+    auto io = ImGui::GetIO();
+    //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+    //{
+    auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    //}
 
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
@@ -637,13 +643,61 @@ void GuiMainComponent::Update()
             return;
         }
     }
+    static auto first_time = true;
+    if (first_time && not m_DockingInitialized) {
+        first_time = false;
+        ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+        ImGui::DockBuilderRemoveNode(dockspace_id);
+        auto central_node = ImGui::DockBuilderAddNode(dockspace_id);
+        
+        //LocalFlags
 
-    // Update all GeoDMSGui components
+
+
+        auto dock_id_up = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.2f, nullptr, &central_node);
+        auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.2f, nullptr, &central_node);
+        auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
+        auto dock_id_left = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Left, 0.2f, nullptr, &central_node);
+
+
+        ImGui::DockBuilderDockWindow("Detail Pages", dock_id_right);
+        ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
+        ImGui::DockBuilderDockWindow("EventLog", dock_id_down);
+        ImGui::DockBuilderDockWindow("Toolbar", dock_id_up);
+
+        auto toolbar_node = ImGui::DockBuilderGetNode(dock_id_up);
+        auto treeview_node = ImGui::DockBuilderGetNode(dock_id_left);
+        auto eventlog_node = ImGui::DockBuilderGetNode(dock_id_down);
+        auto detailpages_node = ImGui::DockBuilderGetNode(dock_id_right);
+
+        toolbar_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        treeview_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        eventlog_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        detailpages_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+
+        ImGui::DockBuilderFinish(dockspace_id);
+
+        //auto treeview_id = ImGui::GetID("Treeview");
+        //auto central_node_tv = ImGui::DockBuilderAddNode(treeview_id);
+
+        //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node_tv, ImGuiDir_Down, 0.5f, nullptr, &central_node_tv);
+        //ImGui::DockBuilderDockWindow("EventLog", central_node_tv);
+        //ImGui::DockBuilderFinish(treeview_id);
+
+    }
+
     m_Menu.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
+    
 
+
+
+
+    ImGui::End();
+
+    // Update all GeoDMSGui components
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
 
@@ -655,12 +709,28 @@ void GuiMainComponent::Update()
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);
-
+    
     if (m_State.ShowStatusBar)
         m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
     m_View.UpdateAll(m_State);
 
+
+
+    if (!m_FirstFrames)
+    {
+
+
+        // initializations after first n frames
+        if (!m_NoConfig)
+            m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+        m_FirstFrames--;
+    }
+    else if (m_FirstFrames > 0)
+        m_FirstFrames--;
+
+
+    /*
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
@@ -669,7 +739,5 @@ void GuiMainComponent::Update()
         m_Options.Update(&m_State.ShowOptionsWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
-        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
-    
-    ImGui::End();
+        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);*/
 }

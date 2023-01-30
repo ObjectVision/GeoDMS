@@ -153,11 +153,10 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
 
 GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
 {
-    //DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, other.m_item, &other);
     m_item     = other.m_item;
     m_parent   = other.m_parent;
     m_children = std::move(other.m_children);
-    m_state = other.m_state; //m_state.store(other.m_state);
+    m_state = other.m_state;
     m_depth = other.m_depth;
     m_has_been_openend = other.m_has_been_openend;
     m_is_open = other.m_is_open;
@@ -204,7 +203,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
-    auto icon = IsLeaf() ? " " : m_is_open ? ICON_RI_MIN : ICON_RI_PLUS;
+    auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
     ImGui::PushID(m_item);
     if (ImGui::Button(icon))
@@ -280,7 +279,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     ShowRightMouseClickPopupWindowIfNeeded(state);
 
     // drag-drop event
-    if (ImGui::BeginDragDropSource())
+    if (ImGui::BeginDragDropSource() && !(m_item== state.GetRoot()))
     {
         ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
         ImGui::TextUnformatted(m_item->GetName().c_str());
@@ -473,6 +472,17 @@ GuiTreeView::~GuiTreeView()
 auto GuiTreeView::clear() -> void
 {
     m_tree.clear();
+}
+
+
+auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
+{
+    if (notificationCode == NotificationCode::CC_CreateMdiChild)
+    { 
+        auto event_queues = GuiEventQueues::getInstance();
+        //event_queues.
+    }
+    
 }
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void

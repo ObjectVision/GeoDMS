@@ -51,6 +51,7 @@ enum class GuiEvents
 
 enum class GeoDMSWindowTypes
 {
+	GeoDMSGui,
 	TreeView,
 	DetailPages,
 	EventLog,
@@ -59,19 +60,7 @@ enum class GeoDMSWindowTypes
 	Options
 };
 
-/*auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
-{
-	switch (wt)
-	{
-	case GeoDMSWindowTypes::TreeView: return "TreeView";
-	case GeoDMSWindowTypes::DetailPages: return "DetailPages";
-	case GeoDMSWindowTypes::EventLog: return "EventLog";
-	case GeoDMSWindowTypes::MapView: return "MapView";
-	case GeoDMSWindowTypes::TableView: return "TableView";
-	case GeoDMSWindowTypes::Options: return "Options";
-	
-	}
-}*/
+auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string;
 
 static auto InputTextCallback(ImGuiInputTextCallbackData* data) -> int;
 
@@ -312,15 +301,15 @@ public:
 	bool ShowEventLogOptionsWindow		= false;
 	bool ShowOpenFileWindow				= false;
 	bool ShowConfigSource				= false;
-	bool ShowTreeviewWindow				= false;
-	bool ShowDetailPagesWindow			= false;
+	bool ShowTreeviewWindow				= true;
+	bool ShowDetailPagesWindow			= true;
 	bool ShowDemoWindow					= false;
-	bool ShowEventLogWindow				= false;
-	bool ShowToolbar					= false;
+	bool ShowEventLogWindow				= true;
+	bool ShowToolbar					= true;
 	bool ShowStatusBar					= false;
-	bool ShowCurrentItemBar				= false;
-	bool MapViewIsActive				= false;
-	bool TableViewIsActive				= false;
+	bool ShowCurrentItemBar				= true;
+	bool MapViewIsActive				= false; //TODO: remove?
+	bool TableViewIsActive				= false; //TODO: remove?
 	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;
@@ -366,7 +355,7 @@ auto SetCursorPosToOptionsIconInWindowHeader() -> ImVec2;
 auto SetClipRectToIncludeOptionsIconInWindowHeader() -> void;
 auto MouseHooversOptionsIconInWindowHeader() -> bool;
 auto SetKeyboardFocusToThisHwnd() -> void;
-auto LoadIniFromRegistry() -> void;
+auto LoadIniFromRegistry() -> bool;
 auto SaveIniToRegistry() -> void;
 auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;
 auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void;

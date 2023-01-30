@@ -31,14 +31,11 @@ public:
 		m_Name = n;
 		m_ViewStyle = vs;
 		m_DataView = dv; //use SharedFromThis on DataView
-		//auto test = dv->shared_from_this();
 	}
 	View(View&& other) noexcept;
-	void operator=(View && other) noexcept;
-
+	auto operator=(View && other) noexcept -> void;
 	~View();
-
-	void Reset();
+	auto Reset() -> void;
 
 	bool m_DoView = true;            // show the imgui window
 	std::string m_Name;
@@ -53,25 +50,26 @@ class GuiView : GuiBaseComponent
 {
 public:
 	~GuiView();
-	void CloseAll();
-	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
-	HWND GetHWND();
-	void UpdateAll(GuiState& state);
+	auto CloseAll() -> void;
+	auto AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void;
+	auto GetHWND() -> HWND;
+	auto UpdateAll(GuiState& state) -> void;
 
 	std::vector<View> m_Views;
-	View EditPaletteWindow = View("Edit Palette Window");
+	std::unique_ptr<View> EditPaletteWindow; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
 	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
 
 private:
-	bool Update(GuiState& state, View& view);
-	WindowState InitWindow(TreeItem* currentItem);
-	WindowState UpdateParentWindow(View& view);
-	bool CloseWindowOnMimimumSize(View& view);
-	ImVec2 GetRootParentCurrentWindowOffset();
-	void UpdateWindowPosition(View& view);
-	void ShowOrHideWindow(View& view, bool show);
-	void RegisterViewAreaWindowClass(HINSTANCE instance);
-	bool IsDocked();
-	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
+	auto Update(GuiState& state, View& view) -> bool;
+	auto InitWindow(TreeItem* currentItem) -> WindowState;
+	auto UpdateParentWindow(View& view) -> WindowState;
+	auto CloseWindowOnMimimumSize(View& view) -> bool;
+	auto GetRootParentCurrentWindowOffset() -> ImVec2;
+	auto UpdateWindowPosition(View& view) -> void;
+	auto ShowOrHideWindow(View& view, bool show) -> void;
+	auto RegisterViewAreaWindowClass(HINSTANCE instance) -> void;
+	auto IsDocked() -> bool;
+	auto ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void;
+
 	bool		m_AddCurrentItem = false;
 };

@@ -9,5 +9,7 @@
 #define ICON_RI_PINN_ON				"\xEF\x80\xB7" // U+F037
 #define ICON_RI_MIN					"\xEF\x86\xAE" // U+F1AE
 #define ICON_RI_PLUS				"\xEE\xA8\x92" // U+EA12
+#define ICON_RI_ADD_BOX				"\xEE\xA8\x8F" // U+EA0F
+#define ICON_RI_SUB_BOX				"\xEE\xAE\x84" // U+EB84
 #define ICON_RI_ARROW_LEFT_LINE		"\xEE\xA9\xA0" // U+EA60
 #define ICON_RI_ARROW_RIGHT_LINE    "\xEE\xA9\xAC" // U+EA6C

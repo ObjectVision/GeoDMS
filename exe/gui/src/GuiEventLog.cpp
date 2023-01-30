@@ -102,12 +102,16 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
 
 auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 {
-    ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
+    //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;
     }
+    //ImGuiStyle &style = ImGui::GetStyle();
+    //style.ItemSpacing.y = 2.0;
+    //auto test = style.ItemSpacing.y;// = -1.0;
+        // style.ItemSpacing.y
 
     // events
     auto event_queues = GuiEventQueues::getInstance();
@@ -202,7 +206,7 @@ auto GuiEventLog::ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor
     }
     case SeverityTypeID::ST_MajorTrace:
     {
-        color = ImVec4(60.0f/255.0f, 179.0f/255.0f, 113.0f/255.0f, 1.0f);
+        //color = ImVec4(60.0f/255.0f, 179.0f/255.0f, 113.0f/255.0f, 1.0f);
         break;
     }
     case SeverityTypeID::ST_Warning:

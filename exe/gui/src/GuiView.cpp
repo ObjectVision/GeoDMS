@@ -35,7 +35,7 @@ View::View(View&& other) noexcept
     *this = std::move(other);
 }
 
-void View::operator=(View && other) noexcept
+auto View::operator=(View && other) noexcept -> void
 {
     Reset();
     m_Name       = std::move(other.m_Name);
@@ -49,7 +49,7 @@ void View::operator=(View && other) noexcept
     other.m_DataView = NULL;
 }
 
-void View::Reset()
+auto View::Reset() -> void
 {
     if (m_HWND)
     {
@@ -59,17 +59,18 @@ void View::Reset()
     }
 }
 
-void GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
+auto GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 {
     switch (event)
     {
     case GuiEvents::UpdateCurrentItem: break;
     case GuiEvents::UpdateCurrentAndCompatibleSubItems: break;
     case GuiEvents::OpenInMemoryDataView: break;
+    default: break;
     }
 }
 
-WindowState GuiView::UpdateParentWindow(View& view)
+auto GuiView::UpdateParentWindow(View& view) -> WindowState
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow  = glfwGetWin32Window(glfw_window);
@@ -84,7 +85,7 @@ WindowState GuiView::UpdateParentWindow(View& view)
     return WindowState::CHANGED;
 }
 
-bool GuiView::IsDocked() // test if the MapViewWindow is docked inside the ImGui main window.
+auto GuiView::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
@@ -94,7 +95,7 @@ bool GuiView::IsDocked() // test if the MapViewWindow is docked inside the ImGui
     return false; // TODO: this does not make sense.
 }
 
-ImVec2 GuiView::GetRootParentCurrentWindowOffset()
+auto GuiView::GetRootParentCurrentWindowOffset() -> ImVec2
 {
     ImVec2 parentPos(0, 0);
     ImVec2 offset(0, 0);
@@ -117,7 +118,7 @@ ImVec2 GuiView::GetRootParentCurrentWindowOffset()
     return offset;
 }
 
-void GuiView::ShowOrHideWindow(View& view, bool show)
+auto GuiView::ShowOrHideWindow(View& view, bool show) -> void
 {
     if (view.m_ShowWindow != show) // change in show state
     {
@@ -126,7 +127,7 @@ void GuiView::ShowOrHideWindow(View& view, bool show)
     }
 }
 
-void GuiView::UpdateWindowPosition(View& view)
+auto GuiView::UpdateWindowPosition(View& view) -> void
 {
     if (!view.m_HWND)
         return;
@@ -174,7 +175,7 @@ void GuiView::UpdateWindowPosition(View& view)
     }
 }
 
-void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
+auto GuiView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 {
     WNDCLASSEX wndClassData;
     wndClassData.cbSize = sizeof(WNDCLASSEX);
@@ -193,12 +194,12 @@ void GuiView::RegisterViewAreaWindowClass(HINSTANCE instance)
     RegisterClassEx(&wndClassData);
 }
 
-HWND GuiView::GetHWND()
+auto GuiView::GetHWND() -> HWND
 {
     return m_ViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
-void GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name)
+auto GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
 {
     if (!currentItem)
         return;
@@ -218,7 +219,7 @@ void GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std:
     m_AddCurrentItem = true;
 }
 
-WindowState GuiView::InitWindow(TreeItem* currentItem)
+auto GuiView::InitWindow(TreeItem* currentItem) -> WindowState
 {
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
@@ -251,12 +252,12 @@ WindowState GuiView::InitWindow(TreeItem* currentItem)
     return WindowState::CHANGED;
 }
 
-void GuiView::CloseAll()
+auto GuiView::CloseAll() -> void
 {
     m_Views.clear();
 }
 
-bool GuiView::CloseWindowOnMimimumSize(View &view)
+auto GuiView::CloseWindowOnMimimumSize(View &view) -> bool
 {
     auto crm = ImGui::GetContentRegionMax();
     static int min_szx = 50, min_szy = 50;
@@ -271,7 +272,7 @@ bool GuiView::CloseWindowOnMimimumSize(View &view)
 
 GuiView::~GuiView(){}
 
-void GuiView::UpdateAll(GuiState& state)
+auto GuiView::UpdateAll(GuiState& state) -> void
 {
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
@@ -294,7 +295,7 @@ void GuiView::UpdateAll(GuiState& state)
     }
 }
 
-bool GuiView::Update(GuiState& state, View& view)
+auto GuiView::Update(GuiState& state, View& view) -> bool
 {
     auto event_queues = GuiEventQueues::getInstance();
 

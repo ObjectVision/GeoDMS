@@ -120,9 +120,9 @@ GuiState::~GuiState()
     clear();
 }
 
-GuiBaseComponent::GuiBaseComponent(){}
-GuiBaseComponent::~GuiBaseComponent(){}
-void GuiBaseComponent::Update(){}
+GuiBaseComponent::GuiBaseComponent() {}
+GuiBaseComponent::~GuiBaseComponent() {}
+void GuiBaseComponent::Update() {}
 
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator) -> std::vector<std::string>
 {
@@ -172,25 +172,25 @@ void SetKeyboardFocusToThisHwnd()
 void GuiState::SaveWindowOpenStatusFlags()
 {
     UInt32 flags = 0;
-    flags = ShowTreeviewWindow      ? flags |= GWOF_TreeView        : flags &= ~GWOF_TreeView;
-    flags = ShowDetailPagesWindow   ? flags |= GWOF_DetailPages     : flags &= ~GWOF_DetailPages;
-    flags = ShowEventLogWindow      ? flags |= GWOF_EventLog        : flags &= ~GWOF_EventLog;
-    flags = ShowOptionsWindow       ? flags |= GWOF_Options         : flags &= ~GWOF_Options;
-    flags = ShowToolbar             ? flags |= GWOF_ToolBar         : flags &= ~GWOF_ToolBar;
-    flags = ShowCurrentItemBar      ? flags |= GWOF_CurrentItemBar  : flags &= ~GWOF_CurrentItemBar;
-    flags = ShowStatusBar           ? flags |= GWOF_StatusBar       : flags &= ~GWOF_StatusBar;
-    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);        
+    flags = ShowTreeviewWindow ? flags |= GWOF_TreeView : flags &= ~GWOF_TreeView;
+    flags = ShowDetailPagesWindow ? flags |= GWOF_DetailPages : flags &= ~GWOF_DetailPages;
+    flags = ShowEventLogWindow ? flags |= GWOF_EventLog : flags &= ~GWOF_EventLog;
+    flags = ShowOptionsWindow ? flags |= GWOF_Options : flags &= ~GWOF_Options;
+    flags = ShowToolbar ? flags |= GWOF_ToolBar : flags &= ~GWOF_ToolBar;
+    flags = ShowCurrentItemBar ? flags |= GWOF_CurrentItemBar : flags &= ~GWOF_CurrentItemBar;
+    flags = ShowStatusBar ? flags |= GWOF_StatusBar : flags &= ~GWOF_StatusBar;
+    SetGeoDmsRegKeyDWord("WindowOpenStatusFlags", flags);
 }
 
 void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availability of registry param
 {
-    ShowTreeviewWindow      = true;
-    ShowDetailPagesWindow   = true;
-    ShowEventLogWindow      = true;
-    ShowOptionsWindow       = false;
-    ShowToolbar             = true;
-    ShowCurrentItemBar      = true;
-    ShowStatusBar           = true;
+    ShowTreeviewWindow = true;
+    ShowDetailPagesWindow = true;
+    ShowEventLogWindow = true;
+    ShowOptionsWindow = false;
+    ShowToolbar = true;
+    ShowCurrentItemBar = true;
+    ShowStatusBar = false;
     SaveWindowOpenStatusFlags();
 }
 
@@ -206,13 +206,13 @@ void GuiState::LoadWindowOpenStatusFlags()
     }
 
     // update open state based on flags
-    ShowTreeviewWindow      = flags & GWOF_TreeView;
-    ShowDetailPagesWindow   = flags & GWOF_DetailPages;
-    ShowEventLogWindow      = flags & GWOF_EventLog;
-    ShowOptionsWindow       = flags & GWOF_Options;
-    ShowToolbar             = flags & GWOF_ToolBar;
-    ShowCurrentItemBar      = flags & GWOF_CurrentItemBar;
-    ShowStatusBar           = flags & GWOF_StatusBar;
+    ShowTreeviewWindow = flags & GWOF_TreeView;
+    ShowDetailPagesWindow = flags & GWOF_DetailPages;
+    ShowEventLogWindow = flags & GWOF_EventLog;
+    ShowOptionsWindow = flags & GWOF_Options;
+    ShowToolbar = flags & GWOF_ToolBar;
+    ShowCurrentItemBar = flags & GWOF_CurrentItemBar;
+    ShowStatusBar = flags & GWOF_StatusBar;
 }
 
 std::string GetInitialWindowComposition()
@@ -235,7 +235,7 @@ std::string GetInitialWindowComposition()
         "Collapsed=0\n"
         "DockId=0x00000004,0\n"
         "\n"
-        "[Window][Treeview]\n"
+        "[Window][TreeView]\n"
         "Pos=8,83\n"
         "Size=367,254\n"
         "Collapsed=0\n"
@@ -283,23 +283,29 @@ std::string GetInitialWindowComposition()
 
 void SetWindowCompositionOnFirstUse()
 {
-    SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
+    ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
+    //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-void LoadIniFromRegistry()
+auto LoadIniFromRegistry() -> bool
 {
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
     if (ini_registry_contents.empty())
     {
-        SetWindowCompositionOnFirstUse();
-        ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+        ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
+        return false;
     }
 
-    if (!ini_registry_contents.empty())
+    ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
+    return true;
+
+    //SetWindowCompositionOnFirstUse();
+    //ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    /*if (!ini_registry_contents.empty())
     {
         reportF(SeverityTypeID::ST_MajorTrace, "Loading GeoDMS window composition from registry.");
-        ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
-    }
+        
+    }*/
 }
 
 void   SaveIniToRegistry()
@@ -324,4 +330,19 @@ auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void // std::stri
     auto draw_list = ImGui::GetWindowDrawList();
     auto cur_pos = ImGui::GetCursorScreenPos();
     draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x + background_rectangle_size.x, cur_pos.y + background_rectangle_size.y), IM_COL32(225, 6, 0, 255));
+}
+
+auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
+{
+    switch (wt)
+    {
+    case GeoDMSWindowTypes::GeoDMSGui:   return "GeoDMSGui";
+    case GeoDMSWindowTypes::TreeView:    return "TreeView";
+    case GeoDMSWindowTypes::DetailPages: return "DetailPages";
+    case GeoDMSWindowTypes::EventLog:    return "EventLog";
+    case GeoDMSWindowTypes::MapView:     return "MapView";
+    case GeoDMSWindowTypes::TableView:   return "TableView";
+    case GeoDMSWindowTypes::Options:     return "Options";
+    default:                             return "Unknown";
+    }
 }

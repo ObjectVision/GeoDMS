@@ -48,6 +48,7 @@ private:
 	GuiUnitTest						m_GuiUnitTest	= {};
 	GuiDetailPages					m_DetailPages	= {};
 	int 							m_FirstFrames	= 1;
+	bool							m_DockingInitialized = true;
 	bool							m_NoConfig		= false;
 
 	std::unique_ptr<CDebugLog> m_DebugLog;
