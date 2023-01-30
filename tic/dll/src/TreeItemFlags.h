@@ -89,7 +89,7 @@ const TreeItemStatusFlags TSF_IsTemplate                  = 0x00040000;
 const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
-const TreeItemStatusFlags TSF_Reserved23                  = 0x00800000; // unallocated bit
+const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
 const UnitItemStatusFlags USF_HasSpatialReference         = 0x01000000;

@@ -897,7 +897,11 @@ void TreeItem::MakeCalculator() const
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
-
+	if (GetTSF(TSF_Depreciated))
+	{
+		auto name = SharedStr(GetName());
+		reportF(SeverityTypeID::ST_Warning, "usage of depreciated item %s", name.c_str());
+	}
 	if (mc_Expr.empty() && (IsCacheItem() || !IsUnit(this))|| IsPassor())
 		return;
 
@@ -1135,6 +1139,8 @@ retry:
 	mc_RefItem->DetermineState();
 	if (GetKeepDataState()) 
 		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+	if (mc_RefItem->GetTSF(TSF_Depreciated))
+		SetTSF(TSF_Depreciated);
 }
 
 // ============ GetParent
