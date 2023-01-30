@@ -886,7 +886,7 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 			return "GML";
 
 		else if (boost::iequals(ext, "gdb"))
-			return "FileGDB";
+			return "OpenFileGDB";
 
 		else if (boost::iequals(ext, "tif"))
 			return "GTiff";
@@ -945,7 +945,7 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 	else if (knownDriverShortName == "GML")
 		RegisterOGRGML();
 
-	else if (knownDriverShortName == "FileGDB")
+	else if (knownDriverShortName == "OpenFileGDB")
 		RegisterOGROpenFileGDB(); // RegisterOGROpenFileGDB();
 
 	else if (knownDriverShortName == "GeoJSON")
@@ -1060,7 +1060,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			optionArray.AddString("BLOCKYSIZE=512");
 		}
 	}
-	//GDALAllRegister();
+
 	std::string ext = CPLGetExtension(datasourceName.c_str()); // TLS !
 	if (!driverArray.empty()) // user specified list of drivers
 	{
@@ -1072,6 +1072,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			driverShortName = GDALRegisterTrustedDriverFromKnownDriverShortName(driverArray[i]);
 			if (driverShortName.empty())
 			{
+				//GDALAllRegister();
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driverArray[i]);
 			}
 		}
@@ -1118,15 +1119,15 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) &&	!std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	if (driverArray.empty()) // need one driver, and one driver only
-	{
+	//if (driverArray.empty()) // need one driver, and one driver only
+	//{
 		auto driverShortName = FileExtensionToRegisteredGDALDriverShortName(ext);
 		if (!driverShortName.empty())
 			driverArray.AddString(driverShortName.c_str());
-	}
+	//}
 
-	MG_CHECK(driverArray.size() == 1);
-	auto driver = GetGDALDriverManager()->GetDriverByName(driverArray[0]);
+	//MG_CHECK(driverArray.size() == 1);
+	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());//driverArray[0]);
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", driverArray[0]);
 
