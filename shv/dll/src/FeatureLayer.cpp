@@ -259,19 +259,20 @@ DmsColor& FeatureLayer::GetDefaultBrushColor() const
 
 DmsColor FeatureLayer::GetDefaultOrThemeColor(AspectNr an) const
 {
-	DmsColor defaultClr;
+	auto theme = GetTheme(an);
+	if (theme)
+		return theme->GetColorAspectValue();
+
+	DmsColor* defaultClr = nullptr;
 	switch (an) {
-	case AN_BrushColor: defaultClr = m_DefaultBrushColor; break;
-	case AN_PenColor: defaultClr = m_DefaultArcColor; break;
-	case AN_SymbolColor: defaultClr = m_DefaultPointColor; break;
+	case AN_BrushColor: defaultClr = &m_DefaultBrushColor; break;
+	case AN_PenColor: defaultClr = &m_DefaultArcColor; break;
+	case AN_SymbolColor: defaultClr = &m_DefaultPointColor; break;
 	default: MG_CHECK(false);
 	}
-
-	if (IsDefined(defaultClr))
-		return defaultClr;
-	auto theme = GetTheme(an);
-	MG_CHECK(theme);
-	return theme->GetColorAspectValue();
+	MG_CHECK(defaultClr);
+	UpdateDefaultColor(*defaultClr);
+	return *defaultClr;
 }
 
 
