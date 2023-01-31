@@ -51,7 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "lookup.h"
 #include "UnitProcessor.h"
 
-CommonOperGroup cog_union      ("union",      oper_policy::allow_extra_args| oper_policy::depreciated);
+CommonOperGroup cog_union      ("union",      oper_policy::allow_extra_args);
 CommonOperGroup cog_unionUnit  ("union_unit", oper_policy::allow_extra_args);
 CommonOperGroup cog_unionUnit08("union_unit_uint8", oper_policy::allow_extra_args);
 CommonOperGroup cog_unionUnit16("union_unit_uint16", oper_policy::allow_extra_args);
