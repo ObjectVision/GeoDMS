@@ -29,7 +29,6 @@
 
 void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
 {
-    ImGui::SetNextItemOpen(true, 0);
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
@@ -192,12 +191,9 @@ std::string StartWindowsFileDialog()
 void GuiMenuFile::Update(GuiState& state)
 {
     auto event_queues = GuiEventQueues::getInstance();
-
-    if (ImGui::BeginMenu("File"))
+    static bool expand_file_menu = true;
+    if (ImGui::BeginMenuEx("File", "", true))
     {
-        //if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
-            //m_fileDialog.Open();
-
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O"))
         {
             auto file_name = StartWindowsFileDialog();
@@ -209,6 +205,7 @@ void GuiMenuFile::Update(GuiState& state)
                 CleanRecentOrPinnedFiles(m_RecentFiles);
             }
         }
+        
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);

@@ -644,7 +644,7 @@ void GuiMainComponent::Update()
         }
     }
     static auto first_time = true;
-    if (first_time && not m_DockingInitialized) {
+    if (first_time && not m_DockingInitialized) { //TODO: refactor
         first_time = false;
         ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
         ImGui::DockBuilderRemoveNode(dockspace_id);
@@ -730,7 +730,7 @@ void GuiMainComponent::Update()
         m_FirstFrames--;
 
 
-    /*
+    
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
@@ -739,5 +739,6 @@ void GuiMainComponent::Update()
         m_Options.Update(&m_State.ShowOptionsWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
-        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);*/
+        m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
+    
 }
