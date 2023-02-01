@@ -313,6 +313,16 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	::UpdateBaseProjection(ogrSR, mutUBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
+
+auto ValidateSpatialReferenceFromWkt(OGRSpatialReference& ogrSR, SharedStr wkt_prj_str) -> void
+{
+	ogrSR.Validate();
+	CplString pszEsriwkt;
+	ogrSR.exportToWkt(&pszEsriwkt.m_Text);
+	if (!(SharedStr(pszEsriwkt.m_Text)==wkt_prj_str))
+		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
+}
+
 void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutUBase)
 {
 	assert(IsMainThread());
@@ -327,11 +337,15 @@ void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutUBase)
 
 		OGRSpatialReference	directSR;
 		OGRErr err = directSR.SetFromUserInput(wktPrjStr.c_str());
+		ValidateSpatialReferenceFromWkt(directSR, wktPrjStr);
+
 		if (err == OGRERR_NONE)
+		{
 			ogrSR = std::move(directSR);
+		}
 	}
 
-	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize");
+	static TokenID vpminsID = GetTokenID_st("ViewPortMinSize"); // TODO: move to separate function
 	auto msa = mutUBase->GetSubTreeItemByID(vpminsID);
 	if (!msa)
 	{
@@ -770,8 +784,10 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	GDAL_ErrorFrame	error_frame;
 
 	OGRSpatialReference	m_Src;
-	OGRErr err = m_Src.SetFromUserInput(wktPrjStr.c_str());
-	CplString pszEsriwkt;
+	OGRErr err = m_Src.SetFromUserInput(wktPrjStr.c_str()); 
+	m_Src.Validate();
+	ValidateSpatialReferenceFromWkt(m_Src, wktPrjStr);
+	CplString pszEsriwkt; // TODO: not Esri specific
 	m_Src.exportToWkt(&pszEsriwkt.m_Text);
 
 	if (err == OGRERR_NONE)
@@ -793,7 +809,8 @@ void sr_releaser::operator ()(OGRSpatialReference* p) const
 	OSRRelease(p); 
 }
 
-sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
+
+auto GetWktSpatialReferenceFromStorageHolder(const TreeItem* storageHolder) -> SharedStr
 {
 	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
 	{
@@ -804,8 +821,20 @@ sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder)
 
 		auto wktString = GetWktProjectionFromValuesUnit(subDI);
 		if (not wktString.empty())
-			return sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} }; //TODO: is the sr_releaser called properly here?
+			return wktString;
 	}
+	return {};
+}
+
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> sr_ptr_type
+{
+	auto wktString = GetWktSpatialReferenceFromStorageHolder(storageHolder);
+	if (not wktString.empty())
+	{
+		auto spatial_reference_ptr = sr_ptr_type{ new OGRSpatialReference(wktString.c_str()), {} };
+		return spatial_reference_ptr;
+	}
+
 	return {};
 }
 

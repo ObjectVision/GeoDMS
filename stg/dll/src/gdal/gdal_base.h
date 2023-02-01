@@ -167,15 +167,17 @@ using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
 
 // *****************************************************************************
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc); // TODO move OGR helper funcs to gdal_vect.cpp
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc);
-SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
-const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
-CPLStringList GetOptionArray(const TreeItem* optionsItem);
-void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
-OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
-sr_ptr_type GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder);
-void UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase);
+auto DmsType2OGRFieldType(ValueClassID id, ValueComposition vc) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
+auto DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc) -> OGRwkbGeometryType;
+auto GetWktProjectionFromValuesUnit(const AbstrDataItem* adi) -> SharedStr;
+auto GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem) -> const TreeItem*;
+auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
+auto SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle) -> void;
+auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+STGDLL_CALL auto ValidateSpatialReferenceFromWkt(OGRSpatialReference& ogrSR, SharedStr wkt_prj_str) -> void;
+auto GetWktSpatialReferenceFromStorageHolder(const TreeItem* storageHolder) -> SharedStr;
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> sr_ptr_type;
+auto UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase) -> void;
 auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
 
 struct GDALDatasetHandle

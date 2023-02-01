@@ -532,7 +532,9 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
+				ValidateSpatialReferenceFromWkt(m_OgrComponentHolder->m_Src, srcFormatStr);
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
+				ValidateSpatialReferenceFromWkt(m_OgrComponentHolder->m_Dst, resFormatStr);
 				m_OgrComponentHolder->CreateTransformer();
 				return;
 			}
