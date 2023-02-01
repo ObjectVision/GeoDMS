@@ -446,7 +446,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 #endif
 
 	FutureData thisFutureResult = this;
-	if (m_State.Get(DCF_CalcStarted))
+	if (m_State.Get(DCF_CalcStarted) && !context)
 	{
 		dms_assert(CheckCalculatingOrReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data));
 		dms_assert(!SuspendTrigger::DidSuspend());
@@ -476,7 +476,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	if (m_Data->WasFailed(FR_Data))
 		Fail(m_Data);
 
-	if (WasFailed(FR_Data))
+	if (WasFailed(FR_Data) && !context || WasFailed(FR_MetaInfo))
 		return {};
 
 	dms_assert(GetInterestCount());

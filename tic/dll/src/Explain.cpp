@@ -154,7 +154,7 @@ namespace Explain { // local defs
 					dms_assert(dlr.IsLocked());
 
 					const AbstrDataObject* resultObj = dlr.get_ptr();
-					if (resultObj->GetTiledRangeData()->GetRangeSize() <= entityNr)
+					if (not (entityNr < resultObj->GetTiledRangeData()->GetRangeSize()))
 					{
 						static SharedStr oorStr("<OutOfRange>");
 						crd->second = new ValueWrap<SharedStr>(oorStr);
@@ -273,29 +273,31 @@ namespace Explain { // local defs
 	struct LispCalcExplanation : DataControllerRef, AbstrCalcExplanation
 	{
 		LispCalcExplanation(const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
-			:	AbstrCalcExplanation(AsDataItem(get_ptr()->MakeResult().get_ptr()))
+			:	DataControllerRef(GetDC(calcPtr))
+			,	AbstrCalcExplanation(AsDataItem(get()->MakeResult().get_ptr()))
 			,	m_CalcPtr(calcPtr)
 			,	m_Parent(parent)
 			,	m_SeqNr(seqNr)
 		{
-			dms_assert(calcPtr);
+			assert(calcPtr);
 
-			auto metaInfo = calcPtr->GetMetaInfo();
-			if (metaInfo.index() != 1)
-				return;
-			DataControllerRef::reset(GetExistingDataController(std::get<LispRef>(metaInfo)));
-			auto keyExpr = get()->GetLispRef();
-			if (keyExpr.EndP())
-				return;
-			DataControllerRef dc = GetOrCreateDataController(keyExpr);
-			if (!dc)
-				return;
-			m_SupplInterest.init(dc->GetSupplInterest().release());
+//			auto metaInfo = calcPtr->GetMetaInfo();
+//			if (metaInfo.index() != 1)
+//				return;
+//			DataControllerRef::reset(GetExistingDataController(std::get<LispRef>(metaInfo)));
+//			auto keyExpr = get()->GetLispRef();
+//			if (keyExpr.EndP())
+//				return;
+//			DataControllerRef dc = GetOrCreateDataController(keyExpr);
+//			if (!dc)
+//				return;
+//			m_SupplInterest.init(dc->GetSupplInterest().release());
 		}
 
 		ArgRef GetCalcDataItem(Context* context) const override 
 		{ 
-			return CalcResult(m_CalcPtr, AbstrDataItem::GetStaticClass(), context);
+			ExplainResult(m_CalcPtr, context);
+			return CalcResult(m_CalcPtr, AbstrDataItem::GetStaticClass());
 		}
 		void GetDescr(OutStreamBase& stream, bool isFirst, bool showHidden) const override
 		{
@@ -353,9 +355,10 @@ namespace Explain { // local defs
 			m_Queue.clear();
 			m_DoneQueueEntries = m_DoneExpl = 0;
 
-			ExplArray         oldExpl;          m_Expl.swap(oldExpl);
-			ItemInterestArray oldItemInterests; m_ItemInterests.swap(oldItemInterests);
-			CalcInterestArray oldCalcInterests; m_CalcInterests.swap(oldCalcInterests);
+			auto oldExpl          = std::move(m_Expl);
+			auto oldLispRefSet    = std::move(m_KnownExpr);
+			auto oldItemInterests = std::move(m_ItemInterests);
+			auto oldCalcInterests = std::move(m_CalcInterests);
 
 			if (studyObject)
 			{
@@ -459,27 +462,30 @@ namespace Explain { // local defs
 		{
 			if (!lispExpr.IsRealList() || !lispExpr.Left().IsSymb() || lispExpr.Left().GetSymbID() == token::sourceDescr)
 				return;
-//			DisplayAuthLock suppressErrorDisplay;
-			if (level) // skip zero level as it is already explained before
-				try {
+			if (m_KnownExpr.contains(lispExpr))
+				return;
+			m_KnownExpr.insert(lispExpr);
 
-					AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExpr, CalcRole::Calculator); // lispExpr already substitited ?
-					auto metaInfo = calc->GetMetaInfo();
-	//				if (metaInfo.index() == 2)
-	//					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
-					if (metaInfo.index() != 0)
-						return;
-					auto dc = GetExistingDataController(lispExpr);
-					auto res = dc->MakeResult();
-					if (IsDataItem(res.get_ptr()))
-					{
-						parent = new LispCalcExplanation(calc, parent, seqNr);
-						m_Expl.push_back( ExplArrayEntry(parent) );
-						m_CalcInterests.push_back(dc);
-					}
-				} 
-				catch (const DmsException&)
-				{}
+//			DisplayAuthLock suppressErrorDisplay;
+			try {
+
+				AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExpr, CalcRole::Calculator); // lispExpr already substitited ?
+				auto metaInfo = calc->GetMetaInfo();
+//				if (metaInfo.index() == 2)
+//					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
+				if (metaInfo.index() != 1)
+					return;
+				auto dc = GetExistingDataController(lispExpr);
+				auto res = dc->MakeResult();
+				if (IsDataItem(res.get_ptr()))
+				{
+					parent = new LispCalcExplanation(calc, parent, seqNr);
+					m_Expl.push_back( ExplArrayEntry(parent) );
+					m_CalcInterests.push_back(dc);
+				}
+			} 
+			catch (const DmsException&)
+			{}
 
 			if (level < MaxLevel)
 				AddLispExplanations(lispExpr.Right(), level+1, parent);
@@ -497,8 +503,7 @@ namespace Explain { // local defs
 		}
 
 		void AddExplanations(const Actor* studyActor)
-		{
-			
+		{			
 			VisitSupplProcImpl(studyActor, SupplierVisitFlag::Explain, 
 				[&] (const Actor* supplier)
 				{
@@ -546,6 +551,7 @@ namespace Explain { // local defs
 		}
 
 		ExplArray                m_Expl;
+		std::set<LispRef>        m_KnownExpr;
 		std::vector<QueueEntry > m_Queue;
 		SizeT                    m_DoneQueueEntries = 0, m_DoneExpl = 0;
 
