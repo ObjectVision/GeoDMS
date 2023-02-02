@@ -456,8 +456,8 @@ gdalComponent::gdalComponent()
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
 
 	// TODO: test, experimental
-	CPLSetConfigOption("OGR_SQLITE_CACHE", "512");
-	CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "OFF");
+	//CPLSetConfigOption("OGR_SQLITE_CACHE", "512");
+	//CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "OFF");
 
 	if (!gdalComponentImpl::s_ComponentCount)
 	{
