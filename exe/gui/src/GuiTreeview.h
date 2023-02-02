@@ -74,7 +74,8 @@ private:
 	UInt64       m_max_count = 0;
 	bool		 m_is_initialized = false;
 	GuiTreeNode  m_Root = {};
-	GuiTreeNode* m_startnode = nullptr;
+	GuiTreeNode* m_start_node = nullptr;
+	GuiTreeNode* m_prev_node = nullptr;
 };
 
 class GuiTreeView : GuiBaseComponent
