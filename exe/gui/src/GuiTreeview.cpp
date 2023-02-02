@@ -461,6 +461,16 @@ auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
     return ImGui::GetContentRegionAvail().y > 0;
 }
 
+auto GuiTree::ClimbTree(UInt32 n) -> void
+{
+
+}
+
+auto GuiTree::DecentTree(UInt32 n) -> void
+{
+
+}
+
 auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
 {
     //if (!SpaceIsAvailableForTreeNode()) //TODO: implement use of this
@@ -480,6 +490,11 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
 
         if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
             next_node->SetOpenStatus(false);
+
+        if (next_node->GetItem() == state.GetCurrentItem())
+            m_curr_node = &*next_node;
+
+        
 
         next_node->Draw(state, jump_item);
         if (next_node->GetOpenStatus())
@@ -531,7 +546,6 @@ auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self,
         auto event_queues = GuiEventQueues::getInstance();
         //event_queues->MapViewEvents.Add();
     }
-    
 }
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void

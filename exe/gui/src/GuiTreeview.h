@@ -70,12 +70,14 @@ public:
 private:
 	auto DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool;
 	auto SpaceIsAvailableForTreeNode() -> bool;
+	auto ClimbTree(UInt32 n) -> void;
+	auto DecentTree(UInt32 n) -> void;
 
 	UInt64       m_max_count = 0;
 	bool		 m_is_initialized = false;
 	GuiTreeNode  m_Root = {};
 	GuiTreeNode* m_start_node = nullptr;
-	GuiTreeNode* m_prev_node = nullptr;
+	GuiTreeNode* m_curr_node = nullptr;
 };
 
 class GuiTreeView : GuiBaseComponent
