@@ -1549,6 +1549,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layerTokenT);
 
+
+	//Spatial index explicitly for shapefile 
 	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
 	{
 		if (DataSourceHasNamelessLayer(datasourceName))
