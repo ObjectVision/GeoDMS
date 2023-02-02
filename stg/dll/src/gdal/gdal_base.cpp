@@ -457,7 +457,7 @@ gdalComponent::gdalComponent()
 
 	// TODO: test, experimental
 	CPLSetConfigOption("OGR_SQLITE_CACHE", "512");
-	CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "NO");
+	CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "OFF");
 
 	if (!gdalComponentImpl::s_ComponentCount)
 	{
