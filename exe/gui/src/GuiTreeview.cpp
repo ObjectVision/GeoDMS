@@ -475,10 +475,10 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
             next_node->SetOpenStatus(true);
 
-        if (next_node->GetItem()==state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_RightArrow))
             next_node->SetOpenStatus(true);
 
-        if (next_node->GetItem() == state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
             next_node->SetOpenStatus(false);
 
         next_node->Draw(state, jump_item);
