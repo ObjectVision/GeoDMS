@@ -401,7 +401,7 @@ public: // TODO G8: Re-encapsulate
 	void EnableAutoDeleteRootImpl(); // does not call UpdateMetaInfo
 	void MakeCalculator() const;
 	void UpdateMetaInfoImpl() const;
-	void SetReferredItem(const TreeItem* refItem) const;
+	TIC_CALL void SetReferredItem(const TreeItem* refItem) const;
 	const TreeItem* DetermineReferredItem(const AbstrCalculator* ac) const;
 
 	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;

@@ -307,7 +307,7 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 		auto cell = Row::Cell(row);
 		OutStream() << err;
 	}
-	auto errSrc = TreeItem_GetErrorSource(self);
+	auto errSrc = TreeItem_GetErrorSource(self, false);
 	if (errSrc.first && errSrc.first != self)
 	{
 		Row row(*this);

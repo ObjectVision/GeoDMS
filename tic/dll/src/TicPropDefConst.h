@@ -92,6 +92,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 // PropDefs in AbstrUnit.cpp
 #define	FORMAT_NAME              "Format"
+#define	SR_NAME                  "SpatialReference"
 #define METRIC_NAME              "Metric"
 #define PROJECTION_NAME          "Projection"
 #define VALUETYPE_NAME           "ValueType"

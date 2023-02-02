@@ -395,7 +395,7 @@ namespace
 {
 	oper_arg_policy oap_sn[2] = { oper_arg_policy::calc_never, oper_arg_policy::calc_as_result };
 
-	ExecOperGroup cog_EXEC("EXEC", oper_policy::depreciated);
+	Obsolete<ExecOperGroup> cog_EXEC("Use EXEC_EC and check the resulting UIn32 values as errorcode", "EXEC", oper_policy::depreciated);
 	ExecOperGroup cog_EXEC_V("EXEC_EC", oper_policy());
 
 	OperExec<false>      exec1(&cog_EXEC);

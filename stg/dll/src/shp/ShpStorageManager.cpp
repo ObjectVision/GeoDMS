@@ -450,15 +450,15 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	const AbstrDataItem* pData = nullptr;
 	TokenID dataNameID;
-	TokenID formatName = TokenID::GetEmptyID();
+	auto vc = ValueComposition::Single;
 	ShapeTypes shapeType = impl.GetShapeType();
 
 	switch (shapeType)
 	{
 		case ST_MultiPoint:
-		case ST_Polyline: formatName = GetTokenID_mt("arc");     pData=GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Polygon:  formatName = GetTokenID_mt("polygon"); pData=GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Point:    formatName = token::point;   pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
+		case ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
 		default: throwItemErrorF("ShapeType %d is not supported", shapeType);
 	}
 
@@ -467,17 +467,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	AbstrUnit* u_size    = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, SHAPEID_ID   );
 	AbstrUnit* u_content = Unit<DPoint>::GetStaticClass()->CreateUnit(curr, SHAPERANGE_ID);
-	u_content->SetFormat(formatName);
 
-	dms_assert(u_size);
-	dms_assert(u_content);
+	assert(u_size);
+	assert(u_content);
 
-	pData = 
-		CreateDataItem(
-			curr, dataNameID, 
-			u_size, u_content, 
-			IsPoint(shapeType) ? ValueComposition::Single : ValueComposition::Sequence
-		);
+	pData = CreateDataItem(curr, dataNameID, u_size, u_content, vc);
 }
 
 

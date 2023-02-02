@@ -78,7 +78,8 @@ using calc_result_t = FutureData; // std::pair<DataControllerRef, SharedTreeItem
 
 TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef;
 auto MakeResult(const AbstrCalculator* calculator)->make_result_t;
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Context* context=nullptr)->calc_result_t;
+auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t;
+void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context);
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass);
 
@@ -130,6 +131,7 @@ public:
 
 	TIC_CALL virtual bool CheckSyntax () const;
 	TIC_CALL BestItemRef FindErrorneousItem() const;
+	TIC_CALL BestItemRef FindPrimaryDataFailedItem() const;
 
 	TIC_CALL auto GetSourceItem() const->SharedPtr<const TreeItem>;  // directly referred persistent object.
 

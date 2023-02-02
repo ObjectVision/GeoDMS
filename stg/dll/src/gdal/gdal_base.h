@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 
+#include <optional>
+
 #include "ptr/WeakPtr.h"
 #include "geo/Transform.h"
 
@@ -64,6 +66,8 @@ struct gdalComponent : gdalDynamicLoader
 {
 	STGDLL_CALL gdalComponent();
 	STGDLL_CALL ~gdalComponent();
+
+	static bool isActive();
 
 	STGDLL_CALL static void CreateMetaInfo(TreeItem* container, bool mustCalc);
 	
@@ -160,10 +164,12 @@ GDALDataType gdalDataType(ValueClassID tid);
 
 // *****************************************************************************
 
+/* REMOVE
 struct sr_releaser {
 	void operator ()(OGRSpatialReference* p) const;
 };
 using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
+*/
 
 // *****************************************************************************
 
@@ -175,10 +181,11 @@ auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 auto SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle) -> void;
 auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
 STGDLL_CALL auto ValidateSpatialReferenceFromWkt(OGRSpatialReference& ogrSR, SharedStr wkt_prj_str) -> void;
-auto GetWktSpatialReferenceFromStorageHolder(const TreeItem* storageHolder) -> SharedStr;
-auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> sr_ptr_type;
-auto UpdateBaseProjection(OGRSpatialReference& ogrSR, AbstrUnit* mutBase) -> void;
-auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
+auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
+STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
+STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 
 struct GDALDatasetHandle
 {

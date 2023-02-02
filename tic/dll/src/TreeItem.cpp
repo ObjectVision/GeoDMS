@@ -897,7 +897,6 @@ void TreeItem::MakeCalculator() const
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
-
 	if (mc_Expr.empty() && (IsCacheItem() || !IsUnit(this))|| IsPassor())
 		return;
 
@@ -1135,6 +1134,8 @@ retry:
 	mc_RefItem->DetermineState();
 	if (GetKeepDataState()) 
 		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+	if (mc_RefItem->GetTSF(TSF_Depreciated))
+		SetTSF(TSF_Depreciated);
 }
 
 // ============ GetParent
@@ -1958,6 +1959,22 @@ void TreeItem::UpdateMetaInfoImpl() const
 	UpdateLock lock2(this, actor_flag_set::AF_UpdatingMetaInfo);
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,
+		[this](const Actor* supplier) -> bool
+		{
+			auto foundItem = dynamic_cast<const TreeItem*>(supplier);
+			if (foundItem->GetTSF(TSF_Depreciated))
+			{
+				auto supplRefStr = SharedStr(this->GetFullName());
+				auto name = SharedStr(foundItem->GetFullName());
+				reportF(SeverityTypeID::ST_Warning, "'%s' refers to depreciated item '%s'\nReplace 'nr_OrgEntity' by 'arc_rel'."
+					, supplRefStr.c_str()
+					, name.c_str()
+				);
+			}
+			return true;
+		}
+	);
 
 	if (IsDataItem(this))
 	{

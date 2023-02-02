@@ -67,7 +67,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LispContextHandle.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemClass.h"
-
+#include "MoreDataControllers.h"
 
 // *****************************************************************************
 // Section:    to be located into following code
@@ -204,7 +204,7 @@ auto MakeResult(const AbstrCalculator* calculator)->make_result_t
 	return dc; // return owner of potential future.
 }
 
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Context* context)->calc_result_t
+auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t
 {
 	auto dc = MakeResult(calculator);
 	dms_assert(dc);
@@ -212,7 +212,7 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 	if (dc->WasFailed(FR_MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
-	auto result = dc->CalcResult(context);
+	auto result = dc->CalcResult(nullptr);
 	if (SuspendTrigger::DidSuspend())
 		return {};
 	if (!result)
@@ -221,6 +221,24 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 		dc->ThrowFail();
 	}
 	return result;
+}
+
+void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context)
+{
+	assert(context);
+	auto dc = MakeResult(calculator);
+	dms_assert(dc);
+	dms_assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
+	if (dc->WasFailed(FR_MetaInfo))
+		return;
+
+	auto funcDC = dynamic_cast<const FuncDC*>(dc.get());
+	if (!funcDC)
+		return;
+	if (!funcDC->m_OperatorGroup->CanExplainValue())
+		return;
+
+	auto result = dc->CalcResult(context);
 }
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass)
@@ -690,6 +708,32 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	{
 		if (ti && WasInFailed(ti))
 			return { ti, {} };
+	}
+	return { nullptr, {} };
+}
+
+BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
+{
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		return FindBestItem(supplRefID);
+	}
+	for (auto ti : m_SupplierArray)
+	{
+		if (!ti)
+			continue;
+		if (WasInFailed(ti))
+			return { ti, {} };
+		if (IsDataItem(ti.get_ptr()))
+		{
+			SharedDataItemInterestPtr adi = AsDataItem(ti.get_ptr());
+			adi->PrepareDataUsage(DrlType::Certain);
+			
+			DataReadLock lock(adi);
+			if (adi->WasFailed(FR_Data))
+				return { adi.get_ptr(), {}};
+		}
 	}
 	return { nullptr, {} };
 }

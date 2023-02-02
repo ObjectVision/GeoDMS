@@ -89,13 +89,6 @@ CharPtr DMS_CONV DMS_GetBuildConfig()
 #pragma message( "DmsTime   : " DMS_VERSION_TIME )
 #pragma message( "==========:---------------" )
 
-#define DMS_TM_NAME "Complete Edition"
-
-RTC_CALL CharPtr DMS_CONV DMS_GetTypeModel()
-{
-	return DMS_TM_NAME;
-}
-
 RTC_CALL CharPtr DMS_CONV DMS_GetVersion()
 {
 	return "GeoDms "

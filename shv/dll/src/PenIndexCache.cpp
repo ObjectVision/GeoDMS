@@ -72,7 +72,8 @@ PenIndexCache::PenIndexCache(
 	,	const Theme* penStyleTheme
 	,	const AbstrUnit* entityDomain
 	,	DmsColor defaultPenColor
-	)	: ResourceIndexCache(penPixelWidthTheme, penWorldWidthTheme, DEFAULT_PEN_PIXEL_WIDTH, DEFAULT_PEN_WORLD_WIDTH, entityDomain)
+	,	const AbstrUnit* projectionBaseUnit
+	)	: ResourceIndexCache(penPixelWidthTheme, penWorldWidthTheme, DEFAULT_PEN_PIXEL_WIDTH, DEFAULT_PEN_WORLD_WIDTH, entityDomain, projectionBaseUnit)
 		,	m_DefaultPenColor(defaultPenColor)
 		,	m_DefaultPenStyle(PS_SOLID)
 		,	m_PenColorValueGetter (NULL)

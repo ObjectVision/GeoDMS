@@ -809,6 +809,7 @@ public:
 
 static TokenID s_UnionData = GetTokenID_st("UnionData");
 static TokenID s_orgEntity = GetTokenID_st("nr_OrgEntity");
+static TokenID s_arc_rel   = GetTokenID_st("arc_rel");
 
 template <class T, class R = seq_index_type, compare_type CT = compare_type::none, typename E= UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false>
 class FastConnectOperator : std::conditional_t<CT == compare_type::none
@@ -905,29 +906,22 @@ public:
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());
 
-		ResultUnitType* resDomain
-			=	mutable_unit_cast<R>(
-					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
-				);
+		ResultUnitType* resDomain = mutable_unit_cast<R>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
 		dms_assert(resDomain);
+		bool createNewResult = !resultHolder;
 		resultHolder = resDomain;
 
-		AbstrDataItem* resSub = 
-			CreateDataItem(
-				resDomain
-			,	s_UnionData
-			,	resDomain
-			,	polyUnit
-			,	ValueComposition::Sequence);
-		AbstrDataItem* resNrOrg = 
-			CreateDataItem(
-				resDomain
-			,	s_orgEntity
-			,	resDomain
-			,	arg1A->GetAbstrDomainUnit()
-			);
+		AbstrDataItem* resSub   = CreateDataItem(resDomain, s_UnionData, resDomain, polyUnit,	ValueComposition::Sequence);
+		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, s_arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
 		resNrOrg->SetTSF(DSF_Categorical);
 
+		if (createNewResult)
+		{
+			AbstrDataItem* resNrOrg_depreciated = CreateDataItem(resDomain, s_orgEntity, resDomain, arg1A->GetAbstrDomainUnit());
+			resNrOrg_depreciated->SetTSF(DSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
+			resNrOrg_depreciated->SetReferredItem(resNrOrg);
+		}
 		MG_PRECONDITION(resSub);
 
 		if (mustCalc)

@@ -313,8 +313,20 @@ public:
 		dms_assert(!res->m_DataObject || context);
 		bool dontRecalc = IsDataReady(res);
 		dms_assert(!dontRecalc || context);
+		if (n == 1)
+		{
+			const AbstrDataItem* argA = AsDataItem(args[1]);
+
+			DataReadLock argLock(argA);
+			if (argLock->GetTiledRangeData() == resultDomain->GetTiledRangeData())
+			{
+				res->m_DataObject = argLock;
+				return true;
+			}
+		}
+
 		locked_tile_write_channel<V> resultDataChannel(dontRecalc ? nullptr : res);
-		for (arg_index i=1; i<=n; ++i)
+		for (arg_index i = 1; i <= n; ++i)
 		{
 			const AbstrDataItem* argA = AsDataItem(args[i]);
 			dms_assert(argA);
@@ -322,11 +334,11 @@ public:
 
 			DataReadLock argLock(argA);
 			const ArgType* arg = debug_cast<const ArgType*>(argA->GetCurrRefObj());
-			for (tile_id t=0, tn=argDU->GetNrTiles(); t!=tn; ++t)
+			for (tile_id t = 0, tn = argDU->GetNrTiles(); t != tn; ++t)
 			{
 				auto argData = arg->GetLockedDataRead(t);
 
-				if (!dontRecalc) 
+				if (!dontRecalc)
 					resultDataChannel.Write(argData.begin(), argData.end());
 				if (context)
 				{
@@ -341,7 +353,7 @@ public:
 				}
 			}
 		}
-		if (!dontRecalc) 
+		if (!dontRecalc)
 		{
 			dms_assert(resultDataChannel.IsEndOfChannel());
 			resultDataChannel.Commit();

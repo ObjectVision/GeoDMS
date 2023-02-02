@@ -93,7 +93,7 @@ bool DrawPolygonInterior(
 	,	WeakPtr<const IndexCollector> indexCollector
 	,	pointBuffer_t& pointBuffer
 	,	bool selectedOnly, SelectionIdCPtr selectionsArray
-	,	UInt32 fe
+	,	SizeT fe
 )
 {
 	typedef polygon_traits<ScalarType> p_traits;
