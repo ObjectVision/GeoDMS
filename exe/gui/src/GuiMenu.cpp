@@ -29,7 +29,6 @@
 
 void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
 {
-    ImGui::SetNextItemOpen(true, 0);
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
@@ -192,12 +191,9 @@ std::string StartWindowsFileDialog()
 void GuiMenuFile::Update(GuiState& state)
 {
     auto event_queues = GuiEventQueues::getInstance();
-
-    if (ImGui::BeginMenu("File"))
+    static bool expand_file_menu = true;
+    if (ImGui::BeginMenuEx("File", "", true))
     {
-        //if (ImGui::MenuItem("Open Configuration File", "Ctrl+O")) 
-            //m_fileDialog.Open();
-
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O"))
         {
             auto file_name = StartWindowsFileDialog();
@@ -209,6 +205,7 @@ void GuiMenuFile::Update(GuiState& state)
                 CleanRecentOrPinnedFiles(m_RecentFiles);
             }
         }
+        
 
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
@@ -360,23 +357,39 @@ void GuiMenuView::Update(GuiState& state)
         }
 
         ImGui::Separator();
+        ImGui::Checkbox("##toggle_treeview", &state.ShowTreeviewWindow);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Treeview", "Alt+0")) 
             state.ShowTreeviewWindow = !state.ShowTreeviewWindow;
 
+        ImGui::Checkbox("##toggle_detail_pages", &state.ShowDetailPagesWindow);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Detail Pages", "Alt+1")) 
             state.ShowDetailPagesWindow = !state.ShowDetailPagesWindow;
 
+        ImGui::Checkbox("##toggle_eventlog", &state.ShowEventLogWindow);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Eventlog", "Alt+2")) 
             state.ShowEventLogWindow = !state.ShowEventLogWindow;
 
+        ImGui::Checkbox("##toggle_toolbar", &state.ShowToolbar);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Toolbar", "Alt+3")) 
             state.ShowToolbar = !state.ShowToolbar;
 
+        ImGui::Checkbox("##toggle_current_item_bar", &state.ShowCurrentItemBar);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Current Item bar", "Alt+4")) 
             state.ShowCurrentItemBar = !state.ShowCurrentItemBar;
 
-        if (ImGui::MenuItem("Hidden Items", "Alt+5")) {}
+        static bool hidden_items = false;
+        //static bool status_bar = false;
+        ImGui::Checkbox("##toggle_hidden_items", &hidden_items);
+        ImGui::SameLine();
+        if (ImGui::MenuItem("Hidden Items", "Alt+5")) {} // TODO: implement
 
+        ImGui::Checkbox("##toggle_status_bar", &state.ShowStatusBar);
+        ImGui::SameLine();
         if (ImGui::MenuItem("Status Bar", "Alt+6"))
             state.ShowStatusBar = !state.ShowStatusBar;
 

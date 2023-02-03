@@ -49,6 +49,44 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     }
 }
 
+
+auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
+{
+    static bool loop;
+    static bool passedCurrentItem;
+
+    if (looped)
+    {
+        loop = true;
+        passedCurrentItem = false;
+        return false;
+    }
+
+    if (nextItem == state.GetCurrentItem())
+    {
+        passedCurrentItem = true;
+        return false;
+    }
+
+    if (loop && !passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
+    {
+        state.m_JumpLetter.first.clear();
+        state.m_JumpLetter.second.clear();
+        loop = false;
+        return true;
+    }
+
+    if (!loop && passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
+    {
+        state.m_JumpLetter.first.clear();
+        state.m_JumpLetter.second.clear();
+        passedCurrentItem = false;
+        return true;
+    }
+
+    return false;
+}
+
 auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
 {
     // right-mouse popup menu
@@ -192,6 +230,11 @@ auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
 
 auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
 {
+    // TODO:
+    // draw without calling update metainfo, HasCalculator true -> +, false -> _GetCurrFirstSubItem -> true + false -
+    // DMS_TreeItem_HasStorage: always UpdateMetaInfo
+    
+    
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
 
@@ -254,9 +297,9 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     }*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
-    const bool is_selected = (m_item == state.GetCurrentItem());
+    bool is_selected = (m_item == state.GetCurrentItem());
     ImGui::PushID(m_item);
-    if (ImGui::Selectable(m_item->GetName().c_str(), is_selected)) // m_selectable_name.c_str()
+    if (ImGui::Selectable(m_item->GetName().c_str(), is_selected))
     {
         UpdateStateAfterItemClick(state, m_item);
     }
@@ -295,6 +338,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     }
 
     // alphabetical letter jump
+
 
     ImGui::PopID();
 
@@ -401,7 +445,7 @@ auto GuiTree::Init(GuiState& state) -> void
     {
         m_Root.Init(state.GetRoot());
         m_Root.SetOpenStatus(true);
-        m_startnode = &m_Root;
+        m_start_node = &m_Root;
         m_is_initialized = true;
     }
 }
@@ -431,8 +475,13 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
             next_node->SetOpenStatus(true);
 
-        next_node->Draw(state, jump_item);
+        if (next_node->GetItem()==state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+            next_node->SetOpenStatus(true);
 
+        if (next_node->GetItem() == state.GetCurrentItem() && ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+            next_node->SetOpenStatus(false);
+
+        next_node->Draw(state, jump_item);
         if (next_node->GetOpenStatus())
         {
             if (next_node->GetState() >= PS_MetaInfo)
@@ -451,10 +500,10 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
 
 auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
 {
-    if (!m_startnode)
+    if (!m_start_node)
         return;
 
-    auto m_currnode = m_startnode;
+    auto m_currnode = m_start_node;
     m_Root.Draw(state, jump_item);
     if (m_Root.GetOpenStatus())
         DrawBranch(*m_currnode, state, jump_item);
@@ -502,7 +551,7 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 
     //const ImVec2 size(100,10000);
     //ImGui::SetNextWindowContentSize(size);
-    if (!ImGui::Begin("TreeView", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("TreeView", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavInputs))
     {
         ImGui::End();
         return;
@@ -542,43 +591,6 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
     }
 
     ImGui::End();
-}
-
-auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
-{
-    static bool loop;
-    static bool passedCurrentItem;
-
-    if (looped)
-    {
-        loop = true;
-        passedCurrentItem = false;
-        return false;
-    }
-
-    if (nextItem == state.GetCurrentItem())
-    {
-        passedCurrentItem = true;
-        return false;
-    }
-
-    if (loop && !passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
-    {
-        state.m_JumpLetter.first.clear();
-        state.m_JumpLetter.second.clear();
-        loop = false;
-        return true;
-    }
-    
-    if (!loop && passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0,1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
-    {
-        state.m_JumpLetter.first.clear();
-        state.m_JumpLetter.second.clear();
-        passedCurrentItem = false;
-        return true;
-    }
-
-    return false;
 }
 
 auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool

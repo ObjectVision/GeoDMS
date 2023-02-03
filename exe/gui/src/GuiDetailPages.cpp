@@ -399,8 +399,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
         return;
 
-    int button_index = 0;
-    ImGui::BeginTable(" ", 6, ImGuiTableFlags_ScrollX | ImGuiTableFlags_NoHostExtendY); // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
+    int button_index = 0; //TODO: does assumption of max 2 columns hold?
+    ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_NoHostExtendX);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
     for (auto& row : properties)
     {
         ImGui::TableNextRow();
@@ -412,33 +412,35 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
                 SetTextBackgroundRed(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
-                ImGui::Text(col.text.c_str());
+                ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());
             }
             else if (col.type == PET_LINK)
             {
-                ImGui::PushID(button_index++);
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+                //ImGui::PushID(button_index++);
+                //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-                if (ImGui::Button(col.text.c_str()))
+                
+                ImGui::TextWrapped(col.text.c_str());
+
+                if (ImGui::IsItemClicked())
                 {
-                    auto unfound_part = IString::Create(""); //TODO: replace with TreeItem_GetBest...
-                    TreeItem* jumpItem = (TreeItem*)DMS_TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str(), &unfound_part);
-                    if (jumpItem)
+                    auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
+                    if (jumpItem.first && jumpItem.first!=state.GetRoot())
                     {
-                        state.SetCurrentItem(jumpItem);
+                        state.SetCurrentItem(const_cast<TreeItem*>(jumpItem.first));
                         event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                         event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
                         event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
                         event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                     }
-                    unfound_part->Release(unfound_part);
                 }
-                ImGui::PopID();
-                ImGui::PopStyleColor(2);
+                //ImGui::PopID();
+                ImGui::PopStyleColor();
             }
             else if (col.type == PET_TEXT)
             {
-                ImGui::Text(col.text.c_str());
+                ImGui::TextWrapped(col.text.c_str());
+                //ImGui::Text(col.text.c_str());
             }
             else if (col.type == PET_SEPARATOR)
             {
@@ -534,7 +536,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
     ImGui::SetCursorPos(old_cpos);
     ImGui::PopClipRect();*/
 
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_FittingPolicyScroll))
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None|ImGuiTabBarFlags_FittingPolicyResizeDown)) //ImGuiTabBarFlags_FittingPolicyScroll))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
         {

@@ -317,6 +317,8 @@ void   SaveIniToRegistry()
 
 auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void
 {
+    if (text.empty())
+        return;
     if (ImGui::IsItemClicked()) // TODO: duplicate code in EventLog
         ImGui::SetClipboardText(&text.front());
     if (ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left))

@@ -184,8 +184,8 @@ OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
 SharedStr GetAsWkt(const OGRSpatialReference* sr);
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
-//auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
+STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, SharedStr wkt_prj_str);
 
 struct GDALDatasetHandle
 {
