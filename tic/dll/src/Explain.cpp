@@ -550,15 +550,15 @@ namespace Explain { // local defs
 					return;
 				auto dc = GetExistingDataController(lispExpr);
 				auto res = dc->MakeResult();
-				if (IsDataItem(res.get_ptr()))
-				{
-					if (SumOfTermsExplanation::IsSumOfTerms(lispExpr))
-						newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
-					else
-						newExpl = new LispCalcExplanation(calc, parent, seqNr);
-					m_Expl.push_back( ExplArrayEntry(newExpl) );
-					m_CalcInterests.push_back(dc);
-				}
+				if (!IsDataItem(res.get_ptr()))
+					return;
+
+				if (SumOfTermsExplanation::IsSumOfTerms(lispExpr))
+					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
+				else
+					newExpl = new LispCalcExplanation(calc, parent, seqNr);
+				m_Expl.push_back( ExplArrayEntry(newExpl) );
+				m_CalcInterests.push_back(dc);
 			} 
 			catch (const DmsException&)
 			{}
