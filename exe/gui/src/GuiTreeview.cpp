@@ -202,8 +202,6 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
 
-
-
 auto GuiTreeNode::Init(TreeItem* item) -> void
 {
     m_item = item;
