@@ -412,7 +412,7 @@ GuiTree::~GuiTree()
     //    m_Root.release();
 }
 
-auto GuiTree::SpaceIsAvailableForTreeNode() -> bool
+auto GuiTree::SpaceIsAvailableForTreeNode() -> bool 
 {
     return ImGui::GetContentRegionAvail().y > 0;
 }
