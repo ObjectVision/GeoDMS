@@ -16,31 +16,31 @@ public:
 	auto clear() -> void;
 
 	//auto Reset() -> void;
-	auto SetItem(TreeItem* item) -> void { m_item = item; };
+	void SetItem(TreeItem* item) { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
-	auto SetOpenStatus(bool do_open) -> void;
-	auto GetOpenStatus() -> bool { return m_is_open; };
-	auto SetState(NotificationCode new_state) -> void;
-	auto AddChildren() -> void;
+	void SetOpenStatus(bool do_open);
+	bool GetOpenStatus() { return m_is_open; };
+	void SetState(NotificationCode new_state);
+	void AddChildren();
 	auto GetState() -> NotificationCode;
 	auto GetFirstSibling() -> GuiTreeNode*;
 	auto GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator;
 	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
-	auto IsLeaf() -> bool;
-	auto Init(TreeItem* item) -> void;
+	bool IsLeaf();
+	void Init(TreeItem* item);
 
-	auto Draw(GuiState& state, TreeItem*& jump_item) -> bool;
-	static auto OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void;
+	bool Draw(GuiState& state, TreeItem*& jump_item);
+	static void OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state);
+	GuiTreeNode* m_parent = nullptr;
+	std::vector<GuiTreeNode> m_children;
 
 private:
 	auto GetDepthFromTreeItem() -> UInt8;
-	auto DrawItemDropDown(GuiState& state) -> bool;
-	auto DrawItemIcon() -> bool;
-	auto DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool;
-
+	bool DrawItemDropDown(GuiState& state);
+	bool DrawItemIcon();
+	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
 	TreeItem*                m_item = nullptr;
-	GuiTreeNode*             m_parent = nullptr;
-	std::vector<GuiTreeNode> m_children;
+	
 	NotificationCode m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
@@ -62,22 +62,22 @@ public:
 	//static auto getInstance()->GuiTree*;
 
 	~GuiTree();
-	auto Init(GuiState& state) -> void;
-	auto IsInitialized() -> bool;
-	auto Draw(GuiState& state, TreeItem*& jump_item) -> void;
-	auto clear() -> void;
+	void Init(GuiState& state);
+	bool IsInitialized();
+	void Draw(GuiState& state, TreeItem*& jump_item);
+	void clear();
+	bool AscendVisibleTree(UInt32 &n, GuiState& state, GuiTreeNode& parent_node);
+	bool DescentVisibleTree(UInt32 &n, GuiState& state, GuiTreeNode& parent_node);
+	GuiTreeNode* m_curr_node = nullptr;
+
 
 private:
-	auto DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool;
-	auto SpaceIsAvailableForTreeNode() -> bool;
-	auto ClimbTree(UInt32 n) -> void;
-	auto DecentTree(UInt32 n) -> void;
-
+	bool DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item);
+	bool SpaceIsAvailableForTreeNode();
 	UInt64       m_max_count = 0;
 	bool		 m_is_initialized = false;
 	GuiTreeNode  m_Root = {};
 	GuiTreeNode* m_start_node = nullptr;
-	GuiTreeNode* m_curr_node = nullptr;
 };
 
 class GuiTreeView : GuiBaseComponent
@@ -89,6 +89,7 @@ public:
 	static auto OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;
 
 private:
+	auto ProcessTreeviewEvent(GuiEvents &event, GuiState& state) -> void;
 	auto CreateBranch(GuiState& state, TreeItem* branch) -> bool;
 	auto CreateTree(GuiState& state) -> bool;
 	auto IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped) -> bool;
