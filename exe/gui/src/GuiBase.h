@@ -47,6 +47,8 @@ enum class GuiEvents
 	StepToErrorSource,
 	StepToRootErrorSource,
 	FocusValueInfoTab,
+	AscendVisibleTree,
+	DescendVisibleTree,
 	Close,
 };
 

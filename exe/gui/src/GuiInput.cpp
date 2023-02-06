@@ -270,5 +270,15 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
         //m_State.TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
     
     }
+    case GLFW_KEY_UP:
+    {
+        event_queues->TreeViewEvents.Add(GuiEvents::AscendVisibleTree);
+        return;
+    }
+    case GLFW_KEY_DOWN:
+    {
+        event_queues->TreeViewEvents.Add(GuiEvents::DescendVisibleTree);
+        return;
+    }
     }
 }
