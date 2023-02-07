@@ -121,6 +121,12 @@ public:
 		m_Queue.pop();
 		return event;
 	}
+
+	auto Size() -> size_t
+	{
+		return m_Queue.size();
+	}
+
 private:
 	std::queue<GuiEvents> m_Queue;
 };
