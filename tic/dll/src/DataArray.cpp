@@ -869,6 +869,9 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 	{
 		return std::make_unique<HeapSingleArray<V>>(tdr, mustClear);
 	}
+	if (tdr->GetNrTiles() == 0 && tdr->GetElemCount() != 0)
+		throwDmsErrD("CreateHeapTileArray cannot create a DataArray for an unspecified domain");
+
 	auto newTileFunctor = std::make_unique<HeapTileArray<V>>(tdr, mustClear);
 #if defined(MG_DEBUG_ALLOCATOR)
 	newTileFunctor->md_SrcStr = srcStr;
