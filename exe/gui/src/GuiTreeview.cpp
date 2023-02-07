@@ -475,15 +475,27 @@ auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 
 auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 {
-    auto& last_child_node = node.m_children.back();
+    auto parent_node = node.m_parent;
 
-    if (last_child_node.IsLeaf())
-        return &last_child_node;
+    if (!parent_node)
+        return &node;
 
-    if (last_child_node.IsOpen())
-        return GetFirstSibblingNode(last_child_node);
+    bool matched = false;
+    for (auto& child_node : parent_node->m_children)
+    {
+        if (child_node.GetItem() == node.GetItem())
+        {
+            matched = true;
+            continue;
+        }
 
-    return &last_child_node;
+        if (!matched)
+            continue;
+
+        return &child_node;
+    }
+
+    return GetFirstSibblingNode(*parent_node);
 }
 
 auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNode*
@@ -517,8 +529,12 @@ auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNo
 
 auto GuiTree::DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*
 {
-    if (!node.m_children.empty())
+    if (node.IsOpen() && !node.m_children.empty())
         return &*node.m_children.begin();
+
+    return GetFirstSibblingNode(node);
+
+    /*
 
     auto parent_node = node.m_parent;
     bool matched = false;
@@ -553,7 +569,7 @@ auto GuiTree::DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeN
 
             return &child_node;
         }
-    }
+    }*/
 
 
     return nullptr;
