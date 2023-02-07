@@ -67,7 +67,7 @@ public:
 	void Draw(GuiState& state, TreeItem*& jump_item);
 	void clear();
 	auto AscendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
-	auto DescentVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
+	auto DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
 	GuiTreeNode* m_curr_node = nullptr;
 
 

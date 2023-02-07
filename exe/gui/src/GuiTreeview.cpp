@@ -515,7 +515,7 @@ auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNo
     return &node;
 }
 
-auto GuiTree::DescentVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*
+auto GuiTree::DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*
 {
     if (!node.m_children.empty())
         return &*node.m_children.begin();
@@ -572,16 +572,34 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
     // TODO: use clearer syntax: for (auto& next_node : node.m_children)
     while (next_node != node.GetSiblingEnd())
     {
-       if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
-           next_node->SetOpenStatus(true); // TODO: is optional, can be reconsidered in the future
+        if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
+            next_node->SetOpenStatus(true); // TODO: is optional, can be reconsidered in the future
 
-       if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem())
-       {
-           if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-               next_node->SetOpenStatus(true);
-           if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-               next_node->SetOpenStatus(false);
-       }
+        if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem())
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+            {
+                if (next_node->IsOpen())
+                {
+                    auto descended_node = DescendVisibleTree(state, *next_node);
+                    if (descended_node)
+                        UpdateStateAfterItemClick(state, descended_node->GetItem());
+                }
+                else
+                    next_node->SetOpenStatus(true);
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+            {
+                if (!next_node->IsOpen())
+                {
+                    auto ascended_node = AscendVisibleTree(state, *next_node);
+                    if (ascended_node)
+                        UpdateStateAfterItemClick(state, ascended_node->GetItem());
+                }
+                else
+                    next_node->SetOpenStatus(false);
+            }
+        }
 
         if (next_node->GetItem() == state.GetCurrentItem())
             m_curr_node = &*next_node;        
@@ -656,7 +674,7 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
         break;
     }
     case GuiEvents::DescendVisibleTree:
-    {   auto descended_node = m_tree.DescentVisibleTree(state, *m_tree.m_curr_node);
+    {   auto descended_node = m_tree.DescendVisibleTree(state, *m_tree.m_curr_node);
         if (descended_node)
             UpdateStateAfterItemClick(state, descended_node->GetItem());
         break;
