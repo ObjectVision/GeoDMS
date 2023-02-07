@@ -453,7 +453,7 @@ void ViewPort::AL_SelectAllObjects(bool select)
 
 auto FindWmsLayer(LayerSet* ls) -> WmsLayer*
 {
-	for (gr_elem_index i = 0; i != ls->NrEntries(); ++i)
+	for (gr_elem_index i = 0, n = ls->NrEntries(); i!=n; ++i)
 	{
 		auto* layerBase = ls->GetEntry(i);
 		auto asWmsLayer = dynamic_cast<WmsLayer*>(layerBase);
@@ -466,6 +466,7 @@ auto FindWmsLayer(LayerSet* ls) -> WmsLayer*
 		if (asWmsLayer)
 			return asWmsLayer;
 	}
+	return nullptr;
 }
 
 auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
@@ -477,7 +478,7 @@ auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
 void ViewPort::ZoomIn1()
 {
 	auto layer = FindBackgroundWmsLayer();
-	if (layer->ZoomIn())
+	if (layer && layer->ZoomIn())
 		return;
 	ZoomFactor(0.5); // zoom in on half of org ROI
 }
@@ -497,7 +498,7 @@ void ViewPort::ZoomFactor(CrdType factor)
 void ViewPort::ZoomOut1()
 {
 	auto layer = FindBackgroundWmsLayer();
-	if (layer->ZoomOut())
+	if (layer && layer->ZoomOut())
 		return;
 	ZoomFactor(2.0); // zoom in on twice the org ROI
 }

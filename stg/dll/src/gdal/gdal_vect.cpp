@@ -1215,20 +1215,6 @@ std::vector<TileCRef> ReadableTileHandles(const std::vector<DataReadLock>& drl, 
 	return tileReadLocks;
 }
 
-/* REMOVE
-std::map<SharedStr, TokenT> GetFieldnameTokenTMapping(SharedStr layername, DataItemsWriteStatusInfo& dataItemsStatusInfo)
-{
-	std::map<SharedStr, TokenT> fieldnameTokenTMap;
-	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[GetTokenID_mt(layername.c_str()).GetTokenT()])
-	{
-		if (not writableField.second.doWrite)
-			continue;
-		fieldnameTokenTMap[writableField.second.name] = GetTokenID_mt(writableField.second.name.c_str()).GetTokenT();
-	}
-	return fieldnameTokenTMap;
-}
-*/
-
 SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 {
 	if (!layer)
@@ -1456,6 +1442,10 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
 	if (not m_DataItemsStatusInfo.m_continueWrite)
 	{
+		// disable spatial index in case of GPKG, SQLite
+		if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
+			layerOptionArray.AddString("SPATIAL_INDEX=NO");
+
 		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		m_DataItemsStatusInfo.m_continueWrite = true;
 	}
@@ -1549,6 +1539,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layerTokenT);
 
+
+	//Spatial index explicitly for shapefile 
 	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
 	{
 		if (DataSourceHasNamelessLayer(datasourceName))

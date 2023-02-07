@@ -164,15 +164,6 @@ GDALDataType gdalDataType(ValueClassID tid);
 
 // *****************************************************************************
 
-/* REMOVE
-struct sr_releaser {
-	void operator ()(OGRSpatialReference* p) const;
-};
-using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
-*/
-
-// *****************************************************************************
-
 OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc); // TODO move OGR helper funcs to gdal_vect.cpp
 OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc);
 SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
@@ -185,7 +176,7 @@ SharedStr GetAsWkt(const OGRSpatialReference* sr);
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
-STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, SharedStr wkt_prj_str);
+STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
 
 struct GDALDatasetHandle
 {
@@ -235,11 +226,11 @@ private:
 	CPLStringList m_DefaultConfigurationOptions;
 };
 
-
 // *****************************************************************************
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite);
 
-typedef double gdal_transform[6];
+using gdal_transform = double[6];
+
 CrdTransformation GetTransformation(gdal_transform gdalTr);
 
 #endif // __STG_GDAL_BASE_H

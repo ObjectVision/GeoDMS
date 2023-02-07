@@ -249,6 +249,16 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
+void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str)
+{
+	assert(ogrSR);
+	ogrSR->Validate();
+	CplString pszEsriwkt;
+	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
+	if (strcmp(pszEsriwkt.m_Text, wkt_prj_str))
+		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
+}
+
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 {
 	assert(uBase);
@@ -274,16 +284,6 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	if (ogrSR_ptr) 
 		ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
 	CheckSpatialReference(ogrSR, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
-}
-
-void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, SharedStr wkt_prj_str)
-{
-	assert(ogrSR);
-	ogrSR->Validate();
-	CplString pszEsriwkt;
-	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
-	if (!(SharedStr(pszEsriwkt.m_Text)==wkt_prj_str))
-		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
 }
 
 SharedStr GetAsWkt(const OGRSpatialReference* sr)
@@ -403,7 +403,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Abst
 	}
 	if (ogrSR)
 	{
-		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr);
+		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
 		CheckCompatibility(&*ogrSR, &spOrErr.first);
 	}
 	else
@@ -439,6 +439,10 @@ gdalThread::~gdalThread()
 gdalComponent::gdalComponent()
 {
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+
+	// TODO: test, experimental
+	//CPLSetConfigOption("OGR_SQLITE_CACHE", "512");
+	//CPLSetConfigOption("OGR_SQLITE_SYNCHRONOUS", "OFF");
 
 	if (!gdalComponentImpl::s_ComponentCount)
 	{

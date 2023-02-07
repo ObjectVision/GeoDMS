@@ -47,6 +47,9 @@ enum class GuiEvents
 	StepToErrorSource,
 	StepToRootErrorSource,
 	FocusValueInfoTab,
+	AscendVisibleTree,
+	TreeViewJumpKeyPress,
+	DescendVisibleTree,
 	Close,
 };
 
@@ -119,6 +122,12 @@ public:
 		m_Queue.pop();
 		return event;
 	}
+
+	auto Size() -> size_t
+	{
+		return m_Queue.size();
+	}
+
 private:
 	std::queue<GuiEvents> m_Queue;
 };
@@ -321,7 +330,7 @@ public:
 	static ViewActionHistory TreeItemHistoryList;
 
 	// jump to letter in TreeView
-	std::pair<std::string, std::string> m_JumpLetter; //TODO: on the fly lookup, synchronize evaluation with key press
+	static std::string m_JumpLetter;
 
 	TreeItem* GetRoot() { return m_Root; }
 	TreeItem* GetCurrentItem() { return m_CurrentItem; }

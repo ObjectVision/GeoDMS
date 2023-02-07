@@ -105,6 +105,7 @@ auto ViewActionHistory::GetEndIterator() -> std::list<ViewAction>::iterator
 StringStateManager GuiState::errorDialogMessage;
 StringStateManager GuiState::contextMessage;
 ViewActionHistory GuiState::TreeItemHistoryList;
+std::string GuiState::m_JumpLetter;
 
 auto GuiState::clear() -> void
 {
