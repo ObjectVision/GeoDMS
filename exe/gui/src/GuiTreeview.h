@@ -66,8 +66,9 @@ public:
 	bool IsInitialized();
 	void Draw(GuiState& state, TreeItem*& jump_item);
 	void clear();
-	auto AscendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
-	auto DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
+	auto AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
+	auto DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
+	auto JumpToLetter(GuiState& state, std::string_view letter) -> TreeItem*;
 	GuiTreeNode* m_curr_node = nullptr;
 
 

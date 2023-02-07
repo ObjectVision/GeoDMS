@@ -29,6 +29,7 @@
 
 #include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
+#include <boost/algorithm/string.hpp>
 #include <type_traits>
 
 #include "GuiTreeview.h"
@@ -51,7 +52,7 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
 }
 
 
-auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
+/*auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
 {
     static bool loop;
     static bool passedCurrentItem;
@@ -86,7 +87,7 @@ auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, boo
     }
 
     return false;
-}
+}*/
 
 auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
 {
@@ -501,9 +502,9 @@ auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
     return GetFirstSibblingNode(*parent_node);
 }
 
-auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNode*
+auto GuiTree::AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
 {
-    if (node.GetItem()==state.GetRoot()) // node is root
+    if (node.m_parent==nullptr) // node is root
         return &node;
 
     auto parent_node = node.m_parent;
@@ -530,12 +531,29 @@ auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNo
     return &node;
 }
 
-auto GuiTree::DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*
+auto GuiTree::DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
 {
     if (node.IsOpen() && !node.m_children.empty())
         return &*node.m_children.begin();
 
     return GetFirstSibblingNode(node);
+}
+
+auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem*
+{
+    auto next_visible_node = m_curr_node;
+    while (true)
+    {
+        next_visible_node = DescendVisibleTree(*next_visible_node);
+        if (boost::iequals(letter.data(), std::string(next_visible_node->GetItem()->GetName().c_str()).substr(0,1)))
+        {
+            UpdateStateAfterItemClick(state, next_visible_node->GetItem());
+            m_curr_node = next_visible_node;
+            return next_visible_node->GetItem();
+        }
+        if (next_visible_node == m_curr_node)
+            return nullptr;
+    }
 }
 
 auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
@@ -560,7 +578,7 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
             {
                 if (next_node->IsOpen())
                 {
-                    auto descended_node = DescendVisibleTree(state, *next_node);
+                    auto descended_node = DescendVisibleTree(*next_node);
                     if (descended_node)
                         UpdateStateAfterItemClick(state, descended_node->GetItem());
                 }
@@ -648,22 +666,36 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
     }
     case GuiEvents::AscendVisibleTree: // TODO: known issue repeat key up not working
     {
-        auto ascended_node = m_tree.AscendVisibleTree(state, *m_tree.m_curr_node);
+        if (!ImGui::IsWindowFocused())
+            break;
+
+        auto ascended_node = m_tree.AscendVisibleTree(*m_tree.m_curr_node);
         if (ascended_node)
         {
             UpdateStateAfterItemClick(state, ascended_node->GetItem());
             m_tree.m_curr_node = ascended_node;
+            m_TemporaryJumpItem = ascended_node->GetItem();
         }
         break;
     }
     case GuiEvents::DescendVisibleTree: // TODO: known issue repeat key down not working
     {   
-        auto descended_node = m_tree.DescendVisibleTree(state, *m_tree.m_curr_node);
+        if (!ImGui::IsWindowFocused())
+            break;
+
+        auto descended_node = m_tree.DescendVisibleTree(*m_tree.m_curr_node);
         if (descended_node)
         {
             UpdateStateAfterItemClick(state, descended_node->GetItem());
             m_tree.m_curr_node = descended_node;
+            m_TemporaryJumpItem = descended_node->GetItem();
         }
+        break;
+    }
+    case GuiEvents::TreeViewJumpKeyPress:
+    {
+        m_TemporaryJumpItem = m_tree.JumpToLetter(state, GuiState::m_JumpLetter);
+        GuiState::m_JumpLetter.clear();
         break;
     }
     default: break;
@@ -672,13 +704,6 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 {
-    auto event_queues = GuiEventQueues::getInstance();
-    if (event_queues->TreeViewEvents.HasEvents())
-    {
-        auto event = event_queues->TreeViewEvents.Pop(); 
-        ProcessTreeviewEvent(event, state);
-    }
-
     if (!m_tree.IsInitialized() && state.GetRoot())
         m_tree.Init(state);
 
@@ -688,6 +713,13 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
     {
         ImGui::End();
         return;
+    }
+
+    auto event_queues = GuiEventQueues::getInstance();
+    if (event_queues->TreeViewEvents.HasEvents())
+    {
+        auto event = event_queues->TreeViewEvents.Pop();
+        ProcessTreeviewEvent(event, state);
     }
 
     if (!m_tree.IsInitialized())

@@ -117,37 +117,37 @@ static ImGuiKey GLFWKeyToImGuiKey(int key)
     }
 }
 
-std::pair<std::string, std::string> GLFWKeyToLetter(int key)
+auto GLFWKeyToLetter(int key) -> std::string
 {
     switch (key)
     {
-    case GLFW_KEY_A: return {"a", "A"};
-    case GLFW_KEY_B: return {"b", "B" };
-    case GLFW_KEY_C: return {"c", "C" };
-    case GLFW_KEY_D: return {"d", "D" };
-    case GLFW_KEY_E: return {"e", "E" };
-    case GLFW_KEY_F: return {"f", "F" };
-    case GLFW_KEY_G: return {"g", "G"};
-    case GLFW_KEY_H: return {"h", "H"};
-    case GLFW_KEY_I: return {"i", "I"};
-    case GLFW_KEY_J: return {"j", "J"};
-    case GLFW_KEY_K: return {"k", "K"};
-    case GLFW_KEY_L: return {"l", "L"};
-    case GLFW_KEY_M: return {"m", "M"};
-    case GLFW_KEY_N: return {"n", "N"};
-    case GLFW_KEY_O: return {"o", "O"};
-    case GLFW_KEY_P: return {"p", "P"};
-    case GLFW_KEY_Q: return {"q", "Q"};
-    case GLFW_KEY_R: return {"r", "R"};
-    case GLFW_KEY_S: return {"s", "S"};
-    case GLFW_KEY_T: return {"t", "T"};
-    case GLFW_KEY_U: return {"u", "U"};
-    case GLFW_KEY_V: return {"v", "V"};
-    case GLFW_KEY_W: return {"w", "W"};
-    case GLFW_KEY_X: return {"x", "X"};
-    case GLFW_KEY_Y: return {"y", "Y"};
-    case GLFW_KEY_Z: return {"z", "Z"};
-    default:return {"", ""};
+    case GLFW_KEY_A: return "A";
+    case GLFW_KEY_B: return "B";
+    case GLFW_KEY_C: return "C";
+    case GLFW_KEY_D: return "D";
+    case GLFW_KEY_E: return "E";
+    case GLFW_KEY_F: return "F";
+    case GLFW_KEY_G: return "G";
+    case GLFW_KEY_H: return "H";
+    case GLFW_KEY_I: return "I";
+    case GLFW_KEY_J: return "J";
+    case GLFW_KEY_K: return "K";
+    case GLFW_KEY_L: return "L";
+    case GLFW_KEY_M: return "M";
+    case GLFW_KEY_N: return "N";
+    case GLFW_KEY_O: return "O";
+    case GLFW_KEY_P: return "P";
+    case GLFW_KEY_Q: return "Q";
+    case GLFW_KEY_R: return "R";
+    case GLFW_KEY_S: return "S";
+    case GLFW_KEY_T: return "T";
+    case GLFW_KEY_U: return "U";
+    case GLFW_KEY_V: return "V";
+    case GLFW_KEY_W: return "W";
+    case GLFW_KEY_X: return "X";
+    case GLFW_KEY_Y: return "Y";
+    case GLFW_KEY_Z: return "Z";
+    default:return {};
     }
 }
 
@@ -159,10 +159,11 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     auto event_queues = GuiEventQueues::getInstance();
 
     // unmodified key press for step to in TreeView
-    auto treeview_window = ImGui::FindWindowByName("Treeview");
+    auto treeview_window = ImGui::FindWindowByName("TreeView"); // TODO: one location for Window names ie TreeView
     if (ImGui::GetCurrentContext()->WindowsFocusOrder.back() == treeview_window && key >= GLFW_KEY_A && key <= GLFW_KEY_Z && !(mods == GLFW_MOD_CONTROL) && !(mods == GLFW_MOD_ALT) && !(mods == GLFW_MOD_SHIFT))
     {
-        //m_State.m_JumpLetter = GLFWKeyToLetter(key); // TODO: reimplement
+        event_queues->TreeViewEvents.Add(GuiEvents::TreeViewJumpKeyPress);
+        GuiState::m_JumpLetter = GLFWKeyToLetter(key);
     }
 
     switch (key)
