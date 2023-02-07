@@ -34,6 +34,7 @@
 #include "GuiTreeview.h"
 #include "GuiStyles.h"
 #include <functional>
+#include<ranges>
 
 auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt32
 {
@@ -250,7 +251,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     if (ImGui::Button(icon))
     {
         UpdateStateAfterItemClick(state, m_item);
-        SetOpenStatus(!GetOpenStatus());
+        SetOpenStatus(!IsOpen());
     }
     ImGui::PopID();
 
@@ -459,84 +460,103 @@ bool GuiTree::SpaceIsAvailableForTreeNode()
     return ImGui::GetContentRegionAvail().y > 0;
 }
 
-auto GetCurrentNodeAsIterator(GuiTreeNode& node)-> std::vector<GuiTreeNode>::iterator
+auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 {
-    if (!node.m_parent)
-        return {};
+    auto& last_child_node = node.m_children.back();
 
-    auto it = node.m_parent->m_children.begin();
-    while (it->GetItem() != node.GetItem())
-    {
-        if (it->GetItem() == node.GetItem())
-            return it;
-        it++;
-    }
+    if (last_child_node.IsLeaf())
+        return &last_child_node;
 
-    return {};
+    if (last_child_node.IsOpen())
+        return GetFinalSibblingNode(last_child_node);
+
+    return &last_child_node;
 }
 
-auto GetCurrentNodeAsReverseIterator(GuiTreeNode& node) -> std::vector<GuiTreeNode>::reverse_iterator
+auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 {
-    auto it = node.m_parent->m_children.rbegin();
-    while (it->GetItem() != node.GetItem())
-        it++;
+    auto& last_child_node = node.m_children.back();
 
-    return it;
+    if (last_child_node.IsLeaf())
+        return &last_child_node;
+
+    if (last_child_node.IsOpen())
+        return GetFirstSibblingNode(last_child_node);
+
+    return &last_child_node;
 }
 
-
-bool GuiTree::AscendVisibleTree(UInt32 &n, GuiState &state, GuiTreeNode& parent_node)
+auto GuiTree::AscendVisibleTree(GuiState &state, GuiTreeNode& node) -> GuiTreeNode*
 {
-    // root node has no parent
-    if (!parent_node.m_parent) 
+    if (node.GetItem()==state.GetRoot()) // node is root
+        return &node;
+
+    auto parent_node = node.m_parent;
+    if (parent_node->m_children.begin()->GetItem() == node.GetItem()) // node is first child of parent
+        return parent_node;
+
+    bool matched = false;
+    for (auto& child_node : std::ranges::views::reverse(parent_node->m_children)) 
     {
-        m_curr_node = &parent_node;
-        n--;
-        return true;
-    }
+        if (child_node.GetItem() == node.GetItem())
+        {
+            matched = true;
+            continue;
+        }
 
-    auto it = GetCurrentNodeAsReverseIterator(parent_node);
-
-    // node is open, walk children end to begin first
-    //if (it->GetOpenStatus())
-    //    if (AscendVisibleTree(n, state, *parent_node.m_children.rbegin()))
-    //        return true;
-
-    // current item starting node, otherwise select
-    if (!(it->GetItem() == state.GetCurrentItem()))
-    {
-        m_curr_node = &*it;
-        n--;
-    }
-
-    std::advance(it, 1);
-    while (it != parent_node.m_parent->m_children.rend())
-    {
-        if (!n)
-            return true;
-
-        m_curr_node = &*it;
-        n--;
-
-        if (!n)
-            return true;
-
-        if (!m_curr_node->GetOpenStatus())
+        if (!matched)
             continue;
 
-        if (AscendVisibleTree(n, state, *parent_node.m_parent))
-            return true;
-        std::advance(it, 1);
-    }
+        if (child_node.IsLeaf() || !child_node.IsOpen()) // previous child is leaf or closed
+            return &child_node;
 
-    // child is first child, step to parent
-    if (AscendVisibleTree(n, state, *parent_node.m_parent))
-        return true;
+        return GetFinalSibblingNode(child_node);
+    }
+    return &node;
 }
 
-bool GuiTree::DescentVisibleTree(UInt32 &n, GuiState& state, GuiTreeNode& parent_node)
+auto GuiTree::DescentVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*
 {
-    return true; // TODO: implement
+    if (!node.m_children.empty())
+        return &*node.m_children.begin();
+
+    auto parent_node = node.m_parent;
+    bool matched = false;
+    for (auto& child_node : parent_node->m_children)
+    {
+        if (child_node.GetItem() == node.GetItem())
+        {
+            matched = true;
+            continue;
+        }
+
+        if (!matched)
+            continue;
+
+        return &child_node;
+    }
+
+    auto grandparent_node = parent_node->m_parent;
+    matched = false;
+    if (grandparent_node)
+    {
+        for (auto& child_node : grandparent_node->m_children)
+        {
+            if (child_node.GetItem() == parent_node->GetItem())
+            {
+                matched = true;
+                continue;
+            }
+
+            if (!matched)
+                continue;
+
+            return &child_node;
+        }
+    }
+
+
+    return nullptr;
 }
 
 auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
@@ -567,7 +587,7 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
             m_curr_node = &*next_node;        
 
         next_node->Draw(state, jump_item);
-        if (next_node->GetOpenStatus())
+        if (next_node->IsOpen())
         {
             if (next_node->GetState() >= PS_MetaInfo)
             {
@@ -590,7 +610,7 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
 
     auto m_currnode = m_start_node;
     m_Root.Draw(state, jump_item);
-    if (m_Root.GetOpenStatus())
+    if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
 }
 
@@ -630,15 +650,15 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
     }
     case GuiEvents::AscendVisibleTree:
     {
-        UInt32 num_items_ascend = 1;
-        m_tree.AscendVisibleTree(num_items_ascend, state, *m_tree.m_curr_node);
-        UpdateStateAfterItemClick(state, m_tree.m_curr_node->GetItem());
+        auto ascended_node = m_tree.AscendVisibleTree(state, *m_tree.m_curr_node);
+        if (ascended_node)
+            UpdateStateAfterItemClick(state, ascended_node->GetItem());
         break;
     }
     case GuiEvents::DescendVisibleTree:
-    {
-        UInt32 num_items_descend = 1;
-        m_tree.DescentVisibleTree(num_items_descend, state, *m_tree.m_curr_node);
+    {   auto descended_node = m_tree.DescentVisibleTree(state, *m_tree.m_curr_node);
+        if (descended_node)
+            UpdateStateAfterItemClick(state, descended_node->GetItem());
         break;
     }
     default: break;

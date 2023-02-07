@@ -19,7 +19,7 @@ public:
 	void SetItem(TreeItem* item) { m_item = item; };
 	auto GetItem() -> TreeItem* { return m_item; };
 	void SetOpenStatus(bool do_open);
-	bool GetOpenStatus() { return m_is_open; };
+	bool IsOpen() { return m_is_open; };
 	void SetState(NotificationCode new_state);
 	void AddChildren();
 	auto GetState() -> NotificationCode;
@@ -66,8 +66,8 @@ public:
 	bool IsInitialized();
 	void Draw(GuiState& state, TreeItem*& jump_item);
 	void clear();
-	bool AscendVisibleTree(UInt32 &n, GuiState& state, GuiTreeNode& parent_node);
-	bool DescentVisibleTree(UInt32 &n, GuiState& state, GuiTreeNode& parent_node);
+	auto AscendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
+	auto DescentVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeNode*;
 	GuiTreeNode* m_curr_node = nullptr;
 
 
