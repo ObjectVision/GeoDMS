@@ -341,7 +341,7 @@ struct MaxRangeData : TiledRangeData<V>
 
 	tile_id GetNrTiles() const override { return 0; }
 	tile_offset GetTileSize(tile_id t) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileSize"); }
-	tile_offset GetMaxTileSize() const override { return 0; }
+	tile_offset GetMaxTileSize() const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetMaxTileSize"); }
 	tile_loc GetTiledLocation(row_id index) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileLocation"); }
 
 //	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(this->GetRangeSize(), row_id(1)) }; }
@@ -351,7 +351,7 @@ struct MaxRangeData : TiledRangeData<V>
 
 	// range_t(dependent on T) specific functions, non virtual
 	Range<V> GetTileRange(tile_id t) const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileRange"); }
-	row_id GetElemCount() const { return 0; }
+	row_id GetElemCount() const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetElemCount"); }
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
 	auto GetAsLispRef(LispPtr base) const->LispRef override { return base; }

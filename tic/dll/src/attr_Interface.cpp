@@ -158,7 +158,7 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsFloat64Array(const AbstrDataIt
 		{
 			auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
 //			ReadableTileLock tileLck(self->GetRefObj(), tl.first);
-			UInt32 nrRead = self->GetRefObj()->GetValuesAsFloat64Array(tl, len, data);
+			auto nrRead = self->GetRefObj()->GetValuesAsFloat64Array(tl, len, data);
 			MG_CHECK(nrRead);
 
 			len  -= nrRead;

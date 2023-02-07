@@ -613,7 +613,7 @@ bool DataArrayBase<V>::IsNull(SizeT index) const
 	if (!IsDefined(tl.first))
 		return true;
 	auto data = GetTile(tl.first);
-	return !IsDefined(data[tl.second]);
+	return tl.second >= data.size() || !IsDefined(data[tl.second]);
 }
 
 template <class V>
