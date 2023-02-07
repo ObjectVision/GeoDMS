@@ -69,6 +69,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "MouseEventDispatcher.h"
 #include "ScaleBar.h"
 #include "SelCaret.h"
+#include "WmsLayer.h"
 
 //----------------------------------------------------------------------
 // class  : ViewPort
@@ -450,8 +451,34 @@ void ViewPort::AL_SelectAllObjects(bool select)
 		al->SelectAll(select);
 }
 
+auto FindWmsLayer(LayerSet* ls) -> WmsLayer*
+{
+	for (gr_elem_index i = 0; i != ls->NrEntries(); ++i)
+	{
+		auto* layerBase = ls->GetEntry(i);
+		auto asWmsLayer = dynamic_cast<WmsLayer*>(layerBase);
+		if (asWmsLayer)
+			return asWmsLayer;
+		auto asSubset = dynamic_cast<LayerSet*>(layerBase);
+		if (!asSubset)
+			continue;
+		asWmsLayer = FindWmsLayer(asSubset);
+		if (asWmsLayer)
+			return asWmsLayer;
+	}
+}
+
+auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
+{
+	auto ls = GetLayerSet();
+	return FindWmsLayer(ls);
+}
+
 void ViewPort::ZoomIn1()
 {
+	auto layer = FindBackgroundWmsLayer();
+	if (layer->ZoomIn())
+		return;
 	ZoomFactor(0.5); // zoom in on half of org ROI
 }
 
@@ -469,6 +496,9 @@ void ViewPort::ZoomFactor(CrdType factor)
 
 void ViewPort::ZoomOut1()
 {
+	auto layer = FindBackgroundWmsLayer();
+	if (layer->ZoomOut())
+		return;
 	ZoomFactor(2.0); // zoom in on twice the org ROI
 }
 
