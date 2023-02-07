@@ -208,6 +208,7 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
+    
     auto default_cursor = SetCursor(LoadCursor(0, IDC_WAIT));
     m_state = (NotificationCode)DMS_TreeItem_GetProgressState(m_item); // calling UpdateMetaInfo for item A can UpdateMetaInfo of item B
 
@@ -215,7 +216,7 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 
     if (m_state < NotificationCode::NC2_MetaReady)
         item->UpdateMetaInfo();
-
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
     SetCursor(default_cursor);
 }
 
@@ -302,16 +303,18 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     bool is_selected = (m_item == state.GetCurrentItem());
     ImGui::PushID(m_item);
+    ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
     if (ImGui::Selectable(m_item->GetName().c_str(), is_selected))
     {
         UpdateStateAfterItemClick(state, m_item);
     }
-    // click event
+    /*// click event
     else if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
     {
         SetKeyboardFocusToThisHwnd();
-        UpdateStateAfterItemClick(state, m_item);
-    }
+        UpdateStateAfterItemClick(state, m_item); // TODO: necessary?
+    }*/
+    ImGui::PopStyleColor();
 
     // keyboard selection event
     //if (IsKeyboardFocused())
