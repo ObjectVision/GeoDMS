@@ -672,9 +672,6 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
 
 auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
 {
-    GuiTree* tree = nullptr;
-    bool use_default_tree = false;
-
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())
     {
