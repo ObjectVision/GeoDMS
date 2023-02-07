@@ -773,16 +773,19 @@ void WmsLayer::Zoom1To1()
 	vp->SetROI(CrdRect(p - s, p + s));
 }
 
-bool WmsLayer::ZoomIn()
+bool WmsLayer::ZoomOut()
 {
 	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	auto zoomFactor = vp->GetCurrZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
+	if (!m_ZoomLevel)
+		return false;
+	--m_ZoomLevel;
 	Zoom1To1();
 //	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor > 1.01)
+	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor < 0.99)
 		return true;
 	if (!m_ZoomLevel)
 		return false;
@@ -791,7 +794,7 @@ bool WmsLayer::ZoomIn()
 	return true;
 }
 
-bool WmsLayer::ZoomOut()
+bool WmsLayer::ZoomIn()
 {
 	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
@@ -803,7 +806,7 @@ bool WmsLayer::ZoomOut()
 	++m_ZoomLevel;
 	Zoom1To1();
 	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor <  0.99)
+	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor >  1.01)
 		return true;
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
