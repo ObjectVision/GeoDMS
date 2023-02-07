@@ -646,7 +646,7 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
         m_TemporaryJumpItem = state.GetCurrentItem();
         break;
     }
-    case GuiEvents::AscendVisibleTree:
+    case GuiEvents::AscendVisibleTree: // TODO: known issue repeat key up not working
     {
         auto ascended_node = m_tree.AscendVisibleTree(state, *m_tree.m_curr_node);
         if (ascended_node)
@@ -656,7 +656,7 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
         }
         break;
     }
-    case GuiEvents::DescendVisibleTree:
+    case GuiEvents::DescendVisibleTree: // TODO: known issue repeat key down not working
     {   
         auto descended_node = m_tree.DescendVisibleTree(state, *m_tree.m_curr_node);
         if (descended_node)
@@ -675,10 +675,7 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())
     {
-        if (event_queues->TreeViewEvents.Size() > 1)
-            int i = 0;
-
-        auto event = event_queues->TreeViewEvents.Pop();
+        auto event = event_queues->TreeViewEvents.Pop(); 
         ProcessTreeviewEvent(event, state);
     }
 
