@@ -207,12 +207,15 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
+    auto default_cursor = SetCursor(LoadCursor(0, IDC_WAIT));
     m_state = (NotificationCode)DMS_TreeItem_GetProgressState(m_item); // calling UpdateMetaInfo for item A can UpdateMetaInfo of item B
 
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 
     if (m_state < NotificationCode::NC2_MetaReady)
         item->UpdateMetaInfo();
+
+    SetCursor(default_cursor);
 }
 
 GuiTreeNode::~GuiTreeNode()
@@ -533,51 +536,11 @@ auto GuiTree::DescendVisibleTree(GuiState& state, GuiTreeNode& node) -> GuiTreeN
         return &*node.m_children.begin();
 
     return GetFirstSibblingNode(node);
-
-    /*
-
-    auto parent_node = node.m_parent;
-    bool matched = false;
-    for (auto& child_node : parent_node->m_children)
-    {
-        if (child_node.GetItem() == node.GetItem())
-        {
-            matched = true;
-            continue;
-        }
-
-        if (!matched)
-            continue;
-
-        return &child_node;
-    }
-
-    auto grandparent_node = parent_node->m_parent;
-    matched = false;
-    if (grandparent_node)
-    {
-        for (auto& child_node : grandparent_node->m_children)
-        {
-            if (child_node.GetItem() == parent_node->GetItem())
-            {
-                matched = true;
-                continue;
-            }
-
-            if (!matched)
-                continue;
-
-            return &child_node;
-        }
-    }*/
-
-
-    return nullptr;
 }
 
 auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
 {
-    //if (!SpaceIsAvailableForTreeNode()) //TODO: implement use of this
+    //if (!SpaceIsAvailableForTreeNode()) //TODO: implement
     //    return false;
 
     if (node.GetState() < NotificationCode::NC2_MetaReady)
@@ -608,9 +571,10 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
             {
                 if (!next_node->IsOpen())
                 {
-                    auto ascended_node = AscendVisibleTree(state, *next_node);
-                    if (ascended_node)
-                        UpdateStateAfterItemClick(state, ascended_node->GetItem());
+                    //auto ascended_node = AscendVisibleTree(state, *next_node);
+                    //if (ascended_node)
+                    if (next_node->m_parent)
+                        UpdateStateAfterItemClick(state, next_node->m_parent->GetItem());
                 }
                 else
                     next_node->SetOpenStatus(false);
@@ -686,13 +650,20 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
     {
         auto ascended_node = m_tree.AscendVisibleTree(state, *m_tree.m_curr_node);
         if (ascended_node)
+        {
             UpdateStateAfterItemClick(state, ascended_node->GetItem());
+            m_tree.m_curr_node = ascended_node;
+        }
         break;
     }
     case GuiEvents::DescendVisibleTree:
-    {   auto descended_node = m_tree.DescendVisibleTree(state, *m_tree.m_curr_node);
+    {   
+        auto descended_node = m_tree.DescendVisibleTree(state, *m_tree.m_curr_node);
         if (descended_node)
+        {
             UpdateStateAfterItemClick(state, descended_node->GetItem());
+            m_tree.m_curr_node = descended_node;
+        }
         break;
     }
     default: break;
@@ -707,6 +678,9 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())
     {
+        if (event_queues->TreeViewEvents.Size() > 1)
+            int i = 0;
+
         auto event = event_queues->TreeViewEvents.Pop();
         ProcessTreeviewEvent(event, state);
     }
@@ -746,19 +720,19 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
             m_tree->Draw(state, m_TemporaryJumpItem);
         }
     }*/
-    if (use_default_tree)
+    /*if (use_default_tree)
     {
         if (state.GetRoot())
             CreateTree(state);
 
         if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             SetKeyboardFocusToThisHwnd();
-    }
+    }*/
 
     ImGui::End();
 }
 
-auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
+/*auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
 {
     auto event_queues = GuiEventQueues::getInstance();
     TreeItem* nextSubItem = branch->_GetFirstSubItem();
@@ -770,7 +744,9 @@ auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
         if (nextSubItem->m_State.GetProgress() < PS_MetaInfo && !nextSubItem->m_State.IsUpdatingMetaInfo())
         {
             //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, nextSubItem, nullptr);
+            //CWaitCursor wait;
             nextSubItem->UpdateMetaInfo();
+            //wait.Restore();
         }     
 
         ImGuiTreeNodeFlags useFlags = nextSubItem == state.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags;
@@ -854,9 +830,9 @@ auto GuiTreeView::CreateBranch(GuiState& state, TreeItem* branch) -> bool
         nextSubItem = nextSubItem->GetNextItem();
     }
     return true;
-}
+}*/
 
-auto GuiTreeView::CreateTree(GuiState& state) -> bool
+/*auto GuiTreeView::CreateTree(GuiState& state) -> bool
 {
     ImGuiTreeNodeFlags useFlags = state.GetRoot() == state.GetCurrentItem() ? m_BaseFlags | ImGuiTreeNodeFlags_Selected : m_BaseFlags;
     auto status = DMS_TreeItem_GetProgressState(state.GetRoot());
@@ -880,5 +856,4 @@ auto GuiTreeView::CreateTree(GuiState& state) -> bool
         IsAlphabeticalKeyJump(state, nullptr, true);
 
     return true;
-}
-
+}*/
