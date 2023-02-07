@@ -153,7 +153,7 @@ std::pair<std::string, std::string> GLFWKeyToLetter(int key)
 
 void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (!(action == GLFW_PRESS))
+    if (action == GLFW_RELEASE)
         return;
 
     auto event_queues = GuiEventQueues::getInstance();
@@ -277,6 +277,8 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_DOWN:
     {
+        if (action == GLFW_REPEAT)
+            int i = 0;
         event_queues->TreeViewEvents.Add(GuiEvents::DescendVisibleTree);
         return;
     }
