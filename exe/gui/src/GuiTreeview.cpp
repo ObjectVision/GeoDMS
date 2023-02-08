@@ -51,53 +51,12 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     }
 }
 
-
-/*auto GuiTreeView::IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped = false) -> bool
-{
-    static bool loop;
-    static bool passedCurrentItem;
-
-    if (looped)
-    {
-        loop = true;
-        passedCurrentItem = false;
-        return false;
-    }
-
-    if (nextItem == state.GetCurrentItem())
-    {
-        passedCurrentItem = true;
-        return false;
-    }
-
-    if (loop && !passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
-    {
-        state.m_JumpLetter.first.clear();
-        state.m_JumpLetter.second.clear();
-        loop = false;
-        return true;
-    }
-
-    if (!loop && passedCurrentItem && (std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.first || std::string(nextItem->GetName().c_str()).substr(0, 1).c_str() == state.m_JumpLetter.second))
-    {
-        state.m_JumpLetter.first.clear();
-        state.m_JumpLetter.second.clear();
-        passedCurrentItem = false;
-        return true;
-    }
-
-    return false;
-}*/
-
 auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
 {
     // right-mouse popup menu
     if (ImGui::BeginPopupContextItem())
     {
         auto event_queues = GuiEventQueues::getInstance();
-        //auto base_style_color = ImGui::GetStyleColorVec4(0);
-        //auto current_style_color = ImGui::GetStyleColorVec4(1);
-        //ImGui::PopStyleColor(2);
         if (ImGui::Button("Edit Config Source       Ctrl-E"))
             event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
 
@@ -120,12 +79,7 @@ auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
             }
         }
 
-        //if (ImGui::Button("Close"))
-        //    ImGui::CloseCurrentPopup();
-        //ImGui::PushStyleColor(ImGuiCol_Text, GetColorU32(style_color));
         ImGui::EndPopup();
-        //ImGui::PushStyleColor(ImGuiCol_Text, base_style_color);
-        //ImGui::PushStyleColor(ImGuiCol_Text, current_style_color);
     }
 }
 
@@ -293,12 +247,6 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     // red background for failed item
     if (failed) 
         SetTextBackgroundRed(ImGui::CalcTextSize(m_item->GetName().c_str()));
-    /* {
-        auto draw_list = ImGui::GetWindowDrawList();
-        auto cur_pos = ImGui::GetCursorScreenPos();
-        auto text_size = ImGui::CalcTextSize(m_item->GetName().c_str());
-        draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x+text_size.x, cur_pos.y+text_size.y), IM_COL32(225, 6, 0, 255));
-    }*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     bool is_selected = (m_item == state.GetCurrentItem());
@@ -315,10 +263,6 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
         UpdateStateAfterItemClick(state, m_item); // TODO: necessary?
     }*/
     ImGui::PopStyleColor();
-
-    // keyboard selection event
-    //if (IsKeyboardFocused())
-    //    UpdateStateAfterItemClick(state, m_item);
 
     // double click event
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -425,9 +369,6 @@ auto GuiTreeNode::IsLeaf() -> bool
 auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
 {
     DrawItemDropDown(state);
-    //auto test1 = ImGui::GetCursorPos();
-    //ImGui::SameLine(); // SameLine moves cursor back to last draw position..
-    //auto test2 = ImGui::GetCursorPos();
     DrawItemIcon();
     ImGui::SameLine();
     DrawItemText(state, jump_item);
@@ -732,31 +673,6 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
     }
 
     m_tree.Draw(state, m_TemporaryJumpItem);
-
-
-    /*if (!use_default_tree)
-    {
-        if (!m_tree && state.GetRoot())
-            m_tree = std::make_unique<GuiTree>(state.GetRoot());
-
-        //if (state.GetRoot())
-        //    tree = GuiTree::getInstance(state.GetRoot());
-
-        if (m_tree)
-        {
-            // visualize tree
-
-            m_tree->Draw(state, m_TemporaryJumpItem);
-        }
-    }*/
-    /*if (use_default_tree)
-    {
-        if (state.GetRoot())
-            CreateTree(state);
-
-        if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            SetKeyboardFocusToThisHwnd();
-    }*/
 
     ImGui::End();
 }
