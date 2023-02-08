@@ -189,6 +189,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 		os << "\n\nTo see all unique values and their frequency, you can open this attribute in a TableView and press the GroupBy button in the toolbar.";
 	}
 }
+
 CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
 {
 	DMS_CALL_BEGIN
@@ -218,7 +219,7 @@ CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* ite
 
 			try {
 
-				//os << "Statistics for " << item->GetFullName() << ":\n";
+				os << "Statistics for " << item->GetFullName() << ":\n";
 
 				if (item->InTemplate())
 				{

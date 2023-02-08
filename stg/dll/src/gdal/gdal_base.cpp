@@ -249,12 +249,13 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
-auto ValidateSpatialReferenceFromWkt(OGRSpatialReference& ogrSR, SharedStr wkt_prj_str) -> void
+void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str)
 {
-	ogrSR.Validate();
+	assert(ogrSR);
+	ogrSR->Validate();
 	CplString pszEsriwkt;
-	ogrSR.exportToWkt(&pszEsriwkt.m_Text);
-	if (!(SharedStr(pszEsriwkt.m_Text) == wkt_prj_str))
+	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
+	if (strcmp(pszEsriwkt.m_Text, wkt_prj_str))
 		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
 }
 
@@ -366,38 +367,19 @@ void sr_releaser::operator ()(OGRSpatialReference* p) const
 }
 */
 
-auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
-{
-	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
-	{
-		if (not (IsDataItem(subItem) and subItem->IsStorable()))
-			continue;
-
-		auto subDI = AsDataItem(subItem);
-
-		auto baseProjectionUnit = GetBaseProjectionUnitFromValuesUnit(subDI);
-		auto wktPrjStr = SharedStr(baseProjectionUnit->GetSpatialReference());
-
-		if (wktPrjStr.empty())
-			continue;
-		auto srOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
-		if (srOrErr.second != OGRERR_NONE)
-			return srOrErr.first;
-	}
-	return {};
-}
-
 void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
 	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
-		throwErrorF("GDAL", "SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
+	{
+		reportF(SeverityTypeID::ST_Warning, "GDAL: SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
 			"\nDataset's SpatialReference:\n%s"
 			"\nbaseProjectionUnit's SpatialReference:\n%s"
 		, GetAsWkt(fromGDAL).c_str()
 		, GetAsWkt(fromConfig).c_str()
 		);
+	}
 }
 
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
@@ -420,7 +402,10 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Abst
 		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has projection with error %d", fullName, spOrErr.second);
 	}
 	if (ogrSR)
+	{
+		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
 		CheckCompatibility(&*ogrSR, &spOrErr.first);
+	}
 	else
 		ogrSR = spOrErr.first;
 }
@@ -890,6 +875,26 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	if (spOrErr.second == OGRERR_NONE)
 		return 1.0;
 	return GetUnitSizeInMeters(&spOrErr.first);
+}
+
+auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
+{
+	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
+	{
+		if (not (IsDataItem(subItem) and subItem->IsStorable()))
+			continue;
+
+		auto subDI = AsDataItem(subItem);
+
+		auto wktString = GetWktProjectionFromValuesUnit(subDI);
+
+		if (wktString.empty())
+			continue;
+		auto srOrErr = GetSpatialReferenceFromUserInput(wktString);
+		if (srOrErr.second != OGRERR_NONE)
+			return srOrErr.first;
+	}
+	return {};
 }
 
 OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)

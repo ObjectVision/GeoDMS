@@ -46,6 +46,7 @@ class NeedleCaret;
 class ScaleBarCaret;
 struct RoiTracker;
 struct SelValuesData;
+struct WmsLayer;
 
 enum ToolButtonID;
 
@@ -153,6 +154,7 @@ private:
 	bool HasROI() const;
 	void UpdateScaleBar();
 	void InvalidateOverlapped();
+	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
 	SharedPtr<const AbstrUnit> m_WorldCrdUnit;
 	mutable SharedRwDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)

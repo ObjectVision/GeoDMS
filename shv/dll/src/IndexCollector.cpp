@@ -121,7 +121,7 @@ DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 	PreparedDataReadLock lock(AsDataItem(res->GetOld()));
 
 	if (lock.GetRefObj())
-		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetTile(t);
+		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 	else
 		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
 	return lock;

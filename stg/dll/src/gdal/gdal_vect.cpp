@@ -1215,20 +1215,6 @@ std::vector<TileCRef> ReadableTileHandles(const std::vector<DataReadLock>& drl, 
 	return tileReadLocks;
 }
 
-/* REMOVE
-std::map<SharedStr, TokenT> GetFieldnameTokenTMapping(SharedStr layername, DataItemsWriteStatusInfo& dataItemsStatusInfo)
-{
-	std::map<SharedStr, TokenT> fieldnameTokenTMap;
-	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[GetTokenID_mt(layername.c_str()).GetTokenT()])
-	{
-		if (not writableField.second.doWrite)
-			continue;
-		fieldnameTokenTMap[writableField.second.name] = GetTokenID_mt(writableField.second.name.c_str()).GetTokenT();
-	}
-	return fieldnameTokenTMap;
-}
-*/
-
 SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 {
 	if (!layer)

@@ -125,8 +125,17 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 	bool changed;
 	if ( IsIncluding(tr.Apply( Convert<CrdRect>(gridRect) ), pnt) )
 	{
+		if (!IsDataReady(GetActiveEntity()->GetCurrRangeItem()))
+		{
+			reportD(SeverityTypeID::ST_MajorTrace, "GridLayer::SelectPoint cancelled... ActiveEntity not ready.");
+			MessageBeep(MB_ICONEXCLAMATION);
+			return;
+		}
+		auto selTheme = CreateSelectionsTheme();
+		if (!selTheme)
+			return;
 		DataWriteLock writeLock(
-			const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+			const_cast<AbstrDataItem*>(selTheme->GetThemeAttr()),
 			CompoundWriteType(eventID)
 		);
 		IPoint gridLoc = RoundDown<4>( tr.Reverse(pnt) );

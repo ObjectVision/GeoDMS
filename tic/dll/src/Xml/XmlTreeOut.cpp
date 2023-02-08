@@ -238,8 +238,10 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 	if (trd->IsCovered())
 	{
-		xmlTable.NameValueRow("Nr Tiles", AsString(trd->GetNrTiles()).c_str());
-		xmlTable.NameValueRow("Max Tile size", AsString(trd->GetMaxTileSize()).c_str());
+		auto nrTiles = trd->GetNrTiles();
+		xmlTable.NameValueRow("Nr Tiles", AsString(nrTiles).c_str());
+		if (nrTiles)
+			xmlTable.NameValueRow("Max Tile size", AsString(trd->GetMaxTileSize()).c_str());
 	}
 	else if (allTileInfo)
 	{
