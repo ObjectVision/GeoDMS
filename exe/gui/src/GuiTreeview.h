@@ -69,10 +69,13 @@ public:
 	auto AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
 	auto DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
 	auto JumpToLetter(GuiState& state, std::string_view letter) -> TreeItem*;
-	GuiTreeNode* m_curr_node = nullptr;
-
+	void ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node);
+	
+	GuiTreeNode* m_curr_node = nullptr; //TODO: move to private variables
+	
 
 private:
+	
 	bool DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item);
 	bool SpaceIsAvailableForTreeNode();
 	UInt64       m_max_count = 0;

@@ -501,7 +501,35 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem
     }
 }
 
-auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item) -> bool
+void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
+{
+    if (ImGui::IsWindowFocused() && node->GetItem() == state.GetCurrentItem())
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        {
+            if (node->IsOpen())
+            {
+                auto descended_node = DescendVisibleTree(*node);
+                if (descended_node)
+                    UpdateStateAfterItemClick(state, descended_node->GetItem());
+            }
+            else
+                node->SetOpenStatus(true);
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        {
+            if (!node->IsOpen())
+            {
+                if (node->m_parent)
+                    UpdateStateAfterItemClick(state, node->m_parent->GetItem());
+            }
+            else
+                node->SetOpenStatus(false);
+        }
+    }
+}
+
+bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item)
 {
     //if (!SpaceIsAvailableForTreeNode()) //TODO: implement
     //    return false;
@@ -517,7 +545,9 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
             next_node->SetOpenStatus(true); // TODO: is optional, can be reconsidered in the future
 
-        if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem())
+        ActOnLeftRightArrowKeys(state, &*next_node);
+
+        /*if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem())
         {
             if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
             {
@@ -534,15 +564,13 @@ auto GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
             {
                 if (!next_node->IsOpen())
                 {
-                    //auto ascended_node = AscendVisibleTree(state, *next_node);
-                    //if (ascended_node)
                     if (next_node->m_parent)
                         UpdateStateAfterItemClick(state, next_node->m_parent->GetItem());
                 }
                 else
                     next_node->SetOpenStatus(false);
             }
-        }
+        }*/
 
         if (next_node->GetItem() == state.GetCurrentItem())
             m_curr_node = &*next_node;        
@@ -572,6 +600,7 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     auto m_currnode = m_start_node;
+    ActOnLeftRightArrowKeys(state, m_currnode);
     m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
