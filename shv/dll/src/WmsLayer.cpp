@@ -778,14 +778,15 @@ bool WmsLayer::ZoomOut()
 	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
-	auto zoomFactor = vp->GetCurrZoomLevel();
+	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
 	if (!m_ZoomLevel)
 		return false;
+	MakeMin(m_ZoomLevel, m_TMS.size());
 	--m_ZoomLevel;
 	Zoom1To1();
 //	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor < 0.99)
+	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor < 0.99)
 		return true;
 	if (!m_ZoomLevel)
 		return false;
@@ -799,14 +800,14 @@ bool WmsLayer::ZoomIn()
 	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
-	auto zoomFactor = vp->GetCurrZoomLevel();
+	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
-	++m_ZoomLevel;
+//	++m_ZoomLevel;
 	Zoom1To1();
 	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->GetCurrZoomLevel() / zoomFactor >  1.01)
+	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor >  1.01)
 		return true;
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;

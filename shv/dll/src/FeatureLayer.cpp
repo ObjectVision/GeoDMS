@@ -260,7 +260,7 @@ DmsColor& FeatureLayer::GetDefaultBrushColor() const
 DmsColor FeatureLayer::GetDefaultOrThemeColor(AspectNr an) const
 {
 	auto theme = GetTheme(an);
-	if (theme)
+	if (theme && theme->IsAspectParameter())
 		return theme->GetColorAspectValue();
 
 	DmsColor* defaultClr = nullptr;
