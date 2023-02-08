@@ -153,16 +153,16 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     }
 
     ImGuiListClipper clipper;
-    bool has_item_filter = !m_FilteredItemIndices.empty();
-    if (has_item_filter)
-        clipper.Begin(m_FilteredItemIndices.size());
-    else if (m_FilteredItemIndices.size() == 1 && m_FilteredItemIndices.at(0)==-1)
+    if (m_FilteredItemIndices.size() == 1 && m_FilteredItemIndices.at(0) == 0xFFFFFFFFFFFFFFFF)
     {
         ImGui::EndChild();
         ImGui::Separator();
         ImGui::End();
         return;
     }
+    else if (!m_FilteredItemIndices.empty())
+        clipper.Begin(m_FilteredItemIndices.size());
+
     else
         clipper.Begin(m_Items.size());
 
@@ -290,7 +290,7 @@ auto GuiEventLog::Refilter() -> void
         index++;
     }
     if (m_FilteredItemIndices.empty())
-        m_FilteredItemIndices.push_back(-1); // special empty search result indicator
+        m_FilteredItemIndices.push_back(0xFFFFFFFFFFFFFFFF); // special empty search result indicator
 }
 
 auto GuiEventLog::AddLog(SeverityTypeID severity_type, std::string original_message) -> void
