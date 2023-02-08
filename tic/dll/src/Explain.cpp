@@ -77,7 +77,8 @@ leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::M
 typedef InterestPtr<const TreeItem*> TreeItemInterestPtr;
 
 namespace Explain { // local defs
-	typedef std::vector<CoordinateType>       CoordinateCollectionType;
+	using CoordinateCollectionType = std::vector<CoordinateType>;
+	static auto calculatingStr = SharedStr("Calculating...");
 
 	struct AbstrCalcExplanation
 	{
@@ -223,10 +224,7 @@ namespace Explain { // local defs
 				if (valuesValue)
 					valStr = DisplayValue(valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 				else
-				{
-					static auto calculatingStr = SharedStr("Calculating...");
 					valStr = calculatingStr;
-				}
 
 				if (n == 1 && isFirst || m_DataItem->IsCacheItem())
 					tab.NameValueRow(locStr.c_str(), valStr.c_str());
@@ -632,7 +630,7 @@ namespace Explain { // local defs
 					return lispCalc;
 			}
 			auto errMsg = mySSPrintF("Unexpected key: %s", AsFLispSharedStr(key).c_str());
-			throwCheckFailed(MG_POS, "Unexpected key");
+			throwCheckFailed(MG_POS, errMsg.c_str());
 		}
 		auto URL(const LispCalcExplanation* expl) -> SharedStr
 		{
@@ -819,10 +817,13 @@ namespace Explain { // local defs
 			for (const auto& factor : signedTerm.second)
 			{
 				auto expl = self->FindExpl(factor);
-				auto valuePtr = expl->m_Coordinates[0].second.get();
 				auto valueURL = self->URL(expl);
 
-				row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+				auto valuePtr = expl->m_Coordinates[0].second.get();
+				if (valuePtr)
+					row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+				else
+					row.ClickableCell(calculatingStr.c_str(), valueURL.c_str());
 			}
 		}
 	}
