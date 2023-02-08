@@ -368,4 +368,4 @@ auto SetKeyboardFocusToThisHwnd() -> void;
 auto LoadIniFromRegistry() -> bool;
 auto SaveIniToRegistry() -> void;
 auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;
-auto SetTextBackgroundRed(ImVec2 background_rectangle_size) -> void;
+auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200)) -> void;

@@ -217,8 +217,6 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
     window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
-    ImGui::PopStyleColor(3);
-
     return 0;
 }
 
@@ -244,15 +242,18 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     auto status = DMS_TreeItem_GetProgressState(m_item);
     auto failed = m_item->IsFailed();
 
+    bool node_is_selected = (m_item == state.GetCurrentItem());
+
     // red background for failed item
     if (failed) 
-        SetTextBackgroundRed(ImGui::CalcTextSize(m_item->GetName().c_str()));
+        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()));
+    else if (node_is_selected)
+        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79));
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
-    bool is_selected = (m_item == state.GetCurrentItem());
     ImGui::PushID(m_item);
-    ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-    if (ImGui::Selectable(m_item->GetName().c_str(), is_selected))
+
+    if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
     {
         UpdateStateAfterItemClick(state, m_item);
     }
@@ -262,7 +263,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
         SetKeyboardFocusToThisHwnd();
         UpdateStateAfterItemClick(state, m_item); // TODO: necessary?
     }*/
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(3);
 
     // double click event
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -567,11 +568,14 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
 {
     if (!m_start_node)
         return;
-
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     auto m_currnode = m_start_node;
     m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
+    ImGui::PopStyleColor(3);
 }
 
 auto GuiTree::clear() -> void
