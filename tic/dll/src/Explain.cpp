@@ -629,8 +629,9 @@ namespace Explain { // local defs
 				if (lispCalc->m_CalcPtr->GetLispExprOrg() == key)
 					return lispCalc;
 			}
-			auto errMsg = mySSPrintF("Unexpected key: %s", AsFLispSharedStr(key).c_str());
-			throwCheckFailed(MG_POS, errMsg.c_str());
+			return nullptr;
+//			auto errMsg = mySSPrintF("Unexpected key: %s", AsFLispSharedStr(key).c_str());
+//			throwCheckFailed(MG_POS, errMsg.c_str());
 		}
 		auto URL(const LispCalcExplanation* expl) -> SharedStr
 		{
@@ -817,13 +818,20 @@ namespace Explain { // local defs
 			for (const auto& factor : signedTerm.second)
 			{
 				auto expl = self->FindExpl(factor);
-				auto valueURL = self->URL(expl);
-
-				auto valuePtr = expl->m_Coordinates[0].second.get();
-				if (valuePtr)
-					row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+				if (expl)
+				{
+					auto valueURL = self->URL(expl);
+					auto valuePtr = expl->m_Coordinates[0].second.get();
+					if (valuePtr)
+						row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+					else
+						row.ClickableCell(calculatingStr.c_str(), valueURL.c_str());
+				}
 				else
-					row.ClickableCell(calculatingStr.c_str(), valueURL.c_str());
+				{
+					auto factorStr = AsFLispSharedStr(factor);
+					row.ValueCell(factorStr.c_str());
+				}
 			}
 		}
 	}

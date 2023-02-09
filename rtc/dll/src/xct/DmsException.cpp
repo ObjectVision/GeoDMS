@@ -85,7 +85,7 @@ SharedStr GenerateContext()
 		fos << "while generating context.";
 	else
 	{
-		fos << "Context:\n";
+		fos << "\nContext:";
 
 		if (!IsMainThread())
 			fos << "\nThread " << GetThreadID();
@@ -167,8 +167,6 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 		m_FullName = ptr->GetFullName();
 		m_HasBeenReported = false;
 	}
-//	m_Class = ptr->GetCurrentObjClass();
-//	dms_assert(m_Class);
 }
 
 SharedStr ErrMsg::GetAsText() const
