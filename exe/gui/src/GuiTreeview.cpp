@@ -692,8 +692,6 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
-    ImGui::SetWindowSize({ 100, 100 });
-
     AutoHideWindowDocknodeTabBar();
 
     auto event_queues = GuiEventQueues::getInstance();

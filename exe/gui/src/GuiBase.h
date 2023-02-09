@@ -324,6 +324,9 @@ public:
 
 	StringStateManager configFilenameManager;
 
+	// docking
+	ImGuiID dockspace_id;
+
 	// singletons
 	static StringStateManager errorDialogMessage;
 	static StringStateManager contextMessage;

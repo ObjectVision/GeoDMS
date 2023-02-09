@@ -470,6 +470,8 @@ int GuiMainComponent::Init()
 
     InterpretCommandLineParameters();
 
+    
+
     return 0;
 }
 
@@ -509,7 +511,7 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
-
+        m_State.dockspace_id = ImGui::GetID("GeoDMSDockSpace");
         // Error dialogue
         if (ShowErrorDialogIfNecessary())
             break;
@@ -640,8 +642,8 @@ void GuiMainComponent::Update()
     auto io = ImGui::GetIO();
     //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     //{
-    auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    //ImGui::GetID("GeoDMSDockSpace");
+    ImGui::DockSpace(m_State.dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     //}
 
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
@@ -791,7 +793,7 @@ void GuiMainComponent::Update()
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
         ImGuiDockContext* dc = &ctx->DockContext;
         
-        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(dockspace_id);
+        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(m_State.dockspace_id);
 
         dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
         dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
