@@ -365,7 +365,7 @@ auto SetCursorPosToOptionsIconInWindowHeader() -> ImVec2;
 auto SetClipRectToIncludeOptionsIconInWindowHeader() -> void;
 auto MouseHooversOptionsIconInWindowHeader() -> bool;
 auto SetKeyboardFocusToThisHwnd() -> void;
-auto LoadIniFromRegistry() -> bool;
+bool LoadIniFromRegistry(bool reload=false);
 auto SaveIniToRegistry() -> void;
 auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;
 auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200)) -> void;

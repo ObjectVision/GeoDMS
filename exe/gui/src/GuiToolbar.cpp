@@ -196,9 +196,6 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiView& view) // TODO: a
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0f/255.0f, 117.0f/255.0f, 138.0f/255.0f, 1.0f));
 
-
-    //ImGui::SetNextWindowSize(ImVec2(20, 10), ImGuiCond_FirstUseEver);
-
     if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();

@@ -288,10 +288,10 @@ void SetWindowCompositionOnFirstUse()
     //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-auto LoadIniFromRegistry() -> bool
+bool LoadIniFromRegistry(bool reload)
 {
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
-    if (ini_registry_contents.empty())
+    if (reload || ini_registry_contents.empty())
     {
         ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
         return false;
@@ -356,7 +356,8 @@ void AutoHideWindowDocknodeTabBar()
     if (window)
     {
         auto node = window->DockNode;
-        if (node && (!node->IsHiddenTabBar())) {
+        if (node && (!node->IsHiddenTabBar())) 
+        {
             node->WantHiddenTabBarToggle = true;
         }
     }
