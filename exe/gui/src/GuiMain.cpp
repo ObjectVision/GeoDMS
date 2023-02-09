@@ -465,7 +465,7 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
-    m_DockingInitialized = LoadIniFromRegistry();
+    m_DockingInitialized = false;// LoadIniFromRegistry();
 
     InterpretCommandLineParameters();
 
@@ -657,35 +657,60 @@ void GuiMainComponent::Update()
     static auto first_time = true;
     if (first_time && not m_DockingInitialized) { //TODO: refactor
         first_time = false;
-        ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+    /*    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
         ImGui::DockBuilderRemoveNode(dockspace_id);
-        auto central_node = ImGui::DockBuilderAddNode(dockspace_id);
+        auto central_node = ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
         
         //LocalFlags
 
+        //auto middle_node = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_COUNT, 0.2f, nullptr, &central_node);
+        ImGuiID dock_id_up, dock_id_down, dock_id_up_up, dock_id_down_down;
+        ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.1f, &dock_id_up, &dock_id_down);
+
+        auto test = ImGui::DockBuilderGetNode(central_node);
+        auto test1 = ImGui::DockBuilderGetNode(dock_id_up);
+        auto tmp = ImGui::DockBuilderGetCentralNode(dock_id_up);
+
+        ImGui::DockBuilderSplitNode(tmp->ID, ImGuiDir_Up, 0.1f, &dock_id_up_up, nullptr);
+
+        //auto central_node_up = ImGui::DockBuilderAddNode(dock_id_up, ImGuiDockNodeFlags_DockSpace);
+        //auto central_node_down = ImGui::DockBuilderAddNode(dock_id_down, ImGuiDockNodeFlags_DockSpace);
+
+        //ImGui::DockBuilderSplitNode(central_node_up, ImGuiDir_Up, 0.2f, &dock_id_up_up, nullptr);
+        //ImGui::DockBuilderSplitNode(central_node_down, ImGuiDir_Down, 0.2f, &dock_id_down_down, nullptr);
+        
+        
+        //auto dock_id_up_up = ImGui::DockBuilderSplitNode(dock_id_up, ImGuiDir_Up, 0.1f, nullptr, nullptr);
+        //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.1f, nullptr, nullptr);
+        //auto dock_id_down_down = ImGui::DockBuilderSplitNode(dock_id_down, ImGuiDir_Down, 0.1f, nullptr, nullptr);
+        //auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
+        //auto dock_id_left = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Left, 0.2f, nullptr, &central_node);
 
 
-        auto dock_id_up = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.2f, nullptr, &central_node);
-        auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.2f, nullptr, &central_node);
-        auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
-        auto dock_id_left = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Left, 0.2f, nullptr, &central_node);
+        //ImGui::DockBuilderDockWindow("Detail Pages", dock_id_right);
+        //ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
+
+        ImGui::DockBuilderDockWindow("Toolbar", dock_id_up_up);
+        //ImGui::DockBuilderDockWindow("EventLog", central_node_down);
 
 
-        ImGui::DockBuilderDockWindow("Detail Pages", dock_id_right);
-        ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
-        ImGui::DockBuilderDockWindow("EventLog", dock_id_down);
-        ImGui::DockBuilderDockWindow("Toolbar", dock_id_up);
 
-        auto toolbar_node = ImGui::DockBuilderGetNode(dock_id_up);
-        auto treeview_node = ImGui::DockBuilderGetNode(dock_id_left);
-        auto eventlog_node = ImGui::DockBuilderGetNode(dock_id_down);
-        auto detailpages_node = ImGui::DockBuilderGetNode(dock_id_right);
 
-        toolbar_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        treeview_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        eventlog_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        detailpages_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
 
+        // set custom node params
+        //auto toolbar_node = ImGui::DockBuilderGetNode(central_node_up);
+        //auto treeview_node = ImGui::DockBuilderGetNode(dock_id_left);
+        //auto eventlog_node = ImGui::DockBuilderGetNode(central_node_down);
+        //auto detailpages_node = ImGui::DockBuilderGetNode(dock_id_right);
+
+        //toolbar_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //treeview_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //eventlog_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //detailpages_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+
+
+
+        // finish
         ImGui::DockBuilderFinish(dockspace_id);
 
         //auto treeview_id = ImGui::GetID("Treeview");
@@ -694,7 +719,7 @@ void GuiMainComponent::Update()
         //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node_tv, ImGuiDir_Down, 0.5f, nullptr, &central_node_tv);
         //ImGui::DockBuilderDockWindow("EventLog", central_node_tv);
         //ImGui::DockBuilderFinish(treeview_id);
-
+        */
     }
 
     m_Menu.Update(m_State, m_View);
@@ -752,4 +777,66 @@ void GuiMainComponent::Update()
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
+
+    static auto first_time_docking = true;
+    static auto second_time_docking = false;
+    if (first_time_docking)
+    {
+        //first_time_docking = false;
+        auto ctx = ImGui::GetCurrentContext();
+
+        // GeoDMS window ptrs
+        auto event_log_window = ImGui::FindWindowByName("EventLog");
+        auto tree_view_window = ImGui::FindWindowByName("TreeView");
+        auto tree_view_window_dock = ImGui::FindWindowByID(1);
+        
+        auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
+        auto toolbar_window = ImGui::FindWindowByName("Toolbar");
+
+
+
+        ImGuiDockContext* dc = &ctx->DockContext;
+        
+        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(dockspace_id);
+
+        dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+
+        if (dockspace_docknode && dockspace_docknode->HostWindow)
+        {
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.2f, true);
+            
+
+            event_log_window->Flags |= ImGuiWindowFlags_NoTitleBar;
+            
+            first_time_docking = false;
+            second_time_docking = true;
+        }
+        //ImGui::GetWindow
+
+        
+        //ImGui::DockContextCalcDropPosForDocking(docknode_window, {}, event_log_window, ImGuiDir_::ImGuiDir_Up, bool split_outer, ImVec2* out_pos)
+    }
+
+    /*if (second_time_docking)
+    {
+        
+        auto event_log_window = ImGui::FindWindowByName("EventLog");
+        auto tree_view_window = ImGui::FindWindowByName("TreeView");
+        auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
+        auto toolbar_window = ImGui::FindWindowByName("Toolbar");
+
+        auto ctx = ImGui::GetCurrentContext();
+        ImGuiDockContext* dc = &ctx->DockContext;
+        for (auto& dock_key_val : dc->Nodes.Data)
+        {
+            auto docking_node = (ImGuiDockNode*)dock_key_val.val_p;
+            if (docking_node)
+                docking_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        }
+        second_time_docking = false;
+    }*/
 }
