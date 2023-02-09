@@ -409,7 +409,7 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
         {
             ImGui::TableSetColumnIndex(column_index);
             if (col.background_is_red)
-                SetTextBackgroundRed(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
+                SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
                 ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());

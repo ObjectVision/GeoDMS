@@ -33,6 +33,7 @@ private:
 	bool ShowSourceFileChangeDialogIfNecessary();
 	void TraverseTreeItemHistoryIfRequested();
 	void InterpretCommandLineParameters();
+	void CreateMainWindowInWindowedFullscreenMode();
 
 	GLFWwindow*				        m_Window		= nullptr;
 	GuiState						m_State			= {};

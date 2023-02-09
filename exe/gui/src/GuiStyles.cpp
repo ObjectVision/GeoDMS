@@ -124,18 +124,16 @@ void SetGuiFont(std::string font_filename)
     //std::string fontFileName = exePath + "misc/fonts/Cousine-Regular.ttf";
     std::string fontFileName = exePath + font_filename; //"misc/fonts/DroidSans.ttf";
     std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
-    if (std::filesystem::exists(fontFileName))
-        auto test = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
-
-    static ImWchar ranges[] = { 0xEA01, 0xf2DE, 0 };
     ImFontConfig config;
-    config.MergeMode = true;
-
-    if (std::filesystem::exists(iconFontFileName))
+   
+    ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0};//0x030F, 0 };
+    if (std::filesystem::exists(fontFileName))
     {
-        auto test = io.Fonts->AddFontFromFileTTF(iconFontFileName.c_str(), 15.0f, &config, ranges);
-        int i = 0;
+        io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 15.0f, &config, ranges_text_font);
+        //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
     }
-    ImGui_ImplOpenGL3_CreateFontsTexture();
+    config.MergeMode = true;
+    ImWchar ranges_icon_font[] = { 0xEA01, 0xf2DE, 0 };
+    io.Fonts->AddFontFromFileTTF(iconFontFileName.c_str(), 15.0f, &config, ranges_icon_font);
     io.Fonts->Build();
 }
