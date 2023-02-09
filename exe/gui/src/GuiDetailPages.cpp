@@ -490,6 +490,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
+    AutoHideWindowDocknodeTabBar();
+
     bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
 

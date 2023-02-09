@@ -349,3 +349,15 @@ auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
     default:                             return "Unknown";
     }
 }
+
+void AutoHideWindowDocknodeTabBar()
+{
+    auto window = ImGui::GetCurrentWindow();
+    if (window)
+    {
+        auto node = window->DockNode;
+        if (node && (!node->IsHiddenTabBar())) {
+            node->WantHiddenTabBarToggle = true;
+        }
+    }
+}

@@ -779,28 +779,64 @@ void GuiMainComponent::Update()
     
 
     static auto first_time_docking = true;
+    static auto second_time_docking = false;
     if (first_time_docking)
     {
         //first_time_docking = false;
         auto ctx = ImGui::GetCurrentContext();
-        auto event_log_window = ImGui::FindWindowByName("EventLog");
-        auto main_window = ImGui::FindWindowByName("GeoDMSGui");
 
-        //auto window_test = ImGui::FindWindowByName("GeoDMSGui/DockSpace_71B4BA2B");
-        //ImGui::FindWindowByID();
+        // GeoDMS window ptrs
+        auto event_log_window = ImGui::FindWindowByName("EventLog");
+        auto tree_view_window = ImGui::FindWindowByName("TreeView");
+        auto tree_view_window_dock = ImGui::FindWindowByID(1);
+        
+        auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
+        auto toolbar_window = ImGui::FindWindowByName("Toolbar");
+
+
+
         ImGuiDockContext* dc = &ctx->DockContext;
         
         auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(dockspace_id);
 
+        dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
-            //dockspace_id
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Up, 0.33, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.2f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.2f, true);
+            
+
+            event_log_window->Flags |= ImGuiWindowFlags_NoTitleBar;
+            
             first_time_docking = false;
+            second_time_docking = true;
         }
         //ImGui::GetWindow
 
         
         //ImGui::DockContextCalcDropPosForDocking(docknode_window, {}, event_log_window, ImGuiDir_::ImGuiDir_Up, bool split_outer, ImVec2* out_pos)
     }
+
+    /*if (second_time_docking)
+    {
+        
+        auto event_log_window = ImGui::FindWindowByName("EventLog");
+        auto tree_view_window = ImGui::FindWindowByName("TreeView");
+        auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
+        auto toolbar_window = ImGui::FindWindowByName("Toolbar");
+
+        auto ctx = ImGui::GetCurrentContext();
+        ImGuiDockContext* dc = &ctx->DockContext;
+        for (auto& dock_key_val : dc->Nodes.Data)
+        {
+            auto docking_node = (ImGuiDockNode*)dock_key_val.val_p;
+            if (docking_node)
+                docking_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        }
+        second_time_docking = false;
+    }*/
 }

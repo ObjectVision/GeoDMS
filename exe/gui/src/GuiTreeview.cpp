@@ -692,6 +692,8 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
+    AutoHideWindowDocknodeTabBar();
+
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())
     {
