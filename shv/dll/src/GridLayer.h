@@ -97,7 +97,7 @@ private:
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
 
-	void Zoom1To1() override;
+	void Zoom1To1(ViewPort* vp) override;
 
 //	GridCoordPtr GetGridCoordInfo(ViewPort* vp) const; friend class ViewPort;
 	void CreateSelCaretInfo () const;

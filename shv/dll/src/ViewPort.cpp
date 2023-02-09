@@ -478,7 +478,7 @@ auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
 void ViewPort::ZoomIn1()
 {
 	auto layer = FindBackgroundWmsLayer();
-	if (layer && layer->ZoomIn())
+	if (layer && layer->ZoomIn(this))
 		return;
 	ZoomFactor(0.5); // zoom in on half of org ROI
 }
@@ -498,7 +498,7 @@ void ViewPort::ZoomFactor(CrdType factor)
 void ViewPort::ZoomOut1()
 {
 	auto layer = FindBackgroundWmsLayer();
-	if (layer && layer->ZoomOut())
+	if (layer && layer->ZoomOut(this, false))
 		return;
 	ZoomFactor(2.0); // zoom in on twice the org ROI
 }

@@ -80,14 +80,14 @@ struct WmsLayer : GridLayerBase
 	void SetSpecContainer(const TreeItem* specContainer);
 	void SetWorldCrdUnit(const AbstrUnit* WorldCrdUnit);
 
-	bool ZoomIn();
-	bool ZoomOut();
+	bool ZoomIn(ViewPort* vp);
+	bool ZoomOut(ViewPort* vp, bool justClickIsOK);
 
 protected:
 //	override virtuals of GraphicObject
 	bool  Draw(GraphDrawer& d) const override;
 
-	void Zoom1To1() override;
+	void Zoom1To1(ViewPort* vp) override;
 
 	//	override virtuals of GraphicLayer
 	const AbstrUnit* GetGeoCrdUnit() const override { throwIllegalAbstract(MG_POS, this, "GetGeoCrdUnit"); }

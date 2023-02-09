@@ -753,9 +753,8 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	return GVS_Continue;
 }
 
-void WmsLayer::Zoom1To1()
+void WmsLayer::Zoom1To1(ViewPort* vp)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	if (!vp->GetWorldCrdUnit())
@@ -773,9 +772,8 @@ void WmsLayer::Zoom1To1()
 	vp->SetROI(CrdRect(p - s, p + s));
 }
 
-bool WmsLayer::ZoomOut()
+bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
@@ -784,20 +782,19 @@ bool WmsLayer::ZoomOut()
 		return false;
 	MakeMin(m_ZoomLevel, m_TMS.size());
 	--m_ZoomLevel;
-	Zoom1To1();
+	Zoom1To1(vp);
 //	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor < 0.99)
+	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor < 0.99 || justClickIsOK)
 		return true;
 	if (!m_ZoomLevel)
 		return false;
 	--m_ZoomLevel;
-	Zoom1To1();
+	Zoom1To1(vp);
 	return true;
 }
 
-bool WmsLayer::ZoomIn()
+bool WmsLayer::ZoomIn(ViewPort* vp)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
@@ -805,14 +802,14 @@ bool WmsLayer::ZoomIn()
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
 //	++m_ZoomLevel;
-	Zoom1To1();
+	Zoom1To1(vp);
 	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
 	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor >  1.01)
 		return true;
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
 	++m_ZoomLevel;
-	Zoom1To1();
+	Zoom1To1(vp);
 	return true;
 }
 

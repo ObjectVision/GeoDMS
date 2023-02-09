@@ -1183,9 +1183,8 @@ GRect GridLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
 	return GRect(-focusSize, -focusSize, focusSize, focusSize);  // max rounding error without considering orientation
 }
 
-void GridLayer::Zoom1To1()
+void GridLayer::Zoom1To1(ViewPort* vp)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	if (!vp->GetWorldCrdUnit())

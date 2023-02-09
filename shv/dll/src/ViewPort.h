@@ -144,6 +144,7 @@ public:
 	void PasteGrid(SelValuesData* svd, GridLayer* gl);
 
 	WeakPtr<RoiTracker> m_Tracker;
+	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
 private:
 	// Override virtuals of GraphicObject
@@ -154,7 +155,6 @@ private:
 	bool HasROI() const;
 	void UpdateScaleBar();
 	void InvalidateOverlapped();
-	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
 	SharedPtr<const AbstrUnit> m_WorldCrdUnit;
 	mutable SharedRwDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
