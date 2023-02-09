@@ -20,6 +20,9 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include "GLFW/glfw3native.h"
+
 #include "ShvDllInterface.h"
 #include "TicInterface.h"
 #include "ClcInterface.h"
@@ -378,6 +381,17 @@ void GuiMainComponent::InterpretCommandLineParameters()
     }
 }
 
+void GuiMainComponent::CreateMainWindowInWindowedFullscreenMode()
+{
+    auto primary_monitor = glfwGetPrimaryMonitor();
+    int xpos, ypos, width, height;
+    glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
+    m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
+
+    auto main_hwnd = glfwGetWin32Window(m_Window);
+    SendMessage(main_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+}
+
 int GuiMainComponent::Init()
 {
     // set exe dir
@@ -391,11 +405,8 @@ int GuiMainComponent::Init()
         return 1;
 
     auto glsl_version = SetGLFWWindowHints();
-    
-    auto primary_monitor = glfwGetPrimaryMonitor();
-    int xpos,ypos,width,height;
-    glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
-    m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
+    CreateMainWindowInWindowedFullscreenMode();
+
     //const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
 
     //glfwSetWindowMonitor(m_Window, primary_monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
