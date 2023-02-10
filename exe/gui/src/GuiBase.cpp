@@ -198,7 +198,7 @@ void GuiState::SetWindowOpenStatusFlagsOnFirstUse() // first use based on availa
 void GuiState::LoadWindowOpenStatusFlags()
 {
     bool exists = false;
-    auto flags = GetRegFlags("WindowOpenStatusFlags", exists);
+    auto flags = false; //ALPHA GetRegFlags("WindowOpenStatusFlags", exists);
 
     if (!exists)
     {
@@ -207,13 +207,13 @@ void GuiState::LoadWindowOpenStatusFlags()
     }
 
     // update open state based on flags
-    ShowTreeviewWindow = flags & GWOF_TreeView;
-    ShowDetailPagesWindow = flags & GWOF_DetailPages;
-    ShowEventLogWindow = flags & GWOF_EventLog;
-    ShowOptionsWindow = flags & GWOF_Options;
-    ShowToolbar = flags & GWOF_ToolBar;
-    ShowCurrentItemBar = flags & GWOF_CurrentItemBar;
-    ShowStatusBar = flags & GWOF_StatusBar;
+    ShowTreeviewWindow = flags && GWOF_TreeView;
+    ShowDetailPagesWindow = flags && GWOF_DetailPages;
+    ShowEventLogWindow = flags && GWOF_EventLog;
+    ShowOptionsWindow = flags && GWOF_Options;
+    ShowToolbar = flags && GWOF_ToolBar;
+    ShowCurrentItemBar = flags && GWOF_CurrentItemBar;
+    ShowStatusBar = flags && GWOF_StatusBar;
 }
 
 std::string GetInitialWindowComposition()
@@ -288,17 +288,17 @@ void SetWindowCompositionOnFirstUse()
     //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-auto LoadIniFromRegistry() -> bool
+bool LoadIniFromRegistry()
 {
-    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
-    if (ini_registry_contents.empty())
-    {
+//ALPHA    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+//ALPHA    if (ini_registry_contents.empty())
+//ALPHA    {
         ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
         return false;
-    }
+//ALPHA    }
 
-    ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
-    return true;
+//ALPHA    ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
+//ALPHA    return true;
 
     //SetWindowCompositionOnFirstUse();
     //ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
