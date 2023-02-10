@@ -226,7 +226,8 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 	switch (supplierStatus)
 	{
 	case task_status::done:
-		dms_assert(IsDataReady(supplier->m_Result));
+		assert(supplier->m_Result);
+		assert(IsDataReady(supplier->m_Result->GetCurrUltimateItem()));
 		if (!m_Suppliers.empty())
 			break;
 
@@ -879,7 +880,6 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 			|| !dynamic_cast<const FuncDC*>(futureSupplier)->m_OperContext
 			|| dynamic_cast<const FuncDC*>(futureSupplier)->m_OperContext->m_Status == task_status::none
 		); // supplier operation was completed before this one starts
-		dms_assert(supplierItem->GetCurrRefItem() == nullptr);
 		supplierItem = supplierItem->GetCurrRangeItem();
 		if (HandleFail(supplierItem))
 			return{};
@@ -1366,9 +1366,9 @@ void OperationContext::RunOperator(Explain::Context* context, const ArgRefs& arg
 
 			dms_assert(resultHolder || IsCanceled());
 			dms_assert(actualResult || SuspendTrigger::DidSuspend());
-			dms_assert(!IsDataItem(resultHolder.GetOld()) || AsDataItem(resultHolder.GetOld())->m_DataObject
+			dms_assert(!IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
 				|| !actualResult
-				|| CheckCalculatingOrReady(resultHolder.GetOld())
+				|| CheckCalculatingOrReady(resultHolder.GetUlt())
 				|| resultHolder->WasFailed(FR_Data)
 			);
 		}

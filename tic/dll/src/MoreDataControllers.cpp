@@ -492,7 +492,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 
 	dms_assert(GetInterestCount()); 
 
-	if (!IsAllDataReady(m_Data.get()) || context)
+	if (!IsAllDataReady(m_Data->GetCurrUltimateItem()) || context)
 	{
 		dms_assert(m_Data->GetInterestCount());
 		dms_assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);

@@ -44,6 +44,7 @@ struct TreeItemDualRef : Actor
 
 	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get_ptr()); }
 	const TreeItem* GetOld()  const { return m_Data; }
+	const TreeItem* GetUlt()  const { if (!m_Data) return nullptr;  return m_Data->GetCurrUltimateItem(); }
 
 	virtual bool IsSymbDC() const { return false; }
 	virtual bool CanResultToConfigItem() const { return false; }

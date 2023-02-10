@@ -1,6 +1,7 @@
 #include "TicPCH.h"
 #pragma hdrstop
 
+#include <assert.h>
 #include "act/ActorLock.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"
@@ -524,7 +525,8 @@ bool IsAllDataCurrReady(const TreeItem* item)
 
 bool IsDataReady(const TreeItem* item)
 {
-	dms_assert(item->GetInterestCount()); // or else result would be volatile
+	assert(item);
+	assert(item->GetInterestCount()); // or else result would be volatile
 	return IsDataCurrReady(item);
 }
 

@@ -273,11 +273,16 @@ namespace Explain { // local defs
 		}
 	};
 
-	struct LispCalcExplanation : DataControllerRef, AbstrCalcExplanation
+	struct LispCalcExplanation : AbstrCalcExplanation
 	{
 		LispCalcExplanation(const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
-			: DataControllerRef(GetDC(calcPtr))
-			, AbstrCalcExplanation(AsDataItem(get()->MakeResult().get_ptr()))
+			: LispCalcExplanation(GetDC(calcPtr), calcPtr, parent, seqNr)
+			
+		{}
+
+		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
+			: AbstrCalcExplanation(AsDataItem(dc->MakeResult().get_ptr()))
+			, m_DC(dc)
 			, m_CalcPtr(calcPtr)
 			, m_Parent(parent)
 			, m_SeqNr(seqNr)
@@ -290,17 +295,9 @@ namespace Explain { // local defs
 			ExplainResult(m_CalcPtr, context);
 			return CalcResult(m_CalcPtr, AbstrDataItem::GetStaticClass());
 		}
-		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override
-		{
-			dms_assert(!isFirst);
-			NewLine(stream);
-			stream << "Expr ";
-			PrintSeqNr(stream);
-			stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
-			NewLine(stream);
 
-			GetDescrBase(stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
-		}
+		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
+
 		virtual void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level);
 
 		void PrintSeqNr(OutStreamBase& stream) const
@@ -319,6 +316,7 @@ namespace Explain { // local defs
 			return SharedStr(buff.GetData(), buff.GetDataEnd());
 		}
 
+		DataControllerRef                m_DC;
 		SharedPtr<const AbstrCalculator> m_CalcPtr;
 		const LispCalcExplanation*       m_Parent;
 		arg_index                        m_SeqNr;
@@ -769,6 +767,24 @@ namespace Explain { // local defs
 		for (auto& term: m_Expr)
 			for (auto& factor: term.second)
 				self->AddLispExplanation(factor, level, m_Parent, ++seqNr);
+	}
+
+	void LispCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		dms_assert(!isFirst);
+		NewLine(stream);
+		stream << "Expr ";
+		PrintSeqNr(stream);
+		stream << " (in FLisp format): ";
+		{
+			auto valueURL = self->URL(this);
+
+			XML_hRef xmlElemA(stream, valueURL.c_str());
+			stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
+		}
+		NewLine(stream);
+
+		GetDescrBase(stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
 	}
 
 	void SumOfTermsExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const

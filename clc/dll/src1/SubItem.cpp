@@ -78,7 +78,7 @@ struct SubItemOperator: public BinaryOperator
 		if (mustCalc)
 		{
 			dms_assert(CheckDataReady(arg1));
-			dms_assert(CheckDataReady(resultHolder.GetOld()));
+			dms_assert(CheckDataReady(resultHolder.GetUlt()));
 //			dms_assert(resultHolder->DataAllocated() || resultHolder->WasFailed(FR_Data));
 /*
 			if (!IsCalculatingOrReady(resultHolder.GetOld()) && !resultHolder->WasFailed(FR_Data))

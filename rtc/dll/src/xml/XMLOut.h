@@ -57,6 +57,8 @@ class OutStreamBuff;
 // OutStreamBase
 //----------------------------------------------------------------------
 
+const UInt32 MAX_TEXTOUT_SIZE = 400;
+
 struct OutStreamBase {
 
 	enum SyntaxType { ST_XML, ST_DMS, ST_HTM, ST_Count, ST_Unknown = -1 };
@@ -77,6 +79,8 @@ struct OutStreamBase {
 
 	virtual void WriteValue (CharPtr data) = 0;
 	virtual void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) = 0;
+	void WriteTrimmed(CharPtr data) { WriteValueN(data, MAX_TEXTOUT_SIZE - 3, "..."); }
+	void WriteRange(CharPtr first, CharPtr last) { WriteValueN(first, last - first, ""); }
 
 	virtual void WriteAttr(CharPtr name, CharPtr value) =0;
 	virtual void WriteAttr(CharPtr name, bool value) =0;
