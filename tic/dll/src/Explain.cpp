@@ -185,6 +185,7 @@ namespace Explain { // local defs
 		}
 
 		virtual void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const = 0;
+		virtual void PrintSeqNr(OutStreamBase& stream) const = 0;
 
 	protected:
 		void GetDescrBase(OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const
@@ -271,16 +272,21 @@ namespace Explain { // local defs
 			GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			NewLine(stream);
 		}
+		void PrintSeqNr(OutStreamBase& stream) const override
+		{
+			auto fullName = SharedStr(m_DataItem->GetFullName());
+			stream << fullName.c_str();
+		}
 	};
 
 	struct LispCalcExplanation : AbstrCalcExplanation
 	{
-		LispCalcExplanation(const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
+		LispCalcExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: LispCalcExplanation(GetDC(calcPtr), calcPtr, parent, seqNr)
 			
 		{}
 
-		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
+		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: AbstrCalcExplanation(AsDataItem(dc->MakeResult().get_ptr()))
 			, m_DC(dc)
 			, m_CalcPtr(calcPtr)
@@ -302,11 +308,17 @@ namespace Explain { // local defs
 
 		void PrintSeqNr(OutStreamBase& stream) const
 		{
+//			assert(m_Parent);
 			if (m_Parent) {
 				m_Parent->PrintSeqNr(stream);
-				stream << ".";
+				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
+					stream << "?";
+				else
+					stream << ".";
+				stream << AsString(m_SeqNr).c_str();
 			}
-			stream << AsString(m_SeqNr).c_str();
+			else
+				assert(m_SeqNr == 1);
 		}
 		auto RelativeExprPath() const -> SharedStr
 		{
@@ -318,7 +330,7 @@ namespace Explain { // local defs
 
 		DataControllerRef                m_DC;
 		SharedPtr<const AbstrCalculator> m_CalcPtr;
-		const LispCalcExplanation*       m_Parent;
+		const AbstrCalcExplanation*      m_Parent;
 		arg_index                        m_SeqNr;
 		SupplInterestListPtr             m_SupplInterest;
 	};
@@ -337,7 +349,7 @@ namespace Explain { // local defs
 
 	struct SumOfTermsExplanation : LispCalcExplanation
 	{
-		SumOfTermsExplanation(const AbstrCalculator* calcPtr, const LispCalcExplanation* parent, arg_index seqNr)
+		SumOfTermsExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: LispCalcExplanation(calcPtr, parent, seqNr)
 		{
 			ProcessTerms(calcPtr->GetLispExprOrg(), true);
@@ -530,7 +542,7 @@ namespace Explain { // local defs
 				)
 			);
 		}
-		void AddLispExplanation(LispPtr lispExpr, UInt32 level, const LispCalcExplanation* parent, arg_index seqNr)
+		void AddLispExplanation(LispPtr lispExpr, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
 		{
 			if (!lispExpr.IsRealList() || !lispExpr.Left().IsSymb() || lispExpr.Left().GetSymbID() == token::sourceDescr)
 				return;
