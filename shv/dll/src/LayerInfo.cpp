@@ -224,6 +224,7 @@ const TreeItem* GetMappingItem(const TreeItem* ti)
 	dms_assert(ti); // PRECONDITION
 	do
 	{
+		dms_assert(!SuspendTrigger::DidSuspend());
 		if (IsThisMappable(ti))
 			return ti;
 		ti = ti->GetReferredItem();

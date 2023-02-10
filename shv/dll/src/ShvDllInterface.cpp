@@ -412,6 +412,7 @@ static UInt32          g_LastViewStyleFlags;
 bool IsMapViewable(const AbstrDataItem* adi)
 {
 	dms_assert(adi);
+	dms_assert(!SuspendTrigger::DidSuspend());
 	if (adi->WasFailed(FR_MetaInfo))
 		return false;
 
@@ -444,6 +445,7 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
 
+		SuspendTrigger::Resume();
 		dms_assert(item);
 		if (g_LastQueriedItem != item || g_LastAdminMode != HasAdminMode())
 		{
