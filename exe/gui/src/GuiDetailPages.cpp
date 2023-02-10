@@ -74,7 +74,7 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 {
     std::string href = "";
 
-    if (m_Tag.text.substr(9, 14) == "dms:dp.general")
+    if (m_Tag.text.size() >= 23 && std::string_view(m_Tag.text.data()+9, 14) == "dms:dp.general")
         href = m_Tag.text.substr(24, m_Tag.text.length() - 26);
         
     return href;
@@ -84,7 +84,7 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
 {
     // open tags
-    if (m_Tag.text.substr(0, 5) == "<BODY")
+    if (m_Tag.text.size() >= 5 && std::string_view(m_Tag.text.data(), 5) == "<BODY")
         m_OpenTags[int(HTMLTagType::BODY)]++;
     else if (m_Tag.text.substr(0, 2) == "<A")
     {
