@@ -517,7 +517,7 @@ bool IsAllDataCurrReady(const TreeItem* item)
 		return false;
 	if (item->IsCacheItem())
 		for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-			if (!IsAllDataCurrReady(subItem))
+			if (!IsAllDataCurrReady(subItem->GetCurrUltimateItem()))
 				return false;
 	return true;
 }
