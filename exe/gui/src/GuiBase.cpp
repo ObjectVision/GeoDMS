@@ -350,8 +350,11 @@ auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
     }
 }
 
-void AutoHideWindowDocknodeTabBar()
+void AutoHideWindowDocknodeTabBar(bool &is_docking_initialized)
 {
+    if (is_docking_initialized)
+        return;
+
     auto window = ImGui::GetCurrentWindow();
     if (window)
     {
@@ -359,6 +362,7 @@ void AutoHideWindowDocknodeTabBar()
         if (node && (!node->IsHiddenTabBar())) 
         {
             node->WantHiddenTabBarToggle = true;
+            is_docking_initialized = true;
         }
     }
 }

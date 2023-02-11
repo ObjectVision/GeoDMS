@@ -204,7 +204,7 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiView& view) // TODO: a
         return;
     }
 
-    AutoHideWindowDocknodeTabBar();
+    AutoHideWindowDocknodeTabBar(is_docking_initialized);
    
     // focus window when clicked
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))

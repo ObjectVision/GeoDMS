@@ -490,7 +490,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
-    AutoHideWindowDocknodeTabBar();
+    AutoHideWindowDocknodeTabBar(is_docking_initialized);
 
     bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();

@@ -777,13 +777,13 @@ void GuiMainComponent::Update()
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
 
+    auto ctx = ImGui::GetCurrentContext();
     static auto first_time_docking = true;
-    static auto second_time_docking = false;
+    ImGuiDockContext* dc = &ctx->DockContext;
+
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(m_State.dockspace_id);
     if (first_time_docking)
     {
-        //first_time_docking = false;
-        auto ctx = ImGui::GetCurrentContext();
-
         // GeoDMS window ptrs
         auto event_log_window = ImGui::FindWindowByName("EventLog");
         auto tree_view_window = ImGui::FindWindowByName("TreeView");
@@ -791,9 +791,7 @@ void GuiMainComponent::Update()
         
         auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
-        ImGuiDockContext* dc = &ctx->DockContext;
-        
-        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(m_State.dockspace_id);
+
 
         dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
         dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
@@ -806,7 +804,6 @@ void GuiMainComponent::Update()
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.8f, true);
                         
             first_time_docking = false;
-            second_time_docking = true;
         }
     }
 }
