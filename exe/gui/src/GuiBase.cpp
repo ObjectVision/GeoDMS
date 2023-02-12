@@ -366,3 +366,19 @@ void AutoHideWindowDocknodeTabBar(bool &is_docking_initialized)
         }
     }
 }
+
+bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+    
+    
+    //if (dockspace_docknode && dockspace_docknode->HostWindow)
+    //{
+    //    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
+    //}
+    return false;
+}

@@ -15,6 +15,8 @@
 #include "TreeItemProps.h"
 #include "IconsFontRemixIcon.h"
 
+struct ImGuiWindow;
+
 enum GuiWindowOpenFlags
 {
 	GWOF_TreeView = 1,
@@ -373,3 +375,4 @@ void SaveIniToRegistry();
 void OnItemClickItemTextTextToClipboard(std::string_view text);
 void SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200));
 void AutoHideWindowDocknodeTabBar(bool& is_docking_initialized);
+bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
