@@ -315,10 +315,8 @@ namespace Explain { // local defs
 					stream << "?";
 				else
 					stream << ".";
-				stream << AsString(m_SeqNr).c_str();
 			}
-			else
-				assert(m_SeqNr == 1);
+			stream << AsString(m_SeqNr).c_str();
 		}
 		auto RelativeExprPath() const -> SharedStr
 		{
