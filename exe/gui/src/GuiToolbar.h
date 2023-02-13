@@ -46,4 +46,5 @@ public:
 private:
 	std::vector<Button>		  m_TableViewButtons;
 	std::vector<Button>		  m_MapViewButtons;
+	bool is_docking_initialized = false;
 };

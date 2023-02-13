@@ -382,6 +382,30 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
     SuspendTrigger::Resume();
 
+    auto window = ImGui::GetCurrentWindow(); //TODO: temporary
+
     ImGui::End();
+
+
+
+
+
+    if (!view.has_been_docking_initialized)
+    {
+        //if (TryDockViewInGeoDMSDataViewAreaNode(state, window))
+        //    view.has_been_docking_initialized = true;
+
+        /*auto ctx = ImGui::GetCurrentContext();
+        ImGuiDockContext* dc = &ctx->DockContext;
+        //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+
+        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+        if (dockspace_docknode && dockspace_docknode->HostWindow)
+        {
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
+            view.has_been_docking_initialized = true;
+        }*/
+    }
+
     return result;
 }

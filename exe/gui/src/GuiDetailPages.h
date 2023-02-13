@@ -122,4 +122,5 @@ private:
     TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
+    bool is_docking_initialized = false;
 };

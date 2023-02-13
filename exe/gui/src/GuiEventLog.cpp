@@ -109,7 +109,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
-    AutoHideWindowDocknodeTabBar();
+    AutoHideWindowDocknodeTabBar(is_docking_initialized);
 
     //ImGuiStyle &style = ImGui::GetStyle();
     //style.ItemSpacing.y = 2.0;
