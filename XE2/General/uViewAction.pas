@@ -64,7 +64,7 @@ private
 
   function Apply: Boolean;
   function IdleAction: Boolean;
-  function GetExtraInfo: PSourceChar;
+  function GetExtraInfo: SourceString;
 
 public
   destructor  Destroy; override;
@@ -80,7 +80,7 @@ public
   property RecNo: SizeT   Read m_RecNo;
   property Row:   Integer Read m_Y;
   property Col:   Integer Read m_X;
-  property ExtraInfo: PSourceChar read GetExtraInfo;
+  property ExtraInfo: SourceString read GetExtraInfo;
   property IsReady: Boolean Read m_isReady Write m_isReady;
   property VAT: TViewActionType read m_VAT;
   property Url: SourceString    read m_Url;
@@ -232,7 +232,7 @@ begin
 end;
 
 constructor TViewAction.Create(tiContext: TTreeItem; sAction: MsgString; nCode: Integer; oSender: TControl; x,y: Integer; doAddHistory, isUrl: Boolean);
-var sMenu, sPath: SourceString;
+var sMenu, sPathWithSub, sPath: SourceString;
     sRecNr: SourceString;
 begin
    // quick init of data members
@@ -256,20 +256,22 @@ begin
       exit;
    end;
 
-   Split(sAction, ':', sMenu, sPath);
+   Split(sAction, ':', sMenu, sPathWithSub);
    if (UpperCase(sMenu) = 'EXECUTE') then
    begin
      m_VAT := VAT_Execute;
-     m_Url := sPath;
+     m_Url := sPathWithSub;
      exit; // when called from DoOrCreate, self will be Applied Directly and Destroyed.
    end;
 
    m_tiFocus := tiContext;
+
    if not Assigned(m_tiFocus) then m_tiFocus := dmfGeneral.GetActiveTreeItem;
    if Assigned(m_tiFocus) then
    begin
-     if (sPath <> '') then
+     if (sPathWithSub <> '') then
      begin
+       Split(sPathWithSub, '?', sPath, m_sExtraInfo);
        m_tiFocus := DMS_TreeItem_GetItem(m_tiFocus, PItemChar(sPath), Nil);
        if not assigned(m_tiFocus) then
        begin
@@ -331,9 +333,9 @@ begin
     LooseFocus;
 end;
 
-function TViewAction.GetExtraInfo: PSourceChar;
+function TViewAction.GetExtraInfo: SourceString;
 begin
-  Result := PSourceChar(m_sExtraInfo);
+  Result := m_sExtraInfo;
 end;
 
 procedure TViewAction.LooseFocus;
