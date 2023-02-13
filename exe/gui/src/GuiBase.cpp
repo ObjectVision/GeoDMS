@@ -374,7 +374,7 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
     //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
 
     auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
-    
+    //TODO: implement check/usage of default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
     
     //if (dockspace_docknode && dockspace_docknode->HostWindow)
     //{
