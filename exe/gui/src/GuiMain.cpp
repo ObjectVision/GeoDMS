@@ -465,9 +465,12 @@ int GuiMainComponent::Init()
 
     // load ini file
     io.IniFilename = NULL; // disable automatic saving and loading to and from .ini file
+    //LoadIniFromRegistry(true);
     m_DockingInitialized = false;// LoadIniFromRegistry();
 
     InterpretCommandLineParameters();
+
+    
 
     return 0;
 }
@@ -508,7 +511,7 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
-
+        m_State.dockspace_id = ImGui::GetID("GeoDMSDockSpace");
         // Error dialogue
         if (ShowErrorDialogIfNecessary())
             break;
@@ -639,8 +642,8 @@ void GuiMainComponent::Update()
     auto io = ImGui::GetIO();
     //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
     //{
-    auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    //ImGui::GetID("GeoDMSDockSpace");
+    ImGui::DockSpace(m_State.dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     //}
 
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
@@ -755,8 +758,6 @@ void GuiMainComponent::Update()
 
     if (!m_FirstFrames)
     {
-
-
         // initializations after first n frames
         if (!m_NoConfig)
             m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
@@ -765,8 +766,6 @@ void GuiMainComponent::Update()
     else if (m_FirstFrames > 0)
         m_FirstFrames--;
 
-
-    
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
@@ -778,13 +777,13 @@ void GuiMainComponent::Update()
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
     
 
+    auto ctx = ImGui::GetCurrentContext();
     static auto first_time_docking = true;
-    static auto second_time_docking = false;
+    ImGuiDockContext* dc = &ctx->DockContext;
+
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(m_State.dockspace_id);
     if (first_time_docking)
     {
-        //first_time_docking = false;
-        auto ctx = ImGui::GetCurrentContext();
-
         // GeoDMS window ptrs
         auto event_log_window = ImGui::FindWindowByName("EventLog");
         auto tree_view_window = ImGui::FindWindowByName("TreeView");
@@ -794,49 +793,17 @@ void GuiMainComponent::Update()
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
 
 
-
-        ImGuiDockContext* dc = &ctx->DockContext;
-        
-        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(dockspace_id);
-
         dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
         dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
 
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.2f, true);
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.2f, true);
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.2f, true);
-            
-
-            event_log_window->Flags |= ImGuiWindowFlags_NoTitleBar;
-            
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.8f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.025f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.8f, true);
+                        
             first_time_docking = false;
-            second_time_docking = true;
         }
-        //ImGui::GetWindow
-
-        
-        //ImGui::DockContextCalcDropPosForDocking(docknode_window, {}, event_log_window, ImGuiDir_::ImGuiDir_Up, bool split_outer, ImVec2* out_pos)
     }
-
-    /*if (second_time_docking)
-    {
-        
-        auto event_log_window = ImGui::FindWindowByName("EventLog");
-        auto tree_view_window = ImGui::FindWindowByName("TreeView");
-        auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
-        auto toolbar_window = ImGui::FindWindowByName("Toolbar");
-
-        auto ctx = ImGui::GetCurrentContext();
-        ImGuiDockContext* dc = &ctx->DockContext;
-        for (auto& dock_key_val : dc->Nodes.Data)
-        {
-            auto docking_node = (ImGuiDockNode*)dock_key_val.val_p;
-            if (docking_node)
-                docking_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        }
-        second_time_docking = false;
-    }*/
 }

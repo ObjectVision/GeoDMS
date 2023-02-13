@@ -288,11 +288,19 @@ void SetWindowCompositionOnFirstUse()
     //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
+<<<<<<< HEAD
 bool LoadIniFromRegistry()
 {
 //ALPHA    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
 //ALPHA    if (ini_registry_contents.empty())
 //ALPHA    {
+=======
+bool LoadIniFromRegistry(bool reload)
+{
+    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
+    if (reload || ini_registry_contents.empty())
+    {
+>>>>>>> origin/GeoDMS_ImGui
         ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
         return false;
 //ALPHA    }
@@ -350,14 +358,35 @@ auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string
     }
 }
 
-void AutoHideWindowDocknodeTabBar()
+void AutoHideWindowDocknodeTabBar(bool &is_docking_initialized)
 {
+    if (is_docking_initialized)
+        return;
+
     auto window = ImGui::GetCurrentWindow();
     if (window)
     {
         auto node = window->DockNode;
-        if (node && (!node->IsHiddenTabBar())) {
+        if (node && (!node->IsHiddenTabBar())) 
+        {
             node->WantHiddenTabBarToggle = true;
+            is_docking_initialized = true;
         }
     }
+}
+
+bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
+
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+    //TODO: implement check/usage of default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
+    
+    //if (dockspace_docknode && dockspace_docknode->HostWindow)
+    //{
+    //    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
+    //}
+    return false;
 }

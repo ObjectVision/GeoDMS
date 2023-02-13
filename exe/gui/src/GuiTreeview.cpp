@@ -273,7 +273,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     ShowRightMouseClickPopupWindowIfNeeded(state);
 
     // drag-drop event
-    if (ImGui::BeginDragDropSource() && !(m_item== state.GetRoot()))
+    if (!(m_item == state.GetRoot()) && ImGui::BeginDragDropSource())
     {
         ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
         ImGui::TextUnformatted(m_item->GetName().c_str());
@@ -692,7 +692,7 @@ auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
         return;
     }
 
-    AutoHideWindowDocknodeTabBar();
+    AutoHideWindowDocknodeTabBar(is_docking_initialized);
 
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())

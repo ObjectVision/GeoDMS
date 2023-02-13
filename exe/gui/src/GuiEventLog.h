@@ -46,6 +46,7 @@ private:
     static std::string               m_FilterText;
     static OptionsEventLog           m_FilterEvents;
 
+    bool is_docking_initialized = false;
     bool AutoScroll;
     bool ScrollToBottom;
 };
