@@ -367,16 +367,6 @@ private:
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
 auto SetCursorPosToOptionsIconInWindowHeader() -> ImVec2;
-<<<<<<< HEAD
-auto SetClipRectToIncludeOptionsIconInWindowHeader() -> void;
-auto MouseHooversOptionsIconInWindowHeader() -> bool;
-auto SetKeyboardFocusToThisHwnd() -> void;
-bool LoadIniFromRegistry();
-auto SaveIniToRegistry() -> void;
-auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void;
-auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200)) -> void;
-void AutoHideWindowDocknodeTabBar();
-=======
 void SetClipRectToIncludeOptionsIconInWindowHeader();
 bool MouseHooversOptionsIconInWindowHeader();
 void SetKeyboardFocusToThisHwnd();
@@ -386,4 +376,3 @@ void OnItemClickItemTextTextToClipboard(std::string_view text);
 void SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200));
 void AutoHideWindowDocknodeTabBar(bool& is_docking_initialized);
 bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
->>>>>>> origin/GeoDMS_ImGui

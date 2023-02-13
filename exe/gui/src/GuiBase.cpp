@@ -288,21 +288,14 @@ void SetWindowCompositionOnFirstUse()
     //SetGeoDmsRegKeyString("WindowComposition", GetInitialWindowComposition());
 }
 
-<<<<<<< HEAD
-bool LoadIniFromRegistry()
-{
-//ALPHA    auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
-//ALPHA    if (ini_registry_contents.empty())
-//ALPHA    {
-=======
 bool LoadIniFromRegistry(bool reload)
 {
     auto ini_registry_contents = GetGeoDmsRegKey("WindowComposition");
     if (reload || ini_registry_contents.empty())
     {
->>>>>>> origin/GeoDMS_ImGui
         ImGui::LoadIniSettingsFromMemory(GetInitialWindowComposition().c_str());
         return false;
+    }
 //ALPHA    }
 
 //ALPHA    ImGui::LoadIniSettingsFromMemory(ini_registry_contents.c_str());
