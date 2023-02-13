@@ -47,7 +47,7 @@ GuiMainComponent::GuiMainComponent()
 {
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
-    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
     DMS_RegisterStateChangeNotification(&m_Treeview.OnStateChange, nullptr);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
@@ -519,29 +519,8 @@ int GuiMainComponent::MainLoop()
         // Updated source files
         ShowSourceFileChangeDialogIfNecessary();
 
-        // Handle new config file
-        if (m_State.configFilenameManager.HasNew())
-        {
-            CloseCurrentConfig();
-            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
-            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
-
-            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
-            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-
-            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-
-            if (m_State.GetRoot())
-            {
-                //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
-                //m_State.GetRoot()->UpdateMetaInfo();
-            }
-        }
-
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
-
-
 
         // update all gui components
         Update();
@@ -566,8 +545,24 @@ int GuiMainComponent::MainLoop()
 
         glfwSwapBuffers(m_Window);
 
+        // Handle new config file
+        if (m_State.configFilenameManager.HasNew())
+        {
+            CloseCurrentConfig();
+            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
+            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
+            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
+            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
 
+            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+
+            if (m_State.GetRoot())
+            {
+                //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
+                //m_State.GetRoot()->UpdateMetaInfo();
+            }
+        }
 
         m_GuiUnitTest.Step();
 

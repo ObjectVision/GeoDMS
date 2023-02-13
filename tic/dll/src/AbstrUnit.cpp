@@ -888,7 +888,10 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
   public:
 	FormatPropDef()
 		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
-	{}
+	{
+		SetDepreciated();
+	}
+
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
 	void SetValue(AbstrUnit* item, ParamType val) override
@@ -906,7 +909,7 @@ class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
 {
 public:
 	SpatialReferencePropDef()
-		: PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+		: PropDef<AbstrUnit, TokenID>(SR_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
 	{}
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
@@ -943,6 +946,7 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 };
 
 FormatPropDef formatPropDef;
+SpatialReferencePropDef srPropDef;
 MetricPropDef metricPropDef;
 ProjectionPropDef projectionPropDef;
 ValueTypePropDef valueTypePropDef;

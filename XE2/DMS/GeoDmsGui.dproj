@@ -308,18 +308,18 @@
 					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.exe">
 						<Platform Name="Win64"/>
 					</DeployFile>
-					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
-						<Platform Name="Win32">
-							<RemoteName>GeoDmsGui.rsm</RemoteName>
-						</Platform>
+					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
+						<Platform Name="Win32"/>
 					</DeployFile>
 					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.rsm">
 						<Platform Name="Win64">
 							<RemoteName>GeoDmsGui.rsm</RemoteName>
 						</Platform>
 					</DeployFile>
-					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
-						<Platform Name="Win32"/>
+					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
+						<Platform Name="Win32">
+							<RemoteName>GeoDmsGui.rsm</RemoteName>
+						</Platform>
 					</DeployFile>
 					<DeployClass Name="ProjectOutput" Required="true">
 						<Platform Name="OSX32">

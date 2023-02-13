@@ -39,7 +39,7 @@ private:
     auto ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor;
     auto ClearLog() -> void;
     auto Refilter() -> void;
-    auto static AddLog(SeverityTypeID severity_type, std::string original_message) -> void;
+    void AddLog(SeverityTypeID severity_type, std::string_view original_message);
 
     static std::vector<EventLogItem> m_Items;
     static std::vector<UInt64>       m_FilteredItemIndices;

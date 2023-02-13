@@ -10,17 +10,24 @@ std::vector<UInt64>       GuiEventLog::m_FilteredItemIndices;
 std::string               GuiEventLog::m_FilterText = "";
 OptionsEventLog           GuiEventLog::m_FilterEvents;
 
-auto ReplaceLinkInLogMessageIfNecessary(std::string_view original_message, std::string& filtered_message, std::string& link)
+struct href_message {
+    std::string user_text;
+    std::string link;
+};
+
+auto ReplaceLinkInLogMessageIfNecessary(std::string_view original_message) -> href_message
 {
-    filtered_message = original_message;
+    href_message result;
+    result.user_text = original_message;
     auto link_opening = original_message.find("[[");
     auto link_closing = original_message.rfind("]]"); // assume at most one link occurence per log entry
 
     if (link_opening != std::string_view::npos && link_closing != std::string_view::npos)
     {
-        link = original_message.substr(link_opening + 2, link_closing - link_opening - 2);
-        filtered_message.replace(link_opening, link_closing + 2 - link_opening, "");
+        result.user_text.replace(link_opening, link_closing + 2 - link_opening, "");
+        result.link = original_message.substr(link_opening + 2, link_closing - link_opening - 2);
     }
+    return result;
 }
 
 GuiEventLog::GuiEventLog()
@@ -48,11 +55,6 @@ auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
 
         ImGui::End();
     }
-}
-
-auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
-{
-    AddLog(st, msg);
 }
 
 auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void
@@ -296,13 +298,59 @@ auto GuiEventLog::Refilter() -> void
         m_FilteredItemIndices.push_back(0xFFFFFFFFFFFFFFFF); // special empty search result indicator
 }
 
-auto GuiEventLog::AddLog(SeverityTypeID severity_type, std::string original_message) -> void
+void GuiEventLog::AddLog(SeverityTypeID severity_type, std::string_view original_message)
 {
-    std::string filtered_message = "";
-    std::string link = "";
-    ReplaceLinkInLogMessageIfNecessary(original_message, filtered_message, link);
-    m_Items.emplace_back(severity_type, filtered_message, link);
+    auto hrefMsg = ReplaceLinkInLogMessageIfNecessary(original_message);
+    m_Items.emplace_back(severity_type, hrefMsg.user_text, hrefMsg.link);
 
     if (ItemPassesFilter(&m_Items.back(), &m_FilterEvents, m_FilterText))
         m_FilteredItemIndices.push_back(m_Items.size()-1);
 };
+
+#include "GuiMain.h"
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_internal.h>
+
+void DirectUpdateEventLog(GuiMainComponent* main)
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
+
+    main->m_EventLog.Update(&main->m_State.ShowEventLogWindow, main->m_State);
+
+    ImGui::Render();
+    int display_w, display_h;
+    glfwGetFramebufferSize(main->m_Window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    // Update and Render additional Platform Windows
+    auto& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backup_current_context);
+    }
+    glfwSwapBuffers(main->m_Window);
+}
+
+auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
+{
+    auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
+    assert(main);
+    main->m_EventLog.AddLog(st, msg);
+   
+    auto g = ImGui::GetCurrentContext();
+//    if (g->FrameCountEnded == g->FrameCount)
+//        DirectUpdateEventLog(main);
+}
+

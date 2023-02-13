@@ -35,6 +35,7 @@ private:
 	void InterpretCommandLineParameters();
 	void CreateMainWindowInWindowedFullscreenMode();
 
+public:
 	GLFWwindow*				        m_Window		= nullptr;
 	GuiState						m_State			= {};
 	GuiInput						m_Input			= {};

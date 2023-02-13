@@ -272,6 +272,10 @@ begin
      if (sPathWithSub <> '') then
      begin
        Split(sPathWithSub, '?', sPath, m_sExtraInfo);
+{$IFDEF DEBUG}
+       frmMain.LogMsg(PAnsiChar( 'TViewAction.Create path      ' + sPath       ));
+       frmMain.LogMsg(PAnsiChar( 'TViewAction.Create ExtraInfo ' + m_sExtraInfo));
+{$ENDIF}
        m_tiFocus := DMS_TreeItem_GetItem(m_tiFocus, PItemChar(sPath), Nil);
        if not assigned(m_tiFocus) then
        begin
@@ -302,7 +306,7 @@ begin
      exit; // when called from DoOrCreate, self will be Applied Directly and Destroyed.
    end;
 
-   Split(sRecNr, '!', sRecNr, m_sExtraInfo);
+//   Split(sRecNr, '!', sRecNr, m_sExtraInfo);
    if (sRecNr <> '')
    then m_RecNo := StrToInt64(sRecNr)
    else m_RecNo := DMS_SIZET_UNDEFINED;
