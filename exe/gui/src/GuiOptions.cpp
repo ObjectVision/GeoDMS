@@ -29,6 +29,8 @@ void GuiOptions::ApplyChanges()
     
     RTC_SetRegDWord(RegDWordEnum::MemoryFlushThreshold, m_Options.advanced_options.treshold_mem_flush);
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.tracelog_file ? m_Options.advanced_options.flags |= RSF_TraceLogFile : m_Options.advanced_options.flags &= ~RSF_TraceLogFile);
+
+    reportF(SeverityTypeID::ST_Warning, "Changes made to Advanced Options require a restart of GeoDMS to take effect!");
 }
 
 void GuiOptions::RestoreAdvancedSettingsFromRegistry()
