@@ -322,7 +322,7 @@ void DirectUpdateEventLog(GuiMainComponent* main)
 
     ImGui::Render();
     int display_w, display_h;
-    glfwGetFramebufferSize(main->m_Window, &display_w, &display_h);
+    glfwGetFramebufferSize(main->m_MainWindow, &display_w, &display_h);
     glViewport(0, 0, display_w, display_h);
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -340,7 +340,7 @@ void DirectUpdateEventLog(GuiMainComponent* main)
         ImGui::RenderPlatformWindowsDefault();
         glfwMakeContextCurrent(backup_current_context);
     }
-    glfwSwapBuffers(main->m_Window);
+    glfwSwapBuffers(main->m_MainWindow);
 }
 
 auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void

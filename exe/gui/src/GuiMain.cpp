@@ -386,9 +386,9 @@ void GuiMainComponent::CreateMainWindowInWindowedFullscreenMode()
     auto primary_monitor = glfwGetPrimaryMonitor();
     int xpos, ypos, width, height;
     glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
-    m_Window = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
+    m_MainWindow = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
 
-    auto main_hwnd = glfwGetWin32Window(m_Window);
+    auto main_hwnd = glfwGetWin32Window(m_MainWindow);
     SendMessage(main_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 }
 
@@ -420,9 +420,9 @@ int GuiMainComponent::Init()
     //m_Window = glfwCreateWindow(mode->width, mode->height, "", primary_monitor, NULL);
 
 
-    if (m_Window == NULL)
+    if (m_MainWindow == NULL)
         return 1;
-    glfwMakeContextCurrent(m_Window);
+    glfwMakeContextCurrent(m_MainWindow);
     glfwSwapInterval(1); // Enable vsync
 
     // setup Dear ImGui context
@@ -452,12 +452,12 @@ int GuiMainComponent::Init()
     }
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
+    ImGui_ImplGlfw_InitForOpenGL(m_MainWindow, true); // TODO: fully remove singletons from gui using glfwSetWindowUserPointerw https://www.glfw.org/docs/latest/group__window.html#ga3d2fc6026e690ab31a13f78bc9fd3651
     ImGui_ImplOpenGL3_Init(glsl_version.c_str());
     if (not glewInit() == GLEW_OK) // OpenGL extentions entry point
         throwErrorF("GLEW", "unsuccessful initialization of openGL helper library glew.");
 
-    SetDmsWindowIcon(m_Window);
+    SetDmsWindowIcon(m_MainWindow);
     SetGuiFont("misc/fonts/DroidSans.ttf");
     //SetGuiFont("misc/fonts/Cambria-01.ttf"); // from C:\Windows\Fonts
     // Load gui state
@@ -481,7 +481,7 @@ int GuiMainComponent::MainLoop()
 
     // state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    glfwSetWindowTitle(m_Window, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
+    glfwSetWindowTitle(m_MainWindow, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
     //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();
@@ -491,7 +491,7 @@ int GuiMainComponent::MainLoop()
     UInt32 UpdateFrameCounter = frames_to_update;
 
     // Main loop
-    while (!glfwWindowShouldClose(m_Window))
+    while (!glfwWindowShouldClose(m_MainWindow))
     {
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
         glfwPollEvents();
@@ -528,7 +528,7 @@ int GuiMainComponent::MainLoop()
         // rendering
         ImGui::Render();
         int display_w, display_h;
-        glfwGetFramebufferSize(m_Window, &display_w, &display_h);
+        glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -543,7 +543,7 @@ int GuiMainComponent::MainLoop()
             glfwMakeContextCurrent(backup_current_context);
         }
 
-        glfwSwapBuffers(m_Window);
+        glfwSwapBuffers(m_MainWindow);
 
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
@@ -552,7 +552,7 @@ int GuiMainComponent::MainLoop()
             auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
             auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
-            glfwSetWindowTitle(m_Window, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
+            glfwSetWindowTitle(m_MainWindow, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
 
             //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
@@ -578,7 +578,7 @@ int GuiMainComponent::MainLoop()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    glfwDestroyWindow(m_Window);
+    glfwDestroyWindow(m_MainWindow);
     glfwTerminate();
 
     return m_State.return_value;
