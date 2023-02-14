@@ -452,7 +452,7 @@ int GuiMainComponent::Init()
     }
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOpenGL(m_MainWindow, true);
+    ImGui_ImplGlfw_InitForOpenGL(m_MainWindow, true); // TODO: fully remove singletons from gui using glfwSetWindowUserPointerw https://www.glfw.org/docs/latest/group__window.html#ga3d2fc6026e690ab31a13f78bc9fd3651
     ImGui_ImplOpenGL3_Init(glsl_version.c_str());
     if (not glewInit() == GLEW_OK) // OpenGL extentions entry point
         throwErrorF("GLEW", "unsuccessful initialization of openGL helper library glew.");
