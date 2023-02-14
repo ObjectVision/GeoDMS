@@ -83,6 +83,7 @@ namespace gdalComponentImpl
 	CPLErrorHandler s_OldErrorHandler = nullptr;
 
 	THREAD_LOCAL UInt32 s_TlsCount = 0;
+	THREAD_LOCAL PJ_CONTEXT* proj_ctx = nullptr;
 
 	leveled_critical_section gdalSection(item_level_type(0), ord_level_type::GDALComponent, "gdalComponent");
 
@@ -301,9 +302,10 @@ auto GetSpatialReferenceFromUserInput(SharedStr wktPrjStr) -> std::pair<OGRSpati
 {
 	assert(!wktPrjStr.empty());
 
+	
 	gdalComponent lock_use_gdal;
-
 	GDAL_ErrorFrame	error_frame;
+	
 
 	OGRSpatialReference	src;
 	OGRErr err = src.SetFromUserInput(wktPrjStr.c_str());
@@ -412,14 +414,17 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Abst
 
 
 #include "proj.h"
-
+struct OSRPJContextHolder;
 gdalThread::gdalThread()
 {
 	if (!gdalComponentImpl::s_TlsCount)
 	{
 		DMS_SE_CALLBACK_BEGIN
-
+			//gdalComponentImpl::proj_ctx = proj_context_create();
+			OSRPJContextHolder
+			auto proj_ctx_holder = (OSRPJContextHolder)CPLGetTLS(CTLS_PROJCONTEXTHOLDER);
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
+			proj_context_set_file_finder(gdalComponentImpl::proj_ctx, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 			
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
@@ -430,9 +435,15 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
+		if (gdalComponentImpl::proj_ctx)
+		{
+			proj_context_destroy(gdalComponentImpl::proj_ctx);
+			gdalComponentImpl::proj_ctx = nullptr;
+		}
 //		OSRCleanup();
 		CPLCleanupTLS();
 		CPLPopFileFinder();
+		//proj_context_set_file_finder(nullptr, nullptr, nullptr);
 	}
 }
 
@@ -454,7 +465,7 @@ gdalComponent::gdalComponent()
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
 
 			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
-			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+			
 
 			// Note: moved registering of drivers to Gdal_DoOpenStorage
 			//GDALAllRegister(); // can throw
@@ -480,7 +491,6 @@ gdalComponent::~gdalComponent()
 
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
-		proj_context_set_file_finder(nullptr, nullptr, nullptr);
 		gdalCleanup();
 	}
 }
