@@ -432,15 +432,21 @@ namespace Explain { // local defs
 
 	struct CalcExplImpl
 	{
-		void Init(const AbstrDataItem* studyObject, SizeT studyIdx)
+		void Init(const AbstrDataItem* studyObject, SizeT studyIdx, CharPtr extraInfo)
 		{
+			if (!extraInfo)
+				extraInfo = "";
+
 			if (	studyObject == m_StudyObject
 				&&	studyIdx    == m_StudyIdx
-				&& (!studyObject || studyObject->GetLastChangeTS() == m_LastChange))
+				&&	(strcmp(extraInfo, m_ExtraInfo.c_str())==0)
+				&& (!studyObject || studyObject->GetLastChangeTS() == m_LastChange)
+				)
 				return;
 
 			m_StudyObject = studyObject;
 			m_StudyIdx    = studyIdx;
+			m_ExtraInfo   = extraInfo;
 			m_Queue.clear();
 			m_DoneQueueEntries = m_DoneExpl = 0;
 
@@ -662,6 +668,7 @@ namespace Explain { // local defs
 
 		SharedDataItem           m_StudyObject = 0;
 		SizeT                    m_StudyIdx = 0;
+		std::string              m_ExtraInfo;
 		TimeStamp                m_LastChange = 0;
 
 		friend struct CalcExplanations;
@@ -680,7 +687,7 @@ namespace Explain { // local defs
 		{
 			try {
 
-				Explain::g_CalcExplImpl.Init(studyObject, index);
+				Explain::g_CalcExplImpl.Init(studyObject, index, extraInfo);
 				return Explain::g_CalcExplImpl.ProcessQueue();
 
 			}
@@ -881,7 +888,7 @@ TIC_CALL void DMS_CONV DMS_ExplainValue_Clear()
 {
 	DMS_CALL_BEGIN
 
-		Explain::g_CalcExplImpl.Init(nullptr, 0);
+		Explain::g_CalcExplImpl.Init(nullptr, 0, nullptr);
 		
 	DMS_CALL_END
 }
