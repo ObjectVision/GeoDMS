@@ -3,7 +3,7 @@
 			<ProjectGuid>{6C970A99-641C-4E6E-8D23-1E74FD094BE6}</ProjectGuid>
 			<MainSource>GeoDmsGui.dpr</MainSource>
 			<Base>True</Base>
-			<Config Condition="'$(Config)'==''">Release</Config>
+			<Config Condition="'$(Config)'==''">Debug</Config>
 			<TargetedPlatforms>3</TargetedPlatforms>
 			<AppType>Application</AppType>
 			<FrameworkType>VCL</FrameworkType>
@@ -308,18 +308,18 @@
 					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.exe">
 						<Platform Name="Win64"/>
 					</DeployFile>
-					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
-						<Platform Name="Win32"/>
+					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
+						<Platform Name="Win32">
+							<RemoteName>GeoDmsGui.rsm</RemoteName>
+						</Platform>
 					</DeployFile>
 					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.rsm">
 						<Platform Name="Win64">
 							<RemoteName>GeoDmsGui.rsm</RemoteName>
 						</Platform>
 					</DeployFile>
-					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
-						<Platform Name="Win32">
-							<RemoteName>GeoDmsGui.rsm</RemoteName>
-						</Platform>
+					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
+						<Platform Name="Win32"/>
 					</DeployFile>
 					<DeployClass Name="ProjectOutput" Required="true">
 						<Platform Name="OSX32">
