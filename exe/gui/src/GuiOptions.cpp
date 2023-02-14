@@ -119,7 +119,7 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
                         m_Options.advanced_options.treshold_mem_flush = 100;
                     else if (m_Options.advanced_options.treshold_mem_flush < 50)
                         m_Options.advanced_options.treshold_mem_flush = 50;
-
+                    m_Options.advanced_options.changed = true;
                     
                 }
                 ImGui::SameLine();
@@ -144,9 +144,9 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
         auto options_window_pos = ImGui::GetWindowPos();
         auto options_window_content_region = ImGui::GetWindowContentRegionMax();
         auto current_cursor_pos_X = ImGui::GetCursorPosX();
-        ImGui::SetCursorPos(ImVec2(current_cursor_pos_X, options_window_content_region.y - 20));
+        ImGui::SetCursorPos(ImVec2(current_cursor_pos_X, options_window_content_region.y - 1.5*ImGui::GetTextLineHeight()));
 
-        if (ImGui::Button("Ok    "))
+        if (ImGui::Button("Ok", ImVec2(50, 1.5*ImGui::GetTextLineHeight())))
         {
             ApplyChanges();
             m_Options.advanced_options.changed = false;
@@ -155,14 +155,14 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
 
         ImGui::BeginDisabled(!m_Options.advanced_options.changed);
         ImGui::SameLine();
-        if (ImGui::Button("Apply "))
+        if (ImGui::Button("Apply", ImVec2(50, 1.5*ImGui::GetTextLineHeight())))
         {
             ApplyChanges();
             m_Options.advanced_options.changed = false;
         }
         
         ImGui::SameLine();
-        if (ImGui::Button("Cancel"))
+        if (ImGui::Button("Cancel", ImVec2(50, 1.5*ImGui::GetTextLineHeight())))
         {
             RestoreAdvancedSettingsFromRegistry();
             m_Options.advanced_options.changed = false;
