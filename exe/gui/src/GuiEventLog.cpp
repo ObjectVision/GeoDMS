@@ -349,7 +349,7 @@ auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, Ch
     assert(main);
     main->m_EventLog.AddLog(st, msg);
    
-    auto g = ImGui::GetCurrentContext();
+    //auto g = ImGui::GetCurrentContext();
 //    if (g->FrameCountEnded == g->FrameCount)
 //        DirectUpdateEventLog(main);
 }
