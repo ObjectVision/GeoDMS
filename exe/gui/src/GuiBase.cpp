@@ -373,16 +373,27 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
 {
     auto ctx = ImGui::GetCurrentContext();
     ImGuiDockContext* dc = &ctx->DockContext;
-    //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-
     auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
-    //TODO: implement check/usage of default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
+
+    // The following is a specific hardcoded default docking configuration of GeoDMS windows, if the pattern does not match do not dock the View
+    // Default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
+    if (!dockspace_docknode || dockspace_docknode->SplitAxis != ImGuiAxis_Y) // root(Y, 0)
+        return false;
+
+    if (!dockspace_docknode->ChildNodes[0] || dockspace_docknode->ChildNodes[0]->SplitAxis != ImGuiAxis_Y) // 7(Y, 1)
+        return false;
+
+
+
+
+
+    //TODO: 
     
     //if (dockspace_docknode && dockspace_docknode->HostWindow)
     //{
     //    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
     //}
-    return false;
+    return true;
 }
 
 std::string StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts)

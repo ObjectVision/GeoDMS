@@ -19,9 +19,9 @@ bool GuiOptions::AdvancedOptionsStringValueHasBeenChanged(std::string key, std::
     std::string cached_geodms_str = "";
 
     if (key.compare("LocalDataDir")==0)
-        cached_geodms_str = GetLocalDataDir().c_str();
+        cached_geodms_str = GetGeoDmsRegKey("LocalDataDir").c_str();
     else if (key.compare("SourceDataDir")==0)
-        cached_geodms_str = GetSourceDataDir().c_str();
+        cached_geodms_str = GetGeoDmsRegKey("SourceDataDir").c_str();
 
     return value.compare(cached_geodms_str)!=0;
 }
@@ -78,9 +78,9 @@ void GuiOptions::ApplyChanges(GuiState& state)
 void GuiOptions::RestoreAdvancedSettingsFromRegistry()
 {
     // strings
-    m_Options.advanced_options.local_data_dir = !GetLocalDataDir().empty() ? GetLocalDataDir().c_str() : SetDefaultRegKey("LocalDataDir", "C:/LocalData").c_str();
-    m_Options.advanced_options.source_data_dir = !GetSourceDataDir().empty() ? GetSourceDataDir().c_str() : SetDefaultRegKey("SourceDataDir", "C:/SourceData").c_str();
-    m_Options.advanced_options.dms_editor_command = !GetConvertedGeoDmsRegKey("DmsEditor").empty() ? GetConvertedGeoDmsRegKey("DmsEditor").c_str() : SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%/Notepad++/Notepad++.exe"" ""%F"" -n%L").c_str();
+    m_Options.advanced_options.local_data_dir = !GetGeoDmsRegKey("LocalDataDir").empty() ? GetGeoDmsRegKey("LocalDataDir").c_str() : SetDefaultRegKey("LocalDataDir", "C:\\LocalData").c_str();
+    m_Options.advanced_options.source_data_dir = !GetGeoDmsRegKey("SourceDataDir").empty() ? GetGeoDmsRegKey("SourceDataDir").c_str() : SetDefaultRegKey("SourceDataDir", "C:\\SourceData").c_str();
+    m_Options.advanced_options.dms_editor_command = !GetGeoDmsRegKey("DmsEditor").empty() ? GetGeoDmsRegKey("DmsEditor").c_str() : SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L").c_str();
     
     // status flags
     m_Options.advanced_options.pp0 = IsMultiThreaded0();
