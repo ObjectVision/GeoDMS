@@ -127,14 +127,14 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 	SizeT n = last - first;
 	if (!n)
 		return {};
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		++n;
 
 	auto resultPtr = SharedCharArray::Create(n+1, false); // size + zero termination
 	auto resultStr = SharedStr(resultPtr);
 
 	auto dstPtr = resultPtr->begin();
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		*dstPtr++ = '_';
 
 	auto dstEnd = fast_copy(first, last, dstPtr);
