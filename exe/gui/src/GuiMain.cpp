@@ -100,8 +100,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     case GuiEvents::ReopenCurrentConfiguration:
     {
         CloseCurrentConfig();
-        if (!m_State.configFilenameManager.Get().empty())
-            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
+        m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+        //if (!m_State.configFilenameManager.Get().empty())
+        //    m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
         break;
     }
     case GuiEvents::OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
@@ -305,6 +306,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         {
             auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            ImGui::CloseCurrentPopup();
         }
 
         ImGui::EndPopup();
