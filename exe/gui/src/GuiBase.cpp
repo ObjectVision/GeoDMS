@@ -384,14 +384,14 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
     return false;
 }
 
-std::string StartWindowsFileDialog()
+std::string StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts)
 {
-    std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
-    auto parent_path = std::filesystem::path(last_filename).parent_path();
-    COMDLG_FILTERSPEC ComDlgFS[1] = { {L"Configuration files", L"*.dms;*.xml"} };
+    //std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
+    auto parent_path = std::filesystem::path(start_path).parent_path();
+    COMDLG_FILTERSPEC ComDlgFS[1] = { {file_dialog_text.c_str(), file_dialog_exts.c_str()}}; //L"Configuration files", L"*.dms;*.xml"
 
     std::string result_file = "";
-    std::wstring test_file;
+    std::wstring intermediate_w_string_path;
 
     HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (SUCCEEDED(hr))
@@ -425,12 +425,12 @@ std::string StartWindowsFileDialog()
                     {
                         //MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
                         //result_file = *pszFilePath;
-                        test_file = std::wstring(pszFilePath);
+                        intermediate_w_string_path = std::wstring(pszFilePath);
                         using convert_type = std::codecvt_utf8<wchar_t>;
                         std::wstring_convert<convert_type, wchar_t> converter;
 
                         //use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
-                        result_file = converter.to_bytes(test_file);
+                        result_file = converter.to_bytes(intermediate_w_string_path);
 
                         CoTaskMemFree(pszFilePath);
                     }

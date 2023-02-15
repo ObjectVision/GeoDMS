@@ -131,7 +131,7 @@ void GuiMenuFile::Update(GuiState& state)
     {
         if (ImGui::MenuItem("Open Configuration File", "Ctrl+O"))
         {
-            auto file_name = StartWindowsFileDialog();
+            auto file_name = StartWindowsFileDialog(GetGeoDmsRegKey("LastConfigFile").c_str(), L"Configuration files", L"*.dms;*.xml");
             if (!file_name.empty())
             {
                 state.configFilenameManager.Set(file_name);

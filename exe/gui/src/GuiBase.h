@@ -368,4 +368,4 @@ void OnItemClickItemTextTextToClipboard(std::string_view text);
 void SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200));
 void AutoHideWindowDocknodeTabBar(bool& is_docking_initialized);
 bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
-auto StartWindowsFileDialog() -> std::string;
+auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts) -> std::string;
