@@ -1,7 +1,7 @@
 #pragma once
 #include "GuiBase.h"
 
-class GuiCurrentItem : GuiBaseComponent
+class GuiCurrentItem
 {
 public:
 	auto Update(GuiState& state) -> void;

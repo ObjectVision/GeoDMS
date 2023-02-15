@@ -1,7 +1,7 @@
 #pragma once
 #include "GuiBase.h"
 
-class GuiStatusBar : GuiBaseComponent
+class GuiStatusBar
 {
 public:
 	GuiStatusBar();

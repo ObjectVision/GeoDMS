@@ -79,6 +79,7 @@ RTC_CALL SharedStr GetExeDir();
 RTC_CALL SharedStr GetLocalDataDir();
 RTC_CALL SharedStr GetSourceDataDir();
 RTC_CALL SharedStr ConvertDosFileName(WeakStr fileName);
+RTC_CALL SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
 RTC_CALL SharedStr ConvertDmsFileName(WeakStr path);
 RTC_CALL SharedStr ConvertDmsFileNameAlways(SharedStr&& path); // for updated WinAPI funcs
 
@@ -114,7 +115,7 @@ enum RegStatusFlags
 
 RTC_CALL UInt32 GetRegStatusFlags();
 RTC_CALL UInt32 GetRegFlags(std::string key, bool &exists);
-RTC_CALL void SetRegStatusFlag(UInt32 newSF, bool newVal = true);
+RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
 
@@ -127,7 +128,7 @@ enum class RegDWordEnum
 };
 
 extern "C" RTC_CALL UInt32 DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-extern "C" RTC_CALL void   DMS_CONV RTC_SetRegDWord(RegDWordEnum i, DWORD dw);
+extern "C" RTC_CALL void   DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
 extern "C" RTC_CALL bool   DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
 
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);

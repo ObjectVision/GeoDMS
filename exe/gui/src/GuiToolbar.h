@@ -35,7 +35,7 @@ private:
 	UInt4		 m_State = 0;
 };
 
-class GuiToolbar : GuiBaseComponent
+class GuiToolbar
 {
 public:
 	GuiToolbar();

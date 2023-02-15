@@ -18,7 +18,7 @@
 #include "AbstrDataItem.h"
 #include "DataView.h"
 
-class GuiMainComponent : GuiBaseComponent
+class GuiMainComponent
 {
 public:
 	GuiMainComponent();
@@ -26,11 +26,15 @@ public:
 	int MainLoop();
 	int Init();
 private:
-	void Update();
+	bool Update();
 	void ProcessEvent(GuiEvents e);
 	void CloseCurrentConfig();
+
+	// modal windows
+	bool ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState& state);
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();
+
 	void TraverseTreeItemHistoryIfRequested();
 	void InterpretCommandLineParameters();
 	void CreateMainWindowInWindowedFullscreenMode();

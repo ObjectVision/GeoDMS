@@ -418,7 +418,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 	return GetRegStatusFlags();
 }
 
-RTC_CALL void SetRegStatusFlag(UInt32 newSF, bool newVal)
+RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
 	leveled_critical_section::scoped_lock lock(s_RegAccess);
 	g_OvrStatusMask |= newSF;
@@ -474,20 +474,20 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 
 	switch (param[2])
 	{
-		case 'A': SetRegStatusFlag(RSF_AdminMode, newValue); break;
-		case 'C': SetRegStatusFlag(RSF_ShowStateColors, newValue); break;
-		case 'V': SetRegStatusFlag(RSF_TreeViewVisible, newValue); break;
-		case 'D': SetRegStatusFlag(RSF_DetailsVisible, newValue); break;
-		case 'E': SetRegStatusFlag(RSF_EventLogVisible, newValue); break;
-		case 'T': SetRegStatusFlag(RSF_ToolBarVisible, newValue); break;
-		case 'I': SetRegStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
-		case 'R': SetRegStatusFlag(RSF_DynamicROI, newValue); break;
+		case 'A': SetCachedStatusFlag(RSF_AdminMode, newValue); break;
+		case 'C': SetCachedStatusFlag(RSF_ShowStateColors, newValue); break;
+		case 'V': SetCachedStatusFlag(RSF_TreeViewVisible, newValue); break;
+		case 'D': SetCachedStatusFlag(RSF_DetailsVisible, newValue); break;
+		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
+		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
+		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
+		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S':
-		case '0': SetRegStatusFlag(RSF_SuspendForGUI, newValue); break;
-		case '1': SetRegStatusFlag(RSF_MultiThreading1, newValue); break;
-		case '2': SetRegStatusFlag(RSF_MultiThreading2, newValue); break;
-		case '3': SetRegStatusFlag(RSF_MultiThreading3, newValue); break;
-		case 'H': SetRegStatusFlag(RSF_ShowThousandSeparator, newValue); break;
+		case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
+		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
+		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
+		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
+		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		default: 
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
 			return true;
@@ -554,7 +554,7 @@ exit:
 	return regAttr.value;
 }
 
-extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
+extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 {
 	auto ui = UInt32(i);
 	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));

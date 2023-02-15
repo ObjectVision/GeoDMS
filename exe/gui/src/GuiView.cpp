@@ -72,7 +72,7 @@ auto GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 
 auto GuiView::UpdateParentWindow(View& view) -> WindowState
 {
-    auto glfw_window = glfwGetCurrentContext();
+    auto glfw_window = glfwGetCurrentContext(); //TODO: known bug, parent window likely not updated correctly in case of outside main window view docked into another view
     auto mainWindow  = glfwGetWin32Window(glfw_window);
     auto window      = ImGui::GetCurrentWindow(); //ImGui::FindWindowByName(m_ViewName.c_str());
     if (!window || !(HWND)window->Viewport->PlatformHandleRaw)
@@ -392,6 +392,8 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
     if (!view.has_been_docking_initialized)
     {
+        //DockNodeCalcDropRectsAndTestMousePos
+
         //if (TryDockViewInGeoDMSDataViewAreaNode(state, window))
         //    view.has_been_docking_initialized = true;
 

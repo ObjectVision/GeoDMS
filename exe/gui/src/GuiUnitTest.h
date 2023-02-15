@@ -52,7 +52,7 @@ struct StepDescription
 	}
 };
 
-class GuiUnitTest : GuiBaseComponent
+class GuiUnitTest //TODO: make use of imgui test library
 {
 public:
 	GuiUnitTest();

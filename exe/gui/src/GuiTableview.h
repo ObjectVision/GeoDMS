@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 
-class GuiTableView : GuiBaseComponent
+class GuiTableView
 {
 public:
 	void Update(bool* p_open, TreeItem*& currentItem);

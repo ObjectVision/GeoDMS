@@ -100,8 +100,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     case GuiEvents::ReopenCurrentConfiguration:
     {
         CloseCurrentConfig();
-        if (!m_State.configFilenameManager.Get().empty())
-            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
+        m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+        //if (!m_State.configFilenameManager.Get().empty())
+        //    m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
         break;
     }
     case GuiEvents::OpenNewMapViewWindow: // TODO: merge OpenNewTableViewWindow into this one
@@ -238,6 +239,11 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
+    case GuiEvents::ShowLocalSourceDataChangedModalWindow:
+    {
+        ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
+        break;
+    }
     }
 }
 
@@ -249,18 +255,13 @@ void GuiMainComponent::CloseCurrentConfig()
     m_State.clear();
 }
 
-bool GuiMainComponent::ShowErrorDialogIfNecessary()
+bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState &state)
 {
-    //if (!m_State.errorDialogMessage.HasNew())
-    //    return false;
-
-    if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
+    if (ImGui::BeginPopupModal("ChangedLDSD", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
-        if (!m_State.errorDialogMessage._Get().empty())
-        {
-            ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
-        }
-
+        ImGui::Text("LocalDataDir and/or SourceDataDir changed, restart required for changes to take effect.");
+        
         if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
@@ -270,20 +271,43 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
             ImGui::EndPopup();
             return true;
         }
+        ImGui::EndPopup();
+    }
+    return false;
+}
+
+bool GuiMainComponent::ShowErrorDialogIfNecessary()
+{
+    if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
+    {
+        if (!m_State.errorDialogMessage._Get().empty())
+        {
+            ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str())); //TODO: interpret error message for link
+        }
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
+        if (ImGui::Button("Abort", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return true;
+        }
+        /*ImGui::SameLine();
         if (ImGui::Button("Email", ImVec2(120, 0)))
         {
             GuiEmail email_system;
             email_system.SendMailUsingDefaultWindowsEmailApplication(m_State.errorDialogMessage.Get());
-        }
+        }*/
 
         ImGui::SameLine();
         if (ImGui::Button("Reopen", ImVec2(120, 0)))
         {
             auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
+            ImGui::CloseCurrentPopup();
         }
-
 
         ImGui::EndPopup();
     }
@@ -359,7 +383,7 @@ void GuiMainComponent::InterpretCommandLineParameters()
         SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
 
         m_DebugLog = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()));
-        SetRegStatusFlag(RSF_TraceLogFile);
+        SetCachedStatusFlag(RSF_TraceLogFile);
         argc--; argv++;
     }
 
@@ -512,18 +536,38 @@ int GuiMainComponent::MainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
         m_State.dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-        // Error dialogue
-        if (ShowErrorDialogIfNecessary())
-            break;
-
-        // Updated source files
-        ShowSourceFileChangeDialogIfNecessary();
 
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
 
+        // Modal windows
+        if (ShowErrorDialogIfNecessary())
+            break;
+
+        ShowSourceFileChangeDialogIfNecessary();
+
         // update all gui components
-        Update();
+        if (Update())
+            break;
+
+        // Handle new config file
+        if (m_State.configFilenameManager.HasNew())
+        {
+            CloseCurrentConfig();
+            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
+            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
+
+            glfwSetWindowTitle(m_MainWindow, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
+            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
+
+            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+
+            if (m_State.GetRoot())
+            {
+                //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
+                //m_State.GetRoot()->UpdateMetaInfo();
+            }
+        }
 
         // rendering
         ImGui::Render();
@@ -545,24 +589,7 @@ int GuiMainComponent::MainLoop()
 
         glfwSwapBuffers(m_MainWindow);
 
-        // Handle new config file
-        if (m_State.configFilenameManager.HasNew())
-        {
-            CloseCurrentConfig();
-            auto parent_path = std::filesystem::path(m_State.configFilenameManager.Get()).parent_path();
-            auto filename = std::filesystem::path(m_State.configFilenameManager.Get()).filename();
 
-            glfwSetWindowTitle(m_MainWindow, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
-            m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
-
-            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-
-            if (m_State.GetRoot())
-            {
-                //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
-                //m_State.GetRoot()->UpdateMetaInfo();
-            }
-        }
 
         m_GuiUnitTest.Step();
 
@@ -584,7 +611,7 @@ int GuiMainComponent::MainLoop()
     return m_State.return_value;
 }
 
-void GuiMainComponent::Update()
+bool GuiMainComponent::Update()
 {
     auto event_queues = GuiEventQueues::getInstance();
     static bool opt_fullscreen = true;
@@ -624,7 +651,7 @@ void GuiMainComponent::Update()
     if (!ImGui::Begin("GeoDMSGui", nullptr, window_flags))
     {
         ImGui::End();
-        return;
+        return false;
     }
 
     if (!opt_padding)
@@ -649,86 +676,20 @@ void GuiMainComponent::Update()
         if (e == GuiEvents::ReopenCurrentConfiguration)
         {
             ImGui::End();
-            return;
+            return false;
         }
     }
-    static auto first_time = true;
-    if (first_time && not m_DockingInitialized) { //TODO: refactor
-        first_time = false;
-    /*    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
-        ImGui::DockBuilderRemoveNode(dockspace_id);
-        auto central_node = ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-        
-        //LocalFlags
 
-        //auto middle_node = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_COUNT, 0.2f, nullptr, &central_node);
-        ImGuiID dock_id_up, dock_id_down, dock_id_up_up, dock_id_down_down;
-        ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Up, 0.1f, &dock_id_up, &dock_id_down);
+    // modal windows
+    if (ShowLocalOrSourceDataDirChangedDialogIfNecessary(m_State))
+        return true;
 
-        auto test = ImGui::DockBuilderGetNode(central_node);
-        auto test1 = ImGui::DockBuilderGetNode(dock_id_up);
-        auto tmp = ImGui::DockBuilderGetCentralNode(dock_id_up);
-
-        ImGui::DockBuilderSplitNode(tmp->ID, ImGuiDir_Up, 0.1f, &dock_id_up_up, nullptr);
-
-        //auto central_node_up = ImGui::DockBuilderAddNode(dock_id_up, ImGuiDockNodeFlags_DockSpace);
-        //auto central_node_down = ImGui::DockBuilderAddNode(dock_id_down, ImGuiDockNodeFlags_DockSpace);
-
-        //ImGui::DockBuilderSplitNode(central_node_up, ImGuiDir_Up, 0.2f, &dock_id_up_up, nullptr);
-        //ImGui::DockBuilderSplitNode(central_node_down, ImGuiDir_Down, 0.2f, &dock_id_down_down, nullptr);
-        
-        
-        //auto dock_id_up_up = ImGui::DockBuilderSplitNode(dock_id_up, ImGuiDir_Up, 0.1f, nullptr, nullptr);
-        //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Down, 0.1f, nullptr, nullptr);
-        //auto dock_id_down_down = ImGui::DockBuilderSplitNode(dock_id_down, ImGuiDir_Down, 0.1f, nullptr, nullptr);
-        //auto dock_id_right = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Right, 0.2f, nullptr, &central_node);
-        //auto dock_id_left = ImGui::DockBuilderSplitNode(central_node, ImGuiDir_Left, 0.2f, nullptr, &central_node);
-
-
-        //ImGui::DockBuilderDockWindow("Detail Pages", dock_id_right);
-        //ImGui::DockBuilderDockWindow("TreeView", dock_id_left);
-
-        ImGui::DockBuilderDockWindow("Toolbar", dock_id_up_up);
-        //ImGui::DockBuilderDockWindow("EventLog", central_node_down);
-
-
-
-
-
-        // set custom node params
-        //auto toolbar_node = ImGui::DockBuilderGetNode(central_node_up);
-        //auto treeview_node = ImGui::DockBuilderGetNode(dock_id_left);
-        //auto eventlog_node = ImGui::DockBuilderGetNode(central_node_down);
-        //auto detailpages_node = ImGui::DockBuilderGetNode(dock_id_right);
-
-        //toolbar_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        //treeview_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        //eventlog_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        //detailpages_node->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-
-
-
-        // finish
-        ImGui::DockBuilderFinish(dockspace_id);
-
-        //auto treeview_id = ImGui::GetID("Treeview");
-        //auto central_node_tv = ImGui::DockBuilderAddNode(treeview_id);
-
-        //auto dock_id_down = ImGui::DockBuilderSplitNode(central_node_tv, ImGuiDir_Down, 0.5f, nullptr, &central_node_tv);
-        //ImGui::DockBuilderDockWindow("EventLog", central_node_tv);
-        //ImGui::DockBuilderFinish(treeview_id);
-        */
-    }
-
+    //static auto first_time = true;
     m_Menu.Update(m_State, m_View);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
     
-
-
-
-
     ImGui::End();
 
     // Update all GeoDMSGui components
@@ -801,4 +762,5 @@ void GuiMainComponent::Update()
             first_time_docking = false;
         }
     }
+    return false;
 }

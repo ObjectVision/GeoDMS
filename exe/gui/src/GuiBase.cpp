@@ -14,6 +14,12 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+// for windows open file dialog
+#include <windows.h>
+#include <shobjidl.h> 
+#include <shlobj.h>
+#include <codecvt>
+
 GuiEventQueues* GuiEventQueues::instance = nullptr;
 GuiEventQueues* GuiEventQueues::getInstance()
 {
@@ -120,10 +126,6 @@ GuiState::~GuiState()
 {
     clear();
 }
-
-GuiBaseComponent::GuiBaseComponent() {}
-GuiBaseComponent::~GuiBaseComponent() {}
-void GuiBaseComponent::Update() {}
 
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator) -> std::vector<std::string>
 {
@@ -381,4 +383,118 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
     //    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
     //}
     return false;
+}
+
+std::string StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts)
+{
+    //std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
+    auto path = std::filesystem::path(start_path);
+    std::wstring parent_path = path;
+    if (!std::filesystem::is_directory(path))
+    {
+        parent_path = path.parent_path();
+    }
+    //auto parent_path = std::filesystem::path(start_path).parent_path();
+    COMDLG_FILTERSPEC ComDlgFS[1] = { {file_dialog_text.c_str(), file_dialog_exts.c_str()}}; //L"Configuration files", L"*.dms;*.xml"
+
+    std::string result_file = "";
+    std::wstring intermediate_w_string_path;
+
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (SUCCEEDED(hr))
+    {
+        IFileOpenDialog* pFileOpen;
+        // Create the FileOpenDialog object.
+        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+        pFileOpen->SetFileTypes(1, ComDlgFS);
+
+        IShellItem* psiDefault = NULL;
+        hr = SHCreateItemFromParsingName(parent_path.c_str(), NULL, IID_PPV_ARGS(&psiDefault));
+        pFileOpen->SetDefaultFolder(psiDefault);
+
+        if (SUCCEEDED(hr))
+        {
+            // Show the Open dialog box.
+            hr = pFileOpen->Show((HWND)ImGui::GetCurrentWindow()->Viewport->PlatformHandleRaw);
+
+            // Get the file name from the dialog box.
+            if (SUCCEEDED(hr))
+            {
+                IShellItem* pItem;
+                hr = pFileOpen->GetResult(&pItem);
+                if (SUCCEEDED(hr))
+                {
+                    PWSTR pszFilePath;
+                    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+                    // Display the file name to the user.
+                    if (SUCCEEDED(hr))
+                    {
+                        //MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+                        //result_file = *pszFilePath;
+                        intermediate_w_string_path = std::wstring(pszFilePath);
+                        using convert_type = std::codecvt_utf8<wchar_t>;
+                        std::wstring_convert<convert_type, wchar_t> converter;
+
+                        //use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+                        result_file = converter.to_bytes(intermediate_w_string_path);
+
+                        CoTaskMemFree(pszFilePath);
+                    }
+                    pItem->Release();
+                }
+            }
+            pFileOpen->Release();
+        }
+        psiDefault->Release();
+        CoUninitialize();
+    }
+
+    return result_file;
+}
+
+static int CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+
+    if (uMsg == BFFM_INITIALIZED)
+    {
+        //std::string tmp = (const char*)lpData;
+        //std::cout << "path: " << tmp << std::endl;
+        SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
+    }
+
+    return 0;
+}
+
+std::string BrowseFolder(std::string saved_path)
+{
+    TCHAR path[MAX_PATH];
+
+    const char* path_param = saved_path.c_str();
+
+    BROWSEINFO bi = { 0 };
+    bi.lpszTitle = ("Browse for folder...");
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    bi.lpfn = BrowseCallbackProc;
+    bi.lParam = (LPARAM)path_param;
+
+    LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+
+    if (pidl != 0)
+    {
+        //get the name of the folder and put it in path
+        SHGetPathFromIDList(pidl, path);
+
+        //free memory used
+        IMalloc* imalloc = 0;
+        if (SUCCEEDED(SHGetMalloc(&imalloc)))
+        {
+            imalloc->Free(pidl);
+            imalloc->Release();
+        }
+
+        return path;
+    }
+
+    return "";
 }
