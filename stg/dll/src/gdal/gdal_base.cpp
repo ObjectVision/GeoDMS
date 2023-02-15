@@ -227,7 +227,7 @@ SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 
 void gdalCleanup()
 {
-	SetCSVFilenameHook(nullptr);
+//	SetCSVFilenameHook(nullptr);
 	if (gdalComponentImpl::s_HookedFilesPtr != nullptr) {
 		delete gdalComponentImpl::s_HookedFilesPtr;
 		gdalComponentImpl::s_HookedFilesPtr = nullptr;
@@ -242,7 +242,7 @@ void gdalCleanup()
 	OGRCleanupAll();
 	//proj_cleanup();
 	OSRCleanup();
-	CPLCleanupTLS();
+//	CPLCleanupTLS();
 }
 
 gdalDynamicLoader::gdalDynamicLoader()
@@ -417,12 +417,16 @@ gdalThread::gdalThread()
 {
 	if (!gdalComponentImpl::s_TlsCount)
 	{
-		DMS_SE_CALLBACK_BEGIN
+//		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
+			static auto projFolder = DelimitedConcat(GetExeDir(), "proj4data");
+			CharPtr projFolderPtr[] = { projFolder.c_str(), nullptr };
+			OSRSetPROJSearchPaths(projFolderPtr);
+
+//		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
 }
@@ -431,7 +435,7 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-		proj_context_set_file_finder(nullptr, nullptr, nullptr);
+	//	proj_context_set_file_finder(nullptr, nullptr, nullptr);
 	//		OSRCleanup();
 		CPLCleanupTLS();
 		CPLPopFileFinder();
@@ -455,7 +459,7 @@ gdalComponent::gdalComponent()
 			dms_assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
 
-			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
+//			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
 //			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
 			// Note: moved registering of drivers to Gdal_DoOpenStorage
