@@ -116,7 +116,7 @@ namespace Explain { // local defs
 
 		const AbstrValue* CalcValue(Context* context); // returns nullptr if suspended
 
-		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const;
+		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const;
 
 		virtual void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const = 0;
 		virtual void PrintSeqNr(OutStreamBase& stream) const = 0;
@@ -210,7 +210,6 @@ namespace Explain { // local defs
 
 		void PrintSeqNr(OutStreamBase& stream) const override
 		{
-//			assert(m_Parent);
 			if (m_Parent) {
 				m_Parent->PrintSeqNr(stream);
 				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
@@ -608,14 +607,13 @@ namespace Explain { // local defs
 
 			dms_assert(g_CalcExplImpl.m_Expl.size() >= 1);
 
+			NewLine(m_OutStream);
 			bool isFirst = true;
 			for (const auto& expl: g_CalcExplImpl.m_Expl)
 			{
 				if (expl->m_Coordinates.empty())
 					continue;
-				if (!isFirst) NewLine(m_OutStream);
 				expl->GetDescr(&g_CalcExplImpl, m_OutStream, isFirst, m_bShowHidden);
-				isFirst = false;
 			}
 			GetSupplDescr(studyObject);
 
@@ -812,7 +810,7 @@ namespace Explain { // local defs
 		}
 	}
 
-	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
 	{
 		if (!MatchesExtraInfo(self->m_ExtraInfo))
 			return;
@@ -820,6 +818,7 @@ namespace Explain { // local defs
 			return;
 		DynamicIncrementalLock lock(self->m_ExprLevel);
 		GetDescrImpl(self, stream, isFirst, showHidden);
+		isFirst = false;
 	}
 
 	void LispCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const

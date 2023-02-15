@@ -532,11 +532,13 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			{
 				leveled_critical_section::scoped_lock lock(cs_SpatialRefBlockCreation);
 				m_OgrComponentHolder = new SpatialRefBlock;
+				GDAL_ErrorFrame frame;
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();
+				frame.ThrowUpWhateverCameUp();
 				return;
 			}
 		}

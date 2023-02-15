@@ -420,7 +420,8 @@ gdalThread::gdalThread()
 		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-			
+			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+
 		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
@@ -430,7 +431,8 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-//		OSRCleanup();
+		proj_context_set_file_finder(nullptr, nullptr, nullptr);
+	//		OSRCleanup();
 		CPLCleanupTLS();
 		CPLPopFileFinder();
 	}
@@ -454,7 +456,7 @@ gdalComponent::gdalComponent()
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
 
 			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
-			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
 			// Note: moved registering of drivers to Gdal_DoOpenStorage
 			//GDALAllRegister(); // can throw
@@ -480,7 +482,7 @@ gdalComponent::~gdalComponent()
 
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
-		proj_context_set_file_finder(nullptr, nullptr, nullptr);
+//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
 		gdalCleanup();
 	}
 }
@@ -874,7 +876,8 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	auto spOrErr = GetSpatialReferenceFromUserInput(projStr);
 	if (spOrErr.second == OGRERR_NONE)
 		return 1.0;
-	return GetUnitSizeInMeters(&spOrErr.first);
+	auto result = GetUnitSizeInMeters(&spOrErr.first);
+	return result;
 }
 
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
