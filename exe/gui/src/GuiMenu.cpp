@@ -26,11 +26,32 @@ void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
 {
     if (ImGui::BeginMainMenuBar())
     {
+        // process events
+        auto event_queues = GuiEventQueues::getInstance();
+        while (event_queues->MenuBarEvents.HasEvents())
+        {
+            auto e = event_queues->MenuBarEvents.Pop();
+            switch (e)
+            {
+            case GuiEvents::MenuOpenFile: { auto id = ImGui::GetCurrentWindow()->GetID("File"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+            case GuiEvents::MenuOpenEdit: { auto id = ImGui::GetCurrentWindow()->GetID("Edit"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+            case GuiEvents::MenuOpenView: { auto id = ImGui::GetCurrentWindow()->GetID("View"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+            case GuiEvents::MenuOpenTools: { auto id = ImGui::GetCurrentWindow()->GetID("Tools"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+            case GuiEvents::MenuOpenWindow: { auto id = ImGui::GetCurrentWindow()->GetID("Window"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+            case GuiEvents::MenuOpenHelp: { auto id = ImGui::GetCurrentWindow()->GetID("Help"); ImGui::IsPopupOpen(id, ImGuiPopupFlags_None) ? ImGui::ClosePopupsExceptModals() : ImGui::OpenPopup(id); break; }
+
+            default:
+                break;
+            }
+        }
+        
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
             SetKeyboardFocusToThisHwnd();
 
-        auto id = ImGui::GetCurrentWindow()->GetID("Window");
-        ImGui::OpenPopup(id);
+        //auto id = ImGui::GetCurrentWindow()->GetID("Window");
+        //ImGui::OpenPopup(id);
+
+        //bool menu_is_open = IsPopupOpen(id, ImGuiPopupFlags_None);
 
         m_File.Update(state);
         m_Edit.Update(state);

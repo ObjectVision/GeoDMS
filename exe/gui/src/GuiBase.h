@@ -53,6 +53,12 @@ enum class GuiEvents
 	AscendVisibleTree,
 	TreeViewJumpKeyPress,
 	DescendVisibleTree,
+	MenuOpenFile,
+	MenuOpenEdit,
+	MenuOpenView,
+	MenuOpenTools,
+	MenuOpenWindow,
+	MenuOpenHelp,
 	Close,
 };
 
@@ -290,6 +296,7 @@ public:
 	EventQueue MapViewEvents;
 	EventQueue DetailPagesEvents;
 	EventQueue GuiMenuFileComponentEvents;
+	EventQueue MenuBarEvents;
 
 private:
 	GuiEventQueues() {}

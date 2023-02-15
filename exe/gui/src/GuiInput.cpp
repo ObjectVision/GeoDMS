@@ -187,17 +187,29 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
         {
             event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
         }
+        else if (mods == GLFW_MOD_ALT) // Open menu-edit
+        {
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenEdit);
+        }
+
+        return;
+    }
+    case GLFW_KEY_F:
+    {
+        if (mods == GLFW_MOD_ALT) // Open menu-file
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenFile);
+        return;
+    }
+    case GLFW_KEY_H:
+    {
+        if (mods == GLFW_MOD_ALT) // Open menu-help
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenHelp);
         return;
     }
     case GLFW_KEY_M:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-M
-        {
             event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
-            //m_State.ShowMapviewWindow = true;
-            //m_State.MainEvents.Add(GuiEvents::UpdateCurrentItem);
-            //m_State.MapViewEvents.Add(GuiEvents::UpdateCurrentItem);
-        }
         return;
     }
     case GLFW_KEY_O:
@@ -222,9 +234,23 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-T
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
+        else if (mods == GLFW_MOD_ALT) // Open menu-tools
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenTools);
+
         return;
     }
-
+    case GLFW_KEY_V:
+    {
+        if (mods == GLFW_MOD_ALT) // Open menu-view
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenView); 
+        return;
+    }
+    case GLFW_KEY_W:
+    {
+        if (mods == GLFW_MOD_ALT) // Open menu-window
+            event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenWindow);
+        return;
+    }
     case GLFW_KEY_0:
     {
         if (mods == GLFW_MOD_ALT)    // ALT-0
