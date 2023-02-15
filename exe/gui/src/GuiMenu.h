@@ -6,7 +6,7 @@
 #include "imfilebrowser.h"
 
 
-class GuiMenuFile : GuiBaseComponent
+class GuiMenuFile
 {
 public:
 	GuiMenuFile();
@@ -26,7 +26,7 @@ private:
 	std::vector<std::string> m_RecentFiles;
 };
 
-class GuiMenuEdit : GuiBaseComponent
+class GuiMenuEdit
 {
 public:
 	void Update(GuiState& state);
@@ -34,7 +34,7 @@ public:
 private:
 };
 
-class GuiMenuView : GuiBaseComponent
+class GuiMenuView
 {
 public:
 	void Update(GuiState& state);
@@ -42,7 +42,7 @@ public:
 private:
 };
 
-class GuiMenuTools : GuiBaseComponent
+class GuiMenuTools
 {
 public:
 	void Update(GuiState& state);
@@ -50,7 +50,7 @@ public:
 private:
 };
 
-class GuiMenuWindow : GuiBaseComponent
+class GuiMenuWindow
 {
 public:
 	void Update(GuiView& ViewPtr);
@@ -58,7 +58,7 @@ public:
 private:
 };
 
-class GuiMenuHelp : GuiBaseComponent
+class GuiMenuHelp
 {
 public:
 	void Update(GuiState& state);
@@ -66,7 +66,7 @@ public:
 private:
 };
 
-class GuiMenu : GuiBaseComponent
+class GuiMenu
 {
 public:
 	void Update(GuiState& state, GuiView& ViewPtr);

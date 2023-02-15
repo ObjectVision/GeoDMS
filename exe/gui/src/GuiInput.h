@@ -5,7 +5,7 @@
 
 #include "GuiBase.h"
 
-class GuiInput : GuiBaseComponent
+class GuiInput
 {
 public:
 	GuiInput(){}

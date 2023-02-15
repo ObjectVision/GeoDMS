@@ -121,10 +121,6 @@ GuiState::~GuiState()
     clear();
 }
 
-GuiBaseComponent::GuiBaseComponent() {}
-GuiBaseComponent::~GuiBaseComponent() {}
-void GuiBaseComponent::Update() {}
-
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator) -> std::vector<std::string>
 {
     std::vector<std::string> SeparatedTreeItemFullName;

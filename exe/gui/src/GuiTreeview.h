@@ -84,7 +84,7 @@ private:
 	GuiTreeNode* m_start_node = nullptr;
 };
 
-class GuiTreeView : GuiBaseComponent
+class GuiTreeView
 {
 public:
 	~GuiTreeView();

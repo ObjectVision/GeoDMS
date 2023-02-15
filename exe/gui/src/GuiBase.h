@@ -48,6 +48,7 @@ enum class GuiEvents
 	ToggleShowToolbar,
 	StepToErrorSource,
 	StepToRootErrorSource,
+	ShowLocalSourceDataChangedModalWindow,
 	FocusValueInfoTab,
 	AscendVisibleTree,
 	TreeViewJumpKeyPress,
@@ -352,15 +353,6 @@ public:
 private:
 	SharedPtr<TreeItem> m_Root;
 	SharedPtr<TreeItem> m_CurrentItem;
-};
-
-class GuiBaseComponent
-{
-public:
-	GuiBaseComponent();
-	~GuiBaseComponent();
-	virtual void Update();
-private:
 };
 
 // Helper functions

@@ -28,15 +28,18 @@ struct Options
 	AdvancedOptions advanced_options = {};
 };
 
-class GuiOptions : GuiBaseComponent
+class GuiOptions
 {
 public:
 	GuiOptions();
 	void Update(bool* p_open, GuiState& state);
 
 private:
-	void ApplyChanges();
+	void ApplyChanges(GuiState& state);
 	void RestoreAdvancedSettingsFromRegistry();
+	void SetAdvancedOptionsInRegistry(GuiState& state);
+	void SetAdvancedOptionsInCache();
+	bool AdvancedOptionsStringValueHasBeenChanged(std::string key, std::string_view value);
 
 	Options m_Options = {};
 	//std::string m_LocalDataDirPath;

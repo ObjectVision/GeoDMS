@@ -11,33 +11,78 @@ std::string SetDefaultRegKey(std::string key, std::string value)
 
 GuiOptions::GuiOptions()
 {
-    //m_LocalDataDirPath  = not GetGeoDmsRegKey("LocalDataDir").empty() ? GetGeoDmsRegKey("LocalDataDir").c_str() : SetDefaultRegKey("LocalDataDir", "C:\\LocalData").c_str();
-    //m_SourceDataDirPath = not GetGeoDmsRegKey("SourceDataDir").empty() ? GetGeoDmsRegKey("SourceDataDir").c_str() : SetDefaultRegKey("SourceDataDir", "C:\\SourceData").c_str();
-    //m_DmsEditorPath     = not GetGeoDmsRegKey("DmsEditor").empty() ? GetGeoDmsRegKey("DmsEditor").c_str() : SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L").c_str();
     RestoreAdvancedSettingsFromRegistry();
 }
 
-void GuiOptions::ApplyChanges()
+bool GuiOptions::AdvancedOptionsStringValueHasBeenChanged(std::string key, std::string_view value)
 {
-    SetGeoDmsRegKeyString("LocalDataDir", m_Options.advanced_options.local_data_dir);
-    SetGeoDmsRegKeyString("SourceDataDir",m_Options.advanced_options.source_data_dir);
+    std::string cached_geodms_str = "";
+
+    if (key.compare("LocalDataDir")==0)
+        cached_geodms_str = GetLocalDataDir().c_str();
+    else if (key.compare("SourceDataDir")==0)
+        cached_geodms_str = GetSourceDataDir().c_str();
+
+    return value.compare(cached_geodms_str)!=0;
+}
+
+void GuiOptions::SetAdvancedOptionsInRegistry(GuiState &state)
+{
+    auto event_queues = GuiEventQueues::getInstance();
+    if (AdvancedOptionsStringValueHasBeenChanged("LocalDataDir", m_Options.advanced_options.local_data_dir))
+    {
+        SetGeoDmsRegKeyString("LocalDataDir", m_Options.advanced_options.local_data_dir);
+        event_queues->MainEvents.Add(GuiEvents::ShowLocalSourceDataChangedModalWindow);
+        //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_AnyPopupLevel);
+    }
+
+    if (AdvancedOptionsStringValueHasBeenChanged("SourceDataDir", m_Options.advanced_options.source_data_dir))
+    {
+        SetGeoDmsRegKeyString("SourceDataDir", m_Options.advanced_options.source_data_dir);
+        event_queues->MainEvents.Add(GuiEvents::ShowLocalSourceDataChangedModalWindow);
+        //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_AnyPopupLevel);
+    }
+
     SetGeoDmsRegKeyString("DmsEditor", m_Options.advanced_options.dms_editor_command);
+
+    //reportF(SeverityTypeID::ST_Warning, "Changes made to Advanced Options require a restart of GeoDMS to take effect!");
+
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.pp0 ? m_Options.advanced_options.flags |= RSF_SuspendForGUI : m_Options.advanced_options.flags &= ~RSF_SuspendForGUI);
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.pp1 ? m_Options.advanced_options.flags |= RSF_MultiThreading1 : m_Options.advanced_options.flags &= ~RSF_MultiThreading1);
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.pp2 ? m_Options.advanced_options.flags |= RSF_MultiThreading2 : m_Options.advanced_options.flags &= ~RSF_MultiThreading2);
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.pp3 ? m_Options.advanced_options.flags |= RSF_MultiThreading3 : m_Options.advanced_options.flags &= ~RSF_MultiThreading3);
-    
-    RTC_SetRegDWord(RegDWordEnum::MemoryFlushThreshold, m_Options.advanced_options.treshold_mem_flush);
     SetGeoDmsRegKeyDWord("StatusFlags", m_Options.advanced_options.tracelog_file ? m_Options.advanced_options.flags |= RSF_TraceLogFile : m_Options.advanced_options.flags &= ~RSF_TraceLogFile);
 
-    reportF(SeverityTypeID::ST_Warning, "Changes made to Advanced Options require a restart of GeoDMS to take effect!");
+    SetGeoDmsRegKeyDWord("MemoryFlushThreshold", m_Options.advanced_options.treshold_mem_flush);
+}
+
+void GuiOptions::SetAdvancedOptionsInCache()
+{
+    GetLocalDataDir();
+    GetSourceDataDir();
+
+    SetCachedStatusFlag(RSF_SuspendForGUI, m_Options.advanced_options.pp0);
+    SetCachedStatusFlag(RSF_MultiThreading1, m_Options.advanced_options.pp1);
+    SetCachedStatusFlag(RSF_MultiThreading2, m_Options.advanced_options.pp2);
+    SetCachedStatusFlag(RSF_MultiThreading3, m_Options.advanced_options.pp3);
+    SetCachedStatusFlag(RSF_TraceLogFile, m_Options.advanced_options.tracelog_file);
+    RTC_SetCachedDWord(RegDWordEnum::MemoryFlushThreshold, m_Options.advanced_options.treshold_mem_flush);
+}
+
+void GuiOptions::ApplyChanges(GuiState& state)
+{
+    SetAdvancedOptionsInRegistry(state);
+    SetAdvancedOptionsInCache();
 }
 
 void GuiOptions::RestoreAdvancedSettingsFromRegistry()
 {
-    m_Options.advanced_options.local_data_dir = !GetGeoDmsRegKey("LocalDataDir").empty() ? GetGeoDmsRegKey("LocalDataDir").c_str() : SetDefaultRegKey("LocalDataDir", "C:\\LocalData").c_str();;
-    m_Options.advanced_options.source_data_dir = !GetGeoDmsRegKey("SourceDataDir").empty() ? GetGeoDmsRegKey("SourceDataDir").c_str() : SetDefaultRegKey("SourceDataDir", "C:\\SourceData").c_str();
-    m_Options.advanced_options.dms_editor_command = !GetGeoDmsRegKey("DmsEditor").empty() ? GetGeoDmsRegKey("DmsEditor").c_str() : SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L").c_str();
+    // strings
+    m_Options.advanced_options.local_data_dir = !GetLocalDataDir().empty() ? GetLocalDataDir().c_str() : SetDefaultRegKey("LocalDataDir", "C:/LocalData").c_str();
+    m_Options.advanced_options.source_data_dir = !GetSourceDataDir().empty() ? GetSourceDataDir().c_str() : SetDefaultRegKey("SourceDataDir", "C:/SourceData").c_str();
+    m_Options.advanced_options.dms_editor_command = !GetConvertedGeoDmsRegKey("DmsEditor").empty() ? GetConvertedGeoDmsRegKey("DmsEditor").c_str() : SetDefaultRegKey("DmsEditor", """%env:ProgramFiles%/Notepad++/Notepad++.exe"" ""%F"" -n%L").c_str();
+    
+    // status flags
     m_Options.advanced_options.pp0 = IsMultiThreaded0();
     m_Options.advanced_options.pp1 = IsMultiThreaded1();
     m_Options.advanced_options.pp2 = IsMultiThreaded2();
@@ -150,7 +195,7 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
 
         if (ImGui::Button("Ok", ImVec2(50, 1.5*ImGui::GetTextLineHeight())))
         {
-            ApplyChanges();
+            ApplyChanges(state);
             m_Options.advanced_options.changed = false;
             state.ShowOptionsWindow = false;
         }
@@ -159,7 +204,7 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
         ImGui::SameLine();
         if (ImGui::Button("Apply", ImVec2(50, 1.5*ImGui::GetTextLineHeight())))
         {
-            ApplyChanges();
+            ApplyChanges(state);
             m_Options.advanced_options.changed = false;
         }
         

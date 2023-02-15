@@ -392,6 +392,8 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
     if (!view.has_been_docking_initialized)
     {
+        //DockNodeCalcDropRectsAndTestMousePos
+
         //if (TryDockViewInGeoDMSDataViewAreaNode(state, window))
         //    view.has_been_docking_initialized = true;
 

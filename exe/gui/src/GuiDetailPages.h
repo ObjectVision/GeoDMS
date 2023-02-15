@@ -89,7 +89,7 @@ private:
     std::string                   m_Text;
 };
 
-class GuiDetailPages : GuiBaseComponent
+class GuiDetailPages
 {
 public:
     auto clear() -> void;

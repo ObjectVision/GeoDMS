@@ -57,7 +57,7 @@ auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
     }
 }
 
-auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void
+auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void //TODO: add client handle to exception message function
 {
     GuiState state;
     ImGui::OpenPopup("Error");

@@ -47,7 +47,7 @@ public:
 	bool has_been_docking_initialized = false;
 };
 
-class GuiView : GuiBaseComponent 
+class GuiView 
 {
 public:
 	~GuiView();

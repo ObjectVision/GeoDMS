@@ -22,7 +22,7 @@ auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options) -> bool
 auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool;
 auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool;
 
-class GuiEventLog : GuiBaseComponent
+class GuiEventLog
 {
 public:
     GuiEventLog();
