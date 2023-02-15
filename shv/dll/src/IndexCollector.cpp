@@ -148,9 +148,11 @@ tile_id IndexCollector::GetNrTiles() const
 entity_id IndexCollector::GetEntityIndex(feature_id featureIndex) const
 {
 	dms_assert(HasExtKey() || HasGeoRel());
-
-	dms_assert(featureIndex < m_Array.size());
-	return m_Array[featureIndex];
+	
+	auto tl = GetTiledLocation(featureIndex);
+	auto drl = GetDataItemReadLock(tl.first);
+	dms_assert(tl.second < m_Array.size());
+	return m_Array[tl.second];
 }
 
 feature_id IndexCollector::GetFeatureIndex(entity_id entityIndex) const
