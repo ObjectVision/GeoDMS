@@ -747,8 +747,8 @@ bool GuiMainComponent::Update()
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
 
 
-        dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
 
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
