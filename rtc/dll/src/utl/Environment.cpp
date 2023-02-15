@@ -565,6 +565,12 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 	regAttr.value   = dw;
 }
 
+// TODO: REMOVE
+extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
+{
+	RTC_SetCachedDWord(i, dw);
+}
+
 void MakeDir(WeakStr dirName)
 {
 	if (!CreateDirectory(ConvertDmsFileName(dirName).c_str(), 0))
