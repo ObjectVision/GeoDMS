@@ -340,7 +340,9 @@ void DataItemColumn::SetActiveRow(SizeT row)
 
 void DataItemColumn::MakeVisibleRow()
 {
-	dms_assert(AllVisible());
+	if (!AllVisible())
+		return;
+
 	DBG_START("DataItemColumn", "MakeVisibleRow", MG_DEBUG_SCROLL);
 
 	UpdateView(); // make sure that this DIC has the appropiate size
