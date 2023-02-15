@@ -44,6 +44,7 @@ auto View::operator=(View && other) noexcept -> void
     m_HWND       = std::move(other.m_HWND);
     m_DoView     = std::move(other.m_DoView);
     m_ShowWindow = std::move(other.m_ShowWindow);
+    has_been_docking_initialized = std::move(other.has_been_docking_initialized);
 
     other.m_HWND = NULL;
     other.m_DataView = NULL;
@@ -390,7 +391,7 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
 
 
-    if (!view.has_been_docking_initialized && m_Views.size()==1)
+    if (!view.has_been_docking_initialized)// && m_Views.size()==1)
     {
         //DockNodeCalcDropRectsAndTestMousePos
 
