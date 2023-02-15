@@ -390,12 +390,12 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
 
 
-    if (!view.has_been_docking_initialized)
+    if (!view.has_been_docking_initialized && m_Views.size()==1)
     {
         //DockNodeCalcDropRectsAndTestMousePos
 
-        //if (TryDockViewInGeoDMSDataViewAreaNode(state, window))
-        //    view.has_been_docking_initialized = true;
+        if (TryDockViewInGeoDMSDataViewAreaNode(state, window)) // TODO: check if this is the correct window.
+            view.has_been_docking_initialized = true;
 
         /*auto ctx = ImGui::GetCurrentContext();
         ImGuiDockContext* dc = &ctx->DockContext;

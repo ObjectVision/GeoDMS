@@ -377,22 +377,20 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
 
     // The following is a specific hardcoded default docking configuration of GeoDMS windows, if the pattern does not match do not dock the View
     // Default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
-    if (!dockspace_docknode || dockspace_docknode->SplitAxis != ImGuiAxis_Y) // root(Y, 0)
+    if (!dockspace_docknode || dockspace_docknode->SplitAxis != ImGuiAxis_Y || !dockspace_docknode->ChildNodes[0]) // root(Y, 0)
         return false;
 
-    if (!dockspace_docknode->ChildNodes[0] || dockspace_docknode->ChildNodes[0]->SplitAxis != ImGuiAxis_Y) // 7(Y, 1)
+    if (!dockspace_docknode->ChildNodes[0]->SplitAxis == ImGuiAxis_Y || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]) // 7(Y, 1)
         return false;
 
+    if (!dockspace_docknode->ChildNodes[0]->ChildNodes[1]->SplitAxis == ImGuiAxis_X || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]) // 6(X, 0)
+        return false;
 
+    if (!dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->SplitAxis == ImGuiAxis_X || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1]) // 3(X, 1)
+        return false;
 
-
-
-    //TODO: 
-    
-    //if (dockspace_docknode && dockspace_docknode->HostWindow)
-    //{
-    //    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
-    //}
+    ImGuiDockNode* target_node = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1];
+    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, target_node, window, ImGuiDir_None, 0.0f, false);
     return true;
 }
 
