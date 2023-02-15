@@ -29,6 +29,9 @@ void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
             SetKeyboardFocusToThisHwnd();
 
+        auto id = ImGui::GetCurrentWindow()->GetID("Window");
+        ImGui::OpenPopup(id);
+
         m_File.Update(state);
         m_Edit.Update(state);
         m_View.Update(state);
