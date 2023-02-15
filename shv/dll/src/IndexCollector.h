@@ -76,7 +76,7 @@ private:
 	// cache identification and results
 	SharedDataItem                              m_ExtKeyAttr, m_GeoRelAttr;
 	SharedDcInterestPtr                         m_DC;
-//	mutable DataArray<entity_id>::locked_cseq_t m_Array;
+	mutable DataArray<entity_id>::locked_cseq_t m_Array;
 };
 
 #endif // !defined(__SHV_INDEXCOLLECTOR_H)

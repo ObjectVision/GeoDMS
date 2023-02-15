@@ -120,7 +120,9 @@ DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 	auto res = m_DC->CalcResult();
 	PreparedDataReadLock lock(AsDataItem(res->GetOld()));
 
-	if (!lock.GetRefObj())
+	if (lock.GetRefObj())
+		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
+	else
 		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
 
 	return lock;
@@ -147,12 +149,10 @@ tile_id IndexCollector::GetNrTiles() const
 entity_id IndexCollector::GetEntityIndex(feature_id featureIndex) const
 {
 	dms_assert(HasExtKey() || HasGeoRel());
-	
-	auto tl = GetTiledLocation(featureIndex);
-	auto drl = GetDataItemReadLock(tl.first);
-	auto data = const_array_cast<entity_id>(drl.GetRefObj())->GetTile(tl.first);
-	dms_assert(tl.second < data.size());
-	return data[tl.second];
+
+	if (featureIndex >= m_Array.size())
+		return UNDEFINED_VALUE(entity_id);
+	return m_Array[featureIndex];
 }
 
 feature_id IndexCollector::GetFeatureIndex(entity_id entityIndex) const
