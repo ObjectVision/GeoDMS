@@ -120,12 +120,27 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
                     //SetGeoDmsRegKeyString("LocalDataDir", m_LocalDataDirPath);
                 }
 
+                ImGui::SameLine();
+                ImGui::PushID(1);
+                if (ImGui::Button(ICON_RI_FOLDER_OPEN))
+                {
+                    int i = 0;
+                }
+                ImGui::PopID();
+
                 ImGui::Text("Source data:"); ImGui::SameLine();
                 if (ImGui::InputText("##SourceData", &m_Options.advanced_options.source_data_dir, ImGuiInputTextFlags_None, InputTextCallback, nullptr))
                 {
                     m_Options.advanced_options.changed = true;
                     //SetGeoDmsRegKeyString("SourceDataDir", m_SourceDataDirPath);
                 }
+                ImGui::SameLine();
+                ImGui::PushID(2);
+                if (ImGui::Button(ICON_RI_FOLDER_OPEN))
+                {
+                    int i = 0;
+                }
+                ImGui::PopID();
 
                 ImGui::Separator();
                 ImGui::Text("Editor:          "); ImGui::SameLine();

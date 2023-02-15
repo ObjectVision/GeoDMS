@@ -22,11 +22,6 @@
 #include "DataLocks.h"
 #include "GuiMenu.h"
 
-// for windows open file dialog
-#include <windows.h>
-#include <shobjidl.h> 
-#include <codecvt>
-
 void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
 {
     if (ImGui::BeginMainMenuBar())
@@ -126,67 +121,7 @@ void GuiMenuFile::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& stat
     SetRecentAndPinnedFiles();
 }
 
-std::string StartWindowsFileDialog()
-{
-    std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
-    auto parent_path = std::filesystem::path(last_filename).parent_path();
-    COMDLG_FILTERSPEC ComDlgFS[1] = {{L"Configuration files", L"*.dms;*.xml"}};
 
-    std::string result_file = "";
-    std::wstring test_file;
-
-    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    if (SUCCEEDED(hr))
-    {
-        IFileOpenDialog* pFileOpen;
-        // Create the FileOpenDialog object.
-        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-        pFileOpen->SetFileTypes(1, ComDlgFS);
-
-        IShellItem* psiDefault = NULL;
-        hr = SHCreateItemFromParsingName(parent_path.c_str(), NULL, IID_PPV_ARGS(&psiDefault));
-        pFileOpen->SetDefaultFolder(psiDefault);
-
-        if (SUCCEEDED(hr))
-        {
-            // Show the Open dialog box.
-            hr = pFileOpen->Show((HWND)ImGui::GetCurrentWindow()->Viewport->PlatformHandleRaw);
-
-            // Get the file name from the dialog box.
-            if (SUCCEEDED(hr))
-            {
-                IShellItem* pItem;
-                hr = pFileOpen->GetResult(&pItem);
-                if (SUCCEEDED(hr))
-                {
-                    PWSTR pszFilePath;
-                    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-                    // Display the file name to the user.
-                    if (SUCCEEDED(hr))
-                    {
-                        //MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
-                        //result_file = *pszFilePath;
-                        test_file = std::wstring(pszFilePath);
-                        using convert_type = std::codecvt_utf8<wchar_t>;
-                        std::wstring_convert<convert_type, wchar_t> converter;
-
-                        //use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
-                        result_file = converter.to_bytes(test_file);
-                        
-                        CoTaskMemFree(pszFilePath);
-                    }
-                    pItem->Release();
-                }
-            }
-            pFileOpen->Release();
-        }
-        psiDefault->Release();
-        CoUninitialize();
-    }
-
-    return result_file;
-}
 
 void GuiMenuFile::Update(GuiState& state)
 {
