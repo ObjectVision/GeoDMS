@@ -17,6 +17,7 @@
 // for windows open file dialog
 #include <windows.h>
 #include <shobjidl.h> 
+#include <shlobj.h>
 #include <codecvt>
 
 GuiEventQueues* GuiEventQueues::instance = nullptr;
@@ -387,7 +388,13 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
 std::string StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts)
 {
     //std::string last_filename = GetGeoDmsRegKey("LastConfigFile").c_str();
-    auto parent_path = std::filesystem::path(start_path).parent_path();
+    auto path = std::filesystem::path(start_path);
+    std::wstring parent_path = path;
+    if (!std::filesystem::is_directory(path))
+    {
+        parent_path = path.parent_path();
+    }
+    //auto parent_path = std::filesystem::path(start_path).parent_path();
     COMDLG_FILTERSPEC ComDlgFS[1] = { {file_dialog_text.c_str(), file_dialog_exts.c_str()}}; //L"Configuration files", L"*.dms;*.xml"
 
     std::string result_file = "";
@@ -444,4 +451,50 @@ std::string StartWindowsFileDialog(std::string start_path, std::wstring file_dia
     }
 
     return result_file;
+}
+
+static int CALLBACK BrowseCallbackProc(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
+{
+
+    if (uMsg == BFFM_INITIALIZED)
+    {
+        //std::string tmp = (const char*)lpData;
+        //std::cout << "path: " << tmp << std::endl;
+        SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
+    }
+
+    return 0;
+}
+
+std::string BrowseFolder(std::string saved_path)
+{
+    TCHAR path[MAX_PATH];
+
+    const char* path_param = saved_path.c_str();
+
+    BROWSEINFO bi = { 0 };
+    bi.lpszTitle = ("Browse for folder...");
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    bi.lpfn = BrowseCallbackProc;
+    bi.lParam = (LPARAM)path_param;
+
+    LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+
+    if (pidl != 0)
+    {
+        //get the name of the folder and put it in path
+        SHGetPathFromIDList(pidl, path);
+
+        //free memory used
+        IMalloc* imalloc = 0;
+        if (SUCCEEDED(SHGetMalloc(&imalloc)))
+        {
+            imalloc->Free(pidl);
+            imalloc->Release();
+        }
+
+        return path;
+    }
+
+    return "";
 }

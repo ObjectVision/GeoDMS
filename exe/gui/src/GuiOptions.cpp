@@ -120,11 +120,20 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
                     //SetGeoDmsRegKeyString("LocalDataDir", m_LocalDataDirPath);
                 }
 
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
+
                 ImGui::SameLine();
                 ImGui::PushID(1);
                 if (ImGui::Button(ICON_RI_FOLDER_OPEN))
                 {
-                    int i = 0;
+                    auto folder_name = BrowseFolder(GetLocalDataDir().c_str());//StartWindowsFileDialog(ConvertDmsFileNameAlways(GetGeoDmsRegKey("LocalDataDir")).c_str(), L"test", L"*.*");
+                    if (!folder_name.empty())
+                    {
+                        m_Options.advanced_options.local_data_dir = folder_name;
+                        m_Options.advanced_options.changed = true;
+                    }
                 }
                 ImGui::PopID();
 
@@ -138,9 +147,16 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
                 ImGui::PushID(2);
                 if (ImGui::Button(ICON_RI_FOLDER_OPEN))
                 {
-                    int i = 0;
+                    auto folder_name = BrowseFolder(GetSourceDataDir().c_str());//StartWindowsFileDialog(ConvertDmsFileNameAlways(GetGeoDmsRegKey("LocalDataDir")).c_str(), L"test", L"*.*");
+                    if (!folder_name.empty())
+                    {
+                        m_Options.advanced_options.source_data_dir = folder_name;
+                        m_Options.advanced_options.changed = true;
+                    }
                 }
                 ImGui::PopID();
+
+                ImGui::PopStyleColor(3);
 
                 ImGui::Separator();
                 ImGui::Text("Editor:          "); ImGui::SameLine();
