@@ -13,3 +13,5 @@
 #define ICON_RI_SUB_BOX				"\xEE\xAE\x84" // U+EB84
 #define ICON_RI_ARROW_LEFT_LINE		"\xEE\xA9\xA0" // U+EA60
 #define ICON_RI_ARROW_RIGHT_LINE    "\xEE\xA9\xAC" // U+EA6C
+#define ICON_RI_FOLDER_OPEN         "\xEE\xB5\xAA" // U+ED6A
+#define ICON_RI_FOLDER_OPEN2	    "\xEE\xB5\x94"// U+ED54
