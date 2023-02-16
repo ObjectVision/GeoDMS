@@ -196,29 +196,28 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
 
-    float offset = 0;
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
-    
-
+    //ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x * m_depth, cur_pos.y));
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
-    ImGui::PushID(m_item);
-    if (ImGui::Button(icon))
+
+    ImGui::PushID(m_item); //TODO: do not create button
+    if (ImGui::Button(icon, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
         {
             UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
         }
-        
+
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopID();
 
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
     return 0;
 }
 
@@ -609,16 +608,16 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     if (!m_start_node)
         return;
 
-    //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
-    //ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
     auto m_currnode = m_start_node;
     ActOnLeftRightArrowKeys(state, m_currnode);
     m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
-    //ImGui::PopStyleColor(3);
+    ImGui::PopStyleColor(3);
 }
 
 auto GuiTree::clear() -> void
