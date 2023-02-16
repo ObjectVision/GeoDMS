@@ -455,6 +455,8 @@ int GuiMainComponent::Init()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    io.ConfigDockingAlwaysTabBar = true;
+    io.ConfigViewportsNoDecoration = false;
 
     // windows always create their own viewport
     io.ConfigViewportsNoAutoMerge = true;
