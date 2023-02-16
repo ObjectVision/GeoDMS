@@ -80,6 +80,8 @@ namespace Explain { // local defs
 	using CoordinateCollectionType = std::vector<CoordinateType>;
 	static auto calculatingStr = SharedStr("Calculating...");
 
+	enum class match_status { unrelated, anchestor, atit, descendant };
+
 	struct AbstrCalcExplanation
 	{
 		SharedDataItemInterestPtr             m_DataItem;
@@ -128,15 +130,19 @@ namespace Explain { // local defs
 			PrintSeqNr(x);
 			return SharedStr(buff.GetData(), buff.GetDataEnd());
 		}
-		bool MatchesExtraInfo(std::string_view extraInfo) const
+		match_status MatchesExtraInfo(std::string_view extraInfo) const
 		{
 			if (extraInfo.empty())
-				return true;
+				return extraInfo.empty() ? match_status::atit : match_status::descendant;
 			auto relPath = RelativeExprPath();
 			auto extraInfoLen = extraInfo.size();
+			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
+				return match_status::unrelated;
 			if (relPath.ssize() < extraInfoLen)
-				return false;
-			return strncmp(relPath.c_str(), extraInfo.data(), extraInfoLen) == 0;
+				return match_status::anchestor;
+			if (relPath.ssize() == extraInfoLen)
+				return match_status::atit;
+			return match_status::descendant;
 		}
 
 	protected:
@@ -368,7 +374,8 @@ namespace Explain { // local defs
 
 				AddExplanations();
 
-				AddQueueEntry(m_Expl[0]->m_UltimateDomainUnit, studyIdx);
+				if (m_ExtraInfo.empty())
+					AddQueueEntry(m_Expl[0]->m_UltimateDomainUnit, studyIdx);
 				AddQueueEntry(Unit<Void>::GetStaticClass()->CreateDefault(), 0);
 			}
 		}
@@ -459,6 +466,7 @@ namespace Explain { // local defs
 				return;
 			if (m_KnownExpr.contains(lispExpr))
 				return;
+
 			m_KnownExpr.insert(lispExpr);
 
 //			DisplayAuthLock suppressErrorDisplay;
@@ -468,8 +476,10 @@ namespace Explain { // local defs
 
 				AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExpr, CalcRole::Calculator); // lispExpr already substitited ?
 				auto metaInfo = calc->GetMetaInfo();
+
 //				if (metaInfo.index() == 2)
 //					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
+
 				if (metaInfo.index() != 1)
 					return;
 				auto dc = GetExistingDataController(lispExpr);
@@ -481,15 +491,23 @@ namespace Explain { // local defs
 					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
 				else
 					newExpl = new LispCalcExplanation(calc, parent, seqNr);
+				auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
+				if (matchInfo == match_status::unrelated)
+					return;
+
+				if (matchInfo > match_status::anchestor)
+					++level;
 				newExplPtr = newExpl.release();
 				m_Expl.push_back( ExplArrayEntry(newExplPtr) );
 				m_CalcInterests.push_back(dc);
+				if (matchInfo == match_status::atit)
+					AddQueueEntry(newExplPtr->m_UltimateDomainUnit, m_ExprLocationIdx);
 			} 
 			catch (const DmsException&)
 			{}
 
 			if (level < MaxLevel && newExplPtr)
-				newExplPtr->AddLispExplanations(this, lispExpr, level+1);
+				newExplPtr->AddLispExplanations(this, lispExpr, level);
 		}
 
 		void AddExplanations(const Actor* studyActor)
@@ -570,10 +588,10 @@ namespace Explain { // local defs
 		CalcInterestArray        m_CalcInterests;
 
 		SharedDataItem           m_StudyObject = 0;
-		SizeT                    m_StudyIdx = 0;
+		SizeT                    m_StudyIdx = -1;
 		std::string              m_ExtraInfo;
 		std::string_view         m_ExprRelPath;
-		SizeT                    m_ExprLocationIdx;
+		SizeT                    m_ExprLocationIdx = -1;
 		arg_index                m_ExprSeqNr  = 0;
 		arg_index                m_ExprLevel  = 0;
 		TimeStamp                m_LastChange = 0;
@@ -825,10 +843,12 @@ namespace Explain { // local defs
 
 	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
 	{
-		if (!MatchesExtraInfo(self->m_ExprRelPath))
+		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::atit)
 			return;
+
 		if (self->m_ExprLevel > 3)
 			return;
+
 		DynamicIncrementalLock lock(self->m_ExprLevel);
 		GetDescrImpl(self, stream, isFirst, showHidden);
 		isFirst = false;
