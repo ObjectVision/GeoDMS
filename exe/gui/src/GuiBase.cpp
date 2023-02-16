@@ -389,6 +389,8 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
     if (!dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->SplitAxis == ImGuiAxis_X || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1]) // 3(X, 1)
         return false;
 
+    // TODO: check if the child node above is not split to avoid crashing
+
     ImGuiDockNode* target_node = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1];
     ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, target_node, window, ImGuiDir_None, 0.0f, false);
     return true;
