@@ -415,6 +415,8 @@ void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
         UInt8 column_index = 0;
         for (auto& col : row)
         {
+            if (column_index == 2) // hardcoded 2
+                break;
             ImGui::TableSetColumnIndex(column_index);
             if (col.background_is_red)
                 SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
