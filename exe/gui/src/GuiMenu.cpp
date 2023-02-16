@@ -287,7 +287,7 @@ void GuiMenuView::Update(GuiState& state)
     if (ImGui::BeginMenu("View"))
     {
         ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
-        if (ImGui::MenuItem("Default")) {}
+        if (ImGui::MenuItem("Default", "Ctrl+Alt+D")) { event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); }
         if (ImGui::MenuItem("Map", "Ctrl+M")) {}
         if (ImGui::MenuItem("Table", "Ctrl+D")) 
         {
@@ -399,11 +399,11 @@ void GuiMenuHelp::Update(GuiState& state)
     if (ImGui::BeginMenu("Help"))
     {
         if (ImGui::MenuItem("About...")) {}
-        if (ImGui::MenuItem("Online")) {}
-        ImGui::Separator();
-        if (ImGui::MenuItem("Copyright Notice")) {}
-        if (ImGui::MenuItem("Disclaimer")) {}
-        if (ImGui::MenuItem("Data Source Reference")) {}
+        if (ImGui::MenuItem("Wiki")) { ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); }
+        //ImGui::Separator();
+        //if (ImGui::MenuItem("Copyright Notice")) {}
+        //if (ImGui::MenuItem("Disclaimer")) {}
+        //if (ImGui::MenuItem("Data Source Reference")) {}
         ImGui::EndMenu();
     }
 }
