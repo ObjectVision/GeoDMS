@@ -76,11 +76,11 @@ struct gdalComponent : gdalDynamicLoader
 
 struct GDAL_ErrorFrame : gdalThread
 {
-	GDAL_ErrorFrame();
-	~GDAL_ErrorFrame() noexcept(false);
+	STGDLL_CALL GDAL_ErrorFrame();
+	STGDLL_CALL ~GDAL_ErrorFrame() noexcept(false);
 
 	void RegisterError(dms_CPLErr eErrClass, int err_no, const char *msg);
-	void ThrowUpWhateverCameUp();
+	STGDLL_CALL void ThrowUpWhateverCameUp();
 	auto ReleaseError()
 	{
 		auto result = m_eErrClass;

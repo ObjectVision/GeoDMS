@@ -56,10 +56,8 @@ namespace Explain {
 extern "C" {
 
 TIC_CALL void DMS_CONV DMS_ExplainValue_Clear();
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
-	SizeT index, CharPtr extraInfo, bool bShowHidden);
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
-	Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden);
+TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden);
+TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden);
 
 TIC_CALL void DMS_CalcExpl_AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit* domain, SizeT index);
 

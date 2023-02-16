@@ -32,6 +32,8 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_GEO_UNDEFINED_H)
 #define __RTC_GEO_UNDEFINED_H
 
+#include <string_view>
+
 // Types
 #include "cpc/Types.h"
 #include "geo/ElemTraits.h"
@@ -110,7 +112,8 @@ template <typename T>             struct has_equivalent_null<T,T> : std::true_ty
 #define UNDEFINED_VALUE_STRING "null"
 #define UNDEFINED_VALUE_STRING_LEN (sizeof(UNDEFINED_VALUE_STRING)-1)
 
-inline CharPtr       UndefinedValue(const CharPtr*) { return nullptr; }
+inline CharPtr          UndefinedValue(const CharPtr*) { return nullptr; }
+inline std::string_view UndefinedValue(const std::string_view*) { return { UNDEFINED_VALUE_STRING, 4 }; }
 
 template <typename T> constexpr bool has_undefines_v = !is_bitvalue_v<T>;
 template <typename T> using has_undefines = std::bool_constant<has_undefines_v<T>>;

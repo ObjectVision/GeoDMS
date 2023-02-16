@@ -124,6 +124,7 @@ DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 	else
 		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
+
 	return lock;
 }
 
@@ -149,7 +150,8 @@ entity_id IndexCollector::GetEntityIndex(feature_id featureIndex) const
 {
 	dms_assert(HasExtKey() || HasGeoRel());
 
-	dms_assert(featureIndex < m_Array.size());
+	if (featureIndex >= m_Array.size())
+		return UNDEFINED_VALUE(entity_id);
 	return m_Array[featureIndex];
 }
 

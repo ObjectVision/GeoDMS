@@ -227,7 +227,7 @@ SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 
 void gdalCleanup()
 {
-	SetCSVFilenameHook(nullptr);
+//	SetCSVFilenameHook(nullptr);
 	if (gdalComponentImpl::s_HookedFilesPtr != nullptr) {
 		delete gdalComponentImpl::s_HookedFilesPtr;
 		gdalComponentImpl::s_HookedFilesPtr = nullptr;
@@ -242,7 +242,7 @@ void gdalCleanup()
 	OGRCleanupAll();
 	//proj_cleanup();
 	OSRCleanup();
-	CPLCleanupTLS();
+//	CPLCleanupTLS();
 }
 
 gdalDynamicLoader::gdalDynamicLoader()
@@ -417,11 +417,16 @@ gdalThread::gdalThread()
 {
 	if (!gdalComponentImpl::s_TlsCount)
 	{
-		DMS_SE_CALLBACK_BEGIN
+//		DMS_SE_CALLBACK_BEGIN
 
 			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-			
-		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
+//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+
+			static auto projFolder = DelimitedConcat(GetExeDir(), "proj4data");
+			CharPtr projFolderPtr[] = { projFolder.c_str(), nullptr };
+			OSRSetPROJSearchPaths(projFolderPtr);
+
+//		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
 }
@@ -430,7 +435,8 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-//		OSRCleanup();
+	//	proj_context_set_file_finder(nullptr, nullptr, nullptr);
+	//		OSRCleanup();
 		CPLCleanupTLS();
 		CPLPopFileFinder();
 	}
@@ -453,8 +459,8 @@ gdalComponent::gdalComponent()
 			dms_assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
 
-			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
-			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+//			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
+//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
 			// Note: moved registering of drivers to Gdal_DoOpenStorage
 			//GDALAllRegister(); // can throw
@@ -480,7 +486,7 @@ gdalComponent::~gdalComponent()
 
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
-		proj_context_set_file_finder(nullptr, nullptr, nullptr);
+//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
 		gdalCleanup();
 	}
 }
@@ -874,7 +880,8 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	auto spOrErr = GetSpatialReferenceFromUserInput(projStr);
 	if (spOrErr.second == OGRERR_NONE)
 		return 1.0;
-	return GetUnitSizeInMeters(&spOrErr.first);
+	auto result = GetUnitSizeInMeters(&spOrErr.first);
+	return result;
 }
 
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
