@@ -295,12 +295,31 @@ inline T Convert4(StringCRef val, const T*, const ExceptFunc* dummyExceptFunc, c
 	return result;
 }
 
+template <typename T, typename ExceptFunc, typename ConvertFunc>
+inline T Convert4(std::string_view val, const T*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+{
+	T result;
+	if (IsDefined(val))
+		AssignValueFromCharPtrs(result, begin_ptr(val), end_ptr(val));
+	else
+		Assign(result, Undefined());
+	return result;
+}
+
 template <typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc) 
 { 
 	return val.IsDefined()
 		?	SharedStr(val.begin(), val.end())
 		:	UNDEFINED_VALUE(SharedStr); 
+}
+
+template <typename ExceptFunc, typename ConvertFunc>
+inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc)
+{
+	return IsDefined(val)
+		? SharedStr(val.begin(), val.end())
+		: UNDEFINED_VALUE(SharedStr);
 }
 
 // conversions to string
