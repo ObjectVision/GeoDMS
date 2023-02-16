@@ -345,6 +345,17 @@ namespace Explain { // local defs
 			m_ExprLevel   = 0;
 			m_Queue.clear();
 			m_DoneQueueEntries = m_DoneExpl = 0;
+			if (m_ExtraInfo.contains(':'))
+			{
+				auto colonPos = m_ExtraInfo.find(':');
+				m_ExprRelPath = std::string_view(m_ExtraInfo.data(), colonPos);
+				m_ExprLocationIdx = Convert<SizeT>(std::string_view(m_ExtraInfo.begin() + colonPos + 1, m_ExtraInfo.end()));
+			}
+			else
+			{
+				m_ExprRelPath = m_ExtraInfo;
+				m_ExprLocationIdx = m_StudyIdx;
+			}
 
 			auto oldExpl          = std::move(m_Expl);
 			auto oldLispRefSet    = std::move(m_KnownExpr);
@@ -547,7 +558,7 @@ namespace Explain { // local defs
 		{
 			auto fullPath = SharedStr(m_StudyObject->GetFullName());
 			auto relExprPath = expl->RelativeExprPath();
-			return mySSPrintF("dms:dp.VI.ATTR!%d:%s?%s", recNo, fullPath.c_str(), relExprPath.c_str());
+			return mySSPrintF("dms:dp.VI.ATTR!%d:%s?%s:%d", m_StudyIdx, fullPath.c_str(), relExprPath.c_str(), recNo);
 		}
 
 		ExplArray                m_Expl;
@@ -561,6 +572,8 @@ namespace Explain { // local defs
 		SharedDataItem           m_StudyObject = 0;
 		SizeT                    m_StudyIdx = 0;
 		std::string              m_ExtraInfo;
+		std::string_view         m_ExprRelPath;
+		SizeT                    m_ExprLocationIdx;
 		arg_index                m_ExprSeqNr  = 0;
 		arg_index                m_ExprLevel  = 0;
 		TimeStamp                m_LastChange = 0;
@@ -812,7 +825,7 @@ namespace Explain { // local defs
 
 	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
 	{
-		if (!MatchesExtraInfo(self->m_ExtraInfo))
+		if (!MatchesExtraInfo(self->m_ExprRelPath))
 			return;
 		if (self->m_ExprLevel > 3)
 			return;
