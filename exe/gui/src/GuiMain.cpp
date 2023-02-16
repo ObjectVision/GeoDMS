@@ -754,6 +754,7 @@ bool GuiMainComponent::Update()
 
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
+            // TODO: check if dockspace_node is unsplit
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.8f, true);
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.025f, true);
