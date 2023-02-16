@@ -59,6 +59,7 @@ enum class GuiEvents
 	MenuOpenTools,
 	MenuOpenWindow,
 	MenuOpenHelp,
+	CloseAllViews,
 	Close,
 };
 

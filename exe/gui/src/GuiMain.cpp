@@ -138,16 +138,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
-        case tvsMapView:
-        {
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
-            break;
-        }
-        case tvsTableView:
-        {
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
-            break;
-        }
+        case tvsMapView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size())); break; }
+        case tvsTableView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
         }
 
         break;
@@ -171,31 +163,11 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case GuiEvents::ToggleShowCurrentItemBar:
-    {
-        m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
-        break;
-    }
-    case GuiEvents::ToggleShowDetailPagesWindow:
-    {
-        m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
-        break;
-    }
-    case GuiEvents::ToggleShowEventLogWindow:
-    {
-        m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
-        break;
-    }
-    case GuiEvents::ToggleShowToolbar:
-    {
-        m_State.ShowToolbar = !m_State.ShowToolbar;
-        break;
-    }
-    case GuiEvents::ToggleShowTreeViewWindow:
-    {
-        m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
-        break;
-    }
+    case GuiEvents::ToggleShowCurrentItemBar: { m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar; break;}
+    case GuiEvents::ToggleShowDetailPagesWindow: { m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow; break;}
+    case GuiEvents::ToggleShowEventLogWindow: { m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow; break;}
+    case GuiEvents::ToggleShowToolbar: { m_State.ShowToolbar = !m_State.ShowToolbar; break; }
+    case GuiEvents::ToggleShowTreeViewWindow: { m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow; break; }
     case GuiEvents::StepToErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -212,6 +184,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         }
         break;
     }
+    case GuiEvents::CloseAllViews: { m_View.CloseAll(); break;}
     case GuiEvents::StepToRootErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -239,11 +212,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case GuiEvents::ShowLocalSourceDataChangedModalWindow:
-    {
-        ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None);
-        break;
-    }
+    case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
     }
 }
 

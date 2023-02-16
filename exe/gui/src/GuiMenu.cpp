@@ -374,73 +374,17 @@ void GuiMenuWindow::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMenu("Window"))
     {
-        if (ImGui::MenuItem("Tile Horizontal", "Ctrl+Alt+W")) {}
-        if (ImGui::MenuItem("Tile Vertical", "Ctrl+Alt+V")) {}
-        if (ImGui::MenuItem("Cascade", "Shift+Ctrl+W")) {}
-        if (ImGui::MenuItem("Close", "Ctrl+W")) {}
-        if (ImGui::MenuItem("Close All", "Ctrl+L")) {}
-        if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
-        ImGui::Separator();
-
-        /*int index = 0;
-        for (auto& view : ViewPtr.m_Views)
+        auto event_queues = GuiEventQueues::getInstance();
+        //if (ImGui::MenuItem("Tile Horizontal", "Ctrl+Alt+W")) {}
+        //if (ImGui::MenuItem("Tile Vertical", "Ctrl+Alt+V")) {}
+        //if (ImGui::MenuItem("Cascade", "Shift+Ctrl+W")) {}
+        //if (ImGui::MenuItem("Close", "Ctrl+W")) {}
+        if (ImGui::MenuItem("Close All", "Ctrl+L")) 
         {
-            ImGui::PushID(index);
-            if (ImGui::Button(view.m_Name.c_str()))
-            {
-                ViewPtr.SetDoView(true);
-                ViewPtr.SetViewIndex(index);
-                if (view.m_ViewStyle==tvsMapView)
-                    m_State.MapViewEvents.Add(OpenInMemoryDataView);
-                else if (view.m_ViewStyle==tvsTableView)
-                    m_State.TableViewEvents.Add(OpenInMemoryDataView);
-            }
-            ImGui::PopID();
-            index++;
-        }*/
-
-
-        // TODO: add ViewPtr available views
-        /*for (auto& view : TableViewsPtr)
-        {
-            if (!view.IsPopulated())
-                continue;
-
-            if (ImGui::Button(view.GetViewName().c_str()))
-            {
-                view.SetDoView(!view.DoView());
-            }
-            
-            ImGui::SameLine();
-            ImGui::PushID(view.GetViewName().c_str()); // unique id
-            //ImGui::PushStyleColor();
-            if (ImGui::Button(ICON_RI_CLOSE_FILL))
-            {
-                view.Close(false);
-            }
-            ImGui::PopID();
+        
+            event_queues->MainEvents.Add(GuiEvents::CloseAllViews);
         }
-
-        for (auto& view : MapViewsPtr)
-        {
-            if (!view.IsPopulated())
-                continue;
-
-            if (ImGui::Button(view.GetViewName().c_str()))
-            {
-                view.SetDoView(!view.DoView());
-            }
-
-            ImGui::SameLine();
-            ImGui::PushID(view.GetViewName().c_str()); // unique id
-            if (ImGui::Button(ICON_RI_CLOSE_FILL))
-            {
-                view.Close(false);
-            }
-            ImGui::PopID();
-        }*/
-
-        ImGui::Separator();
+        //if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
         ImGui::EndMenu();
     }
 }
