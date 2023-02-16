@@ -49,6 +49,7 @@ enum class GuiEvents
 	StepToErrorSource,
 	StepToRootErrorSource,
 	ShowLocalSourceDataChangedModalWindow,
+	ShowAboutTextModalWindow,
 	FocusValueInfoTab,
 	AscendVisibleTree,
 	TreeViewJumpKeyPress,
@@ -59,6 +60,7 @@ enum class GuiEvents
 	MenuOpenTools,
 	MenuOpenWindow,
 	MenuOpenHelp,
+	CloseAllViews,
 	Close,
 };
 
@@ -195,7 +197,7 @@ class StringStateManager
 public:
 	StringStateManager()
 	{
-		UInt32 cap = 25;
+		UInt32 cap = 25; //TODO: remove ugly code
 		m_PreviousStrings.resize(cap);
 		m_NextStrings.resize(cap);
 	}
@@ -339,6 +341,7 @@ public:
 
 	// singletons
 	static StringStateManager errorDialogMessage;
+	std::string aboutDialogMessage;
 	static StringStateManager contextMessage;
 	static ViewActionHistory TreeItemHistoryList;
 

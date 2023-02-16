@@ -104,8 +104,8 @@ void GuiOptions::Update(bool* p_open, GuiState &state)
         {
             if (ImGui::BeginTabItem("GUI"))
             {
-                static bool dark_mode = false;
-                ImGui::Checkbox("Dark mode", &dark_mode);
+                //static bool dark_mode = false;
+                //ImGui::Checkbox("Dark mode", &dark_mode);
                 ImGui::Checkbox("Show eventlog options", &state.ShowEventLogOptionsWindow);
 
                 ImGui::EndTabItem();

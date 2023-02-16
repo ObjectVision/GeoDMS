@@ -84,14 +84,14 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     return result;
 }
 
-void GuiMainComponent::ProcessEvent(GuiEvents e)
+bool GuiMainComponent::ProcessEvent(GuiEvents e)
 {
     switch (e)
     {
     case GuiEvents::UpdateCurrentItem:
     {
         if (!m_State.GetCurrentItem())
-            return;
+            return false;
 
         if (m_State.GetCurrentItem() != m_State.GetRoot())
             m_State.TreeItemHistoryList.Insert({ m_State.GetCurrentItem() });
@@ -138,16 +138,8 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
-        case tvsMapView:
-        {
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
-            break;
-        }
-        case tvsTableView:
-        {
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
-            break;
-        }
+        case tvsMapView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size())); break; }
+        case tvsTableView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
         }
 
         break;
@@ -171,31 +163,11 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case GuiEvents::ToggleShowCurrentItemBar:
-    {
-        m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar;
-        break;
-    }
-    case GuiEvents::ToggleShowDetailPagesWindow:
-    {
-        m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow;
-        break;
-    }
-    case GuiEvents::ToggleShowEventLogWindow:
-    {
-        m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow;
-        break;
-    }
-    case GuiEvents::ToggleShowToolbar:
-    {
-        m_State.ShowToolbar = !m_State.ShowToolbar;
-        break;
-    }
-    case GuiEvents::ToggleShowTreeViewWindow:
-    {
-        m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow;
-        break;
-    }
+    case GuiEvents::ToggleShowCurrentItemBar: { m_State.ShowCurrentItemBar = !m_State.ShowCurrentItemBar; break;}
+    case GuiEvents::ToggleShowDetailPagesWindow: { m_State.ShowDetailPagesWindow = !m_State.ShowDetailPagesWindow; break;}
+    case GuiEvents::ToggleShowEventLogWindow: { m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow; break;}
+    case GuiEvents::ToggleShowToolbar: { m_State.ShowToolbar = !m_State.ShowToolbar; break; }
+    case GuiEvents::ToggleShowTreeViewWindow: { m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow; break; }
     case GuiEvents::StepToErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -212,6 +184,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         }
         break;
     }
+    case GuiEvents::CloseAllViews: { m_View.CloseAll(); break;}
     case GuiEvents::StepToRootErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -239,12 +212,11 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
-    case GuiEvents::ShowLocalSourceDataChangedModalWindow:
-    {
-        ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None);
-        break;
+    case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
+    case GuiEvents::ShowAboutTextModalWindow: {ImGui::OpenPopup("About", ImGuiPopupFlags_None); break; }
+    case GuiEvents::Close: { return true; } // Exit application
     }
-    }
+    return false;
 }
 
 void GuiMainComponent::CloseCurrentConfig()
@@ -253,6 +225,22 @@ void GuiMainComponent::CloseCurrentConfig()
     m_View.CloseAll();
     m_Treeview.clear();
     m_State.clear();
+}
+
+void GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
+{
+    if (ImGui::BeginPopupModal("About", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
+    {
+        ImGui::TextUnformatted(state.aboutDialogMessage.c_str());
+        if (ImGui::Button("Ok", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+        ImGui::EndPopup();
+    }
+    return;
 }
 
 bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState &state)
@@ -455,6 +443,8 @@ int GuiMainComponent::Init()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    io.ConfigDockingAlwaysTabBar = true;
+    io.ConfigViewportsNoDecoration = false;
 
     // windows always create their own viewport
     io.ConfigViewportsNoAutoMerge = true;
@@ -669,7 +659,8 @@ bool GuiMainComponent::Update()
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();
-        ProcessEvent(e);
+        if (ProcessEvent(e))
+            return true;
 
         if (e == GuiEvents::ReopenCurrentConfiguration)
         {
@@ -681,6 +672,8 @@ bool GuiMainComponent::Update()
     // modal windows
     if (ShowLocalOrSourceDataDirChangedDialogIfNecessary(m_State))
         return true;
+
+    ShowAboutDialogIfNecessary(m_State);
 
     //static auto first_time = true;
     m_Menu.Update(m_State, m_View);
@@ -752,9 +745,10 @@ bool GuiMainComponent::Update()
 
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
+            // TODO: check if dockspace_node is unsplit
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.8f, true);
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.025f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.035f, true); //0.025f
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.8f, true);
                         
             first_time_docking = false;

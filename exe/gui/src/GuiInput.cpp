@@ -3,6 +3,7 @@
 #include "ser/AsString.h"
 #include "TicInterface.h"
 #include "GuiInput.h"
+#include "dbg/DebugReporter.h"
 
 static ImGuiKey GLFWKeyToImGuiKey(int key)
 {
@@ -170,12 +171,10 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
     case GLFW_KEY_D:
     {
-        if (mods == GLFW_MOD_CONTROL) // CTRL-D
+        if (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // Ctrl+Alt+D
+            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+        else if (mods == GLFW_MOD_CONTROL) // CTRL-D 
         {
-            //m_State.ShowTableviewWindow = true;
-            //m_State.TableViewIsActive = true;
-            //m_State.MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
-            //m_State.TableViewEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
             event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
         }
 
@@ -206,6 +205,12 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenHelp);
         return;
     }
+    case GLFW_KEY_L:
+    {
+        if (mods == GLFW_MOD_CONTROL) // CTRL-L
+            event_queues->MainEvents.Add(GuiEvents::CloseAllViews);
+        return;
+    }
     case GLFW_KEY_M:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-M
@@ -232,9 +237,15 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_T:
     {
-        if (mods == GLFW_MOD_CONTROL) // CTRL-T
+        if (mods & (GLFW_MOD_ALT|GLFW_MOD_CONTROL)) // CTRL-ALT-T
+        {
+#if defined(MG_DEBUG)
+            DebugReporter::ReportAll();
+#endif
+        }
+        else if (mods == GLFW_MOD_CONTROL) // CTRL-T
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
-        else if (mods == GLFW_MOD_ALT) // Open menu-tools
+        else if (mods == GLFW_MOD_ALT) // ALT-T Open menu-tools
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenTools);
 
         return;

@@ -15,6 +15,7 @@
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
 #include "TreeItemProps.h"
+#include "dbg/DebugReporter.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -145,7 +146,27 @@ void GuiMenuFile::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& stat
     SetRecentAndPinnedFiles();
 }
 
+void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
+{
+    auto sPtr = static_cast<std::string*>(clientHandle);
+    while (componentLevel)
+    {
+        *sPtr += "-  ";
+        componentLevel--;
+    }
+    *sPtr += componentName + std::string("\n");
+}
 
+auto GetGeoDMSAboutText() -> std::string
+{
+    std::string about_text = DMS_GetVersion();
+    about_text += ", copyright Object Vision BV\n";
+    DMS_VisitVersionComponents(&about_text, OnVersionComponentVisit);
+
+
+    int i = 0;
+    return about_text;
+}
 
 void GuiMenuFile::Update(GuiState& state)
 {
@@ -169,12 +190,12 @@ void GuiMenuFile::Update(GuiState& state)
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
 
-        if (ImGui::MenuItem("Open Demo Config")) 
+        /*if (ImGui::MenuItem("Open Demo Config"))
         {
             state.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
             UpdateRecentOrPinnedFilesByCurrentConfiguration(state, m_RecentFiles);
             CleanRecentOrPinnedFiles(m_RecentFiles);
-        }
+        }*/
         /*ImGui::Separator();
 
         int ind = 1000;
@@ -258,7 +279,7 @@ void GuiMenuFile::Update(GuiState& state)
         }
 
         ImGui::Separator();
-        if (ImGui::MenuItem("Exit")) {}
+        if (ImGui::MenuItem("Exit")) { event_queues->MainEvents.Add(GuiEvents::Close); }
         ImGui::EndMenu();
     }
 }
@@ -286,14 +307,11 @@ void GuiMenuView::Update(GuiState& state)
     if (ImGui::BeginMenu("View"))
     {
         ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
-        if (ImGui::MenuItem("Default")) {}
-        if (ImGui::MenuItem("Map", "Ctrl+M")) {}
-        if (ImGui::MenuItem("Table", "Ctrl+D")) 
-        {
-            //m_State.ShowTableviewWindow = true;
-        }
-        if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
-        ImGui::Separator();
+        if (ImGui::MenuItem("Default", "Ctrl+Alt+D")) { event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); }
+        if (ImGui::MenuItem("Map", "Ctrl+M")) { event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow); }
+        if (ImGui::MenuItem("Table", "Ctrl+D")) { event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow); }
+        //if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
+        /*ImGui::Separator();
         if (ImGui::BeginMenu("Process Schemes"))
         {
             ImGui::MenuItem("Subitems");
@@ -313,7 +331,7 @@ void GuiMenuView::Update(GuiState& state)
                 state.SourceDescrMode = SourceDescrMode::All;
 
             ImGui::EndMenu();
-        }
+        }*/
 
         ImGui::Separator();
         ImGui::Checkbox("##toggle_treeview", &state.ShowTreeviewWindow);
@@ -365,7 +383,11 @@ void GuiMenuTools::Update(GuiState& state)
         {
             state.ShowOptionsWindow = true;
         }
-        if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) {}
+#if defined(MG_DEBUG)
+        {
+            if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) { DebugReporter::ReportAll(); }
+        }
+#endif
         ImGui::EndMenu();
     }
 }
@@ -374,73 +396,17 @@ void GuiMenuWindow::Update(GuiView& ViewPtr)
 {
     if (ImGui::BeginMenu("Window"))
     {
-        if (ImGui::MenuItem("Tile Horizontal", "Ctrl+Alt+W")) {}
-        if (ImGui::MenuItem("Tile Vertical", "Ctrl+Alt+V")) {}
-        if (ImGui::MenuItem("Cascade", "Shift+Ctrl+W")) {}
-        if (ImGui::MenuItem("Close", "Ctrl+W")) {}
-        if (ImGui::MenuItem("Close All", "Ctrl+L")) {}
-        if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
-        ImGui::Separator();
-
-        /*int index = 0;
-        for (auto& view : ViewPtr.m_Views)
+        auto event_queues = GuiEventQueues::getInstance();
+        //if (ImGui::MenuItem("Tile Horizontal", "Ctrl+Alt+W")) {}
+        //if (ImGui::MenuItem("Tile Vertical", "Ctrl+Alt+V")) {}
+        //if (ImGui::MenuItem("Cascade", "Shift+Ctrl+W")) {}
+        //if (ImGui::MenuItem("Close", "Ctrl+W")) {}
+        if (ImGui::MenuItem("Close All", "Ctrl+L")) 
         {
-            ImGui::PushID(index);
-            if (ImGui::Button(view.m_Name.c_str()))
-            {
-                ViewPtr.SetDoView(true);
-                ViewPtr.SetViewIndex(index);
-                if (view.m_ViewStyle==tvsMapView)
-                    m_State.MapViewEvents.Add(OpenInMemoryDataView);
-                else if (view.m_ViewStyle==tvsTableView)
-                    m_State.TableViewEvents.Add(OpenInMemoryDataView);
-            }
-            ImGui::PopID();
-            index++;
-        }*/
-
-
-        // TODO: add ViewPtr available views
-        /*for (auto& view : TableViewsPtr)
-        {
-            if (!view.IsPopulated())
-                continue;
-
-            if (ImGui::Button(view.GetViewName().c_str()))
-            {
-                view.SetDoView(!view.DoView());
-            }
-            
-            ImGui::SameLine();
-            ImGui::PushID(view.GetViewName().c_str()); // unique id
-            //ImGui::PushStyleColor();
-            if (ImGui::Button(ICON_RI_CLOSE_FILL))
-            {
-                view.Close(false);
-            }
-            ImGui::PopID();
+        
+            event_queues->MainEvents.Add(GuiEvents::CloseAllViews);
         }
-
-        for (auto& view : MapViewsPtr)
-        {
-            if (!view.IsPopulated())
-                continue;
-
-            if (ImGui::Button(view.GetViewName().c_str()))
-            {
-                view.SetDoView(!view.DoView());
-            }
-
-            ImGui::SameLine();
-            ImGui::PushID(view.GetViewName().c_str()); // unique id
-            if (ImGui::Button(ICON_RI_CLOSE_FILL))
-            {
-                view.Close(false);
-            }
-            ImGui::PopID();
-        }*/
-
-        ImGui::Separator();
+        //if (ImGui::MenuItem("Close All But This", "Ctrl+B")) {}
         ImGui::EndMenu();
     }
 }
@@ -449,12 +415,17 @@ void GuiMenuHelp::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Help"))
     {
-        if (ImGui::MenuItem("About...")) {}
-        if (ImGui::MenuItem("Online")) {}
-        ImGui::Separator();
-        if (ImGui::MenuItem("Copyright Notice")) {}
-        if (ImGui::MenuItem("Disclaimer")) {}
-        if (ImGui::MenuItem("Data Source Reference")) {}
+        auto event_queues = GuiEventQueues::getInstance();
+        if (ImGui::MenuItem("About...")) 
+        { 
+            event_queues->MainEvents.Add(GuiEvents::ShowAboutTextModalWindow);
+            state.aboutDialogMessage = GetGeoDMSAboutText();
+        }
+        if (ImGui::MenuItem("Wiki")) { ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); }
+        //ImGui::Separator();
+        //if (ImGui::MenuItem("Copyright Notice")) {}
+        //if (ImGui::MenuItem("Disclaimer")) {}
+        //if (ImGui::MenuItem("Data Source Reference")) {}
         ImGui::EndMenu();
     }
 }

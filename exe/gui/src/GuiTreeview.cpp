@@ -54,8 +54,11 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
 auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
 {
     // right-mouse popup menu
-    if (ImGui::BeginPopupContextItem())
+    if (ImGui::BeginPopupContextItem("treeview_popup_window"))
     {
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
+
         auto event_queues = GuiEventQueues::getInstance();
         if (ImGui::Button("Edit Config Source       Ctrl-E"))
             event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
@@ -78,6 +81,7 @@ auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
                 ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
             }
         }
+        ImGui::PopStyleColor(2);
 
         ImGui::EndPopup();
     }
@@ -196,25 +200,28 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
 
-    float offset = 0;
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
-    
-
+    //ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x * m_depth, cur_pos.y));
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
-    ImGui::PushID(m_item);
-    if (ImGui::Button(icon))
+
+    ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
+    if (ImGui::Button(icon, ImVec2(20, 15)))
     {
-        UpdateStateAfterItemClick(state, m_item);
+        if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
+        {
+            UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
+        }
+
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopID();
 
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y - offset;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
     return 0;
 }
 
@@ -251,10 +258,20 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
     ImGui::PushID(m_item);
 
-    if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
+    //if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
+    //{
+    //    UpdateStateAfterItemClick(state, m_item);
+    //}
+
+    ImGui::TextUnformatted(m_item->GetName().c_str()); // render treeitem text without extra string allocation
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
     {
+        ImGui::CloseCurrentPopup();
         UpdateStateAfterItemClick(state, m_item);
     }
+
+
+
     /*// click event
     else if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
     {
@@ -271,7 +288,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     ShowRightMouseClickPopupWindowIfNeeded(state);
 
     // drag-drop event
-    if (!(m_item == state.GetRoot()) && ImGui::BeginDragDropSource())
+    if (!(m_item == state.GetRoot()) && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
     {
         ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
         ImGui::TextUnformatted(m_item->GetName().c_str());
@@ -595,9 +612,6 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     if (!m_start_node)
         return;
 
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(1.0f, 1.0f, 1.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
@@ -607,8 +621,7 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
-    ImGui::PopStyleColor(6);
-    //ImGui::PopStyleColor(3);
+    ImGui::PopStyleColor(3);
 }
 
 auto GuiTree::clear() -> void

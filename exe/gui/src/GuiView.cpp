@@ -278,7 +278,7 @@ auto GuiView::UpdateAll(GuiState& state) -> void
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
-        if (it->m_DoView)
+        if (it->m_DoView && m_ViewIt->m_DataView)
         {
             if (Update(state, *it) && m_ViewIt._Ptr && m_ViewIt != it)
                 m_ViewIt = it;
@@ -309,6 +309,12 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
         ImGui::End();
         return false;
     }
+
+    
+    auto view_window = ImGui::GetCurrentWindow(); //TODO: temporary
+    //if (!ImGui::GetWindowAlwaysWantOwnTabBar(view_window))
+    //    view_window->WindowClass.DockingAlwaysTabBar = true; // Floating view windows always have their own tabbar
+        
 
     // handle events
     EventQueue* eventQueuePtr = nullptr;
@@ -383,7 +389,7 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
     SuspendTrigger::Resume();
 
-    auto window = ImGui::GetCurrentWindow(); //TODO: temporary
+    
 
     ImGui::End();
 
@@ -395,13 +401,13 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
     {
         //DockNodeCalcDropRectsAndTestMousePos
 
-        if (window->DockId)
+        if (view_window->DockId)
         {
             view.has_been_docking_initialized = true;
             return result;
         }
 
-        if (TryDockViewInGeoDMSDataViewAreaNode(state, window)) // TODO: check if this is the correct window.
+        if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
             view.has_been_docking_initialized = true;
 
         /*auto ctx = ImGui::GetCurrentContext();

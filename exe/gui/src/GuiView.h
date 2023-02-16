@@ -43,7 +43,7 @@ public:
 	DataView* m_DataView = nullptr;
 	HWND m_HWNDParent	 = nullptr;
 	HWND m_HWND		     = nullptr;
-	bool m_ShowWindow    = true;     // show or hide state of the m_HWND
+	bool m_ShowWindow    = true;     // show or hide state of the child m_HWND
 	bool has_been_docking_initialized = false;
 };
 

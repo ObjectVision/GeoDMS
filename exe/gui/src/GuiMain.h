@@ -27,10 +27,11 @@ public:
 	int Init();
 private:
 	bool Update();
-	void ProcessEvent(GuiEvents e);
+	bool ProcessEvent(GuiEvents e);
 	void CloseCurrentConfig();
 
 	// modal windows
+	void ShowAboutDialogIfNecessary(GuiState& state);
 	bool ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState& state);
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();

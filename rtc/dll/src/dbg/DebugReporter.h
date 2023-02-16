@@ -74,7 +74,7 @@ private:
 struct DebugReporter : linked_list
 {
 	virtual void Report() const =0;
-	static void ReportAll();
+	RTC_CALL static void ReportAll();
 
 protected:
 	RTC_CALL DebugReporter();
