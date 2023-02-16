@@ -27,7 +27,7 @@ public:
 	int Init();
 private:
 	bool Update();
-	void ProcessEvent(GuiEvents e);
+	bool ProcessEvent(GuiEvents e);
 	void CloseCurrentConfig();
 
 	// modal windows

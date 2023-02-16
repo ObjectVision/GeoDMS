@@ -259,7 +259,7 @@ void GuiMenuFile::Update(GuiState& state)
         }
 
         ImGui::Separator();
-        if (ImGui::MenuItem("Exit")) {}
+        if (ImGui::MenuItem("Exit")) { event_queues->MainEvents.Add(GuiEvents::Close); }
         ImGui::EndMenu();
     }
 }

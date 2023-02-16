@@ -84,14 +84,14 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     return result;
 }
 
-void GuiMainComponent::ProcessEvent(GuiEvents e)
+bool GuiMainComponent::ProcessEvent(GuiEvents e)
 {
     switch (e)
     {
     case GuiEvents::UpdateCurrentItem:
     {
         if (!m_State.GetCurrentItem())
-            return;
+            return false;
 
         if (m_State.GetCurrentItem() != m_State.GetRoot())
             m_State.TreeItemHistoryList.Insert({ m_State.GetCurrentItem() });
@@ -213,7 +213,9 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
         break;
     }
     case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
+    case GuiEvents::Close: { return true; } // Exit application
     }
+    return false;
 }
 
 void GuiMainComponent::CloseCurrentConfig()
@@ -640,7 +642,8 @@ bool GuiMainComponent::Update()
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();
-        ProcessEvent(e);
+        if (ProcessEvent(e))
+            return true;
 
         if (e == GuiEvents::ReopenCurrentConfiguration)
         {
