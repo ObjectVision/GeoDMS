@@ -170,12 +170,12 @@ void GuiMenuFile::Update(GuiState& state)
         if (ImGui::MenuItem("Reopen Current Configuration", "Alt+R")) 
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
 
-        if (ImGui::MenuItem("Open Demo Config")) 
+        /*if (ImGui::MenuItem("Open Demo Config"))
         {
             state.configFilenameManager.Set("C:\\prj\\tst\\Storage_gdal\\cfg\\regression.dms");
             UpdateRecentOrPinnedFilesByCurrentConfiguration(state, m_RecentFiles);
             CleanRecentOrPinnedFiles(m_RecentFiles);
-        }
+        }*/
         /*ImGui::Separator();
 
         int ind = 1000;
