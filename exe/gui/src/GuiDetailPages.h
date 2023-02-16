@@ -108,7 +108,7 @@ private:
     auto UpdateAllProperties(GuiState& state) -> void;
     auto UpdateExploreProperties(GuiState& state) -> void;
     auto UpdateStatistics(GuiState& state) -> void;
-    auto UpdateValueInfo(GuiState& state) -> void;
+    bool UpdateValueInfo(GuiState& state);
     auto UpdateConfiguration(GuiState& state) -> void;
     auto UpdateSourceDescription(GuiState& state) -> void;
     auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;

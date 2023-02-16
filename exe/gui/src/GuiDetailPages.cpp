@@ -351,18 +351,26 @@ auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
     return std::stoll(dpvi_str.substr(11, dpvi_str.size()));
 }
 
-auto GuiDetailPages::UpdateValueInfo(GuiState& state) -> void
+bool GuiDetailPages::UpdateValueInfo(GuiState& state)
 {
     clear();
+    std::string result_string = "Omitted in alpha version.";
+    StringToTable(result_string, m_ValueInfo);
+    return true;
+
+
     auto current_view_action = *state.TreeItemHistoryList.GetCurrentIterator();
     if (!current_view_action.sAction.contains("dp.vi.attr"))
-        return;
+        return true;
 
 
     InterestPtr<TreeItem*> tmpInterest = current_view_action.tiContext->IsFailed() || current_view_action.tiContext->WasFailed() ? nullptr : current_view_action.tiContext;
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto dpvi_index = GetIndexFromDPVIsActionString(current_view_action.sAction);
-    DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, NULL, true);
+    auto result = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, NULL, true);
+
+    if (!result)
+        return true;
 
     m_Buff.InterpretBytes(m_ValueInfo); // Create detail page from html stream
     m_Buff.Reset();

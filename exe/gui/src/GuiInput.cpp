@@ -171,9 +171,9 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
     case GLFW_KEY_D:
     {
-        if (mods & (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // Ctrl+Alt+D
-            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
-        else if (mods == GLFW_MOD_CONTROL) // CTRL-D 
+        /*if (mods & (GLFW_MOD_CONTROL & GLFW_MOD_ALT)) // Ctrl+Alt+D
+            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);*/
+        if (mods == GLFW_MOD_CONTROL) // CTRL-D 
         {
             event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
         }
