@@ -207,7 +207,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGui::PushID(m_item);
     if (ImGui::Button(icon))
     {
-        if (IsOpen())
+        if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
         {
             UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
         }
