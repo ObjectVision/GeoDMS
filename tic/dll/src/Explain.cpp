@@ -1,4 +1,4 @@
-//<HEADER> 
+﻿//<HEADER> 
 /*
 Data & Model Server (DMS) is a server written in C++ for DSS applications. 
 Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
@@ -513,7 +513,7 @@ namespace Explain { // local defs
 						continue;
 
 					CoordinateType* coordPtr = explanation->AddIndex(entry.second);
-					if (!coordPtr)
+					if (!coordPtr || !IsDefined(coordPtr->first))
 						continue;
 					dms_assert( coordPtr->second.is_null() ); // we don't expect to process the same entry twice
 
@@ -521,7 +521,7 @@ namespace Explain { // local defs
 
 					const AbstrValue* value = explanation->CalcValue(&context);
 					if (! value )
-						return false; // suspend
+						return false; // suspend or NULL
 		
 					const AbstrUnit* valuesUnit = explanation->m_UltimateValuesUnit;
 					if (!value->IsNull() && (value->GetValueClass() != ValueWrap<SharedStr>::GetStaticClass()) && IsKnownDomain(valuesUnit))
@@ -825,8 +825,7 @@ namespace Explain { // local defs
 		dms_assert(!crd->second);
 
 		SizeT entityNr = crd->first;
-		if (!IsDefined(entityNr))
-			context = nullptr;
+		assert(IsDefined(entityNr));
 
 		try {
 			auto result = GetCalcDataItem(context);
@@ -961,8 +960,8 @@ namespace Explain { // local defs
 
 	void LispCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
-		dms_assert(!isFirst);
-		NewLine(stream);
+		if (!isFirst)
+			NewLine(stream);
 		stream << "Expr ";
 		PrintSeqNr(stream);
 		stream << " (in FLisp format): "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
@@ -973,9 +972,9 @@ namespace Explain { // local defs
 
 	void SumOfTermsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
-		dms_assert(!isFirst);
-		NewLine(stream);
-		stream << "Sum Of Terms ";
+		if (!isFirst)
+			NewLine(stream);
+		stream << (m_Expr.size() > 1 ? "Addition " : "Factors");
 		PrintSeqNr(stream);
 		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
 		NewLine(stream);
@@ -1014,11 +1013,16 @@ namespace Explain { // local defs
 		for (const auto& signedTerm : m_Expr)
 		{
 			XML_Table::Row row(tab);
-			if (rowCounter++ != 0 || signedTerm.first)
-				row.ValueCell(signedTerm.first ? "+" : "-");
+			row.ValueCell(signedTerm.first ? (rowCounter>0 ? "+" : " ") : "-" );
+			++rowCounter;
 
+			UInt32 colCounter = 0;
 			for (const auto& factor : signedTerm.second)
 			{
+				if (colCounter > 0)
+					row.ValueCell(CharPtr(u8"⋅"));
+
+				++colCounter;
 				auto expl = self->FindExpl(factor);
 				if (expl)
 				{
@@ -1080,11 +1084,16 @@ namespace Explain { // local defs
 		for (const auto& signedTerm : m_Expr)
 		{
 			XML_Table::Row row(tab);
-			if (rowCounter++ != 0)
-				row.ValueCell("or ");
+			row.ValueCell((rowCounter>0) ? CharPtr(u8"∨") : "");
+			rowCounter++;
 
+			UInt32 colCounter = 0;
 			for (const auto& factor : signedTerm)
 			{
+
+				if (colCounter > 0)
+					row.ValueCell(CharPtr(u8"∧"));
+				colCounter++;
 				auto expl = self->FindExpl(factor);
 				if (expl)
 				{
