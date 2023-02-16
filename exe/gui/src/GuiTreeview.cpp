@@ -56,6 +56,9 @@ auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
     // right-mouse popup menu
     if (ImGui::BeginPopupContextItem("treeview_popup_window"))
     {
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
+
         auto event_queues = GuiEventQueues::getInstance();
         if (ImGui::Button("Edit Config Source       Ctrl-E"))
             event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
@@ -78,6 +81,7 @@ auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
                 ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
             }
         }
+        ImGui::PopStyleColor(2);
 
         ImGui::EndPopup();
     }
@@ -203,7 +207,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
 
-    ImGui::PushID(m_item); //TODO: do not create button
+    ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
     if (ImGui::Button(icon, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
