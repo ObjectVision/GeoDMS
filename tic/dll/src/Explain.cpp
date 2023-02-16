@@ -142,6 +142,9 @@ namespace Explain { // local defs
 				return match_status::anchestor;
 			if (relPath.ssize() == extraInfoLen)
 				return match_status::atit;
+			assert(relPath.ssize() > extraInfoLen);
+			if (relPath[extraInfoLen] != '.')
+				return match_status::unrelated;
 			return match_status::descendant;
 		}
 
