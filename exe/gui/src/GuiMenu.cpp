@@ -288,13 +288,10 @@ void GuiMenuView::Update(GuiState& state)
     {
         ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
         if (ImGui::MenuItem("Default", "Ctrl+Alt+D")) { event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow); }
-        if (ImGui::MenuItem("Map", "Ctrl+M")) {}
-        if (ImGui::MenuItem("Table", "Ctrl+D")) 
-        {
-            //m_State.ShowTableviewWindow = true;
-        }
-        if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
-        ImGui::Separator();
+        if (ImGui::MenuItem("Map", "Ctrl+M")) { event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow); }
+        if (ImGui::MenuItem("Table", "Ctrl+D")) { event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow); }
+        //if (ImGui::MenuItem("Histogram", "Ctrl+H")) {}
+        /*ImGui::Separator();
         if (ImGui::BeginMenu("Process Schemes"))
         {
             ImGui::MenuItem("Subitems");
@@ -314,7 +311,7 @@ void GuiMenuView::Update(GuiState& state)
                 state.SourceDescrMode = SourceDescrMode::All;
 
             ImGui::EndMenu();
-        }
+        }*/
 
         ImGui::Separator();
         ImGui::Checkbox("##toggle_treeview", &state.ShowTreeviewWindow);
