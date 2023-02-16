@@ -44,6 +44,7 @@ auto View::operator=(View && other) noexcept -> void
     m_HWND       = std::move(other.m_HWND);
     m_DoView     = std::move(other.m_DoView);
     m_ShowWindow = std::move(other.m_ShowWindow);
+    has_been_docking_initialized = std::move(other.has_been_docking_initialized);
 
     other.m_HWND = NULL;
     other.m_DataView = NULL;
@@ -390,12 +391,18 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
 
 
-    if (!view.has_been_docking_initialized)
+    if (!view.has_been_docking_initialized)// && m_Views.size()==1)
     {
         //DockNodeCalcDropRectsAndTestMousePos
 
-        //if (TryDockViewInGeoDMSDataViewAreaNode(state, window))
-        //    view.has_been_docking_initialized = true;
+        if (window->DockId)
+        {
+            view.has_been_docking_initialized = true;
+            return result;
+        }
+
+        if (TryDockViewInGeoDMSDataViewAreaNode(state, window)) // TODO: check if this is the correct window.
+            view.has_been_docking_initialized = true;
 
         /*auto ctx = ImGui::GetCurrentContext();
         ImGuiDockContext* dc = &ctx->DockContext;

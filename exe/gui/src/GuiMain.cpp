@@ -241,7 +241,7 @@ void GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::ShowLocalSourceDataChangedModalWindow:
     {
-        ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
+        ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None);
         break;
     }
     }
@@ -258,21 +258,19 @@ void GuiMainComponent::CloseCurrentConfig()
 bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState &state)
 {
     //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
-    if (ImGui::BeginPopupModal("ChangedLDSD", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
+    if (ImGui::BeginPopupModal("Changed LocalData or SourceData path", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
-        ImGui::Text("LocalDataDir and/or SourceDataDir changed, restart required for changes to take effect.");
-        
-        if (ImGui::Button("Ignore", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::Text("LocalData or SourceData path changed, restart required for changes to take effect.");
         ImGui::SetItemDefaultFocus();
-        ImGui::SameLine();
-        if (ImGui::Button("Abort", ImVec2(120, 0)))
+        
+        if (ImGui::Button("Ok", ImVec2(120, 0)))
         {
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
-            return true;
+            return false;
         }
         ImGui::EndPopup();
-    }
+    } // TODO: known issue, due to added decoration, specifically for modal windows the close button does not work.
     return false;
 }
 
@@ -310,7 +308,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         }
 
         ImGui::EndPopup();
-    }
+    } // TODO: known issue, due to added decoration, specifically for modal windows the close button does not work.
     return false;
 }
 
@@ -340,7 +338,7 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
-    }
+    } // TODO: known issue, due to added decoration, specifically for modal windows the close button does not work.
     return false;
 }
 
@@ -749,8 +747,8 @@ bool GuiMainComponent::Update()
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
 
 
-        dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
+        //dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
 
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
