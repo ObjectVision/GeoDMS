@@ -15,6 +15,7 @@
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
 #include "TreeItemProps.h"
+#include "dbg/DebugReporter.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -365,7 +366,11 @@ void GuiMenuTools::Update(GuiState& state)
         {
             state.ShowOptionsWindow = true;
         }
-        if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) {}
+#if defined(MG_DEBUG)
+        {
+            if (ImGui::MenuItem("Debug Report", "Ctrl+Alt+T")) { DebugReporter::ReportAll(); }
+        }
+#endif
         ImGui::EndMenu();
     }
 }
