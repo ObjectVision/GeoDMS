@@ -1000,7 +1000,7 @@ end;
 
 procedure TfrmMain.miDebugReportClick(Sender: TObject);
 begin
-  dmfGeneral.miTest.Click;
+  dmfGeneral.miTestClick;
 end;
 
 procedure TfrmMain.TileHorClick(Sender: TObject);

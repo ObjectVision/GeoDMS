@@ -46,8 +46,8 @@ namespace Explain {
 
 	// magic constants
 
-	const UInt32 MaxNrEntries = 5;
-	const UInt32 MaxLevel     = 7;
+	const UInt32 MaxNrEntries = 6;
+	const UInt32 MaxLevel     = 3;
 }
 //  -----------------------------------------------------------------------
 //  extern "C" interface functions

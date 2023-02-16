@@ -238,12 +238,17 @@ namespace Explain { // local defs
 	using SignedTerm = std::pair<bool, Term>;
 	using SumOfTermsExpr = std::vector<SignedTerm>;
 
+	using Predicate = LispRef;
+	using Intersection = std::vector<Predicate>;
+	using Union = std::vector<Intersection>;
+
 	void operator <<=(Term& left, Term&& right)
 	{
 		left.reserve(left.size() + right.size());
 		for (auto& factor : right)
 			left.emplace_back(std::move(factor));
 	}
+
 
 	struct SumOfTermsExplanation : LispCalcExplanation
 	{
@@ -255,7 +260,14 @@ namespace Explain { // local defs
 
 		void ProcessTerms(LispPtr terms, bool additive)
 		{
-			assert(IsSumOfTerms(terms));
+			assert(CanHandle(terms));
+			if (!IsSumOfTerms(terms))
+			{
+				auto term = ProcessFactors(terms);
+				m_Expr.emplace_back(false, std::move(term));
+				return;
+			}
+
 			bool negateThisTerm = additive;
 			bool isSub = (terms.Left().GetSymbID() == token::sub);
 			bool negateNextTerms = additive ^ isSub;
@@ -263,7 +275,7 @@ namespace Explain { // local defs
 			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
 			{
 				auto nextTerm = termListPtr.Left();
-				if (IsSumOfTerms(nextTerm))
+				if (CanHandle(nextTerm))
 					ProcessTerms(nextTerm, negateThisTerm);
 				else
 				{
@@ -291,6 +303,11 @@ namespace Explain { // local defs
 
 		SumOfTermsExpr m_Expr;
 
+		static bool CanHandle(LispPtr lispExpr)
+		{
+			return IsSumOfTerms(lispExpr) || IsProductOfFactors(lispExpr);
+		}
+
 		static bool IsSumOfTerms(LispPtr lispExpr)
 		{
 			if (!lispExpr.IsRealList())
@@ -314,6 +331,84 @@ namespace Explain { // local defs
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 		void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level) override;
 	};
+
+	struct UnionOfAndsExplanation : LispCalcExplanation
+	{
+		UnionOfAndsExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
+			: LispCalcExplanation(calcPtr, parent, seqNr)
+		{
+			Process(calcPtr->GetLispExprOrg());
+		}
+
+		void Process(LispPtr terms)
+		{
+			assert(CanHandle(terms));
+			if (!IsUnion(terms))
+			{
+				assert(IsIntersection(terms));
+				auto term = ProcessIntersection(terms);
+				m_Expr.emplace_back(std::move(term));
+				return;
+			}
+
+			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
+			{
+				auto nextTerm = termListPtr.Left();
+				if (CanHandle(nextTerm))
+					Process(nextTerm);
+				else
+				{
+					auto term = ProcessIntersection(nextTerm);
+					m_Expr.emplace_back(std::move(term));
+				}
+			}
+		}
+		Intersection ProcessIntersection(LispPtr factors)
+		{
+			Intersection result;
+			if (IsIntersection(factors))
+				for (auto factorListPtr = factors.Right(); factorListPtr.IsRealList(); factorListPtr = factorListPtr.Right())
+					result <<= ProcessIntersection(factorListPtr.Left());
+			else
+				result.emplace_back(ProcessPredicate(factors));
+			return result;
+		}
+
+		Factor ProcessPredicate(LispPtr factors)
+		{
+			return factors;
+		}
+
+		Union m_Expr;
+
+		static bool CanHandle(LispPtr lispExpr)
+		{
+			return IsUnion(lispExpr) || IsIntersection(lispExpr);
+		}
+
+		static bool IsUnion(LispPtr lispExpr)
+		{
+			if (!lispExpr.IsRealList())
+				return false;
+			if (!lispExpr.Left().IsSymb())
+				return false;
+			auto symbID = lispExpr.Left().GetSymbID();
+			return symbID == token::or_;
+		}
+
+		static bool IsIntersection(LispPtr lispExpr)
+		{
+			if (!lispExpr.IsRealList())
+				return false;
+			if (!lispExpr.Left().IsSymb())
+				return false;
+			auto symbID = lispExpr.Left().GetSymbID();
+			return symbID == token::and_;
+		}
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
+		void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level) override;
+	};
+
 
 	/*
 	Description of value(s) of <dataitemname>
@@ -487,8 +582,10 @@ namespace Explain { // local defs
 				if (!IsDataItem(res.get_ptr()))
 					return;
 
-				if (SumOfTermsExplanation::IsSumOfTerms(lispExpr))
+				if (SumOfTermsExplanation::CanHandle(lispExpr))
 					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
+				else if (UnionOfAndsExplanation::CanHandle(lispExpr))
+					newExpl = new  UnionOfAndsExplanation(calc, parent, seqNr);
 				else
 					newExpl = new LispCalcExplanation(calc, parent, seqNr);
 				auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
@@ -710,6 +807,14 @@ namespace Explain { // local defs
 				self->AddLispExplanation(factor, level, this, ++seqNr);
 	}
 
+	void UnionOfAndsExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
+	{
+		arg_index seqNr = 0;
+		for (auto& term : m_Expr)
+			for (auto& factor : term)
+				self->AddLispExplanation(factor, level, this, ++seqNr);
+	}
+
 	const AbstrValue* AbstrCalcExplanation::CalcValue(Context* context) // returns nullptr if suspended
 	{
 		dms_assert(context);
@@ -870,7 +975,7 @@ namespace Explain { // local defs
 	{
 		dms_assert(!isFirst);
 		NewLine(stream);
-		stream << "Expr ";
+		stream << "Sum Of Terms ";
 		PrintSeqNr(stream);
 		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
 		NewLine(stream);
@@ -905,12 +1010,80 @@ namespace Explain { // local defs
 		NewLine(stream);
 
 		XML_Table tab(stream);
+		UInt32 rowCounter = 0;
 		for (const auto& signedTerm : m_Expr)
 		{
 			XML_Table::Row row(tab);
-			row.ValueCell(signedTerm.first ? "+" : "-");
+			if (rowCounter++ != 0 || signedTerm.first)
+				row.ValueCell(signedTerm.first ? "+" : "-");
 
 			for (const auto& factor : signedTerm.second)
+			{
+				auto expl = self->FindExpl(factor);
+				if (expl)
+				{
+					auto valueURL = self->URL(expl, expl->m_Coordinates[0].first);
+					auto valuePtr = expl->m_Coordinates[0].second.get();
+					if (valuePtr)
+						row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+					else
+						row.ClickableCell(calculatingStr.c_str(), valueURL.c_str());
+				}
+				else
+				{
+					auto factorStr = AsFLispSharedStr(factor);
+					row.ValueCell(factorStr.c_str());
+				}
+			}
+		}
+	}
+	void UnionOfAndsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		dms_assert(!isFirst);
+		NewLine(stream);
+		stream << "Union of conditions ";
+		PrintSeqNr(stream);
+		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		NewLine(stream);
+
+
+		auto domain = m_UltimateDomainUnit;
+		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
+			domain = nullptr;
+
+		SizeT n = m_Coordinates.size(); if (!n) return;
+
+		stream << ((n != 1) ? "First selected value " : "Selected value ");
+		SizeT recno = m_Coordinates[0].first;
+		if (domain)
+		{
+			auto locStr = DisplayValue(domain, recno, true, m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first);
+			stream << "at " << locStr.c_str() << " ";
+		}
+		stream << "=";
+
+		const AbstrValue* valuesValue = m_Coordinates[0].second;
+
+		SharedStr valStr;
+		if (valuesValue)
+			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+		else
+		{
+			static auto calculatingStr = SharedStr("Calculating...");
+			valStr = calculatingStr;
+		}
+
+		NewLine(stream);
+
+		XML_Table tab(stream);
+		UInt32 rowCounter = 0;
+		for (const auto& signedTerm : m_Expr)
+		{
+			XML_Table::Row row(tab);
+			if (rowCounter++ != 0)
+				row.ValueCell("or ");
+
+			for (const auto& factor : signedTerm)
 			{
 				auto expl = self->FindExpl(factor);
 				if (expl)
