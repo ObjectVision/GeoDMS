@@ -207,7 +207,11 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     ImGui::PushID(m_item);
     if (ImGui::Button(icon))
     {
-        UpdateStateAfterItemClick(state, m_item);
+        if (IsOpen())
+        {
+            UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
+        }
+        
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopID();
@@ -605,16 +609,16 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     if (!m_start_node)
         return;
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
+    //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.f, 0.f, 0.f, 0.f));
+    //ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.f, 0.f, 0.f, 0.f));
 
     auto m_currnode = m_start_node;
     ActOnLeftRightArrowKeys(state, m_currnode);
     m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
-    ImGui::PopStyleColor(3);
+    //ImGui::PopStyleColor(3);
 }
 
 auto GuiTree::clear() -> void
