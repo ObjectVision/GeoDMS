@@ -227,7 +227,7 @@ void GuiMainComponent::CloseCurrentConfig()
     m_State.clear();
 }
 
-bool GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
+void GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
 {
     if (ImGui::BeginPopupModal("About", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
     {
@@ -236,10 +236,11 @@ bool GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
         {
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
-            return false;
+            return;
         }
         ImGui::EndPopup();
     }
+    return;
 }
 
 bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState &state)

@@ -278,7 +278,7 @@ auto GuiView::UpdateAll(GuiState& state) -> void
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
-        if (it->m_DoView)
+        if (it->m_DoView && m_ViewIt->m_DataView)
         {
             if (Update(state, *it) && m_ViewIt._Ptr && m_ViewIt != it)
                 m_ViewIt = it;
