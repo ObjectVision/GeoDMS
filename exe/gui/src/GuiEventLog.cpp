@@ -5,6 +5,8 @@
 #include "ser/AsString.h"
 #include "TicInterface.h"
 
+
+// TODO: remove singletons
 std::vector<EventLogItem> GuiEventLog::m_Items;
 std::vector<UInt64>       GuiEventLog::m_FilteredItemIndices;
 std::string               GuiEventLog::m_FilterText = "";
