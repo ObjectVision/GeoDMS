@@ -213,6 +213,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         break;
     }
     case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
+    case GuiEvents::ShowAboutTextModalWindow: {ImGui::OpenPopup("About", ImGuiPopupFlags_None); break; }
     case GuiEvents::Close: { return true; } // Exit application
     }
     return false;
@@ -224,6 +225,21 @@ void GuiMainComponent::CloseCurrentConfig()
     m_View.CloseAll();
     m_Treeview.clear();
     m_State.clear();
+}
+
+bool GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
+{
+    if (ImGui::BeginPopupModal("About", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
+    {
+        ImGui::TextUnformatted(state.aboutDialogMessage.c_str());
+        if (ImGui::Button("Ok", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return false;
+        }
+        ImGui::EndPopup();
+    }
 }
 
 bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState &state)
@@ -655,6 +671,8 @@ bool GuiMainComponent::Update()
     // modal windows
     if (ShowLocalOrSourceDataDirChangedDialogIfNecessary(m_State))
         return true;
+
+    ShowAboutDialogIfNecessary(m_State);
 
     //static auto first_time = true;
     m_Menu.Update(m_State, m_View);

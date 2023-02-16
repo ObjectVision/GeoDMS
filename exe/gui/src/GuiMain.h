@@ -31,6 +31,7 @@ private:
 	void CloseCurrentConfig();
 
 	// modal windows
+	bool ShowAboutDialogIfNecessary(GuiState& state);
 	bool ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState& state);
 	bool ShowErrorDialogIfNecessary();
 	bool ShowSourceFileChangeDialogIfNecessary();

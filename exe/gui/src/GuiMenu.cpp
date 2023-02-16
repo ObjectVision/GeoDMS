@@ -146,7 +146,27 @@ void GuiMenuFile::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& stat
     SetRecentAndPinnedFiles();
 }
 
+void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
+{
+    auto sPtr = static_cast<std::string*>(clientHandle);
+    while (componentLevel)
+    {
+        *sPtr += "-  ";
+        componentLevel--;
+    }
+    *sPtr += componentName + std::string("\n");
+}
 
+auto GetGeoDMSAboutText() -> std::string
+{
+    std::string about_text = DMS_GetVersion();
+    about_text += ", copyright Object Vision BV\n";
+    DMS_VisitVersionComponents(&about_text, OnVersionComponentVisit);
+
+
+    int i = 0;
+    return about_text;
+}
 
 void GuiMenuFile::Update(GuiState& state)
 {
@@ -395,7 +415,12 @@ void GuiMenuHelp::Update(GuiState& state)
 {
     if (ImGui::BeginMenu("Help"))
     {
-        if (ImGui::MenuItem("About...")) {}
+        auto event_queues = GuiEventQueues::getInstance();
+        if (ImGui::MenuItem("About...")) 
+        { 
+            event_queues->MainEvents.Add(GuiEvents::ShowAboutTextModalWindow);
+            state.aboutDialogMessage = GetGeoDMSAboutText();
+        }
         if (ImGui::MenuItem("Wiki")) { ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); }
         //ImGui::Separator();
         //if (ImGui::MenuItem("Copyright Notice")) {}
