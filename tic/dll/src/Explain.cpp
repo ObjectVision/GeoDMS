@@ -119,6 +119,7 @@ namespace Explain { // local defs
 		const AbstrValue* CalcValue(Context* context); // returns nullptr if suspended
 
 		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const;
+		void DescrValue(OutStreamBase& stream) const;
 
 		virtual void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const = 0;
 		virtual void PrintSeqNr(OutStreamBase& stream) const = 0;
@@ -168,7 +169,6 @@ namespace Explain { // local defs
 				stream << m_DataItem->GetFullName().c_str();
 			}
 			NewLine(stream);
-
 
 			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
 
@@ -585,18 +585,23 @@ namespace Explain { // local defs
 				if (!IsDataItem(res.get_ptr()))
 					return;
 
+				bool mustCalcNextLevel = true;
 				if (SumOfTermsExplanation::CanHandle(lispExpr))
 					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
 				else if (UnionOfAndsExplanation::CanHandle(lispExpr))
 					newExpl = new  UnionOfAndsExplanation(calc, parent, seqNr);
 				else
+				{
 					newExpl = new LispCalcExplanation(calc, parent, seqNr);
+					mustCalcNextLevel = false;
+				}
 				auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
 				if (matchInfo == match_status::unrelated)
 					return;
 
 				if (matchInfo > match_status::anchestor)
-					++level;
+					if (mustCalcNextLevel || (level+1 < MaxLevel))
+						++level;
 				newExplPtr = newExpl.release();
 				m_Expl.push_back( ExplArrayEntry(newExplPtr) );
 				m_CalcInterests.push_back(dc);
@@ -618,7 +623,7 @@ namespace Explain { // local defs
 					const AbstrDataItem* supplDI= AsDynamicDataItem( supplier );
 					if	( supplDI)
 						AddExplanation(supplDI);
-					if (dynamic_cast<const AbstrCalculator*>( supplier ))
+					else if (dynamic_cast<const AbstrCalculator*>( supplier ))
 						AddExplanations( supplier );
 				}
 			);
@@ -893,9 +898,6 @@ namespace Explain { // local defs
 			domainUnit = nullptr;
 
 		SizeT n = m_Coordinates.size();
-		stream << "Selected value"; if (n != 1) stream << "s";
-		NewLine(stream);
-
 		XML_Table tab(stream);
 		{
 			XML_Table::Row row(tab);
@@ -965,12 +967,42 @@ namespace Explain { // local defs
 	{
 		if (!isFirst)
 			NewLine(stream);
-		stream << "Expr ";
+		stream << "Expression ";
 		PrintSeqNr(stream);
-		stream << " (in FLisp format): "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
+		stream << ": "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
 		NewLine(stream);
 
 		GetDescrBase(self, stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
+	}
+
+	void AbstrCalcExplanation::DescrValue(OutStreamBase& stream) const
+	{
+		auto domain = m_UltimateDomainUnit;
+		assert(domain);
+		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
+			domain = nullptr;
+
+		SizeT n = m_Coordinates.size(); if (!n) return;
+
+		stream << "Value ";
+		SizeT recno = m_Coordinates[0].first;
+		if (domain)
+		{
+			auto locStr = DisplayValue(domain, recno, true, m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first);
+			stream << "at " << locStr.c_str() << " ";
+		}
+
+		SharedStr valStr;
+		const AbstrValue* valuesValue = m_Coordinates[0].second;
+		if (valuesValue)
+			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+		else
+		{
+			static auto calculatingStr = SharedStr("being calculated...");
+			valStr = calculatingStr;
+		}
+		stream << "is " << valStr.c_str();
+		NewLine(stream);
 	}
 
 	void SumOfTermsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
@@ -979,37 +1011,10 @@ namespace Explain { // local defs
 			NewLine(stream);
 		stream << (m_Expr.size() > 1 ? "Addition " : "Factors");
 		PrintSeqNr(stream);
-		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		stream << ": " << m_CalcPtr->GetAsFLispExprOrg().c_str();
 		NewLine(stream);
 
-
-		auto domain = m_UltimateDomainUnit;
-		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
-			domain = nullptr;
-
-		SizeT n = m_Coordinates.size(); if (!n) return;
-
-		stream << ((n != 1) ? "First selected value " : "Selected value ");
-		SizeT recno = m_Coordinates[0].first;
-		if (domain)
-		{
-			auto locStr = DisplayValue(domain, recno, true, m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first);
-			stream << "at " << locStr.c_str() << " ";
-		}
-		stream << "=";
-
-		const AbstrValue* valuesValue = m_Coordinates[0].second;
-
-		SharedStr valStr;
-		if (valuesValue)
-			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-		else
-		{
-			static auto calculatingStr = SharedStr("Calculating...");
-			valStr = calculatingStr;
-		}
-
-		NewLine(stream);
+		DescrValue(stream);
 
 		XML_Table tab(stream);
 		UInt32 rowCounter = 0;
@@ -1046,41 +1051,15 @@ namespace Explain { // local defs
 	}
 	void UnionOfAndsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
-		dms_assert(!isFirst);
-		NewLine(stream);
-		stream << "Union of conditions ";
+		if (!isFirst)
+			NewLine(stream);
+
+		stream << (m_Expr.size() > 1 ? "Union of conditions " : "Conditions");
 		PrintSeqNr(stream);
-		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		stream << ": " << m_CalcPtr->GetAsFLispExprOrg().c_str();
 		NewLine(stream);
 
-
-		auto domain = m_UltimateDomainUnit;
-		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
-			domain = nullptr;
-
-		SizeT n = m_Coordinates.size(); if (!n) return;
-
-		stream << ((n != 1) ? "First selected value " : "Selected value ");
-		SizeT recno = m_Coordinates[0].first;
-		if (domain)
-		{
-			auto locStr = DisplayValue(domain, recno, true, m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first);
-			stream << "at " << locStr.c_str() << " ";
-		}
-		stream << "=";
-
-		const AbstrValue* valuesValue = m_Coordinates[0].second;
-
-		SharedStr valStr;
-		if (valuesValue)
-			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-		else
-		{
-			static auto calculatingStr = SharedStr("Calculating...");
-			valStr = calculatingStr;
-		}
-
-		NewLine(stream);
+		DescrValue(stream);
 
 		XML_Table tab(stream);
 		UInt32 rowCounter = 0;
@@ -1098,6 +1077,7 @@ namespace Explain { // local defs
 					row.ValueCell(CharPtr(u8"∧"));
 				colCounter++;
 				auto expl = self->FindExpl(factor);
+				assert(expl);
 				if (expl)
 				{
 					auto valueURL = self->URL(expl, expl->m_Coordinates[0].first);

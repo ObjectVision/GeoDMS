@@ -173,12 +173,16 @@ bool DataArrayBase<V>::IsSmallerThan(SizeT sz) const
 template <class V>
 SizeT NumericArray<V>::FindPos(V v, SizeT startPos) const
 {
-	auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos);
-	for (tile_id tn = this->GetTiledRangeData()->GetNrTiles(); loc.first != tn; ++loc.first, loc.second = 0)
+	auto tn = this->GetTiledRangeData()->GetNrTiles();
+	if (tn)
 	{
-		auto pos = vector_find(this->GetDataRead(loc.first), v, loc.second);
-		if (IsDefined(pos))
-			return this->GetTiledRangeData()->GetRowIndex(loc.first, pos);
+		auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos);
+		for (tile_id tn = this->GetTiledRangeData()->GetNrTiles(); loc.first != tn; ++loc.first, loc.second = 0)
+		{
+			auto pos = vector_find(this->GetDataRead(loc.first), v, loc.second);
+			if (IsDefined(pos))
+				return this->GetTiledRangeData()->GetRowIndex(loc.first, pos);
+		}
 	}
 	return UNDEFINED_VALUE(SizeT);
 }
