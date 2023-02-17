@@ -106,6 +106,8 @@ namespace Explain { // local defs
 
 		CoordinateType* AddIndex(SizeT index) // returns nullptr if abundant
 		{
+			if (!IsDefined(index))
+				return nullptr;
 			for (auto& c : m_Coordinates)
 				if (c.first == index)
 					return &c;
@@ -134,9 +136,9 @@ namespace Explain { // local defs
 		}
 		match_status MatchesExtraInfo(std::string_view extraInfo) const
 		{
-			if (extraInfo.empty())
-				return extraInfo.empty() ? match_status::atit : match_status::descendant;
 			auto relPath = RelativeExprPath();
+			if (extraInfo.empty())
+				return relPath.empty() ? match_status::atit : match_status::descendant;
 			auto extraInfoLen = extraInfo.size();
 			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
 				return match_status::unrelated;
@@ -170,18 +172,14 @@ namespace Explain { // local defs
 				stream << m_DataItem->GetFullName().c_str();
 			}
 			NewLine(stream);
+			stream << " := "; GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+			NewLine(stream);
 
 			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
 
 			if (!isFirst)
 				return;
 
-			if (m_DataItem->HasCalculator())
-			{
-				stream << "Calculated as:";
-				NewLine(stream);
-			}
-			GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			NewLine(stream);
 		}
 		void PrintSeqNr(OutStreamBase& stream) const override
@@ -272,21 +270,21 @@ namespace Explain { // local defs
 				return;
 			}
 
-			bool negateThisTerm = additive;
+			bool addThisTerm = additive;
 			bool isSub = (terms.Left().GetSymbID() == token::sub);
-			bool negateNextTerms = additive ^ isSub;
+			bool addNextTerms = addThisTerm ^ isSub;
 
 			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
 			{
 				auto nextTerm = termListPtr.Left();
 				if (CanHandle(nextTerm))
-					ProcessTerms(nextTerm, negateThisTerm);
+					ProcessTerms(nextTerm, addThisTerm);
 				else
 				{
 					auto term = ProcessFactors(nextTerm);
-					m_Expr.emplace_back(negateThisTerm, std::move(term));
+					m_Expr.emplace_back(addThisTerm, std::move(term));
 				}
-				negateThisTerm = negateNextTerms;
+				addThisTerm = addNextTerms;
 			}
 		}
 		Term ProcessFactors(LispPtr factors)
@@ -341,16 +339,16 @@ namespace Explain { // local defs
 		UnionOfAndsExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: LispCalcExplanation(calcPtr, parent, seqNr)
 		{
-			Process(calcPtr->GetLispExprOrg());
+			Process(calcPtr->GetLispExprOrg(), 0);
 		}
 
-		void Process(LispPtr terms)
+		void Process(LispPtr terms, UInt32 level)
 		{
 			assert(CanHandle(terms));
 			if (!IsUnion(terms))
 			{
 				assert(IsIntersection(terms));
-				auto term = ProcessIntersection(terms);
+				auto term = ProcessIntersection(terms, level);
 				m_Expr.emplace_back(std::move(term));
 				return;
 			}
@@ -359,20 +357,20 @@ namespace Explain { // local defs
 			{
 				auto nextTerm = termListPtr.Left();
 				if (CanHandle(nextTerm))
-					Process(nextTerm);
+					Process(nextTerm, level+1);
 				else
 				{
-					auto term = ProcessIntersection(nextTerm);
+					auto term = ProcessIntersection(nextTerm, level+1);
 					m_Expr.emplace_back(std::move(term));
 				}
 			}
 		}
-		Intersection ProcessIntersection(LispPtr factors)
+		Intersection ProcessIntersection(LispPtr factors, UInt32 level)
 		{
 			Intersection result;
-			if (IsIntersection(factors))
+			if (IsIntersection(factors) && level < 3)
 				for (auto factorListPtr = factors.Right(); factorListPtr.IsRealList(); factorListPtr = factorListPtr.Right())
-					result <<= ProcessIntersection(factorListPtr.Left());
+					result <<= ProcessIntersection(factorListPtr.Left(), level+1);
 			else
 				result.emplace_back(ProcessPredicate(factors));
 			return result;
@@ -559,21 +557,20 @@ namespace Explain { // local defs
 				)
 			);
 		}
-		void AddLispExplanation(LispPtr lispExpr, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
+		void AddLispExplanation(LispPtr lispExprOrg, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
 		{
-			if (!lispExpr.IsRealList() || !lispExpr.Left().IsSymb() || lispExpr.Left().GetSymbID() == token::sourceDescr)
+			if (!lispExprOrg.IsRealList() || !lispExprOrg.Left().IsSymb() || lispExprOrg.Left().GetSymbID() == token::sourceDescr)
 				return;
-			if (m_KnownExpr.contains(lispExpr))
+			if (m_KnownExpr.contains(lispExprOrg))
 				return;
 
-			m_KnownExpr.insert(lispExpr);
+			m_KnownExpr.insert(lispExprOrg);
 
-//			DisplayAuthLock suppressErrorDisplay;
 			OwningPtr<LispCalcExplanation> newExpl;
 			LispCalcExplanation* newExplPtr = nullptr;
 			try {
 
-				AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExpr, CalcRole::Calculator); // lispExpr already substitited ?
+				AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExprOrg, CalcRole::Calculator); // lispExpr already substitited ?
 				auto metaInfo = calc->GetMetaInfo();
 
 //				if (metaInfo.index() == 2)
@@ -589,9 +586,9 @@ namespace Explain { // local defs
 					return;
 
 				bool mustCalcNextLevel = true;
-				if (SumOfTermsExplanation::CanHandle(lispExpr))
+				if (SumOfTermsExplanation::CanHandle(lispExprOrg))
 					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
-				else if (UnionOfAndsExplanation::CanHandle(lispExpr))
+				else if (UnionOfAndsExplanation::CanHandle(lispExprOrg))
 					newExpl = new  UnionOfAndsExplanation(calc, parent, seqNr);
 				else
 				{
@@ -612,8 +609,8 @@ namespace Explain { // local defs
 					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::anchestor)
 						continue;
 					const AbstrDataItem* adi = oldExpl->m_DataItem;
-					if (adi && !adi->IsCacheItem() && adi->HasCalculator() && adi != m_StudyObject)
-						if (adi->GetCheckedKeyExpr() == lispExpr)
+					if (adi && !adi->IsCacheItem() && adi->HasCalculator())
+						if (adi->GetCheckedKeyExpr() == dc->GetLispRef())
 						{
 							newExpl->m_IsExprOfExistingItem = true;
 							break;
@@ -629,8 +626,8 @@ namespace Explain { // local defs
 			catch (const DmsException&)
 			{}
 
-			if (level < MaxLevel && newExplPtr && !newExplPtr->m_IsExprOfExistingItem)
-				newExplPtr->AddLispExplanations(this, lispExpr, level);
+			if (level < MaxLevel && newExplPtr)
+				newExplPtr->AddLispExplanations(this, lispExprOrg, level);
 		}
 
 		void AddExplanations(const Actor* studyActor)
@@ -639,7 +636,7 @@ namespace Explain { // local defs
 				[&] (const Actor* supplier)
 				{
 					const AbstrDataItem* supplDI= AsDynamicDataItem( supplier );
-					if	( supplDI)
+					if	( supplDI && !supplDI->IsCacheItem())
 						AddExplanation(supplDI);
 					else if (dynamic_cast<const AbstrCalculator*>( supplier ))
 						AddExplanations( supplier );
@@ -653,15 +650,13 @@ namespace Explain { // local defs
 
 			if (m_StudyObject->HasCalculator())
 			{
-				auto keyExpr = m_StudyObject->GetCalculator()->GetLispExprOrg();
-				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
-/*
+//				auto keyExpr = m_StudyObject->GetCalculator()->GetLispExprOrg();
+//				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
 				auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
 				if (metaInfo.index() == 2)
 					AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get_ptr()));
 				if (metaInfo.index() == 1)
 					AddLispExplanation(std::get<LispRef>(metaInfo), 0, nullptr, ++m_ExprSeqNr);
-*/
 			}
 		}
 
@@ -696,8 +691,6 @@ namespace Explain { // local defs
 					return lispCalc;
 			}
 			return nullptr;
-//			auto errMsg = mySSPrintF("Unexpected key: %s", AsFLispSharedStr(key).c_str());
-//			throwCheckFailed(MG_POS, errMsg.c_str());
 		}
 		auto URL(const LispCalcExplanation* expl, SizeT recNo) -> SharedStr
 		{
@@ -917,7 +910,7 @@ namespace Explain { // local defs
 	TokenStr ItemOrValueTypeName(const AbstrUnit* au)
 	{
 		assert(au);
-		return au->GetID().empty() ? au->GetName() : au->GetValueType()->GetName();
+		return au->GetID().empty() ? au->GetValueType()->GetName() : au->GetName();
 	}
 
 	void AbstrCalcExplanation::GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const
@@ -926,6 +919,9 @@ namespace Explain { // local defs
 			domainUnit = nullptr;
 
 		SizeT n = m_Coordinates.size();
+		if (!n)
+			return;
+
 		XML_Table tab(stream);
 		{
 			XML_Table::Row row(tab);
@@ -986,8 +982,19 @@ namespace Explain { // local defs
 		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::atit)
 			return;
 
-		if (m_IsExprOfExistingItem)
-			return;
+		auto parent = this;
+		do {
+			if (parent->m_IsExprOfExistingItem)
+				if (parent != this
+				|| dynamic_cast<const SumOfTermsExplanation*>(this) == nullptr
+				&& dynamic_cast<const UnionOfAndsExplanation*>(this) == nullptr)
+					return;
+			auto castedParent = dynamic_cast<const LispCalcExplanation*>(parent);
+			if (!castedParent)
+				break;
+			parent = castedParent->m_Parent;
+
+		} while (parent);
 
 		if (self->m_ExprLevel > 3)
 			return;
