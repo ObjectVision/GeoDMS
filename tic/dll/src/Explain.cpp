@@ -85,11 +85,12 @@ namespace Explain { // local defs
 	struct AbstrCalcExplanation
 	{
 		SharedDataItemInterestPtr             m_DataItem;
-		const AbstrUnit* m_UltimateDomainUnit;
-		const AbstrUnit* m_UltimateValuesUnit;
+		const AbstrUnit*                      m_UltimateDomainUnit;
+		const AbstrUnit*                      m_UltimateValuesUnit;
 		CoordinateCollectionType              m_Coordinates;
 		mutable SharedDataItemInterestPtrTuple m_Interests;
-		mutable GuiReadLockPair               m_UnitLabelLocks;
+		mutable GuiReadLockPair                m_UnitLabelLocks;
+		bool                                  m_IsExprOfExistingItem = false;
 		AbstrCalcExplanation(const AbstrDataItem* dataItem)
 			: m_DataItem(dataItem)
 			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
@@ -580,7 +581,9 @@ namespace Explain { // local defs
 
 				if (metaInfo.index() != 1)
 					return;
-				auto dc = GetExistingDataController(lispExpr);
+				auto dc = GetExistingDataController(std::get<LispRef>(metaInfo));
+				if (!dc)
+					return;
 				auto res = dc->MakeResult();
 				if (!IsDataItem(res.get_ptr()))
 					return;
@@ -602,6 +605,21 @@ namespace Explain { // local defs
 				if (matchInfo > match_status::anchestor)
 					if (mustCalcNextLevel || (level+1 < MaxLevel))
 						++level;
+
+				// check if already covered by visible supplying data item
+				for (const auto& oldExpl : m_Expl)
+				{
+					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::anchestor)
+						continue;
+					const AbstrDataItem* adi = oldExpl->m_DataItem;
+					if (adi && !adi->IsCacheItem() && adi->HasCalculator() && adi != m_StudyObject)
+						if (adi->GetCheckedKeyExpr() == lispExpr)
+						{
+							newExpl->m_IsExprOfExistingItem = true;
+							break;
+						}
+				}
+
 				newExplPtr = newExpl.release();
 				m_Expl.push_back( ExplArrayEntry(newExplPtr) );
 				m_CalcInterests.push_back(dc);
@@ -611,7 +629,7 @@ namespace Explain { // local defs
 			catch (const DmsException&)
 			{}
 
-			if (level < MaxLevel && newExplPtr)
+			if (level < MaxLevel && newExplPtr && !newExplPtr->m_IsExprOfExistingItem)
 				newExplPtr->AddLispExplanations(this, lispExpr, level);
 		}
 
@@ -635,11 +653,15 @@ namespace Explain { // local defs
 
 			if (m_StudyObject->HasCalculator())
 			{
+				auto keyExpr = m_StudyObject->GetCalculator()->GetLispExprOrg();
+				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
+/*
 				auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
 				if (metaInfo.index() == 2)
 					AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get_ptr()));
 				if (metaInfo.index() == 1)
 					AddLispExplanation(std::get<LispRef>(metaInfo), 0, nullptr, ++m_ExprSeqNr);
+*/
 			}
 		}
 
@@ -892,6 +914,12 @@ namespace Explain { // local defs
 		return crd->second;
 	}
 
+	TokenStr ItemOrValueTypeName(const AbstrUnit* au)
+	{
+		assert(au);
+		return au->GetID().empty() ? au->GetName() : au->GetValueType()->GetName();
+	}
+
 	void AbstrCalcExplanation::GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const
 	{
 		if (domainUnit->IsKindOf(Unit<Void>::GetStaticClass()))
@@ -901,28 +929,26 @@ namespace Explain { // local defs
 		XML_Table tab(stream);
 		{
 			XML_Table::Row row(tab);
-			row.ClickableCell(
-				domainUnit ? domainUnit->GetName().c_str() : "",
-				domainUnit ? ItemUrl(domainUnit).c_str() : "");
-			row.ClickableCell(valuesUnit->GetName().c_str(), ItemUrl(valuesUnit).c_str());
+			if (domainUnit)
+				row.ClickableCell(domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+			row.ClickableCell(ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
 		}
 
 		for (SizeT i = 0; i != n; ++i)
 		{
 			SizeT recno = m_Coordinates[i].first;
 
-			SharedStr locStr = (domainUnit)
-				? DisplayValue(
+			SharedStr locStr;
+			if (domainUnit)
+				locStr = DisplayValue(
 					domainUnit,
 					recno,
 					true,
 					m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first
-				)
-				: SharedStr();
-
-			const AbstrValue* valuesValue = m_Coordinates[i].second;
+				);
 
 			SharedStr valStr;
+			const AbstrValue* valuesValue = m_Coordinates[i].second;
 			if (valuesValue)
 				valStr = DisplayValue(valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 			else
@@ -930,12 +956,16 @@ namespace Explain { // local defs
 
 			if (n == 1 && isFirst)
 			{
-				tab.NameValueRow(locStr.c_str(), valStr.c_str());
+				XML_Table::Row row(tab);
+				if (domainUnit)
+					row.ValueCell(locStr.c_str());
+				row.ValueCell(valStr.c_str());
 				return;
 			}
 
 			XML_Table::Row row(tab);
 			stream.WriteAttr("bgcolor", CLR_HROW);
+
 			SharedStr explainUrl;
 			if (m_DataItem->IsCacheItem())
 			{
@@ -945,7 +975,8 @@ namespace Explain { // local defs
 			}
 			else
 				explainUrl = mySSPrintF("dms:dp.VI.ATTR!%d:%s", recno, m_DataItem->GetFullName().c_str());
-			row.ClickableCell(locStr.c_str(), explainUrl.c_str());
+			if (domainUnit)
+				row.ClickableCell(locStr.c_str(), explainUrl.c_str());
 			row.ClickableCell(valStr.c_str(), explainUrl.c_str());
 		}
 	}
@@ -953,6 +984,9 @@ namespace Explain { // local defs
 	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
 	{
 		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::atit)
+			return;
+
+		if (m_IsExprOfExistingItem)
 			return;
 
 		if (self->m_ExprLevel > 3)
