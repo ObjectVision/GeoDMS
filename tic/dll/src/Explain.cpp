@@ -81,6 +81,7 @@ namespace Explain { // local defs
 	static auto calculatingStr = SharedStr("Calculating...");
 
 	enum class match_status { unrelated, anchestor, atit, descendant };
+	using match_result = std::pair < match_status, UInt32>;
 
 	struct AbstrCalcExplanation
 	{
@@ -95,7 +96,6 @@ namespace Explain { // local defs
 			: m_DataItem(dataItem)
 			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
 			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
-
 		{}
 		virtual ~AbstrCalcExplanation()
 		{
@@ -134,23 +134,7 @@ namespace Explain { // local defs
 			PrintSeqNr(x);
 			return SharedStr(buff.GetData(), buff.GetDataEnd());
 		}
-		match_status MatchesExtraInfo(std::string_view extraInfo) const
-		{
-			auto relPath = RelativeExprPath();
-			if (extraInfo.empty())
-				return relPath.empty() ? match_status::atit : match_status::descendant;
-			auto extraInfoLen = extraInfo.size();
-			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
-				return match_status::unrelated;
-			if (relPath.ssize() < extraInfoLen)
-				return match_status::anchestor;
-			if (relPath.ssize() == extraInfoLen)
-				return match_status::atit;
-			assert(relPath.ssize() > extraInfoLen);
-			if (relPath[extraInfoLen] != '.')
-				return match_status::unrelated;
-			return match_status::descendant;
-		}
+		virtual auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result = 0;
 
 	protected:
 		void GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const;
@@ -186,6 +170,12 @@ namespace Explain { // local defs
 		{
 			auto fullName = SharedStr(m_DataItem->GetFullName());
 			stream << fullName.c_str();
+		}
+		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result override
+		{
+			if (extraInfo.empty())
+				return { match_status::descendant, 0 };
+			return { match_status::unrelated, 0 };
 		}
 	};
 
@@ -226,6 +216,36 @@ namespace Explain { // local defs
 					stream << ".";
 			}
 			stream << AsString(m_SeqNr).c_str();
+		}
+		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result override
+		{
+			auto relPath = RelativeExprPath();
+			if (extraInfo.empty())
+				return { match_status::descendant, 0 };
+			match_result result;
+			if (m_Parent)
+			{
+				result = m_Parent->MatchesExtraInfo(extraInfo);
+				if (result.first == match_status::unrelated || result.first == match_status::descendant)
+					return result;
+			}
+			else
+			{
+				result = { match_status::anchestor, 0 };
+			}
+			if (result.second < extraInfo.size()) 
+
+			auto extraInfoLen = extraInfo.size();
+			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
+				return match_status::unrelated;
+			if (relPath.ssize() < extraInfoLen)
+				return match_status::anchestor;
+			if (relPath.ssize() == extraInfoLen)
+				return match_status::atit;
+			assert(relPath.ssize() > extraInfoLen);
+			if (relPath[extraInfoLen] != '.')
+				return match_status::unrelated;
+			return match_status::descendant;
 		}
 
 		DataControllerRef                m_DC;
@@ -369,8 +389,14 @@ namespace Explain { // local defs
 		{
 			Intersection result;
 			if (IsIntersection(factors) && level < 3)
+			{
+				bool isRightIntersection = false;
 				for (auto factorListPtr = factors.Right(); factorListPtr.IsRealList(); factorListPtr = factorListPtr.Right())
-					result <<= ProcessIntersection(factorListPtr.Left(), level+1);
+				{
+					result <<= ProcessIntersection(factorListPtr.Left(), level + bool(isRightIntersection));
+					isRightIntersection = true;
+				}
+			}
 			else
 				result.emplace_back(ProcessPredicate(factors));
 			return result;
