@@ -428,7 +428,8 @@ void GuiMenuHelp::Update(GuiState& state)
         }
         if (ImGui::MenuItem("Wiki") || ImGui::IsKeyPressed(ImGuiKey_W))
         { 
-            ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); 
+            //ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); 
+            OpenUrlInWindowsDefaultBrowser("https://github.com/ObjectVision/GeoDMS/wiki");
             ImGui::ClosePopupsExceptModals();
         }
         //ImGui::Separator();

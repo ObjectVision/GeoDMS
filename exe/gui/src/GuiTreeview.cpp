@@ -80,7 +80,8 @@ auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
         {
             if (ImGui::Button("Open Metainfo url"))
             {
-                ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+                OpenUrlInWindowsDefaultBrowser(treeitem_metadata_url.c_str());
+                //ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
             }
         }
         ImGui::PopStyleColor(2);
