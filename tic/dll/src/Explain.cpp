@@ -183,7 +183,7 @@ namespace Explain { // local defs
 	{
 		LispCalcExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: LispCalcExplanation(GetDC(calcPtr), calcPtr, parent, seqNr)
-			
+
 		{}
 
 		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
@@ -219,21 +219,51 @@ namespace Explain { // local defs
 		}
 		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result override
 		{
-			auto relPath = RelativeExprPath();
 			if (extraInfo.empty())
 				return { match_status::descendant, 0 };
 			match_result result;
 			if (m_Parent)
 			{
 				result = m_Parent->MatchesExtraInfo(extraInfo);
-				if (result.first == match_status::unrelated || result.first == match_status::descendant)
+				if (result.first == match_status::unrelated)
 					return result;
+				if (result.first == match_status::descendant)
+				{
+					assert(result.second == extraInfo.size());
+					return result;
+				}
+				if (result.first == match_status::atit)
+				{
+					assert(result.second == extraInfo.size());
+					result.first = match_status::descendant;
+					return result;
+				}
 			}
 			else
 			{
 				result = { match_status::anchestor, 0 };
 			}
-			if (result.second < extraInfo.size()) 
+			assert(result.first == match_status::anchestor);
+			assert(result.second <= extraInfo.size());
+			if (result.second == extraInfo.size());
+			{
+				assert(result.first == match_status::atit);
+				result.first = match_status::descendant;
+				return result;
+			}
+			assert(result.second < extraInfo.size());
+			if (extraInfo[result.second++] != '.')
+			{
+				result.first = match_status::unrelated;
+				return result;
+			}
+			checkstream stream(extraInfo.begin() + result.second, extraInfo.end());
+			stream << m_SeqNr;
+			if (!stream.IsEqual())
+			{
+				result.first = match_status::unrelated;
+				return result;
+			}
 
 			auto extraInfoLen = extraInfo.size();
 			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
