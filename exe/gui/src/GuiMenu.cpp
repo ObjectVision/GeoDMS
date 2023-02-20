@@ -49,10 +49,16 @@ void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
         if (ImGui::IsWindowHovered() && ImGui::IsAnyMouseDown())
             SetKeyboardFocusToThisHwnd();
 
-        //auto id = ImGui::GetCurrentWindow()->GetID("Window");
-        //ImGui::OpenPopup(id);
+        // TODO: add sub menu hotkeys and underline
+        /*void AddUnderLine(ImColor col_)
+        {
+            ImVec2 min = GetItemRectMin();
+            ImVec2 max = GetItemRectMax();
+            min.y = max.y;
+            GetWindowDrawList()->AddLine(
+                min, max, col_, 1.0f);
+        }*/
 
-        //bool menu_is_open = IsPopupOpen(id, ImGuiPopupFlags_None);
 
         m_File.Update(state);
         m_Edit.Update(state);
@@ -162,9 +168,6 @@ auto GetGeoDMSAboutText() -> std::string
     std::string about_text = DMS_GetVersion();
     about_text += ", copyright Object Vision BV\n";
     DMS_VisitVersionComponents(&about_text, OnVersionComponentVisit);
-
-
-    int i = 0;
     return about_text;
 }
 
@@ -253,7 +256,7 @@ void GuiMenuFile::Update(GuiState& state)
             ImGui::PopID();
 
             ImGui::SameLine();
-            if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()))
+            if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()) || (ind < 10 && ImGui::IsKeyDown(static_cast<ImGuiKey>(ImGuiKey::ImGuiKey_Menu + ind+1))))
             {
                 state.configFilenameManager.Set(*rfn);
                 SetGeoDmsRegKeyString("LastConfigFile", *rfn);
@@ -262,6 +265,7 @@ void GuiMenuFile::Update(GuiState& state)
                 rfn = m_RecentFiles.begin();
                 if (rfn == m_RecentFiles.end())
                     break;
+                ImGui::ClosePopupsExceptModals();
             }
 
             /*ImGui::SameLine();
@@ -416,12 +420,17 @@ void GuiMenuHelp::Update(GuiState& state)
     if (ImGui::BeginMenu("Help"))
     {
         auto event_queues = GuiEventQueues::getInstance();
-        if (ImGui::MenuItem("About...")) 
+        if (ImGui::MenuItem("About...") || ImGui::IsKeyPressed(ImGuiKey_A))
         { 
             event_queues->MainEvents.Add(GuiEvents::ShowAboutTextModalWindow);
             state.aboutDialogMessage = GetGeoDMSAboutText();
+            ImGui::ClosePopupsExceptModals();
         }
-        if (ImGui::MenuItem("Wiki")) { ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); }
+        if (ImGui::MenuItem("Wiki") || ImGui::IsKeyPressed(ImGuiKey_W))
+        { 
+            ShellExecuteA(0, NULL, "https://github.com/ObjectVision/GeoDMS/wiki", NULL, NULL, SW_SHOWNORMAL); 
+            ImGui::ClosePopupsExceptModals();
+        }
         //ImGui::Separator();
         //if (ImGui::MenuItem("Copyright Notice")) {}
         //if (ImGui::MenuItem("Disclaimer")) {}
