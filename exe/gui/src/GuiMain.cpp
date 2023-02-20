@@ -231,6 +231,9 @@ void GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
 {
     if (ImGui::BeginPopupModal("About", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
     {
+        ImGui::FocusWindow(ImGui::GetCurrentWindow());
+        ImGui::BringWindowToFocusFront(ImGui::GetCurrentWindow());
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::TextUnformatted(state.aboutDialogMessage.c_str());
         if (ImGui::Button("Ok", ImVec2(120, 0)))
         {
@@ -248,6 +251,7 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
     //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
     if (ImGui::BeginPopupModal("Changed LocalData or SourceData path", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
+        //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::Text("LocalData or SourceData path changed, restart required for changes to take effect.");
         ImGui::SetItemDefaultFocus();
         
@@ -266,6 +270,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 {
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
+        //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         if (!m_State.errorDialogMessage._Get().empty())
         {
             ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str())); //TODO: interpret error message for link
@@ -302,6 +307,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
+    //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
     //TODO: build in timer for checks?
     static std::string changed_files_result;
     auto changed_files = DMS_ReportChangedFiles(true);
