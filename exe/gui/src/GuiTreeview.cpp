@@ -26,6 +26,7 @@
 #include "PropFuncs.h"
 #include "TreeItemProps.h"
 #include "dataview.h"
+#include "geo/color.h"
 
 #include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
 #include <boost/algorithm/string/split.hpp> // Include for boost::split
@@ -40,14 +41,15 @@
 auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt32
 {
     if (isFailed)
-        return IM_COL32(0, 0, 0, 255);
+        return DmsRed;// IM_COL32(0, 0, 0, 255);
 
     switch (status)
     {
     case NotificationCode::NC2_FailedFlag || NotificationCode::NC2_Invalidated: return IM_COL32(0, 0, 0, 255);
     case NotificationCode::NC2_DataReady: return IM_COL32(0, 153, 51, 255);
     case NotificationCode::NC2_Committed: return IM_COL32(82, 136, 219, 255);
-    default: return IM_COL32(255, 0, 102, 255);
+    case NotificationCode::NC2_MetaReady: return IM_COL32(250, 0, 250, 0xFF);
+    default: return IM_COL32(250, 0, 250, 0xFF); // IM_COL32(255, 0, 102, 255);
     }
 }
 
