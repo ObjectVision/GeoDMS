@@ -133,7 +133,7 @@ struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
 	streamsize_t   m_LineStartPos;
 	bool           m_AtEnd;
 	reader_flags   m_Flags;
-	MG_DEBUGCODE( streamsize_t md_LastPos; )
+	MG_DEBUGCODE( streamsize_t md_LastPos = 0; )
 };
 
 #define INSTANTIATE(T) \

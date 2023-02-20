@@ -80,9 +80,6 @@ namespace Explain { // local defs
 	using CoordinateCollectionType = std::vector<CoordinateType>;
 	static auto calculatingStr = SharedStr("Calculating...");
 
-	enum class match_status { unrelated, anchestor, atit, descendant };
-	using match_result = std::pair < match_status, UInt32>;
-
 	struct AbstrCalcExplanation
 	{
 		SharedDataItemInterestPtr             m_DataItem;
@@ -134,7 +131,13 @@ namespace Explain { // local defs
 			PrintSeqNr(x);
 			return SharedStr(buff.GetData(), buff.GetDataEnd());
 		}
-		virtual auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result = 0;
+		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_status
+		{
+			CheckEqualityOutStreamBuff buff(CByteRange(begin_ptr(extraInfo), end_ptr(extraInfo)));
+			OutStream_DMS x(&buff, nullptr);
+			PrintSeqNr(x);
+			return buff.GetStatus();
+		}
 
 	protected:
 		void GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const;
@@ -171,12 +174,6 @@ namespace Explain { // local defs
 			auto fullName = SharedStr(m_DataItem->GetFullName());
 			stream << fullName.c_str();
 		}
-		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result override
-		{
-			if (extraInfo.empty())
-				return { match_status::descendant, 0 };
-			return { match_status::unrelated, 0 };
-		}
 	};
 
 	struct LispCalcExplanation : AbstrCalcExplanation
@@ -212,70 +209,8 @@ namespace Explain { // local defs
 				m_Parent->PrintSeqNr(stream);
 				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
 					stream << "?";
-				else
-					stream << ".";
 			}
-			stream << AsString(m_SeqNr).c_str();
-		}
-		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_result override
-		{
-			if (extraInfo.empty())
-				return { match_status::descendant, 0 };
-			match_result result;
-			if (m_Parent)
-			{
-				result = m_Parent->MatchesExtraInfo(extraInfo);
-				if (result.first == match_status::unrelated)
-					return result;
-				if (result.first == match_status::descendant)
-				{
-					assert(result.second == extraInfo.size());
-					return result;
-				}
-				if (result.first == match_status::atit)
-				{
-					assert(result.second == extraInfo.size());
-					result.first = match_status::descendant;
-					return result;
-				}
-			}
-			else
-			{
-				result = { match_status::anchestor, 0 };
-			}
-			assert(result.first == match_status::anchestor);
-			assert(result.second <= extraInfo.size());
-			if (result.second == extraInfo.size());
-			{
-				assert(result.first == match_status::atit);
-				result.first = match_status::descendant;
-				return result;
-			}
-			assert(result.second < extraInfo.size());
-			if (extraInfo[result.second++] != '.')
-			{
-				result.first = match_status::unrelated;
-				return result;
-			}
-			checkstream stream(extraInfo.begin() + result.second, extraInfo.end());
-			stream << m_SeqNr;
-			if (!stream.IsEqual())
-			{
-				result.first = match_status::unrelated;
-				return result;
-			}
-
-			auto extraInfoLen = extraInfo.size();
-			if (strncmp(relPath.c_str(), extraInfo.data(), Min<SizeT>(relPath.ssize(), extraInfoLen)) != 0)
-				return match_status::unrelated;
-			if (relPath.ssize() < extraInfoLen)
-				return match_status::anchestor;
-			if (relPath.ssize() == extraInfoLen)
-				return match_status::atit;
-			assert(relPath.ssize() > extraInfoLen);
-			if (relPath[extraInfoLen] != '.')
-				return match_status::unrelated;
-			return match_status::descendant;
+			stream << AsString(m_SeqNr).c_str() << ".";
 		}
 
 		DataControllerRef                m_DC;
@@ -423,7 +358,7 @@ namespace Explain { // local defs
 				bool isRightIntersection = false;
 				for (auto factorListPtr = factors.Right(); factorListPtr.IsRealList(); factorListPtr = factorListPtr.Right())
 				{
-					result <<= ProcessIntersection(factorListPtr.Left(), level + bool(isRightIntersection));
+					result <<= ProcessIntersection(factorListPtr.Left(), level + UInt32(isRightIntersection));
 					isRightIntersection = true;
 				}
 			}
@@ -652,18 +587,18 @@ namespace Explain { // local defs
 					mustCalcNextLevel = false;
 				}
 				auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
-				if (matchInfo == match_status::unrelated)
+				if (matchInfo == match_status::different)
 					return;
 
-				if (matchInfo > match_status::anchestor)
+				if (matchInfo > match_status::partial)
 					if (mustCalcNextLevel || (level+1 < MaxLevel))
 						++level;
 
 				// check if already covered by visible supplying data item
 				for (const auto& oldExpl : m_Expl)
 				{
-					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::anchestor)
-						continue;
+//					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::partial)
+//						continue;
 					const AbstrDataItem* adi = oldExpl->m_DataItem;
 					if (adi && !adi->IsCacheItem() && adi->HasCalculator())
 						if (adi->GetCheckedKeyExpr() == dc->GetLispRef())
@@ -676,7 +611,7 @@ namespace Explain { // local defs
 				newExplPtr = newExpl.release();
 				m_Expl.push_back( ExplArrayEntry(newExplPtr) );
 				m_CalcInterests.push_back(dc);
-				if (matchInfo == match_status::atit)
+				if (matchInfo == match_status::full)
 					AddQueueEntry(newExplPtr->m_UltimateDomainUnit, m_ExprLocationIdx);
 			} 
 			catch (const DmsException&)
@@ -1035,7 +970,7 @@ namespace Explain { // local defs
 
 	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
 	{
-		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::atit)
+		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::full)
 			return;
 
 		auto parent = this;

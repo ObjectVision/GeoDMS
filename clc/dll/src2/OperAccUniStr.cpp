@@ -177,7 +177,7 @@ public:
 				}
 				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 			}
-			ThrowingMemoOutStreamBuff outStr(begin_ptr( output ), end_ptr( output ));
+			ThrowingMemoOutStreamBuff outStr(ByteRange(begin_ptr( output ), end_ptr( output )));
 			for (tile_id t=0; t!=te; ++t)
 			{
 				auto arg1Data = arg1->GetLockedDataRead(t);

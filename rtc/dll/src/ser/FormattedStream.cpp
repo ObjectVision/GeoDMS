@@ -87,9 +87,6 @@ FormattedInpStream::FormattedInpStream(InpStreamBuff* inp, reader_flags rf)
 	,	m_LineStartPos(inp->CurrPos())
 	,	m_AtEnd(false)
 	,	m_Flags(rf)
-#if defined(MG_DEBUG)
-	,	md_LastPos()
-#endif
 {
 	MG_PRECONDITION(inp);
 	ReadChar();

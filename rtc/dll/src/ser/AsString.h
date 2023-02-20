@@ -108,7 +108,7 @@ void AssignValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end)
 template <class T>
 inline bool AsCharArray(const T& value, char* buffer, SizeT bufLen, FormattingFlags ff)
 {
-	SilentMemoOutStreamBuff memoBuf(buffer, buffer + bufLen);
+	SilentMemoOutStreamBuff memoBuf(ByteRange(buffer, buffer + bufLen));
 	FormattedOutStream outStream(&memoBuf, ff);
 	outStream << value ;
 	if (memoBuf.CurrPos() >= bufLen)
