@@ -43,13 +43,20 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     if (isFailed)
         return DmsRed;// IM_COL32(0, 0, 0, 255);
 
+    // TODO: store these colors somewhere persistently
+    auto salmon = IM_COL32(255, 0, 102, 255);
+    auto cool_blue   = IM_COL32(82, 136, 219, 255);
+    auto cool_green  = IM_COL32(0, 153, 51, 255);
+
     switch (status)
     {
-    case NotificationCode::NC2_FailedFlag || NotificationCode::NC2_Invalidated: return IM_COL32(0, 0, 0, 255);
-    case NotificationCode::NC2_DataReady: return IM_COL32(0, 153, 51, 255);
-    case NotificationCode::NC2_Committed: return IM_COL32(82, 136, 219, 255);
-    case NotificationCode::NC2_MetaReady: return IM_COL32(250, 0, 250, 0xFF);
-    default: return IM_COL32(250, 0, 250, 0xFF); // IM_COL32(255, 0, 102, 255);
+    case NotificationCode::NC2_FailedFlag: return IM_COL32(0, 0, 0, 255);
+    case NotificationCode::NC2_DataReady: return cool_blue; // was green
+    case NotificationCode::NC2_Validated: return cool_green; // TODO: new color?
+    case NotificationCode::NC2_Committed: return cool_green; // was blue
+    case NotificationCode::NC2_Invalidated:
+    case NotificationCode::NC2_MetaReady: return salmon;//IM_COL32(255, 0, 102, 255); //return IM_COL32(250, 0, 250, 0xFF);
+    default: return salmon; //IM_COL32(255, 0, 102, 255); // IM_COL32(255, 0, 102, 255);
     }
 }
 
