@@ -31,6 +31,7 @@ enum GuiWindowOpenFlags
 enum class GuiEvents
 {
 	UpdateCurrentItem,
+	UpdateCurrentItemDirectly,
 	JumpToCurrentItem,
 	UpdateCurrentAndCompatibleSubItems,
 	ReopenCurrentConfiguration,

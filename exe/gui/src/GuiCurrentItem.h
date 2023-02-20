@@ -4,9 +4,10 @@
 class GuiCurrentItem
 {
 public:
-	auto Update(GuiState& state) -> void;
+	void Update(GuiState& state);
+	void SetCurrentItemFullNameDirectly(const std::string fullname);
 
 private:
 	auto DrawHistoryTreeItemDropdownList(GuiState &state) -> void;
-	std::string m_string_buf;
+	std::string m_current_item_fullname;
 };
