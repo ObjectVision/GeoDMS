@@ -699,11 +699,12 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 		if (self->InTemplate() || self->IsPassor())
 			return NC2_Committed;
 
-		if (IsDataCurrReady(self->GetCurrRangeItem()))
+		auto treeitem_progress_state = self->m_State.GetProgress();
+		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < PS_Committed && 
 			return NC2_DataReady;
 		
 		self->DetermineState();
-		switch (self->m_State.GetProgress())
+		switch (treeitem_progress_state)//self->m_State.GetProgress())
 		{
 			case PS_Validated: return NC2_Validated;
 			case PS_Committed: return NC2_Committed;
