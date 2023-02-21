@@ -137,7 +137,7 @@ auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
 
 auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
 {
-    auto tree_node = (GuiTreeNode*)clientHandle;
+    auto tree_node = static_cast<GuiTreeNode*>(clientHandle);
     tree_node->SetState(new_state);
 }
 
@@ -176,16 +176,16 @@ auto GuiTreeNode::Init(TreeItem* item) -> void
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
+    DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
     
     auto default_cursor = SetCursor(LoadCursor(0, IDC_WAIT));
     m_state = (NotificationCode)DMS_TreeItem_GetProgressState(m_item); // calling UpdateMetaInfo for item A can UpdateMetaInfo of item B
-
-    DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
-
-    if (m_state < NotificationCode::NC2_MetaReady)
-        item->UpdateMetaInfo();
-    ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
     SetCursor(default_cursor);
+
+    //if (m_state < NotificationCode::NC2_MetaReady)
+    //    item->UpdateMetaInfo();
+    //ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+    
 }
 
 GuiTreeNode::~GuiTreeNode()
@@ -216,7 +216,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
-
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
     if (ImGui::Button(icon, ImVec2(20, 15)))
     {
@@ -227,6 +227,7 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
 
         SetOpenStatus(!IsOpen());
     }
+    ImGui::PopStyleColor();
     ImGui::PopID();
 
     auto spacing_w = g.Style.ItemSpacing.x;
@@ -254,7 +255,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     auto event_queues = GuiEventQueues::getInstance();
 
     // status color
-    auto status = DMS_TreeItem_GetProgressState(m_item);
+    //auto status = DMS_TreeItem_GetProgressState(m_item);
     auto failed = m_item->IsFailed();
 
     bool node_is_selected = (m_item == state.GetCurrentItem());
@@ -265,7 +266,7 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     else if (node_is_selected)
         SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79));
 
-    ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(status, failed));
+    ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(m_state, failed));
     ImGui::PushID(m_item);
 
     //if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
@@ -321,6 +322,33 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
     //ImGui::Text(m_item->GetName().c_str());
     ImGui::PopStyleColor(); // treeitem color
     return 0;
+}
+
+void GuiTreeNode::DrawItemWriteStorageIcon()
+{
+    auto has_write_storage_manager = m_item->HasStorageManager() && !m_item->GetStorageManager()->IsReadOnly();
+    
+    
+    if (has_write_storage_manager)
+    {
+        float offset = 3.0;
+        ImGuiContext& g = *GImGui;
+        auto window = ImGui::GetCurrentWindow();
+        auto spacing_w = g.Style.ItemSpacing.x;
+        window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+        window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
+        //auto cur_pos = ImGui::GetCursorPos();
+        //ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y + 50));
+        //ImGui::SameLine();
+
+        ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
+        ImGui::TextUnformatted(ICON_RI_FLOPPY_SOLID);
+        ImGui::PopStyleColor();
+        window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
+        //auto cur_pos1 = ImGui::GetCursorPos();
+        //ImGui::SetCursorPos({ cur_pos1.x, cur_pos1.y - 50 });
+    }
+    return;
 }
 
 auto GuiTreeNode::clear() -> void
@@ -398,7 +426,8 @@ auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
     DrawItemIcon();
     ImGui::SameLine();
     DrawItemText(state, jump_item);
-    
+    DrawItemWriteStorageIcon();
+
     // Modify y-spacing between TreeView items
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     const UInt8 offset = 4;

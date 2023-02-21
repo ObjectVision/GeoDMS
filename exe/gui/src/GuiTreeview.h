@@ -39,6 +39,8 @@ private:
 	bool DrawItemDropDown(GuiState& state);
 	bool DrawItemIcon();
 	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
+	void DrawItemWriteStorageIcon();
+
 	TreeItem*                m_item = nullptr;
 	
 	NotificationCode m_state = NotificationCode::NC2_Invalidated;
