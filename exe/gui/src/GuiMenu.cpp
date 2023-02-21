@@ -256,7 +256,7 @@ void GuiMenuFile::Update(GuiState& state)
             ImGui::PopID();
 
             ImGui::SameLine();
-            if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()) || (ind < 10 && ImGui::IsKeyDown(static_cast<ImGuiKey>(ImGuiKey::ImGuiKey_Menu + ind+1))))
+            if (ImGui::MenuItem((std::to_string(ind) + " " + *rfn).c_str()) || (ind < 10 && ImGui::IsKeyDown(static_cast<ImGuiKey>(ImGuiKey_Menu + ind+1))))
             {
                 state.configFilenameManager.Set(*rfn);
                 SetGeoDmsRegKeyString("LastConfigFile", *rfn);
