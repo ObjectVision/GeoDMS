@@ -70,9 +70,12 @@ void GuiCurrentItem::Update(GuiState &state)
             }
         }
 
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+
         DrawHistoryTreeItemDropdownList(state);
         
         if (ImGui::ArrowButton("previous", ImGuiDir_Left))
+        //if (ImGui::Button(ICON_RI_ARROW_LEAN_LEFT))
         {
 
             auto item = state.TreeItemHistoryList.GetPrevious().tiContext;
@@ -81,6 +84,7 @@ void GuiCurrentItem::Update(GuiState &state)
         }
 
         if (ImGui::ArrowButton("next", ImGuiDir_Right))
+        //if (ImGui::Button(ICON_RI_ARROW_LEAN_RIGHT))
         {
             auto item = state.TreeItemHistoryList.GetNext().tiContext;
             if (item)
@@ -104,9 +108,10 @@ void GuiCurrentItem::Update(GuiState &state)
                 }
             }
         }
-
         if (ImGui::IsItemClicked())
             SetKeyboardFocusToThisHwnd();
+
+        ImGui::PopStyleColor();
 
         ImGui::EndMenuBar();
     }
