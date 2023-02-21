@@ -976,10 +976,16 @@ namespace Explain { // local defs
 		auto parent = this;
 		do {
 			if (parent->m_IsExprOfExistingItem)
-				if (parent != this
-				|| dynamic_cast<const SumOfTermsExplanation*>(this) == nullptr
-				&& dynamic_cast<const UnionOfAndsExplanation*>(this) == nullptr)
+			{
+				if (parent != this)
+				{
+					if (MatchesExtraInfo(self->m_ExprRelPath) >= match_status::full)
+						return;
+				}
+				else if (   dynamic_cast<const SumOfTermsExplanation*>(this) == nullptr
+					&& dynamic_cast<const UnionOfAndsExplanation*>(this) == nullptr)
 					return;
+			}
 			auto castedParent = dynamic_cast<const LispCalcExplanation*>(parent);
 			if (!castedParent)
 				break;

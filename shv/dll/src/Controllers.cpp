@@ -332,8 +332,14 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 
 	GPoint size = Abs(eventInfo.m_Point - m_Origin);
 	if (size == GPoint(0, 0))
-		return false;
-
+	{
+		CrdPoint oldWorldPoint = m_Transformation.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+		view->ZoomIn1();
+		auto tr = view->CalcWorldToClientTransformation();
+		CrdPoint newWorldPoint = tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+		view->Pan(oldWorldPoint - newWorldPoint);
+		return true;
+	}
 	CrdRect worldRect = m_Transformation.Reverse(
 			Convert<CrdRect>(
 				GRect(
@@ -370,19 +376,11 @@ bool ZoomOutController::Exec(EventInfo& eventInfo)
 	ViewPort* view = debug_cast<ViewPort*>(to.get()); 
 	dms_assert(view);
 
-	CrdPoint worldPoint = m_Transformation.Reverse(
-		Convert<CrdPoint>(eventInfo.m_Point)
-	);
-
-	CrdPoint roiSize = Size( view->GetROI() );
-
-	view->SetROI(
-		CrdRect(
-			worldPoint + roiSize,
-			worldPoint - roiSize
-		)
-	);
-
+	CrdPoint oldWorldPoint = m_Transformation.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+	view->ZoomOut1();
+	auto tr = view->CalcWorldToClientTransformation();
+	CrdPoint newWorldPoint = tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+	view->Pan(oldWorldPoint - newWorldPoint);
 	return true;
 }
 

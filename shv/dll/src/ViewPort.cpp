@@ -503,11 +503,18 @@ void ViewPort::ZoomOut1()
 	ZoomFactor(2.0); // zoom in on twice the org ROI
 }
 
+void ViewPort::Pan(CrdPoint delta)
+{
+	CrdPoint center = Center(GetROI());
+	auto newCenter = center + delta;
+	PanTo(newCenter);
+}
+
 void ViewPort::PanTo(CrdPoint newCenter)
 {
-	CrdPoint s = Size(GetROI()) * 0.5;
+	CrdPoint sz = Size(GetROI()) * 0.5;
 
-	SetROI(CrdRect(newCenter - s, newCenter + s));
+	SetROI(CrdRect(newCenter - sz, newCenter + sz));
 }
 
 void ViewPort::PanToClipboardLocation()
@@ -532,10 +539,25 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	if (eventID & EID_MOUSEWHEEL )
 	{
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(eventInfo.m_wParam);
+		wheelDelta /= WHEEL_DELTA;
 		if (wheelDelta)
 		{
-			CrdType factor = pow(0.5, wheelDelta / WHEEL_DELTA);
-			ZoomFactor(factor);
+			CrdPoint oldWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+			if (wheelDelta > 0)
+			{
+				MakeMin<int>(wheelDelta, 5);
+				while (wheelDelta--)
+					ZoomOut1();
+			}
+			else 
+			{
+				assert(wheelDelta < 0);
+				MakeMax<int>(wheelDelta, -5);
+				while (wheelDelta++)
+					ZoomIn1();
+			}
+			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+			Pan(oldWorldPoint - newWorldPoint);
 			return true;
 		}
 	}
