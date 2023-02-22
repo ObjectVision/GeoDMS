@@ -343,6 +343,9 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
 
     //auto test = m_item->GetExpr();
 
+    if (is_read_only && m_item->HasCalculator())
+        return;
+
     if (m_item->IsDisabledStorage())
         return;
 
