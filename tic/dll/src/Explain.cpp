@@ -251,13 +251,13 @@ namespace Explain { // local defs
 			if (!IsSumOfTerms(terms))
 			{
 				auto term = ProcessFactors(terms);
-				m_Expr.emplace_back(false, std::move(term));
+				m_Expr.emplace_back(additive, std::move(term));
 				return;
 			}
 
 			bool addThisTerm = additive;
 			bool isSub = (terms.Left().GetSymbID() == token::sub);
-			bool addNextTerms = addThisTerm ^ isSub;
+			bool addNextTerms = isSub ? (!addThisTerm) : addThisTerm;
 
 			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
 			{
