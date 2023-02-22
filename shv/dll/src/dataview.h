@@ -177,6 +177,17 @@ struct DbgInvalidateDrawLock
 #define MG_DEBUG_DATAVIEWSET
 #endif
 
+struct MdiCreateStruct
+{
+	ViewStyle ct = tvsUndefined;
+	DataView* dataView = nullptr;
+	TreeItem* contextItem = nullptr;
+	CharPtr   caption = nullptr;
+	bool      makeOverlapped = true;
+	GPoint    maxSize = GPoint(600, 400);
+	HWND      hWnd = 0;
+};
+
 //----------------------------------------------------------------------
 // class  : DataView
 //----------------------------------------------------------------------
@@ -199,7 +210,7 @@ public:
 //	composition
 	void BringToTop();
 	void DestroyWindow();
-	void CreateViewWindow(DataView* parent, CharPtr caption);
+	SHV_CALL void CreateViewWindow(DataView* parent, CharPtr caption);
 	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations

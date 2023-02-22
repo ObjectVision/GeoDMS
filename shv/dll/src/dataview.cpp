@@ -1585,17 +1585,6 @@ void DataView::CreateViewWindow(DataView* parent, CharPtr caption)
 		throwLastSystemError("CreateViewWindow(%s)", caption);
 }
 
-struct MdiCreateStruct 
-{
-	ViewStyle ct = tvsUndefined;
-	DataView* dataView = nullptr;
-	TreeItem* contextItem = nullptr;
-	CharPtr   caption = nullptr;
-	bool      makeOverlapped = true;
-	GPoint    maxSize = GPoint(600, 400);
-	HWND      hWnd = 0;	
-};
-
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
 	dms_assert(m_ParentView == 0);
