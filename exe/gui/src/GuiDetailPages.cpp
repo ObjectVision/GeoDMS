@@ -477,6 +477,8 @@ auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
                     bool          isUrl,
                     bool	mustOpenDetailsPage) -> void
 {
+    PostEmptyEventToGLFWContext();
+
     if (not doAddHistory)
         return;
 

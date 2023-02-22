@@ -64,6 +64,7 @@ auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void //TODO: add client
     GuiState state;
     ImGui::OpenPopup("Error");
     state.errorDialogMessage.Set(msg);
+    PostEmptyEventToGLFWContext();
     return;
 }
 
@@ -350,7 +351,8 @@ auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, Ch
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     assert(main);
     main->m_EventLog.AddLog(st, msg);
-   
+    PostEmptyEventToGLFWContext();
+    return;
     //auto g = ImGui::GetCurrentContext();
 //    if (g->FrameCountEnded == g->FrameCount)
 //        DirectUpdateEventLog(main);

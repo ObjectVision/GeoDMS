@@ -382,3 +382,4 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
 auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts) -> std::string;
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
+void PostEmptyEventToGLFWContext();
