@@ -278,7 +278,7 @@ auto GuiView::UpdateAll(GuiState& state) -> void
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
-        if (it->m_DoView && m_ViewIt->m_DataView)
+        if (it->m_DoView && m_ViewIt->m_DataView && IsWindow(it->m_HWND))
         {
             if (Update(state, *it) && m_ViewIt._Ptr && m_ViewIt != it)
                 m_ViewIt = it;
@@ -296,6 +296,53 @@ auto GuiView::UpdateAll(GuiState& state) -> void
     }
 }
 
+static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add_to_tab_bar)
+{
+    auto ctx = ImGui::GetCurrentContext();
+    IM_ASSERT(window->DockNode == NULL || window->DockNodeAsHost == NULL);
+
+    node->Windows.push_back(window);
+    node->WantHiddenTabBarUpdate = true;
+    window->DockNode = node;
+    window->DockId = node->ID;
+    window->DockIsActive = (node->Windows.Size > 1);
+    window->DockTabWantClose = false;
+
+    // When reactivating a node with one or two loose window, the window pos/size/viewport are authoritative over the node storage.
+    // In particular it is important we init the viewport from the first window so we don't create two viewports and drop one.
+    if (node->HostWindow == NULL && node->IsFloatingNode())
+    {
+        if (node->AuthorityForPos == ImGuiDataAuthority_Auto)
+            node->AuthorityForPos = ImGuiDataAuthority_Window;
+        if (node->AuthorityForSize == ImGuiDataAuthority_Auto)
+            node->AuthorityForSize = ImGuiDataAuthority_Window;
+        if (node->AuthorityForViewport == ImGuiDataAuthority_Auto)
+            node->AuthorityForViewport = ImGuiDataAuthority_Window;
+    }
+
+    // Add to tab bar if requested
+    if (add_to_tab_bar)
+    {
+        if (node->TabBar == NULL)
+        {
+            IM_ASSERT(node->TabBar == NULL);
+            node->TabBar = IM_NEW(ImGuiTabBar);
+            node->TabBar->SelectedTabId = node->TabBar->NextSelectedTabId = node->SelectedTabId;
+
+            // Add existing windows
+            for (int n = 0; n < node->Windows.Size - 1; n++)
+                ImGui::TabBarAddTab(node->TabBar, ImGuiTabItemFlags_None, node->Windows[n]);
+        }
+        ImGui::TabBarAddTab(node->TabBar, ImGuiTabItemFlags_Unsorted, window);
+    }
+
+    //ImGui::DockNodeUpdateVisibleFlag(node);
+
+    // Update this without waiting for the next time we Begin() in the window, so our host window will have the proper title bar color on its first frame.
+    if (node->HostWindow)
+        ImGui::UpdateWindowParentAndRootLinks(window, window->Flags | ImGuiWindowFlags_ChildWindow, node->HostWindow);
+}
+
 auto GuiView::Update(GuiState& state, View& view) -> bool
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -310,10 +357,23 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
         return false;
     }
 
-    
     auto view_window = ImGui::GetCurrentWindow(); //TODO: temporary
-    //if (!ImGui::GetWindowAlwaysWantOwnTabBar(view_window))
-    //    view_window->WindowClass.DockingAlwaysTabBar = true; // Floating view windows always have their own tabbar
+    if (view.has_been_docking_initialized && !IsDocked() && view_window->DockNodeAsHost == NULL && view_window->DockNode == NULL) // floating window
+    {
+        auto ctx = ImGui::GetCurrentContext();
+        auto id = ImGui::DockContextGenNodeID(ctx);
+        ImGuiDockNode* node = IM_NEW(ImGuiDockNode)(id);
+        ctx->DockContext.Nodes.SetVoidPtr(node->ID, node);
+        node->Pos = view_window->Pos;
+        node->Size = view_window->Size;
+        DockNodeAddWindow(node, view_window, true);
+        node->TabBar->Tabs[0].Flags &= ~ImGuiTabItemFlags_Unsorted;
+        view_window->DockIsActive = true;
+
+    }
+    
+    if (!ImGui::GetWindowAlwaysWantOwnTabBar(view_window))
+        view_window->WindowClass.DockingAlwaysTabBar = true; // Floating view windows always have their own tabbar
         
 
     // handle events

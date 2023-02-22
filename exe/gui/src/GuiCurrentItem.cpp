@@ -38,20 +38,44 @@ auto GuiCurrentItem::DrawHistoryTreeItemDropdownList(GuiState& state) -> void
     }
 }
 
+void GuiCurrentItem::SetCurrentItemFullNameDirectly(const std::string fullname)
+{
+    m_current_item_fullname = fullname;
+}
+
 void GuiCurrentItem::Update(GuiState &state)
 {
     auto event_queues = GuiEventQueues::getInstance();
+    bool set_current_item_directly = false;
     if (ImGui::BeginMenuBar())
     {
         if (event_queues->CurrentItemBarEvents.HasEvents()) // new current item
         {
-            m_string_buf.resize(state.GetCurrentItem() ? std::strlen(state.GetCurrentItem()->GetFullName().c_str()) : 0);
-            m_string_buf = state.GetCurrentItem() ? state.GetCurrentItem()->GetFullName().c_str() : "";
+            auto event = event_queues->CurrentItemBarEvents.Pop();
+            switch (event)
+            {
+            case GuiEvents::UpdateCurrentAndCompatibleSubItems:
+            case GuiEvents::UpdateCurrentItem:
+            {
+                auto current_item = state.GetCurrentItem();
+                m_current_item_fullname.resize(current_item ? std::strlen(current_item->GetFullName().c_str()) : 0);
+                m_current_item_fullname = current_item ? current_item->GetFullName().c_str() : "";
+                break;
+            }
+            case GuiEvents::UpdateCurrentItemDirectly:
+            {
+                set_current_item_directly = true;
+                break;
+            }
+            }
         }
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
 
         DrawHistoryTreeItemDropdownList(state);
         
         if (ImGui::ArrowButton("previous", ImGuiDir_Left))
+        //if (ImGui::Button(ICON_RI_ARROW_LEAN_LEFT))
         {
 
             auto item = state.TreeItemHistoryList.GetPrevious().tiContext;
@@ -60,6 +84,7 @@ void GuiCurrentItem::Update(GuiState &state)
         }
 
         if (ImGui::ArrowButton("next", ImGuiDir_Right))
+        //if (ImGui::Button(ICON_RI_ARROW_LEAN_RIGHT))
         {
             auto item = state.TreeItemHistoryList.GetNext().tiContext;
             if (item)
@@ -68,11 +93,11 @@ void GuiCurrentItem::Update(GuiState &state)
 
         ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
 
-        if (ImGui::InputText("##CurrentItem", &m_string_buf, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
+        if (ImGui::InputText("##CurrentItem", &m_current_item_fullname, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr) || set_current_item_directly)
         {
             if (state.GetRoot())
             {
-                auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_string_buf.c_str());
+                auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), m_current_item_fullname.c_str());
                 auto jump_item = best_item_ref.first;
                 if (jump_item)
                 {
@@ -83,9 +108,10 @@ void GuiCurrentItem::Update(GuiState &state)
                 }
             }
         }
-
         if (ImGui::IsItemClicked())
             SetKeyboardFocusToThisHwnd();
+
+        ImGui::PopStyleColor();
 
         ImGui::EndMenuBar();
     }

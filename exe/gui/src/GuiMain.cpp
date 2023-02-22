@@ -86,6 +86,7 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
 
 bool GuiMainComponent::ProcessEvent(GuiEvents e)
 {
+    auto event_queues = GuiEventQueues::getInstance();
     switch (e)
     {
     case GuiEvents::UpdateCurrentItem:
@@ -99,8 +100,11 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::ReopenCurrentConfiguration:
     {
+        std::string current_item_fullname = m_State.GetCurrentItem() ? m_State.GetCurrentItem()->GetFullName().c_str() : "";
         CloseCurrentConfig();
         m_State.configFilenameManager.Set(GetGeoDmsRegKey("LastConfigFile").c_str());
+        m_CurrentItem.SetCurrentItemFullNameDirectly(current_item_fullname);
+        event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItemDirectly);
         //if (!m_State.configFilenameManager.Get().empty())
         //    m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
         break;
@@ -176,7 +180,6 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         if (item_error_source.first)
         {
             m_State.SetCurrentItem(const_cast<TreeItem*>(item_error_source.first));
-            auto event_queues = GuiEventQueues::getInstance();
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
             event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
             event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -199,7 +202,6 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
                 if (prev_item_error_source)
                 {
                     m_State.SetCurrentItem(prev_item_error_source);
-                    auto event_queues = GuiEventQueues::getInstance();
                     event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
                     event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
                     event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -231,6 +233,9 @@ void GuiMainComponent::ShowAboutDialogIfNecessary(GuiState& state)
 {
     if (ImGui::BeginPopupModal("About", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
     {
+        ImGui::FocusWindow(ImGui::GetCurrentWindow());
+        ImGui::BringWindowToFocusFront(ImGui::GetCurrentWindow());
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::TextUnformatted(state.aboutDialogMessage.c_str());
         if (ImGui::Button("Ok", ImVec2(120, 0)))
         {
@@ -248,6 +253,7 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
     //ImGui::OpenPopup("ChangedLDSD", ImGuiPopupFlags_None);
     if (ImGui::BeginPopupModal("Changed LocalData or SourceData path", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
+        //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::Text("LocalData or SourceData path changed, restart required for changes to take effect.");
         ImGui::SetItemDefaultFocus();
         
@@ -266,6 +272,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 {
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
+        //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         if (!m_State.errorDialogMessage._Get().empty())
         {
             ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str())); //TODO: interpret error message for link
@@ -302,6 +309,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
 bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
 {
+    //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
     //TODO: build in timer for checks?
     static std::string changed_files_result;
     auto changed_files = DMS_ReportChangedFiles(true);
