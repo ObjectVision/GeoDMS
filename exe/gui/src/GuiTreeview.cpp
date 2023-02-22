@@ -326,28 +326,38 @@ auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
 
 void GuiTreeNode::DrawItemWriteStorageIcon()
 {
-    auto has_write_storage_manager = m_item->HasStorageManager() && !m_item->GetStorageManager()->IsReadOnly();
-    
-    
-    if (has_write_storage_manager)
-    {
-        float offset = 3.0;
-        ImGuiContext& g = *GImGui;
-        auto window = ImGui::GetCurrentWindow();
-        auto spacing_w = g.Style.ItemSpacing.x;
-        window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-        window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
-        //auto cur_pos = ImGui::GetCursorPos();
-        //ImGui::SetCursorPos(ImVec2(cur_pos.x, cur_pos.y + 50));
-        //ImGui::SameLine();
+    auto has_storage_manager = m_item->HasStorageManager();
+    auto parent = m_item->GetTreeParent();
 
-        ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
-        ImGui::TextUnformatted(ICON_RI_FLOPPY_SOLID);
-        ImGui::PopStyleColor();
-        window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
-        //auto cur_pos1 = ImGui::GetCursorPos();
-        //ImGui::SetCursorPos({ cur_pos1.x, cur_pos1.y - 50 });
-    }
+    if (!has_storage_manager && !parent) // root has no parent
+        return;
+
+    auto parent_has_storage_manager = parent->HasStorageManager();
+    
+    if (!(has_storage_manager || parent_has_storage_manager))
+        return;
+
+    bool is_read_only = has_storage_manager ? m_item->GetStorageManager()->IsReadOnly() : parent->GetStorageManager()->IsReadOnly();
+
+    //if (is_read_only && m_item->Clac())
+
+    //auto test = m_item->GetExpr();
+
+    if (m_item->IsDisabledStorage())
+        return;
+
+    float offset = 3.0;
+    ImGuiContext& g = *GImGui;
+    auto window = ImGui::GetCurrentWindow();
+    auto spacing_w = g.Style.ItemSpacing.x;
+    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
+    ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE : ICON_RI_FLOPPY_SOLID);
+    ImGui::PopStyleColor();
+    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
+
     return;
 }
 
