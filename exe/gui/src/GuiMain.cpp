@@ -48,8 +48,8 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
-    DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
-    DMS_RegisterStateChangeNotification(&m_Treeview.OnStateChange, nullptr);
+    DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, this);
+    DMS_RegisterStateChangeNotification(&m_View.OnOpenEditPaletteWindow, this);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 

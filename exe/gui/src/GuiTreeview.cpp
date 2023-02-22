@@ -35,6 +35,7 @@
 
 #include "GuiTreeview.h"
 #include "GuiStyles.h"
+#include "GuiMain.h"
 #include <functional>
 #include<ranges>
 
@@ -342,6 +343,8 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
     //if (is_read_only && m_item->Clac())
 
     //auto test = m_item->GetExpr();
+
+    
 
     if (is_read_only && m_item->HasCalculator())
         return;
@@ -688,16 +691,6 @@ GuiTreeView::~GuiTreeView()
 auto GuiTreeView::clear() -> void
 {
     m_tree.clear();
-}
-
-
-auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
-{
-    if (notificationCode == NotificationCode::CC_CreateMdiChild)
-    { 
-        auto event_queues = GuiEventQueues::getInstance();
-        //event_queues->MapViewEvents.Add();
-    }
 }
 
 auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> void

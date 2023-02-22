@@ -92,7 +92,6 @@ public:
 	~GuiTreeView();
 	auto Update(bool* p_open, GuiState& state) -> void;
 	auto clear() -> void;
-	static auto OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;
 
 private:
 	auto ProcessTreeviewEvent(GuiEvents &event, GuiState& state) -> void;

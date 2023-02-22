@@ -1,12 +1,14 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+
+#include "GuiMain.h"
+
 #include <format>
 #include <sstream>
 #include <string>
 
 #include "GuiView.h"
-
 #include "TicInterface.h"
 #include "ShvDllInterface.h"
 #include "StateChangeNotification.h"
@@ -275,6 +277,9 @@ GuiView::~GuiView(){}
 
 auto GuiView::UpdateAll(GuiState& state) -> void
 {
+    if (m_EditPaletteWindow)
+        Update(state, *m_EditPaletteWindow);
+
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
     {
@@ -294,6 +299,18 @@ auto GuiView::UpdateAll(GuiState& state) -> void
                 m_ViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
         }
     }
+}
+
+void GuiView::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
+{
+    
+    m_EditPaletteWindow.release();
+    
+    auto mdi_create_struct_ptr = reinterpret_cast<MdiCreateStruct*>(const_cast<TreeItem*>(self));
+    m_EditPaletteWindow = std::make_unique<View>(mdi_create_struct_ptr->caption, mdi_create_struct_ptr->ct, mdi_create_struct_ptr->dataView);
+
+    if (m_EditPaletteWindow)
+        mdi_create_struct_ptr->hWnd = m_EditPaletteWindow->m_HWND;
 }
 
 static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add_to_tab_bar)
@@ -483,4 +500,17 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
     }
 
     return result;
+}
+
+auto GuiView::OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
+{
+    auto gui_main_component_ptr = reinterpret_cast<GuiMainComponent*>(clientHandle);
+    if (notificationCode == NotificationCode::CC_CreateMdiChild) // TODO: this should have its own separate callback
+    {
+        
+        gui_main_component_ptr->m_View.ResetEditPaletteWindow(clientHandle, self);
+
+        //mdi_create_struct_ptr->dataView->CreateViewWindow(mdi_create_struct_ptr->dataView, mdi_create_struct_ptr->caption);
+        //event_queues->MapViewEvents.Add();
+    }
 }
