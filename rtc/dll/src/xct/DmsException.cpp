@@ -291,6 +291,17 @@ RTC_CALL void reportD(SeverityTypeID st, CharPtr msg)
 	reportD_without_cancellation_check(st, msg);
 }
 
+RTC_CALL void reportD_impl(SeverityTypeID st, const CharPtrRange& msg)
+{
+	if (!g_DebugStream)
+		return;
+
+	DMS_ASyncContinueCheck();
+	DebugOutStream::scoped_lock lock(g_DebugStream, st);
+
+	*g_DebugStream << msg;
+}
+
 RTC_CALL void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 {
 	if (!g_DebugStream)
@@ -301,6 +312,7 @@ RTC_CALL void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 
 	*g_DebugStream << msg1 << msg2;
 }
+
 
 RTC_CALL void ReportSuspension()
 {

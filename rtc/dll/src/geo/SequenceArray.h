@@ -212,6 +212,7 @@ struct SA_ConstReference : private SequenceArray_Base<T>
 	const_iterator begin() const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
 	const_iterator end  () const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
 
+	auto AsRange() const ->IterRange<const_iterator> { return { begin(), end() }; }
 
 	const_reference operator[](size_type i) const { dms_assert(i<size()); return begin()[i]; }
 	const_reference front()                 const { dms_assert(0<size()); return begin()[0]; }

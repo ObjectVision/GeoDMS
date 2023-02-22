@@ -458,7 +458,7 @@ void ConfigProd::DoBasicType()
 {
 	m_eValueClass = ValueClass::FindByScriptName(m_strIdentifierID);
 	if (!m_eValueClass)
-		throwErrorD( "Unknown ValueType", m_strIdentifierID.GetStr().c_str());
+		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
 }
 
 void ConfigProd::DoEntityParam()
@@ -468,7 +468,9 @@ void ConfigProd::DoEntityParam()
 
 void ConfigProd::SetVC (ValueComposition    vc)
 {
-	dms_assert(m_eParamVC == ValueComposition::Unknown);
+	if (m_eParamVC != ValueComposition::Unknown)
+		throwErrorD("ConfigProd::SetValueComposition", "duplicate specification of ValueComposition not allowed");
+
 	m_eParamVC = vc;
 }
 

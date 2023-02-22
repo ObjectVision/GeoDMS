@@ -181,6 +181,11 @@ inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value)
 	return str;
 }
 
+inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value)
+{
+	str.Buffer().WriteBytes(value.begin(), value.size());
+	return str;
+}
 
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value);
 

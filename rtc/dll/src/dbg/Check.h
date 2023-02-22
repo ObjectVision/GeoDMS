@@ -115,7 +115,6 @@ private:
 
 #endif //defined(CC_FIX_ASSERT)
 
-
 //----------------------------------------------------------------------
 // Exception Generation & Message functions
 //----------------------------------------------------------------------
@@ -145,9 +144,18 @@ template<typename ...Args>
 [[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, CharPtr method);
 [[noreturn]] RTC_CALL void throwNYI               (CharPtr sourceFile, int line, CharPtr method);
 
+struct CharPtrRange;
 RTC_CALL void reportD(SeverityTypeID st, CharPtr mgs);
+RTC_CALL void reportD_impl(SeverityTypeID st, const CharPtrRange& msg);
 RTC_CALL void reportD(SeverityTypeID st, CharPtr mgs1, CharPtr msg2);
 RTC_CALL void reportD_without_cancellation_check(SeverityTypeID st, CharPtr mgs);
+
+template<typename CharIterType>
+void reportD(SeverityTypeID st, IterRange<CharIterType> value)
+{
+	reportD_impl(st, CharPtrRange(value.begin(), value.end()));
+}
+
 
 template <typename ...Args>
 void reportF(SeverityTypeID st, CharPtr format, Args&&... args)

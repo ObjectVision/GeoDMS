@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ClcPCH.h"
 #pragma hdrstop
 
+#include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
 #include "OperGroups.h"
 #include "TreeItemClass.h"
@@ -42,14 +43,12 @@ oper_arg_policy oap_SubItem[2] = { oper_arg_policy::calc_subitem_root, oper_arg_
 
 SpecialOperGroup sog_SubItem("SubItem", 2, oap_SubItem, oper_policy::existing|oper_policy::dynamic_result_class);
 
-struct SubItemOperator: public BinaryOperator
+struct SubItemOperator: BinaryOperator
 {
-	typedef DataArray<SharedStr> Arg2Type;
+	using Arg2Type = DataArray<SharedStr>;
 
 	SubItemOperator()
-		: BinaryOperator(&sog_SubItem,
-				TreeItem::GetStaticClass(), 
-				TreeItem::GetStaticClass(), Arg2Type::GetStaticClass())
+		: BinaryOperator(&sog_SubItem, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), Arg2Type::GetStaticClass())
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -145,9 +144,49 @@ struct CheckOperator : public BinaryOperator
 	}
 };
 
+// *****************************************************************************
+//										FenceOperator
+// *****************************************************************************
+
+oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems };
+SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
+
+struct FenceContainerOperator : BinaryOperator
+{
+	FenceContainerOperator()
+		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass(), TreeItem::GetStaticClass())
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		dms_assert(args.size() == 2);
+		const TreeItem* arg1 = args[0];
+		dms_assert(arg1);
+		dms_assert(arg1->IsCacheItem());
+		if (!resultHolder) {
+			resultHolder = args[1];
+		}
+		dms_assert(resultHolder);
+
+		if (mustCalc)
+		{
+
+			// check that all sub-items of result-holder are up-to-date or uninteresting
+
+			DataReadLock msgLock(AsDataItem(args[0]));
+			auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+			if (msgData.size() != 1 || !msgData[0].empty())
+				for (auto msg: msgData)
+					reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+		}
+		return true;
+	}
+};
+
 namespace {
 
 	SubItemOperator subItemOperator;
 	CheckOperator checkOperator;
+	FenceContainerOperator fcOp;
 
 }
