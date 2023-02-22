@@ -13,9 +13,10 @@
 #define ICON_RI_SUB_BOX				"\xEE\xAE\x84" // U+EB84
 #define ICON_RI_ARROW_LEFT_LINE		"\xEE\xA9\xA0" // U+EA60
 #define ICON_RI_ARROW_RIGHT_LINE    "\xEE\xA9\xAC" // U+EA6C
-#define ICON_RI_ARROW_LEAN_LEFT     "\xEE\xA9\x92" // U+EA52
-#define ICON_RI_ARROW_LEAN_RIGHT    "\xEE\xA9\x94" // U+EA54
-#define ICON_RI_ARROW_LEAN_DOWN     "\xEE\xA9\x90" // U+EA50
+//#define ICON_RI_ARROW_LEAN_LEFT     "\xEE\xA9\x92" // U+EA52
+//#define ICON_RI_ARROW_LEAN_RIGHT    "\xEE\xA9\x94" // U+EA54
+//#define ICON_RI_ARROW_LEAN_DOWN     "\xEE\xA9\x90" // U+EA50
 #define ICON_RI_FOLDER_OPEN         "\xEE\xB5\xAA" // U+ED6A
 #define ICON_RI_FLOPPY_LINE			"\xEF\x82\xB3" // U+F0B3
 #define ICON_RI_FLOPPY_SOLID        "\xEF\x82\xB0" // U+F0B0
+#define ICON_RI_DATABASE            "\xEE\xB0\x96" // U+EC16
