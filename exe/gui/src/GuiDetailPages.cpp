@@ -396,6 +396,7 @@ auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
     clear();
+    InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
