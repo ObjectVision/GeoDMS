@@ -36,6 +36,7 @@
 #include "utl/splitPath.h"
 #include "dbg/DebugLog.h"
 #include "ShvDllInterface.h"
+#include "dbg/DmsCatch.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -162,7 +163,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem* TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
+            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str())); //TODO: crash in case fullPathCmd does not exist
         }
 
         break;
@@ -513,6 +514,7 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(m_MainWindow))
     {
+        
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
         glfwPollEvents();
         //else 
@@ -545,9 +547,11 @@ int GuiMainComponent::MainLoop()
 
         ShowSourceFileChangeDialogIfNecessary();
 
+        
         // update all gui components
         if (Update())
             break;
+        
 
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
@@ -567,6 +571,7 @@ int GuiMainComponent::MainLoop()
                 //m_State.GetRoot()->UpdateMetaInfo();
             }
         }
+        
 
         // rendering
         ImGui::Render();
@@ -591,7 +596,7 @@ int GuiMainComponent::MainLoop()
 
 
         m_GuiUnitTest.Step();
-
+        
         //break;
     }
 
