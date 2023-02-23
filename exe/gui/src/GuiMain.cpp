@@ -163,7 +163,16 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem* TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str())); //TODO: crash in case fullPathCmd does not exist
+            DMS_CALL_BEGIN
+            try
+            {
+                StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str())); //TODO: crash in case fullPathCmd does not exist
+            }
+            catch (...)
+            {
+                throw;
+            }
+            DMS_CALL_END
         }
 
         break;
@@ -217,6 +226,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
     case GuiEvents::ShowAboutTextModalWindow: {ImGui::OpenPopup("About", ImGuiPopupFlags_None); break; }
+    //case GuiEvents::OpenErrorDialog: { ImGui::OpenPopup("Error"); break; }
     case GuiEvents::Close: { return true; } // Exit application
     }
     return false;
@@ -271,6 +281,12 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
 
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
 {
+    if (m_State.errorDialogMessage.HasNew())
+    {
+        m_State.errorDialogMessage.Get();
+        ImGui::OpenPopup("Error");
+    }
+
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
@@ -540,18 +556,16 @@ int GuiMainComponent::MainLoop()
 
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
-
-        // Modal windows
-        if (ShowErrorDialogIfNecessary())
-            break;
-
-        ShowSourceFileChangeDialogIfNecessary();
-
         
         // update all gui components
         if (Update())
             break;
         
+        // Modal windows
+        if (ShowErrorDialogIfNecessary())
+            break;
+
+        ShowSourceFileChangeDialogIfNecessary();
 
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
@@ -617,10 +631,9 @@ int GuiMainComponent::MainLoop()
 
 bool GuiMainComponent::Update()
 {
-    auto event_queues = GuiEventQueues::getInstance();
-    static bool opt_fullscreen = true;
-    static bool opt_padding = true;
-    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+    static bool opt_fullscreen = true; //TODO: remove?
+    static bool opt_padding = true; //TODO: remove?
+    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None; //TODO: remove?
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
     // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
@@ -672,6 +685,7 @@ bool GuiMainComponent::Update()
     ImGui::DockSpace(m_State.dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
     //}
 
+    auto event_queues = GuiEventQueues::getInstance();
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();

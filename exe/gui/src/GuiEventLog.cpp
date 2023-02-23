@@ -62,7 +62,10 @@ auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
 auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void //TODO: add client handle to exception message function
 {
     GuiState state;
-    ImGui::OpenPopup("Error");
+    //auto event_queues = GuiEventQueues::getInstance();
+
+    //event_queues->MainEvents.Add(GuiEvents::OpenErrorDialog);
+    //ImGui::OpenPopup("Error");
     state.errorDialogMessage.Set(msg);
     PostEmptyEventToGLFWContext();
     return;

@@ -42,6 +42,7 @@ enum class GuiEvents
 	OpenNewDefaultViewWindow,
 	OpenConfigSource,
 	OpenEditPaletteWindow,
+	OpenErrorDialog,
 	ToggleShowTreeViewWindow,
 	ToggleShowEventLogWindow,
 	ToggleShowDetailPagesWindow,
