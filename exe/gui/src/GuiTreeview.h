@@ -37,7 +37,7 @@ public:
 private:
 	auto GetDepthFromTreeItem() -> UInt8;
 	bool DrawItemDropDown(GuiState& state);
-	bool DrawItemIcon();
+	bool DrawItemIcon(GuiState& state);
 	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
 	void DrawItemWriteStorageIcon();
 

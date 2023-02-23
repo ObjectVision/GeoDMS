@@ -239,16 +239,23 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
     return 0;
 }
 
-auto GuiTreeNode::DrawItemIcon() -> bool
+auto GuiTreeNode::DrawItemIcon(GuiState& state) -> bool
 {
     assert(m_item);
-    auto vsflags = SHV_GetViewStyleFlags(m_item); // TODO: check if this calls UpdateMetaInfo
+    auto vsflags = SHV_GetViewStyleFlags(m_item);
     if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
     else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
     else if (vsflags & ViewStyleFlags::vsfTableView) { SetTreeViewIcon(GuiTextureID::TV_table); }
     else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { SetTreeViewIcon(GuiTextureID::TV_palette); }
     else if (vsflags & ViewStyleFlags::vsfContainer) { SetTreeViewIcon(GuiTextureID::TV_container); }
     else { SetTreeViewIcon(GuiTextureID::TV_unit_transparant); }
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        ImGui::CloseCurrentPopup();
+        UpdateStateAfterItemClick(state, m_item);
+    }
+
     return 0;
 }
 
@@ -441,7 +448,7 @@ auto GuiTreeNode::IsLeaf() -> bool
 auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
 {
     DrawItemDropDown(state);
-    DrawItemIcon();
+    DrawItemIcon(state);
     ImGui::SameLine();
     DrawItemText(state, jump_item);
     DrawItemWriteStorageIcon();
