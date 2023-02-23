@@ -1064,12 +1064,8 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-	{
-		if (moduleName)
-			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName, cmdLine);
-		else
-			reportF(SeverityTypeID::ST_Error, "ExecuteChildProcess(%s, %s) failed", "NULL", cmdLine);
-	}
+			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
+
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }
 
