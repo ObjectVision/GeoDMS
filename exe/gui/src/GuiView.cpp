@@ -216,14 +216,36 @@ auto GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std:
     m_ViewIt = --m_Views.end();
 
 
-    UpdateParentWindow(m_Views.back());
+    UpdateParentWindow(m_Views.back()); // Needed before InitWindow
     InitWindow(state.GetCurrentItem());
     SHV_DataView_AddItem(m_ViewIt->m_DataView, state.GetCurrentItem(), false);
     m_AddCurrentItem = true;
 }
 
+auto GuiView::InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min, UInt32 max) -> HWND
+{
+    HINSTANCE instance = GetInstance(parent_hwnd);
+    RegisterViewAreaWindowClass(instance);
+    //auto vs = m_ViewIt->m_ViewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    return CreateWindowEx(
+        0L,                            // no extended styles
+        caption.c_str(),      // MapView control class 
+        nullptr,                       // text for window title bar 
+        vs,                            // styles
+        CW_USEDEFAULT,                 // horizontal position 
+        CW_USEDEFAULT,                 // vertical position
+        min,             // width
+        max,             // height 
+        parent_hwnd,        // handle to parent
+        nullptr,                       // no menu
+        instance,                      // instance owning this window 
+        dv           //m_DataView                                       
+    );
+}
+
 auto GuiView::InitWindow(TreeItem* currentItem) -> WindowState
 {
+    //TODO: simplify, make function more pure; remove side effects
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
     ImVec2 crMax = ImGui::GetWindowContentRegionMax();
     HINSTANCE instance = GetInstance(m_ViewIt->m_HWNDParent);//m_Views.at(m_ViewIndex).m_HWNDParent);
@@ -301,16 +323,81 @@ auto GuiView::UpdateAll(GuiState& state) -> void
     }
 }
 
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_glfw.h>
+class ImGuiFrame
+{
+public:
+    ImGuiFrame(GuiMainComponent* main)
+    {
+        m_main_ptr = main;
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
+    }
+
+    ~ImGuiFrame()
+    {
+        ImGui::Render();
+        int display_w, display_h;
+        glfwGetFramebufferSize(m_main_ptr->m_MainWindow, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+
+        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Update and Render additional Platform Windows
+        auto& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
+        glfwSwapBuffers(m_main_ptr->m_MainWindow);
+    }
+
+private:
+    GuiMainComponent* m_main_ptr = nullptr;
+};
+
 void GuiView::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
 {
-    
+    auto gui_main_component_ptr = reinterpret_cast<GuiMainComponent*>(clientHandle);
     m_EditPaletteWindow.release();
     
     auto mdi_create_struct_ptr = reinterpret_cast<MdiCreateStruct*>(const_cast<TreeItem*>(self));
     m_EditPaletteWindow = std::make_unique<View>(mdi_create_struct_ptr->caption, mdi_create_struct_ptr->ct, mdi_create_struct_ptr->dataView);
 
+    { // create initial empty window, we need a parent
+        ImGuiFrame test = { gui_main_component_ptr };
+        if (ImGui::Begin(mdi_create_struct_ptr->caption, &m_EditPaletteWindow->m_DoView))
+        {
+            ImGui::Text("test");
+            ImGui::End();
+        }
+    }
+
     if (m_EditPaletteWindow)
+    {
+        auto window = ImGui::FindWindowByName(mdi_create_struct_ptr->caption);
+        auto tv_window = ImGui::FindWindowByName("TreeView");
+        HWND parent_hwnd = nullptr;
+        if (window)
+        {
+            parent_hwnd = (HWND)window->Viewport->PlatformHandleRaw;
+        }
+
+        //ImVec2 crMin = ImGui::GetWindowContentRegionMin();
+        //ImVec2 crMax = ImGui::GetWindowContentRegionMax();
+
+        m_EditPaletteWindow->m_HWND = InitWindowParameterized(mdi_create_struct_ptr->caption, m_EditPaletteWindow->m_DataView, m_EditPaletteWindow->m_ViewStyle, parent_hwnd, 100, 100);
         mdi_create_struct_ptr->hWnd = m_EditPaletteWindow->m_HWND;
+    }
 }
 
 static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add_to_tab_bar)

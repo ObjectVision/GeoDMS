@@ -65,6 +65,7 @@ public:
 private:
 	auto Update(GuiState& state, View& view) -> bool;
 	auto InitWindow(TreeItem* currentItem) -> WindowState;
+	auto InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min = 300, UInt32 max = 600) -> HWND;
 	auto UpdateParentWindow(View& view) -> WindowState;
 	auto CloseWindowOnMimimumSize(View& view) -> bool;
 	auto GetRootParentCurrentWindowOffset() -> ImVec2;
