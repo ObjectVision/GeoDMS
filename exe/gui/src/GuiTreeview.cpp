@@ -140,6 +140,8 @@ auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* t
 {
     auto tree_node = static_cast<GuiTreeNode*>(clientHandle);
     tree_node->SetState(new_state);
+    PostEmptyEventToGLFWContext();
+    return;
 }
 
 GuiTreeNode::GuiTreeNode(TreeItem* item)

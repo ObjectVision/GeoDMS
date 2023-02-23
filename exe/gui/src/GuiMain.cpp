@@ -517,7 +517,10 @@ int GuiMainComponent::MainLoop()
         glfwPollEvents();
         //else 
         //{
-        //    glfwWaitEventsTimeout(1.0);
+        
+        //glfwWaitEvents();
+        //glfwPostEmptyEvent();
+        //glfwWaitEventsTimeout(1.0);
         //    if (UpdateFrameCounter == 0)
         //        UpdateFrameCounter = frames_to_update;
         //}

@@ -515,3 +515,8 @@ void OpenUrlInWindowsDefaultBrowser(const std::string url)
     // TODO: make implementation OS invariant.
     ShellExecuteA(0, NULL, url.c_str(), NULL, NULL, SW_SHOWNORMAL);
 }
+
+void PostEmptyEventToGLFWContext()
+{
+    glfwPostEmptyEvent();
+}

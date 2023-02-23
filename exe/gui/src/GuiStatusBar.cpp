@@ -8,8 +8,10 @@ GuiStatusBar::GuiStatusBar()
 
 void GuiStatusBar::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
-    static GuiState state;
+    static GuiState state; // TODO: remove static
     state.contextMessage.Set(msg);
+    PostEmptyEventToGLFWContext();
+    return;
 }
 
 void GuiStatusBar::ParseNewContextMessage(std::string msg)

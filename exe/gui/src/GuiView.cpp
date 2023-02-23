@@ -600,4 +600,6 @@ auto GuiView::OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem*
         //mdi_create_struct_ptr->dataView->CreateViewWindow(mdi_create_struct_ptr->dataView, mdi_create_struct_ptr->caption);
         //event_queues->MapViewEvents.Add();
     }
+    PostEmptyEventToGLFWContext();
+    return;
 }
