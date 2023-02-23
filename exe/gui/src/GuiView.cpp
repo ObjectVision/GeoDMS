@@ -299,8 +299,9 @@ GuiView::~GuiView(){}
 
 auto GuiView::UpdateAll(GuiState& state) -> void
 {
-    if (m_EditPaletteWindow)
-        Update(state, *m_EditPaletteWindow);
+    auto edit_palette_it = m_EditPaletteWindows.begin();
+    for (auto& palette_editor : m_EditPaletteWindows)
+        Update(state, palette_editor);
 
     auto it = m_Views.begin();
     while (it != m_Views.end()) 
@@ -368,10 +369,12 @@ private:
 void GuiView::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
 {
     auto gui_main_component_ptr = reinterpret_cast<GuiMainComponent*>(clientHandle);
-    m_EditPaletteWindow.release();
     
     auto mdi_create_struct_ptr = reinterpret_cast<MdiCreateStruct*>(const_cast<TreeItem*>(self));
-    m_EditPaletteWindow = std::make_unique<View>(mdi_create_struct_ptr->caption, mdi_create_struct_ptr->ct, mdi_create_struct_ptr->dataView);
+    
+    //m_EditPaletteWindows.emplace_back(mdi_create_struct_ptr->caption, mdi_create_struct_ptr->ct, mdi_create_struct_ptr->dataView->shared_from_this());
+
+    /*m_EditPaletteWindow = std::make_unique<View>(mdi_create_struct_ptr->caption, mdi_create_struct_ptr->ct, mdi_create_struct_ptr->dataView);
 
     { // create initial empty window, we need a parent
         ImGuiFrame test = { gui_main_component_ptr };
@@ -397,7 +400,7 @@ void GuiView::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* 
 
         m_EditPaletteWindow->m_HWND = InitWindowParameterized(mdi_create_struct_ptr->caption, m_EditPaletteWindow->m_DataView, m_EditPaletteWindow->m_ViewStyle, parent_hwnd, 100, 100);
         mdi_create_struct_ptr->hWnd = m_EditPaletteWindow->m_HWND;
-    }
+    }*/
 }
 
 static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add_to_tab_bar)
@@ -453,9 +456,10 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
 
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin( (view.m_DataView->GetCaption().c_str() + view.m_Name).c_str(), &view.m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize(view) || m_Views.empty())
+    if (!ImGui::Begin( (view.m_DataView->GetCaption().c_str() + view.m_Name).c_str(), &view.m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize(view) || !view.m_HWND)//|| m_Views.empty())
     {
-        ShowOrHideWindow(view, false);
+        if (view.m_HWND)
+            ShowOrHideWindow(view, false);
 
         ImGui::End();
         return false;

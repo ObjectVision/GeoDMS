@@ -56,7 +56,7 @@ public:
 	auto GetHWND() -> HWND;
 	auto UpdateAll(GuiState& state) -> void;
 	std::vector<View> m_Views;
-	std::unique_ptr<View> m_EditPaletteWindow = nullptr; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
+	std::vector<View> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
 	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
 
 	void ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self);
