@@ -78,14 +78,6 @@ struct SubItemOperator: BinaryOperator
 		{
 			dms_assert(CheckDataReady(arg1));
 			dms_assert(CheckDataReady(resultHolder.GetUlt()));
-//			dms_assert(resultHolder->DataAllocated() || resultHolder->WasFailed(FR_Data));
-/*
-			if (!IsCalculatingOrReady(resultHolder.GetOld()) && !resultHolder->WasFailed(FR_Data))
-			{
-				dms_assert(!resultHolder->IsCacheItem());
-				return resultHolder->PrepareData();
-			}
-*/
 		}
 		return true;
 	}
@@ -148,6 +140,9 @@ struct CheckOperator : public BinaryOperator
 //										FenceOperator
 // *****************************************************************************
 
+#include "CopyTreeContext.h"
+#include "UnitProcessor.h"
+
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems };
 SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
@@ -160,20 +155,47 @@ struct FenceContainerOperator : BinaryOperator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		dms_assert(args.size() == 2);
-		const TreeItem* arg1 = args[0];
-		dms_assert(arg1);
-		dms_assert(arg1->IsCacheItem());
 		if (!resultHolder) {
-			resultHolder = args[1];
+
+			CopyTreeContext context(nullptr, args[0], "", DataCopyMode::MakePassor); //  | DataCopyMode::CopyAlsoReferredItems);
+
+			resultHolder = context.Apply();
 		}
 		dms_assert(resultHolder);
 
 		if (mustCalc)
 		{
+			// first, copy ranges of units ?
+			for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+			{	
+				auto srcItem = args[0]->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+				MG_CHECK(srcItem);
+				if (IsUnit(srcItem))
+				{
+					auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
+					auto resAbstrUnit= AsUnit(resWalker);
+					if (srcAbstrUnit->HasTiledRangeData())
+					{
+						visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
+						{
+							MG_CHECK(srcUnit);
+							auto resUnit = dynamic_cast<Unit<V>*>(resAbstrUnit);
+							MG_CHECK(resUnit);
+							resUnit->m_RangeDataPtr.reset( srcUnit->m_RangeDataPtr.get() );
+						});
+						
+					}
+				}
+				else if (IsDataItem(srcItem))
+				{
+					DataReadLock readLock(AsDataItem(srcItem));
+					AsDataItem(resWalker)->m_DataObject = readLock;
+				}
+			}
 
 			// check that all sub-items of result-holder are up-to-date or uninteresting
 
-			DataReadLock msgLock(AsDataItem(args[0]));
+			DataReadLock msgLock(AsDataItem(args[1]));
 			auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
 			if (msgData.size() != 1 || !msgData[0].empty())
 				for (auto msg: msgData)

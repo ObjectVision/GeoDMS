@@ -1888,23 +1888,26 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 		if (copyContext.MustUpdateMetaInfo())
 			UpdateMetaInfo();
-		CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps() ).Apply();
-		if (!result->m_Location)
-			result->m_Location = m_Location;
 
-		if (!copyContext.MustCopyExpr())
+		if (!copyContext.InFenceOperator())
 		{
-			// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
-			// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
-			if (!result->mc_Calculator)
-				result->SetCalculator( CreateCalculatorForTreeItem(result, this, copyContext) );
-		}
-		else
-		{
-			if (mc_Calculator && mc_Calculator->IsDataBlock() )
-				result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator) );
-		}
+			CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
+			if (!result->m_Location)
+				result->m_Location = m_Location;
 
+			if (!copyContext.MustCopyExpr())
+			{
+				// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
+				// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
+				if (!result->mc_Calculator)
+					result->SetCalculator(CreateCalculatorForTreeItem(result, this, copyContext));
+			}
+			else
+			{
+				if (mc_Calculator && mc_Calculator->IsDataBlock())
+					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator));
+			}
+		}
 	} // end if (!mustCopyProps)
 
 	// Now, copy all sub-items
@@ -1913,10 +1916,12 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 			subItem->Copy(result, subItem->GetID(), copyContext);
 
 	// Now, copy from refItem; maybe more sub-items should be copied
-//	const TreeItem* refItem = GetReferredItem();
-//	if (refItem)
-//		CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::DontCreateNew|DataCopyMode::NoRoot) ).Apply();
-
+	if (copyContext.CopyReferredItems())
+	{
+		const TreeItem* refItem = GetReferredItem();
+		if (refItem)
+			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::DontCreateNew|DataCopyMode::NoRoot) ).Apply();
+	}
 	return result;
 }
 

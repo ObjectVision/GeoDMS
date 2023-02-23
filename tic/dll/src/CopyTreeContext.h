@@ -57,6 +57,8 @@ enum class DataCopyMode
 	MakePassor = 0x40,
 	DontCopySubItems = 0x80,
 	DontUpdateMetaInfo = 0x100,
+	CopyAlsoReferredItems = 0x200,
+	InFenceOperator = 0x400,
 };
 
 inline DataCopyMode operator |(DataCopyMode a, DataCopyMode b) { return DataCopyMode(int(a) | int(b)); }
@@ -79,6 +81,8 @@ struct CopyTreeContext
 	bool SetInheritFlag    () const { return (m_Dcm & DataCopyMode::SetInheritFlag); }
 	bool DontCopySubItems  () const { return (m_Dcm & DataCopyMode::DontCopySubItems); }
 	bool MustUpdateMetaInfo() const { return (m_Dcm & DataCopyMode::DontUpdateMetaInfo) == false; }
+	bool InFenceOperator   () const { return (m_Dcm & DataCopyMode::InFenceOperator); }
+	bool CopyReferredItems () const { return (m_Dcm & DataCopyMode::CopyAlsoReferredItems); }
 
 	DataCopyMode GetDCM()          const { return m_Dcm; }
 
