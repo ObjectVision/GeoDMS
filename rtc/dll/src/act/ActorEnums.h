@@ -205,8 +205,8 @@ public:
 	void   SetTransState(TransState state) { SetBits(AF_TransientMask, state); }
 	void   ClearTransState() { Clear(AF_TransientMask); }
 
-	void SetPassor  () { dms_assert(!IsPassor()); Set  (AF_IsPassor); }
-	void ClearPassor() { dms_assert( IsPassor()); Clear(AF_IsPassor); }
+	void SetPassor  () { Set  (AF_IsPassor); }
+	void ClearPassor() { Clear(AF_IsPassor); }
 	bool IsPassor   () const { return Get(AF_IsPassor); }
 
 	bool IsDeterminingCheck() const { return GetTransState()==AF_DeterminingCheck; }

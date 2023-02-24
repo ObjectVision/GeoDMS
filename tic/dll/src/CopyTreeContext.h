@@ -108,11 +108,8 @@ struct CopyTreeContext
 	}
 	TreeItem* ApplyImpl()
 	{
-		return
-			debug_cast<const TreeItem*>(m_SrcRoot)
-			->Copy(debug_cast<TreeItem*>(m_DstContext), m_DstRootID, *this);
+		return m_SrcRoot->Copy(m_DstContext, m_DstRootID, *this);
 	}
-
 
 	TreeItem*            m_DstContext;
 	const TreeItem*      m_SrcRoot;

@@ -141,66 +141,88 @@ struct CheckOperator : public BinaryOperator
 // *****************************************************************************
 
 #include "CopyTreeContext.h"
+#include "OperationContext.h"
 #include "UnitProcessor.h"
 
-oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems };
+oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
 struct FenceContainerOperator : BinaryOperator
 {
 	FenceContainerOperator()
-		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass(), TreeItem::GetStaticClass())
+		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
 	{}
 
-	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+//	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
 		dms_assert(args.size() == 2);
+		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 		if (!resultHolder) {
-
-			CopyTreeContext context(nullptr, args[0], "", DataCopyMode::MakePassor); //  | DataCopyMode::CopyAlsoReferredItems);
-
+			CopyTreeContext context(nullptr, sourceContainer, ""
+				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator //  | DataCopyMode::CopyAlsoReferredItems);
+			);
 			resultHolder = context.Apply();
 		}
 		dms_assert(resultHolder);
 
-		if (mustCalc)
+		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
 		{
-			// first, copy ranges of units ?
-			for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
-			{	
-				auto srcItem = args[0]->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
-				MG_CHECK(srcItem);
-				if (IsUnit(srcItem))
+			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
+				continue;
+
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			
+			fc->AddDependency(srcItem->GetCheckedDC());
+		}
+	}
+	bool CalcResult(TreeItemDualRef & resultHolder, const ArgRefs & args, OperationContext * fc, Explain::Context * context) const override
+	{
+		dms_assert(args.size() == 2);
+		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+
+		// first, copy ranges of units ?
+		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		{	
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			MG_CHECK(srcItem);
+			if (srcItem->WasFailed(FR_Data))
+			{
+				resWalker->Fail(srcItem);
+				continue;
+			}
+			if (IsUnit(srcItem))
+			{
+				auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
+				auto resAbstrUnit= AsUnit(resWalker);
+				if (srcAbstrUnit->HasTiledRangeData())
 				{
-					auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
-					auto resAbstrUnit= AsUnit(resWalker);
-					if (srcAbstrUnit->HasTiledRangeData())
+					visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
 					{
-						visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
-						{
-							MG_CHECK(srcUnit);
-							auto resUnit = dynamic_cast<Unit<V>*>(resAbstrUnit);
-							MG_CHECK(resUnit);
-							resUnit->m_RangeDataPtr.reset( srcUnit->m_RangeDataPtr.get() );
-						});
+						MG_CHECK(srcUnit);
+						auto resUnit = dynamic_cast<Unit<V>*>(resAbstrUnit);
+						MG_CHECK(resUnit);
+						resUnit->m_RangeDataPtr.reset( srcUnit->m_RangeDataPtr.get() );
+					});
 						
-					}
-				}
-				else if (IsDataItem(srcItem))
-				{
-					DataReadLock readLock(AsDataItem(srcItem));
-					AsDataItem(resWalker)->m_DataObject = readLock;
 				}
 			}
-
-			// check that all sub-items of result-holder are up-to-date or uninteresting
-
-			DataReadLock msgLock(AsDataItem(args[1]));
-			auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
-			if (msgData.size() != 1 || !msgData[0].empty())
-				for (auto msg: msgData)
-					reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+			else if (IsDataItem(srcItem))
+			{
+				DataReadLock readLock(AsDataItem(srcItem));
+				AsDataItem(resWalker)->m_DataObject = readLock;
+			}
+			if (srcItem->WasFailed())
+				resWalker->Fail(srcItem);
 		}
+
+		// check that all sub-items of result-holder are up-to-date or uninteresting
+
+		DataReadLock msgLock(AsDataItem(args[1]));
+		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+		if (msgData.size() != 1 || !msgData[0].empty())
+			for (auto msg: msgData)
+				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
 		return true;
 	}
 };
