@@ -18,25 +18,25 @@ public:
 	virtual bool Update(GuiState& state) = 0;
 };
 
-class View : AbstractView
+class DMSView : AbstractView
 {
 public:
-	View(std::string n)
+	DMSView(std::string n)
 	{
 		m_Name = n;
 	}
 
 	bool Update(GuiState& state) override;
 
-	View(std::string n, ViewStyle vs, DataView* dv)
+	DMSView(std::string n, ViewStyle vs, DataView* dv)
 	{
 		m_Name = n;
 		m_ViewStyle = vs;
 		m_DataView = dv; //use SharedFromThis on DataView
 	}
-	View(View&& other) noexcept;
-	void operator=(View && other) noexcept;
-	~View();
+	DMSView(DMSView&& other) noexcept;
+	void operator=(DMSView&& other) noexcept;
+	~DMSView();
 	void Reset();
 
 	// window helper functions
@@ -67,9 +67,9 @@ public:
 	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
 	auto GetHWND() -> HWND; //TODO: move, not the right place
 	void UpdateAll(GuiState& state);
-	std::vector<View> m_Views;
-	std::vector<View> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
-	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
+	std::vector<DMSView> m_Views;
+	std::vector<DMSView> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
+	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>> m_ViewIt = m_Views.begin();
 
 	void ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self);
 	static auto OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;

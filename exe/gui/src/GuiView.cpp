@@ -27,17 +27,17 @@
 #include <GLFW/glfw3native.h>
 #include <winuser.h>
 
-View::~View()
+DMSView::~DMSView()
 {
     Reset();
 }
 
-View::View(View&& other) noexcept
+DMSView::DMSView(DMSView&& other) noexcept
 {
     *this = std::move(other);
 }
 
-auto View::operator=(View && other) noexcept -> void
+auto DMSView::operator=(DMSView&& other) noexcept -> void
 {
     Reset();
     m_Name       = std::move(other.m_Name);
@@ -99,7 +99,7 @@ static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add
         ImGui::UpdateWindowParentAndRootLinks(window, window->Flags | ImGuiWindowFlags_ChildWindow, node->HostWindow);
 }
 
-bool View::Update(GuiState& state)
+bool DMSView::Update(GuiState& state)
 {
     auto event_queues = GuiEventQueues::getInstance();
 
@@ -242,7 +242,7 @@ bool View::Update(GuiState& state)
     return result;
 }
 
-auto View::Reset() -> void
+auto DMSView::Reset() -> void
 {
     if (m_HWND)
     {
@@ -252,7 +252,7 @@ auto View::Reset() -> void
     }
 }
 
-auto View::CloseWindowOnMimimumSize() -> bool
+auto DMSView::CloseWindowOnMimimumSize() -> bool
 {
     auto crm = ImGui::GetContentRegionMax();
     static int min_szx = 50, min_szy = 50;
@@ -265,7 +265,7 @@ auto View::CloseWindowOnMimimumSize() -> bool
     return false;
 }
 
-auto View::ShowOrHideWindow(bool show) -> void
+auto DMSView::ShowOrHideWindow(bool show) -> void
 {
     if (m_ShowWindow != show) // change in show state
     {
@@ -274,7 +274,7 @@ auto View::ShowOrHideWindow(bool show) -> void
     }
 }
 
-auto View::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
+auto DMSView::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
@@ -285,7 +285,7 @@ auto View::IsDocked() -> bool // test if the MapViewWindow is docked inside the 
 }
 
 
-auto View::UpdateParentWindow() -> WindowState
+auto DMSView::UpdateParentWindow() -> WindowState
 {
     auto glfw_window = glfwGetCurrentContext(); //TODO: known bug, parent window likely not updated correctly in case of outside main window view docked into another view
     auto mainWindow = glfwGetWin32Window(glfw_window);
@@ -300,7 +300,7 @@ auto View::UpdateParentWindow() -> WindowState
     return WindowState::CHANGED;
 }
 
-auto View::UpdateWindowPosition() -> void
+auto DMSView::UpdateWindowPosition() -> void
 {
     if (!m_HWND)
         return;
@@ -348,7 +348,7 @@ auto View::UpdateWindowPosition() -> void
     }
 }
 
-auto View::GetRootParentCurrentWindowOffset() -> ImVec2
+auto DMSView::GetRootParentCurrentWindowOffset() -> ImVec2
 {
     ImVec2 parentPos(0, 0);
     ImVec2 offset(0, 0);
@@ -371,7 +371,7 @@ auto View::GetRootParentCurrentWindowOffset() -> ImVec2
     return offset;
 }
 
-auto View::InitWindow(TreeItem* currentItem) -> WindowState
+auto DMSView::InitWindow(TreeItem* currentItem) -> WindowState
 {
     //TODO: simplify, make function more pure; remove side effects
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
@@ -405,7 +405,7 @@ auto View::InitWindow(TreeItem* currentItem) -> WindowState
     return WindowState::CHANGED;
 }
 
-auto View::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
+auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 {
     WNDCLASSEX wndClassData;
     wndClassData.cbSize = sizeof(WNDCLASSEX);
