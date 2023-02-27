@@ -507,8 +507,6 @@ int GuiMainComponent::Init()
 
     InterpretCommandLineParameters();
 
-    
-
     return 0;
 }
 
@@ -517,7 +515,8 @@ int GuiMainComponent::MainLoop()
     ImGuiIO& io = ImGui::GetIO();
 
     // state
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    //ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    //glClearColor(1.0, 0.0, 0.0, 1.0);
     glfwSetWindowTitle(m_MainWindow, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
     //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
@@ -592,7 +591,8 @@ int GuiMainComponent::MainLoop()
         int display_w, display_h;
         glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        //glClearColor(1.0, 0.0, 0.0, 1.0);
+        //glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -664,7 +664,9 @@ bool GuiMainComponent::Update()
     if (!opt_padding)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
-
+    //ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+    //ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    //ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
     if (!ImGui::Begin("GeoDMSGui", nullptr, window_flags))
     {
         ImGui::End();
@@ -679,11 +681,9 @@ bool GuiMainComponent::Update()
 
     // Submit the DockSpace
     auto io = ImGui::GetIO();
-    //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-    //{
-    //ImGui::GetID("GeoDMSDockSpace");
+    ImGui::PushStyleColor(ImGuiCol_DockingEmptyBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
     ImGui::DockSpace(m_State.dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-    //}
+    ImGui::PopStyleColor();
 
     auto event_queues = GuiEventQueues::getInstance();
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
@@ -712,7 +712,8 @@ bool GuiMainComponent::Update()
         m_CurrentItem.Update(m_State);
     
     ImGui::End();
-
+    //ImGui::PopStyleColor(3);
+    
     // Update all GeoDMSGui components
     if (m_State.ShowToolbar)
         m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
