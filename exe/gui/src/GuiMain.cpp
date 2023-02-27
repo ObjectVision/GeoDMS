@@ -145,6 +145,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         {
         case tvsMapView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size())); break; }
         case tvsTableView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
+        case tvsTableContainer: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
         }
 
         break;

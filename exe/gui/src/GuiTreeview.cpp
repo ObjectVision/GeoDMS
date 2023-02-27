@@ -61,27 +61,72 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     }
 }
 
+void DrawRightMouseClickButtonElement(std::string button_text, bool show, GuiEvents event)
+{
+    //bool show = vs & vs_capability || vs_capability == ViewStyleFlags::vsfNone;
+    ImGui::PushStyleColor(ImGuiCol_Text, show ? IM_COL32(0, 0, 0, 255) : IM_COL32(0, 0, 0, 200));
+    if (ImGui::Button(button_text.c_str()))
+    {
+        if (show)
+            GuiEventQueues::getInstance()->MainEvents.Add(event);
+    }
+    ImGui::PopStyleColor();
+}
+
 void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
 {
     // right-mouse popup menu
     //ImGui::OpenPopup("treeview_popup_window");
     if (ImGui::BeginPopupContextItem("treeview_popup_window"))
     {
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
-
         auto event_queues = GuiEventQueues::getInstance();
-        if (ImGui::Button("Edit Config Source       Ctrl-E"))
-            event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
 
-        if (ImGui::Button("Default View"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
+        //ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
 
+        //DrawRightMouseClickButtonElement
+
+        auto vsflags = SHV_GetViewStyleFlags(state.GetCurrentItem());
+        if (vsflags & ViewStyleFlags::vsfMapView) {  }
+        else if (vsflags & ViewStyleFlags::vsfTableContainer) {  }
+        else if (vsflags & ViewStyleFlags::vsfTableView) {  }
+        else if (vsflags & ViewStyleFlags::vsfPaletteEdit) {  }
+        else if (vsflags & ViewStyleFlags::vsfContainer) {  }
+        else {  }
+
+        //auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
+
+        DrawRightMouseClickButtonElement("Edit Config Source       Ctrl-E", true, GuiEvents::OpenConfigSource);
+        DrawRightMouseClickButtonElement("Default View", vsflags & ViewStyleFlags::vsfDefault || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewDefaultViewWindow);
+        DrawRightMouseClickButtonElement("Table View               CTRL-D", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewTableViewWindow);
+        DrawRightMouseClickButtonElement("Map View                 CTRL-M", vsflags & ViewStyleFlags::vsfMapView, GuiEvents::OpenNewMapViewWindow);
+
+        //bool default_view_active = vsflags & ViewStyleFlags::vsfDefault;
+        
+
+        //ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
+        //if (ImGui::Button("Edit Config Source       Ctrl-E"))
+        //    event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
+        //ImGui::PopStyleColor();
+
+        //ImGui::PushStyleColor(ImGuiCol_Text, default_view_active ? IM_COL32(0, 0, 0, 255) : IM_COL32(0, 0, 0, 200));
+        
+        /*if (ImGui::Button("Default View"))
+        {
+            if (default_view_active)
+                event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+        }
+        ImGui::PopStyleColor();*/
+
+        /*ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
         if (ImGui::Button("Map View                 CTRL-M"))
             event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
+        ImGui::PopStyleColor();
 
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
         if (ImGui::Button("Table View               CTRL-D"))
             event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+        ImGui::PopStyleColor();*/
 
         //url 
         auto treeitem_metadata_url = TreeItemPropertyValue(state.GetCurrentItem(), urlPropDefPtr);
@@ -93,7 +138,7 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
                 //ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
             }
         }
-        ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor();
 
         ImGui::EndPopup();
     }
