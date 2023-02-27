@@ -18,6 +18,12 @@ enum WindowState
 	CHANGED       = 1
 };
 
+class AbstractView
+{
+public:
+	virtual bool update();
+};
+
 class View
 {
 public:
@@ -47,13 +53,13 @@ public:
 	bool has_been_docking_initialized = false;
 };
 
-class GuiView 
+class GuiViews 
 {
 public:
-	~GuiView();
-	auto CloseAll() -> void;
+	~GuiViews();
+	void CloseAll();
 	auto AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void;
-	auto GetHWND() -> HWND;
+	auto GetHWND() -> HWND; //TODO: move, not the right place
 	auto UpdateAll(GuiState& state) -> void;
 	std::vector<View> m_Views;
 	std::vector<View> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)

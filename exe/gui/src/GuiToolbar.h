@@ -17,13 +17,13 @@ public:
 	Button(ToolButtonID button_id1, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID button_id3, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
-	void Update(GuiView& view);
+	void Update(GuiViews& view);
 
 private:
-	void UpdateSingle(GuiView& view);
-	void UpdateToggle(GuiView& view);
-	void UpdateTristate(GuiView& view);
-	void UpdateModal(GuiView& view);
+	void UpdateSingle(GuiViews& view);
+	void UpdateToggle(GuiViews& view);
+	void UpdateTristate(GuiViews& view);
+	void UpdateModal(GuiViews& view);
 
 	ToolButtonID m_ToolButtonId1;
 	ToolButtonID m_ToolButtonId2;
@@ -39,9 +39,9 @@ class GuiToolbar
 {
 public:
 	GuiToolbar();
-	void ShowMapViewButtons(GuiView& view);
-	void ShowTableViewButtons(GuiView& view);
-	void Update(bool* p_open, GuiState& state, GuiView& view);
+	void ShowMapViewButtons(GuiViews& view);
+	void ShowTableViewButtons(GuiViews& view);
+	void Update(bool* p_open, GuiState& state, GuiViews& view);
 
 private:
 	std::vector<Button>		  m_TableViewButtons;

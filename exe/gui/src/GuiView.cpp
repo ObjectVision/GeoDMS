@@ -62,7 +62,7 @@ auto View::Reset() -> void
     }
 }
 
-auto GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
+auto GuiViews::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 {
     switch (event)
     {
@@ -73,7 +73,7 @@ auto GuiView::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
     }
 }
 
-auto GuiView::UpdateParentWindow(View& view) -> WindowState
+auto GuiViews::UpdateParentWindow(View& view) -> WindowState
 {
     auto glfw_window = glfwGetCurrentContext(); //TODO: known bug, parent window likely not updated correctly in case of outside main window view docked into another view
     auto mainWindow  = glfwGetWin32Window(glfw_window);
@@ -88,7 +88,7 @@ auto GuiView::UpdateParentWindow(View& view) -> WindowState
     return WindowState::CHANGED;
 }
 
-auto GuiView::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
+auto GuiViews::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
@@ -98,7 +98,7 @@ auto GuiView::IsDocked() -> bool // test if the MapViewWindow is docked inside t
     return false; // TODO: this does not make sense.
 }
 
-auto GuiView::GetRootParentCurrentWindowOffset() -> ImVec2
+auto GuiViews::GetRootParentCurrentWindowOffset() -> ImVec2
 {
     ImVec2 parentPos(0, 0);
     ImVec2 offset(0, 0);
@@ -121,7 +121,7 @@ auto GuiView::GetRootParentCurrentWindowOffset() -> ImVec2
     return offset;
 }
 
-auto GuiView::ShowOrHideWindow(View& view, bool show) -> void
+auto GuiViews::ShowOrHideWindow(View& view, bool show) -> void
 {
     if (view.m_ShowWindow != show) // change in show state
     {
@@ -130,7 +130,7 @@ auto GuiView::ShowOrHideWindow(View& view, bool show) -> void
     }
 }
 
-auto GuiView::UpdateWindowPosition(View& view) -> void
+auto GuiViews::UpdateWindowPosition(View& view) -> void
 {
     if (!view.m_HWND)
         return;
@@ -178,7 +178,7 @@ auto GuiView::UpdateWindowPosition(View& view) -> void
     }
 }
 
-auto GuiView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
+auto GuiViews::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 {
     WNDCLASSEX wndClassData;
     wndClassData.cbSize = sizeof(WNDCLASSEX);
@@ -197,12 +197,12 @@ auto GuiView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
     RegisterClassEx(&wndClassData);
 }
 
-auto GuiView::GetHWND() -> HWND
+auto GuiViews::GetHWND() -> HWND
 {
     return m_ViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
-auto GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
+auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
 {
     if (!currentItem)
         return;
@@ -222,7 +222,7 @@ auto GuiView::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std:
     m_AddCurrentItem = true;
 }
 
-auto GuiView::InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min, UInt32 max) -> HWND
+auto GuiViews::InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min, UInt32 max) -> HWND
 {
     HINSTANCE instance = GetInstance(parent_hwnd);
     RegisterViewAreaWindowClass(instance);
@@ -243,7 +243,7 @@ auto GuiView::InitWindowParameterized(std::string caption, DataView* dv, ViewSty
     );
 }
 
-auto GuiView::InitWindow(TreeItem* currentItem) -> WindowState
+auto GuiViews::InitWindow(TreeItem* currentItem) -> WindowState
 {
     //TODO: simplify, make function more pure; remove side effects
     ImVec2 crMin = ImGui::GetWindowContentRegionMin();
@@ -277,12 +277,12 @@ auto GuiView::InitWindow(TreeItem* currentItem) -> WindowState
     return WindowState::CHANGED;
 }
 
-auto GuiView::CloseAll() -> void
+auto GuiViews::CloseAll() -> void
 {
     m_Views.clear();
 }
 
-auto GuiView::CloseWindowOnMimimumSize(View &view) -> bool
+auto GuiViews::CloseWindowOnMimimumSize(View &view) -> bool
 {
     auto crm = ImGui::GetContentRegionMax();
     static int min_szx = 50, min_szy = 50;
@@ -295,9 +295,9 @@ auto GuiView::CloseWindowOnMimimumSize(View &view) -> bool
     return false;
 }
 
-GuiView::~GuiView(){}
+GuiViews::~GuiViews(){}
 
-auto GuiView::UpdateAll(GuiState& state) -> void
+auto GuiViews::UpdateAll(GuiState& state) -> void
 {
     auto edit_palette_it = m_EditPaletteWindows.begin();
     for (auto& palette_editor : m_EditPaletteWindows)
@@ -366,7 +366,7 @@ private:
     GuiMainComponent* m_main_ptr = nullptr;
 };
 
-void GuiView::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
+void GuiViews::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
 {
     auto gui_main_component_ptr = reinterpret_cast<GuiMainComponent*>(clientHandle);
     
@@ -450,7 +450,7 @@ static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add
         ImGui::UpdateWindowParentAndRootLinks(window, window->Flags | ImGuiWindowFlags_ChildWindow, node->HostWindow);
 }
 
-auto GuiView::Update(GuiState& state, View& view) -> bool
+bool GuiViews::Update(GuiState& state, View& view)
 {
     auto event_queues = GuiEventQueues::getInstance();
 
@@ -593,13 +593,13 @@ auto GuiView::Update(GuiState& state, View& view) -> bool
     return result;
 }
 
-auto GuiView::OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
+auto GuiViews::OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
 {
     auto gui_main_component_ptr = reinterpret_cast<GuiMainComponent*>(clientHandle);
     if (notificationCode == NotificationCode::CC_CreateMdiChild) // TODO: this should have its own separate callback
     {
         
-        gui_main_component_ptr->m_View.ResetEditPaletteWindow(clientHandle, self);
+        gui_main_component_ptr->m_Views.ResetEditPaletteWindow(clientHandle, self);
 
         //mdi_create_struct_ptr->dataView->CreateViewWindow(mdi_create_struct_ptr->dataView, mdi_create_struct_ptr->caption);
         //event_queues->MapViewEvents.Add();

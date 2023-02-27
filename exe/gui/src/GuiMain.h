@@ -49,7 +49,7 @@ public:
 	GuiCurrentItem					m_CurrentItem	= {};
 	GuiToolbar						m_Toolbar		= {};
 	GuiEventLog						m_EventLog		= {};
-	GuiView							m_View			= {};
+	GuiViews						m_Views			= {};
 	GuiOptions						m_Options		= {};
 	GuiStatusBar					m_StatusBar		= {};
 	GuiUnitTest						m_GuiUnitTest	= {};

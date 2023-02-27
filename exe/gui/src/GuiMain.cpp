@@ -50,7 +50,7 @@ GuiMainComponent::GuiMainComponent()
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
     DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, this);
-    DMS_RegisterStateChangeNotification(&m_View.OnOpenEditPaletteWindow, this);
+    DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
@@ -117,7 +117,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_Views.size()));
 
         break;
     }
@@ -128,10 +128,10 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size()));
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_Views.m_Views.size()));
 
         break;
     }
@@ -143,9 +143,9 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
-        case tvsMapView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size())); break; }
-        case tvsTableView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
-        case tvsTableContainer: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
+        case tvsMapView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
+        case tvsTableView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
+        case tvsTableContainer: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
         }
 
         break;
@@ -198,7 +198,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         }
         break;
     }
-    case GuiEvents::CloseAllViews: { m_View.CloseAll(); break;}
+    case GuiEvents::CloseAllViews: { m_Views.CloseAll(); break;}
     case GuiEvents::StepToRootErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -236,7 +236,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_DetailPages.clear();
-    m_View.CloseAll();
+    m_Views.CloseAll();
     m_Treeview.clear();
     m_State.clear();
 }
@@ -707,7 +707,7 @@ bool GuiMainComponent::Update()
     ShowAboutDialogIfNecessary(m_State);
 
     //static auto first_time = true;
-    m_Menu.Update(m_State, m_View);
+    m_Menu.Update(m_State, m_Views);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
@@ -717,7 +717,7 @@ bool GuiMainComponent::Update()
     
     // Update all GeoDMSGui components
     if (m_State.ShowToolbar)
-        m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
+        m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_Views);
 
     if (m_State.ShowDetailPagesWindow)
         m_DetailPages.Update(&m_State.ShowDetailPagesWindow, m_State);
@@ -731,7 +731,7 @@ bool GuiMainComponent::Update()
     if (m_State.ShowStatusBar)
         m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
-    m_View.UpdateAll(m_State);
+    m_Views.UpdateAll(m_State);
 
 
 
