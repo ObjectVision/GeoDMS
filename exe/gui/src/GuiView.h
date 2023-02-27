@@ -5,12 +5,6 @@
 #include <windows.h>
 #include "dataview.h"
 
-//TODO:		
-// define active viewre
-// window naming sprintf(buf, "Animated title %c %d###AnimatedTitle", "|/-\\"[(int)(ImGui::GetTime() / 0.25f) & 3], ImGui::GetFrameCount());
-// programatically docking of new node DockBuilderDockWindow DockBuilderGetCentralNode
-
-
 enum WindowState
 {
 	UNINITIALIZED = -1,
@@ -21,16 +15,18 @@ enum WindowState
 class AbstractView
 {
 public:
-	virtual bool update();
+	virtual bool Update(GuiState& state) = 0;
 };
 
-class View
+class View : AbstractView
 {
 public:
 	View(std::string n)
 	{
 		m_Name = n;
 	}
+
+	bool Update(GuiState& state) override;
 
 	View(std::string n, ViewStyle vs, DataView* dv)
 	{
@@ -39,9 +35,19 @@ public:
 		m_DataView = dv; //use SharedFromThis on DataView
 	}
 	View(View&& other) noexcept;
-	auto operator=(View && other) noexcept -> void;
+	void operator=(View && other) noexcept;
 	~View();
-	auto Reset() -> void;
+	void Reset();
+
+	// window helper functions
+	bool CloseWindowOnMimimumSize();
+	void ShowOrHideWindow(bool show);
+	bool IsDocked();
+	auto UpdateParentWindow() -> WindowState;
+	void UpdateWindowPosition();
+	auto GetRootParentCurrentWindowOffset() -> ImVec2;
+	auto InitWindow(TreeItem* currentItem) -> WindowState;
+	void RegisterViewAreaWindowClass(HINSTANCE instance);
 
 	bool m_DoView = true;            // show the imgui window
 	std::string m_Name;
@@ -58,9 +64,9 @@ class GuiViews
 public:
 	~GuiViews();
 	void CloseAll();
-	auto AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void;
+	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
 	auto GetHWND() -> HWND; //TODO: move, not the right place
-	auto UpdateAll(GuiState& state) -> void;
+	void UpdateAll(GuiState& state);
 	std::vector<View> m_Views;
 	std::vector<View> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
 	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<View>>> m_ViewIt = m_Views.begin();
@@ -69,17 +75,10 @@ public:
 	static auto OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;
 
 private:
-	auto Update(GuiState& state, View& view) -> bool;
-	auto InitWindow(TreeItem* currentItem) -> WindowState;
-	auto InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min = 300, UInt32 max = 600) -> HWND;
-	auto UpdateParentWindow(View& view) -> WindowState;
-	auto CloseWindowOnMimimumSize(View& view) -> bool;
-	auto GetRootParentCurrentWindowOffset() -> ImVec2;
-	auto UpdateWindowPosition(View& view) -> void;
-	auto ShowOrHideWindow(View& view, bool show) -> void;
-	auto RegisterViewAreaWindowClass(HINSTANCE instance) -> void;
-	auto IsDocked() -> bool;
-	auto ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void;
+	//bool Update(GuiState& state, View& view);
+
+	//auto InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min = 300, UInt32 max = 600) -> HWND;
+	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
 
 	bool		m_AddCurrentItem = false;
 };
