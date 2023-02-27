@@ -236,7 +236,7 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
 
     auto cur_pos = ImGui::GetCursorPos();
     //ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
-    ImGui::SetCursorPos(ImVec2(cur_pos.x * m_depth, cur_pos.y));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x * 3 * m_depth, cur_pos.y));
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
