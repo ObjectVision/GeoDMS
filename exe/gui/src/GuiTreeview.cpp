@@ -65,12 +65,13 @@ void DrawRightMouseClickButtonElement(std::string button_text, bool show, GuiEve
 {
     //bool show = vs & vs_capability || vs_capability == ViewStyleFlags::vsfNone;
     ImGui::PushStyleColor(ImGuiCol_Text, show ? IM_COL32(0, 0, 0, 255) : IM_COL32(0, 0, 0, 200));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, show ? IM_COL32(66, 150, 250, 79) : IM_COL32(0, 0, 0, 0));
     if (ImGui::Button(button_text.c_str()))
     {
         if (show)
             GuiEventQueues::getInstance()->MainEvents.Add(event);
     }
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(2);
 }
 
 void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
@@ -87,6 +88,7 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
         //DrawRightMouseClickButtonElement
 
         auto vsflags = SHV_GetViewStyleFlags(state.GetCurrentItem());
+        auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
         if (vsflags & ViewStyleFlags::vsfMapView) {  }
         else if (vsflags & ViewStyleFlags::vsfTableContainer) {  }
         else if (vsflags & ViewStyleFlags::vsfTableView) {  }
@@ -97,46 +99,19 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
         //auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
 
         DrawRightMouseClickButtonElement("Edit Config Source       Ctrl-E", true, GuiEvents::OpenConfigSource);
-        DrawRightMouseClickButtonElement("Default View", vsflags & ViewStyleFlags::vsfDefault || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewDefaultViewWindow);
+        DrawRightMouseClickButtonElement("Default View", (default_viewstyle== ViewStyle::tvsTableContainer) || (default_viewstyle== ViewStyle::tvsTableView) || (default_viewstyle==ViewStyle::tvsMapView), GuiEvents::OpenNewDefaultViewWindow);
         DrawRightMouseClickButtonElement("Table View               CTRL-D", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewTableViewWindow);
         DrawRightMouseClickButtonElement("Map View                 CTRL-M", vsflags & ViewStyleFlags::vsfMapView, GuiEvents::OpenNewMapViewWindow);
 
-        //bool default_view_active = vsflags & ViewStyleFlags::vsfDefault;
-        
-
-        //ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
-        //if (ImGui::Button("Edit Config Source       Ctrl-E"))
-        //    event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
-        //ImGui::PopStyleColor();
-
-        //ImGui::PushStyleColor(ImGuiCol_Text, default_view_active ? IM_COL32(0, 0, 0, 255) : IM_COL32(0, 0, 0, 200));
-        
-        /*if (ImGui::Button("Default View"))
-        {
-            if (default_view_active)
-                event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
-        }
-        ImGui::PopStyleColor();*/
-
-        /*ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
-        if (ImGui::Button("Map View                 CTRL-M"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
-        ImGui::PopStyleColor();
-
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
-        if (ImGui::Button("Table View               CTRL-D"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
-        ImGui::PopStyleColor();*/
 
         //url 
         auto treeitem_metadata_url = TreeItemPropertyValue(state.GetCurrentItem(), urlPropDefPtr);
         if (!treeitem_metadata_url.empty())
         {
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
             if (ImGui::Button("Open Metainfo url"))
-            {
                 OpenUrlInWindowsDefaultBrowser(treeitem_metadata_url.c_str());
-                //ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-            }
+            ImGui::PopStyleColor();
         }
         ImGui::PopStyleColor();
 
