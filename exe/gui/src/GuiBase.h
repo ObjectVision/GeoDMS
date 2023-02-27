@@ -277,6 +277,7 @@ public:
 	auto GetCurrentIterator() -> std::list<ViewAction>::iterator;
 	auto  GetBeginIterator() -> std::list<ViewAction>::iterator;
 	auto GetEndIterator() -> std::list<ViewAction>::iterator;
+	void clear() { m_History.clear(); m_Iterator = m_History.begin(); };
 private:
 	std::list<ViewAction>::iterator m_Iterator;
 	std::list<ViewAction> m_History; // TODO: replace std::list with std::vector

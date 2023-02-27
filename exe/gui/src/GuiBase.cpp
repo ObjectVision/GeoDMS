@@ -120,6 +120,8 @@ auto GuiState::clear() -> void
         m_Root->EnableAutoDelete();
 
     m_Root.reset();
+    
+    TreeItemHistoryList.clear();
 }
 
 GuiState::~GuiState()
