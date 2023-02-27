@@ -397,7 +397,7 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
     window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
 
     ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
-    ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE : ICON_RI_FLOPPY_SOLID);
+    ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
     window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 

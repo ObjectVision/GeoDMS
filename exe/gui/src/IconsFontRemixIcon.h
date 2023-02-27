@@ -20,3 +20,4 @@
 #define ICON_RI_FLOPPY_LINE			"\xEF\x82\xB3" // U+F0B3
 #define ICON_RI_FLOPPY_SOLID        "\xEF\x82\xB0" // U+F0B0
 #define ICON_RI_DATABASE            "\xEE\xB0\x96" // U+EC16
+#define ICON_RI_DATABASE_SOLID      "\xEE\xB0\x95" // U+EC15
