@@ -210,15 +210,15 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    if (!view.m_Views.empty())
+    if (!view.m_DMSViews.empty())
     {
-        if (view.m_ViewIt!=view.m_Views.end())
+        if (view.m_DMSViewIt!=view.m_DMSViews.end())
         {
-            if (view.m_ViewIt->m_ViewStyle == tvsTableView)
+            if (view.m_DMSViewIt->m_ViewStyle == tvsTableView)
             {
                 ShowTableViewButtons(view);
             }
-            else if (view.m_ViewIt->m_ViewStyle == tvsMapView)
+            else if (view.m_DMSViewIt->m_ViewStyle == tvsMapView)
             {
                 ShowMapViewButtons(view);
             }

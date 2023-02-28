@@ -67,9 +67,12 @@ public:
 	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
 	auto GetHWND() -> HWND; //TODO: move, not the right place
 	void UpdateAll(GuiState& state);
-	std::vector<DMSView> m_Views;
+	
+	// view containers
+	std::vector<DMSView> m_DMSViews; // tableviews/mapviews
+	
 	std::vector<DMSView> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
-	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>> m_ViewIt = m_Views.begin();
+	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>> m_DMSViewIt = m_DMSViews.begin();
 
 	void ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self);
 	static auto OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;

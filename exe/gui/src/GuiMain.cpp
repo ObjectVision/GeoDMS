@@ -117,7 +117,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
-            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_DMSViews.size()));
 
         break;
     }
@@ -128,10 +128,10 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
-            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_DMSViews.size()));
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
-            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_Views.m_Views.size()));
+            m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_Views.m_DMSViews.size()));
 
         break;
     }
@@ -143,9 +143,9 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
-        case tvsMapView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
-        case tvsTableView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
-        case tvsTableContainer: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_Views.size())); break; }
+        case tvsMapView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_Views.m_DMSViews.size())); break; }
+        case tvsTableView: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_DMSViews.size())); break; }
+        case tvsTableContainer: { m_Views.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_Views.m_DMSViews.size())); break; }
         }
 
         break;

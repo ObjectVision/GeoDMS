@@ -437,7 +437,7 @@ auto GuiViews::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 
 auto GuiViews::GetHWND() -> HWND
 {
-    return m_ViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
+    return m_DMSViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
 auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
@@ -450,11 +450,11 @@ auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-    m_Views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
-    m_ViewIt = --m_Views.end();
-    m_ViewIt->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
-    m_ViewIt->InitWindow(state.GetCurrentItem()); // m_Views.back().InitWindow(state.GetCurrentItem());
-    SHV_DataView_AddItem(m_ViewIt->m_DataView, state.GetCurrentItem(), false);
+    m_DMSViews.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
+    m_DMSViewIt = --m_DMSViews.end();
+    m_DMSViewIt->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
+    m_DMSViewIt->InitWindow(state.GetCurrentItem()); // m_Views.back().InitWindow(state.GetCurrentItem());
+    SHV_DataView_AddItem(m_DMSViewIt->m_DataView, state.GetCurrentItem(), false);
     m_AddCurrentItem = true;
 }
 
@@ -481,7 +481,7 @@ auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std
 
 auto GuiViews::CloseAll() -> void
 {
-    m_Views.clear();
+    m_DMSViews.clear();
 }
 
 GuiViews::~GuiViews(){}
@@ -492,23 +492,23 @@ auto GuiViews::UpdateAll(GuiState& state) -> void
     for (auto& palette_editor : m_EditPaletteWindows)
         palette_editor.Update(state);
 
-    auto it = m_Views.begin();
-    while (it != m_Views.end()) 
+    auto it = m_DMSViews.begin();
+    while (it != m_DMSViews.end()) 
     {
-        if (it->m_DoView && m_ViewIt->m_DataView && IsWindow(it->m_HWND))
+        if (it->m_DoView && m_DMSViewIt->m_DataView && IsWindow(it->m_HWND))
         {
-            if (it->Update(state) && it._Ptr && m_ViewIt != it)
-                m_ViewIt = it;
+            if (it->Update(state) && it._Ptr && m_DMSViewIt != it)
+                m_DMSViewIt = it;
 
             ++it;
         }
         else // view to be destroyed
         {
-            it = m_Views.erase(it);
-            if (it == m_Views.end())
-                m_ViewIt = m_Views.begin();
+            it = m_DMSViews.erase(it);
+            if (it == m_DMSViews.end())
+                m_DMSViewIt = m_DMSViews.begin();
             else
-                m_ViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
+                m_DMSViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
         }
     }
 }
