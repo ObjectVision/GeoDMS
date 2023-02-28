@@ -155,7 +155,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         if (!IsDataItem(m_State.GetCurrentItem())) // statistics is for dataitems only
             break;
 
-        m_Views.AddStatisticsView(m_State, "###StatView" + std::to_string(m_Views.m_statistics_views.size()));
+        m_Views.AddStatisticsView(m_State, std::string("###StatView") + std::to_string(m_Views.m_statistics_views.size()));
 
         break;
     }

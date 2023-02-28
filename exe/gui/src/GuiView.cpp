@@ -101,6 +101,32 @@ static void DockNodeAddWindow(ImGuiDockNode* node, ImGuiWindow* window, bool add
         ImGui::UpdateWindowParentAndRootLinks(window, window->Flags | ImGuiWindowFlags_ChildWindow, node->HostWindow);
 }
 
+bool IsDocked() // test if the MapViewWindow is docked inside the ImGui main window.
+{
+    auto glfw_window = glfwGetCurrentContext();
+    auto mainWindow = glfwGetWin32Window(glfw_window);
+    auto window = ImGui::GetCurrentWindow();
+    if (window)
+        return mainWindow == (HWND)window->Viewport->PlatformHandleRaw;
+    return false; // TODO: throw error
+}
+
+void CreateDockNodeForFloatingWindowIfNecessary(bool &has_been_docking_initialized, ImGuiWindow* window)
+{
+    if (has_been_docking_initialized && !IsDocked() && window->DockNodeAsHost == NULL && window->DockNode == NULL) // floating window
+    {
+        auto ctx = ImGui::GetCurrentContext();
+        auto id = ImGui::DockContextGenNodeID(ctx);
+        ImGuiDockNode* node = IM_NEW(ImGuiDockNode)(id);
+        ctx->DockContext.Nodes.SetVoidPtr(node->ID, node);
+        node->Pos = window->Pos;
+        node->Size = window->Size;
+        DockNodeAddWindow(node, window, true);
+        node->TabBar->Tabs[0].Flags &= ~ImGuiTabItemFlags_Unsorted;
+        window->DockIsActive = true;
+    }
+}
+
 bool DMSView::Update(GuiState& state)
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -117,23 +143,8 @@ bool DMSView::Update(GuiState& state)
     }
 
     auto view_window = ImGui::GetCurrentWindow();
-    if (has_been_docking_initialized && !IsDocked() && view_window->DockNodeAsHost == NULL && view_window->DockNode == NULL) // floating window
-    {
-        auto ctx = ImGui::GetCurrentContext();
-        auto id = ImGui::DockContextGenNodeID(ctx);
-        ImGuiDockNode* node = IM_NEW(ImGuiDockNode)(id);
-        ctx->DockContext.Nodes.SetVoidPtr(node->ID, node);
-        node->Pos = view_window->Pos;
-        node->Size = view_window->Size;
-        DockNodeAddWindow(node, view_window, true);
-        node->TabBar->Tabs[0].Flags &= ~ImGuiTabItemFlags_Unsorted;
-        view_window->DockIsActive = true;
 
-    }
-
-    if (!ImGui::GetWindowAlwaysWantOwnTabBar(view_window))
-        view_window->WindowClass.DockingAlwaysTabBar = true; // Floating view windows always have their own tabbar
-
+    CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window);
 
     // handle events
     EventQueue* eventQueuePtr = nullptr;
@@ -255,15 +266,6 @@ auto DMSView::ShowOrHideWindow(bool show) -> void
     }
 }
 
-auto DMSView::IsDocked() -> bool // test if the MapViewWindow is docked inside the ImGui main window.
-{
-    auto glfw_window = glfwGetCurrentContext();
-    auto mainWindow = glfwGetWin32Window(glfw_window);
-    auto window = ImGui::GetCurrentWindow();
-    if (window)
-        return mainWindow == (HWND)window->Viewport->PlatformHandleRaw;
-    return false; // TODO: throw error
-}
 
 
 auto DMSView::UpdateParentWindow() -> WindowState
@@ -408,7 +410,7 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 StatisticsView::StatisticsView(GuiState& state, std::string name)
 {
     m_item = state.GetCurrentItem();
-    m_Name = "Statistics for " + std::string(m_item->GetName().c_str()) + name;
+    m_Name = std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; // ICON_RI_GLOBE
 }
 
 void StatisticsView::UpdateData()
@@ -443,7 +445,6 @@ bool StatisticsView::Update(GuiState& state)
         int i = 0;
     }
 
-
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
     {
@@ -451,6 +452,7 @@ bool StatisticsView::Update(GuiState& state)
         return false;
     }
     auto view_window = ImGui::GetCurrentWindow();
+    CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window);
 
     if (!has_been_docking_initialized)
     {

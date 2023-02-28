@@ -45,7 +45,7 @@ public:
 	// window helper functions
 	bool CloseWindowOnMimimumSize();
 	void ShowOrHideWindow(bool show);
-	bool IsDocked();
+	//bool IsDocked();
 	auto UpdateParentWindow() -> WindowState;
 	void UpdateWindowPosition();
 	auto GetRootParentCurrentWindowOffset() -> ImVec2;
@@ -72,7 +72,7 @@ private:
 	
 	bool m_done = false;
 	bool m_is_ready = false;
-	InterestPtr<TreeItem*> m_item = nullptr;
+	InterestPtr<TreeItem*> m_item = nullptr; // to be released when statistics information is finalized
 	TableData m_data;
 };
 
