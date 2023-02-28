@@ -94,7 +94,6 @@ private:
     auto UpdateConfiguration(GuiState& state) -> void;
     auto UpdateSourceDescription(GuiState& state) -> void;
     //auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
-    auto DrawProperties(GuiState& state, TableData& properties) -> void;
 
     HTMLGuiComponentFactory m_Buff;
     TableData m_GeneralProperties;

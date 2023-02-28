@@ -406,3 +406,4 @@ auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
 void StringToTable(std::string& input, TableData& result, std::string separator = "");
+auto DrawProperties(GuiState& state, TableData& properties) -> void;

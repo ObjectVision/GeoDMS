@@ -284,6 +284,7 @@ auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
 void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 {
     clear();
+    SuspendTrigger::Resume();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true);
@@ -379,73 +380,6 @@ auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
-}
-
-void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
-{
-    auto event_queues = GuiEventQueues::getInstance();
-    if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
-        return;
-
-    int button_index = 0; //TODO: does assumption of max 2 columns hold?
-    ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_NoHostExtendX);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
-    for (auto& row : properties)
-    {
-        ImGui::TableNextRow();
-        UInt8 column_index = 0;
-        for (auto& col : row)
-        {
-            if (column_index == 2) // hardcoded 2
-                break;
-            ImGui::TableSetColumnIndex(column_index);
-            if (col.background_is_red)
-                SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
-            if (col.type == PET_HEADING)
-            {
-                ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());
-            }
-            else if (col.type == PET_LINK)
-            {
-                //ImGui::PushID(button_index++);
-                //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-                
-                ImGui::TextWrapped(col.text.c_str());
-
-                if (ImGui::IsItemClicked())
-                {
-                    auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
-                    if (jumpItem.first && jumpItem.first!=state.GetRoot())
-                    {
-                        state.SetCurrentItem(const_cast<TreeItem*>(jumpItem.first));
-                        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                        event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-                        event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                    }
-                }
-                //ImGui::PopID();
-                ImGui::PopStyleColor();
-            }
-            else if (col.type == PET_TEXT)
-            {
-                ImGui::TextWrapped(col.text.c_str());
-                //ImGui::Text(col.text.c_str());
-            }
-            else if (col.type == PET_SEPARATOR)
-            {
-                ImGui::Separator();
-                column_index++;
-                ImGui::TableSetColumnIndex(column_index);
-                ImGui::Separator();
-            }
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-            column_index++;
-            OnItemClickItemTextTextToClipboard(col.text);
-        }
-    }
-    ImGui::EndTable();
 }
 
 auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,

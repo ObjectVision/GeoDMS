@@ -71,7 +71,8 @@ public:
 private:
 	
 	bool m_done = false;
-	TreeItem* m_item = nullptr;
+	bool m_is_ready = false;
+	InterestPtr<TreeItem*> m_item = nullptr;
 	TableData m_data;
 };
 

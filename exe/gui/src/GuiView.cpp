@@ -22,6 +22,7 @@
 #include "TreeItem.h"
 #include "utl/mySPrintF.h"
 #include "ClcInterface.h"
+#include "Explain.h"
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -410,8 +411,39 @@ StatisticsView::StatisticsView(GuiState& state, std::string name)
     m_Name = "Statistics for " + std::string(m_item->GetName().c_str()) + name;
 }
 
+void StatisticsView::UpdateData()
+{
+    if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
+        return;
+
+    DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
+    //InterestPtr<TreeItem*> tmp_interest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
+    //if (!tmp_interest)
+    //    int i = 0;
+    m_done = false;
+    std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
+    StringToTable(statistics_string, m_data, ":");
+
+    m_is_ready = m_done;
+
+    if (DMS_TreeItem_GetProgressState(m_item)> NotificationCode::NC2_MetaReady && DMS_TreeItem_GetProgressState(m_item) <= NotificationCode::NC2_Committed) //TODO: fix bug with DMS_NumericDataItem_GetStatistics bool ptr
+    {
+        m_is_ready = true;
+        m_item.release();
+        m_item = nullptr;
+    }
+}
+
 bool StatisticsView::Update(GuiState& state)
 {
+    if (!m_is_ready)
+        UpdateData();
+    else
+    {
+        int i = 0;
+    }
+
+
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
     {
@@ -428,21 +460,12 @@ bool StatisticsView::Update(GuiState& state)
             has_been_docking_initialized = true;
     }
 
+    DrawProperties(state, m_data);
+
     ImGui::End();
 
     return true;
 }
-
-void StatisticsView::UpdateData()
-{
-    if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
-        return;
-
-    InterestPtr<TreeItem*> tmpInterest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
-    std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, &m_done);
-    StringToTable(statistics_string, m_data, ":");
-}
-
 
 auto GuiViews::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 {
