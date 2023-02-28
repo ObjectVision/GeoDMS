@@ -368,6 +368,25 @@ private:
 	SharedPtr<TreeItem> m_CurrentItem;
 };
 
+// for detail pages and gui views
+enum PropertyEntryType
+{
+	PET_SEPARATOR,
+	PET_TEXT,
+	PET_LINK,
+	PET_HEADING
+};
+
+struct PropertyEntry
+{
+	PropertyEntryType   type;
+	bool background_is_red = false;
+	std::string         text;
+};
+
+using RowData = std::vector<PropertyEntry>;
+using TableData = std::vector<RowData>;
+
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;

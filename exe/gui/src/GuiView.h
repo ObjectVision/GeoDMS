@@ -62,7 +62,11 @@ public:
 class StatisticsView : AbstractView
 {
 public:
-	bool Update(GuiState& state) override { return true; };
+	bool Update(GuiState& state) override { return true; }; // TODO: hotkey using CTRL-I, change invalidate hotkey to ALT-I
+
+private:
+	TreeItem* item;
+	TableData m_data;
 };
 
 class GuiViews 
@@ -93,5 +97,5 @@ private:
 	//auto InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min = 300, UInt32 max = 600) -> HWND;
 	void ProcessEvent(GuiEvents event, TreeItem* currentItem);
 
-	bool		m_AddCurrentItem = false;
+	bool m_AddCurrentItem = false;
 };

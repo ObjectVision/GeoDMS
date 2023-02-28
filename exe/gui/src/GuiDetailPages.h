@@ -38,27 +38,9 @@ public:
 
     void clear()
     {
-        int i = 1;
+        // TODO: implement?
     }
 };
-
-enum PropertyEntryType
-{
-    PET_SEPARATOR,
-    PET_TEXT,
-    PET_LINK,
-    PET_HEADING
-};
-
-struct PropertyEntry
-{
-    PropertyEntryType   type; 
-    bool background_is_red = false;
-    std::string         text;
-};
-
-using RowData = std::vector<PropertyEntry>;
-using TableData = std::vector<RowData>;
 
 class HTMLGuiComponentFactory : public OutStreamBuff
 {
@@ -118,7 +100,7 @@ private:
     TableData m_GeneralProperties;
     TableData m_AllProperties;
     TableData m_ExploreProperties;
-    TableData m_Statistics;
+    //TableData m_Statistics;
     TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
