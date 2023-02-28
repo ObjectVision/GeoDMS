@@ -59,8 +59,18 @@ public:
 	bool has_been_docking_initialized = false;
 };
 
+class StatisticsView : AbstractView
+{
+public:
+	bool Update(GuiState& state) override { return true; };
+};
+
 class GuiViews 
 {
+	using dms_views = std::vector<DMSView>;
+	using statistics_views = std::vector<StatisticsView>;
+	using dms_view_it = std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>>;
+
 public:
 	~GuiViews();
 	void CloseAll();
@@ -69,10 +79,10 @@ public:
 	void UpdateAll(GuiState& state);
 	
 	// view containers
-	std::vector<DMSView> m_DMSViews; // tableviews/mapviews
-	
-	std::vector<DMSView> m_EditPaletteWindows; // name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load)
-	std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>> m_DMSViewIt = m_DMSViews.begin();
+	dms_views        m_dms_views; // tableviews and mapviews
+	dms_views        m_edit_palette_windows;
+	statistics_views m_statistics_views;
+	dms_view_it      m_dms_view_it = m_dms_views.begin();
 
 	void ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self);
 	static auto OnOpenEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;

@@ -437,7 +437,7 @@ auto GuiViews::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 
 auto GuiViews::GetHWND() -> HWND
 {
-    return m_DMSViewIt->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
+    return m_dms_view_it->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
 auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
@@ -450,11 +450,11 @@ auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-    m_DMSViews.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
-    m_DMSViewIt = --m_DMSViews.end();
-    m_DMSViewIt->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
-    m_DMSViewIt->InitWindow(state.GetCurrentItem()); // m_Views.back().InitWindow(state.GetCurrentItem());
-    SHV_DataView_AddItem(m_DMSViewIt->m_DataView, state.GetCurrentItem(), false);
+    m_dms_views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
+    m_dms_view_it = --m_dms_views.end();
+    m_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
+    m_dms_view_it->InitWindow(state.GetCurrentItem()); // m_Views.back().InitWindow(state.GetCurrentItem());
+    SHV_DataView_AddItem(m_dms_view_it->m_DataView, state.GetCurrentItem(), false);
     m_AddCurrentItem = true;
 }
 
@@ -481,7 +481,7 @@ auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std
 
 auto GuiViews::CloseAll() -> void
 {
-    m_DMSViews.clear();
+    m_dms_views.clear();
 }
 
 GuiViews::~GuiViews(){}
@@ -489,26 +489,26 @@ GuiViews::~GuiViews(){}
 auto GuiViews::UpdateAll(GuiState& state) -> void
 {
     //auto edit_palette_it = m_EditPaletteWindows.begin();
-    for (auto& palette_editor : m_EditPaletteWindows)
+    for (auto& palette_editor : m_edit_palette_windows)
         palette_editor.Update(state);
 
-    auto it = m_DMSViews.begin();
-    while (it != m_DMSViews.end()) 
+    auto it = m_dms_views.begin();
+    while (it != m_dms_views.end())
     {
-        if (it->m_DoView && m_DMSViewIt->m_DataView && IsWindow(it->m_HWND))
+        if (it->m_DoView && m_dms_view_it->m_DataView && IsWindow(it->m_HWND))
         {
-            if (it->Update(state) && it._Ptr && m_DMSViewIt != it)
-                m_DMSViewIt = it;
+            if (it->Update(state) && it._Ptr && m_dms_view_it != it)
+                m_dms_view_it = it;
 
             ++it;
         }
         else // view to be destroyed
         {
-            it = m_DMSViews.erase(it);
-            if (it == m_DMSViews.end())
-                m_DMSViewIt = m_DMSViews.begin();
+            it = m_dms_views.erase(it);
+            if (it == m_dms_views.end())
+                m_dms_view_it = m_dms_views.begin();
             else
-                m_DMSViewIt = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
+                m_dms_view_it = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
         }
     }
 }
