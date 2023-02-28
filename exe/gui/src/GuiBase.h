@@ -37,6 +37,7 @@ enum class GuiEvents
 	ReopenCurrentConfiguration,
 	OpenNewMapViewWindow,
 	OpenNewTableViewWindow,
+	OpenNewStatisticsViewWindow,
 	OpenNewConfiguration,
 	OpenInMemoryDataView,
 	OpenNewDefaultViewWindow,
@@ -404,3 +405,4 @@ auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_tex
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
+void StringToTable(std::string& input, TableData& result, std::string separator = "");

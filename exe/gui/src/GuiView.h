@@ -16,9 +16,12 @@ class AbstractView
 {
 public:
 	virtual bool Update(GuiState& state) = 0;
+	std::string m_Name;
+	bool m_DoView = true;
+	bool has_been_docking_initialized = false;
 };
 
-class DMSView : AbstractView
+class DMSView : public AbstractView
 {
 public:
 	DMSView(std::string n)
@@ -49,23 +52,26 @@ public:
 	auto InitWindow(TreeItem* currentItem) -> WindowState;
 	void RegisterViewAreaWindowClass(HINSTANCE instance);
 
-	bool m_DoView = true;            // show the imgui window
-	std::string m_Name;
+	//bool m_DoView = true;            // show the imgui window
+	//std::string m_Name;
 	ViewStyle m_ViewStyle = tvsUndefined;;
 	DataView* m_DataView = nullptr;
 	HWND m_HWNDParent	 = nullptr;
 	HWND m_HWND		     = nullptr;
 	bool m_ShowWindow    = true;     // show or hide state of the child m_HWND
-	bool has_been_docking_initialized = false;
 };
 
-class StatisticsView : AbstractView
+class StatisticsView : public  AbstractView
 {
 public:
-	bool Update(GuiState& state) override { return true; }; // TODO: hotkey using CTRL-I, change invalidate hotkey to ALT-I
+	StatisticsView(GuiState &state, std::string name);
+	bool Update(GuiState& state) override; // TODO: hotkey using CTRL-I, change invalidate hotkey to ALT-I
+	void UpdateData();
 
 private:
-	TreeItem* item;
+	
+	bool m_done = false;
+	TreeItem* m_item = nullptr;
 	TableData m_data;
 };
 
@@ -78,7 +84,8 @@ class GuiViews
 public:
 	~GuiViews();
 	void CloseAll();
-	void AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name);
+	void AddDMSView(GuiState& state, ViewStyle vs, std::string name);
+	void AddStatisticsView(GuiState& state, std::string name);
 	auto GetHWND() -> HWND; //TODO: move, not the right place
 	void UpdateAll(GuiState& state);
 	

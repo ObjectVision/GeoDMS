@@ -268,8 +268,8 @@ auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
     if (explore_properties)
         m_ExploreProperties.clear();
 
-    if (statistics)
-        m_Statistics.clear();
+    //if (statistics)
+    //    m_Statistics.clear();
 
     if (value_info)
         m_ValueInfo.clear();
@@ -317,33 +317,12 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     m_Buff.Reset();
 }
 
-void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::string separator="")
-{
-    result.clear();
-    auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
-    for (auto& line : lines)
-    {
-        auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
-        //properties.emplace_back();
-        //properties.back().emplace_back(PET_HEADING, m_Text);
-        if (!colon_separated_line.empty())
-        {
-            result.emplace_back();
-            for (auto& part : colon_separated_line)
-            {
-                result.back().emplace_back(PET_TEXT, false, part);
-            }
-        }
-    }
-}
-
 auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
 {
-    //SuspendTrigger::Resume(); // TODO: necessary?
-    clear();
+    /*clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
-    StringToTable(statistics_string, m_Statistics, ":");
+    StringToTable(statistics_string, m_Statistics, ":");*/
 }
 
 auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
@@ -528,7 +507,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             m_AllProperties.clear();
             m_ExploreProperties.clear();
             m_Configuration.clear();
-            m_Statistics.clear();
+            //m_Statistics.clear();
             m_ValueInfo.clear();
             m_SourceDescription.clear();
             break;
@@ -596,18 +575,18 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
                 SetKeyboardFocusToThisHwnd();
         }
 
-        if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
+        /*if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
         {
             if (state.GetCurrentItem())
             {
-                if (m_Statistics.empty())
-                    UpdateStatistics(state);
-                DrawProperties(state, m_Statistics);
+                //if (m_Statistics.empty())
+                //    UpdateStatistics(state);
+                //DrawProperties(state, m_Statistics);
             }
             ImGui::EndTabItem();
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
-        }
+        }*/
 
         if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
         {

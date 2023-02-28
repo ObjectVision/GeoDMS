@@ -21,6 +21,7 @@
 #include "dbg/DmsCatch.h"
 #include "TreeItem.h"
 #include "utl/mySPrintF.h"
+#include "ClcInterface.h"
 
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -114,7 +115,7 @@ bool DMSView::Update(GuiState& state)
         return false;
     }
 
-    auto view_window = ImGui::GetCurrentWindow(); //TODO: temporary
+    auto view_window = ImGui::GetCurrentWindow();
     if (has_been_docking_initialized && !IsDocked() && view_window->DockNodeAsHost == NULL && view_window->DockNode == NULL) // floating window
     {
         auto ctx = ImGui::GetCurrentContext();
@@ -202,23 +203,13 @@ bool DMSView::Update(GuiState& state)
     auto show = !(ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     ShowOrHideWindow(show);
     UpdateWindowPosition();
-
+    ImGui::End();
 
     SuspendTrigger::Resume();
 
-
-
-    ImGui::End();
-
-
-
-
-
-    if (!has_been_docking_initialized)// && m_Views.size()==1)
+    if (!has_been_docking_initialized)
     {
-        //DockNodeCalcDropRectsAndTestMousePos
-
-        if (view_window->DockId)
+        if (view_window->DockId) // window has a dockid, so it is docked
         {
             has_been_docking_initialized = true;
             return result;
@@ -226,17 +217,6 @@ bool DMSView::Update(GuiState& state)
 
         if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
             has_been_docking_initialized = true;
-
-        /*auto ctx = ImGui::GetCurrentContext();
-        ImGuiDockContext* dc = &ctx->DockContext;
-        //auto dockspace_id = ImGui::GetID("GeoDMSDockSpace");
-
-        auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
-        if (dockspace_docknode && dockspace_docknode->HostWindow)
-        {
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, window, ImGuiDir_None, 0.0f, false);
-            view.has_been_docking_initialized = true;
-        }*/
     }
 
     return result;
@@ -278,10 +258,10 @@ auto DMSView::IsDocked() -> bool // test if the MapViewWindow is docked inside t
 {
     auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
-    auto window = ImGui::GetCurrentWindow();//ImGui::FindWindowByName(m_ViewName.c_str()); // GetCurrentWindow
+    auto window = ImGui::GetCurrentWindow();
     if (window)
         return mainWindow == (HWND)window->Viewport->PlatformHandleRaw;
-    return false; // TODO: this does not make sense.
+    return false; // TODO: throw error
 }
 
 
@@ -424,6 +404,46 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
     RegisterClassEx(&wndClassData);
 }
 
+StatisticsView::StatisticsView(GuiState& state, std::string name)
+{
+    m_item = state.GetCurrentItem();
+    m_Name = "Statistics for " + std::string(m_item->GetName().c_str()) + name;
+}
+
+bool StatisticsView::Update(GuiState& state)
+{
+    ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
+    {
+        ImGui::End();
+        return false;
+    }
+    auto view_window = ImGui::GetCurrentWindow();
+
+    if (!has_been_docking_initialized)
+    {
+        if (view_window->DockId) // window has a dockid, so it is docked
+            has_been_docking_initialized = true;
+        else if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
+            has_been_docking_initialized = true;
+    }
+
+    ImGui::End();
+
+    return true;
+}
+
+void StatisticsView::UpdateData()
+{
+    if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
+        return;
+
+    InterestPtr<TreeItem*> tmpInterest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
+    std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, &m_done);
+    StringToTable(statistics_string, m_data, ":");
+}
+
+
 auto GuiViews::ProcessEvent(GuiEvents event, TreeItem* currentItem) -> void
 {
     switch (event)
@@ -440,22 +460,32 @@ auto GuiViews::GetHWND() -> HWND
     return m_dms_view_it->m_HWND; //m_Views.at(m_ViewIndex).m_HWND;
 }
 
-auto GuiViews::AddView(GuiState& state, TreeItem* currentItem, ViewStyle vs, std::string name) -> void
+auto GuiViews::AddDMSView(GuiState& state, ViewStyle vs, std::string name) -> void
 {
-    if (!currentItem)
+    auto current_item = state.GetCurrentItem();
+    if (!current_item)
         return;
 
     static int s_ViewCounter = 0;
-    auto rootItem = (TreeItem*)currentItem->GetRoot();
+    auto rootItem = (TreeItem*)current_item->GetRoot();
     auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
     m_dms_views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));
     m_dms_view_it = --m_dms_views.end();
     m_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
-    m_dms_view_it->InitWindow(state.GetCurrentItem()); // m_Views.back().InitWindow(state.GetCurrentItem());
-    SHV_DataView_AddItem(m_dms_view_it->m_DataView, state.GetCurrentItem(), false);
+    m_dms_view_it->InitWindow(current_item); // m_Views.back().InitWindow(state.GetCurrentItem());
+    SHV_DataView_AddItem(m_dms_view_it->m_DataView, current_item, false);
     m_AddCurrentItem = true;
+}
+
+void GuiViews::AddStatisticsView(GuiState& state, std::string name)
+{
+    auto current_item = state.GetCurrentItem();
+    if (!current_item)
+        return;
+
+    m_statistics_views.emplace_back(state, name);
 }
 
 /*auto GuiViews::InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min, UInt32 max) -> HWND
@@ -489,9 +519,10 @@ GuiViews::~GuiViews(){}
 auto GuiViews::UpdateAll(GuiState& state) -> void
 {
     //auto edit_palette_it = m_EditPaletteWindows.begin();
-    for (auto& palette_editor : m_edit_palette_windows)
-        palette_editor.Update(state);
+    //for (auto& palette_editor : m_edit_palette_windows)
+    //    palette_editor.Update(state);
 
+    // update DMS views
     auto it = m_dms_views.begin();
     while (it != m_dms_views.end())
     {
@@ -509,6 +540,21 @@ auto GuiViews::UpdateAll(GuiState& state) -> void
                 m_dms_view_it = m_dms_views.begin();
             else
                 m_dms_view_it = it; // TODO: m_ViewIt should be restored to the previously set m_ViewIt
+        }
+    }
+
+    // update Statistic views
+    auto stat_it = m_statistics_views.begin();
+    while (stat_it != m_statistics_views.end())
+    {
+        if (stat_it->m_DoView)
+        {
+            stat_it->Update(state);
+            ++stat_it;
+        }
+        else // view to be destroyed
+        {
+            stat_it = m_statistics_views.erase(stat_it);
         }
     }
 }

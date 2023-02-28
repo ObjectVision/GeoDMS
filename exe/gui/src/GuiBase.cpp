@@ -522,3 +522,19 @@ void PostEmptyEventToGLFWContext()
 {
     glfwPostEmptyEvent();
 }
+
+void StringToTable(std::string& input, TableData& result, std::string separator)
+{
+    result.clear();
+    auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
+    for (auto& line : lines)
+    {
+        auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
+        if (!colon_separated_line.empty())
+        {
+            result.emplace_back();
+            for (auto& part : colon_separated_line)
+                result.back().emplace_back(PET_TEXT, false, part);
+        }
+    }
+}
