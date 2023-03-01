@@ -125,7 +125,7 @@ ImFont* SetGuiFont(std::vector<std::string> font_filenames, float font_size, flo
     
     std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
     
-    std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
+    //std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
     ImFontConfig config;
     config.GlyphOffset = ImVec2(0.0f, font_y_offset);//-2.0f);
     ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0}; // TODO: set range dynamically

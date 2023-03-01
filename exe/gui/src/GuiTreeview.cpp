@@ -240,6 +240,7 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
+    ImGui::PushFont(IsLeaf() ? state.fonts.text_font : state.fonts.icon_font);
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
     if (ImGui::Button(icon))//, ImVec2(20, 15)))
@@ -250,6 +251,7 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopStyleColor();
+    ImGui::PopFont();
     ImGui::PopID();
 
     //auto spacing_w = g.Style.ItemSpacing.x;

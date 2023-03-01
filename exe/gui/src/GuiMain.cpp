@@ -508,7 +508,9 @@ int GuiMainComponent::Init()
     
     // fonts
     m_State.fonts.text_font = SetGuiFont({ "misc/fonts/NotoSans-Medium.ttf" }, 17.0f, -2.0f);// NotoSans - Regular.ttf");// DroidSans.ttf");
-   // SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
+    m_State.fonts.icon_font = SetGuiFont({ "misc/fonts/remixicon.ttf" }, 15.0f,  1.0f);
+    
+    // SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
     
     
     
