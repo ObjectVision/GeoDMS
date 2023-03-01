@@ -509,6 +509,8 @@ int GuiMainComponent::Init()
     // fonts
     FontBuilderRecipy recipy;
     recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
     recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
     recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
 

@@ -147,6 +147,36 @@ FontSpecification CreateNotoSansMathFontSpec()
     return result_spec;
 }
 
+FontSpecification CreateNotoSansArabicFontSpec()
+{
+    FontSpecification result_spec;
+    result_spec.filename = "misc/fonts/NotoSansArabic-Medium.ttf";
+    result_spec.size = 17.0f;
+    result_spec.y_offset = -2.0f;
+
+    // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
+    result_spec.ranges.push_back(0x20);
+    result_spec.ranges.push_back(0xFFFF);
+    result_spec.ranges.push_back(0);
+
+    return result_spec;
+}
+
+FontSpecification CreateNotoSansJapaneseFontSpec()
+{
+    FontSpecification result_spec;
+    result_spec.filename = "misc/fonts/NotoSansJP-Medium.otf";
+    result_spec.size = 17.0f;
+    result_spec.y_offset = -2.0f;
+
+    // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
+    result_spec.ranges.push_back(0x20);
+    result_spec.ranges.push_back(0xFFFF);
+    result_spec.ranges.push_back(0);
+
+    return result_spec;
+}
+
 FontSpecification CreateRemixIconsFontSpec()
 {
     FontSpecification result_spec;
@@ -175,19 +205,10 @@ ImFont* SetGuiFont(FontBuilderRecipy& recipy)
         std::string fontFileName = exePath + font_spec.filename;
         config.GlyphOffset = ImVec2(0.0f, font_spec.y_offset);
         if (std::filesystem::exists(fontFileName))
-        {
             font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_spec.size, &config, font_spec.ranges.Data);
-            // 17.0f
-            //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
-        }
         config.MergeMode = true; // in case the recipy contains multiple fonts
     }
     io.Fonts->Build();
-
-
-
-    
-
     
     //std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
     

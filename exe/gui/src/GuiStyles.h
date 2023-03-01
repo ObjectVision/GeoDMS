@@ -93,6 +93,8 @@ GuiIcon& GetIcon(GuiTextureID id);
 void SetDmsWindowIcon(GLFWwindow* window);
 FontSpecification CreateNotoSansMediumFontSpec();
 FontSpecification CreateNotoSansMathFontSpec();
+FontSpecification CreateNotoSansArabicFontSpec();
+FontSpecification CreateNotoSansJapaneseFontSpec();
 FontSpecification CreateRemixIconsFontSpec();
 ImFont* SetGuiFont(FontBuilderRecipy& recipy);
 
