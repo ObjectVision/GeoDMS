@@ -309,7 +309,12 @@ private:
 	static GuiEventQueues* instance;
 };
 
-
+struct GuiFonts
+{
+	ImFont* text_font = nullptr;
+	ImFont* icon_font = nullptr;
+	ImFont* math_font = nullptr;
+};
 
 class GuiState
 {
@@ -343,7 +348,10 @@ public:
 	// docking
 	ImGuiID dockspace_id = -1;
 
-	// singletons
+	// style
+	GuiFonts fonts;
+
+	// singletons //TODO: Remove singletons in light of good coding practice
 	static StringStateManager errorDialogMessage;
 	std::string aboutDialogMessage;
 	static StringStateManager contextMessage;

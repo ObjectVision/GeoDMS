@@ -117,26 +117,30 @@ void SetDmsWindowIcon(GLFWwindow* window)
     }
 }
 
-void SetGuiFont(std::string font_filename)
+ImFont* SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
 {
+    ImFont* font_ptr = nullptr;
     ImGuiIO& io = ImGui::GetIO();
     auto exePath = GetExeFilePath();
-    //std::string fontFileName = exePath + "misc/fonts/Cousine-Regular.ttf";
-    std::string fontFileName = exePath + font_filename; //"misc/fonts/DroidSans.ttf";
+    
+    std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
+    
     std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
     ImFontConfig config;
-    config.GlyphOffset = ImVec2(0.0f, -2.0f);
-    // TODO: separate icon and text font using PushFont(ImFont* font);
-    config.PixelSnapH = true;
-    ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0};//0x030F, 0 };
+    config.GlyphOffset = ImVec2(0.0f, font_y_offset);//-2.0f);
+    ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0}; // TODO: set range dynamically
     if (std::filesystem::exists(fontFileName))
     {
-        io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f, &config, ranges_text_font);
+        font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_size, &config, ranges_text_font);
+        io.Fonts->Build();
+        // 17.0f
         //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
     }
-    config.MergeMode = true;
+
+    return font_ptr;
+    /*config.MergeMode = true;
     config.GlyphOffset = ImVec2(0.0f,1.0f);
     ImWchar ranges_icon_font[] = { 0xEA01, 0xf2DE, 0 };
     io.Fonts->AddFontFromFileTTF(iconFontFileName.c_str(), 15.0f, &config, ranges_icon_font);
-    io.Fonts->Build();
+    io.Fonts->Build();*/
 }

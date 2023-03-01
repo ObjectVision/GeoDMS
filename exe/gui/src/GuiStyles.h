@@ -77,5 +77,5 @@ private:
 void InitializeGuiTextures();
 GuiIcon& GetIcon(GuiTextureID id);
 void SetDmsWindowIcon(GLFWwindow* window);
-void SetGuiFont(std::string font_filename);
+ImFont* SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset);
 

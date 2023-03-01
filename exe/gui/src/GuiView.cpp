@@ -409,7 +409,6 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 
 StatisticsView::StatisticsView(GuiState& state, std::string name)
 {
-
     m_item = state.GetCurrentItem();
     m_Name = ICON_RI_GLOBE + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; // 
 }
