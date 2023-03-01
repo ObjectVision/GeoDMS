@@ -505,7 +505,7 @@ int GuiMainComponent::Init()
         throwErrorF("GLEW", "unsuccessful initialization of openGL helper library glew.");
 
     SetDmsWindowIcon(m_MainWindow);
-    SetGuiFont("misc/fonts/DroidSans.ttf");
+    SetGuiFont("misc/fonts/NotoSans-Medium.ttf");// NotoSans - Regular.ttf");// DroidSans.ttf");
     //SetGuiFont("misc/fonts/Cambria-01.ttf"); // from C:\Windows\Fonts
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();

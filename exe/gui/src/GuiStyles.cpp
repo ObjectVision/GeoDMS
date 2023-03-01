@@ -125,14 +125,17 @@ void SetGuiFont(std::string font_filename)
     std::string fontFileName = exePath + font_filename; //"misc/fonts/DroidSans.ttf";
     std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
     ImFontConfig config;
-   
+    config.GlyphOffset = ImVec2(0.0f, -2.0f);
+    // TODO: separate icon and text font using PushFont(ImFont* font);
+    config.PixelSnapH = true;
     ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0};//0x030F, 0 };
     if (std::filesystem::exists(fontFileName))
     {
-        io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 15.0f, &config, ranges_text_font);
+        io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f, &config, ranges_text_font);
         //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
     }
     config.MergeMode = true;
+    config.GlyphOffset = ImVec2(0.0f,1.0f);
     ImWchar ranges_icon_font[] = { 0xEA01, 0xf2DE, 0 };
     io.Fonts->AddFontFromFileTTF(iconFontFileName.c_str(), 15.0f, &config, ranges_icon_font);
     io.Fonts->Build();

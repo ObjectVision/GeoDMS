@@ -242,27 +242,34 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
 
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
-    if (ImGui::Button(icon, ImVec2(20, 15)))
+    if (ImGui::Button(icon))//, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
-        {
             UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
-        }
 
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopStyleColor();
     ImGui::PopID();
 
-    auto spacing_w = g.Style.ItemSpacing.x;
-    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
+    //auto spacing_w = g.Style.ItemSpacing.x;
+    //window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    //window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
     return 0;
 }
 
 bool GuiTreeNode::DrawItemIcon(GuiState& state)
 {
     assert(m_item);
+
+    float offset = 3.0f;
+    ImGuiContext& g = *GImGui;
+    auto window = ImGui::GetCurrentWindow();
+    auto spacing_w = g.Style.ItemSpacing.x;
+    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y + offset;
+
+
     auto vsflags = SHV_GetViewStyleFlags(m_item);
     if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
     else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
@@ -277,12 +284,7 @@ bool GuiTreeNode::DrawItemIcon(GuiState& state)
         UpdateStateAfterItemClick(state, m_item);
     }
 
-    // right-mouse popup menu
-    /*if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
-        ImGui::OpenPopup("treeview_popup_window");
-        //ShowRightMouseClickPopupWindowIfNeeded(state);
-    }*/
+    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return 0;
 }
@@ -389,17 +391,19 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
     if (m_item->IsDisabledStorage())
         return;
 
-    float offset = 3.0;
+    ImGui::SameLine();
+
+    /*float offset = 3.0;
     ImGuiContext& g = *GImGui;
     auto window = ImGui::GetCurrentWindow();
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
     ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
-    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
+    //window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return;
 }
@@ -476,14 +480,16 @@ bool GuiTreeNode::IsLeaf()
 bool GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item)
 {
     DrawItemDropDown(state);
+    ImGui::SameLine();
     DrawItemIcon(state);
     ImGui::SameLine();
     DrawItemText(state, jump_item);
     DrawItemWriteStorageIcon();
 
     // Modify y-spacing between TreeView items
+    // TODO: necessary?
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    const UInt8 offset = 4;
+    const UInt8 offset = 12; // TODO: Replace magic number by rule based on font size set by user
     window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return false;
