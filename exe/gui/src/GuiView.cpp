@@ -43,6 +43,7 @@ auto DMSView::operator=(DMSView&& other) noexcept -> void
 {
     Reset();
     m_Name       = std::move(other.m_Name);
+    m_Icon       = std::move(other.m_Icon);
     m_ViewStyle  = std::move(other.m_ViewStyle);
     m_DataView   = std::move(other.m_DataView);
     m_HWND       = std::move(other.m_HWND);
@@ -133,7 +134,8 @@ bool DMSView::Update(GuiState& state)
 
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin((m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
+    //(m_DataView->GetCaption().c_str() + m_Name).c_str()
+    if (!ImGui::Begin((m_Icon + m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
     {
         if (m_HWND)
             ShowOrHideWindow(false);

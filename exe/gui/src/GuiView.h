@@ -17,6 +17,7 @@ class AbstractView
 public:
 	virtual bool Update(GuiState& state) = 0;
 	std::string m_Name;
+	std::string m_Icon;
 	bool m_DoView = true;
 	bool has_been_docking_initialized = false;
 };
@@ -24,15 +25,20 @@ public:
 class DMSView : public AbstractView
 {
 public:
-	DMSView(std::string n)
-	{
-		m_Name = n;
-	}
-
 	bool Update(GuiState& state) override;
 
 	DMSView(std::string n, ViewStyle vs, DataView* dv)
 	{
+		//"\xE2\x88\x91 " + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name;
+		m_Icon = "";
+		switch (vs)
+		{
+		case tvsMapView: { m_Icon = ICON_RI_GLOBE + std::string(" "); break; }
+		case tvsTableView: { m_Icon = ICON_RI_TABLE + std::string(" ");	break; }
+		case tvsTableContainer:	{ m_Icon = ICON_RI_TABLE + std::string(" ");	break; }
+		default: break;
+		}
+
 		m_Name = n;
 		m_ViewStyle = vs;
 		m_DataView = dv; //use SharedFromThis on DataView
