@@ -507,8 +507,16 @@ int GuiMainComponent::Init()
     SetDmsWindowIcon(m_MainWindow);
     
     // fonts
-    m_State.fonts.text_font = SetGuiFont({ "misc/fonts/NotoSans-Medium.ttf" }, 17.0f, -2.0f);// NotoSans - Regular.ttf");// DroidSans.ttf");
-    m_State.fonts.icon_font = SetGuiFont({ "misc/fonts/remixicon.ttf" }, 15.0f,  1.0f);
+    FontBuilderRecipy recipy;
+    recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
+    recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
+
+    //ImWchar text_font_range[] = { 0x20, 0xFFFF, 0 }; // Needs to be kept in scope until font is build
+    //ImWchar icon_font_range[] = { 0xEA01, 0xf2DE, 0 };
+    m_State.fonts.text_font = SetGuiFont(recipy);
+    //m_State.fonts.text_font = SetGuiFont({ "misc/fonts/NotoSans-Medium.ttf" }, 17.0f, -2.0f, text_font_range);// NotoSans - Regular.ttf");// DroidSans.ttf");
+    //m_State.fonts.icon_font = SetGuiFont({ "misc/fonts/remixicon.ttf" }, 15.0f, 1.0f, icon_font_range);
     
     // SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
     

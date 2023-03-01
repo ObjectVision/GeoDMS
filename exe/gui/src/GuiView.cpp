@@ -1,4 +1,4 @@
-#include <imgui.h>
+﻿#include <imgui.h>
 #include <imgui_internal.h>
 
 
@@ -410,7 +410,7 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 StatisticsView::StatisticsView(GuiState& state, std::string name)
 {
     m_item = state.GetCurrentItem();
-    m_Name = ICON_RI_GLOBE + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; // 
+    m_Name = "\xE2\x88\x91 " + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; //  "\xE2\x88\x91" 
 }
 
 void StatisticsView::UpdateData()

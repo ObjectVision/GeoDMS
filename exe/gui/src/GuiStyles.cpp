@@ -117,25 +117,91 @@ void SetDmsWindowIcon(GLFWwindow* window)
     }
 }
 
-ImFont* SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
+FontSpecification CreateNotoSansMediumFontSpec()
 {
+    FontSpecification result_spec;
+    result_spec.filename = "misc/fonts/NotoSans-Medium.ttf";
+    result_spec.size = 17.0f;
+    result_spec.y_offset = -2.0f;
+
+    // https://fonts.googleapis.com/css2?family=Noto+Sans Latin, Greek and Cyrillic
+    result_spec.ranges.push_back(0x20);
+    result_spec.ranges.push_back(0xFFFF);
+    result_spec.ranges.push_back(0);
+
+    return result_spec;
+}
+
+FontSpecification CreateNotoSansMathFontSpec()
+{
+    FontSpecification result_spec;
+    result_spec.filename = "misc/fonts/NotoSansMath-Regular.ttf";
+    result_spec.size = 17.0f;
+    result_spec.y_offset = -4.0f;
+
+    // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
+    result_spec.ranges.push_back(0x20);
+    result_spec.ranges.push_back(0xFFFF);
+    result_spec.ranges.push_back(0);
+
+    return result_spec;
+}
+
+FontSpecification CreateRemixIconsFontSpec()
+{
+    FontSpecification result_spec;
+    result_spec.filename = "misc/fonts/remixicon.ttf";
+    result_spec.size = 15.0f;
+    result_spec.y_offset = 1.0f;
+
+    result_spec.ranges.push_back(0xEA01);
+    result_spec.ranges.push_back(0xf2DE);
+    result_spec.ranges.push_back(0);
+
+    return result_spec;
+}
+
+ImFont* SetGuiFont(FontBuilderRecipy& recipy)
+{
+    // Noto-Sans font lookup ranges: https://fonts.googleapis.com/css2?family=Noto+Sans+Math or https://notofonts.github.io/overview/
+    
     ImFont* font_ptr = nullptr;
     ImGuiIO& io = ImGui::GetIO();
     auto exePath = GetExeFilePath();
+    ImFontConfig config;
+
+    for (auto& font_spec : recipy.recipy)
+    {
+        std::string fontFileName = exePath + font_spec.filename;
+        config.GlyphOffset = ImVec2(0.0f, font_spec.y_offset);
+        if (std::filesystem::exists(fontFileName))
+        {
+            font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_spec.size, &config, font_spec.ranges.Data);
+            // 17.0f
+            //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
+        }
+        config.MergeMode = true; // in case the recipy contains multiple fonts
+    }
+    io.Fonts->Build();
+
+
+
     
-    std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
+
+    
+    //std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
     
     //std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
-    ImFontConfig config;
-    config.GlyphOffset = ImVec2(0.0f, font_y_offset);//-2.0f);
-    ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0}; // TODO: set range dynamically
-    if (std::filesystem::exists(fontFileName))
+    
+    //config.GlyphOffset = ImVec2(0.0f, font_y_offset);//-2.0f);
+    //ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0 }; // TODO: set range dynamically using range builder?
+    /*if (std::filesystem::exists(fontFileName))
     {
         font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_size, &config, ranges_text_font);
         io.Fonts->Build();
         // 17.0f
         //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
-    }
+    }*/
 
     return font_ptr;
     /*config.MergeMode = true;
