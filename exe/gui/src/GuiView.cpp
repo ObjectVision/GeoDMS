@@ -409,8 +409,9 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
 
 StatisticsView::StatisticsView(GuiState& state, std::string name)
 {
+
     m_item = state.GetCurrentItem();
-    m_Name = std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; // ICON_RI_GLOBE
+    m_Name = ICON_RI_GLOBE + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; // 
 }
 
 void StatisticsView::UpdateData()
@@ -419,7 +420,7 @@ void StatisticsView::UpdateData()
         return;
 
     DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
-    //InterestPtr<TreeItem*> tmp_interest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
+    InterestPtr<TreeItem*> tmp_interest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
     //if (!tmp_interest)
     //    int i = 0;
     m_done = false;
@@ -431,7 +432,7 @@ void StatisticsView::UpdateData()
     if (DMS_TreeItem_GetProgressState(m_item)> NotificationCode::NC2_MetaReady && DMS_TreeItem_GetProgressState(m_item) <= NotificationCode::NC2_Committed) //TODO: fix bug with DMS_NumericDataItem_GetStatistics bool ptr
     {
         m_is_ready = true;
-        m_item.release();
+        //m_item.release();
         m_item = nullptr;
     }
 }

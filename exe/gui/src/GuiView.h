@@ -72,7 +72,7 @@ private:
 	
 	bool m_done = false;
 	bool m_is_ready = false;
-	InterestPtr<TreeItem*> m_item = nullptr; // to be released when statistics information is finalized
+	TreeItem *m_item = nullptr; // to be released when statistics information is finalized
 	TableData m_data;
 };
 
