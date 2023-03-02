@@ -79,6 +79,7 @@
     <ClCompile Include="src\GuiOptions.cpp" />
     <ClCompile Include="src\GuiStatusBar.cpp" />
     <ClCompile Include="src\GuiStyles.cpp" />
+    <ClCompile Include="src\GuiTableview.cpp" />
     <ClCompile Include="src\GuiToolbar.cpp" />
     <ClCompile Include="src\GuiTreeview.cpp" />
     <ClCompile Include="src\GuiUnitTest.cpp" />
@@ -106,6 +107,7 @@
     <ClInclude Include="src\GuiOptions.h" />
     <ClInclude Include="src\GuiStatusBar.h" />
     <ClInclude Include="src\GuiStyles.h" />
+    <ClInclude Include="src\GuiTableview.h" />
     <ClInclude Include="src\GuiToolbar.h" />
     <ClInclude Include="src\GuiTreeview.h" />
     <ClInclude Include="src\GuiUnitTest.h" />

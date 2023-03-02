@@ -31,11 +31,6 @@ if (ImGui::BeginDragDropTarget())
 }
 */
 
-void ClearReferences()
-{
-
-}
-
 // Make the UI compact because there are so many fields
 static void PushStyleCompact()
 {
@@ -49,7 +44,7 @@ static void PopStyleCompact()
     ImGui::PopStyleVar(2);
 }
 
-void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
+/*void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     if (event == GuiEvents::UpdateCurrentItem) // update current item
     {
@@ -100,27 +95,27 @@ void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
         }
     }
     m_UpdateData = true;
-}
+}*/
 
-void GuiTableView::ClearReferences()
+/*void GuiTableView::ClearReferences()
 {
     m_ActiveItems.clear();
-}
+}*/
 
-SizeT GuiTableView::GetNumberOfTableColumns()
+/*SizeT GuiTableView::GetNumberOfTableColumns()
 {
     return m_ActiveItems.size();
-}
+}*/
 
-void GuiTableView::SetupTableHeadersRow()
+/*void GuiTableView::SetupTableHeadersRow()
 {
     for (auto item : m_ActiveItems.get())
         ImGui::TableSetupColumn(item->GetName().c_str());
 
     ImGui::TableHeadersRow();
-}
+}*/
 
-std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi, SizeT count, tile_id t)
+/*std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi, SizeT count, tile_id t)
 {
     std::vector<std::string> res;
     const AbstrDataObject* ado = adi->GetRefObj();
@@ -135,11 +130,11 @@ std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi,
     DMS_DataReadLock_Release(lock);
 
     return res;
-}
+}*/
 
 //tile_id GetTileID(){} // TODO: implement tile based parsing.
 
-void GuiTableView::PopulateDataStringBuffer(SizeT count)
+/*void GuiTableView::PopulateDataStringBuffer(SizeT count)
 {
     m_DataStringBuffer.clear();
     for (auto item : m_ActiveItems.get())
@@ -157,9 +152,9 @@ void GuiTableView::PopulateDataStringBuffer(SizeT count)
         }
     }
     int i = 0;
-}
+}*/
 
-SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
+/*SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
 {
     SizeT count = -1;
     for (auto item : m_ActiveItems.get())
@@ -176,24 +171,17 @@ SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
         }
     }
     return count;
-}
+}*/
 
-void GuiTableView::Update(bool* p_open, TreeItem * &currentItem)
+bool GuiTableView::Update(GuiState& state)
 {
-    ImGui::Begin("Tableview", p_open, NULL);
-    if (!m_State.TableViewIsActive)
+    if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_None))
     {
         ImGui::End();
         return;
     }
 
-    while (m_State.TableViewEvents.HasEvents()) // handle events
-    {
-        auto event = m_State.TableViewEvents.Pop();
-        ProcessEvent(event, currentItem);
-    }
-
-    // Using those as a base value to create width/height that are factor of the size of our font
+    /*// Using those as a base value to create width/height that are factor of the size of our font
     const float TEXT_BASE_WIDTH = ImGui::CalcTextSize("A").x;
     const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
     static ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
@@ -249,5 +237,8 @@ void GuiTableView::Update(bool* p_open, TreeItem * &currentItem)
         ImGui::EndTable();
     }
     PopStyleCompact();
+    
+    */
+
     ImGui::End();
 }
