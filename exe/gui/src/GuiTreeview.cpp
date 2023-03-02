@@ -221,7 +221,7 @@ GuiTreeNode::~GuiTreeNode()
 auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
 {
     assert(m_item);
-    return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size();
+    return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size()-1;
 }
 
 bool GuiTreeNode::DrawItemDropDown(GuiState &state)
