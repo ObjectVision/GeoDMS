@@ -204,25 +204,27 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
         return;
     }
 
+    if (view.m_dms_views.empty())
+    {
+        *p_open = false;
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        return;
+    }
+
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
    
     // focus window when clicked
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    if (!view.m_dms_views.empty())
+    if (view.m_dms_view_it!=view.m_dms_views.end())
     {
-        if (view.m_dms_view_it!=view.m_dms_views.end())
-        {
-            if (view.m_dms_view_it->m_ViewStyle == tvsTableView)
-            {
-                ShowTableViewButtons(view);
-            }
-            else if (view.m_dms_view_it->m_ViewStyle == tvsMapView)
-            {
-                ShowMapViewButtons(view);
-            }
-        }
+        if (view.m_dms_view_it->m_ViewStyle == tvsTableView)
+            ShowTableViewButtons(view);
+        else if (view.m_dms_view_it->m_ViewStyle == tvsMapView)
+            ShowMapViewButtons(view);
     }
 
     ImGui::End();
