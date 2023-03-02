@@ -583,7 +583,7 @@ auto GuiViews::UpdateAll(GuiState& state) -> void
     }
 }
 
-#include <imgui_impl_opengl3.h>
+/*#include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 class ImGuiFrame
 {
@@ -623,7 +623,7 @@ public:
 
 private:
     GuiMainComponent* m_main_ptr = nullptr;
-};
+};*/
 
 void GuiViews::ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self)
 {
