@@ -192,6 +192,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     case GuiEvents::ToggleShowEventLogWindow: { m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow; break;}
     case GuiEvents::ToggleShowToolbar: { m_State.ShowToolbar = !m_State.ShowToolbar; break; }
     case GuiEvents::ToggleShowTreeViewWindow: { m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow; break; }
+    case GuiEvents::OpenExportWindow: { m_State.ShowExportWindow = true; break; }
     case GuiEvents::StepToErrorSource:
     {
         if (!m_State.GetCurrentItem())
