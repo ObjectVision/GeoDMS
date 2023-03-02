@@ -134,7 +134,6 @@ bool DMSView::Update(GuiState& state)
 
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
-    //(m_DataView->GetCaption().c_str() + m_Name).c_str()
     if (!ImGui::Begin((m_Icon + m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
     {
         if (m_HWND)
@@ -422,8 +421,7 @@ void StatisticsView::UpdateData()
 
     DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
     InterestPtr<TreeItem*> tmp_interest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
-    //if (!tmp_interest)
-    //    int i = 0;
+
     m_done = false;
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
     StringToTable(statistics_string, m_data, ":");
@@ -433,7 +431,6 @@ void StatisticsView::UpdateData()
     if (DMS_TreeItem_GetProgressState(m_item)> NotificationCode::NC2_MetaReady && DMS_TreeItem_GetProgressState(m_item) <= NotificationCode::NC2_Committed) //TODO: fix bug with DMS_NumericDataItem_GetStatistics bool ptr
     {
         m_is_ready = true;
-        //m_item.release();
         m_item = nullptr;
     }
 }
