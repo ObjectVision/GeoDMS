@@ -205,6 +205,12 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenHelp);
         return;
     }
+    case GLFW_KEY_I:
+    {
+        if (mods == GLFW_MOD_CONTROL) // Open statistics view window
+            event_queues->MainEvents.Add(GuiEvents::OpenNewStatisticsViewWindow);
+        return;
+    }
     case GLFW_KEY_L:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-L

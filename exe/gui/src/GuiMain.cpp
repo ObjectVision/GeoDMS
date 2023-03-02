@@ -775,9 +775,11 @@ bool GuiMainComponent::Update()
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
-    // option windows
     if (m_State.ShowOptionsWindow)
         m_Options.Update(&m_State.ShowOptionsWindow, m_State);
+
+    if (m_State.ShowExportWindow)
+        m_Export.Update(&m_State.ShowExportWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);

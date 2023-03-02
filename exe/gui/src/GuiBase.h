@@ -326,7 +326,7 @@ public:
 
 	int return_value					= 0;
 
-	// option window flags
+	// open window flags // TODO: move these flags to the specific windows?
 	bool ShowOptionsWindow				= false;
 	bool ShowDetailPagesOptionsWindow	= false;
 	bool ShowEventLogOptionsWindow		= false;
@@ -339,8 +339,8 @@ public:
 	bool ShowToolbar					= true;
 	bool ShowStatusBar					= false;
 	bool ShowCurrentItemBar				= true;
-	bool MapViewIsActive				= false; //TODO: remove?
-	bool TableViewIsActive				= false; //TODO: remove?
+	bool ShowExportWindow				= false;
+
 	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;

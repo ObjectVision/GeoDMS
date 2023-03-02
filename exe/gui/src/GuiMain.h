@@ -8,6 +8,7 @@
 #include "GuiTableview.h"
 #include "GuiView.h"
 #include "GuiOptions.h"
+#include "GuiExport.h"
 #include "GuiDetailPages.h"
 #include "GuiEventLog.h"
 #include "GuiToolbar.h"
@@ -51,6 +52,7 @@ public:
 	GuiEventLog						m_EventLog		= {};
 	GuiViews						m_Views			= {};
 	GuiOptions						m_Options		= {};
+	GuiExport						m_Export		= {};
 	GuiStatusBar					m_StatusBar		= {};
 	GuiUnitTest						m_GuiUnitTest	= {};
 	GuiDetailPages					m_DetailPages	= {};
