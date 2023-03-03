@@ -9,14 +9,15 @@ struct GuiTableCell
 	bool invalidated = true;
 };
 
-using table_row  = std::vector<GuiTableCell>;
-using table_data = std::vector<table_row>;
+using gui_table_row  = std::vector<GuiTableCell>;
+using gui_table_data = std::vector<gui_table_row>;
 
 //using table_row
 
-class GuiTableView : AbstractView
+class GuiTableView : public AbstractView
 {
 public:
+	GuiTableView(GuiState& state, std::string name);
 	bool Update(GuiState& state) override;
 
 private:

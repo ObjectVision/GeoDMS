@@ -37,6 +37,7 @@ enum class GuiEvents
 	ReopenCurrentConfiguration,
 	OpenNewMapViewWindow,
 	OpenNewTableViewWindow,
+	OpenNewImGuiTableViewWIndow,
 	OpenNewStatisticsViewWindow,
 	OpenNewConfiguration,
 	OpenInMemoryDataView,

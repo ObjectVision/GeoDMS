@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <format>
 #include <sstream>
 
@@ -173,12 +174,26 @@ static void PopStyleCompact()
     return count;
 }*/
 
+GuiTableView::GuiTableView(GuiState& state, std::string name)
+{
+    m_Name = name;
+}
+
 bool GuiTableView::Update(GuiState& state)
 {
-    if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_None))
+    if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_None | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar)) // no titlebar means the window is initialized without a dockid!
     {
         ImGui::End();
-        return;
+        return false;
+    }
+
+    auto view_window = ImGui::GetCurrentWindow();
+    if (!has_been_docking_initialized)
+    {
+        if (view_window->DockId) // window has a dockid, so it is docked
+            has_been_docking_initialized = true;
+        else if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
+            has_been_docking_initialized = true;
     }
 
     /*// Using those as a base value to create width/height that are factor of the size of our font
@@ -241,4 +256,5 @@ bool GuiTableView::Update(GuiState& state)
     */
 
     ImGui::End();
+    return true;
 }

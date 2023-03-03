@@ -9,6 +9,8 @@
 #include <string>
 
 #include "GuiView.h"
+#include "GuiTableView.h"
+
 #include "TicInterface.h"
 #include "ShvDllInterface.h"
 #include "StateChangeNotification.h"
@@ -267,8 +269,6 @@ auto DMSView::ShowOrHideWindow(bool show) -> void
     }
 }
 
-
-
 auto DMSView::UpdateParentWindow() -> WindowState
 {
     auto glfw_window = glfwGetCurrentContext(); //TODO: known bug, parent window likely not updated correctly in case of outside main window view docked into another view
@@ -408,7 +408,7 @@ auto DMSView::RegisterViewAreaWindowClass(HINSTANCE instance) -> void
     RegisterClassEx(&wndClassData);
 }
 
-StatisticsView::StatisticsView(GuiState& state, std::string name)
+StatisticsView::StatisticsView(GuiState& state, std::string name) // TODO: move statistics view to separate .h and .cpp file
 {
     m_item = state.GetCurrentItem();
     m_Name = "\xE2\x88\x91 " + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; //  "\xE2\x88\x91" 
@@ -451,7 +451,7 @@ bool StatisticsView::Update(GuiState& state)
         return false;
     }
     auto view_window = ImGui::GetCurrentWindow();
-    CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window);
+    CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window); //TODO: candidate for removal, likely unnecessary here
 
     if (!has_been_docking_initialized)
     {
@@ -503,13 +503,22 @@ auto GuiViews::AddDMSView(GuiState& state, ViewStyle vs, std::string name) -> vo
     m_AddCurrentItem = true;
 }
 
+void GuiViews::AddTableView(GuiState& state)
+{
+    auto current_item = state.GetCurrentItem();
+    if (!current_item)
+        return;
+
+    m_table_views.emplace_back(state, ICON_RI_TABLE + std::string(" ") + current_item->GetName().c_str() + std::string(" ###ImGuiTableView") + std::to_string(m_table_views.size()));
+}
+
 void GuiViews::AddStatisticsView(GuiState& state, std::string name)
 {
     auto current_item = state.GetCurrentItem();
     if (!current_item)
         return;
 
-    m_statistics_views.emplace_back(state, name);
+    m_statistic_views.emplace_back(state, name);
 }
 
 /*auto GuiViews::InitWindowParameterized(std::string caption, DataView* dv, ViewStyle vs, HWND parent_hwnd, UInt32 min, UInt32 max) -> HWND
@@ -567,9 +576,22 @@ auto GuiViews::UpdateAll(GuiState& state) -> void
         }
     }
 
+    // update table views
+    auto table_it = m_table_views.begin();
+    while (table_it != m_table_views.end())
+    {
+        if (table_it->m_DoView)
+        {
+            table_it->Update(state) && table_it._Ptr;
+            ++table_it;
+        }
+        else // view to be destroyed
+            table_it = m_table_views.erase(table_it);
+    }
+
     // update Statistic views
-    auto stat_it = m_statistics_views.begin();
-    while (stat_it != m_statistics_views.end())
+    auto stat_it = m_statistic_views.begin();
+    while (stat_it != m_statistic_views.end())
     {
         if (stat_it->m_DoView)
         {
@@ -577,9 +599,7 @@ auto GuiViews::UpdateAll(GuiState& state) -> void
             ++stat_it;
         }
         else // view to be destroyed
-        {
-            stat_it = m_statistics_views.erase(stat_it);
-        }
+            stat_it = m_statistic_views.erase(stat_it);
     }
 }
 

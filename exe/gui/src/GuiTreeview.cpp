@@ -101,8 +101,10 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
         DrawRightMouseClickButtonElement("Edit Config Source       Ctrl-E", true, GuiEvents::OpenConfigSource);
         DrawRightMouseClickButtonElement("Default View", (default_viewstyle== ViewStyle::tvsTableContainer) || (default_viewstyle== ViewStyle::tvsTableView) || (default_viewstyle==ViewStyle::tvsMapView), GuiEvents::OpenNewDefaultViewWindow);
         DrawRightMouseClickButtonElement("Table View               CTRL-D", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewTableViewWindow);
+        DrawRightMouseClickButtonElement("ImGui Table View", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewImGuiTableViewWIndow);
         DrawRightMouseClickButtonElement("Map View                 CTRL-M", vsflags & ViewStyleFlags::vsfMapView, GuiEvents::OpenNewMapViewWindow);
         DrawRightMouseClickButtonElement("Statistics View          CTRL-I", IsDataItem(state.GetCurrentItem()), GuiEvents::OpenNewStatisticsViewWindow);
+        
 
         //url 
         auto treeitem_metadata_url = TreeItemPropertyValue(state.GetCurrentItem(), urlPropDefPtr);

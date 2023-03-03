@@ -135,6 +135,20 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         break;
     }
+    case GuiEvents::OpenNewImGuiTableViewWIndow:
+    {
+        if (!m_State.GetCurrentItem())
+            break;
+
+        auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
+        if (viewstyle_flags & ViewStyleFlags::vsfTableView)
+            m_Views.AddTableView(m_State);
+
+        //if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
+        //    m_Views.AddDMSView(m_State, tvsTableContainer, ");
+
+        break;
+    }
     case GuiEvents::OpenNewDefaultViewWindow:
     {
         if (!m_State.GetCurrentItem())
@@ -155,7 +169,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         if (!IsDataItem(m_State.GetCurrentItem())) // statistics is for dataitems only
             break;
 
-        m_Views.AddStatisticsView(m_State, std::string("###StatView") + std::to_string(m_Views.m_statistics_views.size()));
+        m_Views.AddStatisticsView(m_State, std::string("###StatView") + std::to_string(m_Views.m_statistic_views.size()));
 
         break;
     }

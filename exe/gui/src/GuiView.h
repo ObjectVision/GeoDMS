@@ -5,6 +5,10 @@
 #include <windows.h>
 #include "dataview.h"
 
+// TODO: rename files to GuiViews
+
+class GuiTableView;
+
 enum WindowState
 {
 	UNINITIALIZED = -1,
@@ -86,12 +90,14 @@ class GuiViews
 {
 	using dms_views = std::vector<DMSView>;
 	using statistics_views = std::vector<StatisticsView>;
+	using table_views = std::vector<GuiTableView>;
 	using dms_view_it = std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>>;
 
 public:
 	~GuiViews();
 	void CloseAll();
 	void AddDMSView(GuiState& state, ViewStyle vs, std::string name);
+	void AddTableView(GuiState& state);
 	void AddStatisticsView(GuiState& state, std::string name);
 	auto GetHWND() -> HWND; //TODO: move, not the right place
 	void UpdateAll(GuiState& state);
@@ -99,7 +105,8 @@ public:
 	// view containers
 	dms_views        m_dms_views; // tableviews and mapviews
 	dms_views        m_edit_palette_windows;
-	statistics_views m_statistics_views;
+	table_views		 m_table_views;
+	statistics_views m_statistic_views;
 	dms_view_it      m_dms_view_it = m_dms_views.begin();
 
 	void ResetEditPaletteWindow(ClientHandle clientHandle, const TreeItem* self);
