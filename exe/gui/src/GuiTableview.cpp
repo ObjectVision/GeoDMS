@@ -176,7 +176,18 @@ static void PopStyleCompact()
 
 GuiTableView::GuiTableView(GuiState& state, std::string name)
 {
+    assert(state.GetCurrentItem());
     m_Name = name;
+    m_ti_interest_holder = state.GetCurrentItem();
+    m_vu_interest_holder = SharedPtr<const AbstrUnit>(AsDynamicDataItem(state.GetCurrentItem())->GetAbstrValuesUnit());
+    m_di_interest_holder = AsDynamicDataItem(state.GetCurrentItem()); // TODO: fix
+}
+
+GuiTableView::~GuiTableView()
+{
+    //m_ti_interest_holder.release();
+    m_di_interest_holder.release();
+    //m_vu_interest_holder.release();
 }
 
 bool GuiTableView::Update(GuiState& state)
@@ -195,6 +206,19 @@ bool GuiTableView::Update(GuiState& state)
         else if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
             has_been_docking_initialized = true;
     }
+
+    auto itemIsValid = DMS_TreeItem_GetProgressState(m_ti_interest_holder) >= PS_Validated;
+    
+    if (!itemIsValid)
+    {
+        m_di_interest_holder->PrepareData();
+    }
+
+    // DMS_Unit_GetCount(const AbstrUnit * self);
+    // DMS_CONV DMS_AnyDataItem_GetValueAsCharArray    (const AbstrDataItem* self, SizeT index, char* clientBuffer, UInt32 clientBufferLen);
+    // Table_Dump
+    // SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode)
+
 
     /*// Using those as a base value to create width/height that are factor of the size of our font
     const float TEXT_BASE_WIDTH = ImGui::CalcTextSize("A").x;

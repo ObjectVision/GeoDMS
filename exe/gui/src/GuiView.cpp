@@ -135,7 +135,7 @@ bool DMSView::Update(GuiState& state)
     auto event_queues = GuiEventQueues::getInstance();
 
     // Open window
-    ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver); // TODO: use OnCaptionChanged to dynamically update caption
     if (!ImGui::Begin((m_Icon + m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
     {
         if (m_HWND)
