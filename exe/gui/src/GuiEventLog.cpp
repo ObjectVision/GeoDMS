@@ -4,6 +4,7 @@
 #include <string>
 #include "ser/AsString.h"
 #include "TicInterface.h"
+#include "GuiMain.h"
 
 
 // TODO: remove singletons
@@ -108,10 +109,19 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
     ImGui::PopStyleColor();
 }
 
+void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
+{
+    //static GuiState state; // TODO: remove static
+    auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
+    main->m_State.contextMessage.Set(msg);
+    PostEmptyEventToGLFWContext();
+    return;
+}
+
 auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 {
     //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
-    if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::End();
         return;
@@ -154,7 +164,7 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 
     // Reserve enough left-over height for 1 separator + 1 input text
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-    ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysAutoResize); //-footer_height_to_reserve
+    ImGui::BeginChild("ScrollingRegion", ImVec2(0, -20.0f), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysAutoResize); //-footer_height_to_reserve
     
     // right-click event
     if (ImGui::BeginPopupContextWindow())
@@ -190,8 +200,6 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
             }
         }
     }
-    //if (copy_to_clipboard)
-    //    ImGui::LogFinish();
 
     if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
         ImGui::SetScrollHereY(1.0f);
@@ -202,6 +210,10 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 
     ImGui::EndChild();
     ImGui::Separator();
+    
+    // StatusBar
+    ImGui::TextUnformatted(state.contextMessage.Get().c_str());
+    
     ImGui::End();
 }; 
 
@@ -313,7 +325,7 @@ void GuiEventLog::AddLog(SeverityTypeID severity_type, std::string_view original
         m_FilteredItemIndices.push_back(m_Items.size()-1);
 };
 
-#include "GuiMain.h"
+/*#include "GuiMain.h"
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_internal.h>
@@ -347,7 +359,7 @@ void DirectUpdateEventLog(GuiMainComponent* main)
         glfwMakeContextCurrent(backup_current_context);
     }
     glfwSwapBuffers(main->m_MainWindow);
-}
+}*/
 
 auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
 {

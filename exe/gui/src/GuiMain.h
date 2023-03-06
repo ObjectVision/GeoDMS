@@ -13,7 +13,7 @@
 #include "GuiEventLog.h"
 #include "GuiToolbar.h"
 #include "GuiInput.h"
-#include "GuiStatusBar.h"
+//#include "GuiStatusBar.h"
 #include "GuiUnitTest.h"
 
 #include "AbstrDataItem.h"
@@ -53,7 +53,6 @@ public:
 	GuiViews						m_Views			= {};
 	GuiOptions						m_Options		= {};
 	GuiExport						m_Export		= {};
-	GuiStatusBar					m_StatusBar		= {};
 	GuiUnitTest						m_GuiUnitTest	= {};
 	GuiDetailPages					m_DetailPages	= {};
 	int 							m_FirstFrames	= 1;

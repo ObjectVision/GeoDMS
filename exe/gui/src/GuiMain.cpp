@@ -49,7 +49,7 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
-    DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, this);
+    DMS_SetContextNotification(&m_EventLog.GeoDMSContextMessage, this);
     DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
@@ -769,9 +769,6 @@ bool GuiMainComponent::Update()
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);
-    
-    if (m_State.ShowStatusBar)
-        m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
     m_Views.UpdateAll(m_State);
 
