@@ -72,9 +72,6 @@
     <ClCompile Include="src\GuiEmail.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GuiStatusBar.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\GuiUnitTest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -144,9 +141,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\GuiEmail.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\GuiStatusBar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\GuiUnitTest.h">
