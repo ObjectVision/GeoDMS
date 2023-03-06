@@ -547,14 +547,14 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			{
 				MakeMin<int>(wheelDelta, 5);
 				while (wheelDelta--)
-					ZoomOut1();
+					ZoomIn1();
 			}
 			else 
 			{
 				assert(wheelDelta < 0);
 				MakeMax<int>(wheelDelta, -5);
 				while (wheelDelta++)
-					ZoomIn1();
+					ZoomOut1();
 			}
 			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
 			Pan(oldWorldPoint - newWorldPoint);
