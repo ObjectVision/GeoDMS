@@ -547,14 +547,14 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			{
 				MakeMin<int>(wheelDelta, 5);
 				while (wheelDelta--)
-					ZoomOut1();
+					ZoomIn1();
 			}
 			else 
 			{
 				assert(wheelDelta < 0);
 				MakeMax<int>(wheelDelta, -5);
 				while (wheelDelta++)
-					ZoomIn1();
+					ZoomOut1();
 			}
 			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
 			Pan(oldWorldPoint - newWorldPoint);
@@ -868,7 +868,8 @@ setControllerID:
 void ViewPort::FillMenu(MouseEventDispatcher& med)
 {
 	//	Goto & Find
-	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents such as [ X=999; y=999 ] pan there"), new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
+	static SharedStr msg = SharedStr("Goto (Ctrl-G): take Clipboard contents such as [ X=999; y=999 ] and pan there");
+	med.m_MenuData.push_back(MenuItem(msg, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
 
 	base_type::FillMenu(med);
 }
