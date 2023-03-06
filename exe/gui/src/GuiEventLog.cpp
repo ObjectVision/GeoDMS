@@ -109,15 +109,6 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
     ImGui::PopStyleColor();
 }
 
-void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
-{
-    //static GuiState state; // TODO: remove static
-    auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
-    main->m_State.contextMessage.Set(msg);
-    PostEmptyEventToGLFWContext();
-    return;
-}
-
 auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
 {
     //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
@@ -361,7 +352,16 @@ void DirectUpdateEventLog(GuiMainComponent* main)
     glfwSwapBuffers(main->m_MainWindow);
 }*/
 
-auto GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void
+void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
+{
+    //static GuiState state; // TODO: remove static
+    auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
+    main->m_State.contextMessage.Set(msg);
+    PostEmptyEventToGLFWContext();
+    return;
+}
+
+void GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
 {
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     assert(main);

@@ -528,18 +528,8 @@ int GuiMainComponent::Init()
     recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
     recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
     recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
-
-    //ImWchar text_font_range[] = { 0x20, 0xFFFF, 0 }; // Needs to be kept in scope until font is build
-    //ImWchar icon_font_range[] = { 0xEA01, 0xf2DE, 0 };
     m_State.fonts.text_font = SetGuiFont(recipy);
-    //m_State.fonts.text_font = SetGuiFont({ "misc/fonts/NotoSans-Medium.ttf" }, 17.0f, -2.0f, text_font_range);// NotoSans - Regular.ttf");// DroidSans.ttf");
-    //m_State.fonts.icon_font = SetGuiFont({ "misc/fonts/remixicon.ttf" }, 15.0f, 1.0f, icon_font_range);
-    
-    // SetGuiFont(std::vector<std::string> font_filenames, float font_size, float font_y_offset)
-    
-    
-    
-    //SetGuiFont("misc/fonts/Cambria-01.ttf"); // from C:\Windows\Fonts
+
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 
@@ -561,7 +551,6 @@ int GuiMainComponent::MainLoop()
     //ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     //glClearColor(1.0, 0.0, 0.0, 1.0);
     glfwSetWindowTitle(m_MainWindow, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
-    //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();
     SHV_SetAdminMode(true); // needed for ViewStyleFlags lookup
@@ -587,8 +576,6 @@ int GuiMainComponent::MainLoop()
 
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
-
-        //break; // TODO: REMOVE, test for mem leaks
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -619,8 +606,6 @@ int GuiMainComponent::MainLoop()
             glfwSetWindowTitle(m_MainWindow, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
 
-            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-
             if (m_State.GetRoot())
             {
                 //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
@@ -633,10 +618,13 @@ int GuiMainComponent::MainLoop()
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
+        
+        //glViewport(0, 0, display_w/2, display_h/2);
         //glClearColor(1.0, 0.0, 0.0, 1.0);
         //glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
+        
+            
+        //glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Update and Render additional Platform Windows
