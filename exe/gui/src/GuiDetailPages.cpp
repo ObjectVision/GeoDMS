@@ -268,8 +268,8 @@ auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
     if (explore_properties)
         m_ExploreProperties.clear();
 
-    if (statistics)
-        m_Statistics.clear();
+    //if (statistics)
+    //    m_Statistics.clear();
 
     if (value_info)
         m_ValueInfo.clear();
@@ -284,6 +284,7 @@ auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
 void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 {
     clear();
+    SuspendTrigger::Resume();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true);
@@ -317,33 +318,12 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     m_Buff.Reset();
 }
 
-void GuiDetailPages::StringToTable(std::string &input, TableData &result, std::string separator="")
-{
-    result.clear();
-    auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
-    for (auto& line : lines)
-    {
-        auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
-        //properties.emplace_back();
-        //properties.back().emplace_back(PET_HEADING, m_Text);
-        if (!colon_separated_line.empty())
-        {
-            result.emplace_back();
-            for (auto& part : colon_separated_line)
-            {
-                result.back().emplace_back(PET_TEXT, false, part);
-            }
-        }
-    }
-}
-
 auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
 {
-    //SuspendTrigger::Resume(); // TODO: necessary?
-    clear();
+    /*clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(state.GetCurrentItem(), nullptr);
-    StringToTable(statistics_string, m_Statistics, ":");
+    StringToTable(statistics_string, m_Statistics, ":");*/
 }
 
 auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
@@ -396,76 +376,10 @@ auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
 auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
 {
     clear();
+    InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
     StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
-}
-
-void GuiDetailPages::DrawProperties(GuiState& state, TableData& properties)
-{
-    auto event_queues = GuiEventQueues::getInstance();
-    if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
-        return;
-
-    int button_index = 0; //TODO: does assumption of max 2 columns hold?
-    ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_NoHostExtendX);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
-    for (auto& row : properties)
-    {
-        ImGui::TableNextRow();
-        UInt8 column_index = 0;
-        for (auto& col : row)
-        {
-            if (column_index == 2) // hardcoded 2
-                break;
-            ImGui::TableSetColumnIndex(column_index);
-            if (col.background_is_red)
-                SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight()+1.0));// ImGui::GetWindowSize
-            if (col.type == PET_HEADING)
-            {
-                ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());
-            }
-            else if (col.type == PET_LINK)
-            {
-                //ImGui::PushID(button_index++);
-                //ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(51.0f / 255.0f, 102.0f / 255.0f, 204.0f / 255.0f, 1.0f));
-                
-                ImGui::TextWrapped(col.text.c_str());
-
-                if (ImGui::IsItemClicked())
-                {
-                    auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
-                    if (jumpItem.first && jumpItem.first!=state.GetRoot())
-                    {
-                        state.SetCurrentItem(const_cast<TreeItem*>(jumpItem.first));
-                        event_queues->TreeViewEvents.Add(GuiEvents::JumpToCurrentItem);
-                        event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
-                        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
-                        event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
-                    }
-                }
-                //ImGui::PopID();
-                ImGui::PopStyleColor();
-            }
-            else if (col.type == PET_TEXT)
-            {
-                ImGui::TextWrapped(col.text.c_str());
-                //ImGui::Text(col.text.c_str());
-            }
-            else if (col.type == PET_SEPARATOR)
-            {
-                ImGui::Separator();
-                column_index++;
-                ImGui::TableSetColumnIndex(column_index);
-                ImGui::Separator();
-            }
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-            column_index++;
-            OnItemClickItemTextTextToClipboard(col.text);
-        }
-    }
-    ImGui::EndTable();
 }
 
 auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
@@ -477,6 +391,8 @@ auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
                     bool          isUrl,
                     bool	mustOpenDetailsPage) -> void
 {
+    PostEmptyEventToGLFWContext();
+
     if (not doAddHistory)
         return;
 
@@ -525,7 +441,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             m_AllProperties.clear();
             m_ExploreProperties.clear();
             m_Configuration.clear();
-            m_Statistics.clear();
+            //m_Statistics.clear();
             m_ValueInfo.clear();
             m_SourceDescription.clear();
             break;
@@ -593,18 +509,18 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
                 SetKeyboardFocusToThisHwnd();
         }
 
-        if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
+        /*if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
         {
             if (state.GetCurrentItem())
             {
-                if (m_Statistics.empty())
-                    UpdateStatistics(state);
-                DrawProperties(state, m_Statistics);
+                //if (m_Statistics.empty())
+                //    UpdateStatistics(state);
+                //DrawProperties(state, m_Statistics);
             }
             ImGui::EndTabItem();
             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 SetKeyboardFocusToThisHwnd();
-        }
+        }*/
 
         if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
         {

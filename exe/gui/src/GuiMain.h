@@ -8,11 +8,12 @@
 #include "GuiTableview.h"
 #include "GuiView.h"
 #include "GuiOptions.h"
+#include "GuiExport.h"
 #include "GuiDetailPages.h"
 #include "GuiEventLog.h"
 #include "GuiToolbar.h"
 #include "GuiInput.h"
-#include "GuiStatusBar.h"
+//#include "GuiStatusBar.h"
 #include "GuiUnitTest.h"
 
 #include "AbstrDataItem.h"
@@ -49,9 +50,9 @@ public:
 	GuiCurrentItem					m_CurrentItem	= {};
 	GuiToolbar						m_Toolbar		= {};
 	GuiEventLog						m_EventLog		= {};
-	GuiView							m_View			= {};
+	GuiViews						m_Views			= {};
 	GuiOptions						m_Options		= {};
-	GuiStatusBar					m_StatusBar		= {};
+	GuiExport						m_Export		= {};
 	GuiUnitTest						m_GuiUnitTest	= {};
 	GuiDetailPages					m_DetailPages	= {};
 	int 							m_FirstFrames	= 1;

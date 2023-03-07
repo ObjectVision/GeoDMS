@@ -23,7 +23,7 @@
 #include "DataLocks.h"
 #include "GuiMenu.h"
 
-void GuiMenu::Update(GuiState& state, GuiView& ViewPtr)
+void GuiMenu::Update(GuiState& state, GuiViews& ViewPtr)
 {
     if (ImGui::BeginMainMenuBar())
     {
@@ -396,7 +396,7 @@ void GuiMenuTools::Update(GuiState& state)
     }
 }
 
-void GuiMenuWindow::Update(GuiView& ViewPtr)
+void GuiMenuWindow::Update(GuiViews& ViewPtr)
 {
     if (ImGui::BeginMenu("Window"))
     {

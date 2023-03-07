@@ -1064,7 +1064,8 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName, cmdLine);
+			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
+
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }
 

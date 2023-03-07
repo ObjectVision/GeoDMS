@@ -31,6 +31,7 @@ public:
     auto static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void;
     auto static GeoDMSExceptionMessage(CharPtr msg) -> void;
     auto Update(bool* p_open, GuiState& state) -> void;
+    static void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg);
 
 private:
     auto OnItemClick(GuiState& state, EventLogItem* item) -> void;

@@ -37,11 +37,16 @@ enum class GuiEvents
 	ReopenCurrentConfiguration,
 	OpenNewMapViewWindow,
 	OpenNewTableViewWindow,
+	OpenNewImGuiTableViewWIndow,
+	OpenNewStatisticsViewWindow,
 	OpenNewConfiguration,
 	OpenInMemoryDataView,
 	OpenNewDefaultViewWindow,
 	OpenConfigSource,
 	OpenEditPaletteWindow,
+	OpenErrorDialog,
+	OpenOptionsWindow,
+	OpenExportWindow,
 	ToggleShowTreeViewWindow,
 	ToggleShowEventLogWindow,
 	ToggleShowDetailPagesWindow,
@@ -276,6 +281,7 @@ public:
 	auto GetCurrentIterator() -> std::list<ViewAction>::iterator;
 	auto  GetBeginIterator() -> std::list<ViewAction>::iterator;
 	auto GetEndIterator() -> std::list<ViewAction>::iterator;
+	void clear() { m_History.clear(); m_Iterator = m_History.begin(); };
 private:
 	std::list<ViewAction>::iterator m_Iterator;
 	std::list<ViewAction> m_History; // TODO: replace std::list with std::vector
@@ -306,7 +312,12 @@ private:
 	static GuiEventQueues* instance;
 };
 
-
+struct GuiFonts
+{
+	ImFont* text_font = nullptr;
+	ImFont* icon_font = nullptr;
+	ImFont* math_font = nullptr;
+};
 
 class GuiState
 {
@@ -318,7 +329,7 @@ public:
 
 	int return_value					= 0;
 
-	// option window flags
+	// open window flags // TODO: move these flags to the specific windows?
 	bool ShowOptionsWindow				= false;
 	bool ShowDetailPagesOptionsWindow	= false;
 	bool ShowEventLogOptionsWindow		= false;
@@ -331,8 +342,8 @@ public:
 	bool ShowToolbar					= true;
 	bool ShowStatusBar					= false;
 	bool ShowCurrentItemBar				= true;
-	bool MapViewIsActive				= false; //TODO: remove?
-	bool TableViewIsActive				= false; //TODO: remove?
+	bool ShowExportWindow				= false;
+
 	SourceDescrMode SourceDescrMode		= SourceDescrMode::Configured;
 
 	StringStateManager configFilenameManager;
@@ -340,7 +351,10 @@ public:
 	// docking
 	ImGuiID dockspace_id = -1;
 
-	// singletons
+	// style
+	GuiFonts fonts;
+
+	// singletons //TODO: Remove singletons in light of good coding practice
 	static StringStateManager errorDialogMessage;
 	std::string aboutDialogMessage;
 	static StringStateManager contextMessage;
@@ -366,6 +380,25 @@ private:
 	SharedPtr<TreeItem> m_CurrentItem;
 };
 
+// for detail pages and gui views
+enum PropertyEntryType
+{
+	PET_SEPARATOR,
+	PET_TEXT,
+	PET_LINK,
+	PET_HEADING
+};
+
+struct PropertyEntry
+{
+	PropertyEntryType   type;
+	bool background_is_red = false;
+	std::string         text;
+};
+
+using RowData = std::vector<PropertyEntry>;
+using TableData = std::vector<RowData>;
+
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
@@ -382,3 +415,6 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
 auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts) -> std::string;
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
+void PostEmptyEventToGLFWContext();
+void StringToTable(std::string& input, TableData& result, std::string separator = "");
+auto DrawProperties(GuiState& state, TableData& properties) -> void;

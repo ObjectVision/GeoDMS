@@ -40,7 +40,7 @@ Button::Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID bu
     m_State = state;
 }
 
-void Button::Update(GuiView& view)
+void Button::Update(GuiViews& view)
 {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
     if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight())))
@@ -80,12 +80,12 @@ void Button::Update(GuiView& view)
     ImGui::PopStyleColor();
 }
 
-void Button::UpdateSingle(GuiView& view)
+void Button::UpdateSingle(GuiViews& view)
 {
     SendMessage(view.GetHWND(), WM_COMMAND, m_ToolButtonId1, 0);
 }
 
-void Button::UpdateToggle(GuiView& view)
+void Button::UpdateToggle(GuiViews& view)
 {
     switch (m_State)
     {
@@ -104,7 +104,7 @@ void Button::UpdateToggle(GuiView& view)
     }
 }
 
-void Button::UpdateTristate(GuiView& view)
+void Button::UpdateTristate(GuiViews& view)
 {
     switch (m_State)
     {
@@ -129,7 +129,7 @@ void Button::UpdateTristate(GuiView& view)
     }
 }
 
-void Button::UpdateModal(GuiView& view)
+void Button::UpdateModal(GuiViews& view)
 {
 
 }
@@ -170,7 +170,7 @@ GuiToolbar::GuiToolbar()
     m_MapViewButtons.emplace_back(TB_ShowSelOnlyOn, TB_ShowSelOnlyOff, MV_show_selected_features, -1, ButtonType::TOGGLE, "Show only selected rows", false);
 }
 
-void GuiToolbar::ShowMapViewButtons(GuiView& view)
+void GuiToolbar::ShowMapViewButtons(GuiViews& view)
 {
     for (auto& button : m_MapViewButtons)
     {
@@ -179,7 +179,7 @@ void GuiToolbar::ShowMapViewButtons(GuiView& view)
     }
 }
 
-void GuiToolbar::ShowTableViewButtons(GuiView& view)
+void GuiToolbar::ShowTableViewButtons(GuiViews& view)
 {
     // TB_Neutral
 
@@ -190,7 +190,7 @@ void GuiToolbar::ShowTableViewButtons(GuiView& view)
     }
 }
 
-void GuiToolbar::Update(bool* p_open, GuiState& state, GuiView& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
+void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
     // TODO: on selection what toolbar to use: dataview.cpp, lines 1318 and SetMdiToolbar fmain.pas 670
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -204,25 +204,27 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiView& view) // TODO: a
         return;
     }
 
+    if (view.m_dms_views.empty())
+    {
+        *p_open = false;
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        return;
+    }
+
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
    
     // focus window when clicked
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    if (!view.m_Views.empty())
+    if (view.m_dms_view_it!=view.m_dms_views.end())
     {
-        if (view.m_ViewIt!=view.m_Views.end())
-        {
-            if (view.m_ViewIt->m_ViewStyle == tvsTableView)
-            {
-                ShowTableViewButtons(view);
-            }
-            else if (view.m_ViewIt->m_ViewStyle == tvsMapView)
-            {
-                ShowMapViewButtons(view);
-            }
-        }
+        if (view.m_dms_view_it->m_ViewStyle == tvsTableView)
+            ShowTableViewButtons(view);
+        else if (view.m_dms_view_it->m_ViewStyle == tvsMapView)
+            ShowMapViewButtons(view);
     }
 
     ImGui::End();

@@ -72,10 +72,13 @@
     <ClCompile Include="src\GuiEmail.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GuiStatusBar.cpp">
+    <ClCompile Include="src\GuiUnitTest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GuiUnitTest.cpp">
+    <ClCompile Include="src\GuiExport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GuiTableview.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -140,10 +143,13 @@
     <ClInclude Include="src\GuiEmail.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\GuiStatusBar.h">
+    <ClInclude Include="src\GuiUnitTest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\GuiUnitTest.h">
+    <ClInclude Include="src\GuiExport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GuiTableview.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

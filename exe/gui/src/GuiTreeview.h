@@ -37,7 +37,7 @@ public:
 private:
 	auto GetDepthFromTreeItem() -> UInt8;
 	bool DrawItemDropDown(GuiState& state);
-	bool DrawItemIcon();
+	bool DrawItemIcon(GuiState& state);
 	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
 	void DrawItemWriteStorageIcon();
 
@@ -92,7 +92,6 @@ public:
 	~GuiTreeView();
 	auto Update(bool* p_open, GuiState& state) -> void;
 	auto clear() -> void;
-	static auto OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void;
 
 private:
 	auto ProcessTreeviewEvent(GuiEvents &event, GuiState& state) -> void;

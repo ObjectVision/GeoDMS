@@ -53,7 +53,7 @@ private:
 class GuiMenuWindow
 {
 public:
-	void Update(GuiView& ViewPtr);
+	void Update(GuiViews& ViewPtr);
 
 private:
 };
@@ -69,7 +69,7 @@ private:
 class GuiMenu
 {
 public:
-	void Update(GuiState& state, GuiView& ViewPtr);
+	void Update(GuiState& state, GuiViews& ViewPtr);
 	GuiMenuFile	    m_File;
 
 private:

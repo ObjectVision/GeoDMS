@@ -1,5 +1,6 @@
 #include <imgui.h>
 #include "GuiStatusBar.h"
+#include "GuiMain.h"
 
 GuiStatusBar::GuiStatusBar()
 {
@@ -8,8 +9,11 @@ GuiStatusBar::GuiStatusBar()
 
 void GuiStatusBar::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
-    static GuiState state;
-    state.contextMessage.Set(msg);
+    //static GuiState state; // TODO: remove static
+    auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
+    main->m_State.contextMessage.Set(msg);
+    PostEmptyEventToGLFWContext();
+    return;
 }
 
 void GuiStatusBar::ParseNewContextMessage(std::string msg)

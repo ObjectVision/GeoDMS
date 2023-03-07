@@ -74,8 +74,28 @@ private:
     int m_Height   = 0;
 };
 
+
+struct FontSpecification
+{
+    std::string       filename;
+    float             size;
+    float             y_offset;
+    ImVector<ImWchar> ranges;
+};
+
+struct FontBuilderRecipy
+{
+    std::vector<FontSpecification> recipy;
+};
+
 void InitializeGuiTextures();
 GuiIcon& GetIcon(GuiTextureID id);
 void SetDmsWindowIcon(GLFWwindow* window);
-void SetGuiFont(std::string font_filename);
+FontSpecification CreateNotoSansMediumFontSpec();
+FontSpecification CreateNotoSansMathFontSpec();
+FontSpecification CreateNotoSansArabicFontSpec();
+FontSpecification CreateNotoSansJapaneseFontSpec();
+FontSpecification CreateRemixIconsFontSpec();
+ImFont* SetGuiFont(FontBuilderRecipy& recipy);
+
 

@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <format>
 #include <sstream>
 
@@ -31,11 +32,6 @@ if (ImGui::BeginDragDropTarget())
 }
 */
 
-void ClearReferences()
-{
-
-}
-
 // Make the UI compact because there are so many fields
 static void PushStyleCompact()
 {
@@ -49,7 +45,7 @@ static void PopStyleCompact()
     ImGui::PopStyleVar(2);
 }
 
-void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
+/*void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
 {
     if (event == GuiEvents::UpdateCurrentItem) // update current item
     {
@@ -100,27 +96,27 @@ void GuiTableView::ProcessEvent(GuiEvents event, TreeItem* currentItem)
         }
     }
     m_UpdateData = true;
-}
+}*/
 
-void GuiTableView::ClearReferences()
+/*void GuiTableView::ClearReferences()
 {
     m_ActiveItems.clear();
-}
+}*/
 
-SizeT GuiTableView::GetNumberOfTableColumns()
+/*SizeT GuiTableView::GetNumberOfTableColumns()
 {
     return m_ActiveItems.size();
-}
+}*/
 
-void GuiTableView::SetupTableHeadersRow()
+/*void GuiTableView::SetupTableHeadersRow()
 {
     for (auto item : m_ActiveItems.get())
         ImGui::TableSetupColumn(item->GetName().c_str());
 
     ImGui::TableHeadersRow();
-}
+}*/
 
-std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi, SizeT count, tile_id t)
+/*std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi, SizeT count, tile_id t)
 {
     std::vector<std::string> res;
     const AbstrDataObject* ado = adi->GetRefObj();
@@ -135,11 +131,11 @@ std::vector<std::string> GetDataItemValueRangeAsString(const AbstrDataItem* adi,
     DMS_DataReadLock_Release(lock);
 
     return res;
-}
+}*/
 
 //tile_id GetTileID(){} // TODO: implement tile based parsing.
 
-void GuiTableView::PopulateDataStringBuffer(SizeT count)
+/*void GuiTableView::PopulateDataStringBuffer(SizeT count)
 {
     m_DataStringBuffer.clear();
     for (auto item : m_ActiveItems.get())
@@ -157,9 +153,9 @@ void GuiTableView::PopulateDataStringBuffer(SizeT count)
         }
     }
     int i = 0;
-}
+}*/
 
-SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
+/*SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
 {
     SizeT count = -1;
     for (auto item : m_ActiveItems.get())
@@ -176,24 +172,55 @@ SizeT GuiTableView::GetCountFromAnyCalculatedActiveItem()
         }
     }
     return count;
+}*/
+
+GuiTableView::GuiTableView(GuiState& state, std::string name)
+{
+    assert(state.GetCurrentItem());
+    m_Name = name;
+    m_ti_interest_holder = state.GetCurrentItem();
+    m_vu_interest_holder = SharedPtr<const AbstrUnit>(AsDynamicDataItem(state.GetCurrentItem())->GetAbstrValuesUnit());
+    m_di_interest_holder = AsDynamicDataItem(state.GetCurrentItem()); // TODO: fix
 }
 
-void GuiTableView::Update(bool* p_open, TreeItem * &currentItem)
+GuiTableView::~GuiTableView()
 {
-    ImGui::Begin("Tableview", p_open, NULL);
-    if (!m_State.TableViewIsActive)
+    //m_ti_interest_holder.release();
+    m_di_interest_holder.release();
+    //m_vu_interest_holder.release();
+}
+
+bool GuiTableView::Update(GuiState& state)
+{
+    if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_None | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar)) // no titlebar means the window is initialized without a dockid!
     {
         ImGui::End();
-        return;
+        return false;
     }
 
-    while (m_State.TableViewEvents.HasEvents()) // handle events
+    auto view_window = ImGui::GetCurrentWindow();
+    if (!has_been_docking_initialized)
     {
-        auto event = m_State.TableViewEvents.Pop();
-        ProcessEvent(event, currentItem);
+        if (view_window->DockId) // window has a dockid, so it is docked
+            has_been_docking_initialized = true;
+        else if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
+            has_been_docking_initialized = true;
     }
 
-    // Using those as a base value to create width/height that are factor of the size of our font
+    auto itemIsValid = DMS_TreeItem_GetProgressState(m_ti_interest_holder) >= PS_Validated;
+    
+    if (!itemIsValid)
+    {
+        m_di_interest_holder->PrepareData();
+    }
+
+    // DMS_Unit_GetCount(const AbstrUnit * self);
+    // DMS_CONV DMS_AnyDataItem_GetValueAsCharArray    (const AbstrDataItem* self, SizeT index, char* clientBuffer, UInt32 clientBufferLen);
+    // Table_Dump
+    // SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode)
+
+
+    /*// Using those as a base value to create width/height that are factor of the size of our font
     const float TEXT_BASE_WIDTH = ImGui::CalcTextSize("A").x;
     const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
     static ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable;
@@ -249,5 +276,9 @@ void GuiTableView::Update(bool* p_open, TreeItem * &currentItem)
         ImGui::EndTable();
     }
     PopStyleCompact();
+    
+    */
+
     ImGui::End();
+    return true;
 }

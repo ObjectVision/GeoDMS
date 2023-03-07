@@ -205,6 +205,12 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenHelp);
         return;
     }
+    case GLFW_KEY_I:
+    {
+        if (mods == GLFW_MOD_CONTROL) // Open statistics view window
+            event_queues->MainEvents.Add(GuiEvents::OpenNewStatisticsViewWindow);
+        return;
+    }
     case GLFW_KEY_L:
     {
         if (mods == GLFW_MOD_CONTROL) // CTRL-L
@@ -219,6 +225,10 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_O:
     {
+        if (mods == GLFW_MOD_CONTROL)
+            event_queues->MainEvents.Add(GuiEvents::OpenExportWindow);
+
+
         //if (mods == GLFW_MOD_SHIFT)   // SHIFT-O
         //    m_State.ShowOpenFileWindow = true;
         //else if (mods == (GLFW_MOD_CONTROL | GLFW_MOD_ALT)) // CTRL-ALT-O

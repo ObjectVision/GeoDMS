@@ -35,6 +35,7 @@
 
 #include "GuiTreeview.h"
 #include "GuiStyles.h"
+#include "GuiMain.h"
 #include <functional>
 #include<ranges>
 
@@ -60,44 +61,67 @@ auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt3
     }
 }
 
-auto ShowRightMouseClickPopupWindowIfNeeded(GuiState& state) -> void
+void DrawRightMouseClickButtonElement(std::string button_text, bool show, GuiEvents event)
+{
+    //bool show = vs & vs_capability || vs_capability == ViewStyleFlags::vsfNone;
+    ImGui::PushStyleColor(ImGuiCol_Text, show ? IM_COL32(0, 0, 0, 255) : IM_COL32(0, 0, 0, 200));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, show ? IM_COL32(66, 150, 250, 79) : IM_COL32(0, 0, 0, 0));
+    if (ImGui::Button(button_text.c_str()))
+    {
+        if (show)
+            GuiEventQueues::getInstance()->MainEvents.Add(event);
+    }
+    ImGui::PopStyleColor(2);
+}
+
+void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
 {
     // right-mouse popup menu
+    //ImGui::OpenPopup("treeview_popup_window");
     if (ImGui::BeginPopupContextItem("treeview_popup_window"))
     {
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
-
         auto event_queues = GuiEventQueues::getInstance();
-        if (ImGui::Button("Edit Config Source       Ctrl-E"))
-            event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
 
-        if (ImGui::Button("Default View"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(66, 150, 250, 79));
+        //ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 200));
 
-        if (ImGui::Button("Map View                 CTRL-M"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
+        //DrawRightMouseClickButtonElement
 
-        if (ImGui::Button("Table View               CTRL-D"))
-            event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
+        auto vsflags = SHV_GetViewStyleFlags(state.GetCurrentItem());
+        auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
+        if (vsflags & ViewStyleFlags::vsfMapView) {  }
+        else if (vsflags & ViewStyleFlags::vsfTableContainer) {  }
+        else if (vsflags & ViewStyleFlags::vsfTableView) {  }
+        else if (vsflags & ViewStyleFlags::vsfPaletteEdit) {  }
+        else if (vsflags & ViewStyleFlags::vsfContainer) {  }
+        else {  }
+
+        //auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
+
+        DrawRightMouseClickButtonElement("Edit Config Source       Ctrl-E", true, GuiEvents::OpenConfigSource);
+        DrawRightMouseClickButtonElement("Default View", (default_viewstyle== ViewStyle::tvsTableContainer) || (default_viewstyle== ViewStyle::tvsTableView) || (default_viewstyle==ViewStyle::tvsMapView), GuiEvents::OpenNewDefaultViewWindow);
+        DrawRightMouseClickButtonElement("Table View               CTRL-D", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewTableViewWindow);
+        DrawRightMouseClickButtonElement("ImGui Table View", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewImGuiTableViewWIndow);
+        DrawRightMouseClickButtonElement("Map View                 CTRL-M", vsflags & ViewStyleFlags::vsfMapView, GuiEvents::OpenNewMapViewWindow);
+        DrawRightMouseClickButtonElement("Statistics View          CTRL-I", IsDataItem(state.GetCurrentItem()), GuiEvents::OpenNewStatisticsViewWindow);
+        
 
         //url 
         auto treeitem_metadata_url = TreeItemPropertyValue(state.GetCurrentItem(), urlPropDefPtr);
         if (!treeitem_metadata_url.empty())
         {
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255));
             if (ImGui::Button("Open Metainfo url"))
-            {
                 OpenUrlInWindowsDefaultBrowser(treeitem_metadata_url.c_str());
-                //ShellExecuteA(0, NULL, treeitem_metadata_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-            }
+            ImGui::PopStyleColor();
         }
-        ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor();
 
         ImGui::EndPopup();
     }
 }
 
-auto UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem) -> void
+void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem)
 {
     auto event_queues = GuiEventQueues::getInstance();
     state.SetCurrentItem(nextSubItem);
@@ -106,7 +130,7 @@ auto UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem) -> void
     event_queues->MainEvents.Add(GuiEvents::UpdateCurrentItem);
 }
 
-auto IsKeyboardFocused() -> bool
+bool IsKeyboardFocused()
 {
     auto minItemRect = ImGui::GetItemRectMin();
     auto maxItemRect = ImGui::GetItemRectMax();
@@ -116,12 +140,12 @@ auto IsKeyboardFocused() -> bool
     return false;
 }
 
-auto SetTreeViewIcon(GuiTextureID id) -> void
+void SetTreeViewIcon(GuiTextureID id)
 {
     ImGui::Image((void*)(intptr_t)GetIcon(id).GetImage(), ImVec2(GetIcon(id).GetWidth(), GetIcon(id).GetHeight()));
 }
 
-auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
+bool IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
 {
     if (!descendant)
         return false;
@@ -135,10 +159,12 @@ auto IsAncestor(TreeItem* ancestorTarget, TreeItem* descendant) -> bool
     return false;
 }
 
-auto GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state) -> void
+void GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state)
 {
     auto tree_node = static_cast<GuiTreeNode*>(clientHandle);
     tree_node->SetState(new_state);
+    PostEmptyEventToGLFWContext();
+    return;
 }
 
 GuiTreeNode::GuiTreeNode(TreeItem* item)
@@ -172,7 +198,7 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
 
-auto GuiTreeNode::Init(TreeItem* item) -> void
+void GuiTreeNode::Init(TreeItem* item)
 {
     m_item = item;
     m_depth = GetDepthFromTreeItem();
@@ -197,10 +223,10 @@ GuiTreeNode::~GuiTreeNode()
 auto GuiTreeNode::GetDepthFromTreeItem() -> UInt8
 {
     assert(m_item);
-    return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size();
+    return DivideTreeItemFullNameIntoTreeItemNames(m_item->GetFullName().c_str()).size()-1;
 }
 
-auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
+bool GuiTreeNode::DrawItemDropDown(GuiState &state)
 {
     // TODO:
     // draw without calling update metainfo, HasCalculator true -> +, false -> _GetCurrFirstSubItem -> true + false -
@@ -212,44 +238,63 @@ auto GuiTreeNode::DrawItemDropDown(GuiState &state) -> bool
 
     auto cur_pos = ImGui::GetCursorPos();
     //ImGui::SetCursorPos(ImVec2(cur_pos.x+10*m_depth, cur_pos.y+offset));
-    ImGui::SetCursorPos(ImVec2(cur_pos.x * m_depth, cur_pos.y));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x * 3 * m_depth, cur_pos.y));
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
 
+    //ImGui::PushFont(IsLeaf() ? state.fonts.text_font : state.fonts.icon_font);
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
-    if (ImGui::Button(icon, ImVec2(20, 15)))
+    if (ImGui::Button(icon))//, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
-        {
             UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
-        }
 
         SetOpenStatus(!IsOpen());
     }
     ImGui::PopStyleColor();
+    //
+    //ImGui::PopFont();
     ImGui::PopID();
 
-    auto spacing_w = g.Style.ItemSpacing.x;
-    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
+    //auto spacing_w = g.Style.ItemSpacing.x;
+    //window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    //window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y;
     return 0;
 }
 
-auto GuiTreeNode::DrawItemIcon() -> bool
+bool GuiTreeNode::DrawItemIcon(GuiState& state)
 {
     assert(m_item);
-    auto vsflags = SHV_GetViewStyleFlags(m_item); // TODO: check if this calls UpdateMetaInfo
+
+    float offset = 3.0f;
+    ImGuiContext& g = *GImGui;
+    auto window = ImGui::GetCurrentWindow();
+    auto spacing_w = g.Style.ItemSpacing.x;
+    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y + offset;
+
+
+    auto vsflags = SHV_GetViewStyleFlags(m_item);
     if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
     else if (vsflags & ViewStyleFlags::vsfTableContainer) { SetTreeViewIcon(GuiTextureID::TV_container_table); }
     else if (vsflags & ViewStyleFlags::vsfTableView) { SetTreeViewIcon(GuiTextureID::TV_table); }
     else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { SetTreeViewIcon(GuiTextureID::TV_palette); }
     else if (vsflags & ViewStyleFlags::vsfContainer) { SetTreeViewIcon(GuiTextureID::TV_container); }
     else { SetTreeViewIcon(GuiTextureID::TV_unit_transparant); }
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        ImGui::CloseCurrentPopup();
+        UpdateStateAfterItemClick(state, m_item);
+    }
+
+    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
+
     return 0;
 }
 
-auto GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item) -> bool
+bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
 {
     assert(m_item);
     auto event_queues = GuiEventQueues::getInstance();
@@ -343,28 +388,32 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
 
     //auto test = m_item->GetExpr();
 
+    
+
     if (is_read_only && m_item->HasCalculator())
         return;
 
     if (m_item->IsDisabledStorage())
         return;
 
-    float offset = 3.0;
+    ImGui::SameLine();
+
+    /*float offset = 3.0;
     ImGuiContext& g = *GImGui;
     auto window = ImGui::GetCurrentWindow();
     auto spacing_w = g.Style.ItemSpacing.x;
     window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;
+    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;*/
 
     ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
-    ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE : ICON_RI_FLOPPY_SOLID);
+    ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
-    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
+    //window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return;
 }
 
-auto GuiTreeNode::clear() -> void
+void GuiTreeNode::clear()
 {
     if (m_item)
     {
@@ -375,7 +424,7 @@ auto GuiTreeNode::clear() -> void
     }
 }
 
-auto GuiTreeNode::SetOpenStatus(bool do_open) -> void
+void GuiTreeNode::SetOpenStatus(bool do_open)
 { 
     m_is_open = do_open;
 
@@ -386,7 +435,7 @@ auto GuiTreeNode::SetOpenStatus(bool do_open) -> void
     }
 }
 
-auto GuiTreeNode::SetState(NotificationCode new_state) -> void
+void GuiTreeNode::SetState(NotificationCode new_state)
 {
     m_state = new_state;
 }
@@ -422,7 +471,7 @@ auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
     return m_children.end();
 }
 
-auto GuiTreeNode::IsLeaf() -> bool
+bool GuiTreeNode::IsLeaf()
 {
     if (!m_item)
         return false;
@@ -433,28 +482,30 @@ auto GuiTreeNode::IsLeaf() -> bool
     return true;
 }
 
-auto GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item) -> bool
+bool GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item)
 {
     DrawItemDropDown(state);
-    DrawItemIcon();
+    ImGui::SameLine();
+    DrawItemIcon(state);
     ImGui::SameLine();
     DrawItemText(state, jump_item);
     DrawItemWriteStorageIcon();
 
     // Modify y-spacing between TreeView items
+    // TODO: necessary?
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    const UInt8 offset = 4;
+    const UInt8 offset = 12; // TODO: Replace magic number by rule based on font size set by user
     window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return false;
 }
 
-auto GuiTree::IsInitialized() -> bool
+bool GuiTree::IsInitialized()
 {
     return m_is_initialized;
 }
 
-auto GuiTree::Init(GuiState& state) -> void
+void GuiTree::Init(GuiState& state)
 {
     if (state.GetRoot())
     {
@@ -659,7 +710,7 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
     return true;
 }
 
-auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
+void GuiTree::Draw(GuiState& state, TreeItem*& jump_item)
 {
     if (!m_start_node)
         return;
@@ -676,7 +727,7 @@ auto GuiTree::Draw(GuiState& state, TreeItem*& jump_item) -> void
     ImGui::PopStyleColor(3);
 }
 
-auto GuiTree::clear() -> void
+void GuiTree::clear()
 {
     m_Root.clear();
     m_is_initialized = false;
@@ -685,22 +736,12 @@ auto GuiTree::clear() -> void
 GuiTreeView::~GuiTreeView() 
 {}
 
-auto GuiTreeView::clear() -> void
+void GuiTreeView::clear()
 {
     m_tree.clear();
 }
 
-
-auto GuiTreeView::OnStateChange(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) -> void
-{
-    if (notificationCode == NotificationCode::CC_CreateMdiChild)
-    { 
-        auto event_queues = GuiEventQueues::getInstance();
-        //event_queues->MapViewEvents.Add();
-    }
-}
-
-auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> void
+void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
 {
     switch (event)
     {
@@ -748,7 +789,7 @@ auto GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state) -> voi
     }    
 }
 
-auto GuiTreeView::Update(bool* p_open, GuiState& state) -> void
+void GuiTreeView::Update(bool* p_open, GuiState& state)
 {
     if (!m_tree.IsInitialized() && state.GetRoot())
         m_tree.Init(state);

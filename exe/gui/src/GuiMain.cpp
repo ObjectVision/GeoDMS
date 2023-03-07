@@ -36,6 +36,7 @@
 #include "utl/splitPath.h"
 #include "dbg/DebugLog.h"
 #include "ShvDllInterface.h"
+#include "dbg/DmsCatch.h"
 
 #include "GuiMain.h"
 #include "GuiStyles.h"
@@ -48,8 +49,8 @@ GuiMainComponent::GuiMainComponent()
     auto flags = GetRegStatusFlags();
     DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
-    DMS_SetContextNotification(&m_StatusBar.GeoDMSContextMessage, nullptr);
-    DMS_RegisterStateChangeNotification(&m_Treeview.OnStateChange, nullptr);
+    DMS_SetContextNotification(&m_EventLog.GeoDMSContextMessage, this);
+    DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
     SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
@@ -116,7 +117,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfMapView)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddDMSView(m_State, tvsMapView, "###DMSView" + std::to_string(m_Views.m_dms_views.size()));
 
         break;
     }
@@ -127,10 +128,24 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 
         auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
         if (viewstyle_flags & ViewStyleFlags::vsfTableView)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddDMSView(m_State, tvsTableView, "###DMSView" + std::to_string(m_Views.m_dms_views.size()));
 
         if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
-            m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableContainer, "###View" + std::to_string(m_View.m_Views.size()));
+            m_Views.AddDMSView(m_State, tvsTableContainer, "###DMSView" + std::to_string(m_Views.m_dms_views.size()));
+
+        break;
+    }
+    case GuiEvents::OpenNewImGuiTableViewWIndow:
+    {
+        if (!m_State.GetCurrentItem())
+            break;
+
+        auto viewstyle_flags = SHV_GetViewStyleFlags(m_State.GetCurrentItem());
+        if (viewstyle_flags & ViewStyleFlags::vsfTableView)
+            m_Views.AddTableView(m_State);
+
+        //if (viewstyle_flags & ViewStyleFlags::vsfTableContainer)
+        //    m_Views.AddDMSView(m_State, tvsTableContainer, ");
 
         break;
     }
@@ -142,9 +157,19 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         auto dvs = SHV_GetDefaultViewStyle(m_State.GetCurrentItem());
         switch (dvs)
         {
-        case tvsMapView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsMapView, "###View" + std::to_string(m_View.m_Views.size())); break; }
-        case tvsTableView: { m_View.AddView(m_State, m_State.GetCurrentItem(), tvsTableView, "###View" + std::to_string(m_View.m_Views.size())); break; }
+        case tvsMapView: { m_Views.AddDMSView(m_State, tvsMapView, "###DMSView" + std::to_string(m_Views.m_dms_views.size())); break; }
+        case tvsTableView: { m_Views.AddDMSView(m_State, tvsTableView, "###DMSView" + std::to_string(m_Views.m_dms_views.size())); break; }
+        case tvsTableContainer: { m_Views.AddDMSView(m_State, tvsTableView, "###DMSView" + std::to_string(m_Views.m_dms_views.size())); break; }
         }
+
+        break;
+    }
+    case GuiEvents::OpenNewStatisticsViewWindow:
+    {
+        if (!IsDataItem(m_State.GetCurrentItem())) // statistics is for dataitems only
+            break;
+
+        m_Views.AddStatisticsView(m_State, std::string("###StatView") + std::to_string(m_Views.m_statistic_views.size()));
 
         break;
     }
@@ -162,7 +187,16 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
             auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
             const TreeItem* TempItem = m_State.GetCurrentItem();
             auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
+            DMS_CALL_BEGIN
+            try
+            {
+                StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str())); //TODO: crash in case fullPathCmd does not exist
+            }
+            catch (...)
+            {
+                throw;
+            }
+            DMS_CALL_END
         }
 
         break;
@@ -172,6 +206,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     case GuiEvents::ToggleShowEventLogWindow: { m_State.ShowEventLogWindow = !m_State.ShowEventLogWindow; break;}
     case GuiEvents::ToggleShowToolbar: { m_State.ShowToolbar = !m_State.ShowToolbar; break; }
     case GuiEvents::ToggleShowTreeViewWindow: { m_State.ShowTreeviewWindow = !m_State.ShowTreeviewWindow; break; }
+    case GuiEvents::OpenExportWindow: { m_State.ShowExportWindow = true; break; }
     case GuiEvents::StepToErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -187,7 +222,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
         }
         break;
     }
-    case GuiEvents::CloseAllViews: { m_View.CloseAll(); break;}
+    case GuiEvents::CloseAllViews: { m_Views.CloseAll(); break;}
     case GuiEvents::StepToRootErrorSource:
     {
         if (!m_State.GetCurrentItem())
@@ -216,6 +251,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     }
     case GuiEvents::ShowLocalSourceDataChangedModalWindow: { ImGui::OpenPopup("Changed LocalData or SourceData path", ImGuiPopupFlags_None); break;}
     case GuiEvents::ShowAboutTextModalWindow: {ImGui::OpenPopup("About", ImGuiPopupFlags_None); break; }
+    //case GuiEvents::OpenErrorDialog: { ImGui::OpenPopup("Error"); break; }
     case GuiEvents::Close: { return true; } // Exit application
     }
     return false;
@@ -224,7 +260,7 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
 void GuiMainComponent::CloseCurrentConfig()
 {
     m_DetailPages.clear();
-    m_View.CloseAll();
+    m_Views.CloseAll();
     m_Treeview.clear();
     m_State.clear();
 }
@@ -270,6 +306,12 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
 
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
 {
+    if (m_State.errorDialogMessage.HasNew())
+    {
+        m_State.errorDialogMessage.Get();
+        ImGui::OpenPopup("Error");
+    }
+
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
@@ -478,8 +520,16 @@ int GuiMainComponent::Init()
         throwErrorF("GLEW", "unsuccessful initialization of openGL helper library glew.");
 
     SetDmsWindowIcon(m_MainWindow);
-    SetGuiFont("misc/fonts/DroidSans.ttf");
-    //SetGuiFont("misc/fonts/Cambria-01.ttf"); // from C:\Windows\Fonts
+    
+    // fonts
+    FontBuilderRecipy recipy;
+    recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
+    recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
+    recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
+    m_State.fonts.text_font = SetGuiFont(recipy);
+
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 
@@ -490,8 +540,6 @@ int GuiMainComponent::Init()
 
     InterpretCommandLineParameters();
 
-    
-
     return 0;
 }
 
@@ -500,9 +548,9 @@ int GuiMainComponent::MainLoop()
     ImGuiIO& io = ImGui::GetIO();
 
     // state
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    //ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    //glClearColor(1.0, 0.0, 0.0, 1.0);
     glfwSetWindowTitle(m_MainWindow, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
-    //glfwSetKeyCallback(m_Window, &m_Input.ProcessKeyEvent);
 
     InitializeGuiTextures();
     SHV_SetAdminMode(true); // needed for ViewStyleFlags lookup
@@ -513,19 +561,21 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(m_MainWindow))
     {
+        
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
         glfwPollEvents();
         //else 
         //{
-        //    glfwWaitEventsTimeout(1.0);
+        
+        //glfwWaitEvents();
+        //glfwPostEmptyEvent();
+        //glfwWaitEventsTimeout(1.0);
         //    if (UpdateFrameCounter == 0)
         //        UpdateFrameCounter = frames_to_update;
         //}
 
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
-
-        //break; // TODO: REMOVE, test for mem leaks
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -535,16 +585,16 @@ int GuiMainComponent::MainLoop()
 
         // TreeItem history event
         TraverseTreeItemHistoryIfRequested();
-
+        
+        // update all gui components
+        if (Update())
+            break;
+        
         // Modal windows
         if (ShowErrorDialogIfNecessary())
             break;
 
         ShowSourceFileChangeDialogIfNecessary();
-
-        // update all gui components
-        if (Update())
-            break;
 
         // Handle new config file
         if (m_State.configFilenameManager.HasNew())
@@ -556,22 +606,25 @@ int GuiMainComponent::MainLoop()
             glfwSetWindowTitle(m_MainWindow, (filename.string() + " in " + parent_path.string() + std::string(" - ") + DMS_GetVersion()).c_str());
             m_State.SetRoot(DMS_CreateTreeFromConfiguration(m_State.configFilenameManager.Get().c_str()));
 
-            //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
-
             if (m_State.GetRoot())
             {
                 //DMS_TreeItem_RegisterStateChangeNotification(&OnTreeItemChanged, m_State.GetRoot(), nullptr);
                 //m_State.GetRoot()->UpdateMetaInfo();
             }
         }
+        
 
         // rendering
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
+        
+        //glViewport(0, 0, display_w/2, display_h/2);
+        //glClearColor(1.0, 0.0, 0.0, 1.0);
+        //glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        
+            
+        //glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Update and Render additional Platform Windows
@@ -588,7 +641,7 @@ int GuiMainComponent::MainLoop()
 
 
         m_GuiUnitTest.Step();
-
+        
         //break;
     }
 
@@ -609,10 +662,9 @@ int GuiMainComponent::MainLoop()
 
 bool GuiMainComponent::Update()
 {
-    auto event_queues = GuiEventQueues::getInstance();
-    static bool opt_fullscreen = true;
-    static bool opt_padding = true;
-    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+    static bool opt_fullscreen = true; //TODO: remove?
+    static bool opt_padding = true; //TODO: remove?
+    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None; //TODO: remove?
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
     // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
@@ -643,7 +695,9 @@ bool GuiMainComponent::Update()
     if (!opt_padding)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
-
+    //ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+    //ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    //ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
     if (!ImGui::Begin("GeoDMSGui", nullptr, window_flags))
     {
         ImGui::End();
@@ -658,12 +712,11 @@ bool GuiMainComponent::Update()
 
     // Submit the DockSpace
     auto io = ImGui::GetIO();
-    //if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-    //{
-    //ImGui::GetID("GeoDMSDockSpace");
+    ImGui::PushStyleColor(ImGuiCol_DockingEmptyBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
     ImGui::DockSpace(m_State.dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-    //}
+    ImGui::PopStyleColor();
 
+    auto event_queues = GuiEventQueues::getInstance();
     while (event_queues->MainEvents.HasEvents()) // Handle MainEvents
     {
         auto e = event_queues->MainEvents.Pop();
@@ -684,16 +737,17 @@ bool GuiMainComponent::Update()
     ShowAboutDialogIfNecessary(m_State);
 
     //static auto first_time = true;
-    m_Menu.Update(m_State, m_View);
+    m_Menu.Update(m_State, m_Views);
 
     if (m_State.ShowCurrentItemBar)
         m_CurrentItem.Update(m_State);
     
     ImGui::End();
-
+    //ImGui::PopStyleColor(3);
+    
     // Update all GeoDMSGui components
     if (m_State.ShowToolbar)
-        m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_View);
+        m_Toolbar.Update(&m_State.ShowToolbar, m_State, m_Views);
 
     if (m_State.ShowDetailPagesWindow)
         m_DetailPages.Update(&m_State.ShowDetailPagesWindow, m_State);
@@ -703,11 +757,8 @@ bool GuiMainComponent::Update()
 
     if (m_State.ShowEventLogWindow)
         m_EventLog.Update(&m_State.ShowEventLogWindow, m_State);
-    
-    if (m_State.ShowStatusBar)
-        m_StatusBar.Update(&m_State.ShowStatusBar, m_State);
 
-    m_View.UpdateAll(m_State);
+    m_Views.UpdateAll(m_State);
 
 
 
@@ -724,9 +775,11 @@ bool GuiMainComponent::Update()
     if (m_State.ShowDemoWindow)
         ImGui::ShowDemoWindow(&m_State.ShowDemoWindow);
 
-    // option windows
     if (m_State.ShowOptionsWindow)
         m_Options.Update(&m_State.ShowOptionsWindow, m_State);
+
+    if (m_State.ShowExportWindow)
+        m_Export.Update(&m_State.ShowExportWindow, m_State);
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
