@@ -48,6 +48,21 @@ namespace Explain {
 
 	const UInt32 MaxNrEntries = 6;
 	const UInt32 MaxLevel     = 3;
+
+	struct CalcExplImpl;
+	struct CalcExplanations;
+
+	struct NonStaticCalcExplanations
+	{
+		TIC_CALL NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo);
+		TIC_CALL bool ProcessQueue();
+		TIC_CALL void WriteDescr();
+
+		std::unique_ptr<CalcExplImpl>     m_Impl;
+		std::unique_ptr<CalcExplanations> m_Interface;
+		SharedDataItem   m_StudyObject;
+	};
+
 }
 //  -----------------------------------------------------------------------
 //  extern "C" interface functions

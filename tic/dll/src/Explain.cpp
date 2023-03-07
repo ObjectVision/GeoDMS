@@ -714,17 +714,18 @@ namespace Explain { // local defs
 
 	struct CalcExplanations
 	{
-		CalcExplanations(OutStreamBase& xmlOutStr, bool bShowHidden)
+		CalcExplanations(OutStreamBase& xmlOutStr, bool bShowHidden, CalcExplImpl* calcExplImplPtr = &g_CalcExplImpl)
 			:	m_OutStream(xmlOutStr)
 			,	m_bShowHidden(bShowHidden)
+			,	m_CalcExplImplPtr(calcExplImplPtr)
 		{}
 
 		bool MakeExplanationIdx(const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
 		{
 			try {
 
-				Explain::g_CalcExplImpl.Init(studyObject, index, extraInfo);
-				return Explain::g_CalcExplImpl.ProcessQueue();
+				m_CalcExplImplPtr->Init(studyObject, index, extraInfo);
+				return m_CalcExplImplPtr->ProcessQueue();
 
 			}
 			catch (...) 
@@ -733,6 +734,7 @@ namespace Explain { // local defs
 			}
 			return true; // don't come back
 		}
+
 		bool MakeExplanationLoc(const AbstrDataItem* studyObject, const AbstrValue& location, CharPtr extraInfo)
 		{
 			return 
@@ -747,15 +749,15 @@ namespace Explain { // local defs
 		{
 			SuspendTrigger::FencedBlocker nowProvideValuesWithLabelsWithoutSuspension;
 
-			dms_assert(g_CalcExplImpl.m_Expl.size() >= 1);
+			assert(m_CalcExplImplPtr->m_Expl.size() >= 1);
 
 			NewLine(m_OutStream);
 			bool isFirst = true;
-			for (const auto& expl: g_CalcExplImpl.m_Expl)
+			for (const auto& expl: m_CalcExplImplPtr->m_Expl)
 			{
 				if (expl->m_Coordinates.empty())
 					continue;
-				expl->GetDescr(&g_CalcExplImpl, m_OutStream, isFirst, m_bShowHidden);
+				expl->GetDescr(m_CalcExplImplPtr, m_OutStream, isFirst, m_bShowHidden);
 			}
 			GetSupplDescr(studyObject);
 
@@ -802,7 +804,38 @@ namespace Explain { // local defs
 		OutStreamBase&  m_OutStream;
 		bool            m_bShowHidden;;
 		ErrMsgPtr       m_LastErrorPtr;
+		CalcExplImpl*   m_CalcExplImplPtr;
 	};
+
+	// ========================== impl struct NonStaticCalcExplanation
+
+	NonStaticCalcExplanations::NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
+		: m_Impl(std::make_unique<CalcExplImpl>())
+		, m_Interface(std::make_unique<CalcExplanations>(xmlOutStr, true, m_Impl.get()))
+		, m_StudyObject(studyObject)
+	{
+		m_Impl->Init(studyObject, index, extraInfo);
+	}
+
+	bool NonStaticCalcExplanations::ProcessQueue()
+	{
+		try {
+			return m_Impl->ProcessQueue();
+		}
+		catch (...)
+		{
+			m_Interface->m_LastErrorPtr = catchException(true); // will be processed in WriteDescr
+		}
+		return true; // don't come back
+	}
+
+	void NonStaticCalcExplanations::WriteDescr()
+	{
+		m_Interface->GetDescr(m_StudyObject);
+	}
+
+
+	// ========================== impl struct LispCalcExplanation, SumOfTermsExplanation, UnionOfAndsExplanation
 
 	void LispCalcExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
 	{
@@ -1144,7 +1177,7 @@ void DMS_CalcExpl_AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit
 {
 	dms_assert(explImpl);
 	dms_assert(domain);	
-	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
+//	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
 	explImpl->AddQueueEntry(domain, index);
 }
 
