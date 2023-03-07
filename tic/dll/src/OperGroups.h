@@ -113,6 +113,7 @@ struct AbstrOperGroup : SharedObj
 
 	TokenID   GetNameID()            const { return m_OperNameID; }
 	TokenStr  GetName()              const { return GetTokenStr(GetNameID()); }
+	CharPtr   GetNameStr()           const { return m_OperName.c_str(); }
 	const Operator* GetFirstMember() const { return m_FirstMember; }
 
 	TIC_CALL void UpdateNameID();
