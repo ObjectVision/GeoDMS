@@ -1382,9 +1382,9 @@ void DataItemColumn::Ramp()
 	if (adi->IsDerivable())
 		adi->throwItemError("Ramp: Cannot change derived data; try to copy the attribute and change the copied data");
 
-	DataWriteLock lock(adi);
+	auto lock = DataWriteLock(adi, dms_rw_mode::read_write);
 
-	auto colorTheme = GetEnabledTheme(AN_LabelTextColor);
+	auto colorTheme = GetEnabledTheme(AN_LabelBackColor);
 	if (colorTheme)
 	{
 		dms_assert(colorTheme->GetThemeAttr() == adi);
