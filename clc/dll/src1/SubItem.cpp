@@ -211,9 +211,11 @@ struct FenceContainerOperator : BinaryOperator
 			{
 				DataReadLock readLock(AsDataItem(srcItem));
 				AsDataItem(resWalker)->m_DataObject = readLock;
+				dms_assert(CheckDataReady(resWalker));
 			}
 			if (srcItem->WasFailed())
 				resWalker->Fail(srcItem);
+			dms_assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker));
 		}
 
 		// check that all sub-items of result-holder are up-to-date or uninteresting
@@ -223,6 +225,7 @@ struct FenceContainerOperator : BinaryOperator
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+		resultHolder->SetIsInstantiated();
 		return true;
 	}
 };
