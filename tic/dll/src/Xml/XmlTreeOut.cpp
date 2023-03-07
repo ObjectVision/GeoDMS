@@ -399,7 +399,12 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	}
 	SharedPtr<const AbstrCalculator> calc = ti->GetCalculator();
 	if (calc)
-		stream << calc->GetAsFLispExprOrg().c_str();
+	{
+		if (calc->IsDataBlock())
+			stream << "[ ... ]";
+		else
+			stream << calc->GetAsFLispExprOrg().c_str();
+	}
 	return nullptr;
 }
 

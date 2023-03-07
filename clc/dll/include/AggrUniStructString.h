@@ -77,7 +77,7 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 
 		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 
-		ThrowingMemoOutStreamBuff writerStreamBuff(begin_ptr( output ), end_ptr( output ));
+		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr( output ), end_ptr( output )));
 		writerStreamBuff.m_Curr += sz;
 		
 		aggr1_total_best(writerStreamBuff, input.begin(), input.end(), hasUndefinedValues, m_SerFunc);
@@ -126,7 +126,7 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 	{ 
 		outStreamArray.reserve(outputs.size());
 		for (auto resultSequence: outputs)
-			outStreamArray.push_back(ThrowingMemoOutStreamBuff(begin_ptr(resultSequence), end_ptr(resultSequence)));
+			outStreamArray.push_back(ThrowingMemoOutStreamBuff(ByteRange(begin_ptr(resultSequence), end_ptr(resultSequence))));
 	}
 
 	void ProcessTileData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const

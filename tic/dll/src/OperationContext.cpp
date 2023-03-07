@@ -944,7 +944,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 		dms_assert(oc->GetStatus() >= task_status::scheduled || CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount());
 		task_status ocStatus = oc->Join();
 		dms_assert(ocStatus > task_status::running);
-		dms_assert(CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		dms_assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:
@@ -1337,7 +1337,7 @@ task_status OperationContext::Join()
 	RunOperationContexts();
 
 	dms_assert(m_Status > task_status::running);
-	dbg_assert(CheckDataReady(m_Result) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
+	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
 	return m_Status;
 }
 

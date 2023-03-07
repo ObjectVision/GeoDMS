@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ClcPCH.h"
 #pragma hdrstop
 
+#include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
 #include "OperGroups.h"
 #include "TreeItemClass.h"
@@ -42,14 +43,12 @@ oper_arg_policy oap_SubItem[2] = { oper_arg_policy::calc_subitem_root, oper_arg_
 
 SpecialOperGroup sog_SubItem("SubItem", 2, oap_SubItem, oper_policy::existing|oper_policy::dynamic_result_class);
 
-struct SubItemOperator: public BinaryOperator
+struct SubItemOperator: BinaryOperator
 {
-	typedef DataArray<SharedStr> Arg2Type;
+	using Arg2Type = DataArray<SharedStr>;
 
 	SubItemOperator()
-		: BinaryOperator(&sog_SubItem,
-				TreeItem::GetStaticClass(), 
-				TreeItem::GetStaticClass(), Arg2Type::GetStaticClass())
+		: BinaryOperator(&sog_SubItem, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), Arg2Type::GetStaticClass())
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -79,14 +78,6 @@ struct SubItemOperator: public BinaryOperator
 		{
 			dms_assert(CheckDataReady(arg1));
 			dms_assert(CheckDataReady(resultHolder.GetUlt()));
-//			dms_assert(resultHolder->DataAllocated() || resultHolder->WasFailed(FR_Data));
-/*
-			if (!IsCalculatingOrReady(resultHolder.GetOld()) && !resultHolder->WasFailed(FR_Data))
-			{
-				dms_assert(!resultHolder->IsCacheItem());
-				return resultHolder->PrepareData();
-			}
-*/
 		}
 		return true;
 	}
@@ -145,9 +136,104 @@ struct CheckOperator : public BinaryOperator
 	}
 };
 
+// *****************************************************************************
+//										FenceOperator
+// *****************************************************************************
+
+#include "CopyTreeContext.h"
+#include "OperationContext.h"
+#include "UnitProcessor.h"
+
+oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
+SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
+
+struct FenceContainerOperator : BinaryOperator
+{
+	FenceContainerOperator()
+		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
+	{}
+
+//	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
+	{
+		dms_assert(args.size() == 2);
+		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+		if (!resultHolder) {
+			CopyTreeContext context(nullptr, sourceContainer, ""
+				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator //  | DataCopyMode::CopyAlsoReferredItems);
+			);
+			resultHolder = context.Apply();
+		}
+		dms_assert(resultHolder);
+
+		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		{
+			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
+				continue;
+
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			
+			fc->AddDependency(srcItem->GetCheckedDC());
+		}
+	}
+	bool CalcResult(TreeItemDualRef & resultHolder, const ArgRefs & args, OperationContext * fc, Explain::Context * context) const override
+	{
+		dms_assert(args.size() == 2);
+		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+
+		// first, copy ranges of units ?
+		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		{	
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			MG_CHECK(srcItem);
+			if (srcItem->WasFailed(FR_Data))
+			{
+				resWalker->Fail(srcItem);
+				continue;
+			}
+			if (IsUnit(srcItem))
+			{
+				auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
+				auto resAbstrUnit= AsUnit(resWalker);
+				if (srcAbstrUnit->HasTiledRangeData())
+				{
+					visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
+					{
+						MG_CHECK(srcUnit);
+						auto resUnit = dynamic_cast<Unit<V>*>(resAbstrUnit);
+						MG_CHECK(resUnit);
+						resUnit->m_RangeDataPtr.reset( srcUnit->m_RangeDataPtr.get() );
+					});
+						
+				}
+			}
+			else if (IsDataItem(srcItem))
+			{
+				DataReadLock readLock(AsDataItem(srcItem));
+				AsDataItem(resWalker)->m_DataObject = readLock;
+				dms_assert(CheckDataReady(resWalker));
+			}
+			if (srcItem->WasFailed())
+				resWalker->Fail(srcItem);
+			dms_assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker));
+		}
+
+		// check that all sub-items of result-holder are up-to-date or uninteresting
+
+		DataReadLock msgLock(AsDataItem(args[1]));
+		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+		if (msgData.size() != 1 || !msgData[0].empty())
+			for (auto msg: msgData)
+				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+		resultHolder->SetIsInstantiated();
+		return true;
+	}
+};
+
 namespace {
 
 	SubItemOperator subItemOperator;
 	CheckOperator checkOperator;
+	FenceContainerOperator fcOp;
 
 }

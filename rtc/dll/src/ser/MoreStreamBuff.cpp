@@ -43,24 +43,24 @@ granted by an additional written contract for support, assistance and/or develop
 /********** MemoInpStreamBuff Implementation **********/
 
 MemoInpStreamBuff::MemoInpStreamBuff(const Byte* begin, const Byte* end)
-	: m_Begin(begin), m_Curr(begin)
+	: m_Data(begin, end)
+	, m_Curr(begin)
 {
 	if (end==nullptr && begin != nullptr)
-		end = begin + StrLen(begin); // go to null termination.
-	m_End = end;
+		m_Data.second = begin + StrLen(begin); // go to null termination.
 }
 
 void MemoInpStreamBuff::ReadBytes (Byte* data, streamsize_t size) const 
 {
-	dms_assert(m_Curr <= m_End);
-	if (size > streamsize_t(m_End - m_Curr))
+	dms_assert(m_Curr <= m_Data.end());
+	if (size > streamsize_t(m_Data.end() - m_Curr))
 	{
 		fast_fill(
-			fast_copy(m_Curr, m_End, data)
+			fast_copy(m_Curr, m_Data.end(), data)
 		,	data+size
 		,	EOF
 		);
-		m_Curr = m_End;
+		m_Curr = m_Data.end();
 	}
 	else
 	{
@@ -72,33 +72,30 @@ void MemoInpStreamBuff::ReadBytes (Byte* data, streamsize_t size) const
 
 streamsize_t MemoInpStreamBuff::CurrPos() const
 {
-	return m_Curr - m_Begin;
+	return m_Curr - m_Data.begin();
 }
 
 
 CharPtr MemoInpStreamBuff::GetDataBegin()
 {
-	return m_Begin;
+	return m_Data.begin();
 }
 
 CharPtr MemoInpStreamBuff::GetDataEnd()
 {
-	return m_End; 
+	return m_Data.end();
 }
 
 void MemoInpStreamBuff::SetCurrPos(streamsize_t pos)
 { 
-	m_Curr = m_Begin + pos;
+	m_Curr = m_Data.begin() + pos;
 }
 
 /********** MemoOutStreamBuff Implementation **********/
 
-MemoOutStreamBuff::MemoOutStreamBuff(Byte* begin, Byte* end)
-	: m_Begin(begin), m_Curr(begin), m_End(end) {}
-
 void ThrowingMemoOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 {
-	if (m_Curr + size > m_End)
+	if (m_Curr + size > m_Data.end())
 	{
 		throwEndsException("MemoOutStreamBuff");
 	}
@@ -108,17 +105,17 @@ void ThrowingMemoOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 
 void SilentMemoOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 {
-	dms_assert(m_Curr <= m_End);
-	if (m_Curr + size > m_End)
-		size = m_End - m_Curr;
+	dms_assert(m_Curr <= m_Data.end());
+	if (m_Curr + size > m_Data.end())
+		size = m_Data.end() - m_Curr;
 	memcpy(m_Curr, data, size);
 	m_Curr += size;
-	dms_assert(m_Curr <= m_End);
+	dms_assert(m_Curr <= m_Data.end());
 }
 
 streamsize_t MemoOutStreamBuff::CurrPos() const
 {
-	return m_Curr - m_Begin;
+	return m_Curr - m_Data.begin();
 }
 
 /********** NullOutStreamBuff CODE **********/
@@ -135,6 +132,24 @@ streamsize_t NullOutStreamBuff::CurrPos() const
 {
 	return m_CurrPos;
 }
+
+/********** CheckEqualityOutStreamBuff Interface **********/
+
+
+void CheckEqualityOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
+{
+	if (m_Status == match_status::partial)
+	{
+		assert(CurrPos() <= m_SourceData.size());
+		SizeT cmpSize = Min<streamsize_t>(size, m_SourceData.size() - CurrPos());
+		if (strncmp(m_SourceData.begin() + CurrPos(), data, cmpSize))
+			m_Status = match_status::different;
+		m_CurrPos += size;
+		if (m_CurrPos > m_SourceData.size())
+			m_Status = match_status::overfull;
+	}
+}
+
 
 /********** ExternalVectorOutStreamBuff Implementation **********/
 

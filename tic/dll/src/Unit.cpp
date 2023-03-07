@@ -1131,7 +1131,7 @@ template <typename V>
 typename CountableUnitBase<V>::value_t 
 CountableUnitBase<V>::GetValueAtIndex(row_id i) const
 {
-	return Range_GetValue_naked(this->GetRange(), i);
+	return Range_GetValue_checked(this->GetRange(), i);
 }
 
 template <typename V> 

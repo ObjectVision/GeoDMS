@@ -201,8 +201,8 @@ struct AbstrOperAccPartUni: BinaryOperator
 
 			// search in partitioning for values with index f.
 			const AbstrDataObject* ado = arg2A->GetCurrRefObj();
-			SizeT i = 0, k=0;
-			while (true) {
+			SizeT i = 0, k = 0, n = ado->GetTiledRangeData()->GetElemCount();
+			while (i < n) {
 				i = ado->FindPosOfSizeT(f, i);
 				if (!IsDefined(i))
 					break;

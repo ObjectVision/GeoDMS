@@ -62,7 +62,7 @@ protected:
 		}
 		// remove from list
 		*firstPtr = m_Next;
-		m_Next = 0;
+		m_Next = nullptr;
 	}
 
 private:

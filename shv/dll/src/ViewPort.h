@@ -87,6 +87,7 @@ public:
 	void Scroll(const GPoint& delta);
 	void InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const;
 
+	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
 	void PanToClipboardLocation();
 

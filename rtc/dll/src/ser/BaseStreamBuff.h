@@ -31,6 +31,9 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_SER_BASESTREAMBUFF)
 #define __RTC_SER_BASESTREAMBUFF
 
+using BytePtr = Byte*;
+using CBytePtr = const Byte*;
+
 // *****************************************************************************
 // Section:     Basic streambuffer Interface
 // *****************************************************************************
@@ -40,7 +43,7 @@ class InpStreamBuff
 public:
 	RTC_CALL InpStreamBuff();
 	RTC_CALL virtual ~InpStreamBuff();
-	RTC_CALL virtual void ReadBytes (Byte* data, streamsize_t size) const=0;
+	RTC_CALL virtual void ReadBytes (BytePtr data, streamsize_t size) const=0;
 	RTC_CALL virtual streamsize_t CurrPos() const=0;
 	RTC_CALL virtual bool   AtEnd  () const=0;
 	RTC_CALL virtual WeakStr FileName();
@@ -55,7 +58,7 @@ class OutStreamBuff
 public:
 	RTC_CALL OutStreamBuff();
 	RTC_CALL virtual ~OutStreamBuff();
-	RTC_CALL virtual void WriteBytes(const Byte* data, streamsize_t size) =0;
+	RTC_CALL virtual void WriteBytes(CBytePtr data, streamsize_t size) =0;
 	RTC_CALL virtual streamsize_t CurrPos() const=0;
 	RTC_CALL virtual WeakStr FileName();
 	RTC_CALL virtual bool    AtEnd() const = 0;
