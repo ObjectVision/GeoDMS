@@ -805,17 +805,6 @@ void ImGui_ImplGlfw_NewFrame()
 // If you are new to dear imgui or creating a new binding for dear imgui, it is recommended that you completely ignore this section first..
 //--------------------------------------------------------------------------------------------------------
 
-// Helper structure we store in the void* RenderUserData field of each ImGuiViewport to easily retrieve our backend data.
-struct ImGui_ImplGlfw_ViewportData
-{
-    GLFWwindow* Window;
-    bool        WindowOwned;
-    int         IgnoreWindowPosEventFrame;
-    int         IgnoreWindowSizeEventFrame;
-
-    ImGui_ImplGlfw_ViewportData()  { Window = NULL; WindowOwned = false; IgnoreWindowSizeEventFrame = IgnoreWindowPosEventFrame = -1; }
-    ~ImGui_ImplGlfw_ViewportData() { IM_ASSERT(Window == NULL); }
-};
 
 static void ImGui_ImplGlfw_WindowCloseCallback(GLFWwindow* window)
 {

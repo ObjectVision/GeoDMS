@@ -6,6 +6,8 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
+
+#include "imgui.h"
 //#include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 //#include "ptr/SharedStr.h"
@@ -50,4 +52,14 @@ std::string SetGLFWWindowHints()
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
     return glsl_version;
+}
+
+void ImGui::UpdateAllPlatformWindows()
+{
+
+}
+
+void ImGui::RenderAllPlatformWindowsDefault()
+{
+
 }

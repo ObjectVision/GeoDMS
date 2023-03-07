@@ -22,6 +22,13 @@ auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options) -> bool
 auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool;
 auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool;
 
+struct StatusMessageViewport
+{
+    ImGuiViewport* vp;
+    ImVec2 DisplayPos;
+    ImVec2 DisplaySize;
+};
+
 class GuiEventLog
 {
 public:
@@ -32,6 +39,7 @@ public:
     auto static GeoDMSExceptionMessage(CharPtr msg) -> void;
     auto Update(bool* p_open, GuiState& state) -> void;
     static void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg);
+    static StatusMessageViewport m_smvp;
 
 private:
     auto OnItemClick(GuiState& state, EventLogItem* item) -> void;

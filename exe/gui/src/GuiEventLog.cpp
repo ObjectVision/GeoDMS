@@ -5,7 +5,9 @@
 #include "ser/AsString.h"
 #include "TicInterface.h"
 #include "GuiMain.h"
+#include "imgui_internal.h"
 
+#include "imgui_impl_glfw.h"
 
 // TODO: remove singletons
 std::vector<EventLogItem> GuiEventLog::m_Items;
@@ -45,6 +47,7 @@ GuiEventLog::~GuiEventLog()
     ClearLog();
 };
 
+StatusMessageViewport GuiEventLog::m_smvp = {};
 
 auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
 {
@@ -203,6 +206,10 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     ImGui::Separator();
     
     // StatusBar
+    m_smvp.vp = ImGui::GetWindowViewport();
+    m_smvp.DisplayPos  = ImGui::GetCurrentWindow()->DC.CursorPos;
+    m_smvp.DisplaySize = ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing());
+
     ImGui::TextUnformatted(state.contextMessage.Get().c_str());
     
     ImGui::End();
@@ -354,10 +361,37 @@ void DirectUpdateEventLog(GuiMainComponent* main)
 
 void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
-    //static GuiState state; // TODO: remove static
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     main->m_State.contextMessage.Set(msg);
-    PostEmptyEventToGLFWContext();
+    
+    // TODO: make sure m_smvp is populated, else do not draw directly
+
+    //static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
+
+    GLFWwindow* current_context_backup = glfwGetCurrentContext(); // Get current active viewport and store as backup
+    ImDrawData direct_eventlog_draw_data;
+    ImDrawListSharedData shared_drawlist_data;
+    ImDrawList draw_list(&shared_drawlist_data);
+    ImVector<ImDrawList*> out_list->push_back(draw_list);
+    direct_eventlog_draw_data.CmdLists = out_list;
+    direct_eventlog_draw_data.DisplayPos = m_smvp.DisplayPos; // Set viewport to status message area: DisplayPos DisplaySize
+    direct_eventlog_draw_data.DisplaySize = m_smvp.DisplaySize;
+    ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_smvp.vp->PlatformUserData);
+    glfwMakeContextCurrent(viewport_data->Window); // Make EventLog viewport active
+
+    ImGuiContext& g = *GImGui;
+
+    draw_list.AddText(g.Font, g.FontSize, direct_eventlog_draw_data.DisplayPos, ImGui::GetColorU32(ImGuiCol_Text), main->m_State.contextMessage.Get().c_str(), main->m_State.contextMessage.Get().c_str() + main->m_State.contextMessage.Get().size(), 0.0f);
+    
+    direct_eventlog_draw_data.CmdLists = &draw_list;
+
+    //(, ImDrawList * draw_list);
+
+    // Render text
+    // Swap framebuffers
+
+    glfwMakeContextCurrent(current_context_backup); // restore backup_viewport
+
     return;
 }
 

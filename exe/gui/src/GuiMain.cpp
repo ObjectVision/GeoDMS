@@ -625,18 +625,20 @@ int GuiMainComponent::MainLoop()
         
             
         //glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); // render drawdata of main viewport
 
         // Update and Render additional Platform Windows
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-            GLFWwindow* backup_current_context = glfwGetCurrentContext();
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-            glfwMakeContextCurrent(backup_current_context);
-        }
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
 
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+
+        glfwMakeContextCurrent(backup_current_context);
         glfwSwapBuffers(m_MainWindow);
+        
+
+
+
 
 
 

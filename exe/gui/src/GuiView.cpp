@@ -271,7 +271,7 @@ auto DMSView::ShowOrHideWindow(bool show) -> void
 
 auto DMSView::UpdateParentWindow() -> WindowState
 {
-    auto glfw_window = glfwGetCurrentContext(); //TODO: known bug, parent window likely not updated correctly in case of outside main window view docked into another view
+    auto glfw_window = glfwGetCurrentContext();
     auto mainWindow = glfwGetWin32Window(glfw_window);
     auto window = ImGui::GetCurrentWindow(); //ImGui::FindWindowByName(m_ViewName.c_str());
     if (!window || !(HWND)window->Viewport->PlatformHandleRaw)
@@ -297,11 +297,17 @@ auto DMSView::UpdateWindowPosition() -> void
     auto content_region_avail = ImGui::GetContentRegionAvail();
 
     ImGuiIO& io = ImGui::GetIO();
-    float fb_height = io.DisplaySize.y * io.DisplayFramebufferScale.y;
-    float fb_width = io.DisplaySize.x * io.DisplayFramebufferScale.x;
+    //float fb_height = io.DisplaySize.y * io.DisplayFramebufferScale.y;
+    //float fb_width = io.DisplaySize.x * io.DisplayFramebufferScale.x;
+
+    //auto test = ImGui::GetWindowContentRegionMax();
+    
 
     int xpos, ypos;
     glfwGetWindowPos(glfwGetCurrentContext(), &xpos, &ypos); // content area pos
+
+    //auto test1 = crMin.x + wPos.x - xpos;
+    //auto test2 = crMin.y + wPos.y - ypos;
 
     auto is_appearing = ImGui::IsWindowAppearing();
     auto is_item_visible = ImGui::IsItemVisible();
