@@ -8,6 +8,7 @@
 #include "imgui_internal.h"
 
 #include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 // TODO: remove singletons
 std::vector<EventLogItem> GuiEventLog::m_Items;
@@ -207,8 +208,9 @@ auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
     
     // StatusBar
     m_smvp.vp = ImGui::GetWindowViewport();
-    m_smvp.DisplayPos  = ImGui::GetCurrentWindow()->DC.CursorPos;
-    m_smvp.DisplaySize = ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing());
+    m_smvp.cursor_pos   = ImGui::GetCurrentWindow()->DC.CursorPos;
+    m_smvp.display_pos  = m_smvp.vp->Pos;
+    m_smvp.display_size = m_smvp.vp->Size; //ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing());
 
     ImGui::TextUnformatted(state.contextMessage.Get().c_str());
     
@@ -367,24 +369,35 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     // TODO: make sure m_smvp is populated, else do not draw directly
 
     //static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
-
+    ImGuiContext& g = *GImGui;
     GLFWwindow* current_context_backup = glfwGetCurrentContext(); // Get current active viewport and store as backup
     ImDrawData direct_eventlog_draw_data;
     ImDrawListSharedData shared_drawlist_data;
     ImDrawList draw_list(&shared_drawlist_data);
-    ImVector<ImDrawList*> out_list->push_back(draw_list);
-    direct_eventlog_draw_data.CmdLists = out_list;
-    direct_eventlog_draw_data.DisplayPos = m_smvp.DisplayPos; // Set viewport to status message area: DisplayPos DisplaySize
-    direct_eventlog_draw_data.DisplaySize = m_smvp.DisplaySize;
+    draw_list._ResetForNewFrame();
+    
+    draw_list.PushTextureID(g.Font->ContainerAtlas->TexID);
+    draw_list.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
+
+    //draw_list._CmdHeader.TextureId = ;
+    //draw_list._CmdHeader.ClipRect = ImVec4();
+
+    ImVector<ImDrawList*> out_list;// ->push_back(draw_list);
+    out_list.push_back(&draw_list);
+    direct_eventlog_draw_data.CmdLists = out_list.Data;
+    direct_eventlog_draw_data.DisplayPos = m_smvp.display_pos; // Set viewport to status message area: DisplayPos DisplaySize
+    direct_eventlog_draw_data.DisplaySize = m_smvp.display_size;
+    direct_eventlog_draw_data.FramebufferScale = m_smvp.frame_buffer_scale;
+    direct_eventlog_draw_data.CmdListsCount = out_list.Size;
     ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_smvp.vp->PlatformUserData);
     glfwMakeContextCurrent(viewport_data->Window); // Make EventLog viewport active
 
-    ImGuiContext& g = *GImGui;
-
-    draw_list.AddText(g.Font, g.FontSize, direct_eventlog_draw_data.DisplayPos, ImGui::GetColorU32(ImGuiCol_Text), main->m_State.contextMessage.Get().c_str(), main->m_State.contextMessage.Get().c_str() + main->m_State.contextMessage.Get().size(), 0.0f);
     
-    direct_eventlog_draw_data.CmdLists = &draw_list;
 
+    out_list.back()->AddText(g.Font, g.FontSize, m_smvp.cursor_pos, ImColor(255, 0, 0, 255), main->m_State.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
+
+    ImGui_ImplOpenGL3_RenderDrawData(&direct_eventlog_draw_data);
+    glfwSwapBuffers(viewport_data->Window);
     //(, ImDrawList * draw_list);
 
     // Render text

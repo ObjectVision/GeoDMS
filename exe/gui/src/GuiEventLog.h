@@ -25,8 +25,10 @@ auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_
 struct StatusMessageViewport
 {
     ImGuiViewport* vp;
-    ImVec2 DisplayPos;
-    ImVec2 DisplaySize;
+    ImVec2 cursor_pos;
+    ImVec2 display_pos;
+    ImVec2 display_size;
+    ImVec2 frame_buffer_scale = { 1.0f, 1.0f };
 };
 
 class GuiEventLog

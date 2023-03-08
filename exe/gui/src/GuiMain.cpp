@@ -616,8 +616,9 @@ int GuiMainComponent::MainLoop()
 
         // rendering
         ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
+        
+        //int display_w, display_h;
+        //glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
         
         //glViewport(0, 0, display_w/2, display_h/2);
         //glClearColor(1.0, 0.0, 0.0, 1.0);
