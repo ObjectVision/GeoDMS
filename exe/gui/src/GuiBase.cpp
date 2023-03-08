@@ -332,11 +332,17 @@ auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void
     }
 }
 
-auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col) -> void
+auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col, ImDrawList* draw_list, ImVec2* cursor_pos) -> void
 {
-    auto draw_list = ImGui::GetWindowDrawList();
-    auto cur_pos = ImGui::GetCursorScreenPos();
-    draw_list->AddRectFilled(cur_pos, ImVec2(cur_pos.x + background_rectangle_size.x, cur_pos.y + background_rectangle_size.y), col);
+    if (!draw_list)
+        draw_list = ImGui::GetWindowDrawList();
+
+    auto cp = ImGui::GetCursorScreenPos();
+
+    if (!cursor_pos)
+        cursor_pos = &cp;
+
+    draw_list->AddRectFilled(*cursor_pos, ImVec2((*cursor_pos).x + background_rectangle_size.x, (*cursor_pos).y + background_rectangle_size.y), col);
 }
 
 auto GeoDMSWindowTypeToName(GeoDMSWindowTypes wt) -> std::string

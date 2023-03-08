@@ -369,32 +369,54 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     // TODO: make sure m_smvp is populated, else do not draw directly
 
     //static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
+    if (!GImGui)
+        return;
+
     ImGuiContext& g = *GImGui;
     GLFWwindow* current_context_backup = glfwGetCurrentContext(); // Get current active viewport and store as backup
     ImDrawData direct_eventlog_draw_data;
-    ImDrawListSharedData shared_drawlist_data;
-    ImDrawList draw_list(&shared_drawlist_data);
-    draw_list._ResetForNewFrame();
     
+    ImDrawListSharedData shared_drawlist_data;
+    shared_drawlist_data.TexUvWhitePixel = g.DrawListSharedData.TexUvWhitePixel;
+
+    ImDrawList draw_list(&shared_drawlist_data);
+    
+    // init draw lists
+    //draw_list_rect._ResetForNewFrame();
+    //draw_list_rect.PushTextureID(g.Font->ContainerAtlas->TexID);
+    //draw_list_rect.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
+
+    
+    draw_list._ResetForNewFrame();
     draw_list.PushTextureID(g.Font->ContainerAtlas->TexID);
     draw_list.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
 
-    //draw_list._CmdHeader.TextureId = ;
-    //draw_list._CmdHeader.ClipRect = ImVec4();
-
-    ImVector<ImDrawList*> out_list;// ->push_back(draw_list);
+    // add draw lists to vector
+    ImVector<ImDrawList*> out_list;
+    //out_list.push_back(&draw_list_rect);
     out_list.push_back(&draw_list);
+
+    // init draw data
     direct_eventlog_draw_data.CmdLists = out_list.Data;
     direct_eventlog_draw_data.DisplayPos = m_smvp.display_pos; // Set viewport to status message area: DisplayPos DisplaySize
     direct_eventlog_draw_data.DisplaySize = m_smvp.display_size;
     direct_eventlog_draw_data.FramebufferScale = m_smvp.frame_buffer_scale;
     direct_eventlog_draw_data.CmdListsCount = out_list.Size;
+
+    // make eventlog window the current context
     ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_smvp.vp->PlatformUserData);
     glfwMakeContextCurrent(viewport_data->Window); // Make EventLog viewport active
 
     
-
-    out_list.back()->AddText(g.Font, g.FontSize, m_smvp.cursor_pos, ImColor(255, 0, 0, 255), main->m_State.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
+    //SetTextBackgroundColor(ImGui::CalcTextSize(main->m_State.contextMessage.Get().c_str()), IM_COL32(66, 150, 250, 79), &draw_list, &m_smvp.cursor_pos);
+    //auto text_size = ImGui::CalcTextSize(main->m_State.contextMessage.Get().c_str());
+    //draw_list.AddRectFilled(m_smvp.cursor_pos, ImVec2(m_smvp.cursor_pos.x + text_size.x, m_smvp.cursor_pos.y + text_size.y), IM_COL32(66, 150, 250, 255));
+    //draw_list.AddRectFilled(m_smvp.cursor_pos, ImVec2(m_smvp.cursor_pos.x + text_size.x, m_smvp.cursor_pos.y + text_size.y), IM_COL32(66, 150, 250, 0));
+    //draw_list.AddRectFilled(ImVec2(100,100), ImVec2(200,200), IM_COL32(66, 150, 250, 124));
+    SetTextBackgroundColor(ImGui::CalcTextSize(main->m_State.contextMessage.Get().c_str()), ImGui::GetColorU32(ImGuiCol_WindowBg), &draw_list, &m_smvp.cursor_pos);
+    //                       ImGui::CalcTextSize(m_item->GetName().c_str())                 , IM_COL32(66, 150, 250, 79);
+    
+    draw_list.AddText(g.Font, g.FontSize, m_smvp.cursor_pos, ImColor(255, 0, 0, 255), main->m_State.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
 
     ImGui_ImplOpenGL3_RenderDrawData(&direct_eventlog_draw_data);
     glfwSwapBuffers(viewport_data->Window);
