@@ -985,7 +985,7 @@ public:
 			SpatialIndexType spIndex(
 				sequence_array_index<PointType>(resStreetBegin),
 				sequence_array_index<PointType>(resStreetEnd  ),
-				2*arg2Count
+				2*SizeT(arg2Count)
 			);
 
 			for (tile_id t=0, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)

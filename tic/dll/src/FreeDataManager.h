@@ -31,6 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __TIC_FREEDATAMANAGER_H
 
 #include "mci/ValueClass.h"
+#include "mci/ValueWrap.h"
 
 #include "TreeItemSet.h"
 #include "AbstrDataObject.h"

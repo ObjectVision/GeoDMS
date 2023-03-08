@@ -123,8 +123,8 @@ struct bit_reference : private bit_sequence_base<N, Block>
 	bit_reference(Block* blockData, SizeT elemNr)
 		:	bit_sequence_base<N, Block>(blockData, elemNr)
 	{
-		dms_assert(elemNr < bit_info_t::nr_elem_per_block);
-		dms_assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(elemNr < bit_info_t::nr_elem_per_block);
+		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
 	}
 
 	value_type value() const { return (*this->m_BlockData >> (this->m_NrElems * N)) & Block(bit_value<N>::mask); }
@@ -215,13 +215,13 @@ struct bit_iterator
 	bit_iterator(Block* blockData, difference_type elemCount)
 		: base_type(blockData + bit_info_t::block_diff(elemCount), bit_info_t::elem_index(elemCount) )
 	{
-		dms_assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
 	}
 
 	bit_iterator(Block* blockData, size_type elemCount)
 		: base_type(blockData + bit_info_t::block_index(elemCount), bit_info_t::elem_index(elemCount) )
 	{
-		dms_assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
 	}
 
 	template <typename OthBlock>
@@ -229,15 +229,15 @@ struct bit_iterator
 		: base_type(src.data_begin(), src.nr_elem())
 	{
 		static_assert(sizeof(Block) == sizeof(OthBlock));
-		dms_assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
 	}
 
 	explicit operator bool () const { return this->m_BlockData != nullptr; }
 
 	bit_iterator<N, Block>& operator ++()
 	{
-		dms_assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
-		dms_assert(this->m_BlockData);
+		assert(this->m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(this->m_BlockData);
 
 		if (++this->m_NrElems == bit_info_t::nr_elem_per_block)
 		{
