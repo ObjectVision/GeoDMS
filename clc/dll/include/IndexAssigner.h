@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitProcessor.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
+#include "mci/ValueWrap.h"
 
 /******************************************************************************/
 

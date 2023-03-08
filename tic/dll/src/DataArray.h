@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/GeoSequence.h"
 #include "geo/IterRange.h"
 #include "geo/SequenceArray.h"
+#include "ptr/LifetimeProtector.h"
 
 #include "AbstrDataObject.h"
 #include "TiledRangeData.h"
