@@ -147,6 +147,9 @@ struct CheckOperator : public BinaryOperator
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
+using fence_member_pair = std::pair<SharedPtr<TreeItem>, SharedPtr<const TreeItem>>;
+using fence_work_data = std::vector<fence_member_pair>;
+
 struct FenceContainerOperator : BinaryOperator
 {
 	FenceContainerOperator()
@@ -166,6 +169,8 @@ struct FenceContainerOperator : BinaryOperator
 		}
 		dms_assert(resultHolder);
 
+		fence_work_data workData;
+
 		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
 		{
 			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
@@ -174,17 +179,22 @@ struct FenceContainerOperator : BinaryOperator
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 			
 			fc->AddDependency(srcItem->GetCheckedDC());
+			workData.emplace_back(resWalker, srcItem);
 		}
+		fc->m_MetaInfo = make_noncopyable_any<fence_work_data>(std::move(workData));
 	}
 	bool CalcResult(TreeItemDualRef & resultHolder, const ArgRefs & args, OperationContext * fc, Explain::Context * context) const override
 	{
 		dms_assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 
+		const fence_work_data& workData = *any_cast<fence_work_data>(&fc->m_MetaInfo);
+
 		// first, copy ranges of units ?
-		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		for (const auto& fencePair: workData)
 		{	
-			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			auto resWalker = fencePair.first.get();
+			auto srcItem = fencePair.second.get();
 			MG_CHECK(srcItem);
 			if (srcItem->WasFailed(FR_Data))
 			{
