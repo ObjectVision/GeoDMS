@@ -7,6 +7,7 @@
 #include <mutex>
 #include <list>
 #include <queue>
+#include <chrono>
 
 #include "TreeItem.h"
 #include "AbstrDataItem.h"
@@ -328,6 +329,8 @@ public:
 	auto clear() -> void;
 
 	int return_value					= 0;
+	std::chrono::time_point<std::chrono::system_clock> m_last_update_time;
+
 
 	// open window flags // TODO: move these flags to the specific windows?
 	bool ShowOptionsWindow				= false;

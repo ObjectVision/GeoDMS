@@ -574,6 +574,8 @@ int GuiMainComponent::MainLoop()
         //        UpdateFrameCounter = frames_to_update;
         //}
 
+        m_State.m_last_update_time = std::chrono::system_clock::now();
+
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
 

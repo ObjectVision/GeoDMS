@@ -369,6 +369,15 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     // TODO: make sure m_smvp is populated, else do not draw directly
 
     //static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
+    
+    
+    ImGuiIO& io = ImGui::GetIO();
+
+    auto time_since_last_update = std::chrono::system_clock::now() - main->m_State.m_last_update_time;
+
+    if (time_since_last_update > std::chrono::seconds{5}) // do not draw directly when the application is still responsive
+        return;
+    
     if (!GImGui)
         return;
 
