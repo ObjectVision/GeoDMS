@@ -202,7 +202,7 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	auto r1 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "dms.ttf").c_str(), FR_PRIVATE, 0);
+	auto r1 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
 	auto r2 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSans-Medium.ttf").c_str(), FR_PRIVATE, 0);
 //	AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSansMath-Regular.ttf").c_str(), FR_PRIVATE, 0);
 	SetMainThreadID();

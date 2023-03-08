@@ -78,8 +78,8 @@ private:
 struct FontSpecification
 {
     std::string       filename;
-    float             size;
-    float             y_offset;
+    float             size = 0;
+    float             y_offset = 0;
     ImVector<ImWchar> ranges;
 };
 

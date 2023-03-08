@@ -36,7 +36,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsImGui.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsCaller.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
-  File ..\bin\Release\${GeoDmsPlatform}\dms.ttf
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
   File ..\res\readme.txt
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
@@ -76,7 +75,6 @@ Section uninstall
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\GeoDmsCaller.exe
   Delete $INSTDIR\RewriteExpr.lsp
-  Delete $INSTDIR\dms.ttf
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\readme.txt
   Delete $INSTDIR\GeoDMS_npp_def.xml
