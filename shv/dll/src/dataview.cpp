@@ -290,7 +290,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
 					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
 					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
-					"Tahoma"                   // pointer to typeface name string
+					"Noto Sans Medium"                   // pointer to typeface name string
 				)
 			);
 	}
