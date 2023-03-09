@@ -50,7 +50,7 @@ GuiEventLog::~GuiEventLog()
 
 StatusMessageViewport GuiEventLog::m_smvp = {};
 
-auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
+void GuiEventLog::ShowEventLogOptionsWindow(bool* p_open)
 {
     if (ImGui::Begin("Eventlog options", p_open, NULL))
     {
@@ -64,7 +64,7 @@ auto GuiEventLog::ShowEventLogOptionsWindow(bool* p_open) -> void
     }
 }
 
-auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void //TODO: add client handle to exception message function
+void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) //TODO: add client handle to exception message function
 {
     GuiState state;
     //auto event_queues = GuiEventQueues::getInstance();
@@ -76,7 +76,7 @@ auto GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) -> void //TODO: add client
     return;
 }
 
-auto GuiEventLog::OnItemClick(GuiState& state, EventLogItem* item) -> void
+void GuiEventLog::OnItemClick(GuiState& state, EventLogItem* item)
 {
     if (!item)
         return;
@@ -102,7 +102,7 @@ auto GuiEventLog::GetItem(size_t index) -> EventLogItem*
         return &m_Items.at(m_FilteredItemIndices.at(index));
 }
 
-auto GuiEventLog::DrawItem(EventLogItem *item) -> void
+void GuiEventLog::DrawItem(EventLogItem *item)
 {
     ImVec4 color = ConvertSeverityTypeIDToColor(item->m_Severity_type);
     ImGui::PushStyleColor(ImGuiCol_Text, color);
@@ -113,7 +113,7 @@ auto GuiEventLog::DrawItem(EventLogItem *item) -> void
     ImGui::PopStyleColor();
 }
 
-auto GuiEventLog::Update(bool* p_open, GuiState& state) -> void
+void GuiEventLog::Update(bool* p_open, GuiState& state)
 {
     //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar))
@@ -260,7 +260,7 @@ auto GuiEventLog::ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor
     return color;
 }
 
-auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog *options) -> bool
+bool ItemPassesEventFilter(EventLogItem* item, OptionsEventLog *options)
 {
     switch (item->m_Severity_type)
     {
@@ -280,27 +280,27 @@ auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog *options) -> bool
     return false;
 }
 
-auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool
+bool ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text)
 {
     if (item->m_Text.contains(filter_text))
         return true;
     return false;
 }
 
-auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool
+bool ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text)
 {
     if (ItemPassesEventFilter(item, options) && ItemPassesTextFilter(item, filter_text))
         return true;
     return false;
 }
 
-auto GuiEventLog::ClearLog() -> void
+void GuiEventLog::ClearLog()
 {
     m_Items.clear();
     m_FilteredItemIndices.clear();
 };
 
-auto GuiEventLog::Refilter() -> void
+void GuiEventLog::Refilter()
 {
     m_FilteredItemIndices.clear();
 

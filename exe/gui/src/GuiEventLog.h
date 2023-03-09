@@ -18,9 +18,9 @@ struct EventLogItem
     std::string    m_Link = "";
 };
 
-auto ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options) -> bool;
-auto ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text) -> bool;
-auto ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text) -> bool;
+bool ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options);
+bool ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text);
+bool ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text);
 
 struct StatusMessageViewport
 {
