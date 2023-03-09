@@ -382,12 +382,12 @@ struct bit_sequence : bit_sequence_base<N, Block>
 
 	reference operator [] (size_type i)
 	{
-		dms_assert(i < this->m_NrElems);
+		assert(i < this->m_NrElems);
 		return bit_reference<N, Block>(this->m_BlockData + bit_info_t::block_index(i), bit_info_t::elem_index(i) );
 	}
 	const_reference operator[](size_type i) const
 	{
-		dms_assert(i < this->m_NrElems);
+		assert(i < this->m_NrElems);
 		return bit_reference<N, Block>(this->m_BlockData + bit_info_t::block_index(i), bit_info_t::elem_index(i) );
 	}
 

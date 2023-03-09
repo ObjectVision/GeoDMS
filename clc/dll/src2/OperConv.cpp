@@ -462,14 +462,14 @@ struct Type1DConversion  : unary_func<TR,TA>
 
 	TR ApplyDirect(typename sequence_traits<TA>::container_type::const_reference v) const
 	{
-		dms_assert(m_Factor == 1.0 );
+		assert(m_Factor == 1.0 );
 
 		return Convert<TR>(v);
 	}
 
 	TR ApplyScaled(typename sequence_traits<TA>::container_type::const_reference v) const
 	{
-		dms_assert(m_Factor != 1.0 );
+		assert(m_Factor != 1.0 );
 		return checked_multiply<TR>(v, m_Factor);
 	}
 
@@ -548,18 +548,18 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 
 	TR ApplyDirect(const TA& p) const
 	{
-		dms_assert(!m_OgrComponentHolder);
-		dms_assert(m_PreRescaler.IsIdentity());
-		dms_assert(m_PostRescaler.IsIdentity());
+		assert(!m_OgrComponentHolder);
+		assert(m_PreRescaler.IsIdentity());
+		assert(m_PostRescaler.IsIdentity());
 
 		return Convert<TR>(p);
 	}
 
 	TR ApplyProjection(const TA& p) const
 	{
-		dms_assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
-		dms_assert(m_PreRescaler.IsIdentity());
-		dms_assert(m_PostRescaler.IsIdentity());
+		assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
+		assert(m_PreRescaler.IsIdentity());
+		assert(m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
 			return UNDEFINED_OR_ZERO(TR);
@@ -571,9 +571,9 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	}
 	TR ApplyScaled(const TA& p) const
 	{
-		dms_assert(!m_OgrComponentHolder);
-		dms_assert(!m_PreRescaler.IsIdentity());
-		dms_assert(m_PostRescaler.IsIdentity());
+		assert(!m_OgrComponentHolder);
+		assert(!m_PreRescaler.IsIdentity());
+		assert(m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
 			return UNDEFINED_OR_ZERO(TR);
@@ -582,8 +582,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	}
 	TR ApplyScaledProjection(const TA& p) const
 	{
-		dms_assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
-		dms_assert(!m_PreRescaler.IsIdentity() || !m_PostRescaler.IsIdentity());
+		assert(m_OgrComponentHolder && m_OgrComponentHolder->m_Transformer);
+		assert(!m_PreRescaler.IsIdentity() || !m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
 			return UNDEFINED_OR_ZERO(TR);
