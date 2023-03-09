@@ -12,7 +12,7 @@ std::string SetGLFWWindowHints();
 class DirectUpdateFrame
 {
 public:
-	DirectUpdateFrame(GLFWwindow* context);
+	DirectUpdateFrame(GLFWwindow* context, ImVec2 display_pos, ImVec2 display_size);
 	~DirectUpdateFrame();
 	auto AddDrawList(ImVec2 pos, ImVec2 size) -> ImDrawList*;
 

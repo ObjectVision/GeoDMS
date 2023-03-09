@@ -22,14 +22,14 @@ bool ItemPassesEventFilter(EventLogItem* item, OptionsEventLog* options);
 bool ItemPassesTextFilter(EventLogItem* item, std::string_view filter_text);
 bool ItemPassesFilter(EventLogItem* item, OptionsEventLog* options, std::string_view filter_text);
 
-struct StatusMessageViewport
+/*struct StatusMessageViewport
 {
     ImGuiViewport* vp;
     ImVec2 cursor_pos;
     ImVec2 display_pos;
     ImVec2 display_size;
     ImVec2 frame_buffer_scale = { 1.0f, 1.0f };
-};
+};*/
 
 struct ContentRegion
 {
@@ -41,6 +41,7 @@ struct ContentRegion
 
 struct EventlogDirectUpdateInformation
 {
+    ImGuiViewport* viewport;
     std::chrono::system_clock::time_point time_since_last_update;
     ContentRegion log;
     ContentRegion status;
@@ -55,10 +56,12 @@ public:
     void static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
     void static GeoDMSExceptionMessage(CharPtr msg);
     void Update(bool* p_open, GuiState& state);
+    void DirectUpdate(GuiState& state);
     static void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg);
-    static StatusMessageViewport m_smvp;
+    //static StatusMessageViewport m_smvp;
 
 private:
+
     void OnItemClick(GuiState& state, EventLogItem* item);
     auto GetItem(size_t index) -> EventLogItem*;
     void DrawItem(EventLogItem* item);
@@ -71,7 +74,7 @@ private:
     static std::vector<UInt64>       m_FilteredItemIndices;
     static std::string               m_FilterText;
     static OptionsEventLog           m_FilterEvents;
-    EventlogDirectUpdateInformation  m_direct_update_information;
+    EventlogDirectUpdateInformation m_direct_update_information;
 
     bool is_docking_initialized = false;
     bool AutoScroll;

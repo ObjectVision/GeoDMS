@@ -8,6 +8,7 @@
 #endif
 
 #include "imgui_internal.h"
+#include "imgui_impl_opengl3.h"
 
 
 //#include <GLFW/glfw3.h> // Will drag system OpenGL headers
@@ -57,22 +58,22 @@ std::string SetGLFWWindowHints()
 }
 
 
-DirectUpdateFrame::DirectUpdateFrame(GLFWwindow* context)
+DirectUpdateFrame::DirectUpdateFrame(GLFWwindow* context, ImVec2 display_pos, ImVec2 display_size)
 {
     m_backup_context = glfwGetCurrentContext();
     m_current_context = context;
-
-    direct_eventlog_draw_data.CmdLists = out_list.Data;
-    direct_eventlog_draw_data.DisplayPos = m_smvp.display_pos; // Set viewport to status message area: DisplayPos DisplaySize
-    direct_eventlog_draw_data.DisplaySize = m_smvp.display_size;
-    direct_eventlog_draw_data.FramebufferScale = m_smvp.frame_buffer_scale;
-    direct_eventlog_draw_data.CmdListsCount = out_list.Size;
-
+    
+    m_draw_data.DisplayPos = display_pos;
+    m_draw_data.DisplaySize = display_size;
+    m_draw_data.FramebufferScale = ImVec2(1.0, 1.0);
 }
 
 DirectUpdateFrame::~DirectUpdateFrame()
 {
-
+    m_draw_data.CmdLists = m_draw_list_ptrs.Data;
+    ImGui_ImplOpenGL3_RenderDrawData(&m_draw_data);
+    glfwSwapBuffers(m_current_context);
+    glfwMakeContextCurrent(m_backup_context); // restore backup context
 }
 
 auto DirectUpdateFrame::AddDrawList(ImVec2 pos, ImVec2 size) -> ImDrawList*
@@ -89,7 +90,9 @@ auto DirectUpdateFrame::AddDrawList(ImVec2 pos, ImVec2 size) -> ImDrawList*
     m_draw_lists.back()._ResetForNewFrame();
     m_draw_lists.back().PushTextureID(g.Font->ContainerAtlas->TexID);
     m_draw_lists.back().PushClipRect(pos, ImVec2(pos.x+size.x, pos.y+size.y), false);
-    
+
+    m_draw_data.CmdListsCount++;
+
     return &m_draw_lists.back();
 }
 
