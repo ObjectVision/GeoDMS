@@ -373,13 +373,16 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     
     ImGuiIO& io = ImGui::GetIO();
 
-    auto time_since_last_update = std::chrono::system_clock::now() - main->m_State.m_last_update_time;
+    auto context_message_time = std::chrono::system_clock::now();
+    std::chrono::duration<double, std::milli> time_since_last_update = context_message_time - main->m_State.m_last_update_time;
 
-    if (time_since_last_update > std::chrono::seconds{5}) // do not draw directly when the application is still responsive
+    if (time_since_last_update.count() < 5000) // do not draw directly when the application is still responsive
         return;
     
     if (!GImGui)
         return;
+
+    main->m_State.m_last_update_time = context_message_time; // TODO: generalize this to whole eventlog update
 
     ImGuiContext& g = *GImGui;
     GLFWwindow* current_context_backup = glfwGetCurrentContext(); // Get current active viewport and store as backup

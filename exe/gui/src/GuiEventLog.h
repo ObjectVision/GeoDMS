@@ -31,6 +31,21 @@ struct StatusMessageViewport
     ImVec2 frame_buffer_scale = { 1.0f, 1.0f };
 };
 
+struct ContentRegion
+{
+    ImVec2 cursor;
+    ImVec2 pos;
+    ImVec2 size;
+    size_t index;
+};
+
+struct EventlogDirectUpdateInformation
+{
+    std::chrono::system_clock::time_point time_since_last_update;
+    ContentRegion log;
+    ContentRegion status;
+};
+
 class GuiEventLog
 {
 public:
@@ -56,6 +71,7 @@ private:
     static std::vector<UInt64>       m_FilteredItemIndices;
     static std::string               m_FilterText;
     static OptionsEventLog           m_FilterEvents;
+    EventlogDirectUpdateInformation  m_direct_update_information;
 
     bool is_docking_initialized = false;
     bool AutoScroll;
