@@ -51,20 +51,20 @@ class GuiEventLog
 public:
     GuiEventLog();
     ~GuiEventLog();
-    auto ShowEventLogOptionsWindow(bool* p_open) -> void;
-    auto static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) -> void;
-    auto static GeoDMSExceptionMessage(CharPtr msg) -> void;
-    auto Update(bool* p_open, GuiState& state) -> void;
+    void ShowEventLogOptionsWindow(bool* p_open);
+    void static GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
+    void static GeoDMSExceptionMessage(CharPtr msg);
+    void Update(bool* p_open, GuiState& state);
     static void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg);
     static StatusMessageViewport m_smvp;
 
 private:
-    auto OnItemClick(GuiState& state, EventLogItem* item) -> void;
+    void OnItemClick(GuiState& state, EventLogItem* item);
     auto GetItem(size_t index) -> EventLogItem*;
-    auto DrawItem(EventLogItem* item) -> void;
+    void DrawItem(EventLogItem* item);
     auto ConvertSeverityTypeIDToColor(SeverityTypeID st) -> ImColor;
-    auto ClearLog() -> void;
-    auto Refilter() -> void;
+    void ClearLog();
+    void Refilter();
     void AddLog(SeverityTypeID severity_type, std::string_view original_message);
 
     static std::vector<EventLogItem> m_Items;

@@ -7,7 +7,9 @@
 #include <GLES2/gl2.h>
 #endif
 
-#include "imgui.h"
+#include "imgui_internal.h"
+
+
 //#include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 //#include "ptr/SharedStr.h"
@@ -53,6 +55,44 @@ std::string SetGLFWWindowHints()
 #endif
     return glsl_version;
 }
+
+
+DirectUpdateFrame::DirectUpdateFrame(GLFWwindow* context)
+{
+    m_backup_context = glfwGetCurrentContext();
+    m_current_context = context;
+
+    direct_eventlog_draw_data.CmdLists = out_list.Data;
+    direct_eventlog_draw_data.DisplayPos = m_smvp.display_pos; // Set viewport to status message area: DisplayPos DisplaySize
+    direct_eventlog_draw_data.DisplaySize = m_smvp.display_size;
+    direct_eventlog_draw_data.FramebufferScale = m_smvp.frame_buffer_scale;
+    direct_eventlog_draw_data.CmdListsCount = out_list.Size;
+
+}
+
+DirectUpdateFrame::~DirectUpdateFrame()
+{
+
+}
+
+auto DirectUpdateFrame::AddDrawList(ImVec2 pos, ImVec2 size) -> ImDrawList*
+{
+    ImGuiContext& g = *GImGui;
+
+    // setup drawlist shared data
+    m_drawlists_shared_data.push_back({});
+    m_drawlists_shared_data.back().TexUvWhitePixel = g.DrawListSharedData.TexUvWhitePixel;
+    
+    // setup draw list
+    m_draw_lists.push_back({ &m_drawlists_shared_data.back() });
+    m_draw_list_ptrs.push_back(&m_draw_lists.back());
+    m_draw_lists.back()._ResetForNewFrame();
+    m_draw_lists.back().PushTextureID(g.Font->ContainerAtlas->TexID);
+    m_draw_lists.back().PushClipRect(pos, ImVec2(pos.x+size.x, pos.y+size.y), false);
+    
+    return &m_draw_lists.back();
+}
+
 
 void ImGui::UpdateAllPlatformWindows()
 {

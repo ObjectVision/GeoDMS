@@ -393,12 +393,6 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 
     ImDrawList draw_list(&shared_drawlist_data);
     
-    // init draw lists
-    //draw_list_rect._ResetForNewFrame();
-    //draw_list_rect.PushTextureID(g.Font->ContainerAtlas->TexID);
-    //draw_list_rect.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
-
-    
     draw_list._ResetForNewFrame();
     draw_list.PushTextureID(g.Font->ContainerAtlas->TexID);
     draw_list.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
