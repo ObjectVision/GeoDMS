@@ -147,7 +147,7 @@ struct CheckOperator : public BinaryOperator
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
-using fence_member_pair = std::pair<SharedPtr<TreeItem>, SharedPtr<const TreeItem>>;
+using fence_member_pair = std::pair<InterestPtr<SharedPtr<TreeItem>>, InterestPtr<SharedPtr<const TreeItem>>>;
 using fence_work_data = std::vector<fence_member_pair>;
 
 struct FenceContainerOperator : BinaryOperator
@@ -171,7 +171,8 @@ struct FenceContainerOperator : BinaryOperator
 
 		fence_work_data workData;
 
-		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		auto resultRoot = resultHolder.GetNew();
+		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
 			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
 				continue;
@@ -188,13 +189,15 @@ struct FenceContainerOperator : BinaryOperator
 		dms_assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 
-		const fence_work_data& workData = *any_cast<fence_work_data>(&fc->m_MetaInfo);
+		const fence_work_data* workDataPtr = noncopyable_any_cast<fence_work_data>(&fc->m_MetaInfo);
+
+		MG_CHECK(workDataPtr);
 
 		// first, copy ranges of units ?
-		for (const auto& fencePair: workData)
+		for (const auto& fencePair: *workDataPtr)
 		{	
-			auto resWalker = fencePair.first.get();
-			auto srcItem = fencePair.second.get();
+			auto resWalker = fencePair.first.get_ptr();
+			auto srcItem = fencePair.second.get_ptr();
 			MG_CHECK(srcItem);
 			if (srcItem->WasFailed(FR_Data))
 			{
@@ -227,6 +230,8 @@ struct FenceContainerOperator : BinaryOperator
 				resWalker->Fail(srcItem);
 			dms_assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker));
 		}
+
+		fc->m_MetaInfo.reset();
 
 		// check that all sub-items of result-holder are up-to-date or uninteresting
 
