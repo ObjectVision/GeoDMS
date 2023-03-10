@@ -36,15 +36,16 @@ struct ContentRegion
     ImVec2 cursor;
     ImVec2 pos;
     ImVec2 size;
-    size_t index;
 };
 
 struct EventlogDirectUpdateInformation
 {
     ImGuiViewport* viewport;
-    std::chrono::system_clock::time_point time_since_last_update;
+    std::chrono::time_point<std::chrono::system_clock> time_since_last_update;
     ContentRegion log;
     ContentRegion status;
+
+    bool RequiresUpdate();
 };
 
 class GuiEventLog

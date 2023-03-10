@@ -177,7 +177,7 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     auto eventlog_window = ImGui::GetCurrentWindow();
     m_direct_update_information.log.cursor = ImGui::GetCursorScreenPos();
     m_direct_update_information.log.pos = eventlog_window->ClipRect.Min;
-    m_direct_update_information.log.size = eventlog_window->ContentSize;
+    m_direct_update_information.log.size = ImGui::GetWindowContentRegionMax();
 
     auto cur_window = ImGui::GetCurrentWindow();
     
@@ -212,8 +212,6 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
         }
     }
 
-    m_direct_update_information.log.index = clipper.DisplayStart==0 ? 0 : clipper.DisplayStart--;
-
     if (ScrollToBottom || (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()))
         ImGui::SetScrollHereY(1.0f);
     ScrollToBottom = false;
@@ -230,13 +228,6 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     m_direct_update_information.status.pos = vp->Pos;
     m_direct_update_information.status.size = vp->Size;
     
-    
-
-    /*m_smvp.vp = ImGui::GetWindowViewport();
-    m_smvp.cursor_pos   = ImGui::GetCurrentWindow()->DC.CursorPos;
-    m_smvp.display_pos  = m_smvp.vp->Pos;
-    m_smvp.display_size = m_smvp.vp->Size; //ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing());*/
-
     ImGui::TextUnformatted(state.contextMessage.Get().c_str());
     
     ImGui::End();
@@ -318,114 +309,60 @@ void GuiEventLog::AddLog(SeverityTypeID severity_type, std::string_view original
         m_FilteredItemIndices.push_back(m_Items.size()-1);
 };
 
-/*#include "GuiMain.h"
-#include <imgui_impl_opengl3.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_internal.h>
-
-void DirectUpdateEventLog(GuiMainComponent* main)
+bool EventlogDirectUpdateInformation::RequiresUpdate()
 {
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame(); // TODO: set  to true for UpdateInputEvents?
-
-    main->m_EventLog.Update(&main->m_State.ShowEventLogWindow, main->m_State);
-
-    ImGui::Render();
-    int display_w, display_h;
-    glfwGetFramebufferSize(main->m_MainWindow, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
-
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    // Update and Render additional Platform Windows
-    auto& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        GLFWwindow* backup_current_context = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(backup_current_context);
-    }
-    glfwSwapBuffers(main->m_MainWindow);
-}*/
+    auto log_message_time = std::chrono::system_clock::now();
+    std::chrono::duration<double, std::milli> delta_time_update = log_message_time - time_since_last_update;
+    return delta_time_update.count() > 5000; // TODO: expose param to user
+}
 
 void GuiEventLog::DirectUpdate(GuiState& state)
 {
     ImGuiContext& g = *GImGui;
-    //main->m_State.m_last_update_time = context_message_time; // TODO: generalize this to whole eventlog update
 
     m_direct_update_information.time_since_last_update = std::chrono::system_clock::now();
 
     ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_direct_update_information.viewport->PlatformUserData);//m_smvp.vp->PlatformUserData);
     DirectUpdateFrame direct_update_frame(viewport_data->Window, m_direct_update_information.status.pos, m_direct_update_information.status.size); // m_smvp.display_pos, m_smvp.display_size
 
-    auto draw_list_ptr = direct_update_frame.AddDrawList(m_direct_update_information.status.pos, ImVec2(m_direct_update_information.status.pos.x + m_direct_update_information.status.size.x, m_direct_update_information.status.pos.y + m_direct_update_information.status.size.y));
-    SetTextBackgroundColor(ImGui::CalcTextSize(state.contextMessage.Get().c_str()), ImGui::GetColorU32(ImGuiCol_WindowBg), draw_list_ptr, &m_direct_update_information.status.cursor);
-    draw_list_ptr->AddText(g.Font, g.FontSize, m_direct_update_information.status.cursor, ImColor(255, 0, 0, 255), state.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
+    // log
+    auto log_draw_list_ptr = direct_update_frame.AddDrawList(m_direct_update_information.log.pos, ImVec2(m_direct_update_information.log.pos.x + m_direct_update_information.log.size.x, m_direct_update_information.log.pos.y + m_direct_update_information.log.size.y));
+    SetTextBackgroundColor(m_direct_update_information.log.size, ImGui::GetColorU32(ImGuiCol_WindowBg), log_draw_list_ptr, &m_direct_update_information.log.cursor);
+    size_t number_of_log_lines = std::ceil(m_direct_update_information.log.size.y / ImGui::GetTextLineHeightWithSpacing());
+    if (number_of_log_lines > m_Items.size())
+        number_of_log_lines = m_Items.size();
+    size_t log_direct_update_index = m_Items.size() <= number_of_log_lines ? 0 : m_Items.size()-(number_of_log_lines+1);
+    
+    ImVec2 log_cursor = m_direct_update_information.log.cursor;
+    for (int i = log_direct_update_index; i < log_direct_update_index + number_of_log_lines; i++)
+    {
+        auto eventlog_item_ptr = &m_Items[i];
+        //ImVec4 color = 
+        log_draw_list_ptr->AddText(g.Font, g.FontSize, log_cursor, ConvertSeverityTypeIDToColor(eventlog_item_ptr->m_Severity_type), eventlog_item_ptr->m_Text.c_str(), NULL, 0.0f);
+        log_cursor = ImVec2(log_cursor.x, log_cursor.y+ImGui::GetTextLineHeightWithSpacing());
+    }
+
+    // status
+    auto status_draw_list_ptr = direct_update_frame.AddDrawList(m_direct_update_information.status.pos, ImVec2(m_direct_update_information.status.pos.x + m_direct_update_information.status.size.x, m_direct_update_information.status.pos.y + m_direct_update_information.status.size.y));
+    SetTextBackgroundColor(ImGui::CalcTextSize(state.contextMessage.Get().c_str()), ImGui::GetColorU32(ImGuiCol_WindowBg), status_draw_list_ptr, &m_direct_update_information.status.cursor);
+    status_draw_list_ptr->AddText(g.Font, g.FontSize, m_direct_update_information.status.cursor, ImColor(255, 0, 0, 255), state.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
 }
 
 void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     main->m_State.contextMessage.Set(msg);
-    
-    // TODO: make sure m_smvp is populated, else do not draw directly
 
-    //static void             AddDrawListToDrawData(ImVector<ImDrawList*>* out_list, ImDrawList* draw_list);
-    
-    
     ImGuiIO& io = ImGui::GetIO();
 
     auto context_message_time = std::chrono::system_clock::now();
     std::chrono::duration<double, std::milli> time_since_last_update = context_message_time - main->m_State.m_last_update_time;
 
-    //if (time_since_last_update.count() < 5000) // do not draw directly when the application is still responsive
-    //    return;
-    
     if (!GImGui)
         return;
 
-    main->m_EventLog.DirectUpdate(main->m_State);
-
-    /*ImGuiContext& g = *GImGui;
-    GLFWwindow* current_context_backup = glfwGetCurrentContext(); // Get current active viewport and store as backup
-    ImDrawData direct_eventlog_draw_data;
-    
-    ImDrawListSharedData shared_drawlist_data;
-    shared_drawlist_data.TexUvWhitePixel = g.DrawListSharedData.TexUvWhitePixel;
-
-    ImDrawList draw_list(&shared_drawlist_data);
-    
-    draw_list._ResetForNewFrame();
-    draw_list.PushTextureID(g.Font->ContainerAtlas->TexID);
-    draw_list.PushClipRect(m_smvp.display_pos, ImVec2(m_smvp.display_pos.x + m_smvp.display_size.x, m_smvp.display_pos.y + m_smvp.display_size.y), false);
-
-    // add draw lists to vector
-    ImVector<ImDrawList*> out_list;
-    out_list.push_back(&draw_list);
-
-    // init draw data
-    direct_eventlog_draw_data.CmdLists = out_list.Data;
-    direct_eventlog_draw_data.DisplayPos = m_smvp.display_pos; // Set viewport to status message area: DisplayPos DisplaySize
-    direct_eventlog_draw_data.DisplaySize = m_smvp.display_size;
-    direct_eventlog_draw_data.FramebufferScale = m_smvp.frame_buffer_scale;
-    direct_eventlog_draw_data.CmdListsCount = out_list.Size;
-
-    // make eventlog window the current context
-    ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_smvp.vp->PlatformUserData);
-    glfwMakeContextCurrent(viewport_data->Window); // Make EventLog viewport active
-    SetTextBackgroundColor(ImGui::CalcTextSize(main->m_State.contextMessage.Get().c_str()), ImGui::GetColorU32(ImGuiCol_WindowBg), &draw_list, &m_smvp.cursor_pos);
-    draw_list.AddText(g.Font, g.FontSize, m_smvp.cursor_pos, ImColor(255, 0, 0, 255), main->m_State.contextMessage.Get().c_str(), NULL, 0.0f); //  ImGui::FindRenderedTextEnd(main->m_State.contextMessage.Get().c_str()
-
-    ImGui_ImplOpenGL3_RenderDrawData(&direct_eventlog_draw_data);
-    glfwSwapBuffers(viewport_data->Window);
-    glfwMakeContextCurrent(current_context_backup); // restore backup_viewport
-    */
+    if (main->m_EventLog.m_direct_update_information.RequiresUpdate())
+        main->m_EventLog.DirectUpdate(main->m_State);
     return;
 }
 
@@ -434,10 +371,9 @@ void GuiEventLog::GeoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, Ch
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     assert(main);
     main->m_EventLog.AddLog(st, msg);
-    PostEmptyEventToGLFWContext();
+    if (main->m_EventLog.m_direct_update_information.RequiresUpdate())
+        main->m_EventLog.DirectUpdate(main->m_State);
+
     return;
-    //auto g = ImGui::GetCurrentContext();
-//    if (g->FrameCountEnded == g->FrameCount)
-//        DirectUpdateEventLog(main);
 }
 
