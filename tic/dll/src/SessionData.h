@@ -40,6 +40,8 @@ struct SafeFileWriterArray;
 // struct SessionData
 //----------------------------------------------------------------------
 
+extern std::recursive_mutex sd_SessionDataCriticalSection;
+
 struct SessionData
 {
 	static TIC_CALL void Create(CharPtr configLoadDir, CharPtr configSubDir); // call this before reading a config in order to set cfgColFirst right
@@ -64,12 +66,7 @@ struct SessionData
 	static void CancelDataStoreManager(const TreeItem* configRoot);
 	static void CloseDataStoreManager(const TreeItem* configRoot, SafeFileWriterArray& holder);
 
-	static void ReleaseIt(const TreeItem* configRoot) // WARNING: this might point to a destroyed configRoot
-	{
-		WeakPtr<SessionData> sd = GetIt(configRoot);
-		if (sd) 
-			sd->Release();
-	}
+	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
 
 	static WeakPtr<SessionData> Curr()
 	{

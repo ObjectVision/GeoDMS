@@ -1095,7 +1095,7 @@ void OperationContext::safe_run_impl() noexcept
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
-void OperationContext::safe_run() noexcept
+void OperationContext::safe_run_impl2() noexcept
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
 
@@ -1116,6 +1116,15 @@ void OperationContext::safe_run() noexcept
 	// check that clean-up was done. This includes releasing the RunCount
 	dms_assert(!m_TaskFunc);
 	dms_assert(!m_WriteLock);
+}
+
+void OperationContext::safe_run() noexcept
+{
+	DMS_SE_CALL_BEGIN
+
+		safe_run_impl2();
+
+	DMS_SE_CALL_END
 }
 
 bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& argRefs)
