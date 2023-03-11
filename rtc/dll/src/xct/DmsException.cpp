@@ -600,8 +600,10 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	auto exceptionText = GetExceptionText(u, pExp);
 
 	if (mustTerminate)
+	{
+		MessageBox(nullptr, exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
 		std::terminate();
-
+	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
 	,	(u == EXCEPTION_BORLAND_ERROR) ? "Borland" : "OS"
 	,	u
