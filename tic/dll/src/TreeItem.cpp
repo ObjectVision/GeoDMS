@@ -2951,7 +2951,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	} 
 	catch (...)
 	{
- 		dms_assert(!HasConfigData());
+ 		dms_assert(!HasCurrConfigData());
 
 		if (!WasFailed(FR_Data)) {
 			auto err = catchException(true);
