@@ -410,7 +410,7 @@ auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
 
 void GuiDetailPages::Update(bool* p_open, GuiState& state)
 {
-    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove))
     {
         ImGui::End();
         return;
