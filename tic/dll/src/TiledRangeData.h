@@ -123,21 +123,27 @@ struct SmallRangeData : AbstrTileRangeData
 	row_id GetRangeSize() const override { return Cardinality(GetRange()); }
 
 	tile_id GetNrTiles() const override { return 1; }
-	tile_offset GetTileSize(tile_id t) const override { dms_assert(t == 0); return GetRangeSize(); }
+	tile_offset GetTileSize(tile_id t) const override { assert(t == 0); return GetRangeSize(); }
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
 	tile_loc GetTiledLocation(row_id index) const override { return { 0, index }; }
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(GetRangeSize(), row_id(1))}; }
-	I64Rect GetTileRangeAsI64Rect(tile_id t) const { dms_assert(t == 0 || t == no_tile); return GetRangeAsI64Rect(); }
-	row_id GetFirstRowIndex(tile_id t) const override { dms_assert(t == 0); return 0; }
-	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { dms_assert(t == 0);  return localIndex; }
+	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t == no_tile); return GetRangeAsI64Rect(); }
+	row_id GetFirstRowIndex(tile_id t) const override { assert(t == 0); return 0; }
+	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  return localIndex; }
 
 	// range_t(dependent on T) specific functions, non virtual
-	Range<V> GetTileRange(tile_id t) const { dms_assert(t == 0); return GetRange(); }
+	Range<V> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return m_Range.first == 0; }
 
 	auto GetAsLispRef(LispPtr base) const -> LispRef override;
+
+	V GetTileValue(tile_id t, tile_offset localIndex) const
+	{
+		assert(t == 0);
+		return Range_GetValue_checked(m_Range, localIndex);
+	}
 
 	Range<V> m_Range;
 };
@@ -149,32 +155,30 @@ struct FixedRange : AbstrTileRangeData
 		return Range<UInt32>(0, 1 << N);
 	}
 	tile_id GetNrTiles() const override { return 1; }
-	tile_offset GetTileSize(tile_id t) const override { dms_assert(t == 0); return GetRangeSize(); }
+	tile_offset GetTileSize(tile_id t) const override { assert(t == 0); return GetRangeSize(); }
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
-	tile_loc GetTiledLocation(row_id index) const override { dms_assert(index < (1 << N)); return { 0, index }; }
+	tile_loc GetTiledLocation(row_id index) const override { assert(index < (1 << N)); return { 0, index }; }
 	row_id GetRangeSize() const override { return 1 << N; }
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(1 << N, 1) }; }
-	I64Rect GetTileRangeAsI64Rect(tile_id t) const { dms_assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
-	row_id GetFirstRowIndex(tile_id t) const override { dms_assert(t == 0); return 0; }
-	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { dms_assert(t == 0);  return localIndex; }
+	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
+	row_id GetFirstRowIndex(tile_id t) const override { assert(t == 0); return 0; }
+	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  return localIndex; }
 
 	// range_t(dependent on T) specific functions, non virtual
-	Range<UInt32> GetTileRange(tile_id t) const { dms_assert(t == 0); return GetRange(); }
+	Range<UInt32> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return true; }
 
+	bit_value<N> GetTileValue(tile_id t, tile_offset localIndex) const
+	{
+		assert(t == 0);
+		assert(localIndex < (1 << N));
+		return localIndex;
+	}
+
 	LispRef GetAsLispRef(LispPtr base) const override { return base; }
 };
-
-/*
-template <bit_size_t N>
-struct FixedRangeVirtualPtr : FixedRange<N> // pseudo pointer to no object specific data
-{
-	auto operator ->() const -> const FixedRange<N>* { return this; }
-	operator bool() const { return true; }
-};
-*/
 
 template <typename V>
 struct TiledRangeData : AbstrTileRangeData
@@ -231,7 +235,7 @@ struct TiledRangeData : AbstrTileRangeData
 	}
 	V GetTileValue(tile_id t, tile_offset localIndex) const
 	{
-		dms_assert(t != no_tile);
+		assert(t != no_tile);
 		return Range_GetValue_checked(GetTileRange(t), localIndex);
 	}
 	row_id  GetFirstRowIndex(tile_id t) const override

@@ -295,25 +295,27 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 
 	typedef bit_value<N>  value_t;
 	typedef Range<UInt32> range_t;
+	using range_data_t = FixedRange<N>;
 
 	static const UInt32 elem_count = mpf::exp2<N>::value;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override { 
-		static SharedPtr<FixedRange<N>> s_RangeData = new FixedRange<N>;
-		return s_RangeData;
-	}
+	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override { return GetCurrSegmInfo(); }
 
 	range_t GetRange() const { return range_t(0, elem_count); }
-//	range_t GetPreparedRange() const { return GetRange(); }
 
 	range_t GetTileRange(tile_id t) const { dms_assert(t == 0); return range_t(0, elem_count); }
-//	range_t GetPreparedTileRange(tile_id t) const { return GetTileRange(t); }
 
 	SharedStr GetRangeAsStr() const override { return AsString(GetRange()); }
 
 //	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
 	value_t GetValueAtIndex (SizeT   i) const { return i; }
 	SizeT  GetIndexForValue(value_t v) const { return v; }
+
+	auto GetCurrSegmInfo() const -> const range_data_t* {
+		static SharedPtr<range_data_t> s_RangeData = new range_data_t;
+		return s_RangeData;
+	}
+	auto GetSegmInfo() const -> const range_data_t* { return GetCurrSegmInfo(); }
 };
 
 //----------------------------------------------------------------------
