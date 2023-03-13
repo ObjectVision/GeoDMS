@@ -130,6 +130,10 @@ public:
 	SizeT GetRowNr(SizeT i) const;
 	ExportInfo GetExportInfo();
 
+	SizeT nrRows() const;
+	SizeT getRecNo(SizeT i) const;
+	SizeT getRowNr(SizeT i) const;
+
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }
 	void  Export();
 	void  TableCopy() const;

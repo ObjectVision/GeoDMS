@@ -286,6 +286,29 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
 }
 
+SizeT TableControl::nrRows() const
+{
+	dms_assert(!SuspendTrigger::DidSuspend());
+	auto rowEntity = GetRowEntity();
+	if (!rowEntity)
+		return 8;
+
+	return rowEntity->GetCount();
+}
+
+SizeT TableControl::getRecNo(SizeT rowNr) const
+{
+	if (!IsDefined(rowNr) || rowNr >= nrRows())
+		return UNDEFINED_VALUE(SizeT);
+
+	if (m_State.Get(TCF_FlipSortOrder))
+		rowNr = (nrRows() - (rowNr + 1));
+	if (!m_SelIndexAttr)
+		return rowNr;
+	assert(m_SelIndexAttr->m_DataLockCount > 0);
+	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
+}
+
 SizeT TableControl::GetRowNr(SizeT recNo) const
 {
 	if (!IsDefined(recNo))
