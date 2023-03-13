@@ -257,11 +257,62 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
-void GuiDetailPages::DrawDetailPagesTabbar()
+void GuiDetailPages::DrawDetailPagesTabbar(GuiState &state)
 {
     auto backup_cursor_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x-10, backup_cursor_pos.y));
-    ImGui::Text(ICON_RI_FIND);
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x-20, backup_cursor_pos.y));
+
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+
+    ImGuiDockNode* detail_pages_docknode = nullptr;
+    if (dockspace_docknode->ChildNodes[0])
+        detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
+
+    auto window = ImGui::GetCurrentWindow();
+    
+    if (ImGui::Button(ICON_RI_GENERAL))
+    {
+
+        auto window_pos = ImGui::GetWindowPos();
+        auto window_size = ImGui::GetWindowSize();
+
+        ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(window_size.x + 50, window_size.y));
+
+        //ImGui::SetWindowPos(ImVec2(window_pos.x+50, window_pos.y));
+        //ImGui::SetWindowSize(ImVec2(window_size.x -50, window_size.y));
+        //detail_pages_docknode->Pos = ImVec2(detail_pages_docknode->Pos.x+50, detail_pages_docknode->Pos.y);
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("General");
+
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
+
+    if (ImGui::Button(ICON_RI_FIND))
+    {
+
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Explore");
+
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
+
+    if (ImGui::Button(ICON_RI_PROPERTIES))
+    {
+
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Properties");
+
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
+
+    if (ImGui::Button(ICON_RI_CODE))
+    {
+
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Configuration");
 
     // TODO: add vertical separation line
     
@@ -465,7 +516,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
-    DrawDetailPagesTabbar();
+    DrawDetailPagesTabbar(state);
 
     // detail page content area if necessary
     ImGui::BeginChild("DetailPageContentArea", ImVec2(-20,0), false, ImGuiWindowFlags_NoScrollbar);
