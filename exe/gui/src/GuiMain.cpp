@@ -574,6 +574,8 @@ int GuiMainComponent::MainLoop()
         //        UpdateFrameCounter = frames_to_update;
         //}
 
+        m_State.m_last_update_time = std::chrono::system_clock::now();
+
         if (m_GuiUnitTest.ProcessStep(m_State))
             break;
 
@@ -616,8 +618,9 @@ int GuiMainComponent::MainLoop()
 
         // rendering
         ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
+        
+        //int display_w, display_h;
+        //glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
         
         //glViewport(0, 0, display_w/2, display_h/2);
         //glClearColor(1.0, 0.0, 0.0, 1.0);
@@ -625,18 +628,20 @@ int GuiMainComponent::MainLoop()
         
             
         //glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); // render drawdata of main viewport
 
         // Update and Render additional Platform Windows
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-            GLFWwindow* backup_current_context = glfwGetCurrentContext();
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-            glfwMakeContextCurrent(backup_current_context);
-        }
+        GLFWwindow* backup_current_context = glfwGetCurrentContext();
 
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+
+        glfwMakeContextCurrent(backup_current_context);
         glfwSwapBuffers(m_MainWindow);
+        
+
+
+
 
 
 

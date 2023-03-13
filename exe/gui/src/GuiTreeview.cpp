@@ -42,7 +42,7 @@
 auto GetColorFromTreeItemNotificationCode(UInt32 status, bool isFailed) -> UInt32
 {
     if (isFailed)
-        return DmsRed;// IM_COL32(0, 0, 0, 255);
+        return IM_COL32(0, 0, 0, 255) ;// DmsRed IM_COL32(0, 0, 0, 255);
 
     // TODO: store these colors somewhere persistently
     auto salmon = IM_COL32(255, 0, 102, 255);
