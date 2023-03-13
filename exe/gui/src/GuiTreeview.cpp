@@ -621,10 +621,13 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem
 
 void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
 {
+    
     if (ImGui::IsWindowFocused() && node->GetItem() == state.GetCurrentItem())
     {
+        ImGuiIO& io = ImGui::GetIO();
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
         {
+            io.AddKeyEvent(ImGuiKey_RightArrow, false);
             if (node->IsOpen())
             {
                 auto descended_node = DescendVisibleTree(*node);
@@ -636,6 +639,7 @@ void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
         }
         if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
         {
+            io.AddKeyEvent(ImGuiKey_LeftArrow, false);
             if (!node->IsOpen())
             {
                 if (node->m_parent)
@@ -743,6 +747,7 @@ void GuiTreeView::clear()
 
 void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
 {
+    ImGuiIO& io = ImGui::GetIO();
     switch (event)
     {
     case GuiEvents::UpdateCurrentAndCompatibleSubItems:
@@ -779,6 +784,16 @@ void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
         }
         break;
     }
+    case GuiEvents::CollapseTreeNode:
+    {
+        io.AddKeyEvent(ImGuiKey_LeftArrow, true);
+        break;
+    }
+    case GuiEvents::ExpandTreeNode:
+    {
+        io.AddKeyEvent(ImGuiKey_RightArrow, true);
+        break;
+    }
     case GuiEvents::TreeViewJumpKeyPress:
     {
         m_TemporaryJumpItem = m_tree.JumpToLetter(state, GuiState::m_JumpLetter);
@@ -802,7 +817,7 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
         return;
     }
 
-    AutoHideWindowDocknodeTabBar(is_docking_initialized);
+    AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
 
     auto event_queues = GuiEventQueues::getInstance();
     if (event_queues->TreeViewEvents.HasEvents())

@@ -61,6 +61,8 @@ enum class GuiEvents
 	AscendVisibleTree,
 	TreeViewJumpKeyPress,
 	DescendVisibleTree,
+	CollapseTreeNode,
+	ExpandTreeNode,
 	MenuOpenFile,
 	MenuOpenEdit,
 	MenuOpenView,

@@ -101,7 +101,7 @@ private:
 
 	TreeItem* m_TemporaryJumpItem = nullptr;
 	ImGuiTreeNodeFlags m_BaseFlags  = ImGuiWindowFlags_AlwaysAutoResize | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
-	bool is_docking_initialized = false;
+	bool m_is_docking_initialized = false;
 
 	GuiTree m_tree;
 };

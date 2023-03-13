@@ -447,7 +447,7 @@ void GuiMainComponent::CreateMainWindowInWindowedFullscreenMode()
     int xpos, ypos, width, height;
     glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
     m_MainWindow = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
-
+    glfwSetInputMode(m_MainWindow, GLFW_LOCK_KEY_MODS, GLFW_TRUE); // pass through Num Lock and Caps Lock state
     auto main_hwnd = glfwGetWin32Window(m_MainWindow);
     SendMessage(main_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 }
@@ -525,7 +525,7 @@ int GuiMainComponent::Init()
     FontBuilderRecipy recipy;
     recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
     recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
+    //recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
     recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
     recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
     m_State.fonts.text_font = SetGuiFont(recipy);
