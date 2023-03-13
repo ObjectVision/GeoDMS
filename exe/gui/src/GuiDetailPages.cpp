@@ -257,7 +257,7 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
-auto GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool statistics, bool value_info, bool source_description, bool configuration) -> void
+void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool statistics, bool value_info, bool source_description, bool configuration)
 {
     if (general)
         m_GeneralProperties.clear();
@@ -292,7 +292,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     m_Buff.Reset();
 }
 
-auto GuiDetailPages::clear() -> void
+void GuiDetailPages::clear()
 {
     DMS_ExplainValue_Clear();
     ClearSpecificDetailPages(true, true, true, true, true, true, true);
@@ -318,7 +318,7 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     m_Buff.Reset();
 }
 
-auto GuiDetailPages::UpdateStatistics(GuiState& state) -> void
+void GuiDetailPages::UpdateStatistics(GuiState& state)
 {
     /*clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
@@ -362,7 +362,7 @@ bool GuiDetailPages::UpdateValueInfo(GuiState& state)
 
 }
 
-auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
+void GuiDetailPages::UpdateConfiguration(GuiState& state)
 {
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
@@ -373,7 +373,7 @@ auto GuiDetailPages::UpdateConfiguration(GuiState& state) -> void
     m_Buff.Reset();
 }
 
-auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
+void GuiDetailPages::UpdateSourceDescription(GuiState& state)
 {
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
@@ -382,14 +382,14 @@ auto GuiDetailPages::UpdateSourceDescription(GuiState& state) -> void
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
 }
 
-auto GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
+void GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
                     CharPtr     sAction,
                     Int32         nCode,
                     Int32             x,
                     Int32             y,
                     bool   doAddHistory,
                     bool          isUrl,
-                    bool	mustOpenDetailsPage) -> void
+                    bool	mustOpenDetailsPage)
 {
     PostEmptyEventToGLFWContext();
 
@@ -431,7 +431,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         {
         case GuiEvents::FocusValueInfoTab: 
         {
-            set_value_info_selected = true;
+            set_value_info_selected = true; // TODO: (re)move?
             m_ValueInfo.clear();
             break;
         }
@@ -450,20 +450,13 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
-    /*// window specific options button
-    auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();
-    SetClipRectToIncludeOptionsIconInWindowHeader();
-    ImGui::Text(ICON_RI_SETTINGS);
-    if (MouseHooversOptionsIconInWindowHeader())
-    {        
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        {
-            // do something useful with options window
-        }
-    }
-    ImGui::SetCursorPos(old_cpos);
-    ImGui::PopClipRect();*/
+    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20,0), false, ImGuiWindowFlags_NoScrollbar);
 
+    ImGui::Text("ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD");
+
+    ImGui::EndChild();
+
+    /*
     if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None|ImGuiTabBarFlags_FittingPolicyResizeDown)) //ImGuiTabBarFlags_FittingPolicyScroll))
     {
         if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
@@ -509,19 +502,6 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
                 SetKeyboardFocusToThisHwnd();
         }
 
-        /*if (ImGui::BeginTabItem("Statistics", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                //if (m_Statistics.empty())
-                //    UpdateStatistics(state);
-                //DrawProperties(state, m_Statistics);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }*/
-
         if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
         {
             if (m_ValueInfo.empty())
@@ -544,12 +524,6 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
             ImGui::EndTabItem();
         }
 
-        /*if (ImGui::BeginTabItem("Metadata", 0, ImGuiTabItemFlags_None))
-        {
-            TODO: think about html editable functionality like export settings, reimplement?
-            ImGui::EndTabItem();
-        }*/
-
         if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
         {
             if (state.GetCurrentItem())
@@ -562,7 +536,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
 
         ImGui::EndTabBar();
-    }
+    }*/
 
     ImGui::End();
 }

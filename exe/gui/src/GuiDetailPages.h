@@ -74,32 +74,30 @@ private:
 class GuiDetailPages
 {
 public:
-    auto clear() -> void;
-    auto Update(bool* p_open, GuiState& state) -> void;
-    auto static OnViewAction(const TreeItem* tiContext,
+    void clear();
+    void Update(bool* p_open, GuiState& state);
+    static void OnViewAction(const TreeItem* tiContext,
         CharPtr     sAction,
         Int32         nCode,
         Int32             x,
         Int32             y,
         bool   doAddHistory,
         bool          isUrl,
-        bool	mustOpenDetailsPage) -> void;
+        bool	mustOpenDetailsPage);
 private:
-    auto ClearSpecificDetailPages(bool general=false, bool all_properties=false, bool explore_properties=false, bool statistics=false, bool value_info=false, bool source_description=false, bool configuration=false) -> void;
-    auto UpdateGeneralProperties(GuiState& state) -> void;
-    auto UpdateAllProperties(GuiState& state) -> void;
-    auto UpdateExploreProperties(GuiState& state) -> void;
-    auto UpdateStatistics(GuiState& state) -> void;
+    void ClearSpecificDetailPages(bool general = false, bool all_properties = false, bool explore_properties = false, bool statistics = false, bool value_info = false, bool source_description = false, bool configuration = false);
+    void UpdateGeneralProperties(GuiState& state);
+    void UpdateAllProperties(GuiState& state);
+    void UpdateExploreProperties(GuiState& state);
+    void UpdateStatistics(GuiState& state);
     bool UpdateValueInfo(GuiState& state);
-    auto UpdateConfiguration(GuiState& state) -> void;
-    auto UpdateSourceDescription(GuiState& state) -> void;
-    //auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
+    void UpdateConfiguration(GuiState& state);
+    void UpdateSourceDescription(GuiState& state);
 
     HTMLGuiComponentFactory m_Buff;
     TableData m_GeneralProperties;
     TableData m_AllProperties;
     TableData m_ExploreProperties;
-    //TableData m_Statistics;
     TableData m_ValueInfo;
     TableData m_SourceDescription;
     TableData m_Configuration;
