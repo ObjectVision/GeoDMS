@@ -23,3 +23,4 @@
 #define ICON_RI_DATABASE_SOLID      "\xEE\xB0\x95" // U+EC15
 #define ICON_RI_GLOBE				"\xEE\xB1\xBA" // U+EC7A
 #define ICON_RI_TABLE				"\xEF\x87\x9E" // U+F1DE
+#define ICON_RI_FIND				"\xEF\x83\x91" // F+F0D1

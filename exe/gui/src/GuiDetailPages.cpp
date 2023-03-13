@@ -257,7 +257,22 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
-void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool statistics, bool value_info, bool source_description, bool configuration)
+void GuiDetailPages::DrawDetailPagesTabbar()
+{
+    auto backup_cursor_pos = ImGui::GetCursorPos();
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x-10, backup_cursor_pos.y));
+    ImGui::Text(ICON_RI_FIND);
+
+    // TODO: add vertical separation line
+    
+    
+    
+    
+    
+    ImGui::SetCursorPos(backup_cursor_pos);
+}
+
+void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
 {
     if (general)
         m_GeneralProperties.clear();
@@ -295,7 +310,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 void GuiDetailPages::clear()
 {
     DMS_ExplainValue_Clear();
-    ClearSpecificDetailPages(true, true, true, true, true, true, true);
+    ClearSpecificDetailPages(true, true, true, true, true, true);
 }
 
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
@@ -450,6 +465,9 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
+    DrawDetailPagesTabbar();
+
+    // detail page content area if necessary
     ImGui::BeginChild("DetailPageContentArea", ImVec2(-20,0), false, ImGuiWindowFlags_NoScrollbar);
 
     ImGui::Text("ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD");

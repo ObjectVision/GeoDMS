@@ -85,7 +85,8 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage);
 private:
-    void ClearSpecificDetailPages(bool general = false, bool all_properties = false, bool explore_properties = false, bool statistics = false, bool value_info = false, bool source_description = false, bool configuration = false);
+    void DrawDetailPagesTabbar();
+    void ClearSpecificDetailPages(bool general = false, bool all_properties = false, bool explore_properties = false, bool value_info = false, bool source_description = false, bool configuration = false);
     void UpdateGeneralProperties(GuiState& state);
     void UpdateAllProperties(GuiState& state);
     void UpdateExploreProperties(GuiState& state);
