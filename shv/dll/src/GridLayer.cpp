@@ -535,39 +535,60 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		auto selData = const_array_cast<SelectionID>(selAttr)->GetDataRead();
 
 		IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
+		auto indexCollectorPtr = GetIndexCollector();
 
-		DataArray<SelectionID>::const_iterator 
-			sdb = selData.begin(),
-			sdi = sdb;
+		auto sdb = selData.begin();
 
 		Int32 c      = _Left (gridRect);
 		Int32 cRight = _Right(gridRect);
-		for (Int32 r = _Top (gridRect), re = _Bottom(gridRect); r != re; ++r)
+		if (indexCollectorPtr)
 		{
-			while (c < cRight)
+			SizeT i = 0;
+			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
 			{
-				dms_assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c,r))) == (sdi-sdb));
-				if (sdi.nr_elem() || *sdi.data_begin())
+				while (c < cRight)
 				{
-					if (SelectionID(*sdi))
-					{
-						selectRect |= shp2dms_order(IPoint(c,r));
-						if (c < selectRect.second.Col())
-						{
-							sdi += (selectRect.second.Col() - c);
-							c = selectRect.second.Col();
-						}
-					}
-					++sdi;
+					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
+					SizeT sdIndex = indexCollectorPtr->GetEntityIndex(i);
+					if (SelectionID(sdb[sdIndex]))
+						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+						c = selectRect.second.Col();
 				}
-				else
-				{
-					sdi.skip_full_block();
-					c += sdi.nr_elem_per_block;
-				}
+				assert(c == cRight);
+				c -= _Width(gridRect);
 			}
-			c -= _Width(gridRect);
+		}
+		else
+		{
+			auto sdi = sdb;
+			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
+			{
+				while (c < cRight)
+				{
+					assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))) == sdi - sdb);
+					if (sdi.nr_elem() || *sdi.data_begin())
+					{
+						if (SelectionID(*sdi))
+							selectRect |= shp2dms_order(IPoint(c, r));
+						++sdi;
+						++c;
+					}
+					else
+					{
+						sdi.skip_full_block();
+						c += sdi.nr_elem_per_block;
+					}
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+					{
+						sdi += (selectRect.second.Col() - c);
+						c = selectRect.second.Col();
+					}
+				}
+				assert(c >= cRight);
+				c -= _Width(gridRect);
+			}
 		}
 
 		if (!selectRect.empty())
