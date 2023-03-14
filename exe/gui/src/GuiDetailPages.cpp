@@ -1,5 +1,3 @@
-#include <imgui.h>
-#include <imgui_internal.h>
 #include "GuiDetailPages.h"
 #include "TicInterface.h"
 #include "ClcInterface.h"
@@ -257,70 +255,166 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
-void GuiDetailPages::DrawDetailPagesTabbar(GuiState &state)
+auto GuiDetailPages::GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*
 {
-    auto backup_cursor_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x-20, backup_cursor_pos.y));
-
     auto ctx = ImGui::GetCurrentContext();
     ImGuiDockContext* dc = &ctx->DockContext;
     auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
-
     ImGuiDockNode* detail_pages_docknode = nullptr;
     if (dockspace_docknode->ChildNodes[0])
         detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
 
-    auto window = ImGui::GetCurrentWindow();
-    
-    if (ImGui::Button(ICON_RI_GENERAL))
-    {
+    return detail_pages_docknode;
+}
 
-        auto window_pos = ImGui::GetWindowPos();
-        auto window_size = ImGui::GetWindowSize();
+void GuiDetailPages::Collapse(ImGuiDockNode* detail_pages_docknode)
+{
+    m_active_tab = DetailPageActiveTab::None;
+    auto window_size = ImGui::GetWindowSize();
+    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_min_size, window_size.y));
+}
 
-        ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(window_size.x + 50, window_size.y));
+void GuiDetailPages::Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode)
+{
+    m_active_tab = tab;
+    auto window_size = ImGui::GetWindowSize();
+    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_expanded_size, window_size.y));
+}
 
-        //ImGui::SetWindowPos(ImVec2(window_pos.x+50, window_pos.y));
-        //ImGui::SetWindowSize(ImVec2(window_size.x -50, window_size.y));
-        //detail_pages_docknode->Pos = ImVec2(detail_pages_docknode->Pos.x+50, detail_pages_docknode->Pos.y);
-    }
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("General");
+void GuiDetailPages::CollapseOrExpand(GuiState& state, DetailPageActiveTab tab)
+{
+    ImGuiDockNode* detail_pages_docknode = GetDetailPagesDockNode(state);
+    if (!detail_pages_docknode)
+        return;
 
+    if (m_active_tab == tab)
+        Collapse(detail_pages_docknode);
+    else
+        Expand(tab, detail_pages_docknode);
+
+}
+
+void SetButtonColor(DetailPageActiveTab active, DetailPageActiveTab current)
+{
+    if (active == current)
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(66, 150, 250, 79));
+    else
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    return;
+}
+
+void GuiDetailPages::DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text)
+{
     ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
-
-    if (ImGui::Button(ICON_RI_FIND))
-    {
-
-    }
+    SetButtonColor(m_active_tab, tab);
+    if (ImGui::Button(icon.data()))
+        CollapseOrExpand(state, tab);
+    ImGui::PopStyleColor();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Explore");
+        ImGui::SetTooltip(text.data());
+}
 
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
-
-    if (ImGui::Button(ICON_RI_PROPERTIES))
-    {
-
-    }
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Properties");
-
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
-
-    if (ImGui::Button(ICON_RI_CODE))
-    {
-
-    }
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Configuration");
-
-    // TODO: add vertical separation line
-    
-    
-    
-    
+void GuiDetailPages::DrawTabbar(GuiState &state)
+{
+    auto backup_cursor_pos = ImGui::GetCursorPos();
+    DrawTabButton(state, DetailPageActiveTab::General, ICON_RI_GENERAL, "General");
+    DrawTabButton(state, DetailPageActiveTab::Explore, ICON_RI_FIND, "Explore");
+    DrawTabButton(state, DetailPageActiveTab::Properties, ICON_RI_PROPERTIES, "Properties");
+    DrawTabButton(state, DetailPageActiveTab::Configuration, ICON_RI_CODE, "Configuration");  
     
     ImGui::SetCursorPos(backup_cursor_pos);
+}
+
+void GuiDetailPages::DrawContent(GuiState & state)
+{
+    // detail page content area if necessary
+    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_NoScrollbar);
+
+    ImGui::Text("ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD");
+
+    ImGui::EndChild();
+
+    /*
+    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None|ImGuiTabBarFlags_FittingPolicyResizeDown)) //ImGuiTabBarFlags_FittingPolicyScroll))
+    {
+        if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
+        {
+
+            if (state.GetCurrentItem())
+            {
+                if (m_GeneralProperties.empty())
+                    UpdateGeneralProperties(state);
+                DrawProperties(state, m_GeneralProperties);
+            }
+            ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
+        {
+            if (state.GetCurrentItem())
+            {
+                if (m_AllProperties.empty())
+                    UpdateAllProperties(state);
+                DrawProperties(state, m_AllProperties);
+            }
+            ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            SetKeyboardFocusToThisHwnd();
+
+        if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
+        {
+            if (state.GetCurrentItem())
+            {
+                if (m_ExploreProperties.empty())
+                    UpdateExploreProperties(state);
+                DrawProperties(state, m_ExploreProperties);
+            }
+            ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
+        {
+            if (m_ValueInfo.empty())
+                UpdateValueInfo(state);
+            DrawProperties(state, m_ValueInfo);
+
+            ImGui::EndTabItem();
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                SetKeyboardFocusToThisHwnd();
+        }
+
+        if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
+        {
+            if (state.GetCurrentItem())
+            {
+                if (m_Configuration.empty())
+                    UpdateConfiguration(state);
+                DrawProperties(state, m_Configuration);
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
+        {
+            if (state.GetCurrentItem())
+            {
+                if (m_SourceDescription.empty())
+                    UpdateSourceDescription(state);
+                DrawProperties(state, m_SourceDescription);
+            }
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }*/
 }
 
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
@@ -482,7 +576,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
-    AutoHideWindowDocknodeTabBar(is_docking_initialized);
+    AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
 
     bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
@@ -516,96 +610,10 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
-    DrawDetailPagesTabbar(state);
-
-    // detail page content area if necessary
-    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20,0), false, ImGuiWindowFlags_NoScrollbar);
-
-    ImGui::Text("ABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD");
-
-    ImGui::EndChild();
-
-    /*
-    if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_None|ImGuiTabBarFlags_FittingPolicyResizeDown)) //ImGuiTabBarFlags_FittingPolicyScroll))
-    {
-        if (ImGui::BeginTabItem("General", 0, ImGuiTabItemFlags_None))
-        {
-
-            if (state.GetCurrentItem())
-            {
-                if (m_GeneralProperties.empty())
-                    UpdateGeneralProperties(state);
-                DrawProperties(state, m_GeneralProperties);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_AllProperties.empty())
-                    UpdateAllProperties(state);
-                DrawProperties(state, m_AllProperties);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            SetKeyboardFocusToThisHwnd();
-
-        if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_ExploreProperties.empty())
-                    UpdateExploreProperties(state);
-                DrawProperties(state, m_ExploreProperties);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
-        {
-            if (m_ValueInfo.empty())
-                UpdateValueInfo(state);
-            DrawProperties(state, m_ValueInfo);
-
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();            
-        }
-
-        if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_Configuration.empty())
-                    UpdateConfiguration(state);
-                DrawProperties(state, m_Configuration);
-            }
-            ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_SourceDescription.empty())
-                    UpdateSourceDescription(state);
-                DrawProperties(state, m_SourceDescription);
-            }
-            ImGui::EndTabItem();
-        }
-
-        ImGui::EndTabBar();
-    }*/
+    DrawTabbar(state);
+    
+    if (m_active_tab != DetailPageActiveTab::None)
+        DrawContent(state);
 
     ImGui::End();
 }

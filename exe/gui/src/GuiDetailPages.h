@@ -3,6 +3,8 @@
 #include <vector>
 #include "GuiBase.h"
 #include "ser/BaseStreamBuff.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 
 enum class HTMLTagType
 {
@@ -71,6 +73,15 @@ private:
     std::string                   m_Text;
 };
 
+enum class DetailPageActiveTab
+{
+    None,
+    General,
+    Explore,
+    Properties,
+    Configuration
+};
+
 class GuiDetailPages
 {
 public:
@@ -85,7 +96,9 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage);
 private:
-    void DrawDetailPagesTabbar(GuiState& state);
+    void DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text);
+    void DrawTabbar(GuiState& state);
+    void DrawContent(GuiState& state);
     void ClearSpecificDetailPages(bool general = false, bool all_properties = false, bool explore_properties = false, bool value_info = false, bool source_description = false, bool configuration = false);
     void UpdateGeneralProperties(GuiState& state);
     void UpdateAllProperties(GuiState& state);
@@ -94,13 +107,20 @@ private:
     bool UpdateValueInfo(GuiState& state);
     void UpdateConfiguration(GuiState& state);
     void UpdateSourceDescription(GuiState& state);
+    auto GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*;
+    void Collapse(ImGuiDockNode* detail_pages_docknode);
+    void Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode);
+    void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     HTMLGuiComponentFactory m_Buff;
-    TableData m_GeneralProperties;
-    TableData m_AllProperties;
-    TableData m_ExploreProperties;
-    TableData m_ValueInfo;
-    TableData m_SourceDescription;
-    TableData m_Configuration;
-    bool is_docking_initialized = false;
+    TableData               m_GeneralProperties;
+    TableData               m_AllProperties;
+    TableData               m_ExploreProperties;
+    TableData               m_ValueInfo;
+    TableData               m_SourceDescription;
+    TableData               m_Configuration;
+    bool                    m_is_docking_initialized = false;
+    DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
+    Float32                 m_min_size = 30.0f;
+    Float32                 m_expanded_size = 100.0f;
 };
