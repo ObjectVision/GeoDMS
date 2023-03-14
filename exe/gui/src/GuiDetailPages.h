@@ -96,6 +96,7 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage);
 private:
+    void DrawPinButton();
     void DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text);
     void DrawTabbar(GuiState& state);
     void DrawContent(GuiState& state);
@@ -120,7 +121,8 @@ private:
     TableData               m_SourceDescription;
     TableData               m_Configuration;
     bool                    m_is_docking_initialized = false;
+    bool                    m_pinned = false;
     DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
     Float32                 m_min_size = 30.0f;
-    Float32                 m_expanded_size = 100.0f;
+    Float32                 m_expanded_size = 500.0f;
 };

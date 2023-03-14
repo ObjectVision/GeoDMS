@@ -27,3 +27,5 @@
 #define ICON_RI_CODE                "\xEE\xAE\xA7" // U+EBA7
 #define ICON_RI_GENERAL             "\xEE\xB3\xAD" // U+ECED
 #define ICON_RI_PROPERTIES          "\xEE\xA9\xBE" // U+EA7E
+#define ICON_RI_PIN_ON              "\xEF\x80\xB7" // U+F037	
+#define ICON_RI_PIN_OFF    			"\xEF\x80\xB9" // U+F039
