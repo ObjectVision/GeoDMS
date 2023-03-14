@@ -551,11 +551,11 @@ struct BitVector : bit_info<N, Block>
 		else
 			std::copy(first, last, begin());	//	OPTIMIZE: if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
 	}
-	BitVector(BitVector&& rhs)
+	BitVector(BitVector&& rhs) noexcept
 	{
 		this->swap(rhs);
 	}
-	void operator =(BitVector&& rhs)
+	void operator =(BitVector&& rhs) noexcept
 	{
 		this->swap(rhs);
 	}
