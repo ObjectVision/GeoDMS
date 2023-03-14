@@ -255,209 +255,6 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
-auto GuiDetailPages::GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*
-{
-    auto ctx = ImGui::GetCurrentContext();
-    ImGuiDockContext* dc = &ctx->DockContext;
-    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
-    ImGuiDockNode* detail_pages_docknode = nullptr;
-    if (dockspace_docknode->ChildNodes[0])
-        detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
-
-    return detail_pages_docknode;
-}
-
-void GuiDetailPages::Collapse(ImGuiDockNode* detail_pages_docknode)
-{
-    if (!detail_pages_docknode)
-        return;
-
-    m_active_tab = DetailPageActiveTab::None;
-    auto window_size = ImGui::GetWindowSize();
-    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_min_size, window_size.y));
-}
-
-void GuiDetailPages::Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode)
-{
-    m_active_tab = tab;
-    auto window_size = ImGui::GetWindowSize();
-    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_expanded_size, window_size.y));
-}
-
-void GuiDetailPages::CollapseOrExpand(GuiState& state, DetailPageActiveTab tab)
-{
-    ImGuiDockNode* detail_pages_docknode = GetDetailPagesDockNode(state);
-    if (!detail_pages_docknode)
-        return;
-
-    if (m_active_tab == tab)
-        Collapse(detail_pages_docknode);
-    else
-        Expand(tab, detail_pages_docknode);
-
-}
-
-void SetButtonColor(DetailPageActiveTab active, DetailPageActiveTab current)
-{
-    if (active == current)
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(66, 150, 250, 79));
-    else
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    return;
-}
-
-void GuiDetailPages::DrawPinButton()
-{
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    if (ImGui::Button(m_pinned ? ICON_RI_PIN_ON : ICON_RI_PIN_OFF))
-        m_pinned = !m_pinned; // toggle
-    ImGui::PopStyleColor();
-}
-
-void GuiDetailPages::DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text)
-{
-    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
-    SetButtonColor(m_active_tab, tab);
-    if (ImGui::Button(icon.data()))
-        CollapseOrExpand(state, tab);
-    ImGui::PopStyleColor();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip(text.data());
-}
-
-void GuiDetailPages::DrawTabbar(GuiState &state)
-{
-    auto backup_cursor_pos = ImGui::GetCursorPos();
-    DrawPinButton();
-    DrawTabButton(state, DetailPageActiveTab::General, ICON_RI_GENERAL, "General");
-    DrawTabButton(state, DetailPageActiveTab::Explore, ICON_RI_FIND, "Explore");
-    DrawTabButton(state, DetailPageActiveTab::Properties, ICON_RI_PROPERTIES, "Properties");
-    DrawTabButton(state, DetailPageActiveTab::Configuration, ICON_RI_CODE, "Configuration");  
-    
-    ImGui::SetCursorPos(backup_cursor_pos);
-}
-
-void GuiDetailPages::DrawContent(GuiState & state)
-{
-    // detail page content area if necessary
-    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_NoScrollbar);
-
-    switch (m_active_tab)
-    {
-    case DetailPageActiveTab::General: 
-    {
-        if (state.GetCurrentItem())
-        {
-            if (m_GeneralProperties.empty())
-                UpdateGeneralProperties(state);
-            DrawProperties(state, m_GeneralProperties);
-        }
-        break; 
-    }
-    case DetailPageActiveTab::Explore: 
-    {
-        if (state.GetCurrentItem())
-        {
-            if (m_ExploreProperties.empty())
-                UpdateExploreProperties(state);
-            DrawProperties(state, m_ExploreProperties);
-        }
-        break; 
-    }
-    case DetailPageActiveTab::Properties: 
-    { 
-        if (state.GetCurrentItem())
-        {
-            if (m_AllProperties.empty())
-                UpdateAllProperties(state);
-            DrawProperties(state, m_AllProperties);
-        }
-        break; 
-    }
-    case DetailPageActiveTab::Configuration: 
-    {
-        if (state.GetCurrentItem())
-        {
-            if (m_Configuration.empty())
-                UpdateConfiguration(state);
-            DrawProperties(state, m_Configuration);
-        }
-        break; 
-    }
-    default: { break; };
-    }
-
-    ImGui::EndChild();
-
-/*
-
-        if (ImGui::BeginTabItem("Properties", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_AllProperties.empty())
-                    UpdateAllProperties(state);
-                DrawProperties(state, m_AllProperties);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            SetKeyboardFocusToThisHwnd();
-
-        if (ImGui::BeginTabItem("Explore", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_ExploreProperties.empty())
-                    UpdateExploreProperties(state);
-                DrawProperties(state, m_ExploreProperties);
-            }
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::BeginTabItem("Value info", 0, set_value_info_selected?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None))
-        {
-            if (m_ValueInfo.empty())
-                UpdateValueInfo(state);
-            DrawProperties(state, m_ValueInfo);
-
-            ImGui::EndTabItem();
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
-        }
-
-        if (ImGui::BeginTabItem("Configuration", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_Configuration.empty())
-                    UpdateConfiguration(state);
-                DrawProperties(state, m_Configuration);
-            }
-            ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem("Source descr", 0, ImGuiTabItemFlags_None))
-        {
-            if (state.GetCurrentItem())
-            {
-                if (m_SourceDescription.empty())
-                    UpdateSourceDescription(state);
-                DrawProperties(state, m_SourceDescription);
-            }
-            ImGui::EndTabItem();
-        }
-
-        ImGui::EndTabBar();
-    }*/
-}
-
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
 {
     if (general)
@@ -468,9 +265,6 @@ void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
 
     if (explore_properties)
         m_ExploreProperties.clear();
-
-    //if (statistics)
-    //    m_Statistics.clear();
 
     if (value_info)
         m_ValueInfo.clear();
@@ -609,6 +403,142 @@ void GuiDetailPages::OnViewAction(  const TreeItem* tiContext,
     event_queues->DetailPagesEvents.Add(GuiEvents::FocusValueInfoTab);
 }
 
+auto GuiDetailPages::GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+    ImGuiDockNode* detail_pages_docknode = nullptr;
+    if (dockspace_docknode->ChildNodes[0])
+        detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
+
+    return detail_pages_docknode;
+}
+
+void GuiDetailPages::Collapse(ImGuiDockNode* detail_pages_docknode)
+{
+    if (!detail_pages_docknode)
+        return;
+
+    m_active_tab = DetailPageActiveTab::None;
+    auto window_size = ImGui::GetWindowSize();
+    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_min_size, window_size.y));
+}
+
+void GuiDetailPages::Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode)
+{
+    m_active_tab = tab;
+    auto window_size = ImGui::GetWindowSize();
+    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_expanded_size, window_size.y));
+}
+
+void GuiDetailPages::CollapseOrExpand(GuiState& state, DetailPageActiveTab tab)
+{
+    ImGuiDockNode* detail_pages_docknode = GetDetailPagesDockNode(state);
+    if (!detail_pages_docknode)
+        return;
+
+    if (m_active_tab == tab)
+        Collapse(detail_pages_docknode);
+    else
+        Expand(tab, detail_pages_docknode);
+
+}
+
+void SetButtonColor(DetailPageActiveTab active, DetailPageActiveTab current)
+{
+    if (active == current)
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(66, 150, 250, 79));
+    else
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    return;
+}
+
+void GuiDetailPages::DrawPinButton()
+{
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+    if (ImGui::Button(m_pinned ? ICON_RI_PIN_ON : ICON_RI_PIN_OFF))
+        m_pinned = !m_pinned; // toggle
+    ImGui::PopStyleColor();
+}
+
+void GuiDetailPages::DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text)
+{
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - 20, ImGui::GetCursorPos().y));
+    SetButtonColor(m_active_tab, tab);
+    if (ImGui::Button(icon.data()))
+        CollapseOrExpand(state, tab);
+    ImGui::PopStyleColor();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip(text.data());
+}
+
+void GuiDetailPages::DrawTabbar(GuiState& state)
+{
+    auto backup_cursor_pos = ImGui::GetCursorPos();
+    DrawPinButton();
+    DrawTabButton(state, DetailPageActiveTab::General, ICON_RI_GENERAL, "General");
+    DrawTabButton(state, DetailPageActiveTab::Explore, ICON_RI_FIND, "Explore");
+    DrawTabButton(state, DetailPageActiveTab::Properties, ICON_RI_PROPERTIES, "Properties");
+    DrawTabButton(state, DetailPageActiveTab::Configuration, ICON_RI_CODE, "Configuration");
+
+    ImGui::SetCursorPos(backup_cursor_pos);
+}
+
+void GuiDetailPages::DrawContent(GuiState& state)
+{
+    // detail page content area if necessary
+    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_NoScrollbar);
+
+    switch (m_active_tab)
+    {
+    case DetailPageActiveTab::General:
+    {
+        if (state.GetCurrentItem())
+        {
+            if (m_GeneralProperties.empty())
+                UpdateGeneralProperties(state);
+            DrawProperties(state, m_GeneralProperties);
+        }
+        break;
+    }
+    case DetailPageActiveTab::Explore:
+    {
+        if (state.GetCurrentItem())
+        {
+            if (m_ExploreProperties.empty())
+                UpdateExploreProperties(state);
+            DrawProperties(state, m_ExploreProperties);
+        }
+        break;
+    }
+    case DetailPageActiveTab::Properties:
+    {
+        if (state.GetCurrentItem())
+        {
+            if (m_AllProperties.empty())
+                UpdateAllProperties(state);
+            DrawProperties(state, m_AllProperties);
+        }
+        break;
+    }
+    case DetailPageActiveTab::Configuration:
+    {
+        if (state.GetCurrentItem())
+        {
+            if (m_Configuration.empty())
+                UpdateConfiguration(state);
+            DrawProperties(state, m_Configuration);
+        }
+        break;
+    }
+    default: { break; };
+    }
+
+    ImGui::EndChild();
+}
+
 void GuiDetailPages::Update(bool* p_open, GuiState& state)
 {
     if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove))
@@ -617,7 +547,16 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         return;
     }
 
-    AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
+    if (!m_is_docking_initialized)
+    {
+        auto detail_pages_docknode = GetDetailPagesDockNode(state);
+        if (detail_pages_docknode)
+        {
+            AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
+            Collapse(detail_pages_docknode);
+        }
+
+    }
 
     bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
