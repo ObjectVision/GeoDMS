@@ -105,6 +105,13 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	arg_index n = args.size();
 	dms_assert(res);
 
+	for (arg_index i = 0; i!=n; ++i)
+		if (!IsUnit(args[i]))
+		{
+			auto clsName = SharedStr(args[i]->GetDynamicClass()->GetName());
+			throwErrorF("combine_unit", "ranged units expected, but argument %d is a %s", i + 1, clsName.c_str());
+		}
+
 	SizeT productSize = 1;
 	if (mustCalc)
 	{
