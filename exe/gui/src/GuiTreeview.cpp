@@ -232,12 +232,13 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
     ImGuiContext& g = *GImGui;
 
     auto cur_pos = ImGui::GetCursorPos();
-    ImGui::SetCursorPos(ImVec2(cur_pos.x * 3 * m_depth, cur_pos.y));
+    ImGui::SetCursorPos(ImVec2(cur_pos.x + 3 * m_depth, cur_pos.y));
 
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
-    if (ImGui::SmallButton(icon))//, ImVec2(20, 15)))
+    ImGui::TextUnformatted(icon);
+    if (ImGui::IsItemClicked()) //(ImGui::SmallButton(icon))//, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
             UpdateStateAfterItemClick(state, m_item); // set dropped down item as current item
@@ -477,13 +478,6 @@ bool GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item)
     ImGui::SameLine();
     DrawItemText(state, jump_item);
     DrawItemWriteStorageIcon();
-
-    // Modify y-spacing between TreeView items
-    // TODO: necessary?
-    /*ImGuiWindow* window = ImGui::GetCurrentWindow();
-    const UInt8 offset = 12; // TODO: Replace magic number by rule based on font size set by user
-    window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
-    */
     return false;
 }
 
@@ -713,6 +707,7 @@ void GuiTree::Draw(GuiState& state, TreeItem*& jump_item)
     auto m_currnode = m_start_node;
     ActOnLeftRightArrowKeys(state, m_currnode);
     m_Root.Draw(state, jump_item);
+
     if (m_Root.IsOpen())
         DrawBranch(*m_currnode, state, jump_item);
     ImGui::PopStyleColor(3);
@@ -796,8 +791,6 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
     if (!m_tree.IsInitialized() && state.GetRoot())
         m_tree.Init(state);
 
-    //const ImVec2 size(100,10000);
-    //ImGui::SetNextWindowContentSize(size);
     if (!ImGui::Begin("TreeView", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoMove))
     {
         ImGui::End();
@@ -807,6 +800,7 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
     ImGuiContext& g = *GImGui;
     auto backup_spacing = g.Style.ItemSpacing.y;
     g.Style.ItemSpacing.y = 0.0f;
+
     
     AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
 
@@ -820,6 +814,7 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
     if (!m_tree.IsInitialized())
     {
         ImGui::End();
+        g.Style.ItemSpacing.y = backup_spacing;
         return;
     }
 
