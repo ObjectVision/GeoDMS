@@ -49,9 +49,6 @@ GuiEventLog::~GuiEventLog()
     ClearLog();
 };
 
-//StatusMessageViewport GuiEventLog::m_smvp = {};
-//EventlogDirectUpdateInformation GuiEventLog::m_direct_update_information = {};
-
 void GuiEventLog::ShowEventLogOptionsWindow(bool* p_open)
 {
     if (ImGui::Begin("Eventlog options", p_open, NULL))
@@ -69,10 +66,6 @@ void GuiEventLog::ShowEventLogOptionsWindow(bool* p_open)
 void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) //TODO: add client handle to exception message function
 {
     GuiState state;
-    //auto event_queues = GuiEventQueues::getInstance();
-
-    //event_queues->MainEvents.Add(GuiEvents::OpenErrorDialog);
-    //ImGui::OpenPopup("Error");
     state.errorDialogMessage.Set(msg);
     PostEmptyEventToGLFWContext();
     return;
@@ -134,29 +127,12 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
 
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
 
-    //ImGuiStyle &style = ImGui::GetStyle();
-    //style.ItemSpacing.y = 2.0;
-    //auto test = style.ItemSpacing.y;// = -1.0;
-        // style.ItemSpacing.y
-
     // events
     auto event_queues = GuiEventQueues::getInstance();
 
     // focus
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
-
-    /*// window specific options button
-    auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();
-    SetClipRectToIncludeOptionsIconInWindowHeader();
-    ImGui::Text(ICON_RI_SETTINGS);
-    if (MouseHooversOptionsIconInWindowHeader())
-    {
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            state.ShowEventLogOptionsWindow = true;
-    }
-    ImGui::SetCursorPos(old_cpos);
-    ImGui::PopClipRect();*/
 
     // filter
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
@@ -185,9 +161,6 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     m_direct_update_information.log.size = ImGui::GetWindowContentRegionMax();
 
     auto cur_window = ImGui::GetCurrentWindow();
-    
-    //m_direct_update_information.log.pos = ImGui::GetCurrentWindow();
-    //m_direct_update_information.log.pos =
 
     ImGuiListClipper clipper;
     if (m_FilteredItemIndices.size() == 1 && m_FilteredItemIndices.at(0) == 0xFFFFFFFFFFFFFFFF)
@@ -232,11 +205,10 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     m_direct_update_information.status.cursor = ImGui::GetCursorScreenPos();
     m_direct_update_information.status.pos = vp->Pos;
     m_direct_update_information.status.size = vp->Size;
-    
-    ImGui::TextUnformatted(state.contextMessage.Get().c_str());
-    
-    g.Style.ItemSpacing.y = backup_spacing;
 
+    ImGui::TextUnformatted(state.contextMessage.Get().c_str());
+
+    g.Style.ItemSpacing.y = backup_spacing;
     ImGui::End();
 }; 
 
