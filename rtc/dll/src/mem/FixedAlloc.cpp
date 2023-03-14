@@ -247,7 +247,7 @@ struct FreeStackAllocator
 	std::pair<BYTE_PTR, bool> get_reserved_or_reset_objectstore()
 	{
 		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
-		std::scoped_lock lock(allocSection);
+		std::lock_guard lock(allocSection);
 
 		if (freeStack.empty())
 			return { inner.get_reserved_objectstore(), true };
@@ -270,7 +270,7 @@ struct FreeStackAllocator
 
 	void add_to_freestack(BYTE_PTR ptr)
 	{
-		std::scoped_lock lock(allocSection); // critical section here too
+		std::lock_guard lock(allocSection); // critical section here too
 		freeStack.emplace_back(ptr);
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
@@ -397,7 +397,7 @@ struct FreeListAllocator
 			}
 
 			// critical section from here: allocate a ObjectStore from freeStackAllocator
-			std::scoped_lock lock(allocSection);
+			std::lock_guard lock(allocSection);
 			// already done ?
 			if (currTaggedNrReservedSosses == taggedNrReservedSosses)
 			{
@@ -719,7 +719,7 @@ auto& GetAllocRegister()
 void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 
 	dms_assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
 	reg.map[ptr] = std::pair<CharPtr, size_t>{ srcStr, sz };
@@ -728,7 +728,7 @@ void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 void RemoveAlloc(void* ptr, size_t sz)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 
 	auto pos = reg.map.find(ptr);
 	dms_assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
@@ -738,7 +738,7 @@ void RemoveAlloc(void* ptr, size_t sz)
 void ReportAllocs()
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 	objectstore_count_t i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;

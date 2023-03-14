@@ -2561,7 +2561,7 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	typedef ClaimType     ResultTotalType;   
 	typedef PriceType     ResultShadowPriceType; 
 	using htp_info_type = htp_info_t<S, AR, AT>;
-	bool m_MustAdjust;
+	const bool m_MustAdjust;
 
 public:
 	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)

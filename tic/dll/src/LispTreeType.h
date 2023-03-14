@@ -35,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct TreeItem;
 #include "geo/SequenceArray.h"
+#include "mci/ValueWrap.h"
 
 #if defined(MG_DEBUG)
 //#define MG_DEBUG_LISP_TREE

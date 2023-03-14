@@ -130,7 +130,7 @@ AbstrStorageManager::AbstrStorageManager()
 	DMS_RegisterReduceResourcesFunc(s_ReduceResources, typesafe_cast<ClientHandle>(this));
 
 #if MG_DEBUG_ASM
-	std::lock_guard lock(sd_asm);
+	auto lock = std::lock_guard(sd_asm);
 	sd_ASM_set[this] = ++sd_AsmNr;
 #endif // MG_DEBUG_ASM
 }
@@ -166,7 +166,7 @@ AbstrStorageManager::~AbstrStorageManager()
 {
 #if MG_DEBUG_ASM
 	{
-		std::lock_guard lock(sd_asm);
+		std::scoped_lock lock(sd_asm);
 		sd_ASM_set.erase(this);
 	}
 #endif // MG_DEBUG_ASM

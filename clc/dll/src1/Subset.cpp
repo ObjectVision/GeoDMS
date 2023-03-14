@@ -245,7 +245,10 @@ struct SelectMetaOperator : public BinaryOperator
 		MG_CHECK(conditionDC);
 		conditionExpr = conditionDC->GetLispRef();
 		auto conditionItem = conditionDC->MakeResult();
+		if (conditionDC->WasFailed(FR_MetaInfo))
+			conditionDC->ThrowFail();
 		MG_CHECK(conditionItem);
+
 		const AbstrDataItem* conditionA = AsDynamicDataItem(conditionItem.get());
 		if (!conditionA)
 			throwErrorD(GetGroup()->GetNameStr(), "condition data-item expected as 2nd argument");

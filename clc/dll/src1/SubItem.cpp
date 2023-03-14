@@ -147,6 +147,9 @@ struct CheckOperator : public BinaryOperator
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
+using fence_member_pair = std::pair<InterestPtr<SharedPtr<TreeItem>>, InterestPtr<SharedPtr<const TreeItem>>>;
+using fence_work_data = std::vector<fence_member_pair>;
+
 struct FenceContainerOperator : BinaryOperator
 {
 	FenceContainerOperator()
@@ -166,7 +169,10 @@ struct FenceContainerOperator : BinaryOperator
 		}
 		dms_assert(resultHolder);
 
-		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		fence_work_data workData;
+
+		auto resultRoot = resultHolder.GetNew();
+		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
 			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
 				continue;
@@ -174,17 +180,24 @@ struct FenceContainerOperator : BinaryOperator
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 			
 			fc->AddDependency(srcItem->GetCheckedDC());
+			workData.emplace_back(resWalker, srcItem);
 		}
+		fc->m_MetaInfo = make_noncopyable_any<fence_work_data>(std::move(workData));
 	}
 	bool CalcResult(TreeItemDualRef & resultHolder, const ArgRefs & args, OperationContext * fc, Explain::Context * context) const override
 	{
 		dms_assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 
+		const fence_work_data* workDataPtr = noncopyable_any_cast<fence_work_data>(&fc->m_MetaInfo);
+
+		MG_CHECK(workDataPtr);
+
 		// first, copy ranges of units ?
-		for (auto resWalker = resultHolder.GetNew(); resWalker; resWalker = resWalker->WalkCurrSubTree(resWalker))
+		for (const auto& fencePair: *workDataPtr)
 		{	
-			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			auto resWalker = fencePair.first.get_ptr();
+			auto srcItem = fencePair.second.get_ptr();
 			MG_CHECK(srcItem);
 			if (srcItem->WasFailed(FR_Data))
 			{
@@ -217,6 +230,8 @@ struct FenceContainerOperator : BinaryOperator
 				resWalker->Fail(srcItem);
 			dms_assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker));
 		}
+
+		fc->m_MetaInfo.reset();
 
 		// check that all sub-items of result-holder are up-to-date or uninteresting
 

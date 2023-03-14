@@ -879,6 +879,8 @@ void TreeItem::MakeCalculator() const
 	if (WasFailed(FR_Determine))
 		return;
 
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+		GetTreeParent()->UpdateMetaInfo();
 	dms_assert(!m_Parent || (m_Parent->m_State.GetProgress() >= PS_MetaInfo) || m_Parent->WasFailed(FR_MetaInfo));
 
 	//	may only be called after HasCalculator (would) return(ed) true
@@ -2608,6 +2610,8 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 {
 	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
 
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+		GetTreeParent()->UpdateMetaInfo();
 	dms_assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); // precondition
 
 	// =============== Parent
@@ -2819,9 +2823,11 @@ garbage_t TreeItem::DropValue()
 
 TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const // noexcept
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
+	// postcondition of UpdateMetaInfo
+	assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); 
 
 	TimeStamp lastChangeTS = 0; // DataStoreManager::GetCachedConfigSourceTS(this);
 	if (!lastChangeTS
@@ -2945,7 +2951,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	} 
 	catch (...)
 	{
- 		dms_assert(!HasConfigData());
+ 		dms_assert(!HasCurrConfigData());
 
 		if (!WasFailed(FR_Data)) {
 			auto err = catchException(true);

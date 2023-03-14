@@ -204,19 +204,19 @@ struct SA_ConstReference : private SequenceArray_Base<T>
 	using typename SequenceArray_Base<T>::sequence_value_type;
 
 	// sequence properties
-	size_type      size () const { dms_assert(!is_null()); return m_CSeqPtr->size();  }
-	bool           empty() const { dms_assert(!is_null()); return m_CSeqPtr->empty(); }
-	bool       IsDefined() const { dms_assert(!is_null()); return ::IsDefined(*m_CSeqPtr); }
+	size_type      size () const { assert(!is_null()); return m_CSeqPtr->size();  }
+	bool           empty() const { assert(!is_null()); return m_CSeqPtr->empty(); }
+	bool       IsDefined() const { assert(!is_null()); return ::IsDefined(*m_CSeqPtr); }
 
 	// Element ro access
-	const_iterator begin() const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
-	const_iterator end  () const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
+	const_iterator begin() const { assert(!is_null()); assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
+	const_iterator end  () const { assert(!is_null()); assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
 
 	auto AsRange() const ->IterRange<const_iterator> { return { begin(), end() }; }
 
-	const_reference operator[](size_type i) const { dms_assert(i<size()); return begin()[i]; }
-	const_reference front()                 const { dms_assert(0<size()); return begin()[0]; }
-	const_reference back()                  const { dms_assert(0<size()); return end()[-1]; }
+	const_reference operator[](size_type i) const { assert(i<size()); return begin()[i]; }
+	const_reference front()                 const { assert(0<size()); return begin()[0]; }
+	const_reference back()                  const { assert(0<size()); return end()[-1]; }
 
 //	compare contents
 	RTC_CALL bool operator ==(SA_ConstReference<T> rhs) const;
@@ -243,7 +243,7 @@ private:
 	RTC_CALL SA_ConstReference(const SequenceArrayType* sa, const_seq_iterator cSeqPtr);
 
 	// Forbidden to call directly; can be constructed as part of a default SA_ConstIterator
-	SA_ConstReference() : m_CSeqPtr() { dms_assert(is_null()); }
+	SA_ConstReference() : m_CSeqPtr() { assert(is_null()); }
 
 	bool is_null() const 
 	{

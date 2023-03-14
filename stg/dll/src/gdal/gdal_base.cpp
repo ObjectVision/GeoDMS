@@ -483,7 +483,7 @@ bool gdalComponent::isActive()
 gdalComponent::~gdalComponent()
 {
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
-
+	return; // MEMORY LEAK, prevent issue 169
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
 //		proj_context_set_file_finder(nullptr, nullptr, nullptr);

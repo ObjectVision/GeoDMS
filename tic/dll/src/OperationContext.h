@@ -118,6 +118,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	std::atomic<task_status> m_Status = task_status::none;
 
 	void safe_run_impl() noexcept;
+	void safe_run_impl2() noexcept;
 	void safe_run() noexcept;
 public:
 	std::function<void(Explain::Context*)> m_TaskFunc;

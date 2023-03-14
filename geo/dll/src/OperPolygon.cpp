@@ -1649,10 +1649,10 @@ class PointInAllPolygonsOperator : public AbstrPointInAllPolygonsOperator
 	typedef DataArray<PointType>   Arg1Type;
 	typedef DataArray<PolygonType> Arg2Type;
 
-	using ResDataElemType = Point<SizeT>;
-
-	typedef std::vector<ResDataElemType> ResTileDataType;
-	typedef std::map<Point<tile_id>, ResTileDataType> ResDataType;
+	using ResDataElemType = std::pair<tile_offset, tile_offset>;
+	using ResTileDataType = std::vector<ResDataElemType>;
+	using DualTileKey = std::pair<tile_id, tile_id>;
+	using ResDataType     = std::map<DualTileKey, ResTileDataType>;
 
 	typedef typename scalar_of<PointType>::type  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
@@ -1706,15 +1706,11 @@ public:
 		auto pointArray = pointData->GetTile(t);
 		auto polyArray = polyData->GetTile(u);
 
-		SizeT p1Offset = pointDataA->GetAbstrDomainUnit()->GetTileFirstIndex(t);
-		SizeT p2Offset = polyDataA->GetAbstrDomainUnit()->GetTileFirstIndex(u);
-
 		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
 
-		typedef typename SpatialIndexType::template iterator<BoxType> box_iter_type;
-		typedef typename scalar_of<P>::type coordinate_type;
-
-		typedef ResDataElemType res_data_elem_type;
+		using box_iter_type   = typename SpatialIndexType::template iterator<BoxType> ;
+		using coordinate_type = typename scalar_of<P>::type ;
+		using res_data_elem_type = ResDataElemType;
 
 		ResTileDataType* resTileData = nullptr;
 		if (!resTileData)
@@ -1724,34 +1720,30 @@ public:
 			if (!resDataHandle)
 				resDataHandle = makeResource<ResDataType>();
 			ResDataType& resData = GetAs<ResDataType>(resDataHandle);
-			resTileData = &(resData[Point<tile_id>(t, u)]);
+			resTileData = &(resData[DualTileKey(t, u)]);
 		}
 		dms_assert(resTileData);
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		parallel_for(SizeT(0), pointArray.size(), [p1Offset, p2Offset, &pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection](SizeT i)->void
+		parallel_for(tile_offset(0), tile_offset(pointArray.size()),
+			[&pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection]
+			(tile_offset pointTileOffset)->void
 			{
-				auto pointPtr = pointArray.begin() + i;
-				SizeT p1_rel = p1Offset + i;
-//				BoxType bbox = RangeFromSequence(polyPtr->begin(), polyPtr->end());
+				auto pointPtr = pointArray.begin() + pointTileOffset;
 				if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), *pointPtr))
 					return;
 
-//				box_iter_type iter;
 				for (auto iter = spIndexPtr->begin(*pointPtr); iter; ++iter)
 				{
 					if (IsInside(*((*iter)->get_ptr()), *pointPtr))
 					{
-						res_data_elem_type back;
-						back.first = p1_rel;
-						back.second = p2Offset + (((*iter)->get_ptr()) - polyArray.begin());
-
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->push_back(std::move(back));
+						resTileData->emplace_back(pointTileOffset, (*iter)->get_ptr() - polyArray.begin());
 					}
 				}
-			});
+			}
+		);
 	}
 
 	void StoreRes(AbstrUnit* res, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resDataHandle) const override
@@ -1764,26 +1756,62 @@ public:
 				count += resTiles.second.size();
 		res->SetCount(count);
 
-		locked_tile_write_channel<UInt32> res1Writer(res1);
-		locked_tile_write_channel<UInt32> res2Writer(res2);
-
 		if (resData)
 		{
-			for (auto& resTiles : *resData) // ordered by (t, u)
-			{
-				ResTileDataType& resTileData = resTiles.second;
-				std::sort(resTileData.begin(), resTileData.end()); // sort on (m_OrgRel)
+			std::vector<ResDataType::value_type> resTileDataArray; resTileDataArray.reserve(resData->size());
+			for (auto& resTileData : *resData)
+				resTileDataArray.emplace_back(std::move(resTileData));
 
-				for (auto& resElemData : resTileData)
+			parallel_for<SizeT>(0, resTileDataArray.size()
+			,	[&resTileDataArray](SizeT t)
 				{
-					if (res1) res1Writer.Write(resElemData.first);
-					if (res2) res2Writer.Write(resElemData.second);
-				}
-			}
+					auto& resTileData = resTileDataArray[t];
+					std::sort(resTileData.second.begin(), resTileData.second.end()); // sort on (m_OrgRel)
+				});
+			if (res1)
+				visit<typelists::domain_elements>(res1->GetAbstrValuesUnit()
+				,	[res1, &resTileDataArray]<typename P>(const Unit<P>* resValuesUnit)
+					{
+						locked_tile_write_channel<P> resWriter(res1);
+						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
+						MG_CHECK(tileRangeDataPtr);
+
+						for (auto& resTiles : resTileDataArray) // ordered by (t, u)
+						{
+							ResTileDataType& resTileData = resTiles.second;
+
+							for (auto& resElemData : resTileData)
+								resWriter.Write(tileRangeDataPtr->GetTileValue(resTiles.first.first, resElemData.first));
+						}
+						MG_CHECK(resWriter.IsEndOfChannel()); 
+						resWriter.Commit();
+					}
+				);
+			if (res2)
+				visit<typelists::domain_elements>(res2->GetAbstrValuesUnit()
+				,	[res2, &resTileDataArray]<typename P>(const Unit<P>*resValuesUnit)
+					{
+						locked_tile_write_channel<P> resWriter(res2);
+						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
+						MG_CHECK(tileRangeDataPtr);
+
+						for (auto& resTiles : resTileDataArray) // ordered by (t, u)
+						{
+							ResTileDataType& resTileData = resTiles.second;
+
+							for (auto& resElemData : resTileData)
+								resWriter.Write(tileRangeDataPtr->GetTileValue(resTiles.first.second, resElemData.second));
+						}
+						MG_CHECK(resWriter.IsEndOfChannel());
+						resWriter.Commit();
+					}
+				);
 		}
-		auto tn = res->GetNrTiles();
-		if (res1) { MG_CHECK(res1Writer.IsEndOfChannel()); res1Writer.Commit(); }
-		if (res2) { MG_CHECK(res2Writer.IsEndOfChannel()); res2Writer.Commit(); }
+		else
+		{
+			if (res1) { DataWriteLock wr1(res1); wr1.Commit(); }
+			if (res2) { DataWriteLock wr2(res2); wr2.Commit(); }
+		}
 	}
 };
 

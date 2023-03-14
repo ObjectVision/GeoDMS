@@ -242,9 +242,9 @@
   <ItemGroup>
     <CustomBuild Include="..\..\res\fonts\dms.ttf">
       <FileType>Document</FileType>
-      <Command>COPY %(Identity) $(TargetDir)</Command>
-      <Message>Copying dms.ttf into Target Folder</Message>
-      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+      <Command>COPY %(Identity) $(TargetDir)misc\fonts</Command>
+      <Message>Copying dms.ttf into Target/Misc/Fonts Folder</Message>
+      <Outputs>$(TargetDir)misc\fonts\%(Filename)%(Extension)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

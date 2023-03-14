@@ -320,7 +320,7 @@ struct tile_write_channel
 	void Write(V&& value)
 	{
 		SkipEOT();
-		dms_assert(m_Cursor.second < m_LockedSeq.size());
+		assert(m_Cursor.second < m_LockedSeq.size());
 		convert_assign(m_LockedSeq[m_Cursor.second++], std::forward<V>(value));
 	}
 
@@ -360,7 +360,7 @@ struct tile_write_channel
 	explicit operator bool() const { return m_LockedSeq.GetObj(); }
 	bool IsEndOfTile() const 
 	{
-		dms_assert(m_Cursor.second <= m_LockedSeq.size());
+		assert(m_Cursor.second <= m_LockedSeq.size());
 		return m_Cursor.second >= m_LockedSeq.size();
 	}
 
@@ -369,13 +369,13 @@ struct tile_write_channel
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn == 0)
 		{
-			dms_assert(m_Cursor.first == 0);
-			dms_assert(m_Cursor.second == 0);
+			assert(m_Cursor.first == 0);
+			assert(m_Cursor.second == 0);
 			return true;
 		}
 		while (IsEndOfTile() && m_Cursor.first < tn-1)
 			GetNextTile();
-		dms_assert(m_Cursor.first == tn - 1 || !IsEndOfTile());
+		assert(m_Cursor.first == tn - 1 || !IsEndOfTile());
 		return IsEndOfTile();
 	}
 private:

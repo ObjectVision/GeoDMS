@@ -120,7 +120,7 @@
     <CustomBuild Include="misc/fonts/Cousine-Regular.ttf">
       <FileType>Document</FileType>
       <Command>
-	    ROBOCOPY ./misc $(TargetDir)misc /v /fft /E /njh /njs
+	    ROBOCOPY .\misc $(TargetDir)misc /v /fft /E /njh /njs
 	    IF %ErrorLevel%==1 EXIT 0
 	    IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
       </Command>

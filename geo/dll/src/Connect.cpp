@@ -985,7 +985,7 @@ public:
 			SpatialIndexType spIndex(
 				sequence_array_index<PointType>(resStreetBegin),
 				sequence_array_index<PointType>(resStreetEnd  ),
-				2*arg2Count
+				2*SizeT(arg2Count)
 			);
 
 			for (tile_id t=0, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
@@ -1106,10 +1106,10 @@ public:
 
 			R nrNewStreets = nrOrgEntityIter - nrOrgEntityData.begin();
 
-			dms_assert(resStreetEnd - resultSubData.begin() == arg1Count + (arg2Count - nrOmittedPoints));
-			dms_assert(resCutIter - resCutBegin == nrNewStreets);
+			assert(resStreetEnd - resultSubData.begin() == arg1Count + (arg2Count - nrOmittedPoints));
+			assert(resCutIter - resCutBegin == nrNewStreets);
 
-			resDomain->SetCount(arg1Count + (arg2Count - nrOmittedPoints) + nrNewStreets);
+			resDomain->SetCount(arg1Count + (SizeT(arg2Count) - nrOmittedPoints) + nrNewStreets);
 
 			DataWriteLock resLock(resSub); 
 
@@ -1136,7 +1136,7 @@ public:
 			// TODO G8: use TileWriteChannel en visitor to avoid multiple shadowing.
 			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IdAssigner     (resNrOrgLock.get(), t, 0, 0, arg1Count));
 			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( NullAssigner   (resNrOrgLock.get(), t, arg1Count, arg2Count - nrOmittedPoints) );
-			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, arg1Count + arg2Count  - nrOmittedPoints, nrNewStreets, nrOrgEntityData.begin() ) );
+			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, SizeT(arg1Count) + arg2Count  - nrOmittedPoints, nrNewStreets, nrOrgEntityData.begin() ) );
 
 			resNrOrgLock.Commit();
 		}

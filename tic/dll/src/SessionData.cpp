@@ -220,6 +220,8 @@ const TreeItem* SessionData::GetActiveDesktop() const
 // struct SessionData for near singleton management: implementation of statics
 //----------------------------------------------------------------------
 
+std::recursive_mutex sd_SessionDataCriticalSection;
+
 WeakPtr<SessionData> SessionData::s_CurrSD;
 
 void SessionData::Create(CharPtr configLoadDir, CharPtr configSubDir)
@@ -288,6 +290,13 @@ void SessionData::CloseDataStoreManager(const TreeItem* configRoot, SafeFileWrit
 	}
 }
 
+void SessionData::ReleaseIt(const TreeItem* configRoot) // WARNING: this might point to a destroyed configRoot
+{
+	auto dcLock = std::scoped_lock(sd_SessionDataCriticalSection);
+	WeakPtr<SessionData> sd = GetIt(configRoot);
+	if (sd)
+		sd->Release();
+}
 
 extern "C" TIC_CALL void DMS_CONV DMS_Config_SetActiveDesktop(TreeItem* tiActive)
 {

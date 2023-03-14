@@ -290,7 +290,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
 					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
 					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
-					"Tahoma"                   // pointer to typeface name string
+					"Noto Sans Medium"                   // pointer to typeface name string
 				)
 			);
 	}
@@ -1615,10 +1615,10 @@ leveled_critical_section s_QueueSection(item_level_type(0), ord_level_type::Data
 void DataView::AddGuiOper(std::function<void()>&& func)
 {
 	leveled_critical_section::scoped_lock lock(s_QueueSection);
-	dms_assert(m_hWnd);
+//	dms_assert(m_hWnd);
 	bool wasEmpty = m_GuiOperQueue.empty();
 	m_GuiOperQueue.emplace_back(std::move(func));
-	if (wasEmpty)
+	if (wasEmpty && m_hWnd)
 		PostMessage(m_hWnd, WM_PROCESS_QUEUE, 0, 0);
 }
 
