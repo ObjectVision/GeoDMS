@@ -117,12 +117,17 @@ void GuiEventLog::DrawItem(EventLogItem *item)
 
 void GuiEventLog::Update(bool* p_open, GuiState& state)
 {
-    //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
+
+
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::End();
         return;
     }
+
+    ImGuiContext& g = *GImGui;
+    auto backup_spacing = g.Style.ItemSpacing.y;
+    g.Style.ItemSpacing.y = 0.0f;
 
     m_direct_update_information.viewport = ImGui::GetMainViewport();
     m_direct_update_information.time_since_last_update = std::chrono::system_clock::now();
@@ -230,6 +235,8 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     
     ImGui::TextUnformatted(state.contextMessage.Get().c_str());
     
+    g.Style.ItemSpacing.y = backup_spacing;
+
     ImGui::End();
 }; 
 
@@ -328,7 +335,7 @@ void GuiEventLog::DirectUpdate(GuiState& state)
     // log
     auto log_draw_list_ptr = direct_update_frame.AddDrawList(m_direct_update_information.log.pos, ImVec2(m_direct_update_information.log.pos.x + m_direct_update_information.log.size.x, m_direct_update_information.log.pos.y + m_direct_update_information.log.size.y));
     SetTextBackgroundColor(m_direct_update_information.log.size, ImGui::GetColorU32(ImGuiCol_WindowBg), log_draw_list_ptr, &m_direct_update_information.log.cursor);
-    size_t number_of_log_lines = std::ceil(m_direct_update_information.log.size.y / ImGui::GetTextLineHeightWithSpacing());
+    size_t number_of_log_lines = std::ceil(m_direct_update_information.log.size.y / ImGui::GetTextLineHeight());
     if (number_of_log_lines > m_Items.size())
         number_of_log_lines = m_Items.size();
     size_t log_direct_update_index = m_Items.size() <= number_of_log_lines ? 0 : m_Items.size()-(number_of_log_lines+1);
@@ -339,7 +346,7 @@ void GuiEventLog::DirectUpdate(GuiState& state)
         auto eventlog_item_ptr = &m_Items[i];
         //ImVec4 color = 
         log_draw_list_ptr->AddText(g.Font, g.FontSize, log_cursor, ConvertSeverityTypeIDToColor(eventlog_item_ptr->m_Severity_type), eventlog_item_ptr->m_Text.c_str(), NULL, 0.0f);
-        log_cursor = ImVec2(log_cursor.x, log_cursor.y+ImGui::GetTextLineHeightWithSpacing());
+        log_cursor = ImVec2(log_cursor.x, log_cursor.y+ImGui::GetTextLineHeight());
     }
 
     // status
