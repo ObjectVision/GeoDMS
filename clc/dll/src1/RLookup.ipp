@@ -75,9 +75,9 @@ public:
 
 			auto index = MakeIndex(arg2A, arg2_DomainUnit);
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
-
-			if (IsMultiThreaded3() && (nrTiles > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2_DomainUnit->GetNrTiles()))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
+			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
+			if (IsMultiThreaded3() && (nrTiles > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, arg2DomainRange, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -92,7 +92,7 @@ public:
 		return true;
 	}
 	virtual std::any MakeIndex(const AbstrDataItem* arg2A, const AbstrUnit* arg2_DomainUnit) const = 0;
-	virtual auto CreateFutureTileIndexer(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2Domain, std::any index MG_DEBUG_ALLOCATOR_SRC_ARG) const->SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileIndexer(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, std::any index MG_DEBUG_ALLOCATOR_SRC_ARG) const->SharedPtr<const AbstrDataObject> = 0;
 	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2Domain, const std::any&, tile_id t) const =0;
 };
 
@@ -141,7 +141,7 @@ public:
 		: SearchIndexOperator<V>(og)
 	{}
 
-	auto CreateFutureTileIndexer(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2DomainA, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileIndexer(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 //		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
@@ -152,8 +152,8 @@ public:
 		using prepare_data = SharedPtr<typename TileFunctor<V>::future_tile>;
 		std::unique_ptr<AbstrDataObject> futureTileFunctor;
 
-		visit<typelists::domain_elements>(arg2DomainA,
-			[&futureTileFunctor, arg1, arg1HasUndefined, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
+		visit<typelists::domain_elements>(arg2DomainA
+		,	[&futureTileFunctor, arg2DomainRange, arg1, arg1HasUndefined, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
 		{
 			using index_type = typename cardinality_type<E>::type;
 			using index_tile = indexed_tile_t<index_type, V>;
@@ -161,7 +161,7 @@ public:
 
 			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(arg2Domain), tileRangeData->GetNrTiles()
 				, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-				, [arg1HasUndefined, arg2DomainRange = arg2Domain->GetRange(), indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
+				, [arg1HasUndefined, arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
 				{
 					auto arg1Data = arg1FutureData->GetTile();
 
