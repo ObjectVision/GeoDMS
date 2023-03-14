@@ -805,10 +805,6 @@ bool GuiMainComponent::Update()
         auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
 
-
-        //dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        //dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
             // TODO: check if dockspace_node is unsplit
