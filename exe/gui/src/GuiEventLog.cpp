@@ -325,8 +325,10 @@ bool EventlogDirectUpdateInformation::RequiresUpdate()
 
 void GuiEventLog::DirectUpdate(GuiState& state)
 {
-    ImGuiContext& g = *GImGui;
+    if (!m_direct_update_information.viewport)
+        return;
 
+    ImGuiContext& g = *GImGui;
     m_direct_update_information.time_since_last_update = std::chrono::system_clock::now();
 
     ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_direct_update_information.viewport->PlatformUserData);//m_smvp.vp->PlatformUserData);
