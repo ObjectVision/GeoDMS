@@ -318,8 +318,7 @@ private:
 struct GuiFonts
 {
 	ImFont* text_font = nullptr;
-	ImFont* icon_font = nullptr;
-	ImFont* math_font = nullptr;
+	ImFont* header_font = nullptr;
 };
 
 class GuiState

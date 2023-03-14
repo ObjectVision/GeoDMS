@@ -91,11 +91,11 @@ struct FontBuilderRecipy
 void InitializeGuiTextures();
 GuiIcon& GetIcon(GuiTextureID id);
 void SetDmsWindowIcon(GLFWwindow* window);
-FontSpecification CreateNotoSansMediumFontSpec();
-FontSpecification CreateNotoSansMathFontSpec();
-FontSpecification CreateNotoSansArabicFontSpec();
-FontSpecification CreateNotoSansJapaneseFontSpec();
-FontSpecification CreateRemixIconsFontSpec();
+FontSpecification CreateNotoSansMediumFontSpec(Float32 font_size=17.0f);
+FontSpecification CreateNotoSansMathFontSpec(Float32 font_size = 17.0f);
+FontSpecification CreateNotoSansArabicFontSpec(Float32 font_size = 17.0f);
+FontSpecification CreateNotoSansJapaneseFontSpec(Float32 font_size = 17.0f);
+FontSpecification CreateRemixIconsFontSpec(Float32 font_size = 15.0f);
 ImFont* SetGuiFont(FontBuilderRecipy& recipy);
 
 

@@ -521,14 +521,22 @@ int GuiMainComponent::Init()
 
     SetDmsWindowIcon(m_MainWindow);
     
-    // fonts
-    FontBuilderRecipy recipy;
-    recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
+    // Fonts
+    // default text font
+    FontBuilderRecipy default_font_recipy;
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
+    default_font_recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
     //recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
-    recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
-    m_State.fonts.text_font = SetGuiFont(recipy);
+    default_font_recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
+    m_State.fonts.text_font = SetGuiFont(default_font_recipy);
+
+    // header text font
+    FontBuilderRecipy header_font_recipy;
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec(25.0f));
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMathFontSpec(25.0f));
+
+    
 
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
