@@ -1,6 +1,8 @@
 #pragma once
 #include "GuiBase.h"
 #include "StateChangeNotification.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 
 class GuiTreeNode
 {
@@ -13,7 +15,7 @@ public:
 
 	~GuiTreeNode();
 
-	auto clear() -> void;
+	auto clear() -> void; 
 
 	//auto Reset() -> void;
 	void SetItem(TreeItem* item) { m_item = item; };
@@ -29,18 +31,18 @@ public:
 	bool IsLeaf();
 	void Init(TreeItem* item);
 
-	bool Draw(GuiState& state, TreeItem*& jump_item);
+	auto Draw(GuiState& state, TreeItem*& jump_item) -> ImRect;
 	static void OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state);
 	GuiTreeNode* m_parent = nullptr;
 	std::vector<GuiTreeNode> m_children;
+	UInt8 m_depth = 0;
 
 private:
 	auto GetDepthFromTreeItem() -> UInt8;
 	bool DrawItemDropDown(GuiState& state);
-	bool DrawItemIcon(GuiState& state);
+	auto DrawItemIcon(GuiState& state) -> ImRect;
 	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
 	void DrawItemWriteStorageIcon();
-
 	TreeItem*                m_item = nullptr;
 	
 	NotificationCode m_state = NotificationCode::NC2_Invalidated;
@@ -48,7 +50,7 @@ private:
 	// visualization members
 	bool m_has_been_openend = false;
 	bool m_is_open = false;
-	UInt8 m_depth = 0;
+	
 };
 
 class GuiTree
@@ -78,7 +80,7 @@ public:
 
 private:
 	
-	bool DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item);
+	bool DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item, const ImRect& parent_node_rect);
 	bool SpaceIsAvailableForTreeNode();
 	UInt64       m_max_count = 0;
 	bool		 m_is_initialized = false;

@@ -1,5 +1,4 @@
-#include <imgui.h>
-#include <imgui_internal.h>
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -251,17 +250,9 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
     return 0;
 }
 
-bool GuiTreeNode::DrawItemIcon(GuiState& state)
+auto GuiTreeNode::DrawItemIcon(GuiState& state) -> ImRect
 {
     assert(m_item);
-
-    /*float offset = 3.0f;
-    ImGuiContext& g = *GImGui;
-    auto window = ImGui::GetCurrentWindow();
-    auto spacing_w = g.Style.ItemSpacing.x;
-    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y + offset;*/
-
 
     auto vsflags = SHV_GetViewStyleFlags(m_item);
     if (vsflags & ViewStyleFlags::vsfMapView) { SetTreeViewIcon(GuiTextureID::TV_globe); }
@@ -277,9 +268,7 @@ bool GuiTreeNode::DrawItemIcon(GuiState& state)
         UpdateStateAfterItemClick(state, m_item);
     }
 
-    //window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
-
-    return 0;
+    return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 }
 
 bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
@@ -470,15 +459,15 @@ bool GuiTreeNode::IsLeaf()
     return true;
 }
 
-bool GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item)
+ImRect GuiTreeNode::Draw(GuiState& state, TreeItem*& jump_item)
 {
     DrawItemDropDown(state);
     ImGui::SameLine();
-    DrawItemIcon(state);
+    auto result = DrawItemIcon(state);
     ImGui::SameLine();
     DrawItemText(state, jump_item);
     DrawItemWriteStorageIcon();
-    return false;
+    return result;
 }
 
 bool GuiTree::IsInitialized()
@@ -632,13 +621,19 @@ void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
     }
 }
 
-bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item)
+bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item, const ImRect& parent_node_rect)
 {
     //if (!SpaceIsAvailableForTreeNode()) //TODO: implement
     //    return false;
-
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
     if (node.GetState() < NotificationCode::NC2_MetaReady)
         return true;
+
+    //float item_rect_parent = ImGui::GetItemRectMax().y;
+
+    ImVec2 vertical_line_start, vertical_line_end;
+    float vertical_line_mid = (parent_node_rect.Min.x + parent_node_rect.Max.x) / 2.0f;
+    vertical_line_start = ImVec2(vertical_line_mid, parent_node_rect.Max.y);
 
     for (auto& next_node : node.m_children)
     {
@@ -649,20 +644,32 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (next_node.GetItem() == state.GetCurrentItem())
             m_curr_node = &next_node;        
 
-        next_node.Draw(state, jump_item);
+        
+        auto next_node_icon_rect = next_node.Draw(state, jump_item);
+        
+        
+        vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y);
+
+        if (!next_node.IsLeaf())
+        {
+            drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
+            vertical_line_start = ImVec2(vertical_line_mid, ImGui::GetItemRectMax().y);
+        }
+
         if (next_node.IsOpen())
         {
             if (next_node.GetState() >= PS_MetaInfo)
             {
-                if (!DrawBranch(next_node, state, jump_item))
-                {
+                if (!DrawBranch(next_node, state, jump_item, next_node_icon_rect))
                     return false;
-                }
             }
         }
-        
-        //std::advance(next_node, 1);
+
     }
+    vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMax().y);
+    drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
+    
+
     return true;
 }
 
@@ -677,10 +684,11 @@ void GuiTree::Draw(GuiState& state, TreeItem*& jump_item)
 
     auto m_currnode = m_start_node;
     ActOnLeftRightArrowKeys(state, m_currnode);
-    m_Root.Draw(state, jump_item);
 
+    auto next_node_icon_rect = m_Root.Draw(state, jump_item);
     if (m_Root.IsOpen())
-        DrawBranch(*m_currnode, state, jump_item);
+        DrawBranch(*m_currnode, state, jump_item, next_node_icon_rect);
+
     ImGui::PopStyleColor(3);
 }
 
