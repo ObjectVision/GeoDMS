@@ -629,8 +629,6 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
     if (node.GetState() < NotificationCode::NC2_MetaReady)
         return true;
 
-    //float item_rect_parent = ImGui::GetItemRectMax().y;
-
     ImVec2 vertical_line_start, vertical_line_end;
     float vertical_line_mid = (parent_node_rect.Min.x + parent_node_rect.Max.x) / 2.0f;
     vertical_line_start = ImVec2(vertical_line_mid, parent_node_rect.Max.y);
@@ -643,7 +641,6 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         ActOnLeftRightArrowKeys(state, &next_node);
         if (next_node.GetItem() == state.GetCurrentItem())
             m_curr_node = &next_node;        
-
         
         auto next_node_icon_rect = next_node.Draw(state, jump_item);
         
@@ -673,7 +670,6 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
 
     if (!node.m_children.empty() && node.m_children.back().IsLeaf())
         drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
-    
 
     return true;
 }
