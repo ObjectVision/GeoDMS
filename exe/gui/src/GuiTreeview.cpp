@@ -640,57 +640,28 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
     if (node.GetState() < NotificationCode::NC2_MetaReady)
         return true;
 
-    auto next_node = node.GetSiblingIterator();
-
-    // TODO: use clearer syntax: for (auto& next_node : node.m_children)
-    while (next_node != node.GetSiblingEnd())
+    for (auto& next_node : node.m_children)
     {
-        if (IsAncestor(next_node->GetItem(), state.GetCurrentItem()))
-            next_node->SetOpenStatus(true); // TODO: is optional, can be reconsidered in the future
+        if (IsAncestor(next_node.GetItem(), state.GetCurrentItem()))
+            next_node.SetOpenStatus(true); // TODO: is optional, can be reconsidered in the future
 
-        ActOnLeftRightArrowKeys(state, &*next_node);
+        ActOnLeftRightArrowKeys(state, &next_node);
+        if (next_node.GetItem() == state.GetCurrentItem())
+            m_curr_node = &next_node;        
 
-        /*if (ImGui::IsWindowFocused() && next_node->GetItem() == state.GetCurrentItem())
+        next_node.Draw(state, jump_item);
+        if (next_node.IsOpen())
         {
-            if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+            if (next_node.GetState() >= PS_MetaInfo)
             {
-                if (next_node->IsOpen())
-                {
-                    auto descended_node = DescendVisibleTree(*next_node);
-                    if (descended_node)
-                        UpdateStateAfterItemClick(state, descended_node->GetItem());
-                }
-                else
-                    next_node->SetOpenStatus(true);
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-            {
-                if (!next_node->IsOpen())
-                {
-                    if (next_node->m_parent)
-                        UpdateStateAfterItemClick(state, next_node->m_parent->GetItem());
-                }
-                else
-                    next_node->SetOpenStatus(false);
-            }
-        }*/
-
-        if (next_node->GetItem() == state.GetCurrentItem())
-            m_curr_node = &*next_node;        
-
-        next_node->Draw(state, jump_item);
-        if (next_node->IsOpen())
-        {
-            if (next_node->GetState() >= PS_MetaInfo)
-            {
-                if (!DrawBranch(*next_node, state, jump_item))
+                if (!DrawBranch(next_node, state, jump_item))
                 {
                     return false;
                 }
             }
         }
         
-        std::advance(next_node, 1);
+        //std::advance(next_node, 1);
     }
     return true;
 }
