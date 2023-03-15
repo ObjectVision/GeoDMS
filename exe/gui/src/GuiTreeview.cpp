@@ -647,9 +647,14 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         
         auto next_node_icon_rect = next_node.Draw(state, jump_item);
         
-        
-        vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y);
+        // draw horizontal line
+        float horizontal_line_y = (next_node_icon_rect.Min.y + next_node_icon_rect.Max.y) / 2.0f;
+        auto horizontal_line_end = ImVec2(next_node_icon_rect.Min.x-1, horizontal_line_y);
+        auto horizontal_line_start = next_node.IsLeaf() ? ImVec2(vertical_line_mid, horizontal_line_y) : ImVec2(vertical_line_mid+8, horizontal_line_y);
+        drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to options
 
+        // draw vertical line if closed by branch
+        vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y);
         if (!next_node.IsLeaf())
         {
             drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
