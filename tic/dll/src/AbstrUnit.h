@@ -148,8 +148,8 @@ public:
 	virtual tile_id GetThisCurrTileID(SizeT& index, tile_id prevT) const;
 	virtual tile_id GetNrTiles() const;
 
-	TIC_CALL row_id  GetTileFirstIndex(tile_id t) const;
-	TIC_CALL row_id  GetTileIndex(tile_id t, tile_offset tileOffset) const;
+	TIC_CALL row_id GetTileFirstIndex(tile_id t) const;
+	TIC_CALL row_id GetTileIndex(tile_id t, tile_offset tileOffset) const;
 	bool IsCovered() const;
 
 	Range<row_id>   GetTileIndexRange(tile_id t) const;
@@ -160,6 +160,7 @@ public:
 	virtual row_id  GetDimSize(DimType dimNr) const;
 
 // Support for countables
+	virtual bool PrepareRange() const;
 	virtual row_id GetPreparedCount(bool throwOnUndefined = true) const;  // Returns 0 if non-countable unit
 	virtual tile_offset GetPreparedTileCount(tile_id t) const;  // Returns 0 if non-countable unit
 	TIC_CALL void ValidateCount(row_id) const;

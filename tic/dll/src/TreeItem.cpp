@@ -3246,13 +3246,12 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		auto avu = AbstrValuesUnit( AsDataItem(this) );
 		if (avu && !avu->IsCacheItem())
 		{
-			if (!avu->PrepareDataUsage(drlFlags))
+			if (!avu->PrepareDataUsage(drlFlags) || !avu->PrepareRange())
 			{
 				if (!SuspendTrigger::DidSuspend())
 					Fail(avu);
 				return false;
 			}
-			avu->GetPreparedCount();
 		}
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
