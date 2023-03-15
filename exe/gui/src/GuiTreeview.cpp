@@ -654,13 +654,13 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to options
 
         // draw vertical line if closed by branch
-        vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y);
+        vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y); // was min
         if (!next_node.IsLeaf())
         {
             drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
             vertical_line_start = ImVec2(vertical_line_mid, ImGui::GetItemRectMax().y);
         }
-
+        vertical_line_end = ImVec2(vertical_line_mid, (ImGui::GetItemRectMin().y + ImGui::GetItemRectMax().y) / 2.0f);
         if (next_node.IsOpen())
         {
             if (next_node.GetState() >= PS_MetaInfo)
@@ -669,10 +669,10 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
                     return false;
             }
         }
-
     }
-    vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMax().y);
-    drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
+
+    if (!node.m_children.empty() && node.m_children.back().IsLeaf())
+        drawList->AddLine(vertical_line_start, vertical_line_end, ImColor(128, 128, 128, 100));
     
 
     return true;
