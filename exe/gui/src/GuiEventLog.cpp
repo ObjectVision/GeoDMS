@@ -110,8 +110,6 @@ void GuiEventLog::DrawItem(EventLogItem *item)
 
 void GuiEventLog::Update(bool* p_open, GuiState& state)
 {
-
-
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::End();
