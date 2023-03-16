@@ -574,6 +574,9 @@ auto GuiTree::DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
 
 auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem*
 {
+    if (!m_curr_node)
+        return {};
+
     auto next_visible_node = m_curr_node;
     while (true)
     {
