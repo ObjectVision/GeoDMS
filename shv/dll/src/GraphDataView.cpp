@@ -222,7 +222,6 @@ public:
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				// spawn []() { GetPreparedCount() }.then([](){ if main.lock mainlock->notify([](){})})
 				SharedPtr<const AbstrUnit> paletteDomain = m_Result->GetActiveTheme()->GetPaletteDomain();
 
 				//TODO: Dit moet toch handiger kunnen 

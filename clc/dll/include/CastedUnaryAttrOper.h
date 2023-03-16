@@ -84,7 +84,7 @@ public:
 			}
 			else
 			{
-				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+				DataWriteLock resLock(res, dms_rw_mode::write_only_all);
 
 				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res](tile_id t)->void
 					{

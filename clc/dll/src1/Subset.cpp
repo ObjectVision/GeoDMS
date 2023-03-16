@@ -299,10 +299,14 @@ struct SelectMetaOperator : public BinaryOperator
 	}
 };
 
+enum class relate_mode { org_rel, condition };
+
 struct RelateAttrOperator : public TernaryOperator
 {
-	RelateAttrOperator(AbstrOperGroup& cog)
+	relate_mode m_RelateMode;
+	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
 		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
+		, m_RelateMode(relateMode)
 	{}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
@@ -320,16 +324,21 @@ struct RelateAttrOperator : public TernaryOperator
 		auto orgRelItem = orgRelDC->MakeResult();
 		MG_CHECK(orgRelItem);
 		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
-		MG_USERCHECK2(orgRelA, "org_rel data-item expected as 3rd argument");
-
+		MG_USERCHECK2(orgRelA, 
+			m_RelateMode == relate_mode::org_rel
+			? "org_rel data-item expected as 3rd argument"
+			: "condition data-item expected as 3rd argument"
+		);
 
 		auto domainItem = GetItem(args[1]);
 		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
 		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
 
-		const AbstrUnit* sourceDomain = orgRelA->GetAbstrValuesUnit();
+		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
 		assert(sourceDomain);
 		assert(resultHolder);
+		if (m_RelateMode == relate_mode::org_rel)
+			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
 
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
@@ -343,7 +352,10 @@ struct RelateAttrOperator : public TernaryOperator
 			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 
-			keyExpr = ExprList(token::lookup, orgRelExpr, keyExpr);
+			if (m_RelateMode == relate_mode::org_rel)
+				keyExpr = ExprList(token::lookup, orgRelExpr, keyExpr);
+			else
+				keyExpr = ExprList(token::select_data, keyExpr, orgRelExpr);
 
 			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
 		}
@@ -488,8 +500,12 @@ namespace {
 	SelectMetaOperator operMetaA32(cog_subset_a_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_orgrel_uint32);
 
 	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_never };
-	SpecialOperGroup cog_relate_attr(token::relate_attr, 3, oap_Relate, oper_policy::dont_cache_result);
-	RelateAttrOperator operRA(cog_relate_attr);
+	SpecialOperGroup cog_relate_attr("relate_attr", 3, oap_Relate, oper_policy::dont_cache_result|oper_policy::depreciated);
+	SpecialOperGroup cog_relate_afew(token::relate_afew, 3, oap_Relate, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_relate_many(token::relate_many, 3, oap_Relate, oper_policy::dont_cache_result);
+	RelateAttrOperator operRA(cog_relate_attr, relate_mode::org_rel);
+	RelateAttrOperator operRF(cog_relate_afew, relate_mode::org_rel);
+	RelateAttrOperator operRM(cog_relate_many, relate_mode::condition);
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>> subsetDataOperInstances;
 }

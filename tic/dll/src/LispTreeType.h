@@ -103,13 +103,15 @@ namespace token {
 	extern TIC_CALL TokenID select_orgrel_uint32;
 	extern TIC_CALL TokenID select_many;
 	extern TIC_CALL TokenID select_afew;
-	extern TIC_CALL TokenID relate_attr;
 	extern TIC_CALL TokenID select_many_uint8;
 	extern TIC_CALL TokenID select_afew_uint8;
 	extern TIC_CALL TokenID select_many_uint16;
 	extern TIC_CALL TokenID select_afew_uint16;
 	extern TIC_CALL TokenID select_many_uint32;
 	extern TIC_CALL TokenID select_afew_uint32;
+	extern TIC_CALL TokenID relate_many;
+	extern TIC_CALL TokenID relate_afew;
+
 	extern TIC_CALL TokenID nr_OrgEntity;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
