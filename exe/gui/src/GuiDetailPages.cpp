@@ -255,6 +255,35 @@ void HTMLGuiComponentFactory::Reset()
     m_Text.clear();
 }
 
+// Markdown dump of DetailPages
+auto GetTreeItemMarkdownPageTitle(const TreeItem* current_item) -> std::string
+{
+    return std::string("# ") + current_item->GetName().c_str() + "\n";
+}
+
+bool TreeItemToMarkdownPageGeneral(const TreeItem* current_item, bool showAll)
+{
+    std::string ti_md_page_general = "";
+    ti_md_page_general += GetTreeItemMarkdownPageTitle(current_item);
+    // fullname
+    // progress state // optional: #if defined(MG_DEBUG)
+    // failstate      // optional
+    // failreason     // optional
+    // PartOfTemplate // optional
+    // Label          // optional
+    // Descr          // optional
+    // ValuesType
+    // ValuesComposition
+    // cdf
+    return true;
+}
+
+
+GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
+{
+
+}
+
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
 {
     if (general)
@@ -539,43 +568,15 @@ void GuiDetailPages::DrawContent(GuiState& state)
     ImGui::EndChild();
 }
 
-void GuiDetailPages::Update(bool* p_open, GuiState& state)
+void GuiDetailPages::ProcessEvents(GuiState &state)
 {
-    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove))
-    {
-        ImGui::End();
-        return;
-    }
-
-    if (!m_is_docking_initialized)
-    {
-        auto detail_pages_docknode = GetDetailPagesDockNode(state);
-        if (detail_pages_docknode)
-        {
-            AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
-            Collapse(detail_pages_docknode);
-        }
-
-    }
-
-    bool set_value_info_selected = false;
     auto event_queues = GuiEventQueues::getInstance();
-
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        SetKeyboardFocusToThisHwnd();
-
     if (event_queues->DetailPagesEvents.HasEvents()) // new current item
     {
         auto event = event_queues->DetailPagesEvents.Pop();
         switch (event)
         {
-        case GuiEvents::FocusValueInfoTab: 
-        {
-            set_value_info_selected = true; // TODO: (re)move?
-            m_ValueInfo.clear();
-            break;
-        }
-        case GuiEvents::UpdateCurrentItem: 
+        case GuiEvents::UpdateCurrentItem:
         {
             if (!m_pinned)
             {
@@ -594,6 +595,30 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         default:    break;
         }
     }
+}
+
+void GuiDetailPages::Update(bool* p_open, GuiState& state)
+{
+    if (!ImGui::Begin("Detail Pages", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (!m_is_docking_initialized)
+    {
+        auto detail_pages_docknode = GetDetailPagesDockNode(state);
+        if (detail_pages_docknode)
+        {
+            AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
+            Collapse(detail_pages_docknode);
+        }
+    }
+
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
+
+    ProcessEvents(state);
 
     DrawTabbar(state);
     

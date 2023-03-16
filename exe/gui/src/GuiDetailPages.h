@@ -82,6 +82,18 @@ enum class DetailPageActiveTab
     Configuration
 };
 
+class GuiMarkDownPage
+{
+public:
+    GuiMarkDownPage(std::string_view markdown_text);
+    void Update();
+    void Parse(std::string_view markdown_text);
+    void Clear();
+
+private:
+    TableData m_data;
+};
+
 class GuiDetailPages
 {
 public:
@@ -96,6 +108,7 @@ public:
         bool          isUrl,
         bool	mustOpenDetailsPage);
 private:
+    void ProcessEvents(GuiState& state);
     void DrawPinButton();
     void DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text);
     void DrawTabbar(GuiState& state);
