@@ -956,7 +956,7 @@ public:
 
 			resultSubData.data_reserve( actualDataSize + arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
 
-			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
+			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
 			R* nrOrgEntityDataPtr = nrOrgEntityData.begin();
 			R* nrOrgEntityIter = nrOrgEntityDataPtr;
 

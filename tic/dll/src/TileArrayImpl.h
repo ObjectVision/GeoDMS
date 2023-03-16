@@ -158,7 +158,7 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 	this->m_TileRangeData = trd;
 	tile_id tn = trd->GetNrTiles();
 
-	tiles_t seqs(tn MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+	tiles_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 
 	for (tile_id t = 0; t != tn; ++t)
 	{
@@ -316,7 +316,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	dms_assert(trd);
 	tile_id tn = trd->GetNrTiles();
 
-	files_t seqs(tn MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+	files_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 
 	for (tile_id t = 0; t != tn; ++t)
 	{

@@ -880,7 +880,7 @@ public:
 			dms_assert(geometryDataPtr);
 
 			domainCount = geometryDataPtr->Size();
-			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
+			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
 			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
 			for (SizeT i = 0; i != domainCount; ++i) // TODO G8: parallel_for and cleanResources in a threadLocal thing

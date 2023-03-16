@@ -167,17 +167,17 @@ struct NodeZoneConnector
 		if (!m_ResImpPerDstZone) // init wasn't already done?
 		{
 
-			m_ResImpPerDstZone = OwningPtrSizedArray<ImpType>( m_NetworkInfoPtr->nrDstZones MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_ResImpPerDstZone"));
+			m_ResImpPerDstZone = OwningPtrSizedArray<ImpType>( m_NetworkInfoPtr->nrDstZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_ResImpPerDstZone"));
 
 			if (flags(df & DijkstraFlag::OD) && flags(df & DijkstraFlag::SparseResult))
 			{
 				dms_assert(m_NetworkInfoPtr->nrDstZones);
 				m_LastCommittedSrcZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_LastCommittedSrcZone"));
 				if (flags(df & DijkstraFlag::ProdLinkFlow))
-					m_FoundResPerY = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrY MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundResPerY"));
+					m_FoundResPerY = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrY, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundResPerY"));
 			}
 			if (m_NetworkInfoPtr->endPoints.Zone_rel)
-				m_FoundYPerDstZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundYPerDstZone"));
+				m_FoundYPerDstZone = OwningPtrSizedArray<ZoneType>(m_NetworkInfoPtr->nrDstZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_FoundYPerDstZone"));
 			m_OrgZoneLocations = networkInfo.startPoints.Zone_location;
 		}
 	}
@@ -514,7 +514,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					tr.InitNodes(ni.nrV);
 					trIsUsed = true;
 					if (!nodeALW)
-						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
+						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
 					if (res.LinkFlow)
 						resLinkFlow.resize(ni.nrE, 0);
 				}
@@ -1591,7 +1591,7 @@ public:
 			{
 				if (flags(df & DijkstraFlag::SparseResult))
 				{
-					resCount = OwningPtrSizedArray<SizeT>( networkInfo.nrOrgZones MG_DEBUG_ALLOCATOR_SRC("dijkstra: resCount"));
+					resCount = OwningPtrSizedArray<SizeT>( networkInfo.nrOrgZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: resCount"));
 					nrRes = ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
 						, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
 						, orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)

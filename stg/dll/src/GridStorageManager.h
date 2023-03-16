@@ -167,7 +167,7 @@ namespace Grid {
 		UInt32 scanlineSize = imp.GetTileByteWidth();
 
 		// one strip of tiles of storage defined values
-		OwningPtrSizedArray<T> strip(tile_wh MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: strip"));
+		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: strip"));
 
 		SizeT tileByteSizeLocal = array_traits<T>::ByteSize(tile_wh);
 		SizeT tileByteSizeNative = imp.GetTileByteSize();
@@ -177,7 +177,7 @@ namespace Grid {
 
 		if (tileByteSizeLocal < tileByteSizeNative)
 		{
-			rawBuffer = OwningPtrSizedArray<char>(tileByteSizeNative MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: rawBuffer"));
+			rawBuffer = OwningPtrSizedArray<char>(tileByteSizeNative, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: rawBuffer"));
 			stripBuff = rawBuffer.begin();
 		}
 			
@@ -279,7 +279,7 @@ namespace Grid {
 		UInt32 stripWidth = _Width(readRectInGrid);
 		UInt32 stripBufferSize = stripWidth * stripHeight;
 		//	buffer for reading from m_TiffHandle
-		OwningPtrSizedArray<T> stripBuffer( stripBufferSize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
+		OwningPtrSizedArray<T> stripBuffer( stripBufferSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
 		MG_DEBUGCODE(fast_fill(stripBuffer.begin(), stripBuffer.begin() + stripBufferSize, defaultColor)); // DEBUG
 		UPoint currViewPortSize = Size(viewPortRect);
 
@@ -289,7 +289,7 @@ namespace Grid {
 
 		Int32 currViewPortRow = dy >= 0 ? viewPortRect.first.Row() : viewPortRect.second.Row();
 
-		OwningPtrSizedArray<UInt32> stripBuffOffsets( currViewPortSize.Col() MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffOffsets"));
+		OwningPtrSizedArray<UInt32> stripBuffOffsets( currViewPortSize.Col(), dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffOffsets"));
 		{
 			OwningPtrSizedArray<UInt32>::pointer stripBufOffsetPtr = stripBuffOffsets.begin();
 			Double ox = viewPort2Grid.Offset().X() + dx / 2.0;
@@ -397,13 +397,13 @@ namespace Grid {
 		UInt32 stripWidth = _Width(readRect);
 
 		//	buffer for reading from m_TiffHandle
-		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripBuffer"));
+		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripBuffer"));
 
 		IPoint viewPortOrigin = viewPort2tiff.GetViewPortOrigin();
 		UPoint viewPortSize = viewPort2tiff.GetViewPortSize();
 
 		fast_zero(pixels, pixels + viewPort2tiff.GetNrViewPortCells());// initialize buffer;
-		OwningPtrSizedArray<UInt32> viewRectOffsets( stripWidth MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripWidth"));
+		OwningPtrSizedArray<UInt32> viewRectOffsets( stripWidth, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripWidth"));
 		{
 			OwningPtrSizedArray<UInt32>::pointer viewRectOffsetPtr = viewRectOffsets.begin();
 			Double finvx = 1.0 / viewPort2tiff.Factor().X(), ox = viewPort2tiff.Offset().X() - 0.5;
@@ -495,7 +495,7 @@ namespace Grid {
 		UInt32 scanlineSize = imp.GetTileByteWidth();
 
 		// one strip of tiles 
-		OwningPtrSizedArray<T> strip(tile_wh MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.WriteTiles: strip"));
+		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.WriteTiles: strip"));
 		UInt32 tileByteSize = array_traits<T>::ByteSize(tile_wh);
 		TileCRef dmsTileLock;
 

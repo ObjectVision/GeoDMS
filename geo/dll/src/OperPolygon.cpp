@@ -373,8 +373,8 @@ public:
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
 		{
-			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
-			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
+			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
+//			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
 		}
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
@@ -1060,9 +1060,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters( te MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
-
-			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
+			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
+//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
 
 //			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
 //			{
@@ -1371,9 +1370,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters(te MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
-
-			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
+			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
+//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
 
 			//			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
 			//			{
