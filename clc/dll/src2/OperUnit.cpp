@@ -160,12 +160,12 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		DataWriteLock resSubLock(resSub);
 
 		visit<typelists::domain_elements>(resSub->GetAbstrValuesUnit(), 
-			[resSubObj = resSubLock.get(), unitBase, unitUB, productSize, groupSize] <typename value_type> (const Unit<value_type>* valuesUnit)
+			[resSubObj = resSubLock.get(), unitCount, productSize, groupSize] <typename value_type> (const Unit<value_type>* valuesUnit)
 			{
 				auto resData = mutable_array_cast<value_type>(resSubObj)->GetDataWrite();
 				auto conv = CountableValueConverter<value_type>(valuesUnit->m_RangeDataPtr);
 
-				SizeT iOrg = unitBase;
+				SizeT iOrg = 0;
 				SizeT iGroup = 0;
 
 				for (SizeT r = 0; r != productSize; ++r)
@@ -175,12 +175,12 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 					if (++iGroup == groupSize)
 					{
 						iGroup = 0;
-						if (++iOrg == unitUB)
-							iOrg = unitBase;
+						if (++iOrg == unitCount)
+							iOrg = 0;
 					}
 				}
-				dms_assert(iOrg == unitBase);
-				dms_assert(!iGroup);
+				assert(iOrg == 0);
+				assert(!iGroup);
 			}
 		);
 
