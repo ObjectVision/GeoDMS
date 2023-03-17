@@ -580,6 +580,7 @@ void ViewPort::CopyLocationAndZoomlevelToClipboard()
 	if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
 	{
 		ClipBoard clp;
+		clp.Clear();
 		clp.AddTextLine(buffer);
 	}
 }
@@ -918,9 +919,9 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_GotoClipboardLocation:
 			PanToClipboardLocation();
 		case TB_GotoClipboardZoomlevel:
-			PanToClipboardLocation();
+			ZoomToClipboardLocation();
 		case TB_GotoClipboardLocationAndZoomlevel:
-			PanToClipboardLocation();
+			PanAndZoomToClipboardLocation();
 		case TB_CopyLocationAndZoomlevelToClipboard:
 			CopyLocationAndZoomlevelToClipboard();
 	}
@@ -935,14 +936,21 @@ setControllerID:
 void ViewPort::FillMenu(MouseEventDispatcher& med)
 {
 	//	Goto & Find
-	static SharedStr msg1 = SharedStr("PanTo (Ctrl-1): take Clipboard contents such as '... [ X=999; y=999 ] ...' and pan to (x, y )");
-	static SharedStr msg2 = SharedStr("ZoomTo (Ctrl-2): take Clipboard contents such as '... (zoomlevel) ... ' and zoom to (zoomlevel)");
-	static SharedStr msg3 = SharedStr("PanAndZoomTo (Ctrl-3): take Clipboard contents such as '... [ X=999; y=999 ] (zoomlevel) ...', pan to (x, y) and zoom to (zoomlevel) there");
-	static SharedStr msg0 = SharedStr("Copy Location and Zoomlevel to Clipboard (Ctrl-0)");
-	med.m_MenuData.push_back(MenuItem(msg1, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
-	med.m_MenuData.push_back(MenuItem(msg2, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
-	med.m_MenuData.push_back(MenuItem(msg3, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
-	med.m_MenuData.push_back(MenuItem(msg0, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
+	static SharedStr msg0 = SharedStr("Ctrl-0: Copy Location and Zoomlevel as ViewPoint to Clipboard");
+	static SharedStr msg1 = SharedStr("Ctrl-1: Pan to ViewPoint location in Clipboard");
+	static SharedStr msg2 = SharedStr("Ctrl-2: Zoom to ViewPoint zoom-level");
+	static SharedStr msg3 = SharedStr("Ctrl-0: Pan and Zoom to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msg1, make_MembFuncCmd(&ViewPort::PanToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg2, make_MembFuncCmd(&ViewPort::ZoomToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg3, make_MembFuncCmd(&ViewPort::PanAndZoomToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg0, make_MembFuncCmd(&ViewPort::CopyLocationAndZoomlevelToClipboard), this));
+
+	static SharedStr msgS1 = SharedStr("Ctrl-!: Pan all MapViews to ViewPoint location in Clipboard");
+	static SharedStr msgS2 = SharedStr("Ctrl-@: Zoom all MapViews to ViewPoint zoom-level");
+	static SharedStr msgS3 = SharedStr("Ctrl-#: Pan and Zoom all MapViews to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msgS1, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | '!'), this));
+	med.m_MenuData.push_back(MenuItem(msgS2, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | '@'), this));
+	med.m_MenuData.push_back(MenuItem(msgS3, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | '#'), this));
 
 	base_type::FillMenu(med);
 }

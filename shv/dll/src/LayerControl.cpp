@@ -174,7 +174,7 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 			,	GetDynamicClass()->GetName().c_str()
 			,	GetCaption()
 			)
-		,	new MembFuncCmd<GraphicObject>(&GraphicObject::ToggleVisibility)
+		,   make_MembFuncCmd(&GraphicObject::ToggleVisibility)
 		,	this
 		)
 	);
@@ -405,7 +405,7 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 
 	med.m_MenuData.push_back(
 		MenuItem(SharedStr("Show &Palette"),
-			new MembFuncCmd<GraphicLayer>(&GraphicLayer::ToggleDetailsVisibility), 
+			make_MembFuncCmd(&GraphicLayer::ToggleDetailsVisibility),
 			m_Layer.get(), 
 			GetEntry(2)->IsVisible() ? MFS_CHECKED : 0 
 		)
@@ -416,10 +416,10 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 	auto attr = theme->GetActiveAttr(); if (!attr) return;
 
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("&Edit Palette"),
-			new MembFuncCmd<LayerControl>(&LayerControl::EditPalette), 
-			this, 
-			0 // GetEntry(2)->IsVisible() ? 0 : MFS_DISABLED
+		MenuItem(SharedStr("&Edit Palette")
+		,	make_MembFuncCmd(&LayerControl::EditPalette)
+		,	this
+		,	0 // GetEntry(2)->IsVisible() ? 0 : MFS_DISABLED
 		)
 	);
 }
@@ -712,8 +712,8 @@ void LayerControlSet::FillMenu(MouseEventDispatcher& med)
 	if (IsVisible() && HasHiddenControls())
 		med.m_MenuData.push_back(
 			MenuItem(SharedStr("&Show Hidden LayerControls")
-			,	new MembFuncCmd<LayerControlSet>(&LayerControlSet::ShowHiddenControls)
-			,	this
+			, make_MembFuncCmd(&LayerControlSet::ShowHiddenControls)
+			, this
 			)
 		);
 }
@@ -760,10 +760,10 @@ void LayerControlGroup::FillMenu(MouseEventDispatcher& med)
 	const LayerControlSet* lcs = GetConstControlSet();
 	bool layerControlSetVisible = lcs->IsVisible();
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Show &LayerControls"),
-			new MembFuncCmd<LayerSet>(&LayerSet::ToggleDetailsVisibility), 
-			m_LayerSet.get(), 
-			layerControlSetVisible ? MFS_CHECKED : 0 
+		MenuItem(SharedStr("Show &LayerControls")
+		,	make_MembFuncCmd(&LayerSet::ToggleDetailsVisibility)
+		,	m_LayerSet.get() 
+		,	layerControlSetVisible ? MFS_CHECKED : 0 
 		)
 	);
 }

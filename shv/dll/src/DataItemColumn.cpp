@@ -1209,8 +1209,8 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	{
 		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
 
-		med.m_MenuData.push_back( MenuItem(SharedStr("Ascending" ), new MembFuncCmd<DataItemColumn>(&DataItemColumn::SortAsc ), this) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Descending"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::SortDesc), this) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this) );
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
@@ -1218,7 +1218,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 			if (Allowed(GetSrcAttr(), am))
 				med.m_MenuData.push_back(MenuItem(
 					SharedStr(OperName(GetSrcAttr(), am)),
-					new MembFuncCmd<DataItemColumn, AggrMethod>(&DataItemColumn::SetAggrMethod, am), 
+					make_MembFuncCmd(&DataItemColumn::SetAggrMethod, am), 
 					this,
 					am == m_AggrMethod ? MF_CHECKED : 0
 				));
@@ -1229,17 +1229,17 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("&Relative Display (as % of total)")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::ToggleRelativeDisplay)
+			,	make_MembFuncCmd(&DataItemColumn::ToggleRelativeDisplay)
 			,	this
 			,	m_State.Get(DIC_RelativeDisplay) ? MF_CHECKED : 0
 			)
 		);
 //	Goto & Find
-	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::GotoClipboardRow), this));
-	med.m_MenuData.push_back(MenuItem(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::FindNextClipboardValue), this));
+	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), make_MembFuncCmd(&DataItemColumn::GotoClipboardRow), this));
+	med.m_MenuData.push_back(MenuItem(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), make_MembFuncCmd(&DataItemColumn::FindNextClipboardValue), this));
 
 //	Remove DIC
-	med.m_MenuData.push_back( MenuItem(mySSPrintF("&Remove %s", caption.c_str()), new MembFuncCmd<DataItemColumn>(&DataItemColumn::Remove), this) );
+	med.m_MenuData.push_back( MenuItem(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this) );
 
 //	Ramping
 	SharedPtr<const AbstrDataItem> activeAttr = GetActiveAttr();
@@ -1264,7 +1264,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 			med.m_MenuData.push_back(
 				MenuItem(
 					SharedStr(GetEnabledTheme(AN_LabelTextColor) ? "Ramp Colors": "Ramp Values")
-				,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::Ramp)
+				,	make_MembFuncCmd(&DataItemColumn::Ramp)
 				,	this
 				,	rampingPossible ? 0 : MFS_GRAYED
 				)
@@ -1279,14 +1279,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Select from Palette")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::SelectBrushColor)
+			,   make_MembFuncCmd(&DataItemColumn::SelectBrushColor)
 			,	this
 			)
 		);
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Set to transparent")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::SetTransparentBrushColor)
+			,   make_MembFuncCmd(&DataItemColumn::SetTransparentBrushColor)
 			,	this
 			)
 		);
@@ -1298,14 +1298,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Select from Palette")
-				, new MembFuncCmd<DataItemColumn>(&DataItemColumn::SelectPenColor)
+				, make_MembFuncCmd(&DataItemColumn::SelectPenColor)
 				, this
 			)
 		);
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Set to transparent")
-				, new MembFuncCmd<DataItemColumn>(&DataItemColumn::SetTransparentPenColor)
+				, make_MembFuncCmd(&DataItemColumn::SetTransparentPenColor)
 				, this
 			)
 		);

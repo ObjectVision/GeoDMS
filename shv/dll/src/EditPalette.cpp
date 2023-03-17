@@ -313,12 +313,12 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 	if (m && m_PaletteControl->GetBreakAttr())
 	{
 		SubMenu subMenu(med.m_MenuData, "Classify "+m_ThemeAttr->GetDisplayName()); // SUBMENU
-		med.m_MenuData.push_back( MenuItem(SharedStr("Unique Values"),          new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyUniqueValues ), this, (m<=maxK)   ?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Counts"),           new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyEqualCount   ), this, (m>1)       ?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Interval"),         new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyEqualInterval), this, (m>1 && k>1)?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher non-zero"),   new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyNZJenksFisher), this, (m > k && k > 1) ? 0 : MFS_GRAYED));
-		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher"),            new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyCRJenksFisher), this, (m>k && k>1)?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Logarithminc Intervals"), new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassifyLogInterval  ), this, (m>1 && k>1 && m_SortedUniqueValueCache.first[0].first >= 0)?0:MFS_GRAYED) );	
+		med.m_MenuData.push_back( MenuItem(SharedStr("Unique Values"),          make_MembFuncCmd(&EditPaletteControl::ClassifyUniqueValues ), this, (m<=maxK)   ?0:MFS_GRAYED) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Counts"),           make_MembFuncCmd(&EditPaletteControl::ClassifyEqualCount   ), this, (m>1)       ?0:MFS_GRAYED) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Interval"),         make_MembFuncCmd(&EditPaletteControl::ClassifyEqualInterval), this, (m>1 && k>1)?0:MFS_GRAYED) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher non-zero"),   make_MembFuncCmd(&EditPaletteControl::ClassifyNZJenksFisher), this, (m > k && k > 1) ? 0 : MFS_GRAYED));
+		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher"),            make_MembFuncCmd(&EditPaletteControl::ClassifyCRJenksFisher), this, (m>k && k>1)?0:MFS_GRAYED) );
+		med.m_MenuData.push_back( MenuItem(SharedStr("Logarithminc Intervals"), make_MembFuncCmd(&EditPaletteControl::ClassifyLogInterval  ), this, (m>1 && k>1 && m_SortedUniqueValueCache.first[0].first >= 0)?0:MFS_GRAYED) );
 	}
 	auto dic = med.m_MenuData.m_DIC.lock();
 	if (dic)
@@ -327,11 +327,11 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 		if (du && !du->IsDerivable())
 		{
 			SubMenu subMenu(med.m_MenuData, SharedStr("Classes")); // SUBMENU
-			med.m_MenuData.push_back(MenuItem(SharedStr("Split"), new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassSplit), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
-			med.m_MenuData.push_back(MenuItem(SharedStr("Merge"), new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ClassMerge), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
+			med.m_MenuData.push_back(MenuItem(SharedStr("Split"), make_MembFuncCmd(&EditPaletteControl::ClassSplit), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
+			med.m_MenuData.push_back(MenuItem(SharedStr("Merge"), make_MembFuncCmd(&EditPaletteControl::ClassMerge), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
 		}
 		if (dic->GetActiveAttr() && dic->GetActiveAttr() == m_PaletteControl->GetLabelTextAttr())
-			med.m_MenuData.push_back( MenuItem(SharedStr("ReLabel"),  new MembFuncCmd<EditPaletteControl>(&EditPaletteControl::ReLabelRanges), this, 0) );
+			med.m_MenuData.push_back( MenuItem(SharedStr("ReLabel"), make_MembFuncCmd(&EditPaletteControl::ReLabelRanges), this, 0) );
 	}
 	base_type::FillMenu(med);
 }

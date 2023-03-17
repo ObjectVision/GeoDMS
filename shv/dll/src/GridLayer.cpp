@@ -1299,7 +1299,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				"Fill Selected Cells with "+ GetCurrClassLabel(),
-				new MembFuncCmd<GridLayer>( &GridLayer::AssignSelValues),
+				make_MembFuncCmd( &GridLayer::AssignSelValues),
 				this
 			)
 		);	
@@ -1310,7 +1310,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Copy Selected Cells to Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::CopySelValues),
+				make_MembFuncCmd( &GridLayer::CopySelValues),
 				this
 			)
 		);	
@@ -1321,7 +1321,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Paste Selected Cells from Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::PasteSelValues),
+				make_MembFuncCmd( &GridLayer::PasteSelValues),
 				this
 			)
 		);	
@@ -1347,7 +1347,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 	menuData.push_back(
 		MenuItem(
 			SharedStr("Zoom &1 Grid to 1 Pixel"),
-			new MembFuncCmd<GridLayerBase>(&GridLayerBase::Zoom1To1Caller),
+			make_MembFuncCmd(&GridLayerBase::Zoom1To1Caller),
 			this,
 			IsVisible() ? 0 : MFS_GRAYED
 		)

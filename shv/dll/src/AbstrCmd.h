@@ -52,10 +52,11 @@ public:
 	GraphVisitState DoLayerSet        (LayerSet*         obj) override; // forward to active item if available 
 };
 
-template <typename GO, typename ...Args>
+
+template <typename GO, typename RT, typename ...Args>
 struct MembFuncCmd : AbstrCmd
 {
-	typedef void (GO::*MembFunc)(Args...);
+	using MembFunc = RT(GO::* )(Args...);
 
 	MembFuncCmd(MembFunc mf, Args... args) : m_MembFunc(mf), m_Args(std::forward<Args>(args)...)
 	{}
@@ -77,6 +78,11 @@ private:
 	std::tuple<Args...> m_Args;
 };
 
+template <typename GO, typename RT, typename ...Args>
+auto make_MembFuncCmd(RT (GO::* mf)(Args...), Args ...args)
+{
+	return MakeOwned<AbstrCmd, MembFuncCmd<GO, RT, Args...>>(mf, std::forward<Args>(args)...);
+}
 
 #endif // __SHV_ABSTRCMD_H
 
