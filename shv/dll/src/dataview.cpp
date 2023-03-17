@@ -724,6 +724,10 @@ bool DataView::OnKeyDown(UInt32 nVirtKey)
 {
 	if (GetKeyState(VK_CONTROL) & 0x8000)
 		nVirtKey |= KeyInfo::Flag::Ctrl;
+	if (GetKeyState(VK_MENU) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Menu;
+	if (GetKeyState(VK_SHIFT) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Shift;
 	if (m_ActivationInfo)
 		return m_ActivationInfo.OnKeyDown(nVirtKey);
 	return GetContents()->OnKeyDown(nVirtKey);

@@ -842,7 +842,7 @@ void GridLayer::ClearPaste()
 
 void GridLayer::CopySelValuesToBitmap()
 {
-	ClipBoard clipBoard;
+	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 

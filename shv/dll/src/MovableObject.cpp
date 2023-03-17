@@ -365,7 +365,7 @@ void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HB
 
 void MovableObject::CopyToClipboard(DataView* dv)
 {
-	ClipBoard clipBoard;
+	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 

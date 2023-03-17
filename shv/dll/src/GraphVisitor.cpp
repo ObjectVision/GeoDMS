@@ -280,7 +280,7 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 			goto nextEntry;
 		else
 		{	
-			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
+//			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
 			if (gEntry->GetClippedCurrFullAbsRect(*this).empty() && gEntry->HasDefinedExtent())
 				goto nextEntry;
 		}

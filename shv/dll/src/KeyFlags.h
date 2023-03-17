@@ -48,19 +48,21 @@ namespace KeyInfo {
 		const UInt32 Ctrl = 0x40000000; // Ctrl was pressed
 		const UInt32 Menu = 0x20000000; // Alt  was pressed corresponds to context code in lParam ( bit 29 ), implies KF_SYSTEM
 		const UInt32 Syst = 0x10000000; // true for WM_SYS*, can also be sent without KF_MENU when curr=Active and no control has key-focus
+		const UInt32 Shift= 0x08000000; // true for WM_SYS*, can also be sent without KF_MENU when curr=Active and no control has key-focus
 
-		const UInt32 CCM = Char|Ctrl|Menu;
+		const UInt32 CCM = Char|Ctrl|Menu|Shift;
 	}
 
-	inline UInt32 FlagsOf(UInt32 virtKey) { return virtKey & FlagsMask; }
-	inline char   CharOf (UInt32 virtKey) { return virtKey & CharMask; }
-	inline UInt32 CcmOf  (UInt32 virtKey) { return virtKey & Flag::CCM; }
+	inline UInt32 FlagsOf  (UInt32 virtKey) { return virtKey & FlagsMask; }
+	inline char   CharOf   (UInt32 virtKey) { return virtKey & CharMask; }
+	inline UInt32 CcmOf    (UInt32 virtKey) { return virtKey & Flag::CCM; }
 
-	inline bool IsChar   (UInt32 virtKey) { return  FlagsOf(virtKey) == Flag::Char; } // nonsystem normal char
-	inline bool IsSpec   (UInt32 virtKey) { return  CcmOf(virtKey) == 0; }
-	inline bool IsCtrl   (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Ctrl; }
-	inline bool IsAlt    (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Menu; }
-	inline bool IsCtrlAlt(UInt32 virtKey) { return  CcmOf(virtKey) == (Flag::Ctrl|Flag::Menu); }
+	inline bool IsChar     (UInt32 virtKey) { return  FlagsOf(virtKey) == Flag::Char; } // nonsystem normal char
+	inline bool IsSpec     (UInt32 virtKey) { return  CcmOf(virtKey) == 0; }
+	inline bool IsCtrl     (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Ctrl; }
+	inline bool IsShiftCtrl(UInt32 virtKey) { return  CcmOf(virtKey) == (Flag::Ctrl|Flag::Shift); }
+	inline bool IsAlt      (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Menu; }
+	inline bool IsCtrlAlt  (UInt32 virtKey) { return  CcmOf(virtKey) == (Flag::Ctrl|Flag::Menu); }
 }
 
 #endif // !defined(__SHV_KEYFLAGS_H)

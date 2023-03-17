@@ -978,8 +978,8 @@ void TableControl::TableCopy() const
 
 	SaveTo(&buff);
 
-	ClipBoard board;
-	board.SetText(buff.GetData(), buff.GetDataEnd());
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+	clipBoard.SetText(buff.GetData(), buff.GetDataEnd());
 }
 
 ExportInfo TableControl::GetExportInfo()
