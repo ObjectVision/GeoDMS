@@ -44,12 +44,12 @@ public:
     }
 };
 
-class HTMLGuiComponentFactory : public OutStreamBuff
+class GuiOutStreamBuff : public OutStreamBuff
 {
 public:
 
-    HTMLGuiComponentFactory();
-    virtual ~HTMLGuiComponentFactory();
+    GuiOutStreamBuff();
+    virtual ~GuiOutStreamBuff();
 
     void WriteBytes(const Byte* data, streamsize_t size) override;
     auto InterpretBytes(TableData& tableProperties) -> void;
@@ -126,7 +126,7 @@ private:
     void Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode);
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
-    HTMLGuiComponentFactory m_Buff;
+    GuiOutStreamBuff m_Buff;
     TableData               m_GeneralProperties;
     TableData               m_AllProperties;
     TableData               m_ExploreProperties;

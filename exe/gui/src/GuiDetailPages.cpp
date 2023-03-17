@@ -34,16 +34,16 @@ end;
 */
 std::string Tag::href = "";
 
-HTMLGuiComponentFactory::HTMLGuiComponentFactory() 
+GuiOutStreamBuff::GuiOutStreamBuff()
 {}
 
-HTMLGuiComponentFactory::~HTMLGuiComponentFactory(){}
-void HTMLGuiComponentFactory::WriteBytes(const Byte* data, streamsize_t size)
+GuiOutStreamBuff::~GuiOutStreamBuff(){}
+void GuiOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 {
     m_Buff.insert(m_Buff.end(), data, data + size);
 }
 
-bool HTMLGuiComponentFactory::ReplaceStringInString(std::string& str, const std::string& from, const std::string& to)
+bool GuiOutStreamBuff::ReplaceStringInString(std::string& str, const std::string& from, const std::string& to)
 {
     while (true)
     {
@@ -59,7 +59,7 @@ bool HTMLGuiComponentFactory::ReplaceStringInString(std::string& str, const std:
 // enventueel laten we die functie op een char range werken teneinde voor zowel std::string als SharedStr te laten werken.
 // HtmlDecode en helpers kunnen we verplaatsen naar Encodes.cpp voor een generieke set van consistente encoding en decoding functies.
 
-std::string HTMLGuiComponentFactory::CleanStringFromHtmlEncoding(std::string text)
+std::string GuiOutStreamBuff::CleanStringFromHtmlEncoding(std::string text)
 {
     ReplaceStringInString(text, "&apos;", "\'"); //&apos;
     ReplaceStringInString(text, "&quot;", "\""); //&quot;
@@ -68,7 +68,7 @@ std::string HTMLGuiComponentFactory::CleanStringFromHtmlEncoding(std::string tex
     return text;
 }
 
-std::string HTMLGuiComponentFactory::GetHrefFromTag()
+std::string GuiOutStreamBuff::GetHrefFromTag()
 {
     std::string href = "";
 
@@ -79,7 +79,7 @@ std::string HTMLGuiComponentFactory::GetHrefFromTag()
 
 }
 
-void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
+void GuiOutStreamBuff::InterpretTag(TableData& tableProperties)
 {
     // open tags
     if (m_Tag.text.size() >= 5 && std::string_view(m_Tag.text.data(), 5) == "<BODY")
@@ -150,7 +150,7 @@ void HTMLGuiComponentFactory::InterpretTag(TableData& tableProperties)
     }
 
 }
-bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
+bool GuiOutStreamBuff::IsOpenTag(UInt32 ind)
 {
     std::string tmpTag;
     while (m_Buff[ind] != '>')
@@ -190,12 +190,12 @@ bool HTMLGuiComponentFactory::IsOpenTag(UInt32 ind)
     return false;
 }
 
-auto HTMLGuiComponentFactory::InterpretBytesAsString() -> std::string
+auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
 {
     return std::string(m_Buff.begin(), m_Buff.end());
 }
 
-void HTMLGuiComponentFactory::InterpretBytes(TableData& tableProperties)
+void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
@@ -243,12 +243,12 @@ void HTMLGuiComponentFactory::InterpretBytes(TableData& tableProperties)
     }
 }
 
-streamsize_t HTMLGuiComponentFactory::CurrPos() const
+streamsize_t GuiOutStreamBuff::CurrPos() const
 {
     return m_Buff.size();
 }
 
-void HTMLGuiComponentFactory::Reset()
+void GuiOutStreamBuff::Reset()
 {
     m_Buff.clear();
     m_Tag.clear();
