@@ -848,25 +848,23 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort*  vp)
 	dms_assert(r_EventInfo.m_EventID & EID_OBJECTFOUND);
 
 	dms_assert(IsMainThread());
-	static ExternalVectorOutStreamBuff::VectorType buffer;
 
-	buffer.clear();
-	buffer.reserve(30);
-	ExternalVectorOutStreamBuff strBuff(buffer);
-	auto dv = m_Owner.lock();
-	if (dv)
+	auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrZoomLevel(), {});
+	char buffer[201];;
+
+	if (auto dv = m_Owner.lock())
 	{
-		FormattedOutStream out(&strBuff, FormattingFlags::ThousandSeparator);
-		out << "X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << char(0);
-		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, &*buffer.begin());
+		if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
+			buffer[200] = char(0); // truncate
+		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
 	}
-	buffer.clear();
 	if (r_EventInfo.m_EventID & EID_COPYCOORD )
 	{
-		FormattedOutStream out(&strBuff, FormattingFlags::None);
-		out << "[ X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << "]" << char(0);
-		ClipBoard clp;
-		clp.AddTextLine(&*buffer.begin());
+		if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+		{
+			ClipBoard clp;
+			clp.AddTextLine(buffer);
+		}
 	}
 
 	return result;

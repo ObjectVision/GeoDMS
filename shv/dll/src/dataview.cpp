@@ -79,6 +79,7 @@ granted by an additional written contract for support, assistance and/or develop
 //    NOANIMATE    Animate control.
 
 #include "CommCtrl.h"
+ActorVisitState UpdateChildViews(DataViewList* dvl);
 
 ////////////////////////////////////////////////////////////////////////////
 // const
@@ -106,7 +107,7 @@ bool MsgStruct::Send() const
 // class  : DataViewList
 //----------------------------------------------------------------------
 
-DataViewList g_DataViews;
+DataViewList g_DataViewRoots;
 
 void DataViewList::BringChildToTop(DataView* dv)
 {
@@ -117,7 +118,7 @@ void DataViewList::BringChildToTop(DataView* dv)
 void DataViewList::AddChildView(DataView* childView)
 {
 	dms_assert(childView);
-	dms_assert(childView->m_ParentView == 0);
+	dms_assert(childView->m_ParentView == nullptr);
 	AddSub(childView);
 	childView->m_ParentView = this;
 }
@@ -127,8 +128,24 @@ void DataViewList::DelChildView(DataView* childView)
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == this);
 	DelSub(childView); 
-	childView->m_ParentView = 0;
+	childView->m_ParentView = nullptr;
 }
+
+void DataViewList::BroadcastCmd(ToolButtonID id)
+{
+	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
+	{
+		if (auto contents = cv->GetContents())
+			contents->OnCommand(id);
+		cv->BroadcastCmd(id);
+	}
+}
+
+void BroadcastCommandToAllDataViews(ToolButtonID id)
+{
+	g_DataViewRoots.BroadcastCmd(id);
+}
+
 
 //----------------------------------------------------------------------
 // section: DEBUG TOOLS
@@ -155,9 +172,12 @@ DbgInvalidateDrawLock::~DbgInvalidateDrawLock()
 
 #if defined(MG_DEBUG_DATAVIEWSET)
 
+std::mutex g_csActiveDataViewSet;
 std::set<DataView*> g_ActiveDataViews;
+
 bool DataView::IsInActiveDataViewSet()
 {
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	return g_ActiveDataViews.find(this) != g_ActiveDataViews.end();
 }
 
@@ -212,6 +232,7 @@ DataView::DataView(TreeItem* viewContext)
 
 	IdleTimer::Subscribe(this);
 #if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.insert(this);
 #endif //defined(MG_DEBUG_DATAVIEWSET)
 }
@@ -238,9 +259,11 @@ DataView::~DataView()
 	dbg_assert(md_InvalidateDrawLock == 0);
 
 	OnDestroyDataView(this); // remove remaining messages for this DataView from the queue.
+
 #if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.erase(this);
-#endif
+#endif //defined(MG_DEBUG_DATAVIEWSET)
 }
 
 void DataView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode sm)
@@ -858,9 +881,13 @@ GraphVisitState DataView::UpdateView()
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
 	if (!m_DoneGraphics.Empty()) // DEBUG, REMOVE when above assert is proven to hold
 		return GVS_Break;
-	return SuspendTrigger::DidSuspend()
-		?	GVS_Break
-		:	GVS_Continue;
+
+	if (SuspendTrigger::DidSuspend())
+		return GVS_Break;
+
+	if (UpdateChildViews(this) == AVS_SuspendedOrFailed)
+		return GVS_Break;
+	return GVS_Ready;
 }
 
 #include "utl/Environment.h"
@@ -913,12 +940,14 @@ ActorVisitState UpdateChildViews(DataViewList* dvl)
 	return AVS_Ready;
 }
 
+/* REMOVE
 ActorVisitState DataView::UpdateViews()
 {
 	if (g_DispatchLockCount > 1) // any other locks than the one from SHV_DataView_Update?
 		return AVS_SuspendedOrFailed;
-	return UpdateChildViews(&g_DataViews);
+	return UpdateChildViews(&g_DataViewRoots);
 }
+*/
 
 void DataView::Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src)
 {
@@ -1380,7 +1409,7 @@ void DataView::ResetHWnd(HWND hWnd)
 	dms_assert(hWnd);
 	m_hWnd = hWnd;
 	if (!m_ParentView)
-		g_DataViews.AddChildView(this);
+		g_DataViewRoots.AddChildView(this);
 }
 
 void DataView::SetScrollEventsReceiver(ScrollPort* sp)
@@ -1604,7 +1633,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		m_hWnd = createStruct.hWnd;
 		if (m_ParentView)
 			m_ParentView->DelChildView(this);
-		g_DataViews.AddChildView(this);
+		g_DataViewRoots.AddChildView(this);
 		return true;
 	}
 	return false;

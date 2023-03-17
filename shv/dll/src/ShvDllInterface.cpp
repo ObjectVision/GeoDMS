@@ -288,6 +288,7 @@ void OnDestroyDataView(DataView* self)
 		g_MsgQueue.end()
 	);
 }
+
 /*
 ActorVisitState DataView_Update(DataView* self)
 {

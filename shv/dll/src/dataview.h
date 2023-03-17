@@ -154,6 +154,8 @@ struct DataViewList : double_linked_list<DataView>
 	void BringChildToTop(DataView* dv);
 	void AddChildView(DataView* childView);
 	void DelChildView(DataView* childView);
+
+	void BroadcastCmd(ToolButtonID id);
 };
 
 //----------------------------------------------------------------------
@@ -256,7 +258,6 @@ public:
 	void ValidateRgn   (const Region& rgn );
 
 	virtual GraphVisitState UpdateView();
-	ActorVisitState UpdateViews();
 	void Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
@@ -271,9 +272,7 @@ public:
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView
 	virtual SharedStr GetCaption() const;
 
-#if defined(MG_DEBUG_DATAVIEWSET)
 	bool IsInActiveDataViewSet();
-#endif
 	void AddGuiOper(std::function<void()>&& func);
 
 protected: // override virtuals of Actor 
@@ -350,12 +349,14 @@ public:
 	DECL_RTTI(SHV_CALL, Class);
 };
 
+
 //================================= ownership
 
 void Keep(const std::shared_ptr<DataView>& self);
 void Unkeep(DataView*);
 
 void OnDestroyDataView(DataView* self);
+void BroadcastCommandToAllDataViews(ToolButtonID id);
 
 SHV_CALL LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 

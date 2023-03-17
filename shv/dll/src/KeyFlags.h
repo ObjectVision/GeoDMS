@@ -42,7 +42,7 @@ namespace KeyInfo {
 
 	const UInt32 CharMask  = 0x0000FFFF;
 	const UInt32 FlagsMask = 0xFFFF0000;
-
+	
 	namespace Flag {
 		const UInt32 Char = 0x80000000; // true for WM_(SYS)CHAR , false for WM_(SYS)KEY[DOWN|UP]
 		const UInt32 Ctrl = 0x40000000; // Ctrl was pressed

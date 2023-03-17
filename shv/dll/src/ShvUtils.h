@@ -223,8 +223,11 @@ enum ToolButtonID {
 	TB_SyncScale, TB_SyncROI,
 	TB_TableGroupBy,
 	TB_GotoClipboardLocation,
-	TB_FindClipboardLocation
-//	TB_SetData,
+	TB_FindClipboardLocation,
+	TB_GotoClipboardZoomlevel,
+	TB_GotoClipboardLocationAndZoomlevel,
+	TB_CopyLocationAndZoomlevelToClipboard,
+	//	TB_SetData,
 
 };
 
