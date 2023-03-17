@@ -282,9 +282,11 @@ struct SelectMetaOperator : public BinaryOperator
 			if (!IsDataItem(subItem))
 				continue;
 			auto subDataItem = AsDataItem(subItem);
+			auto subDataID = subDataItem->GetID();
+			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
+				continue;
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
-			auto subDataID = subDataItem->GetID();
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
@@ -345,9 +347,11 @@ struct RelateAttrOperator : public TernaryOperator
 			if (!IsDataItem(subItem))
 				continue;
 			auto subDataItem = AsDataItem(subItem);
+			auto subDataID = subDataItem->GetID();
+			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
+				continue;
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
-			auto subDataID = subDataItem->GetID();
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
