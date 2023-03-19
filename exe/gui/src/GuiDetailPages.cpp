@@ -278,7 +278,6 @@ bool TreeItemToMarkdownPageGeneral(const TreeItem* current_item, bool showAll)
     return true;
 }
 
-
 GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
 {
 
@@ -310,9 +309,16 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     clear();
     SuspendTrigger::Resume();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
-    auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true);
-    m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream
+    /*auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
+    m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
+    
+    //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
+    auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "", NULL);
+    auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), mdOut.get(), true); // TODO: use result
+    
+    auto general_string = m_Buff.InterpretBytesAsString();
+    StringToTable(general_string, m_GeneralProperties);
     m_Buff.Reset();
 }
 
@@ -611,7 +617,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         if (detail_pages_docknode)
         {
             AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
-            Collapse(detail_pages_docknode);
+            //Collapse(detail_pages_docknode);
+            Expand(DetailPageActiveTab::General, detail_pages_docknode);
         }
     }
 

@@ -47,18 +47,15 @@ public:
 class GuiOutStreamBuff : public OutStreamBuff
 {
 public:
-
     GuiOutStreamBuff();
     virtual ~GuiOutStreamBuff();
-
     void WriteBytes(const Byte* data, streamsize_t size) override;
     auto InterpretBytes(TableData& tableProperties) -> void;
     auto InterpretBytesAsString() -> std::string;
-
-
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
     void Reset();
+
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
@@ -134,8 +131,8 @@ private:
     TableData               m_SourceDescription;
     TableData               m_Configuration;
     bool                    m_is_docking_initialized = false;
-    bool                    m_pinned = false;
+    bool                    m_pinned = true;
     DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
     Float32                 m_min_size = 30.0f;
-    Float32                 m_expanded_size = 500.0f;
+    Float32                 m_expanded_size = 1000.0f;
 };
