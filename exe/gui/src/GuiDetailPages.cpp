@@ -314,7 +314,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
     
     //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
-    auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "", NULL);
+    auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), mdOut.get(), true); // TODO: use result
     
     auto general_string = m_Buff.InterpretBytesAsString();

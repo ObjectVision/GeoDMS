@@ -220,6 +220,55 @@ private:
 
 };
 
+using row_data   = std::vector<std::string>;
+using table_data = std::vector<row_data>;
+using href_data  = std::pair<std::string, std::string>;
+using dropdown_data = std::pair<std::string, row_data>;
+
+struct OutStream_MD :OutStreamBase
+{
+	RTC_CALL OutStream_MD(OutStreamBuff* out, const AbstrPropDef* primaryPropDef);
+
+	RTC_CALL void WriteName(XML_OutElement& elem, CharPtr itemName) override;
+
+	RTC_CALL void BeginSubItems() override;
+	RTC_CALL void ItemEnd() override;
+	RTC_CALL void EndSubItems() override;
+
+	RTC_CALL void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
+	RTC_CALL void DumpSubTagDelim() override;
+
+	RTC_CALL void WriteValue(CharPtr data) override;
+	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
+
+	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
+	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
+	RTC_CALL void WriteAttr(CharPtr name, UInt32 value) override;
+
+	RTC_CALL void WriteInclude(CharPtr includeHref) override;
+
+	SyntaxType GetSyntaxType() override { return ST_DMS; }
+
+private:
+	RTC_CALL void OpenTag(CharPtr tagName) override;
+	RTC_CALL void CloseTag(CharPtr tagName) override;
+
+	RTC_CALL void AttrDelim() override;
+	RTC_CALL void CloseAttrList() override;
+
+	bool      m_in_table = false;
+	bool      m_in_href  = false;
+	bool      m_in_row = false;
+	bool      m_in_row_data = false;
+	bool      m_in_dropdown = false;
+
+	row_data      m_table_row;
+	table_data    m_table;
+	href_data     m_href;
+	dropdown_data m_dropdown;
+	std::string   m_cell_data;
+};
+
 
 
 //----------------------------------------------------------------------
