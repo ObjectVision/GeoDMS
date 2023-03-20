@@ -49,9 +49,6 @@ GuiEventLog::~GuiEventLog()
     ClearLog();
 };
 
-//StatusMessageViewport GuiEventLog::m_smvp = {};
-//EventlogDirectUpdateInformation GuiEventLog::m_direct_update_information = {};
-
 void GuiEventLog::ShowEventLogOptionsWindow(bool* p_open)
 {
     if (ImGui::Begin("Eventlog options", p_open, NULL))
@@ -69,10 +66,6 @@ void GuiEventLog::ShowEventLogOptionsWindow(bool* p_open)
 void GuiEventLog::GeoDMSExceptionMessage(CharPtr msg) //TODO: add client handle to exception message function
 {
     GuiState state;
-    //auto event_queues = GuiEventQueues::getInstance();
-
-    //event_queues->MainEvents.Add(GuiEvents::OpenErrorDialog);
-    //ImGui::OpenPopup("Error");
     state.errorDialogMessage.Set(msg);
     PostEmptyEventToGLFWContext();
     return;
@@ -117,22 +110,20 @@ void GuiEventLog::DrawItem(EventLogItem *item)
 
 void GuiEventLog::Update(bool* p_open, GuiState& state)
 {
-    //ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);// TODO: ???
     if (!ImGui::Begin("EventLog", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::End();
         return;
     }
 
+    ImGuiContext& g = *GImGui;
+    auto backup_spacing = g.Style.ItemSpacing.y;
+    g.Style.ItemSpacing.y = 0.0f;
+
     m_direct_update_information.viewport = ImGui::GetMainViewport();
     m_direct_update_information.time_since_last_update = std::chrono::system_clock::now();
 
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
-
-    //ImGuiStyle &style = ImGui::GetStyle();
-    //style.ItemSpacing.y = 2.0;
-    //auto test = style.ItemSpacing.y;// = -1.0;
-        // style.ItemSpacing.y
 
     // events
     auto event_queues = GuiEventQueues::getInstance();
@@ -140,18 +131,6 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     // focus
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
-
-    /*// window specific options button
-    auto old_cpos = SetCursorPosToOptionsIconInWindowHeader();
-    SetClipRectToIncludeOptionsIconInWindowHeader();
-    ImGui::Text(ICON_RI_SETTINGS);
-    if (MouseHooversOptionsIconInWindowHeader())
-    {
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            state.ShowEventLogOptionsWindow = true;
-    }
-    ImGui::SetCursorPos(old_cpos);
-    ImGui::PopClipRect();*/
 
     // filter
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
@@ -180,9 +159,6 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     m_direct_update_information.log.size = ImGui::GetWindowContentRegionMax();
 
     auto cur_window = ImGui::GetCurrentWindow();
-    
-    //m_direct_update_information.log.pos = ImGui::GetCurrentWindow();
-    //m_direct_update_information.log.pos =
 
     ImGuiListClipper clipper;
     if (m_FilteredItemIndices.size() == 1 && m_FilteredItemIndices.at(0) == 0xFFFFFFFFFFFFFFFF)
@@ -227,9 +203,10 @@ void GuiEventLog::Update(bool* p_open, GuiState& state)
     m_direct_update_information.status.cursor = ImGui::GetCursorScreenPos();
     m_direct_update_information.status.pos = vp->Pos;
     m_direct_update_information.status.size = vp->Size;
-    
+
     ImGui::TextUnformatted(state.contextMessage.Get().c_str());
-    
+
+    g.Style.ItemSpacing.y = backup_spacing;
     ImGui::End();
 }; 
 
@@ -318,8 +295,10 @@ bool EventlogDirectUpdateInformation::RequiresUpdate()
 
 void GuiEventLog::DirectUpdate(GuiState& state)
 {
-    ImGuiContext& g = *GImGui;
+    if (!m_direct_update_information.viewport)
+        return;
 
+    ImGuiContext& g = *GImGui;
     m_direct_update_information.time_since_last_update = std::chrono::system_clock::now();
 
     ImGui_ImplGlfw_ViewportData* viewport_data = static_cast<ImGui_ImplGlfw_ViewportData*>(m_direct_update_information.viewport->PlatformUserData);//m_smvp.vp->PlatformUserData);
@@ -328,7 +307,7 @@ void GuiEventLog::DirectUpdate(GuiState& state)
     // log
     auto log_draw_list_ptr = direct_update_frame.AddDrawList(m_direct_update_information.log.pos, ImVec2(m_direct_update_information.log.pos.x + m_direct_update_information.log.size.x, m_direct_update_information.log.pos.y + m_direct_update_information.log.size.y));
     SetTextBackgroundColor(m_direct_update_information.log.size, ImGui::GetColorU32(ImGuiCol_WindowBg), log_draw_list_ptr, &m_direct_update_information.log.cursor);
-    size_t number_of_log_lines = std::ceil(m_direct_update_information.log.size.y / ImGui::GetTextLineHeightWithSpacing());
+    size_t number_of_log_lines = std::ceil(m_direct_update_information.log.size.y / ImGui::GetTextLineHeight());
     if (number_of_log_lines > m_Items.size())
         number_of_log_lines = m_Items.size();
     size_t log_direct_update_index = m_Items.size() <= number_of_log_lines ? 0 : m_Items.size()-(number_of_log_lines+1);
@@ -339,7 +318,7 @@ void GuiEventLog::DirectUpdate(GuiState& state)
         auto eventlog_item_ptr = &m_Items[i];
         //ImVec4 color = 
         log_draw_list_ptr->AddText(g.Font, g.FontSize, log_cursor, ConvertSeverityTypeIDToColor(eventlog_item_ptr->m_Severity_type), eventlog_item_ptr->m_Text.c_str(), NULL, 0.0f);
-        log_cursor = ImVec2(log_cursor.x, log_cursor.y+ImGui::GetTextLineHeightWithSpacing());
+        log_cursor = ImVec2(log_cursor.x, log_cursor.y+ImGui::GetTextLineHeight());
     }
 
     // status

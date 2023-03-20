@@ -447,7 +447,7 @@ void GuiMainComponent::CreateMainWindowInWindowedFullscreenMode()
     int xpos, ypos, width, height;
     glfwGetMonitorWorkarea(primary_monitor, &xpos, &ypos, &width, &height);
     m_MainWindow = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
-
+    glfwSetInputMode(m_MainWindow, GLFW_LOCK_KEY_MODS, GLFW_TRUE); // pass through Num Lock and Caps Lock state
     auto main_hwnd = glfwGetWin32Window(m_MainWindow);
     SendMessage(main_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 }
@@ -521,14 +521,22 @@ int GuiMainComponent::Init()
 
     SetDmsWindowIcon(m_MainWindow);
     
-    // fonts
-    FontBuilderRecipy recipy;
-    recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
-    recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
-    recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
-    m_State.fonts.text_font = SetGuiFont(recipy);
+    // Fonts
+    // default text font
+    FontBuilderRecipy default_font_recipy;
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec());
+    default_font_recipy.recipy.emplace_back(CreateNotoSansArabicFontSpec());
+    //recipy.recipy.emplace_back(CreateNotoSansJapaneseFontSpec());
+    default_font_recipy.recipy.emplace_back(CreateRemixIconsFontSpec());
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMathFontSpec());
+    m_State.fonts.text_font = SetGuiFont(default_font_recipy);
+
+    // header text font
+    FontBuilderRecipy header_font_recipy;
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec(25.0f));
+    default_font_recipy.recipy.emplace_back(CreateNotoSansMathFontSpec(25.0f));
+
+    
 
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
@@ -805,15 +813,11 @@ bool GuiMainComponent::Update()
         auto detail_pages_window = ImGui::FindWindowByName("Detail Pages");
         auto toolbar_window = ImGui::FindWindowByName("Toolbar");
 
-
-        //dockspace_docknode->SharedFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-        //dockspace_docknode->LocalFlags |= ImGuiDockNodeFlags_AutoHideTabBar;
-
         if (dockspace_docknode && dockspace_docknode->HostWindow)
         {
             // TODO: check if dockspace_node is unsplit
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.8f, true);
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.98f, true); // 0.8
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.035f, true); //0.025f
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.8f, true);
                         

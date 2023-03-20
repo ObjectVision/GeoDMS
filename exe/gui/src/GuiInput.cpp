@@ -173,7 +173,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     {
         /*if (mods & (GLFW_MOD_CONTROL & GLFW_MOD_ALT)) // Ctrl+Alt+D
             event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);*/
-        if (mods == GLFW_MOD_CONTROL) // CTRL-D 
+        if (mods & GLFW_MOD_CONTROL) // CTRL-D 
         {
             event_queues->MainEvents.Add(GuiEvents::OpenNewTableViewWindow);
         }
@@ -182,11 +182,11 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_E:
     {
-        if (mods == GLFW_MOD_CONTROL) // CTRL-E
+        if (mods & GLFW_MOD_CONTROL) // CTRL-E
         {
             event_queues->MainEvents.Add(GuiEvents::OpenConfigSource);
         }
-        else if (mods == GLFW_MOD_ALT) // Open menu-edit
+        else if (mods & GLFW_MOD_ALT) // Open menu-edit
         {
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenEdit);
         }
@@ -195,37 +195,37 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_F:
     {
-        if (mods == GLFW_MOD_ALT) // Open menu-file
+        if (mods & GLFW_MOD_ALT) // Open menu-file
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenFile);
         return;
     }
     case GLFW_KEY_H:
     {
-        if (mods == GLFW_MOD_ALT) // Open menu-help
+        if (mods & GLFW_MOD_ALT) // Open menu-help
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenHelp);
         return;
     }
     case GLFW_KEY_I:
     {
-        if (mods == GLFW_MOD_CONTROL) // Open statistics view window
+        if (mods & GLFW_MOD_CONTROL) // Open statistics view window
             event_queues->MainEvents.Add(GuiEvents::OpenNewStatisticsViewWindow);
         return;
     }
     case GLFW_KEY_L:
     {
-        if (mods == GLFW_MOD_CONTROL) // CTRL-L
+        if (mods & GLFW_MOD_CONTROL) // CTRL-L
             event_queues->MainEvents.Add(GuiEvents::CloseAllViews);
         return;
     }
     case GLFW_KEY_M:
     {
-        if (mods == GLFW_MOD_CONTROL) // CTRL-M
+        if (mods & GLFW_MOD_CONTROL) // CTRL-M
             event_queues->MainEvents.Add(GuiEvents::OpenNewMapViewWindow);
         return;
     }
     case GLFW_KEY_O:
     {
-        if (mods == GLFW_MOD_CONTROL)
+        if (mods & GLFW_MOD_CONTROL)
             event_queues->MainEvents.Add(GuiEvents::OpenExportWindow);
 
 
@@ -237,7 +237,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_R:
     {
-        if (mods == GLFW_MOD_ALT)
+        if (mods & GLFW_MOD_ALT)
         {
             event_queues->MainEvents.Add(GuiEvents::ReopenCurrentConfiguration);
             event_queues->GuiMenuFileComponentEvents.Add(GuiEvents::ReopenCurrentConfiguration);
@@ -253,46 +253,46 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             DebugReporter::ReportAll();
 #endif
         }
-        else if (mods == GLFW_MOD_CONTROL) // CTRL-T
+        else if (mods & GLFW_MOD_CONTROL) // CTRL-T
             event_queues->MainEvents.Add(GuiEvents::UpdateCurrentAndCompatibleSubItems);
-        else if (mods == GLFW_MOD_ALT) // ALT-T Open menu-tools
+        else if (mods & GLFW_MOD_ALT) // ALT-T Open menu-tools
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenTools);
 
         return;
     }
     case GLFW_KEY_V:
     {
-        if (mods == GLFW_MOD_ALT) // Open menu-view
+        if (mods & GLFW_MOD_ALT) // Open menu-view
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenView); 
         return;
     }
     case GLFW_KEY_W:
     {
-        if (mods == GLFW_MOD_ALT) // Open menu-window
+        if (mods & GLFW_MOD_ALT) // Open menu-window
             event_queues->MenuBarEvents.Add(GuiEvents::MenuOpenWindow);
         return;
     }
     case GLFW_KEY_0:
     {
-        if (mods == GLFW_MOD_ALT)    // ALT-0
+        if (mods & GLFW_MOD_ALT)    // ALT-0
             event_queues->MainEvents.Add(GuiEvents::ToggleShowTreeViewWindow);
         return;
     }
     case GLFW_KEY_1:
     {
-        if (mods == GLFW_MOD_ALT)    // ALT-1
+        if (mods & GLFW_MOD_ALT)    // ALT-1
             event_queues->MainEvents.Add(GuiEvents::ToggleShowDetailPagesWindow);
         return;
     }
     case GLFW_KEY_2:
     {
-        if (mods == GLFW_MOD_ALT)    // ALT-2
+        if (mods & GLFW_MOD_ALT)    // ALT-2
             event_queues->MainEvents.Add(GuiEvents::ToggleShowEventLogWindow);
         return;
     }
     case GLFW_KEY_3:
     {
-        if (mods == GLFW_MOD_ALT)    // ALT-3
+        if (mods & GLFW_MOD_ALT)    // ALT-3
             event_queues->MainEvents.Add(GuiEvents::ToggleShowToolbar);
         return;
     }
@@ -302,7 +302,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
         //auto unfound_part = IString::Create("");
         //auto item_error_source = DMS_TreeItem_GetErrorSource(m_State.GetCurrentItem(), &unfound_part);
         //unfound_part->Release(unfound_part);
-        if (mods == GLFW_MOD_SHIFT)
+        if (mods & GLFW_MOD_SHIFT)
             event_queues->MainEvents.Add(GuiEvents::StepToRootErrorSource);
         else
             event_queues->MainEvents.Add(GuiEvents::StepToErrorSource);
@@ -323,11 +323,34 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
         event_queues->TreeViewEvents.Add(GuiEvents::AscendVisibleTree);
         return;
     }
+
     case GLFW_KEY_DOWN:
     {
-        if (action == GLFW_REPEAT)
-            int i = 0;
         event_queues->TreeViewEvents.Add(GuiEvents::DescendVisibleTree);
+        return;
+    }
+    case GLFW_KEY_KP_2: // down
+    {
+        if ((mods & GLFW_MOD_NUM_LOCK) == 0)
+            event_queues->TreeViewEvents.Add(GuiEvents::DescendVisibleTree);
+        return;
+    }
+    case GLFW_KEY_KP_4: // left
+    {
+        if ((mods & GLFW_MOD_NUM_LOCK) == 0 && action != GLFW_REPEAT)
+            event_queues->TreeViewEvents.Add(GuiEvents::CollapseTreeNode);
+        return;
+    }
+    case GLFW_KEY_KP_6: // right
+    {
+        if ((mods & GLFW_MOD_NUM_LOCK)==0 && action != GLFW_REPEAT)
+            event_queues->TreeViewEvents.Add(GuiEvents::ExpandTreeNode);
+        return;
+    }
+    case GLFW_KEY_KP_8: // up
+    {
+        if ((mods & GLFW_MOD_NUM_LOCK) == 0)
+            event_queues->TreeViewEvents.Add(GuiEvents::AscendVisibleTree);
         return;
     }
     }

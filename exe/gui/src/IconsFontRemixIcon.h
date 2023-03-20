@@ -23,3 +23,9 @@
 #define ICON_RI_DATABASE_SOLID      "\xEE\xB0\x95" // U+EC15
 #define ICON_RI_GLOBE				"\xEE\xB1\xBA" // U+EC7A
 #define ICON_RI_TABLE				"\xEF\x87\x9E" // U+F1DE
+#define ICON_RI_FIND				"\xEF\x83\x91" // F+F0D1
+#define ICON_RI_CODE                "\xEE\xAE\xA7" // U+EBA7
+#define ICON_RI_GENERAL             "\xEE\xB3\xAD" // U+ECED
+#define ICON_RI_PROPERTIES          "\xEE\xA9\xBE" // U+EA7E
+#define ICON_RI_PIN_ON              "\xEF\x80\xB7" // U+F037	
+#define ICON_RI_PIN_OFF    			"\xEF\x80\xB9" // U+F039

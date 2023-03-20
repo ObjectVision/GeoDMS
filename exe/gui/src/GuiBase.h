@@ -61,6 +61,8 @@ enum class GuiEvents
 	AscendVisibleTree,
 	TreeViewJumpKeyPress,
 	DescendVisibleTree,
+	CollapseTreeNode,
+	ExpandTreeNode,
 	MenuOpenFile,
 	MenuOpenEdit,
 	MenuOpenView,
@@ -316,8 +318,7 @@ private:
 struct GuiFonts
 {
 	ImFont* text_font = nullptr;
-	ImFont* icon_font = nullptr;
-	ImFont* math_font = nullptr;
+	ImFont* header_font = nullptr;
 };
 
 class GuiState

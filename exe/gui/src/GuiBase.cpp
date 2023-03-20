@@ -332,15 +332,16 @@ auto OnItemClickItemTextTextToClipboard(std::string_view text) -> void
     }
 }
 
-auto SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col, ImDrawList* draw_list, ImVec2* cursor_pos) -> void
+void SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col, ImDrawList* draw_list, ImVec2* cursor_pos)
 {
     if (!draw_list)
         draw_list = ImGui::GetWindowDrawList();
 
-    auto cp = ImGui::GetCursorScreenPos();
-
     if (!cursor_pos)
+    {
+        auto cp = ImGui::GetCursorScreenPos();
         cursor_pos = &cp;
+    }
 
     draw_list->AddRectFilled(*cursor_pos, ImVec2((*cursor_pos).x + background_rectangle_size.x, (*cursor_pos).y + background_rectangle_size.y), col);
 }

@@ -61,7 +61,7 @@ const UInt32 MAX_TEXTOUT_SIZE = 400;
 
 struct OutStreamBase {
 
-	enum SyntaxType { ST_XML, ST_DMS, ST_HTM, ST_Count, ST_Unknown = -1 };
+	enum SyntaxType { ST_XML, ST_DMS, ST_HTM, ST_MD, ST_Count, ST_Unknown = -1 };
 
 	RTC_CALL OutStreamBase(OutStreamBuff* out, bool needsIndent, const AbstrPropDef* primaryPropDef, FormattingFlags flgs);
 	virtual ~OutStreamBase() {}

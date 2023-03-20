@@ -3,6 +3,8 @@
 #include <vector>
 #include "GuiBase.h"
 #include "ser/BaseStreamBuff.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 
 enum class HTMLTagType
 {
@@ -42,21 +44,18 @@ public:
     }
 };
 
-class HTMLGuiComponentFactory : public OutStreamBuff
+class GuiOutStreamBuff : public OutStreamBuff
 {
 public:
-
-    HTMLGuiComponentFactory();
-    virtual ~HTMLGuiComponentFactory();
-
+    GuiOutStreamBuff();
+    virtual ~GuiOutStreamBuff();
     void WriteBytes(const Byte* data, streamsize_t size) override;
     auto InterpretBytes(TableData& tableProperties) -> void;
     auto InterpretBytesAsString() -> std::string;
-
-
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
     void Reset();
+
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
@@ -71,37 +70,69 @@ private:
     std::string                   m_Text;
 };
 
+enum class DetailPageActiveTab
+{
+    None,
+    General,
+    Explore,
+    Properties,
+    Configuration
+};
+
+class GuiMarkDownPage
+{
+public:
+    GuiMarkDownPage(std::string_view markdown_text);
+    void Update();
+    void Parse(std::string_view markdown_text);
+    void Clear();
+
+private:
+    TableData m_data;
+};
+
 class GuiDetailPages
 {
 public:
-    auto clear() -> void;
-    auto Update(bool* p_open, GuiState& state) -> void;
-    auto static OnViewAction(const TreeItem* tiContext,
+    void clear();
+    void Update(bool* p_open, GuiState& state);
+    static void OnViewAction(const TreeItem* tiContext,
         CharPtr     sAction,
         Int32         nCode,
         Int32             x,
         Int32             y,
         bool   doAddHistory,
         bool          isUrl,
-        bool	mustOpenDetailsPage) -> void;
+        bool	mustOpenDetailsPage);
 private:
-    auto ClearSpecificDetailPages(bool general=false, bool all_properties=false, bool explore_properties=false, bool statistics=false, bool value_info=false, bool source_description=false, bool configuration=false) -> void;
-    auto UpdateGeneralProperties(GuiState& state) -> void;
-    auto UpdateAllProperties(GuiState& state) -> void;
-    auto UpdateExploreProperties(GuiState& state) -> void;
-    auto UpdateStatistics(GuiState& state) -> void;
+    void ProcessEvents(GuiState& state);
+    void DrawPinButton();
+    void DrawTabButton(GuiState& state, DetailPageActiveTab tab, std::string_view icon, std::string_view text);
+    void DrawTabbar(GuiState& state);
+    void DrawContent(GuiState& state);
+    void ClearSpecificDetailPages(bool general = false, bool all_properties = false, bool explore_properties = false, bool value_info = false, bool source_description = false, bool configuration = false);
+    void UpdateGeneralProperties(GuiState& state);
+    void UpdateAllProperties(GuiState& state);
+    void UpdateExploreProperties(GuiState& state);
+    void UpdateStatistics(GuiState& state);
     bool UpdateValueInfo(GuiState& state);
-    auto UpdateConfiguration(GuiState& state) -> void;
-    auto UpdateSourceDescription(GuiState& state) -> void;
-    //auto StringToTable(std::string& input, TableData& result, std::string separator) -> void;
+    void UpdateConfiguration(GuiState& state);
+    void UpdateSourceDescription(GuiState& state);
+    auto GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*;
+    void Collapse(ImGuiDockNode* detail_pages_docknode);
+    void Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode);
+    void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
-    HTMLGuiComponentFactory m_Buff;
-    TableData m_GeneralProperties;
-    TableData m_AllProperties;
-    TableData m_ExploreProperties;
-    //TableData m_Statistics;
-    TableData m_ValueInfo;
-    TableData m_SourceDescription;
-    TableData m_Configuration;
-    bool is_docking_initialized = false;
+    GuiOutStreamBuff m_Buff;
+    TableData               m_GeneralProperties;
+    TableData               m_AllProperties;
+    TableData               m_ExploreProperties;
+    TableData               m_ValueInfo;
+    TableData               m_SourceDescription;
+    TableData               m_Configuration;
+    bool                    m_is_docking_initialized = false;
+    bool                    m_pinned = true;
+    DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
+    Float32                 m_min_size = 30.0f;
+    Float32                 m_expanded_size = 1000.0f;
 };

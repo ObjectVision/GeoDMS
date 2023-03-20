@@ -870,6 +870,8 @@ static void ImGui_ImplGlfw_CreateWindow(ImGuiViewport* viewport)
     vd->Window = glfwCreateWindow((int)viewport->Size.x, (int)viewport->Size.y, "No Title Yet", NULL, share_window);
     vd->WindowOwned = true;
 
+    glfwSetInputMode(vd->Window, GLFW_LOCK_KEY_MODS, GLFW_TRUE); // state of Num Lock and Caps Lock
+
     // set window dms icon
     SetDmsWindowIcon(vd->Window);
 

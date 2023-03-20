@@ -117,11 +117,11 @@ void SetDmsWindowIcon(GLFWwindow* window)
     }
 }
 
-FontSpecification CreateNotoSansMediumFontSpec()
+FontSpecification CreateNotoSansMediumFontSpec(Float32 font_size)
 {
     FontSpecification result_spec;
     result_spec.filename = "misc/fonts/NotoSans-Medium.ttf";
-    result_spec.size = 17.0f;
+    result_spec.size = font_size;
     result_spec.y_offset = -2.0f;
 
     // https://fonts.googleapis.com/css2?family=Noto+Sans Latin, Greek and Cyrillic
@@ -132,11 +132,11 @@ FontSpecification CreateNotoSansMediumFontSpec()
     return result_spec;
 }
 
-FontSpecification CreateNotoSansMathFontSpec()
+FontSpecification CreateNotoSansMathFontSpec(Float32 font_size)
 {
     FontSpecification result_spec;
     result_spec.filename = "misc/fonts/NotoSansMath-Regular.ttf";
-    result_spec.size = 17.0f;
+    result_spec.size = font_size;
     result_spec.y_offset = -4.0f;
 
     // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
@@ -147,11 +147,11 @@ FontSpecification CreateNotoSansMathFontSpec()
     return result_spec;
 }
 
-FontSpecification CreateNotoSansArabicFontSpec()
+FontSpecification CreateNotoSansArabicFontSpec(Float32 font_size)
 {
     FontSpecification result_spec;
     result_spec.filename = "misc/fonts/NotoSansArabic-Medium.ttf";
-    result_spec.size = 17.0f;
+    result_spec.size = font_size;
     result_spec.y_offset = -2.0f;
 
     // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
@@ -162,11 +162,11 @@ FontSpecification CreateNotoSansArabicFontSpec()
     return result_spec;
 }
 
-FontSpecification CreateNotoSansJapaneseFontSpec()
+FontSpecification CreateNotoSansJapaneseFontSpec(Float32 font_size)
 {
     FontSpecification result_spec;
     result_spec.filename = "misc/fonts/NotoSansJP-Medium.otf";
-    result_spec.size = 17.0f;
+    result_spec.size = font_size;
     result_spec.y_offset = -2.0f;
 
     // https://fonts.googleapis.com/css2?family=Noto+Sans+Math
@@ -177,11 +177,11 @@ FontSpecification CreateNotoSansJapaneseFontSpec()
     return result_spec;
 }
 
-FontSpecification CreateRemixIconsFontSpec()
+FontSpecification CreateRemixIconsFontSpec(Float32 font_size)
 {
     FontSpecification result_spec;
     result_spec.filename = "misc/fonts/remixicon.ttf";
-    result_spec.size = 15.0f;
+    result_spec.size = font_size;
     result_spec.y_offset = 1.0f;
 
     result_spec.ranges.push_back(0xEA01);
@@ -206,28 +206,13 @@ ImFont* SetGuiFont(FontBuilderRecipy& recipy)
         config.GlyphOffset = ImVec2(0.0f, font_spec.y_offset);
         if (std::filesystem::exists(fontFileName))
             font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_spec.size, &config, font_spec.ranges.Data);
+        else
+        {
+            reportF(SeverityTypeID::ST_Warning, "Font file %s does not exist, falling back to ImGui default font.", fontFileName.c_str());
+            return nullptr;
+        }
         config.MergeMode = true; // in case the recipy contains multiple fonts
     }
     io.Fonts->Build();
-    
-    //std::string fontFileName = exePath + font_filenames.at(0); //"misc/fonts/DroidSans.ttf";
-    
-    //std::string iconFontFileName = exePath + "misc/fonts/remixicon.ttf";
-    
-    //config.GlyphOffset = ImVec2(0.0f, font_y_offset);//-2.0f);
-    //ImWchar ranges_text_font[] = { 0x20, 0xFFFF, 0 }; // TODO: set range dynamically using range builder?
-    /*if (std::filesystem::exists(fontFileName))
-    {
-        font_ptr = io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), font_size, &config, ranges_text_font);
-        io.Fonts->Build();
-        // 17.0f
-        //io.Fonts->AddFontFromFileTTF(fontFileName.c_str(), 17.0f);
-    }*/
-
     return font_ptr;
-    /*config.MergeMode = true;
-    config.GlyphOffset = ImVec2(0.0f,1.0f);
-    ImWchar ranges_icon_font[] = { 0xEA01, 0xf2DE, 0 };
-    io.Fonts->AddFontFromFileTTF(iconFontFileName.c_str(), 15.0f, &config, ranges_icon_font);
-    io.Fonts->Build();*/
 }
