@@ -53,14 +53,12 @@ granted by an additional written contract for support, assistance and/or develop
 //                         LookupOperators
 // *****************************************************************************
 
-CommonOperGroup cog_lookup ("lookup");
-
 class AbstrLookupOperator : public BinaryOperator
 {
 	ValueComposition m_VC;
 public:
-	AbstrLookupOperator(const DataItemClass* arg1Cls, const DataItemClass* arg2Cls) : 
-		BinaryOperator(&cog_lookup, arg2Cls, // result elem type == arg2 elem type
+	AbstrLookupOperator(AbstrOperGroup& aog, const DataItemClass* arg1Cls, const DataItemClass* arg2Cls) : 
+		BinaryOperator(&aog, arg2Cls, // result elem type == arg2 elem type
 			arg1Cls, arg2Cls
 		) 
 		,	m_VC(arg2Cls->GetValuesType()->GetValueComposition())
@@ -147,7 +145,7 @@ class LookupOperator : public AbstrLookupOperator
 	typedef DataArray<V>              ResultType;
          
 public:
-	LookupOperator() : AbstrLookupOperator(Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()) 
+	LookupOperator(AbstrOperGroup& aog) : AbstrLookupOperator(aog, Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()) 
 	{}
 
 	std::any MakeValuesArray(const AbstrDataItem* arg2A) const override
@@ -233,15 +231,22 @@ public:
 	}
 };
 
+
 // *****************************************************************************
 //                               INSTANTIATION
 // *****************************************************************************
 
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
+#include "LispTreeType.h"
+
+CommonOperGroup cog_lookup(token::lookup);
 
 namespace 
 {
+	CommonOperGroup cog_collect_by_org_rel(token::collect_by_org_rel);
+
+
 	template <typename V> struct lookup_instances
 	{
 		using typefunc =
@@ -250,11 +255,13 @@ namespace
 					typelists::domain_elements
 				,	LookupOperator<_, V>
 				>
+			,	AbstrOperGroup&
 			>;
 		using type = typename typefunc::type;
 	};
 
-	tl_oper::inst_tuple<typelists::value_elements, lookup_instances<_>> operInstances;
+	tl_oper::inst_tuple<typelists::value_elements, lookup_instances<_>, AbstrOperGroup&> operLookup(cog_lookup);
+	tl_oper::inst_tuple<typelists::value_elements, lookup_instances<_>, AbstrOperGroup&> operCollectByOrgRel(cog_collect_by_org_rel);
 
 } // end anonymous namespace
 

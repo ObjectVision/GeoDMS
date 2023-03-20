@@ -41,6 +41,21 @@
 [(select_data (select_orgrel_uint16 _Cond) _Data) (select_data (select_orgrel_uint16 _Cond) _Cond _Data)]
 [(select_data (select_orgrel_uint32 _Cond) _Data) (select_data (select_orgrel_uint32 _Cond) _Cond _Data)]
 
+[(select_data (select_org_rel        _Cond) _Data) (select_data (select_org_rel        _Cond) _Cond _Data)]
+[(select_data (select_org_rel_uint8  _Cond) _Data) (select_data (select_org_rel_uint8  _Cond) _Cond _Data)]
+[(select_data (select_org_rel_uint16 _Cond) _Data) (select_data (select_org_rel_uint16 _Cond) _Cond _Data)]
+[(select_data (select_org_rel_uint32 _Cond) _Data) (select_data (select_org_rel_uint32 _Cond) _Cond _Data)]
+
+[(collect (select        _Cond) _Data) (collect (select        _Cond) _Cond _Data)]
+[(collect (select_uint8  _Cond) _Data) (collect (select_uint8  _Cond) _Cond _Data)]
+[(collect (select_uint16 _Cond) _Data) (collect (select_uint16 _Cond) _Cond _Data)]
+[(collect (select_uint32 _Cond) _Data) (collect (select_uint32 _Cond) _Cond _Data)]
+
+[(collect (select_org_rel        _Cond) _Data) (collect (select_org_rel        _Cond) _Cond _Data)]
+[(collect (select_uint8_org_rel  _Cond) _Data) (collect (select_uint8_org_rel  _Cond) _Cond _Data)]
+[(collect (select_uint16_org_rel _Cond) _Data) (collect (select_uint16_org_rel _Cond) _Cond _Data)]
+[(collect (select_uint32_org_rel _Cond) _Data) (collect (select_uint32_org_rel _Cond) _Cond _Data)]
+
 /*********** Elementary funcs  *********/
 
 [(log _x _y)                (div (log _x) (log _y))]
