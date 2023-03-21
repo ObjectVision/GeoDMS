@@ -530,7 +530,7 @@ void PostEmptyEventToGLFWContext()
     glfwPostEmptyEvent();
 }
 
-void StringToTable(std::string& input, TableData& result, std::string separator)
+void StringToTable(std::string& input, md_table_data& result, std::string separator)
 {
     result.clear();
     auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
@@ -541,14 +541,14 @@ void StringToTable(std::string& input, TableData& result, std::string separator)
         {
             result.emplace_back();
             for (auto& part : colon_separated_line)
-                result.back().emplace_back(PET_TEXT, false, part);
+                result.back().back().emplace_back(PET_TEXT, false, part);
         }
     }
 }
 
-void DrawProperties(GuiState& state, TableData& properties)
+void DrawProperties(GuiState& state, md_table_data& properties)
 {
-    auto event_queues = GuiEventQueues::getInstance();
+    /*auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
         return;
 
@@ -610,5 +610,5 @@ void DrawProperties(GuiState& state, TableData& properties)
             OnItemClickItemTextTextToClipboard(col.text);
         }
     }
-    ImGui::EndTable();
+    ImGui::EndTable();*/
 }

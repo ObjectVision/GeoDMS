@@ -79,7 +79,7 @@ std::string GuiOutStreamBuff::GetHrefFromTag()
 
 }
 
-void GuiOutStreamBuff::InterpretTag(TableData& tableProperties)
+/*void GuiOutStreamBuff::InterpretTag(table_data& tableProperties)
 {
     // open tags
     if (m_Tag.text.size() >= 5 && std::string_view(m_Tag.text.data(), 5) == "<BODY")
@@ -149,7 +149,8 @@ void GuiOutStreamBuff::InterpretTag(TableData& tableProperties)
         tableProperties.back().emplace_back(PET_SEPARATOR, false, m_Text);
     }
 
-}
+}*/
+
 bool GuiOutStreamBuff::IsOpenTag(UInt32 ind)
 {
     std::string tmpTag;
@@ -195,7 +196,7 @@ auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
     return std::string(m_Buff.begin(), m_Buff.end());
 }
 
-void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
+/*void GuiOutStreamBuff::InterpretBytes(table_data& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
@@ -228,7 +229,7 @@ void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
         case HTMLParserState::TAGCLOSE:
         {
             m_Tag.text += chr;
-            InterpretTag(tableProperties);
+            //InterpretTag(tableProperties);
             m_Tag.text.clear();
             break;
         }
@@ -241,7 +242,7 @@ void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
         }
         }
     }
-}
+}*/
 
 streamsize_t GuiOutStreamBuff::CurrPos() const
 {
@@ -280,7 +281,307 @@ bool TreeItemToMarkdownPageGeneral(const TreeItem* current_item, bool showAll)
 
 GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
 {
+    Parse(markdown_text);
+}
 
+void GuiMarkDownPage::Parse(std::string_view markdown_text)
+{
+    m_data.clear();
+
+    for (size_t i=0; i<markdown_text.size(); i++)
+    {
+        auto chr = markdown_text.at(i);
+        // If we're at the beginning of the line, count any spaces
+        if (m_line.isLeadingSpace)
+        {
+            if (chr == ' ')
+            {
+                ++m_line.leadSpaceCount;
+                continue;
+            }
+            else
+            {
+                m_line.isLeadingSpace = false;
+                m_line.lastRenderPosition = i - 1;
+                if ((chr == '*') && (m_line.leadSpaceCount >= 2))
+                {
+                    if (((int)markdown_text.size() > i + 1) && (markdown_text[i + 1] == ' '))    // space after '*'
+                    {
+                        m_line.isUnorderedListStart = true;
+                        ++i;
+                        ++m_line.lastRenderPosition;
+                    }
+                    // carry on processing as could be emphasis
+                }
+                else if (chr == '#')
+                {
+                    m_line.headingCount++;
+                    bool bContinueChecking = true;
+                    int j = i;
+                    while (++j < (int)markdown_text.size() && bContinueChecking)
+                    {
+                        chr = markdown_text[j];
+                        switch (chr)
+                        {
+                        case '#':
+                            m_line.headingCount++;
+                            break;
+                        case ' ':
+                            m_line.lastRenderPosition = j - 1;
+                            i = j;
+                            m_line.isHeading = true;
+                            bContinueChecking = false;
+                            break;
+                        default:
+                            m_line.isHeading = false;
+                            bContinueChecking = false;
+                            break;
+                        }
+                    }
+                    if (m_line.isHeading)
+                    {
+                        // reset emphasis status, we do not support emphasis around headers for now
+                        m_emphasis = MarkDownEmphasis();
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Test to see if we have a link
+        switch (m_link.state)
+        {
+        case MarkDownLink::NO_LINK:
+            if (chr == '[' && !m_line.isHeading) // we do not support headings with links for now
+            {
+                m_link.state = MarkDownLink::HAS_SQUARE_BRACKET_OPEN;
+                m_link.text.start = i + 1;
+                if (i > 0 && markdown_text[i - 1] == '!')
+                {
+                    m_link.isImage = true;
+                }
+            }
+            break;
+        case MarkDownLink::HAS_SQUARE_BRACKET_OPEN:
+            if (chr == ']')
+            {
+                m_link.state = MarkDownLink::HAS_SQUARE_BRACKETS;
+                m_link.text.stop = i;
+            }
+            break;
+        case MarkDownLink::HAS_SQUARE_BRACKETS:
+            if (chr == '(')
+            {
+                m_link.state = MarkDownLink::HAS_SQUARE_BRACKETS_ROUND_BRACKET_OPEN;
+                m_link.url.start = i + 1;
+                m_link.num_brackets_open = 1;
+            }
+            break;
+        case MarkDownLink::HAS_SQUARE_BRACKETS_ROUND_BRACKET_OPEN:
+            if (chr == '(')
+            {
+                ++m_link.num_brackets_open;
+            }
+            else if (chr == ')')
+            {
+                --m_link.num_brackets_open;
+            }
+            if (m_link.num_brackets_open == 0)
+            {
+                // reset emphasis status, we do not support emphasis around links for now
+                m_emphasis = MarkDownEmphasis();
+                // render previous line content
+                m_line.lineEnd = m_link.text.start - (m_link.isImage ? 2 : 1);
+                //RenderLine(markdown_text, m_line, textRegion, mdConfig_);
+                m_line.leadSpaceCount = 0;
+                m_link.url.stop = i;
+                m_line.isUnorderedListStart = false;    // the following text shouldn't have bullets
+                ImGui::SameLine(0.0f, 0.0f);
+                if (m_link.isImage)   // it's an image, render it.
+                {
+                    // TODO: implement
+                    /*bool drawnImage = false;
+                    bool useLinkCallback = false;
+                    if (mdConfig_.imageCallback)
+                    {
+                        MarkdownImageData imageData = mdConfig_.imageCallback({ markdown_ + link.text.start, link.text.size(), markdown_ + link.url.start, link.url.size(), mdConfig_.userData, true });
+                        useLinkCallback = imageData.useLinkCallback;
+                        if (imageData.isValid)
+                        {
+                            ImGui::Image(imageData.user_texture_id, imageData.size, imageData.uv0, imageData.uv1, imageData.tint_col, imageData.border_col);
+                            drawnImage = true;
+                        }
+                    }
+                    if (!drawnImage)
+                    {
+                        ImGui::Text("( Image %.*s not loaded )", link.url.size(), markdown_ + link.url.start);
+                    }
+                    if (ImGui::IsItemHovered())
+                    {
+                        if (ImGui::IsMouseReleased(0) && mdConfig_.linkCallback && useLinkCallback)
+                        {
+                            mdConfig_.linkCallback({ markdown_ + link.text.start, link.text.size(), markdown_ + link.url.start, link.url.size(), mdConfig_.userData, true });
+                        }
+                        if (link.text.size() > 0 && mdConfig_.tooltipCallback)
+                        {
+                            mdConfig_.tooltipCallback({ { markdown_ + link.text.start, link.text.size(), markdown_ + link.url.start, link.url.size(), mdConfig_.userData, true }, mdConfig_.linkIcon });
+                        }
+                    }*/
+                }
+                else                 // it's a link, render it.
+                {
+                    //textRegion.RenderLinkTextWrapped(markdown_ + link.text.start, markdown_ + link.text.start + link.text.size(), link, markdown_, mdConfig_, &linkHoverStart, false);
+                }
+                ImGui::SameLine(0.0f, 0.0f);
+                // reset the link by reinitializing it
+                m_link = MarkDownLink();
+                m_line.lastRenderPosition = i;
+                break;
+            }
+        }
+
+        // Test to see if we have emphasis styling
+        switch (m_emphasis.state)
+        {
+        case MarkDownEmphasis::NONE:
+            if (m_link.state == MarkDownLink::NO_LINK && !m_line.isHeading)
+            {
+                int next = i + 1;
+                int prev = i - 1;
+                if ((chr == '*' || chr == '_')
+                    && (i == m_line.lineStart
+                        || markdown_text[prev] == ' '
+                        || markdown_text[prev] == '\t') // empasis must be preceded by whitespace or line start
+                    && (int)markdown_text.size() > next // emphasis must precede non-whitespace
+                    && markdown_text[next] != ' '
+                    && markdown_text[next] != '\n'
+                    && markdown_text[next] != '\t')
+                {
+                    m_emphasis.state = MarkDownEmphasis::LEFT;
+                    m_emphasis.sym = chr;
+                    m_emphasis.text.start = i;
+                    m_line.emphasisCount = 1;
+                    continue;
+                }
+            }
+            break;
+        case MarkDownEmphasis::LEFT:
+            if (m_emphasis.sym == chr)
+            {
+                ++m_line.emphasisCount;
+                continue;
+            }
+            else
+            {
+                m_emphasis.text.start = i;
+                m_emphasis.state = MarkDownEmphasis::MIDDLE;
+            }
+            break;
+        case MarkDownEmphasis::MIDDLE:
+            if (m_emphasis.sym == chr)
+            {
+                m_emphasis.state = MarkDownEmphasis::RIGHT;
+                m_emphasis.text.stop = i;
+                // pass through to case Emphasis::RIGHT
+            }
+            else
+            {
+                break;
+            }
+        case MarkDownEmphasis::RIGHT:
+            if (m_emphasis.sym == chr)
+            {
+                if (m_line.emphasisCount < 3 && (i - m_emphasis.text.stop + 1 == m_line.emphasisCount))
+                {
+                    // render text up to emphasis
+                    int lineEnd = m_emphasis.text.start - m_line.emphasisCount;
+                    if (lineEnd > m_line.lineStart)
+                    {
+                        m_line.lineEnd = lineEnd;
+                        //RenderLine(markdown_, line, textRegion, mdConfig_);
+                        ImGui::SameLine(0.0f, 0.0f);
+                        m_line.isUnorderedListStart = false;
+                        m_line.leadSpaceCount = 0;
+                    }
+                    m_line.isEmphasis = true;
+                    m_line.lastRenderPosition = m_emphasis.text.start - 1;
+                    m_line.lineStart = m_emphasis.text.start;
+                    m_line.lineEnd = m_emphasis.text.stop;
+                    //RenderLine(markdown_, line, textRegion, mdConfig_);
+                    ImGui::SameLine(0.0f, 0.0f);
+                    m_line.isEmphasis = false;
+                    m_line.lastRenderPosition = i;
+                    m_emphasis = MarkDownEmphasis();
+                }
+                continue;
+            }
+            else
+            {
+                m_emphasis.state = MarkDownEmphasis::NONE;
+                // render text up to here
+                int start = m_emphasis.text.start - m_line.emphasisCount;
+                if (start < m_line.lineStart)
+                {
+                    m_line.lineEnd = m_line.lineStart;
+                    m_line.lineStart = start;
+                    m_line.lastRenderPosition = start - 1;
+                    //RenderLine(markdown_, m_line, textRegion, mdConfig_);
+                    m_line.lineStart = m_line.lineEnd;
+                    m_line.lastRenderPosition = m_line.lineStart - 1;
+                }
+            }
+            break;
+        }
+
+        // handle end of line (render)
+        if (chr == '\n')
+        {
+            // first check if the line is a horizontal rule
+            m_line.lineEnd = i;
+            if (m_emphasis.state == MarkDownEmphasis::MIDDLE && m_line.emphasisCount >= 3 &&
+                (m_line.lineStart + m_line.emphasisCount) == i)
+            {
+                ImGui::Separator();
+            }
+            else
+            {
+                // render the line: multiline emphasis requires a complex implementation so not supporting
+                //RenderLine(markdown_, m_line, textRegion, mdConfig_);
+            }
+
+            // reset the line and emphasis state
+            m_line = MarkDownLine();
+            m_emphasis = MarkDownEmphasis();
+
+            m_line.lineStart = i + 1;
+            m_line.lastRenderPosition = i;
+
+            //textRegion.ResetIndent();
+
+            // reset the link
+            m_link = MarkDownLink();
+        }
+    }
+
+    if (m_emphasis.state == MarkDownEmphasis::LEFT && m_line.emphasisCount >= 3)
+    {
+        ImGui::Separator();
+    }
+    else
+    {
+        // render any remaining text if last char wasn't 0
+        if (markdown_text.size() && m_line.lineStart < (int)markdown_text.size() && markdown_text[m_line.lineStart] != 0)
+        {
+            // handle both null terminated and non null terminated strings
+            m_line.lineEnd = (int)markdown_text.size();
+            if (0 == markdown_text[m_line.lineEnd - 1])
+            {
+                --m_line.lineEnd;
+            }
+            //RenderLine(markdown_, m_line, textRegion, mdConfig_);
+        }
+    }
+    
 }
 
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
@@ -316,9 +617,12 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
     auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), mdOut.get(), true); // TODO: use result
-    
     auto general_string = m_Buff.InterpretBytesAsString();
-    StringToTable(general_string, m_GeneralProperties);
+
+    m_GeneralProperties_MD.release();
+    m_GeneralProperties_MD = std::make_unique<GuiMarkDownPage>(general_string);
+
+    //StringToTable(general_string, m_GeneralProperties);
     m_Buff.Reset();
 }
 
@@ -334,7 +638,7 @@ void GuiDetailPages::UpdateAllProperties(GuiState& state)
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
-    m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
+    //m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -344,7 +648,7 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
-    m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
+    //m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -365,7 +669,7 @@ bool GuiDetailPages::UpdateValueInfo(GuiState& state)
 {
     clear();
     std::string result_string = "Omitted in alpha version.";
-    StringToTable(result_string, m_ValueInfo);
+    //StringToTable(result_string, m_ValueInfo);
     return true;
 
 
@@ -382,7 +686,7 @@ bool GuiDetailPages::UpdateValueInfo(GuiState& state)
     if (!result)
         return true;
 
-    m_Buff.InterpretBytes(m_ValueInfo); // Create detail page from html stream
+    //m_Buff.InterpretBytes(m_ValueInfo); // Create detail page from html stream
     m_Buff.Reset();
     // TODO: See uDMSTreeViewFunctions.pas line 254
 //DP_ValueInfo:
@@ -399,7 +703,7 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
     DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
     auto conf_str = m_Buff.InterpretBytesAsString();
-    StringToTable(conf_str, m_Configuration);
+    //StringToTable(conf_str, m_Configuration);
     m_Buff.Reset();
 }
 
@@ -408,7 +712,7 @@ void GuiDetailPages::UpdateSourceDescription(GuiState& state)
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     std::string source_descr_string = TreeItem_GetSourceDescr(state.GetCurrentItem(), state.SourceDescrMode, true).c_str();
-    StringToTable(source_descr_string, m_SourceDescription);
+    //StringToTable(source_descr_string, m_SourceDescription);
     auto test = std::string(DMS_TreeItem_GetExpr(state.GetCurrentItem()));
 }
 
@@ -534,7 +838,7 @@ void GuiDetailPages::DrawContent(GuiState& state)
         {
             if (m_GeneralProperties.empty())
                 UpdateGeneralProperties(state);
-            DrawProperties(state, m_GeneralProperties);
+            //DrawProperties(state, m_GeneralProperties);
         }
         break;
     }
@@ -544,7 +848,7 @@ void GuiDetailPages::DrawContent(GuiState& state)
         {
             if (m_ExploreProperties.empty())
                 UpdateExploreProperties(state);
-            DrawProperties(state, m_ExploreProperties);
+            //DrawProperties(state, m_ExploreProperties);
         }
         break;
     }
@@ -554,7 +858,7 @@ void GuiDetailPages::DrawContent(GuiState& state)
         {
             if (m_AllProperties.empty())
                 UpdateAllProperties(state);
-            DrawProperties(state, m_AllProperties);
+            //DrawProperties(state, m_AllProperties);
         }
         break;
     }
@@ -564,7 +868,7 @@ void GuiDetailPages::DrawContent(GuiState& state)
         {
             if (m_Configuration.empty())
                 UpdateConfiguration(state);
-            DrawProperties(state, m_Configuration);
+            //DrawProperties(state, m_Configuration);
         }
         break;
     }

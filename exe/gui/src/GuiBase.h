@@ -385,23 +385,28 @@ private:
 };
 
 // for detail pages and gui views
-enum PropertyEntryType
+enum element_type
 {
 	PET_SEPARATOR,
 	PET_TEXT,
 	PET_LINK,
-	PET_HEADING
+	PET_HEADING,
+	PET_NONE
 };
 
-struct PropertyEntry
+struct element_part
 {
-	PropertyEntryType   type;
-	bool background_is_red = false;
-	std::string         text;
+	//element_part(element_type t, bool bg, std::string value) { text = t; background_is_red = bg; text = value; };
+	element_type type      = PET_NONE;
+	bool is_failed = false;
+	std::string		  text = "";
+	//std::vector<std::string>
 };
 
-using RowData = std::vector<PropertyEntry>;
-using TableData = std::vector<RowData>;
+using md_element_data  = std::vector<element_part>;
+using md_row_data      = std::vector<md_element_data>;
+using md_table_data    = std::vector<md_row_data>;
+using markdown_data = std::vector<md_table_data>;
 
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
@@ -420,5 +425,5 @@ auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_tex
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
-void StringToTable(std::string& input, TableData& result, std::string separator = "");
-void DrawProperties(GuiState& state, TableData& properties);
+void StringToTable(std::string& input, md_table_data& result, std::string separator = "");
+void DrawProperties(GuiState& state, md_table_data& properties);
