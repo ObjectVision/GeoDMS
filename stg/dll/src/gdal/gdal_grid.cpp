@@ -385,7 +385,7 @@ void GDalGridImp::SetWidth(auto width)
 }
 void GDalGridImp::SetHeight(auto height)
 {
-	MG_CHECK(height == GetWidth());
+	MG_CHECK(height == GetHeight());
 }
 void GDalGridImp::SetTiled()
 {
