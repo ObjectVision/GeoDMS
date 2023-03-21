@@ -898,7 +898,7 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 		if (wktString.empty())
 			continue;
 		auto srOrErr = GetSpatialReferenceFromUserInput(wktString);
-		if (srOrErr.second != OGRERR_NONE)
+		if (srOrErr.second == OGRERR_NONE)
 			return srOrErr.first;
 	}
 	return {};

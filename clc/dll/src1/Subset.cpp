@@ -77,7 +77,7 @@ SizeT count_bitvalues(bit_iterator<1, Block> sb, bit_iterator<1, Block> se)
 }
 
 // *****************************************************************************
-//                         Subset
+//                               select, subset, select_with_org_rel
 // *****************************************************************************
 
 template <typename ResContainer>
@@ -219,6 +219,10 @@ struct SubsetOperator: public UnaryOperator
 	}
 };
 
+// *****************************************************************************
+//                               selet_with_attr_xxx
+// *****************************************************************************
+
 struct SelectMetaOperator : public BinaryOperator
 {
 	SelectMetaOperator(AbstrOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm, TokenID selectOper)
@@ -302,71 +306,9 @@ struct SelectMetaOperator : public BinaryOperator
 	}
 };
 
-enum class relate_mode { org_rel, condition };
-
-struct RelateAttrOperator : public TernaryOperator
-{
-	relate_mode m_RelateMode;
-	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
-		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
-		, m_RelateMode(relateMode)
-	{}
-
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
-	{
-		assert(args.size() == 3);
-
-		const TreeItem* attrContainer = GetItem(args[0]);
-
-//		auto containerExpr = metaCallArgs.Left();
-		auto orgRelExpr = metaCallArgs.Right().Right().Left();
-		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
-		auto orgRelDC = GetDC(orgRelCalc);
-		MG_CHECK(orgRelDC);
-		orgRelExpr = orgRelDC->GetLispRef();
-		auto orgRelItem = orgRelDC->MakeResult();
-		MG_CHECK(orgRelItem);
-		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
-		MG_USERCHECK2(orgRelA, 
-			m_RelateMode == relate_mode::org_rel
-			? "org_rel data-item expected as 3rd argument"
-			: "condition data-item expected as 3rd argument"
-		);
-
-		auto domainItem = GetItem(args[1]);
-		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
-		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
-
-		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
-		assert(sourceDomain);
-		assert(resultHolder);
-		if (m_RelateMode == relate_mode::org_rel)
-			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
-
-		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		{
-			if (!IsDataItem(subItem))
-				continue;
-			auto subDataItem = AsDataItem(subItem);
-			auto subDataID = subDataItem->GetID();
-			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
-				continue;
-			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
-				continue;
-			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			subDataItem->UpdateMetaInfo();
-			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
-
-			if (m_RelateMode == relate_mode::org_rel)
-				keyExpr = ExprList(token::lookup, orgRelExpr, keyExpr);
-			else
-				keyExpr = ExprList(token::select_data, keyExpr, orgRelExpr);
-
-			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
-		}
-		resultHolder->SetIsInstantiated();
-	}
-};
+// *****************************************************************************
+//                               collect_by_cond, collect_by_org_rel
+// *****************************************************************************
 
 struct AbstrSelectDataOperator : TernaryOperator
 {
@@ -448,8 +390,79 @@ struct SelectDataOperator : AbstrSelectDataOperator
 };
 
 // *****************************************************************************
+//                               collect_with_attr_by_cond, collect_with_attr_by_org_rel
+// *****************************************************************************
+
+enum class relate_mode { org_rel, condition };
+
+struct RelateAttrOperator : public TernaryOperator
+{
+	relate_mode m_RelateMode;
+	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
+		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
+		, m_RelateMode(relateMode)
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
+	{
+		assert(args.size() == 3);
+
+		const TreeItem* attrContainer = GetItem(args[0]);
+
+		//		auto containerExpr = metaCallArgs.Left();
+		auto orgRelExpr = metaCallArgs.Right().Right().Left();
+		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
+		auto orgRelDC = GetDC(orgRelCalc);
+		MG_CHECK(orgRelDC);
+		orgRelExpr = orgRelDC->GetLispRef();
+		auto orgRelItem = orgRelDC->MakeResult();
+		MG_CHECK(orgRelItem);
+		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
+		MG_USERCHECK2(orgRelA,
+			m_RelateMode == relate_mode::org_rel
+			? "org_rel data-item expected as 3rd argument"
+			: "condition data-item expected as 3rd argument"
+		);
+
+		auto domainItem = GetItem(args[1]);
+		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
+		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
+
+		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
+		assert(sourceDomain);
+		assert(resultHolder);
+		if (m_RelateMode == relate_mode::org_rel)
+			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
+
+		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			if (!IsDataItem(subItem))
+				continue;
+			auto subDataItem = AsDataItem(subItem);
+			auto subDataID = subDataItem->GetID();
+			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
+				continue;
+			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
+				continue;
+			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			subDataItem->UpdateMetaInfo();
+			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
+
+			if (m_RelateMode == relate_mode::org_rel)
+				keyExpr = ExprList(token::collect_by_org_rel, orgRelExpr, keyExpr);
+			else
+				keyExpr = ExprList(token::collect_by_cond, keyExpr, orgRelExpr);
+
+			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
+		}
+		resultHolder->SetIsInstantiated();
+	}
+};
+
+// *****************************************************************************
 //                               INSTANTIATION
 // *****************************************************************************
+
 #include "LispTreeType.h"
 
 namespace {
