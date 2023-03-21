@@ -174,7 +174,11 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "overlay_polygon at %d tiles of first argument x %d tiles of second argument resulted in %d matches"
+					, domain1Unit->GetNrTiles()
+					, ue
+					, intersectCount
+				);
 			}
 
 			StoreRes(res, resG, res1, res2, resData);

@@ -1622,7 +1622,7 @@ protected:
 					}
 				);
 
-				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons at %d point tiles x %d polygon tiles resulted in %d matches"  // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons at %d point tiles x %d polygon tiles resulted in %d matches
 					, domain1Unit->GetNrTiles()
 					, ue
 					, intersectCount
