@@ -47,7 +47,7 @@ const AspectNr fontAngleAspect[FR_Count] = { AN_LabelAngle,     AN_SymbolAngle  
 
 const Float64  defFontPixelSize[FR_Count] = { DEFAULT_FONT_PIXEL_SIZE, DEFAULT_SYMB_PIXEL_SIZE };
 const Float64  defFontWorldSize[FR_Count] = { DEFAULT_FONT_WORLD_SIZE, DEFAULT_SYMB_WORLD_SIZE };
-const CharPtr  defFontNames    [FR_Count] = { "", "DMS Font" };
+const CharPtr  defFontNames    [FR_Count] = { "Noto Sans Medium", "DMS Font" };
 const WCHAR    defSymbol = 0x0023;
 
 #endif // __SHV_FONTROLE_H

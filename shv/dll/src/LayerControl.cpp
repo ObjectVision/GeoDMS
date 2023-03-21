@@ -101,7 +101,6 @@ void LayerInfoControl::ExplainValue()
 LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSetElem)
 	:	base_type(owner)
 	,	m_LayerElem   (layerSetElem)
-	,	m_FID(FontSizeCategory::SMALL)
 	,	m_connDetailsVisibilityChanged(layerSetElem->m_cmdDetailsVisibilityChanged.connect([this]() { this->OnDetailsVisibilityChanged();}))
 	,	m_connVisibilityChanged(layerSetElem->m_cmdVisibilityChanged.connect([this]() { this->InvalidateDraw();}))
 {
@@ -122,8 +121,8 @@ void LayerControlBase::SetFontSizeCategory(FontSizeCategory fid)
 	if (m_FID == fid)
 		return;
 	m_FID = fid;
-	m_HeaderControl->SetHeight(GetDefaultFontHeightDIP(fid));
-	InvalidateDraw();
+	m_HeaderControl->SetHeight(GetDefaultFontHeightDIP(fid) * (96.0 / 72.0));
+	m_HeaderControl->InvalidateDraw();
 }
 
 ScalableObject* LayerControlBase::GetLayerSetElem() const
@@ -558,7 +557,7 @@ void LayerControl::SetFontSizeCategory(FontSizeCategory fid)
 
 	base_type::SetFontSizeCategory(fid);
 
-	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
+	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()) * (96.0 / 72.0));
 	m_InfoControl->InvalidateDraw();
 	if (m_PaletteControl)
 		m_PaletteControl->InvalidateView();

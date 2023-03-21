@@ -103,7 +103,7 @@ private:
 
 private:
 	ScalableObject*           m_LayerElem; // ownership must be guarded by derived class that sees the complete type
-	FontSizeCategory          m_FID;
+	FontSizeCategory          m_FID = FontSizeCategory::MEDIUM;
 
 	std::shared_ptr<LayerHeaderControl>  m_HeaderControl;
 

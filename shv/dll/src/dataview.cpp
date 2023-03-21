@@ -291,6 +291,7 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
 
@@ -300,7 +301,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 			GdiHandle<HFONT>(
 				CreateFont(
 	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96
-					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(72.0 / 96.0),
+					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(96.0 / 72.0),
 					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
 					  0, // nEscapement
 					  0, // nOrientaion
@@ -313,7 +314,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
 					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
 					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
-					"Tahoma"                   // pointer to typeface name string
+					"Noto Sans Medium"         // pointer to typeface name string
 				)
 			);
 	}
@@ -339,7 +340,7 @@ void DataView::RemoveCaret(AbstrCaret* c)
 
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()));
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()));
 		c->Reverse(dc, false);
 	}
 	vector_erase(m_CaretVector, c);
@@ -364,7 +365,7 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 	if (m_State.Get(DVF_CaretsVisible))
 		caret->Move(
 			caretOperator, 
-			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()))
+			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()))
 		);
 	else
 		caretOperator(caret);
@@ -446,7 +447,7 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 	}
 	else
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor())); // activates xorMode in its constructor
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor())); // activates xorMode in its constructor
 		ReverseCaretsImpl(dc, newVisibleState);
 	}
 }
