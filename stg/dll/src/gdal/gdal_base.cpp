@@ -255,8 +255,8 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 	ogrSR->Validate();
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
-	if (strcmp(pszEsriwkt.m_Text, wkt_prj_str))
-		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
+	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str))
+		reportF(SeverityTypeID::ST_Warning, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
