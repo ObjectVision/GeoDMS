@@ -563,10 +563,79 @@ void OutStream_MD::WriteValue(CharPtr data)
 		m_cell_data += data;//m_OutStream << data;
 }
 
+void WriteTableToStream(FormattedOutStream& out, table_data& table)
+{
+	// write empty table header rows
+	for (int j = 0; j < table[0].size(); j++)
+	{
+		out << "|   ";
+	}
+	out << "|\n";
+	for (int j = 0; j < table[0].size(); j++)
+	{
+		out << "|---";
+	}
+	out << "|\n";
+
+	for (auto& row : table)
+	{
+		if (row.empty())
+			continue;
+
+		for (auto& element : row)
+		{
+			out << "|" << element.c_str();
+		}
+		out << "|\n";
+	}
+}
+
+void WriteDropdownToStream(FormattedOutStream& out, dropdown_data& dropdown)
+{
+	/*<details>
+
+		<summary>Tips for collapsed sections< / summary>
+
+		### You can add a header
+
+		You can add text within a collapsed section.
+
+		You can add an image or a code block, too.
+
+		```ruby
+		puts "Hello World"
+		```
+
+	< / details>*/
+
+	out << "<details>\n";
+	out << "<summary>" << dropdown.first.c_str() << "</summary>" << "\n";
+	for (int i = 0; i < dropdown.second.size(); i++)
+	{
+		out << std::to_string(i).c_str() << ". " << dropdown.second.at(i).c_str() << "\n";
+	}
+	out << "</details>\n";
+
+}
+
 void OutStream_MD::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr)
 {
 	dms_assert(maxSize);
 	CloseAttrList();
+
+	if (std::string(data).compare("ExplicitSuppliers") == 0)
+	{
+		if (m_in_table)
+		{
+			WriteTableToStream(m_OutStream, m_table);
+			m_table.clear();
+		}
+
+		m_in_dropdown = true;
+		m_dropdown.first = data;
+		return;
+	}
+
 	UInt32 strLen = StrLen(data);
 	if (strLen <= maxSize)
 	{
@@ -625,55 +694,6 @@ void OutStream_MD::WriteAttr(CharPtr name, UInt32 value)
 
 //=============== private members
 
-
-void WriteTableToStream(FormattedOutStream& out, table_data& table)
-{
-	// write empty table header rows
-	for (int j = 0; j < table[0].size(); j++)
-	{
-		out << "|   ";
-	}
-	out << "|\n";
-	for (int j = 0; j < table[0].size(); j++)
-	{
-		out << "|---";
-	}
-	out << "|\n";
-
-	for (auto& row : table)
-	{
-		if (row.empty())
-			continue;
-
-		for (auto& element : row)
-		{
-			out << "|" << element.c_str();
-		}
-		out << "|\n";
-	}
-}
-
-void WriteDropdownToStream()
-{
-	/*<details>
-
-		<summary>Tips for collapsed sections< / summary>
-
-		### You can add a header
-
-		You can add text within a collapsed section.
-
-		You can add an image or a code block, too.
-
-		```ruby
-		puts "Hello World"
-		```
-
-	< / details>*/
-
-
-}
-
 void OutStream_MD::OpenTag(CharPtr tagName)
 {
 	//NewLine();
@@ -688,8 +708,20 @@ void OutStream_MD::OpenTag(CharPtr tagName)
 	{
 		//m_OutStream << "\n"
 		m_OutStream << "\n";
-		WriteTableToStream(m_OutStream, m_table);
-		m_table.clear();
+
+		if (m_in_dropdown)
+		{
+			WriteDropdownToStream(m_OutStream, m_dropdown);
+			m_dropdown.first.clear();
+			m_dropdown.second.clear();
+			m_in_dropdown = false;
+		}
+		else if (m_in_table)
+		{
+			WriteTableToStream(m_OutStream, m_table);
+			m_table.clear();
+		}
+
 		m_OutStream << "---\n";
 	}
 	else if (tag.compare("TD") == 0)
@@ -702,7 +734,10 @@ void OutStream_MD::OpenTag(CharPtr tagName)
 		m_in_row = true;
 	}
 	else if (tag.compare("TABLE") == 0)
+	{
+		m_in_table = true;
 		return;
+	}
 	else if (tag.compare("BODY") == 0)
 		return;
 	else 
@@ -729,11 +764,19 @@ void OutStream_MD::CloseTag(CharPtr tagName)
 	}
 	else if (tag.compare("TR") == 0)
 	{
-		m_in_row = false;
-		if (!m_table_row.empty() && m_table_row.size()>1)
-			m_table.push_back(m_table_row);
+		if (m_in_dropdown)
+		{
+			if (!m_table_row.empty() && m_table_row.size() > 1)
+				m_dropdown.second.push_back(m_table_row[1]);
+		}
+		else
+		{
+			if (!m_table_row.empty() && m_table_row.size() > 1)
+				m_table.push_back(m_table_row);
+			
+		}
 		m_table_row.clear();
-		//m_OutStream << "|";
+		m_in_row = false;
 	}
 	else if (tag.compare("A") == 0)
 	{
