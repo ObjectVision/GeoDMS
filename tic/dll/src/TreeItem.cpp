@@ -920,26 +920,13 @@ void TreeItem::MakeCalculator() const
 
 void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
-	auto msg = mySSPrintF("ItemType is incompatible with the result of the calculation which is of type %s",
-		refItem->GetDynamicObjClass()->GetName()
+	auto msg = mySSPrintF("ItemType %s is incompatible with the result of the calculation which is of type %s"
+	,	self->GetDynamicObjClass()->GetName().c_str()
+	,	refItem->GetDynamicObjClass()->GetName().c_str()
 	);
 	self->Fail(msg, FR_Determine);
 }
 
-/*
-bool TreeItem::_CheckResultType(const TreeItem* refItem) const
-{
-	dms_assert(refItem);
-	if (WasFailed(FR_Determine))
-		return false;
-	if (refItem->WasFailed(FR_MetaInfo))
-		return false;
-	if (refItem->GetDynamicClass()->IsDerivedFrom(GetDynamicClass()) )
-		return true;
-	FailItemType(this, refItem);
-	return false;
-}
-*/
 bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 {
 	dms_assert(refItem);
