@@ -385,22 +385,26 @@ private:
 };
 
 // for detail pages and gui views
-enum element_type
+enum class element_type
 {
-	PET_SEPARATOR,
-	PET_TEXT,
-	PET_LINK,
-	PET_HEADING,
-	PET_NONE
+	SEPARATOR,
+	BOLD,
+	TEXT,
+	PARAGRAPH,
+	LINK,
+	HEADING_1,
+	HEADING_2,
+	NONE
 };
 
 struct element_part
 {
-	//element_part(element_type t, bool bg, std::string value) { text = t; background_is_red = bg; text = value; };
-	element_type type      = PET_NONE;
-	bool is_failed = false;
-	std::string		  text = "";
-	//std::vector<std::string>
+	element_type type        = element_type::NONE;
+	bool         is_failed   = false;
+	bool         is_selected = false;
+	UInt8        indentation = 0;
+	std::string	 text        = "";
+	std::string  link		 = "";
 };
 
 using md_element_data  = std::vector<element_part>;
