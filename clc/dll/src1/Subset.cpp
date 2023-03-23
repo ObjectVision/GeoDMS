@@ -290,10 +290,10 @@ struct SelectMetaOperator : public BinaryOperator
 			auto subDataID = subDataItem->GetID();
 			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
 				continue;
+			subDataItem->UpdateMetaInfo();
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
 				keyExpr = ExprList(token::collect_by_org_rel, resSubExpr, keyExpr);
@@ -442,10 +442,10 @@ struct RelateAttrOperator : public TernaryOperator
 			auto subDataID = subDataItem->GetID();
 			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
 				continue;
+			subDataItem->UpdateMetaInfo();
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 
 			if (m_RelateMode == relate_mode::org_rel)
@@ -456,6 +456,143 @@ struct RelateAttrOperator : public TernaryOperator
 			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
 		}
 		resultHolder->SetIsInstantiated();
+	}
+};
+
+// *****************************************************************************
+// recollect_by_cond   (cond:    D->B, subset_attr: S->V, fillerValue: ->V) -> (D -> V)
+// recollect_by_org_rel(org_rel: S->D, subset_attr: S->V, fillerValue: ->V) -> (D -> V)
+// *****************************************************************************
+
+struct AbstrRecollectByCondOperator : TernaryOperator
+{
+	AbstrRecollectByCondOperator(AbstrOperGroup& aog, ClassCPtr valuesClass)
+		: TernaryOperator(&aog, valuesClass, DataArray<Bool>::GetStaticClass(), valuesClass, valuesClass)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		dms_assert(args.size() == 3);
+
+		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[0]);
+		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[1]);
+		const AbstrDataItem* fillA = debug_cast<const AbstrDataItem*>(args[1]);
+
+//		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UM_Throw);
+		MG_USERCHECK2(fillA->HasVoidDomainGuarantee(), "third argument is supposed to be a parameter, i.e. an attribute with a void domain");
+
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
+
+		if (mustCalc)
+		{
+			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+
+			DataReadLock arg1Lock(condA);
+			DataReadLock arg2Lock(dataA);
+			DataReadLock arg3Lock(fillA);
+			DataWriteLock resLock(res);
+
+			Calculate(resLock, condA, dataA, fillA);
+			resLock.Commit();
+		}
+		return true;
+	}
+	virtual void Calculate(DataWriteHandle& res, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const = 0;
+};
+
+
+template <typename V>
+struct tile_reader
+{
+	tile_id currTile = 0, lastTile = 0;
+
+	SharedPtr<const DataArray<V>> tileArray;
+
+	DataArray<V>::locked_tile_ref currTileData;
+	DataArray<V>::const_pointer currPtr = {}, lastPtr = {};
+
+	tile_reader(const DataArray<V>* tileArray_)
+		: tileArray(tileArray_)
+		, lastTile(tileArray->GetNrTiles())
+	{
+		InitCurrTile();
+	}
+
+	void InitCurrTile()
+	{
+		if (currTile == lastTile)
+			return;
+		currTileData = tileArray->GetTile(currTile);
+		currPtr = currTileData.begin();
+		lastPtr = currTileData.end();
+		assert(!AtEnd());
+	}
+
+	V operator *() const
+	{ 
+		assert(!AtEnd());
+		return *currPtr;
+	}
+
+	void operator ++ () const
+	{
+		assert(!AtEnd());
+		++currPtr;
+		if (currPtr == lastPtr)
+		{
+			assert(currTile != lastTile);
+			++currTile;
+			InitCurrTile();
+		}
+	}
+	bool AtEnd() 
+	{
+		assert(currPtr != lastPtr || currTile == lastTile);
+		return currPtr == lastPtr;
+	}
+
+};
+
+template <typename V>
+struct RecollectByCondOperator : AbstrRecollectByCondOperator
+{
+	RecollectByCondOperator(AbstrOperGroup& aog)
+		: AbstrRecollectByCondOperator(aog, DataArray<V>::GetStaticClass())
+	{}
+
+	void Calculate(DataWriteHandle& res, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const override
+	{
+		const DataArray<Bool>* cond = const_array_cast<Bool>(condA);
+		const DataArray<V   >* data = const_array_cast<V>   (dataA);
+		V fillValue = const_array_cast<V>   (dataA)->GetData()[0];
+
+//		tile_write_channel<V> resDataChannel(mutable_array_cast<V>(res));
+		auto res = mutable_array_cast<V>(res);
+
+		auto valueReader = tile_reader<V>(data);
+
+		tile_id tn = condA->GetAbstrDomainUnit()->GetNrTiles();
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			//			ReadableTileLock condLock(cond, t), dataLock(data, t);
+			auto boolData = cond->GetTile(t);
+			auto resData = res->GetWritableTile(t);
+
+			for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++boolPtr)
+			{
+				if (Bool(*boolPtr))
+				{
+					resData[count++] = *valueReader;
+					++valueReader;
+				}
+				else
+					resData[count++] = fillValue;
+			}
+		}
+		MG_CHECK(resDataChannel.IsEndOfChannel());
+		MG_USER_CHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond doesn't match the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
 	}
 };
 
@@ -600,5 +737,6 @@ namespace {
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
+	tl_oper::inst_tuple<typelists::value_elements, RecollectByCondOperator<_>, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
 }
 
