@@ -83,7 +83,7 @@ private:
 	bool m_done = false;
 	bool m_is_ready = false;
 	TreeItem *m_item = nullptr; // to be released when statistics information is finalized
-	TableData m_data;
+	md_table_data m_data;
 };
 
 class GuiViews 

@@ -826,7 +826,7 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 					nullptr, nullptr, fontTheme.get(), nullptr
 				,	fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault() // theme domain entity
 				,	nullptr
-				,	cellHeight, 0, GetTokenID_mt(defFontNames[fr]), 0
+				,	cellHeight+2, 0, GetTokenID_mt(defFontNames[fr]), 0
 				)
 			);
 		m_FontIndexCache->UpdateForZoomLevel(1.0, subPixelFactor);

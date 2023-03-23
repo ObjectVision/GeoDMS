@@ -70,6 +70,8 @@ granted by an additional written contract for support, assistance and/or develop
 //	Shadow creation 
 //----------------------------------------------------------------------
 
+std::mutex s_mutableTileRecSection;
+
 template <typename V>
 void CloseMutableShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
 {
@@ -120,7 +122,7 @@ void InitMutableShadow(DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr, co
 	auto range = trd->GetRangeAsI64Rect();
 	dms_assert(Cardinality(range) == nrElem);
 
-	resizeSO(*shadowTilePtr, nrElem, !trd->IsCovered() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	resizeSO(*shadowTilePtr, nrElem, (!trd->IsCovered() || rwMode == dms_rw_mode::write_only_mustzero) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 	if (rwMode <= dms_rw_mode::read_write)
 	{

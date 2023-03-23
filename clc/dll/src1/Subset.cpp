@@ -77,7 +77,7 @@ SizeT count_bitvalues(bit_iterator<1, Block> sb, bit_iterator<1, Block> se)
 }
 
 // *****************************************************************************
-//                         Subset
+//                               select, subset, select_with_org_rel
 // *****************************************************************************
 
 template <typename ResContainer>
@@ -219,6 +219,10 @@ struct SubsetOperator: public UnaryOperator
 	}
 };
 
+// *****************************************************************************
+//                               selet_with_attr_xxx
+// *****************************************************************************
+
 struct SelectMetaOperator : public BinaryOperator
 {
 	SelectMetaOperator(AbstrOperGroup& cog, const Class* resDomainClass, OrgRelCreationMode orcm, TokenID selectOper)
@@ -286,15 +290,15 @@ struct SelectMetaOperator : public BinaryOperator
 			auto subDataID = subDataItem->GetID();
 			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
 				continue;
+			subDataItem->UpdateMetaInfo();
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			subDataItem->UpdateMetaInfo();
 			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
-			if (m_ORCM == OrgRelCreationMode::none)
-				keyExpr = ExprList(token::select_data, resExpr, conditionExpr, keyExpr);
+			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
+				keyExpr = ExprList(token::collect_by_org_rel, resSubExpr, keyExpr);
 			else
-				keyExpr = ExprList(token::lookup, resSubExpr, keyExpr);
+				keyExpr = ExprList(token::collect_by_cond, resExpr, conditionExpr, keyExpr);
 
 			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
 		}
@@ -302,71 +306,9 @@ struct SelectMetaOperator : public BinaryOperator
 	}
 };
 
-enum class relate_mode { org_rel, condition };
-
-struct RelateAttrOperator : public TernaryOperator
-{
-	relate_mode m_RelateMode;
-	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
-		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
-		, m_RelateMode(relateMode)
-	{}
-
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
-	{
-		assert(args.size() == 3);
-
-		const TreeItem* attrContainer = GetItem(args[0]);
-
-//		auto containerExpr = metaCallArgs.Left();
-		auto orgRelExpr = metaCallArgs.Right().Right().Left();
-		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
-		auto orgRelDC = GetDC(orgRelCalc);
-		MG_CHECK(orgRelDC);
-		orgRelExpr = orgRelDC->GetLispRef();
-		auto orgRelItem = orgRelDC->MakeResult();
-		MG_CHECK(orgRelItem);
-		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
-		MG_USERCHECK2(orgRelA, 
-			m_RelateMode == relate_mode::org_rel
-			? "org_rel data-item expected as 3rd argument"
-			: "condition data-item expected as 3rd argument"
-		);
-
-		auto domainItem = GetItem(args[1]);
-		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
-		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
-
-		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
-		assert(sourceDomain);
-		assert(resultHolder);
-		if (m_RelateMode == relate_mode::org_rel)
-			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
-
-		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		{
-			if (!IsDataItem(subItem))
-				continue;
-			auto subDataItem = AsDataItem(subItem);
-			auto subDataID = subDataItem->GetID();
-			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
-				continue;
-			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
-				continue;
-			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			subDataItem->UpdateMetaInfo();
-			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
-
-			if (m_RelateMode == relate_mode::org_rel)
-				keyExpr = ExprList(token::lookup, orgRelExpr, keyExpr);
-			else
-				keyExpr = ExprList(token::select_data, keyExpr, orgRelExpr);
-
-			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
-		}
-		resultHolder->SetIsInstantiated();
-	}
-};
+// *****************************************************************************
+//                               collect_by_cond, collect_by_org_rel
+// *****************************************************************************
 
 struct AbstrSelectDataOperator : TernaryOperator
 {
@@ -448,8 +390,215 @@ struct SelectDataOperator : AbstrSelectDataOperator
 };
 
 // *****************************************************************************
+//                               collect_with_attr_by_cond, collect_with_attr_by_org_rel
+// *****************************************************************************
+
+enum class relate_mode { org_rel, condition };
+
+struct RelateAttrOperator : public TernaryOperator
+{
+	relate_mode m_RelateMode;
+	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
+		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
+		, m_RelateMode(relateMode)
+	{}
+
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
+	{
+		assert(args.size() == 3);
+
+		const TreeItem* attrContainer = GetItem(args[0]);
+
+		//		auto containerExpr = metaCallArgs.Left();
+		auto orgRelExpr = metaCallArgs.Right().Right().Left();
+		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
+		auto orgRelDC = GetDC(orgRelCalc);
+		MG_CHECK(orgRelDC);
+		orgRelExpr = orgRelDC->GetLispRef();
+		auto orgRelItem = orgRelDC->MakeResult();
+		MG_CHECK(orgRelItem);
+		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
+		MG_USERCHECK2(orgRelA,
+			m_RelateMode == relate_mode::org_rel
+			? "org_rel data-item expected as 3rd argument"
+			: "condition data-item expected as 3rd argument"
+		);
+
+		auto domainItem = GetItem(args[1]);
+		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
+		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
+
+		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
+		assert(sourceDomain);
+		assert(resultHolder);
+		if (m_RelateMode == relate_mode::org_rel)
+			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
+
+		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			if (!IsDataItem(subItem))
+				continue;
+			auto subDataItem = AsDataItem(subItem);
+			auto subDataID = subDataItem->GetID();
+			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
+				continue;
+			subDataItem->UpdateMetaInfo();
+			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
+				continue;
+			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
+			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
+
+			if (m_RelateMode == relate_mode::org_rel)
+				keyExpr = ExprList(token::collect_by_org_rel, orgRelExpr, keyExpr);
+			else
+				keyExpr = ExprList(token::collect_by_cond, keyExpr, orgRelExpr);
+
+			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
+		}
+		resultHolder->SetIsInstantiated();
+	}
+};
+
+// *****************************************************************************
+// recollect_by_cond   (cond:    D->B, subset_attr: S->V, fillerValue: ->V) -> (D -> V)
+// recollect_by_org_rel(org_rel: S->D, subset_attr: S->V, fillerValue: ->V) -> (D -> V)
+// *****************************************************************************
+
+struct AbstrRecollectByCondOperator : TernaryOperator
+{
+	AbstrRecollectByCondOperator(AbstrOperGroup& aog, ClassCPtr valuesClass)
+		: TernaryOperator(&aog, valuesClass, DataArray<Bool>::GetStaticClass(), valuesClass, valuesClass)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		dms_assert(args.size() == 3);
+
+		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[0]);
+		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[1]);
+		const AbstrDataItem* fillA = debug_cast<const AbstrDataItem*>(args[1]);
+
+//		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+		dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UM_Throw);
+		MG_USERCHECK2(fillA->HasVoidDomainGuarantee(), "third argument is supposed to be a parameter, i.e. an attribute with a void domain");
+
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
+
+		if (mustCalc)
+		{
+			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+
+			DataReadLock arg1Lock(condA);
+			DataReadLock arg2Lock(dataA);
+			DataReadLock arg3Lock(fillA);
+			DataWriteLock resLock(res);
+
+			Calculate(resLock, condA, dataA, fillA);
+			resLock.Commit();
+		}
+		return true;
+	}
+	virtual void Calculate(DataWriteHandle& res, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const = 0;
+};
+
+
+template <typename V>
+struct tile_reader
+{
+	tile_id currTile = 0, lastTile = 0;
+
+	SharedPtr<const DataArray<V>> tileArray;
+
+	typename DataArray<V>::locked_cseq_t currTileData;
+	typename DataArray<V>::const_iterator currPtr = {}, lastPtr = {};
+
+	tile_reader(const DataArray<V>* tileArray_)
+		: tileArray(tileArray_)
+		, lastTile(tileArray_->GetTiledRangeData()->GetNrTiles())
+	{
+		InitCurrTile();
+	}
+
+	void InitCurrTile()
+	{
+		if (currTile == lastTile)
+			return;
+		currTileData = tileArray->GetTile(currTile);
+		currPtr = currTileData.begin();
+		lastPtr = currTileData.end();
+		assert(!AtEnd());
+	}
+
+	auto operator *() const
+	{ 
+		assert(!AtEnd());
+		return *currPtr;
+	}
+
+	void operator ++ ()
+	{
+		assert(!AtEnd());
+		++currPtr;
+		if (currPtr == lastPtr)
+		{
+			assert(currTile != lastTile);
+			++currTile;
+			InitCurrTile();
+		}
+	}
+	bool AtEnd() const
+	{
+		assert(currPtr != lastPtr || currTile == lastTile);
+		return currPtr == lastPtr;
+	}
+
+};
+
+template <typename V>
+struct RecollectByCondOperator : AbstrRecollectByCondOperator
+{
+	RecollectByCondOperator(AbstrOperGroup& aog)
+		: AbstrRecollectByCondOperator(aog, DataArray<V>::GetStaticClass())
+	{}
+
+	void Calculate(DataWriteHandle& resH, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const override
+	{
+		const DataArray<Bool>* cond = const_array_cast<Bool>(condA);
+		const DataArray<V   >* data = const_array_cast<V>   (dataA);
+		V fillValue = const_array_cast<V>(dataA)->GetIndexedValue(0);
+
+		auto res = mutable_array_cast<V>(resH);
+
+		auto valueReader = tile_reader<V>(data);
+
+		tile_id tn = condA->GetAbstrDomainUnit()->GetNrTiles();
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			//			ReadableTileLock condLock(cond, t), dataLock(data, t);
+			auto boolData = cond->GetTile(t);
+			auto resData = res->GetWritableTile(t);
+			auto resPtr = resData.begin();
+
+			for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++resPtr, ++boolPtr)
+			{
+				if (Bool(*boolPtr))
+				{
+					*resPtr = *valueReader;
+					++valueReader;
+				}
+				else
+					*resPtr = fillValue;
+			}
+		}
+		MG_USERCHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond doesn't match the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
+	}
+};
+
+// *****************************************************************************
 //                               INSTANTIATION
 // *****************************************************************************
+
 #include "LispTreeType.h"
 
 namespace {
@@ -466,19 +615,19 @@ namespace {
 
 	// Partly DEPRECIATED VARIANTS of select BEGIN
 	CommonOperGroup cog_subset_xx("subset", oper_policy::dynamic_result_class);
-	CommonOperGroup cog_subset_08("subset_uint8", oper_policy::depreciated);
-	CommonOperGroup cog_subset_16("subset_uint16", oper_policy::depreciated);
-	CommonOperGroup cog_subset_32("subset_uint32", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_08("use select_uint8_with_org_rel", "subset_uint8", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_16("use select_uint16_with_org_rel", "subset_uint16", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_32("use select_uint32_with_org_rel", "subset_uint32", oper_policy::depreciated);
 
-	CommonOperGroup cog_subset_Unit_xx(token::select_unit, oper_policy::dynamic_result_class| oper_policy::depreciated);
-	CommonOperGroup cog_subset_Unit_08(token::select_unit_uint8, oper_policy::depreciated);
-	CommonOperGroup cog_subset_Unit_16(token::select_unit_uint16, oper_policy::depreciated);
-	CommonOperGroup cog_subset_Unit_32(token::select_unit_uint32, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_Unit_xx("use select", token::select_unit, oper_policy::dynamic_result_class | oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_Unit_08("use select_uint8", token::select_unit_uint8, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_Unit_16("use select_uint16", token::select_unit_uint16, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_Unit_32("use select_uint32", token::select_unit_uint32, oper_policy::depreciated);
 
-	CommonOperGroup cog_subset_orgrel_xx(token::select_orgrel, oper_policy::dynamic_result_class| oper_policy::depreciated);
-	CommonOperGroup cog_subset_orgrel_08(token::select_orgrel_uint8, oper_policy::depreciated);
-	CommonOperGroup cog_subset_orgrel_16(token::select_orgrel_uint16, oper_policy::depreciated);
-	CommonOperGroup cog_subset_orgrel_32(token::select_orgrel_uint32, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_orgrel_xx("use select_with_org_rel", token::select_orgrel, oper_policy::dynamic_result_class | oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_orgrel_08("use select_uint8_with_org_rel", token::select_orgrel_uint8, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_orgrel_16("use select_uint16_with_org_rel", token::select_orgrel_uint16, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_orgrel_32("use select_uint32_with_org_rel", token::select_orgrel_uint32, oper_policy::depreciated);
 	// Partly DEPRECIATED VARIANTS of select END
 
 
@@ -500,14 +649,14 @@ namespace {
 	SpecialOperGroup cog_select_32_with_attr_by_org_rel(token::select_uint32_with_attr_by_org_rel, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 
 	// DEPRECIATED VARIANTS of select_attr BEGIN
-	SpecialOperGroup cog_subset_m_xx(token::select_many       , 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_a_xx(token::select_afew       , 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_m_08(token::select_many_uint8 , 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_a_08(token::select_afew_uint8 , 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_m_16(token::select_many_uint16, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_a_16(token::select_afew_uint16, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_m_32(token::select_many_uint32, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
-	SpecialOperGroup cog_subset_a_32(token::select_afew_uint32, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_m_xx("select_with_attr_by_cond", token::select_many, 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_m_08("select_uint8_with_attr_by_cond", token::select_many_uint8, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_m_16("select_uint16_with_attr_by_cond", token::select_many_uint16, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_m_32("select_uint32_with_attr_by_cond", token::select_many_uint32, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_a_xx("select_with_attr_by_org_rel", token::select_afew       , 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_a_08("select_uint8_with_attr_by_org_rel", token::select_afew_uint8 , 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_a_16("select_uint16_with_attr_by_org_rel", token::select_afew_uint16, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete < SpecialOperGroup> cog_subset_a_32("select_uint32_with_attr_by_org_rel", token::select_afew_uint32, 2, oap_select_with_attr, oper_policy::dont_cache_result | oper_policy::depreciated);
 	// DEPRECIATED VARIANTS of select_attr END
 
 	SubsetOperator operSXX(cog_select, AbstrUnit::GetStaticClass(), OrgRelCreationMode::none);
@@ -543,12 +692,12 @@ namespace {
 	SelectMetaOperator operMetaSM16(cog_select_16_with_attr_by_cond, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint16);
 	SelectMetaOperator operMetaSM32(cog_select_32_with_attr_by_cond, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint32);
 
-	SelectMetaOperator operMetaCAxx(cog_select_with_org_rel_with_attr_by_cond, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel, token::select);
-	SelectMetaOperator operMetaCA08(cog_select_08_with_org_rel_with_attr_by_cond, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint8);
-	SelectMetaOperator operMetaCA16(cog_select_16_with_org_rel_with_attr_by_cond, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint16);
-	SelectMetaOperator operMetaCA32(cog_select_32_with_org_rel_with_attr_by_cond, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint32);
+	SelectMetaOperator operMetaCAxx(cog_select_with_org_rel_with_attr_by_cond, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_with_org_rel);
+	SelectMetaOperator operMetaCA08(cog_select_08_with_org_rel_with_attr_by_cond, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint8_with_org_rel);
+	SelectMetaOperator operMetaCA16(cog_select_16_with_org_rel_with_attr_by_cond, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint16_with_org_rel);
+	SelectMetaOperator operMetaCA32(cog_select_32_with_org_rel_with_attr_by_cond, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint32_with_org_rel);
 
-	SelectMetaOperator operMetaSAxx(cog_select_with_attr_by_org_rel, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_with_org_rel);
+	SelectMetaOperator operMetaSAxx(cog_select_with_attr_by_org_rel   , AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_with_org_rel);
 	SelectMetaOperator operMetaSA08(cog_select_08_with_attr_by_org_rel, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint8_with_org_rel);
 	SelectMetaOperator operMetaSA16(cog_select_16_with_attr_by_org_rel, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint16_with_org_rel);
 	SelectMetaOperator operMetaSA32(cog_select_32_with_attr_by_org_rel, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint32_with_org_rel);
@@ -566,20 +715,16 @@ namespace {
 	// DEPRECIATED VARIANTS of select_attr END
 
 	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_never };
-//REMOVE	SpecialOperGroup cog_relate_attr("relate_attr", 3, oap_Relate, oper_policy::dont_cache_result|oper_policy::depreciated);
 
 	SpecialOperGroup cog_collect_attr_by_org_rel(token::collect_attr_by_org_rel, 3, oap_Relate, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_collect_attr_by_cond   (token::collect_attr_by_cond, 3, oap_Relate, oper_policy::dont_cache_result);
 	RelateAttrOperator operCF(cog_collect_attr_by_org_rel, relate_mode::org_rel);
 	RelateAttrOperator operCM(cog_collect_attr_by_cond, relate_mode::condition);
 
-
-
-
 	// DEPRECIATED VARIANTS of collect_attr BEGIN
-	SpecialOperGroup cog_relate_afew("relate_afew", 3, oap_Relate, oper_policy::dont_cache_result);
-	SpecialOperGroup cog_relate_attr("relate_attr", 3, oap_Relate, oper_policy::dont_cache_result);
-	SpecialOperGroup cog_relate_many("relate_many", 3, oap_Relate, oper_policy::dont_cache_result);
+	Obsolete<SpecialOperGroup> cog_relate_afew("use collect_attr_by_org_rel", "relate_afew", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated | oper_policy::obsolete);
+	Obsolete<SpecialOperGroup> cog_relate_attr("use collect_attr_by_org_rel", "relate_attr", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete<SpecialOperGroup> cog_relate_many("use collect_attr_by_cond", "relate_many", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
 
 	RelateAttrOperator operRF(cog_relate_afew, relate_mode::org_rel);
 	RelateAttrOperator operRA(cog_relate_attr, relate_mode::org_rel);
@@ -588,8 +733,10 @@ namespace {
 
 	CommonOperGroup cog_select_data(token::select_data);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
+	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond);
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
+	tl_oper::inst_tuple<typelists::value_elements, RecollectByCondOperator<_>, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
 }
 

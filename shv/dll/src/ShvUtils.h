@@ -240,7 +240,9 @@ enum class FontSizeCategory
 	SMALL,
 	MEDIUM,
 	LARGE,
-	COUNT
+	COUNT,
+
+	CARET = SMALL
 };
 
 CharPtr GetDefaultFontName(FontSizeCategory fid);

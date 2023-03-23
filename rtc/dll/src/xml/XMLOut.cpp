@@ -489,6 +489,335 @@ void OutStream_DMS::CloseAttrList()
 }
 
 //----------------------------------------------------------------------
+// OutStream_MD
+//----------------------------------------------------------------------
+
+OutStream_MD::OutStream_MD(OutStreamBuff* out, const AbstrPropDef* primaryPropDef)
+	: OutStreamBase(out, false /*needsIndent*/, primaryPropDef, FormattingFlags::None)
+{
+}
+
+void OutStream_MD::WriteInclude(CharPtr includeHref)
+{
+	NewLine();
+	m_OutStream << "#include <" << includeHref << ">";
+}
+
+//=============== public members
+
+void OutStream_MD::WriteName(XML_OutElement& elem, CharPtr itemName)
+{
+	m_OutStream << "" << itemName;
+	m_NrSubTags = 0;
+}
+
+void OutStream_MD::BeginSubItems()
+{
+	--m_Level;
+	NewLine();
+	*this << "{";
+	++m_Level;
+}
+
+void OutStream_MD::ItemEnd()
+{
+	//m_OutStream << ";";
+	//NewLine();
+}
+
+void OutStream_MD::EndSubItems()
+{
+	--m_Level;
+	NewLine();
+	*this << "}";
+	++m_Level;
+}
+
+void OutStream_MD::DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag)
+{
+	dms_assert(tagName);
+	dms_assert(tagValue);
+	if (!tagValue || !*tagValue)
+		return;
+
+	DumpSubTagDelim();
+	if (isPrimaryTag)
+		*this << " = " << tagValue;
+	else
+		*this << tagName << " = " << DoubleQuote(tagValue).c_str();
+}
+
+void OutStream_MD::DumpSubTagDelim()
+{
+	*this << ((!m_NrSubTags) ? ":" : ",");
+	NewLine();
+	m_NrSubTags++;
+}
+
+void OutStream_MD::WriteValue(CharPtr data)
+{
+	CloseAttrList();
+	if (m_in_href)
+		m_href.first = data;
+	else
+		m_cell_data += data;//m_OutStream << data;
+}
+
+void WriteTableToStream(FormattedOutStream& out, table_data& table)
+{
+	// write empty table header rows
+	for (int j = 0; j < table[0].size(); j++)
+	{
+		out << "|   ";
+	}
+	out << "|\n";
+	for (int j = 0; j < table[0].size(); j++)
+	{
+		out << "|---";
+	}
+	out << "|\n";
+
+	for (auto& row : table)
+	{
+		if (row.empty())
+			continue;
+
+		for (auto& element : row)
+		{
+			out << "|" << element.c_str();
+		}
+		out << "|\n";
+	}
+}
+
+void WriteDropdownToStream(FormattedOutStream& out, dropdown_data& dropdown)
+{
+	/*<details>
+
+		<summary>Tips for collapsed sections< / summary>
+
+		### You can add a header
+
+		You can add text within a collapsed section.
+
+		You can add an image or a code block, too.
+
+		```ruby
+		puts "Hello World"
+		```
+
+	< / details>*/
+
+	out << "<details>\n";
+	out << "<summary>" << dropdown.first.c_str() << "</summary>" << "\n";
+	for (int i = 0; i < dropdown.second.size(); i++)
+	{
+		out << std::to_string(i).c_str() << ". " << dropdown.second.at(i).c_str() << "\n";
+	}
+	out << "</details>\n";
+
+}
+
+void OutStream_MD::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr)
+{
+	dms_assert(maxSize);
+	CloseAttrList();
+
+	if (std::string(data).compare("ExplicitSuppliers") == 0)
+	{
+		if (m_in_table)
+		{
+			WriteTableToStream(m_OutStream, m_table);
+			m_table.clear();
+		}
+
+		m_in_dropdown = true;
+		m_dropdown.first = data;
+		return;
+	}
+
+	UInt32 strLen = StrLen(data);
+	if (strLen <= maxSize)
+	{
+		if (m_in_href)
+			m_href.first = data;
+		else
+			m_cell_data += data;
+		//m_OutStream.Buffer().WriteBytes(data, strLen);
+	}
+	else
+	{
+		if (m_in_href)
+			m_href.first = data + std::string("...");
+		else
+			m_cell_data += data + std::string("...");
+		//m_OutStream.Buffer().WriteBytes(data, maxSize);
+		//m_OutStream << moreIndicationStr;
+	}
+}
+
+void OutStream_MD::WriteAttr(CharPtr name, CharPtr value)
+{
+	if (!value || !*value)
+		return;
+
+	auto name_str = std::string(name);
+	if (name_str.compare("bgcolor") == 0)
+		return;
+
+	else if (name_str.compare("href") == 0)
+		m_href.second = value;
+	else 
+	{
+		AttrDelim();
+		m_OutStream << value;
+	}
+}
+
+void OutStream_MD::WriteAttr(CharPtr name, bool value)
+{
+	AttrDelim();
+	m_OutStream
+		<< "" << name << "="
+		<< (value ? "\"TRUE\"" : "\"FALSE\"");
+}
+
+void OutStream_MD::WriteAttr(CharPtr name, UInt32 value)
+{
+	if (std::string(name).compare("COLSPAN") == 0)
+		m_cell_data = "";
+	else 
+		m_cell_data = " ";
+	//AttrDelim();
+	//m_OutStream << "" << name << "=\"" << value << "\"";
+}
+
+//=============== private members
+
+void OutStream_MD::OpenTag(CharPtr tagName)
+{
+	//NewLine();
+	auto tag = std::string(tagName);
+	if (tag.compare("H2") == 0)
+		m_OutStream << "# ";
+	else if(tag.compare("A") == 0)
+	{
+		m_in_href = true;
+	}
+	else if (tag.compare("HR") == 0)
+	{
+		//m_OutStream << "\n"
+		m_OutStream << "\n";
+
+		if (m_in_dropdown)
+		{
+			WriteDropdownToStream(m_OutStream, m_dropdown);
+			m_dropdown.first.clear();
+			m_dropdown.second.clear();
+			m_in_dropdown = false;
+		}
+		else if (m_in_table)
+		{
+			WriteTableToStream(m_OutStream, m_table);
+			m_table.clear();
+		}
+
+		m_OutStream << "---\n";
+	}
+	else if (tag.compare("TD") == 0)
+	{
+		m_in_row_data = true;
+		//m_OutStream << "|";
+	}
+	else if (tag.compare("TR") == 0)
+	{
+		m_in_row = true;
+	}
+	else if (tag.compare("TABLE") == 0)
+	{
+		m_in_table = true;
+		return;
+	}
+	else if (tag.compare("BODY") == 0)
+		return;
+	else 
+		m_OutStream << tagName;
+}
+
+void OutStream_MD::CloseTag(CharPtr tagName)
+{
+	auto tag = std::string(tagName);
+	if (tag.compare("TABLE") == 0)
+	{
+		WriteTableToStream(m_OutStream, m_table);
+		m_table.clear();
+		m_in_table = false;
+		return;
+	}
+	else if (tag.compare("TD")==0)
+	{
+		if (!m_cell_data.empty())
+			m_table_row.push_back(m_cell_data);
+
+		m_cell_data.clear();
+		m_in_row_data = false;
+	}
+	else if (tag.compare("TR") == 0)
+	{
+		if (m_in_dropdown)
+		{
+			if (!m_table_row.empty() && m_table_row.size() > 1)
+				m_dropdown.second.push_back(m_table_row[1]);
+		}
+		else
+		{
+			if (!m_table_row.empty() && m_table_row.size() > 1)
+				m_table.push_back(m_table_row);
+			
+		}
+		m_table_row.clear();
+		m_in_row = false;
+	}
+	else if (tag.compare("A") == 0)
+	{
+		m_in_href = false;
+		std::string markdown_href = "[" + m_href.first + "]" + "(" + m_href.second + ")";
+		m_href.first.clear();
+		m_href.second.clear();
+
+		if (m_in_row_data)
+			m_cell_data += markdown_href;
+		else
+			m_OutStream << markdown_href.c_str();
+		return;
+	}
+	else
+	{
+		int i = 0;
+	}
+}
+
+void OutStream_MD::AttrDelim()
+{
+	dms_assert(m_CurrElem);
+	if (!m_CurrElem->IncAttrCount())
+		m_OutStream << "";
+	else
+		m_OutStream << ",";
+}
+
+void OutStream_MD::CloseAttrList()
+{
+	if (!m_CurrElem)
+		return; // already Closed or never opened.
+
+	if (m_CurrElem->AttrCount())
+		m_OutStream << ""; //)
+
+	m_CurrElem = nullptr;
+}
+
+//----------------------------------------------------------------------
 // XML_OutElement
 //----------------------------------------------------------------------
 
@@ -569,6 +898,7 @@ DMS_CONV XML_OutStream_Create(OutStreamBuff* out, OutStreamBase::SyntaxType st, 
 			case OutStreamBase::ST_XML: return new OutStream_XML(out, docType, primaryPropDef);
 			case OutStreamBase::ST_HTM: return new OutStream_HTM(out, docType, primaryPropDef);
 			case OutStreamBase::ST_DMS: return new OutStream_DMS(out, primaryPropDef);
+			case OutStreamBase::ST_MD:  return new OutStream_MD(out, primaryPropDef);
 		}
 	DMS_CALL_END
 	return nullptr;

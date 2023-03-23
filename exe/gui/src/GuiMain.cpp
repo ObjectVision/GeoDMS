@@ -796,7 +796,6 @@ bool GuiMainComponent::Update()
 
     if (m_State.ShowEventLogOptionsWindow)
         m_EventLog.ShowEventLogOptionsWindow(&m_State.ShowEventLogOptionsWindow);
-    
 
     auto ctx = ImGui::GetCurrentContext();
     static auto first_time_docking = true;

@@ -255,8 +255,8 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 	ogrSR->Validate();
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
-	if (strcmp(pszEsriwkt.m_Text, wkt_prj_str))
-		reportF(SeverityTypeID::ST_Warning, "PROJ interpreted spatial reference from user input %s as %s", wkt_prj_str, pszEsriwkt.m_Text);
+	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str))
+		reportF(SeverityTypeID::ST_Warning, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
@@ -884,8 +884,56 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	return result;
 }
 
+auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>
+{
+	auto affine_transformation = std::vector<double>();
+	
+	if (!IsDataItem(storageHolder))
+		return {};
+
+	auto adi = AsDataItem(storageHolder);
+	const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
+	auto unit_projection = colDomain->GetProjection();
+	auto [gridBegin, gridEnd] = colDomain->GetRangeAsDRect();
+
+	DPoint factor = (unit_projection) ? unit_projection->Factor() : DPoint(1.0, 1.0), f2 = factor;
+	if (factor.X() < 0) { f2.X() = -factor.X(); gridBegin.Col() = gridEnd.Col(); }
+	if (factor.Y() > 0) { f2.Y() = -factor.Y(); gridBegin.Row() = gridEnd.Row(); }
+	DPoint offset = ((unit_projection) ? unit_projection->Offset() : DPoint()) + gridBegin * factor + 0.5 * f2;
+
+	affine_transformation.push_back(offset.X());   // x-coordinate of the upper-left corner of the upper-left pixel.
+	affine_transformation.push_back(f2.X());       // w-e pixel resolution / pixel width.
+	affine_transformation.push_back(Float64(0.0)); // row rotation (typically zero).
+	affine_transformation.push_back(offset.Y());   // y-coordinate of the upper-left corner of the upper-left pixel.
+	affine_transformation.push_back(Float64(0.0)); // column rotation (typically zero).
+	affine_transformation.push_back(f2.Y()); 	   // n-s pixel resolution / pixel height (negative value for a north-up image).
+	return affine_transformation;
+}
+
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
 {
+	if (IsDataItem(storageHolder))
+	{
+		auto adi = AsDataItem(storageHolder);
+		auto wktString = GetWktProjectionFromValuesUnit(adi);
+
+		if (wktString.empty())
+		{
+			const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
+			auto unit_projection = colDomain->GetProjection();
+			auto factor = unit_projection->Factor();
+			auto offset = unit_projection->Offset();
+			wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
+		}
+
+		if (!wktString.empty())
+		{
+			auto srOrErr = GetSpatialReferenceFromUserInput(wktString);
+			if (srOrErr.second == OGRERR_NONE)
+				return srOrErr.first;
+		}
+	}
+
 	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
 	{
 		if (not (IsDataItem(subItem) and subItem->IsStorable()))
@@ -898,7 +946,7 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 		if (wktString.empty())
 			continue;
 		auto srOrErr = GetSpatialReferenceFromUserInput(wktString);
-		if (srOrErr.second != OGRERR_NONE)
+		if (srOrErr.second == OGRERR_NONE)
 			return srOrErr.first;
 	}
 	return {};
@@ -1232,6 +1280,27 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);
+
+		
+		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
+		{
+			// spatial reference system
+			auto spatial_reference_system = GetOGRSpatialReferenceFromDataItems(storageHolder);
+			if (spatial_reference_system)
+			{
+				char* pszSRS_WKT = NULL;
+				spatial_reference_system->exportToWkt(&pszSRS_WKT);
+				result->SetProjection(pszSRS_WKT);
+			}
+
+			// affine transformation
+			auto affine_transformation = GetAffineTransformationFromDataItem(storageHolder);
+			if (!affine_transformation.empty())
+			{
+				result->SetGeoTransform(&affine_transformation[0]);
+			}
+		}
+
 	}
 	else
 	{		

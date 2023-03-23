@@ -614,11 +614,12 @@ void FillRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 // enum class FontSizeCategory
 //----------------------------------------------------------------------
 
-static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 16, 20, 24 };
+static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 12, 16, 20 };
 static CharPtr      g_DefaultFontName[static_cast<int>(FontSizeCategory::COUNT)] = { "Small", "Medium", "Large" };
 
 CharPtr GetDefaultFontName(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 
@@ -627,6 +628,7 @@ CharPtr GetDefaultFontName(FontSizeCategory fid)
 
 UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 

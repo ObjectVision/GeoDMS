@@ -51,6 +51,7 @@ struct AbstrItemSet
 	const TreeItem* operator *() const { return m_CurrItem; }
 
 	virtual void operator ++() = 0;
+
 protected:
 	const TreeItem* m_CurrItem;
 };
@@ -105,19 +106,30 @@ struct SubTreeSet: AbstrItemSet
 struct InheritedSet: AbstrItemSet
 {
 	InheritedSet(const TreeItem* focus)
-		:	AbstrItemSet( focus->GetFirstSubItem() )
+		:	AbstrItemSet( GetFirstSubOrInheritedItem(focus) )
 		,	m_Focus(focus)
 	{}
 
+	const TreeItem* GetFirstSubOrInheritedItem(const TreeItem*& focus)
+	{
+		while (focus)
+		{
+			auto firstSubItem = focus->GetFirstSubItem();
+			if (firstSubItem)
+				return firstSubItem;
+			focus = focus->GetCurrRefItem();
+		}
+		return nullptr;
+	}
+
 	void operator ++() override
 	{
-		dms_assert(m_CurrItem);
+		assert(m_CurrItem);
 		m_CurrItem = m_CurrItem->GetNextItem();
-		if (!m_CurrItem && m_Focus)
+		if (!m_CurrItem)
 		{
 			m_Focus = m_Focus->GetCurrRefItem();
-			if (m_Focus)
-				m_CurrItem = m_Focus->GetFirstSubItem();
+			m_CurrItem = GetFirstSubOrInheritedItem(m_Focus);
 		}
 	}
 	const TreeItem* m_Focus;
@@ -126,7 +138,6 @@ struct InheritedSet: AbstrItemSet
 template <typename ItemSet>
 struct ItemSetProvider : AbstrItemSetProvider
 {
-
 	AbstrItemSet* CreateItemSet(const TreeItem* focus) const override
 	{
 		return new ItemSet(focus);

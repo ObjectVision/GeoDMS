@@ -67,7 +67,7 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 		}
 	}
 
-	tiles_t m_Seqs;
+	mutable tiles_t m_Seqs;
 };
 
 template <typename V>
@@ -159,24 +159,39 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 	tile_id tn = trd->GetNrTiles();
 
 	tiles_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-
+/*
 	for (tile_id t = 0; t != tn; ++t)
 	{
 		seqs[t] = new tile<V>;
 		auto tileSize = trd->GetTileSize(t);
 		reallocSO(*seqs[t], tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
 	}
-
+*/
 	m_Seqs = std::move(seqs);
+}
+
+extern std::mutex s_mutableTileRecSection;
+
+template <typename V>
+void InitTile(SharedPtr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear)
+{
+	auto sectionLokc = std::unique_lock(s_mutableTileRecSection);
+	if (!tilePtr)
+	{
+		tilePtr = new tile<V>;
+		reallocSO(*tilePtr, trd->GetTileSize(t), mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
+	}
+	assert(tilePtr);
+	assert(tilePtr->size() == trd->GetTileSize(t));
 }
 
 template <typename V>
 auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	const auto& tilePtr = m_Seqs[t];
-	dms_assert(tilePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
+	auto& tilePtr = m_Seqs[t];
+	InitTile(tilePtr, this->GetTiledRangeData(), t, rwMode != dms_rw_mode::write_only_all);
 
 	return locked_seq_t(TileRef(tilePtr.get_ptr()), GetSeq(*tilePtr));
 }
@@ -184,12 +199,10 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 template <typename V>
 auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	const auto& tilePtr = m_Seqs[t];
-
-	auto tileSize = this->GetTiledRangeData()->GetTileSize(t);
-	dms_assert(tilePtr->size() == tileSize);
+	auto& tilePtr = m_Seqs[t];
+	InitTile(tilePtr, this->GetTiledRangeData(), t, true);
 
 	return locked_cseq_t(TileCRef(tilePtr.get_ptr()), GetConstSeq(*tilePtr));
 }
