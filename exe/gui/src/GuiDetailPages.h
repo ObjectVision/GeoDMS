@@ -50,7 +50,7 @@ public:
     GuiOutStreamBuff();
     virtual ~GuiOutStreamBuff();
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    auto InterpretBytes(TableData& tableProperties) -> void;
+    //auto InterpretBytes(table_data& tableProperties) -> void;
     auto InterpretBytesAsString() -> std::string;
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -59,7 +59,7 @@ public:
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
-    void InterpretTag(TableData& tableProperties);
+    //void InterpretTag(table_data& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
 
@@ -79,16 +79,100 @@ enum class DetailPageActiveTab
     Configuration
 };
 
+struct MarkDownTextBlock {                  // subset of line
+    int start = 0;
+    int stop = 0;
+    int size() const
+    {
+        return stop - start;
+    }
+};
+
+struct MarkDownEmphasis {
+    enum EmphasisState {
+        NONE,
+        LEFT,
+        MIDDLE,
+        RIGHT,
+    };
+    EmphasisState state = NONE;
+    MarkDownTextBlock text;
+    char sym;
+};
+
+struct MarkDownLink {
+    enum LinkState {
+        NO_LINK,
+        HAS_SQUARE_BRACKET_OPEN,
+        HAS_SQUARE_BRACKETS,
+        HAS_SQUARE_BRACKETS_ROUND_BRACKET_OPEN,
+    };
+    LinkState state = NO_LINK;
+    MarkDownTextBlock text;
+    MarkDownTextBlock url;
+    bool isImage = false;
+    int num_brackets_open = 0;
+};
+
+struct MarkDownLine {
+    void clear() 
+    {
+        isHeading = false;
+        isEmphasis = false;
+        isUnorderedListStart = false;
+        isLeadingSpace = true;     // spaces at start of line
+        leadSpaceCount = 0;
+        headingCount = 0;
+        emphasisCount = 0;
+        lineStart = 0;
+        lineEnd = 0;
+        lastRenderPosition = 0;
+    }
+
+    bool isHeading = false;
+    bool isEmphasis = false;
+    bool isUnorderedListStart = false;
+    bool isLeadingSpace = true;     // spaces at start of line
+    int  leadSpaceCount = 0;
+    int  headingCount = 0;
+    int  emphasisCount = 0;
+    int  lineStart = 0;
+    int  lineEnd = 0;
+    int  lastRenderPosition = 0;     // lines may get rendered in multiple pieces
+};
+
 class GuiMarkDownPage
 {
 public:
     GuiMarkDownPage(std::string_view markdown_text);
     void Update();
-    void Parse(std::string_view markdown_text);
+    void Parse();
     void Clear();
 
 private:
-    TableData m_data;
+    void ParseLink();
+    void ParseTable();
+    void ParseCodeBlock();
+    void ParseDropDown();
+    void ParseIndentation();
+    void ParseInlineHtml();
+    void ParseEmphasis();
+    bool IsInlineHtml();
+    bool IsDropDown();
+    bool IsEmphasis();
+    void ParseHeading();
+
+    void AddTable();
+    void AddRow();
+    void AddElement();
+
+    markdown_data m_data;
+    MarkDownLine m_line;
+    MarkDownEmphasis m_emphasis;
+    MarkDownLink m_link;
+
+    size_t      m_index = 0;
+    std::string m_markdown_text = "";
 };
 
 class GuiDetailPages
@@ -124,12 +208,16 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    TableData               m_GeneralProperties;
-    TableData               m_AllProperties;
-    TableData               m_ExploreProperties;
-    TableData               m_ValueInfo;
-    TableData               m_SourceDescription;
-    TableData               m_Configuration;
+    md_table_data            m_GeneralProperties;
+    md_table_data            m_AllProperties;
+    md_table_data            m_ExploreProperties;
+    md_table_data            m_ValueInfo;
+    md_table_data            m_SourceDescription;
+    md_table_data            m_Configuration;
+
+    std::unique_ptr<GuiMarkDownPage> m_GeneralProperties_MD;
+
+
     bool                    m_is_docking_initialized = false;
     bool                    m_pinned = true;
     DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;

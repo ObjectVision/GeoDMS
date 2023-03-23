@@ -164,15 +164,16 @@ GDALDataType gdalDataType(ValueClassID tid);
 
 // *****************************************************************************
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc); // TODO move OGR helper funcs to gdal_vect.cpp
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc);
-SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
+auto DmsType2OGRFieldType(ValueClassID id, ValueComposition vc) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
+auto DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc) -> OGRwkbGeometryType;
+auto GetWktProjectionFromValuesUnit(const AbstrDataItem* adi) -> SharedStr;
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
-CPLStringList GetOptionArray(const TreeItem* optionsItem);
+auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
-OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
-SharedStr GetAsWkt(const OGRSpatialReference* sr);
+auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
+auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
