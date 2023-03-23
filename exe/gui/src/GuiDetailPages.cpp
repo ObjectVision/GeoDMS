@@ -256,41 +256,173 @@ void GuiOutStreamBuff::Reset()
     m_Text.clear();
 }
 
-// Markdown dump of DetailPages
-auto GetTreeItemMarkdownPageTitle(const TreeItem* current_item) -> std::string
-{
-    return std::string("# ") + current_item->GetName().c_str() + "\n";
-}
-
-bool TreeItemToMarkdownPageGeneral(const TreeItem* current_item, bool showAll)
-{
-    std::string ti_md_page_general = "";
-    ti_md_page_general += GetTreeItemMarkdownPageTitle(current_item);
-    // fullname
-    // progress state // optional: #if defined(MG_DEBUG)
-    // failstate      // optional
-    // failreason     // optional
-    // PartOfTemplate // optional
-    // Label          // optional
-    // Descr          // optional
-    // ValuesType
-    // ValuesComposition
-    // cdf
-    return true;
-}
-
 GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
 {
-    Parse(markdown_text);
+    m_markdown_text = markdown_text;
+    Parse();
 }
 
-void GuiMarkDownPage::Parse(std::string_view markdown_text)
+void GuiMarkDownPage::AddElement()
+{
+    m_data.back().back().emplace_back();
+}
+
+void GuiMarkDownPage::AddRow()
+{
+    m_data.back().emplace_back();
+    AddElement();
+}
+
+void GuiMarkDownPage::AddTable()
+{
+    m_data.emplace_back();
+    AddRow();
+}
+
+void GuiMarkDownPage::ParseLink()
+{
+
+}
+
+void GuiMarkDownPage::ParseTable()
+{
+
+}
+
+void GuiMarkDownPage::ParseCodeBlock()
+{
+
+}
+
+void GuiMarkDownPage::ParseDropDown()
+{
+
+}
+
+void GuiMarkDownPage::ParseIndentation()
+{
+
+}
+
+void GuiMarkDownPage::ParseInlineHtml()
+{
+
+}
+
+void GuiMarkDownPage::ParseEmphasis()
+{
+
+}
+
+bool GuiMarkDownPage::IsInlineHtml()
+{
+    return false;
+}
+
+bool GuiMarkDownPage::IsDropDown()
+{
+    return false;
+}
+
+bool GuiMarkDownPage::IsEmphasis()
+{
+    return false;
+}
+
+void GuiMarkDownPage::ParseHeading()
+{
+    
+    while (m_index < m_markdown_text.size())
+    {
+        auto chr = m_markdown_text.at(m_index);
+        
+        if (chr == '\n')
+            break;
+
+        switch (chr)
+        {
+        case '[': // link in header
+        {
+            ParseLink();
+            break;
+        }
+        }
+
+        m_index++;
+    }
+}
+
+void GuiMarkDownPage::Parse()
 {
     m_data.clear();
+    m_index = 0;
+    bool new_line = true;
 
-    for (size_t i=0; i<markdown_text.size(); i++)
+    for (m_index; m_index < m_markdown_text.size(); m_index++)
     {
-        auto chr = markdown_text.at(i);
+        auto chr = m_markdown_text.at(m_index);
+        
+        switch (chr) 
+        {
+        case '#': // header
+        { 
+            if (new_line)
+            {
+                AddTable();
+                ParseHeading();
+                continue;
+            }
+        } 
+        case '`': { ParseCodeBlock(); continue; } // code block
+        case ' ': // indentation
+        { 
+            if (new_line)
+            {
+                ParseIndentation();
+                continue;
+            }
+            break;
+        } 
+        case '*': // emphasis or strong emphasis (bold)
+        { 
+            if (IsEmphasis())
+                ParseEmphasis(); 
+            continue; 
+        } 
+        case '|': // table
+        { 
+            ParseTable();
+            continue;
+        } 
+        case '<': // dropdown or inline html
+        { 
+            if (IsDropDown())
+                ParseDropDown();
+            else if (IsInlineHtml())
+                ParseInlineHtml();
+            
+            break; 
+        }
+        case '[': // link
+        {
+            break;
+        }
+        case '!': // image
+        {
+            break;
+        }
+        case '\n':
+        {
+            new_line = true;
+            break;
+        }
+        default: { break; }
+        }
+        new_line = false;
+
+        m_data.back().back().back().back().text += chr;
+
+        /*
         // If we're at the beginning of the line, count any spaces
         if (m_line.isLeadingSpace)
         {
@@ -352,7 +484,7 @@ void GuiMarkDownPage::Parse(std::string_view markdown_text)
         switch (m_link.state)
         {
         case MarkDownLink::NO_LINK:
-            if (chr == '[' && !m_line.isHeading) // we do not support headings with links for now
+            if (chr == '[')// && !m_line.isHeading) // we do not support headings with links for now
             {
                 m_link.state = MarkDownLink::HAS_SQUARE_BRACKET_OPEN;
                 m_link.text.start = i + 1;
@@ -396,11 +528,11 @@ void GuiMarkDownPage::Parse(std::string_view markdown_text)
                 m_line.leadSpaceCount = 0;
                 m_link.url.stop = i;
                 m_line.isUnorderedListStart = false;    // the following text shouldn't have bullets
-                ImGui::SameLine(0.0f, 0.0f);
+                //ImGui::SameLine(0.0f, 0.0f);
                 if (m_link.isImage)   // it's an image, render it.
                 {
                     // TODO: implement
-                    /*bool drawnImage = false;
+                    bool drawnImage = false;
                     bool useLinkCallback = false;
                     if (mdConfig_.imageCallback)
                     {
@@ -426,13 +558,13 @@ void GuiMarkDownPage::Parse(std::string_view markdown_text)
                         {
                             mdConfig_.tooltipCallback({ { markdown_ + link.text.start, link.text.size(), markdown_ + link.url.start, link.url.size(), mdConfig_.userData, true }, mdConfig_.linkIcon });
                         }
-                    }*/
+                    }
                 }
                 else                 // it's a link, render it.
                 {
                     //textRegion.RenderLinkTextWrapped(markdown_ + link.text.start, markdown_ + link.text.start + link.text.size(), link, markdown_, mdConfig_, &linkHoverStart, false);
                 }
-                ImGui::SameLine(0.0f, 0.0f);
+                //ImGui::SameLine(0.0f, 0.0f);
                 // reset the link by reinitializing it
                 m_link = MarkDownLink();
                 m_line.lastRenderPosition = i;
@@ -561,27 +693,36 @@ void GuiMarkDownPage::Parse(std::string_view markdown_text)
             // reset the link
             m_link = MarkDownLink();
         }
-    }
-
-    if (m_emphasis.state == MarkDownEmphasis::LEFT && m_line.emphasisCount >= 3)
-    {
-        ImGui::Separator();
-    }
-    else
-    {
-        // render any remaining text if last char wasn't 0
-        if (markdown_text.size() && m_line.lineStart < (int)markdown_text.size() && markdown_text[m_line.lineStart] != 0)
-        {
-            // handle both null terminated and non null terminated strings
-            m_line.lineEnd = (int)markdown_text.size();
-            if (0 == markdown_text[m_line.lineEnd - 1])
-            {
-                --m_line.lineEnd;
-            }
-            //RenderLine(markdown_, m_line, textRegion, mdConfig_);
-        }
-    }
     
+        if (m_emphasis.state == MarkDownEmphasis::LEFT && m_line.emphasisCount >= 3) // horizontal rule
+        {
+            while (chr != '\n') 
+            {
+                i++;
+                chr = markdown_text.at(i);
+            }
+
+            m_data.push_back({}); // table
+            m_data.back().push_back({}); // row
+            m_data.back().back().push_back({}); // element
+            m_data.back().back().back().emplace_back(PET_SEPARATOR, false, ""); // element part
+        }
+        else
+        {
+            // render any remaining text if last char wasn't 0
+            if (markdown_text.size() && m_line.lineStart < (int)markdown_text.size() && markdown_text[m_line.lineStart] != 0)
+            {
+                // handle both null terminated and non null terminated strings
+                m_line.lineEnd = (int)markdown_text.size();
+                if (0 == markdown_text[m_line.lineEnd - 1])
+                {
+                    --m_line.lineEnd;
+                }
+                //RenderLine(markdown_, m_line, textRegion, mdConfig_);
+            }
+        }
+    */
+    }
 }
 
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)

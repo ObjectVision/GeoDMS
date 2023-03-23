@@ -146,14 +146,33 @@ class GuiMarkDownPage
 public:
     GuiMarkDownPage(std::string_view markdown_text);
     void Update();
-    void Parse(std::string_view markdown_text);
+    void Parse();
     void Clear();
 
 private:
+    void ParseLink();
+    void ParseTable();
+    void ParseCodeBlock();
+    void ParseDropDown();
+    void ParseIndentation();
+    void ParseInlineHtml();
+    void ParseEmphasis();
+    bool IsInlineHtml();
+    bool IsDropDown();
+    bool IsEmphasis();
+    void ParseHeading();
+
+    void AddTable();
+    void AddRow();
+    void AddElement();
+
     markdown_data m_data;
     MarkDownLine m_line;
     MarkDownEmphasis m_emphasis;
     MarkDownLink m_link;
+
+    size_t      m_index = 0;
+    std::string m_markdown_text = "";
 };
 
 class GuiDetailPages
