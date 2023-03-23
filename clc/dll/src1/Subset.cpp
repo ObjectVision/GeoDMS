@@ -510,12 +510,12 @@ struct tile_reader
 
 	SharedPtr<const DataArray<V>> tileArray;
 
-	DataArray<V>::locked_tile_ref currTileData;
-	DataArray<V>::const_pointer currPtr = {}, lastPtr = {};
+	typename DataArray<V>::locked_cseq_t currTileData;
+	typename DataArray<V>::const_iterator currPtr = {}, lastPtr = {};
 
 	tile_reader(const DataArray<V>* tileArray_)
 		: tileArray(tileArray_)
-		, lastTile(tileArray->GetNrTiles())
+		, lastTile(tileArray_->GetTiledRangeData()->GetNrTiles())
 	{
 		InitCurrTile();
 	}
@@ -530,13 +530,13 @@ struct tile_reader
 		assert(!AtEnd());
 	}
 
-	V operator *() const
+	auto operator *() const
 	{ 
 		assert(!AtEnd());
 		return *currPtr;
 	}
 
-	void operator ++ () const
+	void operator ++ ()
 	{
 		assert(!AtEnd());
 		++currPtr;
@@ -547,7 +547,7 @@ struct tile_reader
 			InitCurrTile();
 		}
 	}
-	bool AtEnd() 
+	bool AtEnd() const
 	{
 		assert(currPtr != lastPtr || currTile == lastTile);
 		return currPtr == lastPtr;
@@ -562,14 +562,13 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 		: AbstrRecollectByCondOperator(aog, DataArray<V>::GetStaticClass())
 	{}
 
-	void Calculate(DataWriteHandle& res, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const override
+	void Calculate(DataWriteHandle& resH, const AbstrDataItem* condA, const AbstrDataItem* dataA, const AbstrDataItem* fillA) const override
 	{
 		const DataArray<Bool>* cond = const_array_cast<Bool>(condA);
 		const DataArray<V   >* data = const_array_cast<V>   (dataA);
-		V fillValue = const_array_cast<V>   (dataA)->GetData()[0];
+		V fillValue = const_array_cast<V>(dataA)->GetIndexedValue(0);
 
-//		tile_write_channel<V> resDataChannel(mutable_array_cast<V>(res));
-		auto res = mutable_array_cast<V>(res);
+		auto res = mutable_array_cast<V>(resH);
 
 		auto valueReader = tile_reader<V>(data);
 
@@ -579,20 +578,20 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 			//			ReadableTileLock condLock(cond, t), dataLock(data, t);
 			auto boolData = cond->GetTile(t);
 			auto resData = res->GetWritableTile(t);
+			auto resPtr = resData.begin();
 
-			for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++boolPtr)
+			for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++resPtr, ++boolPtr)
 			{
 				if (Bool(*boolPtr))
 				{
-					resData[count++] = *valueReader;
+					*resPtr = *valueReader;
 					++valueReader;
 				}
 				else
-					resData[count++] = fillValue;
+					*resPtr = fillValue;
 			}
 		}
-		MG_CHECK(resDataChannel.IsEndOfChannel());
-		MG_USER_CHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond doesn't match the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
+		MG_USERCHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond doesn't match the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
 	}
 };
 
@@ -734,6 +733,7 @@ namespace {
 
 	CommonOperGroup cog_select_data(token::select_data);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
+	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond);
 
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
 	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
