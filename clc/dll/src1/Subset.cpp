@@ -286,6 +286,7 @@ struct SelectMetaOperator : public BinaryOperator
 			auto subDataID = subDataItem->GetID();
 			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
 				continue;
+			subDataItem->UpdateMetaInfo();
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
@@ -351,6 +352,7 @@ struct RelateAttrOperator : public TernaryOperator
 			auto subDataID = subDataItem->GetID();
 			if (subDataID == token::org_rel || subDataID == token::nr_OrgEntity)
 				continue;
+			subDataItem->UpdateMetaInfo();
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
