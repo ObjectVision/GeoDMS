@@ -244,10 +244,12 @@ struct SelectMetaOperator : public BinaryOperator
 
 		auto containerExpr = metaCallArgs.Left();
 		auto conditionExpr = metaCallArgs.Right().Left();
+		auto conditionExprStr = AsFLispSharedStr(conditionExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
 		auto conditionDC = GetDC(conditionCalc);
 		MG_CHECK(conditionDC);
-		conditionExpr = conditionDC->GetLispRef();
+		auto conditionKeyExpr = conditionDC->GetLispRef();
+
 		auto conditionItem = conditionDC->MakeResult();
 		if (conditionDC->WasFailed(FR_MetaInfo))
 			conditionDC->ThrowFail();
@@ -258,7 +260,7 @@ struct SelectMetaOperator : public BinaryOperator
 			throwErrorD(GetGroup()->GetNameStr(), "condition data-item expected as 2nd argument");
 
 		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
-		dms_assert(domain);
+		assert(domain);
 
 		const ValueClass* vc = domain->GetValueType();
 		const UnitClass* resDomainCls = dynamic_cast<const UnitClass*>(m_ResultClass);
@@ -266,8 +268,8 @@ struct SelectMetaOperator : public BinaryOperator
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
 		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder); // does this set result to Failed when 
-		dms_assert(res);
-		auto resExpr = ExprList(m_SelectOper, conditionExpr);
+		assert(res);
+		auto resExpr = ExprList(m_SelectOper, conditionKeyExpr);
 		assert(!resExpr.EndP());
 		auto resDC = GetOrCreateDataController(resExpr);
 		assert(resDC);
@@ -294,13 +296,20 @@ struct SelectMetaOperator : public BinaryOperator
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
-			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
-				keyExpr = ExprList(token::collect_by_org_rel, resSubExpr, keyExpr);
-			else
-				keyExpr = ExprList(token::collect_by_cond, resExpr, conditionExpr, keyExpr);
 
-			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
+			SharedStr collectExpr;
+			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
+				collectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., %s/%s))"
+				,	containerExpr.GetSymbID()
+				,	subDataID
+				);
+			else
+				collectExpr = mySSPrintF("collect_by_cond(., scope(.., %s), scope(.., %s/%s))"
+				,	conditionExprStr
+				,	containerExpr.GetSymbID()
+				,	subDataID
+				);
+			resSub->SetExpr(collectExpr);
 		}
 		res->SetIsInstantiated();
 	}
@@ -409,30 +418,34 @@ struct RelateAttrOperator : public TernaryOperator
 
 		const TreeItem* attrContainer = GetItem(args[0]);
 
-		//		auto containerExpr = metaCallArgs.Left();
-		auto orgRelExpr = metaCallArgs.Right().Right().Left();
-		auto orgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), orgRelExpr, CalcRole::Other);
-		auto orgRelDC = GetDC(orgRelCalc);
-		MG_CHECK(orgRelDC);
-		orgRelExpr = orgRelDC->GetLispRef();
-		auto orgRelItem = orgRelDC->MakeResult();
-		MG_CHECK(orgRelItem);
-		const AbstrDataItem* orgRelA = debug_cast<const AbstrDataItem*>(orgRelItem.get());
+		auto subsetDomainItem = GetItem(args[1]);
+		const AbstrUnit* domainA = AsDynamicUnit(subsetDomainItem);
+		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
+
+		auto containerExpr = metaCallArgs.Left();
+		auto subsetDomainExpr = metaCallArgs.Right().Left();
+		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr);
+		auto condOrOrgRelExpr = metaCallArgs.Right().Right().Left();
+		auto condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr);
+
+		auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
+		auto condOrOrgRelDC = GetDC(condOrOrgRelCalc);
+		MG_CHECK(condOrOrgRelDC);
+//		condOrOrgRelExpr = condOrOrgRelDC->GetLispRef();
+		auto condOrOrgRelItem = condOrOrgRelDC->MakeResult();
+		MG_CHECK(condOrOrgRelItem);
+		const AbstrDataItem* orgRelA = AsDynamicDataItem(condOrOrgRelItem.get());
 		MG_USERCHECK2(orgRelA,
 			m_RelateMode == relate_mode::org_rel
 			? "org_rel data-item expected as 3rd argument"
 			: "condition data-item expected as 3rd argument"
 		);
 
-		auto domainItem = GetItem(args[1]);
-		const AbstrUnit* domainA = AsDynamicUnit(domainItem);
-		MG_USERCHECK2(domainA, "domain unit expected as 2nd argument");
-
 		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
 		assert(sourceDomain);
 		assert(resultHolder);
 		if (m_RelateMode == relate_mode::org_rel)
-			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "relate_afew(container, target_domain, org_rel): target_domain doesn't match the domain of org_rel");
+			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
 
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
@@ -446,14 +459,22 @@ struct RelateAttrOperator : public TernaryOperator
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
-			LispRef keyExpr = subDataItem->GetCheckedKeyExpr();
 
+			SharedStr collectExpr;
 			if (m_RelateMode == relate_mode::org_rel)
-				keyExpr = ExprList(token::collect_by_org_rel, orgRelExpr, keyExpr);
+				collectExpr = mySSPrintF("collect_by_org_rel(%s, scope(.., %s/%s))"
+					, condOrOrgRelExprStr
+					, containerExpr.GetSymbID()
+					, subDataID
+				);
 			else
-				keyExpr = ExprList(token::collect_by_cond, keyExpr, orgRelExpr);
-
-			resSub->SetCalculator(AbstrCalculator::ConstructFromLispRef(resSub, keyExpr, CalcRole::Calculator));
+				collectExpr = mySSPrintF("collect_by_cond(scope(.., %s), scope(.., %s), scope(.., %s/%s))"
+					, subsetDomainExprStr
+					, condOrOrgRelExprStr
+					, containerExpr.GetSymbID()
+					, subDataID
+				);
+			resSub->SetExpr(collectExpr);
 		}
 		resultHolder->SetIsInstantiated();
 	}
@@ -685,12 +706,12 @@ namespace {
 	SelectMetaOperator operMetaA32(cog_subset_a_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint32_with_org_rel);
 	// DEPRECIATED VARIANTS of select_attr END
 
-	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_never };
+	oper_arg_policy oap_Relate[3] = { oper_arg_policy::calc_never , oper_arg_policy::calc_never, oper_arg_policy::calc_at_subitem };
 
-	SpecialOperGroup cog_collect_attr_by_org_rel(token::collect_attr_by_org_rel, 3, oap_Relate, oper_policy::dont_cache_result);
-	SpecialOperGroup cog_collect_attr_by_cond   (token::collect_attr_by_cond, 3, oap_Relate, oper_policy::dont_cache_result);
-	RelateAttrOperator operCF(cog_collect_attr_by_org_rel, relate_mode::org_rel);
-	RelateAttrOperator operCM(cog_collect_attr_by_cond, relate_mode::condition);
+	SpecialOperGroup sog_collect_attr_by_org_rel(token::collect_attr_by_org_rel, 3, oap_Relate, oper_policy::dont_cache_result);
+	SpecialOperGroup sog_collect_attr_by_cond   (token::collect_attr_by_cond   , 3, oap_Relate, oper_policy::dont_cache_result);
+	RelateAttrOperator operCF(sog_collect_attr_by_org_rel, relate_mode::org_rel);
+	RelateAttrOperator operCM(sog_collect_attr_by_cond, relate_mode::condition);
 
 	// DEPRECIATED VARIANTS of collect_attr BEGIN
 	Obsolete<SpecialOperGroup> cog_relate_afew("use collect_attr_by_org_rel", "relate_afew", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated | oper_policy::obsolete);

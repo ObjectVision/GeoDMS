@@ -535,6 +535,7 @@ bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
 		case oper_arg_policy::calc_always:    
 			return true;
 //		case oper_arg_policy::calc_never:
+//		case oper_arg_policy::calc_at_subitem:
 //		case oper_arg_policy::is_templ:       
 //		case oper_arg_policy::subst_with_subitems:
 		default:

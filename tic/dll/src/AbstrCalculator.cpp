@@ -883,11 +883,18 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			LispRef argExpr = cursor.Left();
 			if (oap == oper_arg_policy::calc_as_result)
 			{
-				// skip condition argument for select_xxxx meta functions
+				// skip condition argument for select_with_attr_xxxx meta functions
 				assert(currArg == 1); // only this one
 				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
 				continue;
 			}
+			if (oap == oper_arg_policy::calc_at_subitem)
+			{
+				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				continue;
+			}
+
+
 			if (!argExpr.IsSymb())
 			{
 				auto errMsgTxt = mySSPrintF(
@@ -917,8 +924,9 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FR_MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
-		else if (mustCalcArg)
+		else
 		{
+			assert(mustCalcArg);
 			FutureData dc = GetOrCreateDataController(std::get<1>(ac->SubstituteExpr(substBuff, cursor.Left()))); // what about non-substitited stuff?
 			dms_assert(dc);
 			FutureData fd = dc->CalcResultWithValuesUnits();
