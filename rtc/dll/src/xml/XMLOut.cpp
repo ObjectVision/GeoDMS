@@ -620,8 +620,9 @@ void WriteDropdownToStream(FormattedOutStream& out, dropdown_data& dropdown)
 
 void OutStream_MD::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr)
 {
-	dms_assert(maxSize);
 	CloseAttrList();
+	if (!maxSize)
+		return;
 
 	if (std::string(data).compare("ExplicitSuppliers") == 0)
 	{
