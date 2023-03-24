@@ -476,11 +476,10 @@ struct AbstrRecollectByCondOperator : TernaryOperator
 
 		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[0]);
 		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[1]);
-		const AbstrDataItem* fillA = debug_cast<const AbstrDataItem*>(args[1]);
+		const AbstrDataItem* fillA = debug_cast<const AbstrDataItem*>(args[2]);
 
-//		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
-		dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UM_Throw);
-		MG_USERCHECK2(fillA->HasVoidDomainGuarantee(), "third argument is supposed to be a parameter, i.e. an attribute with a void domain");
+		dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode::UM_Throw|UnifyMode::UM_AllowDefaultRight);
+		condA->GetAbstrDomainUnit()->UnifyDomain(fillA->GetAbstrDomainUnit(), "e1", "e3", UnifyMode::UM_Throw|UnifyMode::UM_AllowDefaultRight | UnifyMode::UM_AllowVoidRight);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
@@ -504,58 +503,6 @@ struct AbstrRecollectByCondOperator : TernaryOperator
 
 
 template <typename V>
-struct tile_reader
-{
-	tile_id currTile = 0, lastTile = 0;
-
-	SharedPtr<const DataArray<V>> tileArray;
-
-	typename DataArray<V>::locked_cseq_t currTileData;
-	typename DataArray<V>::const_iterator currPtr = {}, lastPtr = {};
-
-	tile_reader(const DataArray<V>* tileArray_)
-		: tileArray(tileArray_)
-		, lastTile(tileArray_->GetTiledRangeData()->GetNrTiles())
-	{
-		InitCurrTile();
-	}
-
-	void InitCurrTile()
-	{
-		if (currTile == lastTile)
-			return;
-		currTileData = tileArray->GetTile(currTile);
-		currPtr = currTileData.begin();
-		lastPtr = currTileData.end();
-		assert(!AtEnd());
-	}
-
-	auto operator *() const
-	{ 
-		assert(!AtEnd());
-		return *currPtr;
-	}
-
-	void operator ++ ()
-	{
-		assert(!AtEnd());
-		++currPtr;
-		if (currPtr == lastPtr)
-		{
-			assert(currTile != lastTile);
-			++currTile;
-			InitCurrTile();
-		}
-	}
-	bool AtEnd() const
-	{
-		assert(currPtr != lastPtr || currTile == lastTile);
-		return currPtr == lastPtr;
-	}
-
-};
-
-template <typename V>
 struct RecollectByCondOperator : AbstrRecollectByCondOperator
 {
 	RecollectByCondOperator(AbstrOperGroup& aog)
@@ -566,13 +513,18 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 	{
 		const DataArray<Bool>* cond = const_array_cast<Bool>(condA);
 		const DataArray<V   >* data = const_array_cast<V>   (dataA);
-		V fillValue = const_array_cast<V>(dataA)->GetIndexedValue(0);
+		const DataArray<V   >* fill = const_array_cast<V>   (fillA);
+
+		V fillValue = {};
+		if (fillA->HasVoidDomainGuarantee()) 
+			fillValue = fill->GetIndexedValue(0);
 
 		auto res = mutable_array_cast<V>(resH);
 
-		auto valueReader = tile_reader<V>(data);
+		auto valueReader = tile_read_channel<V>(data);
 
 		tile_id tn = condA->GetAbstrDomainUnit()->GetNrTiles();
+
 		for (tile_id t = 0; t != tn; ++t)
 		{
 			//			ReadableTileLock condLock(cond, t), dataLock(data, t);
@@ -580,15 +532,34 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 			auto resData = res->GetWritableTile(t);
 			auto resPtr = resData.begin();
 
-			for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++resPtr, ++boolPtr)
+			if (fillA->HasVoidDomainGuarantee())
 			{
-				if (Bool(*boolPtr))
+				for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++resPtr, ++boolPtr)
 				{
-					*resPtr = *valueReader;
-					++valueReader;
+					if (Bool(*boolPtr))
+					{
+						*resPtr = *valueReader;
+						++valueReader;
+					}
+					else
+						*resPtr = fillValue;
 				}
-				else
-					*resPtr = fillValue;
+			}
+			else
+			{
+				auto fillData = fill->GetTile(t);
+				auto fillPtr = fillData.begin();
+				for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++fillPtr, ++resPtr, ++boolPtr)
+				{
+					if (Bool(*boolPtr))
+					{
+						*resPtr = *valueReader;
+						++valueReader;
+					}
+					else
+						*resPtr = *fillPtr;
+				}
+
 			}
 		}
 		MG_USERCHECK2(valueReader.AtEnd(), "recollect_by_cond: number of trues in cond doesn't match the number of values in the 2nd arguement. Attributues on select_by_cond with this condition are expected to match the number of elements.");
@@ -731,7 +702,7 @@ namespace {
 	RelateAttrOperator operRM(cog_relate_many, relate_mode::condition);
 	// DEPRECIATED VARIANTS of collect_attr END
 
-	CommonOperGroup cog_select_data(token::select_data);
+	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond);
 
