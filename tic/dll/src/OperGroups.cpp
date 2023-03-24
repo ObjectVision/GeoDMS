@@ -329,7 +329,7 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 {
 	DetermineOperPolicy();
 #if defined(MG_DEBUG_SPECIAL_OPERATORS)
-	CharPtr calcability[6] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree", "calc_at_subitem"};
+	CharPtr calcability[7] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree", "calc_at_subitem"};
 
 	if (op != oper_policy::none)
 	{

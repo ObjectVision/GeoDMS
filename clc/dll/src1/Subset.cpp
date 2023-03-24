@@ -404,17 +404,17 @@ struct SelectDataOperator : AbstrSelectDataOperator
 
 enum class relate_mode { org_rel, condition };
 
-struct RelateAttrOperator : public TernaryOperator
+struct RelateAttrOperator : public BinaryOperator
 {
 	relate_mode m_RelateMode;
 	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
-		: TernaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass(), AbstrDataItem::GetStaticClass())
+		: BinaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass()) //, AbstrDataItem::GetStaticClass())
 		, m_RelateMode(relateMode)
 	{}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
 	{
-		assert(args.size() == 3);
+		assert(args.size() == 2);
 
 		const TreeItem* attrContainer = GetItem(args[0]);
 
@@ -425,27 +425,39 @@ struct RelateAttrOperator : public TernaryOperator
 		auto containerExpr = metaCallArgs.Left();
 		auto subsetDomainExpr = metaCallArgs.Right().Left();
 		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr);
-		auto condOrOrgRelExpr = metaCallArgs.Right().Right().Left();
-		auto condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr);
 
-		auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
-		auto condOrOrgRelDC = GetDC(condOrOrgRelCalc);
-		MG_CHECK(condOrOrgRelDC);
-//		condOrOrgRelExpr = condOrOrgRelDC->GetLispRef();
-		auto condOrOrgRelItem = condOrOrgRelDC->MakeResult();
-		MG_CHECK(condOrOrgRelItem);
-		const AbstrDataItem* orgRelA = AsDynamicDataItem(condOrOrgRelItem.get());
-		MG_USERCHECK2(orgRelA,
-			m_RelateMode == relate_mode::org_rel
-			? "org_rel data-item expected as 3rd argument"
+		MG_USERCHECK2(metaCallArgs.Right().Right().IsRealList(), m_RelateMode == relate_mode::org_rel
+			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
 			: "condition data-item expected as 3rd argument"
 		);
+		const AbstrDataItem* condOrOrgRelA = nullptr;
+		SharedStr condOrOrgRelExprStr;
+		DataControllerRef condOrOrgRelDC;
+		if (metaCallArgs.Right().Right().IsRealList())
+		{
+			auto condOrOrgRelExpr = metaCallArgs.Right().Right().Left();
+			condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr);
 
-		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? orgRelA->GetAbstrValuesUnit() : orgRelA->GetAbstrDomainUnit();
+			auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
+			condOrOrgRelDC = GetDC(condOrOrgRelCalc);
+			MG_CHECK(condOrOrgRelDC);
+			//		condOrOrgRelExpr = condOrOrgRelDC->GetLispRef();
+			auto condOrOrgRelItem = condOrOrgRelDC->MakeResult();
+			MG_CHECK(condOrOrgRelItem);
+
+			condOrOrgRelA = AsDynamicDataItem(condOrOrgRelItem.get());
+		}
+		MG_USERCHECK2(condOrOrgRelA,
+			m_RelateMode == relate_mode::org_rel
+			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
+			: "collect_with_attr_cond: condition data-item expected as 3rd argument"
+		);
+
+		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? condOrOrgRelA->GetAbstrValuesUnit() : condOrOrgRelA->GetAbstrDomainUnit();
 		assert(sourceDomain);
 		assert(resultHolder);
 		if (m_RelateMode == relate_mode::org_rel)
-			MG_USERCHECK2(domainA->UnifyDomain(orgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
+			MG_USERCHECK2(domainA->UnifyDomain(condOrOrgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
 
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
@@ -462,13 +474,14 @@ struct RelateAttrOperator : public TernaryOperator
 
 			SharedStr collectExpr;
 			if (m_RelateMode == relate_mode::org_rel)
-				collectExpr = mySSPrintF("collect_by_org_rel(%s, scope(.., %s/%s))"
+				collectExpr = mySSPrintF("scope(.., collect_by_org_rel(%s, %s/%s))"
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
 					, subDataID
 				);
 			else
-				collectExpr = mySSPrintF("collect_by_cond(scope(.., %s), scope(.., %s), scope(.., %s/%s))"
+//				collectExpr = mySSPrintF("collect_by_cond(scope(.., %s), scope(.., %s), scope(.., %s/%s))"
+				collectExpr = mySSPrintF("scope(.., collect_by_cond(%s, %s, %s/%s))"
 					, subsetDomainExprStr
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()

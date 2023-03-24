@@ -1267,7 +1267,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 		LispRef head = localExpr.Left();
 		TokenID exprHeadID = head.GetSymbID();
-		if (exprHeadID == token::arrow)
+		if (exprHeadID == token::arrow || exprHeadID == token::scope)
 			goto skipTemplInst;
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
