@@ -43,11 +43,10 @@ Button::Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID bu
 void Button::Update(GuiViews& view)
 {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    //if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight()))) 
+    if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight()))) 
     //ImGui::Image
-    auto image_sz = ImVec2(GetIcon(m_TextureId).GetWidth()/1.2f, GetIcon(m_TextureId).GetHeight()/1.2f);
-    if (ImGui::ImageButton(m_ToolTip.c_str(), (void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz, ImVec2(0.1, 0.1), ImVec2(0.9, 0.9), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
-    
+    //auto image_sz = ImVec2(GetIcon(m_TextureId).GetWidth()/1.2f, GetIcon(m_TextureId).GetHeight()/1.2f);
+    //if (ImGui::ImageButton(/* m_ToolTip.c_str(), */(void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz, ImVec2(0.1, 0.1), ImVec2(0.9, 0.9), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
     //ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz);
     //if (ImGui::IsItemClicked())
     {
