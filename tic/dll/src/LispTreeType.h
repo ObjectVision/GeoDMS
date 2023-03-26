@@ -153,9 +153,6 @@ namespace token {
 	extern TIC_CALL TokenID recollect_by_cond;
 	extern TIC_CALL TokenID recollect_by_org_rel;
 
-	extern TIC_CALL TokenID recollect_attr_by_cond;
-	extern TIC_CALL TokenID recollect_attr_by_org_rel;
-
 //	SELECT section END
 
 	extern TIC_CALL TokenID nr_OrgEntity;

@@ -186,12 +186,6 @@ namespace token {
 	TIC_CALL TokenID recollect_by_cond = GetTokenID_st("recollect_by_cond");
 	TIC_CALL TokenID recollect_by_org_rel = GetTokenID_st("recollect_by_org_rel");
 
-	TIC_CALL TokenID recollect_attr_by_cond = GetTokenID_st("recollect_attr_by_cond");
-	TIC_CALL TokenID recollect_attr_by_org_rel = GetTokenID_st("recollect_attr_by_org_rel");
-
-//	TIC_CALL TokenID relate_many = GetTokenID_st("relate_many");
-//	TIC_CALL TokenID relate_afew = GetTokenID_st("relate_afew");
-
 //	SELECT section END
 
 	TIC_CALL TokenID nr_OrgEntity = GetTokenID_st("nr_OrgEntity");

@@ -353,9 +353,9 @@ struct AbstrSelectDataOperator : TernaryOperator
 };
 
 template <typename V>
-struct SelectDataOperator : AbstrSelectDataOperator
+struct CollectByCondOperator : AbstrSelectDataOperator
 {
-	SelectDataOperator(AbstrOperGroup& aog)
+	CollectByCondOperator(AbstrOperGroup& aog)
 		: AbstrSelectDataOperator(aog, DataArray<V>::GetStaticClass())
 	{}
 
@@ -402,14 +402,14 @@ struct SelectDataOperator : AbstrSelectDataOperator
 //                               collect_with_attr_by_cond, collect_with_attr_by_org_rel
 // *****************************************************************************
 
-enum class relate_mode { org_rel, condition };
+enum class collect_mode { org_rel, condition };
 
-struct RelateAttrOperator : public BinaryOperator
+struct CollectWithAttrOperator : public BinaryOperator
 {
-	relate_mode m_RelateMode;
-	RelateAttrOperator(AbstrOperGroup& cog, relate_mode relateMode)
+	collect_mode m_CollectMode;
+	CollectWithAttrOperator(AbstrOperGroup& cog, collect_mode collectMode)
 		: BinaryOperator(&cog, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), AbstrUnit::GetStaticClass()) //, AbstrDataItem::GetStaticClass())
-		, m_RelateMode(relateMode)
+		, m_CollectMode(collectMode)
 	{}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
@@ -426,7 +426,7 @@ struct RelateAttrOperator : public BinaryOperator
 		auto subsetDomainExpr = metaCallArgs.Right().Left();
 		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr);
 
-		MG_USERCHECK2(metaCallArgs.Right().Right().IsRealList(), m_RelateMode == relate_mode::org_rel
+		MG_USERCHECK2(metaCallArgs.Right().Right().IsRealList(), m_CollectMode == collect_mode::org_rel
 			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
 			: "condition data-item expected as 3rd argument"
 		);
@@ -448,15 +448,15 @@ struct RelateAttrOperator : public BinaryOperator
 			condOrOrgRelA = AsDynamicDataItem(condOrOrgRelItem.get());
 		}
 		MG_USERCHECK2(condOrOrgRelA,
-			m_RelateMode == relate_mode::org_rel
+			m_CollectMode == collect_mode::org_rel
 			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
 			: "collect_with_attr_cond: condition data-item expected as 3rd argument"
 		);
 
-		const AbstrUnit* sourceDomain = (m_RelateMode == relate_mode::org_rel) ? condOrOrgRelA->GetAbstrValuesUnit() : condOrOrgRelA->GetAbstrDomainUnit();
+		const AbstrUnit* sourceDomain = (m_CollectMode == collect_mode::org_rel) ? condOrOrgRelA->GetAbstrValuesUnit() : condOrOrgRelA->GetAbstrDomainUnit();
 		assert(sourceDomain);
 		assert(resultHolder);
-		if (m_RelateMode == relate_mode::org_rel)
+		if (m_CollectMode == collect_mode::org_rel)
 			MG_USERCHECK2(domainA->UnifyDomain(condOrOrgRelA->GetAbstrDomainUnit()), "collect_with_attr_by_org_rel(attr_container, subset_domain, org_rel): target_domain doesn't match the domain of org_rel");
 
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -473,14 +473,13 @@ struct RelateAttrOperator : public BinaryOperator
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
 			SharedStr collectExpr;
-			if (m_RelateMode == relate_mode::org_rel)
+			if (m_CollectMode == collect_mode::org_rel)
 				collectExpr = mySSPrintF("scope(.., collect_by_org_rel(%s, %s/%s))"
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
 					, subDataID
 				);
 			else
-//				collectExpr = mySSPrintF("collect_by_cond(scope(.., %s), scope(.., %s), scope(.., %s/%s))"
 				collectExpr = mySSPrintF("scope(.., collect_by_cond(%s, %s, %s/%s))"
 					, subsetDomainExprStr
 					, condOrOrgRelExprStr
@@ -723,25 +722,25 @@ namespace {
 
 	SpecialOperGroup sog_collect_attr_by_org_rel(token::collect_attr_by_org_rel, 3, oap_Relate, oper_policy::dont_cache_result);
 	SpecialOperGroup sog_collect_attr_by_cond   (token::collect_attr_by_cond   , 3, oap_Relate, oper_policy::dont_cache_result);
-	RelateAttrOperator operCF(sog_collect_attr_by_org_rel, relate_mode::org_rel);
-	RelateAttrOperator operCM(sog_collect_attr_by_cond, relate_mode::condition);
+	CollectWithAttrOperator operCF(sog_collect_attr_by_org_rel, collect_mode::org_rel);
+	CollectWithAttrOperator operCM(sog_collect_attr_by_cond, collect_mode::condition);
 
 	// DEPRECIATED VARIANTS of collect_attr BEGIN
 	Obsolete<SpecialOperGroup> cog_relate_afew("use collect_attr_by_org_rel", "relate_afew", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated | oper_policy::obsolete);
 	Obsolete<SpecialOperGroup> cog_relate_attr("use collect_attr_by_org_rel", "relate_attr", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
 	Obsolete<SpecialOperGroup> cog_relate_many("use collect_attr_by_cond", "relate_many", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
 
-	RelateAttrOperator operRF(cog_relate_afew, relate_mode::org_rel);
-	RelateAttrOperator operRA(cog_relate_attr, relate_mode::org_rel);
-	RelateAttrOperator operRM(cog_relate_many, relate_mode::condition);
+	CollectWithAttrOperator operRF(cog_relate_afew, collect_mode::org_rel);
+	CollectWithAttrOperator operRA(cog_relate_attr, collect_mode::org_rel);
+	CollectWithAttrOperator operRM(cog_relate_many, collect_mode::condition);
 	// DEPRECIATED VARIANTS of collect_attr END
 
 	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond);
 
-	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
-	tl_oper::inst_tuple<typelists::value_elements, SelectDataOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
+	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
+	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
 	tl_oper::inst_tuple<typelists::value_elements, RecollectByCondOperator<_>, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
 }
 
