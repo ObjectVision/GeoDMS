@@ -1959,12 +1959,17 @@ void TreeItem::UpdateMetaInfoImpl() const
 			auto foundItem = dynamic_cast<const TreeItem*>(supplier);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				auto supplRefStr = SharedStr(this->GetFullName());
-				auto name = SharedStr(foundItem->GetFullName());
-				reportF(SeverityTypeID::ST_Warning, "'%s' refers to depreciated item '%s'\nReplace 'nr_OrgEntity' by 'arc_rel'."
-					, supplRefStr.c_str()
-					, name.c_str()
+				SharedTreeItem refItem = foundItem->GetCurrRefItem();
+				MG_CHECK(refItem.get_ptr()); // Implied by item having TSF_Depreciated
+				auto refName = SharedStr(refItem->GetName());
+				auto msg = mySSPrintF("'%s' refers to '%s', which contains depreciated name '%s' \nReplace '%s' by '%s'."
+				,	this->GetFullName()
+				,	foundItem->GetFullName()
+				,	foundItem->GetName()
+				,	foundItem->GetName()
+				,	refName
 				);
+				reportD(SeverityTypeID::ST_Warning, msg.AsRange());
 			}
 			return true;
 		}

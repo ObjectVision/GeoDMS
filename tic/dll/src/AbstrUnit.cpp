@@ -180,6 +180,8 @@ SharedStr AbstrUnit::GetProjMetrString() const
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
 
+
+
 auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
 {
 	if (!role[2]) // zero-termination

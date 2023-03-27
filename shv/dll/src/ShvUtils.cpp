@@ -1109,7 +1109,7 @@ void UpdateShowSelOnlyImpl(
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)
 			expr = mySSPrintF("lookup(%s, %s)", indexAttr->GetFullName().c_str(), expr.c_str());
-		expr = mySSPrintF("SubSet(%s)", expr.c_str());
+		expr = mySSPrintF("select_org_rel(%s)", expr.c_str());
 
 		const ValueClass* vc           = entity->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
@@ -1129,11 +1129,12 @@ void UpdateShowSelOnlyImpl(
 		newSelIndexAttr->DisableStorage(true);
 
 
-		expr = "nr_OrgEntity";
 		if (indexAttr)
-			expr = mySSPrintF("lookup(%s, %s)", expr.c_str(), indexAttr->GetFullName().c_str());
+			expr = mySSPrintF("lookup(org_rel, %s)", indexAttr->GetFullName().c_str());
+		else
+			expr = "org_rel";
 
-		newSelIndexAttr->SetExpr( SharedStr(expr) );
+		newSelIndexAttr->SetExpr( expr );
 	}
 	else
 	{

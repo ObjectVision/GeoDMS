@@ -452,7 +452,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 			SizeT i = p1-pb;
 			if (unionPermState != PolygonFlags::none)
 			{
-				dms_assert(unionPermState == PolygonFlags::F_DoPartUnion);
+				assert(unionPermState == PolygonFlags::F_DoPartUnion);
 				SizeT ri = vg->Get(i);	
 				if (ri >= n)
 				{
@@ -462,7 +462,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				}
 				i = ri;
 			}
-			dms_assert( i < n);
+			assert( i < n);
 			geometryPtr += i;
 		}
 #if defined(MG_DEBUG_POLYGON)
@@ -573,8 +573,19 @@ protected:
 			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
 			resultHolder = resUnit;
 			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon);
-			if (!resDomain->IsKindOf( Unit<Void>::GetStaticClass() ))
-				resNrOrgEntity = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
+			{
+				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
+				resNrOrgEntity->SetTSF(DSF_Categorical);
+
+				if (!mustCalc)
+				{
+					auto depreciatedRes = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+					depreciatedRes->SetTSF(DSF_Categorical);
+					depreciatedRes->SetTSF(TSF_Depreciated);
+					depreciatedRes->SetReferredItem(resNrOrgEntity);
+				}
+			}
 		}
 		else
 		{

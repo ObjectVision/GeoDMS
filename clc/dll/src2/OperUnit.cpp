@@ -104,13 +104,15 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 {
 	arg_index n = args.size();
 	dms_assert(res);
-
 	for (arg_index i = 0; i!=n; ++i)
 		if (!IsUnit(args[i]))
 		{
 			auto clsName = SharedStr(args[i]->GetDynamicClass()->GetName());
 			throwErrorF("combine_unit", "ranged units expected, but argument %d is a %s", i + 1, clsName.c_str());
 		}
+
+	if (n > 16)
+		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16. Consider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit.");
 
 	SizeT productSize = 1;
 	if (mustCalc)
@@ -137,22 +139,27 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	// assign all combinations of nr_OrgEntity in lexicographical order
 	arg_index i = n;
 	SizeT groupSize = 1;
-	while (i)
+	static TokenID subItemNameID[] = {
+		GetTokenID_mt("first_rel"), GetTokenID_mt("second_rel"), GetTokenID_mt("third_rel"), GetTokenID_mt("fourth_rel")
+	,	GetTokenID_mt("fifth_rel"), GetTokenID_mt("sixth_rel"), GetTokenID_mt("seventh_rel"), GetTokenID_mt("eighth_rel")
+	,	GetTokenID_mt("ninth_rel"), GetTokenID_mt("tenth_rel"), GetTokenID_mt("eleventh_rel"), GetTokenID_mt("twelveth_rel")
+	,	GetTokenID_mt("thirteenth_rel"), GetTokenID_mt("fourteenth_rel"), GetTokenID_mt("fifteenth_rel"), GetTokenID_mt("sixteenth_rel")
+	};
+	for (; i; --i)
 	{
-		TokenID combineRefToken = GetTokenID_mt(myArrayPrintF<10>("nr_%d", i));
-		AbstrDataItem* resSub = CreateDataItem(
-			res
-			//			,	GetTokenID((SharedStr("nr_") + argUnits[i]->GetName()).c_str())
-			, combineRefToken
-			, res
-			, AsCertainUnit(args[--i]) // i gets decremented here
-		);
+		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, AsCertainUnit(args[i-1]));
 		resSub->SetTSF(DSF_Categorical);
 
 		if (!mustCalc)
+		{
+			auto depreciatedRes = CreateDataItem(res, GetTokenID_mt(myArrayPrintF<10>("nr_%d", i)), res, AsCertainUnit(args[i - 1]));
+			depreciatedRes->SetTSF(DSF_Categorical);
+			depreciatedRes->SetTSF(TSF_Depreciated);
+			depreciatedRes->SetReferredItem(resSub);
 			continue; // go to next sub
+		}
 
-		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i]);
+		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i-1]);
 		SizeT unitBase = ithUnit->GetBase();
 		SizeT unitCount = ithUnit->GetCount();
 		SizeT unitUB = unitCount + unitBase;

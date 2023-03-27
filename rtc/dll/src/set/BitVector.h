@@ -363,8 +363,8 @@ struct bit_sequence : bit_sequence_base<N, Block>
 		dms_assert( data_end  () == src.data_end  () );
 	}
 
-	template <typename OthBlock>
-	bit_sequence(BitVector<N, OthBlock>* cont)
+	template <typename OthBlock, typename Alloc>
+	bit_sequence(BitVector<N, OthBlock, Alloc>* cont)
 		:	bit_sequence_base<N, Block>(cont->data_begin(),  cont->size())
 	{}
 

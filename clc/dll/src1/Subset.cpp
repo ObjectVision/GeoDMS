@@ -121,9 +121,6 @@ void make_subset_container(ResContainer* resultSub, const DataArray<Bool>* boolA
 	dms_assert(resDataChannel.IsEndOfChannel());
 }
 
-static TokenID s_nrOrgEntity = GetTokenID_st("nr_OrgEntity");
-static TokenID s_Org_rel = GetTokenID_st("org_rel");
-
 enum class OrgRelCreationMode { none, org_rel, nr_OrgEntity, org_rel_and_use_it };
 
 struct SubsetOperator: public UnaryOperator
@@ -159,7 +156,7 @@ struct SubsetOperator: public UnaryOperator
 		AbstrDataItem* resSub = nullptr;
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
-			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? s_Org_rel : s_nrOrgEntity;
+			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
 			resSub->SetTSF(DSF_Categorical);
 
@@ -280,7 +277,7 @@ struct SelectMetaOperator : public BinaryOperator
 		LispRef resSubExpr;
 		if (m_ORCM != OrgRelCreationMode::none)
 		{
-			resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it))? s_Org_rel : s_nrOrgEntity;
+			resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
 			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
 				resSubExpr = slSubItemCall(resExpr, resSubName.AsStrRange());
 		}
