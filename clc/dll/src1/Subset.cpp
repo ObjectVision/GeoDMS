@@ -311,7 +311,7 @@ struct SelectMetaOperator : public BinaryOperator
 				,	containerExpr.GetSymbID()
 				,	subDataID
 				);
-			auto oldExpr = resSub->GetExpr();
+			auto oldExpr = resSub->mc_Expr;
 			if (!oldExpr.empty() && oldExpr != selectExpr)
 			{
 				auto msg = mySSPrintF("Cannot set calculation rule '%s' to selected attribute '%s' as it is already defined as '%s'", selectExpr, subDataID, oldExpr);
