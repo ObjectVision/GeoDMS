@@ -498,7 +498,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 					, subDataID
 				);
 
-			auto oldExpr = resSub->GetExpr();
+			auto oldExpr = resSub->mc_Expr;
 			if (!oldExpr.empty() && oldExpr != collectExpr)
 			{
 				auto msg = mySSPrintF("Cannot set calculation rule '%s' to collected attribute '%s' as it is already defined as '%s'", collectExpr, subDataID, oldExpr);
