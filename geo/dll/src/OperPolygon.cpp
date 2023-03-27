@@ -332,7 +332,6 @@ public:
 				Arg2Type::const_iterator i2 = arg2Data.begin(), e2 = arg2Data.end();
 				for(; i2 != e2; ++i2)
 				{
-	//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, *i2); 
 					SizeT polyNr = *i2;
 					polyNr -= polyIndexRange.first;
 					if (polyNr < nrPolys)
@@ -372,10 +371,8 @@ public:
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
-		{
 			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
-//			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
-		}
+
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
 			auto arg1Data = arg1->GetLockedDataRead(ta);
@@ -388,7 +385,6 @@ public:
 			auto b3 = arg3Data.begin();
 			for (SizeT i=0, n = arg1Data.size(); i!=n; ++i)
 			{
-//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, b2[i]);
 				SizeT polyNr = (arg2) ? b2[i] - polyIndexRange.first : 0;
 				if (polyNr < nrPolys)
 				{
@@ -459,7 +455,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		resultHolder = resDomain;
 
 		AbstrDataItem 
-		*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
+			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
 			*resSub2 = nullptr, 
 			*resSub3 = nullptr,
 			*resSub4 = nullptr;
