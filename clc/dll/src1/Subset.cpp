@@ -243,18 +243,23 @@ struct SelectMetaOperator : public BinaryOperator
 		auto conditionExpr = metaCallArgs.Right().Left();
 		auto conditionExprStr = AsFLispSharedStr(conditionExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
+		MG_CHECK(conditionCalc);
 		auto conditionDC = GetDC(conditionCalc);
-		MG_CHECK(conditionDC);
-		auto conditionKeyExpr = conditionDC->GetLispRef();
+		LispRef conditionKeyExpr;
+		const AbstrDataItem* conditionA = nullptr;
+		if (conditionDC)
+		{
+			conditionKeyExpr = conditionDC->GetLispRef();
 
-		auto conditionItem = conditionDC->MakeResult();
-		if (conditionDC->WasFailed(FR_MetaInfo))
-			conditionDC->ThrowFail();
-		MG_CHECK(conditionItem);
+			auto conditionItem = conditionDC->MakeResult();
+			if (conditionDC->WasFailed(FR_MetaInfo))
+				conditionDC->ThrowFail();
+			MG_CHECK(conditionItem);
 
-		const AbstrDataItem* conditionA = AsDynamicDataItem(conditionItem.get());
+			conditionA = AsDynamicDataItem(conditionItem.get());
+		}
 		if (!conditionA)
-			throwErrorD(GetGroup()->GetNameStr(), "condition data-item expected as 2nd argument");
+			throwErrorD(GetGroup()->GetNameStr(), "condition expected as 2nd argument");
 
 		const AbstrUnit* domain = conditionA->GetAbstrDomainUnit();
 		assert(domain);
