@@ -175,12 +175,29 @@ SizeT NumericArray<V>::FindPos(V v, SizeT startPos) const
 {
 	auto tn = this->GetTiledRangeData()->GetNrTiles();
 	if (tn)
-		for (auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos); loc.first != tn; ++loc.first, loc.second = 0)
+	{
+		auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos);
+		if (!IsDefined(loc.first))
+		{
+			if (!startPos)
+				loc = { 0, 0 }; // Irregular tile start
+			else
+			{
+				// Irregular tile continuation after last element of tile:
+				// go back, pick up location, go forward locally and go.
+				loc = this->GetTiledRangeData()->GetTiledLocation(startPos - 1); 
+				MG_CHECK(loc.first < tn);
+				++loc.first;
+				loc.second = 0;
+			}
+		}
+		for (; loc.first < tn; ++loc.first, loc.second = 0)
 		{
 			auto pos = vector_find(this->GetTile(loc.first), v, loc.second);
 			if (IsDefined(pos))
 				return this->GetTiledRangeData()->GetRowIndex(loc.first, pos);
 		}
+	}
 	return UNDEFINED_VALUE(SizeT);
 }
 
