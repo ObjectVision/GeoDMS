@@ -319,9 +319,9 @@ struct SelectMetaOperator : public BinaryOperator
 //                               collect_by_cond, collect_by_org_rel
 // *****************************************************************************
 
-struct AbstrSelectDataOperator : TernaryOperator
+struct AbstrCollectByCondOperator : TernaryOperator
 {
-	AbstrSelectDataOperator(AbstrOperGroup& aog, ClassCPtr dataClass)
+	AbstrCollectByCondOperator(AbstrOperGroup& aog, ClassCPtr dataClass)
 		: TernaryOperator(&aog, dataClass, AbstrUnit::GetStaticClass(), DataArray<Bool>::GetStaticClass(), dataClass)
 	{}
 
@@ -336,6 +336,9 @@ struct AbstrSelectDataOperator : TernaryOperator
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
+		if (dataA->GetTSF(DSF_Categorical))
+			resultHolder->SetTSF(DSF_Categorical);
+
 		if (mustCalc)
 		{
 			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
@@ -353,10 +356,10 @@ struct AbstrSelectDataOperator : TernaryOperator
 };
 
 template <typename V>
-struct CollectByCondOperator : AbstrSelectDataOperator
+struct CollectByCondOperator : AbstrCollectByCondOperator
 {
 	CollectByCondOperator(AbstrOperGroup& aog)
-		: AbstrSelectDataOperator(aog, DataArray<V>::GetStaticClass())
+		: AbstrCollectByCondOperator(aog, DataArray<V>::GetStaticClass())
 	{}
 
 	void Calculate(DataWriteHandle& res, const AbstrUnit* subset, const AbstrDataItem* condA, const AbstrDataItem* dataA) const override
@@ -474,7 +477,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 
 			SharedStr collectExpr;
 			if (m_CollectMode == collect_mode::org_rel)
-				collectExpr = mySSPrintF("scope(.., collect_by_org_rel(%s, %s/%s))"
+				collectExpr = mySSPrintF("scope(.., lookup(%s, %s/%s))"
 					, condOrOrgRelExprStr
 					, containerExpr.GetSymbID()
 					, subDataID
@@ -517,6 +520,11 @@ struct AbstrRecollectByCondOperator : TernaryOperator
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
 
+		if (dataA->GetTSF(DSF_Categorical) || fillA->GetTSF(DSF_Categorical))
+		{
+			dataA->GetAbstrValuesUnit()->UnifyDomain(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			resultHolder->SetTSF(DSF_Categorical);
+		}
 		if (mustCalc)
 		{
 			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
