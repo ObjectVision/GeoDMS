@@ -1960,19 +1960,22 @@ void TreeItem::UpdateMetaInfoImpl() const
 			assert(foundItem);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				SharedTreeItem refItem = foundItem;
-				do {
-					refItem = refItem->GetCurrRefItem();
-					MG_CHECK(refItem.get_ptr()); // Implied by item having TSF_Depreciated
-				} while (refItem->GetID() == foundItem->GetID());
+				SharedTreeItem prevItem = foundItem, refItem = prevItem->GetCurrRefItem();
+				MG_CHECK(refItem); // follows from TSF_Depreciated
+				SharedTreeItem refRefItem = refItem->GetCurrRefItem();
+				while (refRefItem) {
+					prevItem = refItem;
+					refItem = refRefItem;
+					refRefItem = refItem->GetCurrRefItem();
+				} 
+				MG_CHECK(prevItem->GetID() != refItem->GetID());
 				
-				auto refName = SharedStr(refItem->GetID());
-				auto msg = mySSPrintF("'%s' refers to '%s', which contains depreciated name '%s' \nReplace '%s' by '%s'."
+				auto msg = mySSPrintF("'%s' refers by '%s' to '%s'\nReplace '%s' by '%s'."
 				,	this->GetFullName()
 				,	foundItem->GetFullName()
-				,	foundItem->GetName()
-				,	foundItem->GetName()
-				,	refName
+				,	prevItem->GetID()
+				,	foundItem->GetID()
+				,	refItem->GetID()
 				);
 				reportD(SeverityTypeID::ST_Warning, msg.AsRange());
 			}
