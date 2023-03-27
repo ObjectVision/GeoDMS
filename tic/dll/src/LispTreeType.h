@@ -159,6 +159,7 @@ namespace token {
 	extern TIC_CALL TokenID polygon_rel;
 	extern TIC_CALL TokenID part_rel;
 	extern TIC_CALL TokenID arc_rel;
+	extern TIC_CALL TokenID sequence_rel;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;

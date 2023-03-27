@@ -1957,11 +1957,16 @@ void TreeItem::UpdateMetaInfoImpl() const
 		[this](const Actor* supplier) -> bool
 		{
 			auto foundItem = dynamic_cast<const TreeItem*>(supplier);
+			assert(foundItem);
 			if (foundItem->GetTSF(TSF_Depreciated))
 			{
-				SharedTreeItem refItem = foundItem->GetCurrRefItem();
-				MG_CHECK(refItem.get_ptr()); // Implied by item having TSF_Depreciated
-				auto refName = SharedStr(refItem->GetName());
+				SharedTreeItem refItem = foundItem;
+				do {
+					refItem = refItem->GetCurrRefItem();
+					MG_CHECK(refItem.get_ptr()); // Implied by item having TSF_Depreciated
+				} while (refItem->GetID() == foundItem->GetID());
+				
+				auto refName = SharedStr(refItem->GetID());
 				auto msg = mySSPrintF("'%s' refers to '%s', which contains depreciated name '%s' \nReplace '%s' by '%s'."
 				,	this->GetFullName()
 				,	foundItem->GetFullName()

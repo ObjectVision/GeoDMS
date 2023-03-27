@@ -192,6 +192,7 @@ namespace token {
 	TIC_CALL TokenID polygon_rel = GetTokenID_st("polygon_rel");
 	TIC_CALL TokenID part_rel = GetTokenID_st("part_rel");
 	TIC_CALL TokenID arc_rel = GetTokenID_st("arc_rel");;
+	TIC_CALL TokenID sequence_rel = GetTokenID_st("sequence_rel");;
 	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
 	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
