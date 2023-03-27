@@ -299,19 +299,25 @@ struct SelectMetaOperator : public BinaryOperator
 				continue;
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
-			SharedStr collectExpr;
+			SharedStr selectExpr;
 			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
-				collectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., %s/%s))"
+				selectExpr = mySSPrintF("collect_by_org_rel(org_rel, scope(.., %s/%s))"
 				,	containerExpr.GetSymbID()
 				,	subDataID
 				);
 			else
-				collectExpr = mySSPrintF("collect_by_cond(., scope(.., %s), scope(.., %s/%s))"
+				selectExpr = mySSPrintF("collect_by_cond(., scope(.., %s), scope(.., %s/%s))"
 				,	conditionExprStr
 				,	containerExpr.GetSymbID()
 				,	subDataID
 				);
-			resSub->SetExpr(collectExpr);
+			auto oldExpr = resSub->GetExpr();
+			if (!oldExpr.empty() && oldExpr != selectExpr)
+			{
+				auto msg = mySSPrintF("Cannot set calculation rule '%s' to selected attribute '%s' as it is already defined as '%s'", selectExpr, subDataID, oldExpr);
+				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
+			}
+			resSub->SetExpr(selectExpr);
 		}
 		res->SetIsInstantiated();
 	}
@@ -491,6 +497,13 @@ struct CollectWithAttrOperator : public BinaryOperator
 					, containerExpr.GetSymbID()
 					, subDataID
 				);
+
+			auto oldExpr = resSub->GetExpr();
+			if (!oldExpr.empty() && oldExpr != collectExpr)
+			{
+				auto msg = mySSPrintF("Cannot set calculation rule '%s' to collected attribute '%s' as it is already defined as '%s'", collectExpr, subDataID, oldExpr);
+				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
+			}
 			resSub->SetExpr(collectExpr);
 		}
 		resultHolder->SetIsInstantiated();
