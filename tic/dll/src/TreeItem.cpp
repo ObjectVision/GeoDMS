@@ -1974,7 +1974,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 				,	this->GetFullName()
 				,	foundItem->GetFullName()
 				,	prevItem->GetID()
-				,	foundItem->GetID()
+				,	prevItem->GetID()
 				,	refItem->GetID()
 				);
 				reportD(SeverityTypeID::ST_Warning, msg.AsRange());
