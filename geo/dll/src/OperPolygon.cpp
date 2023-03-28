@@ -407,8 +407,6 @@ public:
 static TokenID s_Point = token::point;
 static TokenID s_NextPoint = GetTokenID_st("NextPoint");
 static TokenID s_DepreciatedSequenceNr = GetTokenID_st("SequenceNr");
-static TokenID s_SequenceRel = GetTokenID_st("sequence_rel");
-static TokenID s_Ordinal = GetTokenID_st("Ordinal");
 
 namespace {
 	enum TableCreateFlags
@@ -482,7 +480,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 
 		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_Ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
 			MG_PRECONDITION(resSub4);
 		}
 		
@@ -727,13 +725,13 @@ struct AbstrDynaPointOperator : public TernaryOperator
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
 			resSub3->SetTSF(DSF_Categorical);
 			MG_PRECONDITION(resSub3);
 
 			if (!mustCalc)
 			{
-				auto depreciatedRes = CreateDataItem(resDomain, s_SequenceRel, resDomain, pointEntity);
+				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
 				depreciatedRes->SetTSF(DSF_Categorical);
 				depreciatedRes->SetTSF(TSF_Depreciated);
 				depreciatedRes->SetReferredItem(resSub3);
@@ -742,7 +740,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 
 		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_Ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
 			resSub4->SetTSF(DSF_Categorical);
 			MG_PRECONDITION(resSub4);
 

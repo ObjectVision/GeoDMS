@@ -163,6 +163,7 @@ namespace token {
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;
+	extern TIC_CALL TokenID ordinal;
 	extern TIC_CALL TokenID integrity_check;
 
 	extern TIC_CALL TokenID map;

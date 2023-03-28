@@ -196,6 +196,7 @@ namespace token {
 	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
 	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
+	TIC_CALL TokenID ordinal = GetTokenID_st("ordinal");
 	TIC_CALL TokenID BaseUnit = GetTokenID_st("BaseUnit");
 	TIC_CALL TokenID UInt32 = GetTokenID_st("UInt32");
 	TIC_CALL TokenID left = GetTokenID_st("left");

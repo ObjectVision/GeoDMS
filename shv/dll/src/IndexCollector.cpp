@@ -43,7 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataArray.h"
 #include "Unit.h"
 #include "DataController.h"
-
+#include "LispTreeType.h"
 
 #include "Theme.h"
 
@@ -97,7 +97,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 		expr = AbstrCalculator::RewriteExprTop(expr);
 	}
 	if (!idValues->GetValueType()->IsNumeric() || idValues->GetRangeAsFloat64().first != 0)
-		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef("ordinal"), expr)); //, idValues->GetAsLispRef()));
+		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(token::ordinal), expr)); //, idValues->GetAsLispRef()));
 	if (idValues->GetValueType()->GetCrdClass() != ValueWrap<entity_id>::GetStaticClass())
 		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(ValueWrap<entity_id>::GetStaticClass()->GetID()), expr)); //, idValues->GetAsLispRef()));
 	
