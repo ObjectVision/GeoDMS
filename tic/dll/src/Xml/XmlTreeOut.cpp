@@ -336,8 +336,7 @@ void NewLine(OutStreamBase& out)
 
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
-//	lispExpr.PrintAsFLisp(stream.FormattingStream(), 0); doesn't do HtmlEncode
-	stream << AsFLispSharedStr(lispExpr).c_str();
+	stream << AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str();
 }
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
@@ -403,7 +402,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		if (calc->IsDataBlock())
 			stream << "[ ... ]";
 		else
-			stream << calc->GetAsFLispExprOrg().c_str();
+			stream << calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 	}
 	return nullptr;
 }

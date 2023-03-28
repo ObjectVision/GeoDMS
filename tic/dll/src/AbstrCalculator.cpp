@@ -90,7 +90,12 @@ metainfo_policy_flags arg2metainfo_polcy(oper_arg_policy oap)
 	}
 }
 
-TIC_CALL void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const 
+SharedStr AbstrCalculator::GetExpr() const
+{
+	return GetAsFLispExprOrg(FormattingFlags::ThousandSeparator); 
+}
+
+void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const 
 { 
 	stream.WriteValue(GetExpr().c_str());
 }
@@ -188,7 +193,7 @@ TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef
 	auto metaInfo = calculator->GetMetaInfo();
 	if (metaInfo.index() == 0)
 		throwErrorF("GetDC", "KeyExpr expected but called with: %s\nMeta functions and template instantiations are not supported here."
-			, AsFLispSharedStr(std::get<0>(metaInfo).GetAsLispRef()).c_str()
+			, AsFLispSharedStr(std::get<0>(metaInfo).GetAsLispRef(), FormattingFlags::ThousandSeparator).c_str()
 		);
 	if (metaInfo.index() == 2) // follow source
 		return GetOrCreateDataController(std::get<2>(metaInfo)->GetCheckedKeyExpr());
@@ -472,7 +477,7 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDirectStr(const TreeItem* conte
 AbstrCalculatorRef AbstrCalculator::ConstructFromLispRef(const TreeItem* context, LispPtr lispExpr, CalcRole cr)
 {
 	DBG_START("AbstrCalculator", "ConstructFromLispRef", false);
-	DBG_TRACE(("lispExpr %s", AsFLispSharedStr(lispExpr).c_str()));
+	DBG_TRACE(("lispExpr %s", AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	return new DC_Ptr(context, lispExpr, cr);
 }
@@ -482,15 +487,15 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDBT(AbstrDataItem* context, con
 	return GetConstructor()->ConstructDBT(context, src);
 }
 
-SharedStr AbstrCalculator::GetAsFLispExprOrg() const
+SharedStr AbstrCalculator::GetAsFLispExprOrg(FormattingFlags ff) const
 {
-	return AsFLispSharedStr(GetLispExprOrg());
+	return AsFLispSharedStr(GetLispExprOrg(), ff);
 }
 
-SharedStr AbstrCalculator::GetAsFLispExpr() const
+SharedStr AbstrCalculator::GetAsFLispExpr(FormattingFlags ff) const
 {
 	auto metaInfo = GetMetaInfo();
-	return AsFLispSharedStr(GetAsLispRef(metaInfo));
+	return AsFLispSharedStr(GetAsLispRef(metaInfo), ff);
 }
 
 UInt32 CountIndirections(CharPtr expr)
@@ -902,7 +907,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 					"Consider defining and using a separate item as %s"
 					, og->GetName()
 					, currArg + 1
-					, AsFLispSharedStr(argExpr)
+					, AsFLispSharedStr(argExpr, FormattingFlags::ThousandSeparator)
 				);
 				holder->Fail(errMsgTxt, FR_MetaInfo);
 				return {};
@@ -1038,7 +1043,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("ApplyMetaFunc_impl", "", false);
-	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs)));
+	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs, FormattingFlags::ThousandSeparator)));
 #endif
 
 //	if (holder->GetDynamicClass() != TreeItem::GetStaticClass())
@@ -1117,7 +1122,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				auto leftExpr = localExpr.Right().Left();
 				if (!leftExpr.IsSymb())
-					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr).c_str());
+					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
 				SharedPtr<const TreeItem> scopeItem = FindItem(leftExpr.GetSymbID());
 				if (!scopeItem)
 					throwErrorF("ExprParser", "Scope operator: container '%s' not found", leftExpr.GetSymbID().GetStr().c_str());
@@ -1470,8 +1475,8 @@ TIC_CALL CharPtr  DMS_CONV DMS_ParseResult_GetAsSLispExpr(AbstrCalculator* self,
 		static SharedStr result;
 
 		result = afterRewrite
-			? self->GetAsFLispExpr()
-			: self->GetAsFLispExprOrg();
+			? self->GetAsFLispExpr(FormattingFlags::ThousandSeparator)
+			: self->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator);
 		return result.c_str();
 
 	DMS_CALL_END
