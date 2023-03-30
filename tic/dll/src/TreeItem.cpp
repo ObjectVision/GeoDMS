@@ -1082,8 +1082,8 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
 
-	if (mc_RefItem && mc_RefItem->IsCacheRoot() && _GetFirstSubItem()) // when called from destructor, all subitems were already destroyed
-		TreeItem_RemoveInheritedSubItems(const_cast<TreeItem*>(this)); // only allowed from MainThread()
+//	if (mc_RefItem && mc_RefItem->IsCacheRoot() && _GetFirstSubItem()) // when called from destructor, all subitems were already destroyed
+//		TreeItem_RemoveInheritedSubItems(const_cast<TreeItem*>(this)); // only allowed from MainThread()
 
 	// remove the old interest
 	OldRefDecrementer oldRefItemCounter;
