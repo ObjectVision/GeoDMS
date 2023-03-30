@@ -515,29 +515,34 @@ struct CollectWithAttrOperator : public BinaryOperator
 // recollect_by_org_rel(org_rel: S->D, subset_attr: S->V, fillerValue: ->V) -> (D -> V)
 // *****************************************************************************
 
-struct AbstrRecollectByCondOperator : TernaryOperator
+struct AbstrRecollectByCondOperator : BinaryOperator
 {
 	AbstrRecollectByCondOperator(AbstrOperGroup& aog, ClassCPtr valuesClass)
-		: TernaryOperator(&aog, valuesClass, DataArray<Bool>::GetStaticClass(), valuesClass, valuesClass)
+		: BinaryOperator(&aog, valuesClass, DataArray<Bool>::GetStaticClass(), valuesClass)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		MG_USERCHECK2(args.size() == 2 || args.size() == 3, "recollect_by_cond: 2 or 3 arguments expected");
 
-		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[0]);
-		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[1]);
-		const AbstrDataItem* fillA = debug_cast<const AbstrDataItem*>(args[2]);
-
-		dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode::UM_Throw|UnifyMode::UM_AllowDefaultRight);
-		condA->GetAbstrDomainUnit()->UnifyDomain(fillA->GetAbstrDomainUnit(), "e1", "e3", UnifyMode::UM_Throw|UnifyMode::UM_AllowDefaultRight | UnifyMode::UM_AllowVoidRight);
+		const AbstrDataItem* condA = AsDataItem(args[0]);
+		const AbstrDataItem* dataA = AsDataItem(args[1]);
+		const AbstrDataItem* fillA = nullptr;
+		if (args.size() == 3)
+		{
+			fillA = AsDynamicDataItem(args[2]);
+			MG_USERCHECK2(fillA, "recollect_by_cond: third argument is expected to be an attribute or parameter");
+			dataA->GetAbstrValuesUnit()->UnifyValues(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode::UM_Throw | UnifyMode::UM_AllowDefaultRight);
+			condA->GetAbstrDomainUnit()->UnifyDomain(fillA->GetAbstrDomainUnit(), "e1", "e3", UnifyMode::UM_Throw | UnifyMode::UM_AllowDefaultRight | UnifyMode::UM_AllowVoidRight);
+		}
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
 
-		if (dataA->GetTSF(DSF_Categorical) || fillA->GetTSF(DSF_Categorical))
+		if (dataA->GetTSF(DSF_Categorical) || fillA && fillA->GetTSF(DSF_Categorical))
 		{
-			dataA->GetAbstrValuesUnit()->UnifyDomain(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_AllowDefaultRight | UM_Throw));
+			if (fillA)
+				dataA->GetAbstrValuesUnit()->UnifyDomain(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_AllowDefaultRight | UM_Throw));
 			resultHolder->SetTSF(DSF_Categorical);
 		}
 		if (mustCalc)
@@ -569,11 +574,11 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 	{
 		const DataArray<Bool>* cond = const_array_cast<Bool>(condA);
 		const DataArray<V   >* data = const_array_cast<V>   (dataA);
-		const DataArray<V   >* fill = const_array_cast<V>   (fillA);
+		const DataArray<V   >* fill = fillA ? const_array_cast<V>(fillA) : nullptr;
 
-		V fillValue = {};
-		if (fillA->HasVoidDomainGuarantee()) 
-			fillValue = fill->GetIndexedValue(0);
+		V fillValue = (fillA && fillA->HasVoidDomainGuarantee())
+			? fill->GetIndexedValue(0)
+			: UNDEFINED_OR_ZERO(V);
 
 		auto res = mutable_array_cast<V>(resH);
 
@@ -588,7 +593,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 			auto resData = res->GetWritableTile(t);
 			auto resPtr = resData.begin();
 
-			if (fillA->HasVoidDomainGuarantee())
+			if (!fillA || fillA->HasVoidDomainGuarantee())
 			{
 				for (auto boolPtr = boolData.begin(), boolEnd = boolData.end(); boolPtr != boolEnd; ++resPtr, ++boolPtr)
 				{
@@ -762,7 +767,7 @@ namespace {
 
 	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
-	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond);
+	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);
 
 	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
 	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
