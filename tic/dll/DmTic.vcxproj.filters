@@ -153,6 +153,7 @@
     <ClCompile Include="src\TreeItemUtils.cpp" />
     <ClCompile Include="src\ExprRewrite.cpp" />
     <ClCompile Include="src\LispContextHandle.cpp" />
+    <ClCompile Include="FileName.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCalculator.h">

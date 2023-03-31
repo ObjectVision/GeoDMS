@@ -139,7 +139,7 @@ public:
 
 		auto arg1 = const_array_cast<Arg1ValueType>(arg1A); dms_assert(arg1);
 
-		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
+		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)

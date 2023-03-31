@@ -102,7 +102,7 @@ public:
 	TIC_CALL tile_loc GetTiledLocation(row_id idx) const;
 
 // Abstr Tile retention
-	virtual auto GetFutureAbstrTile(tile_id t) const-> SharedPtr<abstr_future_tile> = 0;
+	virtual auto GetFutureAbstrTile(tile_id t) const-> std::shared_ptr<abstr_future_tile> = 0;
 	virtual auto GetReadableTileLock(tile_id t) const->TileCRef = 0; // TODO G8: REMOVE
 	virtual auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode = dms_rw_mode::read_write)->TileRef = 0; // TODO G8: REMOVE
 

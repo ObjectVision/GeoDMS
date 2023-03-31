@@ -137,8 +137,8 @@ struct DataArrayBase : AbstrDataObject
 		}
 	};
 
-	TICTOC_CALL virtual auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> = 0;
-	auto GetFutureAbstrTile(tile_id t) const -> SharedPtr<abstr_future_tile> override
+	TICTOC_CALL virtual auto GetFutureTile(tile_id t) const -> std::shared_ptr<future_tile> = 0;
+	auto GetFutureAbstrTile(tile_id t) const -> std::shared_ptr<abstr_future_tile> override
 	{
 		return GetFutureTile(t);
 	}
@@ -318,7 +318,6 @@ struct TileFunctor : data_array_traits<V>::type
 		this->InitValueRangeData(valueRangePtr);
 	}
 
-	virtual void Commit() { throwIllegalAbstract(MG_POS, "TileFunctor::Commit"); }
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;
 #endif
@@ -340,13 +339,14 @@ struct GeneratedTileFunctor : TileFunctor<V>
 		{
 			return self->GetTile(t);
 		}
+
 		tile_id t;
 		SharedPtr<const TileFunctor<V>> self;
 	};
 
-	auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> override
+	auto GetFutureTile(tile_id t) const -> std::shared_ptr<future_tile> override
 	{
-		return new future_caller{t, this};
+		return std::make_shared<future_caller>(t, this);
 	}
 };
 
