@@ -146,14 +146,27 @@
     <ClCompile Include="src\Aspect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\SessionData.cpp" />
-    <ClCompile Include="src\DedicatedAttrs.cpp" />
-    <ClCompile Include="src\ItemLocks.cpp" />
-    <ClCompile Include="src\OperationContext.cpp" />
-    <ClCompile Include="src\TreeItemUtils.cpp" />
-    <ClCompile Include="src\ExprRewrite.cpp" />
-    <ClCompile Include="src\LispContextHandle.cpp" />
-    <ClCompile Include="FileName.cpp" />
+    <ClCompile Include="src\DedicatedAttrs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ExprRewrite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TreeItemUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ItemLocks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LispContextHandle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperationContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SessionData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCalculator.h">
@@ -333,27 +346,63 @@
     <ClInclude Include="src\aspect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\dedicatedattrs.h" />
-    <ClInclude Include="src\propfuncs.h" />
-    <ClInclude Include="src\TileIter.h" />
-    <ClInclude Include="src\ItemLocks.h" />
-    <ClInclude Include="src\valuefiller.h" />
-    <ClInclude Include="src\treeitemutils.h" />
-    <ClInclude Include="src\OperationContext.h" />
-    <ClInclude Include="src\Explain.h" />
     <ClInclude Include="src\tilechannel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\TileAccess.h" />
-    <ClInclude Include="src\ItemContext.h" />
-    <ClInclude Include="src\OperationContext.ipp" />
-    <ClInclude Include="src\TiledRangeDataImpl.h" />
-    <ClInclude Include="src\TiledRangeData.h" />
-    <ClInclude Include="src\TileArrayImpl.h" />
-    <ClInclude Include="src\TileFunctorImpl.h" />
-    <ClInclude Include="src\ExprRewrite.h" />
-    <ClInclude Include="src\LispContextHandle.h" />
-    <ClInclude Include="src\MetaInfo.h" />
+    <ClInclude Include="src\OperationContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\valuefiller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\treeitemutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TileIter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TileFunctorImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TiledRangeDataImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TiledRangeData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TileArrayImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TileAccess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\propfuncs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\OperationContext.ipp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dedicatedattrs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Explain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ExprRewrite.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ItemContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ItemLocks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\LispContextHandle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MetaInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\DataArray.ipp">
