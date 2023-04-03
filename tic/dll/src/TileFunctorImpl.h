@@ -48,7 +48,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/TileData.h"
 #include "ser/VectorStream.h"
 
-TIC_CALL extern std::mutex s_CsFutureTileCreation;
+TIC_CALL extern std::recursive_mutex s_CsFutureTileCreation;
 
 template <typename V>
 struct DelayedTileFunctor : TileFunctor<V>
