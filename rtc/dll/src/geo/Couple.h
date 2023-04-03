@@ -51,7 +51,7 @@ struct Couple
 	typedef typename param_type<T>::type value_cref;
 
 //	Constructors (specified)
-	Couple(): first(), second()  {}
+	Couple() {} // default initialisastion results in valid possibly non-zero objects too
 	Couple(value_cref a, value_cref b): first(a), second(b) {}
 	Couple(Undefined): first(UNDEFINED_VALUE(T)), second(UNDEFINED_VALUE(T))  {}
 

@@ -53,7 +53,7 @@ struct Point: Couple<T>
 	using Couple<T>::second;
 
 //	Constructors (specified)
-	Point() {}
+	Point() {} // default initialisastion results in valid possibly non-zero objects too
 	Point(T first, T second): Couple<T>(first, second) {}
 	Point(Undefined): Couple<T>(Undefined()) {}
 	template <typename U>
