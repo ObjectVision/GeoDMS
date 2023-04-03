@@ -847,8 +847,8 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<TA>(arg1A);
-		auto arg2 = debug_cast<const Arg2Type*>(argUnitA);
+		auto arg1 = SharedPtr<const Arg1Type>(const_array_cast<TA>(arg1A));
+		auto arg2 = SharedPtr<const Arg2Type>(debug_cast<const Arg2Type*>(argUnitA));
 		dms_assert(arg1);
 
 		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;

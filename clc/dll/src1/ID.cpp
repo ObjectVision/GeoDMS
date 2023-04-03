@@ -85,11 +85,9 @@ public:
 			const AbstrIDOperator* idOper = this;
 			auto trd = e1->GetTiledRangeData();
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
-
-				auto retainedDomainUnit = InterestPtr< SharedPtr<const Unit<V>> >( domainUnit );
 				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, domainUnit->m_RangeDataPtr, domainUnit->GetNrTiles()
-				,	[idOper, res, retainedDomainUnit](AbstrDataObject* self, tile_id t) {
-						idOper->Calculate(self, retainedDomainUnit.get_ptr(), t); // write into the same tile.
+				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
+						idOper->Calculate(self, trd, t); // write into the same tile.
 					}
 					MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := id()")
 				);
@@ -101,7 +99,7 @@ public:
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrUnit* au, tile_id t) const =0;
+	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrTileRangeData* anyRange, tile_id t) const =0;
 };
 
 template <class E1>
@@ -115,16 +113,13 @@ public:
 	IDOperator() : AbstrIDOperator(ResultType::GetStaticClass(), Arg1Type::GetStaticClass()) 
 	{}
 
-	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrUnit* au, tile_id t) const override
+	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrTileRangeData* tileRanges, tile_id t) const override
 	{
-		const Arg1Type *e1 = debug_cast<const Arg1Type*>(au);
-		dms_assert(e1);
-
 		ResultType* result = mutable_array_cast<E1>(borrowedDataHandle);
 		dms_assert(result);
 
 		auto resData = result->GetWritableTile(t, dms_rw_mode::write_only_all);
-		auto resRange = e1->GetTileRange(t);
+		auto resRange = debug_cast<const typename Unit<E1>::range_data_t*>(tileRanges)->GetTileRange(t);
 		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC("borrowedDataHandle->md_SrcStr"));
 	}
 
