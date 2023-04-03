@@ -2913,7 +2913,6 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	MG_DEBUGCODE( dms_assert( CheckMetaInfoReady() ); )
 
 	dms_assert(! GetCurrRefItem() ); // caller must take care of only calling ReadItem for UltimateItems
-//	dms_assert(! GetTSF(DSF_DSM_Allocated|TSF_DSM_SdKnown) ); // else we would be reading DataStoreCache
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
@@ -2921,7 +2920,6 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 
 	if (WasFailed(FR_Data))
 		return false;
-//	if (GetTSF(TSF_DataInMem | TSF_HasConfigData) || HasCalculatorImpl())
 	if (IsDataReady(this))
 		return true;
 
@@ -2941,15 +2939,11 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 		,		GetFullName().c_str()
 		);	
 
-//		dms_assert(!DataAllocated() );
-
 		if (srh.Read())
 			return true;
 		else if (!SuspendTrigger::DidSuspend())
 			throwItemError("DoReadItem returned Failure");
 		dms_assert(GetInterestCount());
-//REMOVE BECAUSE NO PROOF OF NON-REENTRANCE IS GIVEN; operations on DataWriteLock might abort after reading this
-//		SuspendTrigger::MarkProgress();
 	} 
 	catch (...)
 	{

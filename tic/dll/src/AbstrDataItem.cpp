@@ -425,7 +425,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	}
 	if (adi->GetTSF(DSF_Categorical))
 	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft))
+		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 		SetTSF(DSF_Categorical);
 	}
