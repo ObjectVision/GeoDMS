@@ -103,7 +103,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -249,7 +249,7 @@ public:
 	{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
