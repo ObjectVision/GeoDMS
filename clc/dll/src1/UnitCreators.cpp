@@ -142,7 +142,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	if (mustCheckCategories)
 	{
 		for (; cat_unit_index != nrArgs; ++cat_unit_index)
-			if (AsDataItem(args[cat_unit_index])->GetTSF(DSF_Categorical))
+			if (AsDataItem(args[cat_unit_index])->GetTSF(TSF_Categorical))
 			{
 				catUnit = AbstrValuesUnit( AsDataItem(args[cat_unit_index]) );
 				break;

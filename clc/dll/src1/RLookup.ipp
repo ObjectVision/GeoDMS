@@ -60,7 +60,7 @@ public:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(arg1_DomainUnit, arg2_DomainUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)

@@ -148,12 +148,12 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	for (; i; --i)
 	{
 		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, AsCertainUnit(args[i-1]));
-		resSub->SetTSF(DSF_Categorical);
+		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
 		{
 			auto depreciatedRes = CreateDataItem(res, GetTokenID_mt(myArrayPrintF<10>("nr_%d", i)), res, AsCertainUnit(args[i - 1]));
-			depreciatedRes->SetTSF(DSF_Categorical);
+			depreciatedRes->SetTSF(TSF_Categorical);
 			depreciatedRes->SetTSF(TSF_Depreciated);
 			depreciatedRes->SetReferredItem(resSub);
 			continue; // go to next sub

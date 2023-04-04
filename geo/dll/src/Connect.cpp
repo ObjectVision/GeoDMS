@@ -129,7 +129,7 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(pointDomain, pointDomain);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -303,7 +303,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(point2Entity, point1Entity);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)
@@ -626,9 +626,9 @@ public:
 
 		if (resSub2 && !mustCalc)
 		{
-			resSub2->SetTSF(DSF_Categorical);
+			resSub2->SetTSF(TSF_Categorical);
 			auto resNrOrg_depreciated = CreateDataItem(resultHolder, s_ArcID, pointEntity, polyEntity);
-			resNrOrg_depreciated->SetTSF(DSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
 			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
 			resNrOrg_depreciated->SetReferredItem(resSub2);
 		}
@@ -922,11 +922,11 @@ public:
 		}
 
 		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
-		resNrOrg->SetTSF(DSF_Categorical);
+		resNrOrg->SetTSF(TSF_Categorical);
 		if (!mustCalc)
 		{
 			auto resNrOrg_depreciated = CreateDataItem(resDomain, token::nr_OrgEntity, resDomain, arg1A->GetAbstrDomainUnit());
-			resNrOrg_depreciated->SetTSF(DSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
 			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
 			resNrOrg_depreciated->SetReferredItem(resNrOrg);
 		}

@@ -274,7 +274,7 @@ public:
 		if (!hadToTryWithoutCategoricalCheck)
 			for (arg_index i = 1; i <= n; ++i)
 			{
-				if (AsDataItem(args[i])->GetTSF(DSF_Categorical))
+				if (AsDataItem(args[i])->GetTSF(TSF_Categorical))
 					isCategorical = true;
 				Unify(vc, AsDataItem(args[i])->GetValueComposition());
 			}
@@ -284,7 +284,7 @@ public:
 
 		resultHolder = CreateCacheDataItem(resultDomain, constUnitRef, vc );
 		if (isCategorical)
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override

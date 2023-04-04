@@ -75,7 +75,7 @@ public:
 		{
 			resultHolder = CreateCacheDataItem(e1, e1);
 			resultHolder.GetNew()->SetFreeDataState(true); // never cache
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{

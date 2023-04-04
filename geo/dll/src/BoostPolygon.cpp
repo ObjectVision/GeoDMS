@@ -576,12 +576,12 @@ protected:
 			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
 			{
 				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
-				resNrOrgEntity->SetTSF(DSF_Categorical);
+				resNrOrgEntity->SetTSF(TSF_Categorical);
 
 				if (!mustCalc)
 				{
 					auto depreciatedRes = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
-					depreciatedRes->SetTSF(DSF_Categorical);
+					depreciatedRes->SetTSF(TSF_Categorical);
 					depreciatedRes->SetTSF(TSF_Depreciated);
 					depreciatedRes->SetReferredItem(resNrOrgEntity);
 				}

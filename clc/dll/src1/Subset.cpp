@@ -158,7 +158,7 @@ struct SubsetOperator: public UnaryOperator
 		{
 			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
-			resSub->SetTSF(DSF_Categorical);
+			resSub->SetTSF(TSF_Categorical);
 
 			MG_PRECONDITION(resSub);
 		}
@@ -344,8 +344,8 @@ struct AbstrCollectByCondOperator : TernaryOperator
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
-		if (dataA->GetTSF(DSF_Categorical))
-			resultHolder->SetTSF(DSF_Categorical);
+		if (dataA->GetTSF(TSF_Categorical))
+			resultHolder->SetTSF(TSF_Categorical);
 
 		if (mustCalc)
 		{
@@ -539,11 +539,11 @@ struct AbstrRecollectByCondOperator : BinaryOperator
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(condA->GetAbstrDomainUnit(), dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
 
-		if (dataA->GetTSF(DSF_Categorical) || fillA && fillA->GetTSF(DSF_Categorical))
+		if (dataA->GetTSF(TSF_Categorical) || fillA && fillA->GetTSF(TSF_Categorical))
 		{
 			if (fillA)
 				dataA->GetAbstrValuesUnit()->UnifyDomain(fillA->GetAbstrValuesUnit(), "v2", "v3", UnifyMode(UM_AllowDefaultRight | UM_Throw));
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{

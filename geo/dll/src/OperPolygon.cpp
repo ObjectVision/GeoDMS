@@ -468,11 +468,11 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		{
 			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity);
 			MG_PRECONDITION(resSub3);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3->SetTSF(TSF_Categorical);
 			if (!mustCalc)
 			{
 				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, polyEntity);
-				depreciatedRes->SetTSF(DSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Categorical);
 				depreciatedRes->SetTSF(TSF_Depreciated);
 				depreciatedRes->SetReferredItem(resSub3);
 			}
@@ -726,13 +726,13 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
 			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub3);
 
 			if (!mustCalc)
 			{
 				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
-				depreciatedRes->SetTSF(DSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Categorical);
 				depreciatedRes->SetTSF(TSF_Depreciated);
 				depreciatedRes->SetReferredItem(resSub3);
 			}
@@ -741,7 +741,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		if (m_CreateFlags & DoCreateOrdinal)
 		{
 			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
-			resSub4->SetTSF(DSF_Categorical);
+			resSub4->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub4);
 
 		}
@@ -1050,7 +1050,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1359,7 +1359,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1590,8 +1590,8 @@ protected:
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
 		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
-		if (res1) res1->SetTSF(DSF_Categorical);
-		if (res2) res2->SetTSF(DSF_Categorical);
+		if (res1) res1->SetTSF(TSF_Categorical);
+		if (res2) res2->SetTSF(TSF_Categorical);
 
 		if (mustCalc)
 		{

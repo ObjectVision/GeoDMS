@@ -303,7 +303,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), leftRole, rightRole, UnifyMode(UM_AllowDefaultLeft|UM_Throw));
 
 /*
-	if (refAsDi->GetTSF(DSF_Categorical))
+	if (refAsDi->GetTSF(TSF_Categorical))
 	{
 		SharedStr resultMsg;
 		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
@@ -423,11 +423,11 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		if (!myvu->UnifyValues(refvu, "the specified ValuesUnit", "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 	}
-	if (adi->GetTSF(DSF_Categorical))
+	if (adi->GetTSF(TSF_Categorical))
 	{
 		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
-		SetTSF(DSF_Categorical);
+		SetTSF(TSF_Categorical);
 	}
 	return true;
 

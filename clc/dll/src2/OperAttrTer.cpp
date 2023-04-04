@@ -309,8 +309,8 @@ namespace
 		{
 			if (!MonalTernaryAttrOperator<iif_assign<X> >::CreateResult(resultHolder, args, mustCalc))
 				return false;
-			if (args[1]->GetTSF(DSF_Categorical) || args[2]->GetTSF(DSF_Categorical))
-				resultHolder->SetTSF(DSF_Categorical);
+			if (args[1]->GetTSF(TSF_Categorical) || args[2]->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
 			return true;
 		}
 	};
