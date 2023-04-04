@@ -3753,6 +3753,10 @@ const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID)
 //	InterestCount management
 //----------------------------------------------------------------------
 
+#include "DataArray.h"
+
+//mc_IntegrityCheckTiles
+
 #if defined(MG_DEBUG_DATASTORELOCK)
 UInt32 sd_ItemInterestCounter = 0;
 #endif
@@ -3771,15 +3775,8 @@ void TreeItem::StartInterest() const
 
 	SharedPtr<const TreeItem> refItem = GetReferredItem();
 
-//	dms_assert(IsCacheItem() || !IsDcKnown());
-
-//	MapExternalSourceHandle externalSourceHandle(this);
-//	dms_assert(IsCacheItem() || IsDcKnown() || !externalSourceHandle.m_Self);
-//	dms_assert(IsDcKnown() || !IsKnown());
-
 	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
 	SharedTreeItemInterestPtr refItemHolder = refItem;
-//	SharedActorInterestPtr    checkerHolder = HasIntegrityChecker() ? GetIntegrityChecker() : nullptr;
 	SharedTreeItemInterestPtr parentHolder = GetTreeParent(); //  IsCacheItem() ? GetTreeParent() : nullptr;
 
 	Actor::StartInterest();
@@ -3795,12 +3792,8 @@ void TreeItem::StartInterest() const
 	}
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
 	parentHolder.release();
-//	checkerHolder.release();
 	refItemHolder.release();
 	calcHolder.release();
-//	externalSourceHandle.m_Self = nullptr;
-//	dms_assert(!mc_Calculator || mc_Calculator->GetRefCount() == 1 && mc_Calculator->GetInterestCount() == 1);
-
 	unlockDsmUsageCounter.release();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	++sd_ItemInterestCounter;

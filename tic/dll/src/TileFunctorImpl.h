@@ -48,23 +48,20 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/TileData.h"
 #include "ser/VectorStream.h"
 
-TIC_CALL extern std::recursive_mutex s_CsFutureTileCreation;
-
 template <typename V>
 struct DelayedTileFunctor : TileFunctor<V>
 {
 	using future_tile = TileFunctor<V>::future_tile;
 	using locked_cseq_t = TileFunctor<V>::locked_cseq_t;
 
-	using cache_t = std::unique_ptr<std::weak_ptr<future_tile>[]>;
+	using cache_t = std::unique_ptr<SharedPtr<future_tile>[]>;
 	cache_t m_ActiveTiles;
 //	std::unique_ptr<std::mutex[]> m_Mutices;
 
 	
 	DelayedTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
-		, m_ActiveTiles(std::make_unique<std::weak_ptr<future_tile>[]>(tn))
-//		, m_Mutices(std::make_unique<std::mutex[]>(tn))
+		, m_ActiveTiles(std::make_unique<SharedPtr<future_tile>[]>(tn))
 	{
 		MG_CHECK(tiledDomainRangeData);
 		MG_CHECK(tiledDomainRangeData->GetNrTiles() == tn);
@@ -74,16 +71,9 @@ struct DelayedTileFunctor : TileFunctor<V>
 		}
 	}
 
-	auto GetFutureTile(tile_id t) const -> std::shared_ptr<future_tile> override
+	auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> override
 	{
-		auto lockTileGeneration = std::lock_guard(s_CsFutureTileCreation);
-		auto result = m_ActiveTiles[t].lock();
-		if (!result)
-		{
-			result = CreateFutureTile(t);
-			m_ActiveTiles[t] = result;
-		}
-		return result;
+		return m_ActiveTiles[t];
 	}
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
@@ -91,9 +81,6 @@ struct DelayedTileFunctor : TileFunctor<V>
 
 		return GetFutureTile(t)->GetTile();
 	}
-
-	virtual auto CreateFutureTile(tile_id t) const -> std::shared_ptr<future_tile> = 0;
-
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
@@ -131,7 +118,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 				m_State.emplace<1>(std::move(resData));
 			}
 			dms_assert(m_State.index() == 1);
-			return locked_cseq_t(make_SharedThing(this->shared_from_this()), GetConstSeq(std::get<1>(m_State)));
+			return locked_cseq_t(this, GetConstSeq(std::get<1>(m_State)));
 		}
 		std::mutex  m_Mutex;
 		future_state m_State;
@@ -139,11 +126,6 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 		CharPtr md_SrcStr;
 #endif
 	};
-
-	auto CreateFutureTile(tile_id t) const -> std::shared_ptr<future_tile> override
-	{
-		return std::make_shared<tile_record>(pFunc(t), aFunc, this->m_TileRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(md_SrcStr));
-	}
 
 	FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn
 		, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC_ARG)
@@ -155,6 +137,8 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 #endif
 	{
 		dms_assert(tn > 1);
+		for (tile_id t = 0; t != tn; ++t)
+			this->m_ActiveTiles[t] = new tile_record(pFunc(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
 	PrepareFunc pFunc;

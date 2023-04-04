@@ -149,7 +149,7 @@ public:
 		auto arg1 = SharedPtr<const ArgumentType>(const_array_cast<V>(arg1A));
 		dms_assert(arg1);
 		auto indexBoxPtr = std::make_shared<std::any>(std::move(indexBox));
-		using prepare_data = std::shared_ptr<typename TileFunctor<V>::future_tile>;
+		using prepare_data = SharedPtr<typename TileFunctor<V>::future_tile>;
 		std::unique_ptr<AbstrDataObject> futureTileFunctor;
 
 		visit<typelists::domain_elements>(arg2DomainA

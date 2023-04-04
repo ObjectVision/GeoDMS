@@ -70,7 +70,6 @@ granted by an additional written contract for support, assistance and/or develop
 //	Shadow creation 
 //----------------------------------------------------------------------
 
-TIC_CALL std::recursive_mutex s_CsFutureTileCreation;
 std::mutex s_mutableTileRecSection;
 
 template <typename V>
