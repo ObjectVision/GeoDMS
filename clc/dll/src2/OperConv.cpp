@@ -847,9 +847,9 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-		auto arg1 = SharedPtr<const Arg1Type>(const_array_cast<TA>(arg1A));
-		auto arg2 = SharedPtr<const Arg2Type>(debug_cast<const Arg2Type*>(argUnitA));
-		dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<TA>(arg1A));
+		auto arg2 = MakeShared(debug_cast<const Arg2Type*>(argUnitA));
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
@@ -873,6 +873,9 @@ public:
 		do_transform<TR, TA, TCF>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
 };
+
+
+
 
 
 template <typename TR, typename TA>
@@ -900,9 +903,9 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-		auto arg1 = SharedPtr<const Arg1Type>(const_array_cast<TA>(arg1A));
-		auto arg2 = SharedPtr<const Arg2Type>(debug_cast<const Arg2Type*>(argUnitA));
-		dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<TA>(arg1A));
+		auto arg2 = MakeShared(debug_cast<const Arg2Type*>(argUnitA));
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()

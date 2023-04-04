@@ -146,8 +146,8 @@ public:
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = SharedPtr<const Arg1Type>(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
-		auto arg2 = SharedPtr<const Arg2Type>(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
+		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
+		auto arg2 = MakeShared(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()

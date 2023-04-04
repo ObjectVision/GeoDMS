@@ -228,7 +228,9 @@ public:
    // Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		return UnionUnit_impl(resultHolder, ResultType::GetStaticClass()->CreateResultUnit(resultHolder), args, mustCalc);
+		auto resultUnit = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
+		resultUnit->SetTSF(TSF_Categorical);
+		return UnionUnit_impl(resultHolder, resultUnit, args, mustCalc);
 	}
 };
 
