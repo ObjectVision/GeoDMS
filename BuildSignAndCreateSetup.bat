@@ -1,9 +1,9 @@
 echo on
 cls
 
-set DMS_VERSION_MAJOR=8
-set DMS_VERSION_MINOR=9
-set DMS_VERSION_PATCH=2
+set DMS_VERSION_MAJOR=9
+set DMS_VERSION_MINOR=0
+set DMS_VERSION_PATCH=0
 
 set geodms_rootdir=%cd%
 
