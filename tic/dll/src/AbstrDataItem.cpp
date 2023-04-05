@@ -1045,7 +1045,7 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrDataItem_GetStaticClass()
 
 const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 {
-	dms_assert(adi);
+	assert(adi);
 	while (true)
 	{
 		auto au = adi->GetAbstrValuesUnit();

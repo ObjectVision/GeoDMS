@@ -142,18 +142,23 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 	if (mustCheckCategories)
 	{
 		for (; cat_unit_index != nrArgs; ++cat_unit_index)
-			if (AsDataItem(args[cat_unit_index])->GetTSF(TSF_Categorical))
+		{
+			auto adi = AsDataItem(args[cat_unit_index]);
+			auto avu = AbstrValuesUnit(adi);
+			if (avu && (adi->GetTSF(TSF_Categorical) || avu->GetTSF(TSF_Categorical)))
 			{
-				catUnit = AbstrValuesUnit( AsDataItem(args[cat_unit_index]) );
+				catUnit = avu;
 				break;
 			}
+		}
 	}
 
 	for (arg_index i = nrSkippedArgs; i != nrArgs; ++i)
 	{
 		// al other considered arguments
-		const AbstrUnit*currArg_ValuesUnit = AsDataItem(args[i])->GetAbstrValuesUnit();
-		dms_assert(currArg_ValuesUnit);
+		auto adi = AsDataItem(args[i]);
+		const AbstrUnit*currArg_ValuesUnit = adi->GetAbstrValuesUnit();
+		assert(currArg_ValuesUnit);
 
 		if (currArg_ValuesUnit != arg1_ValuesUnit && arg1_ValuesUnit->GetValueType() != currArg_ValuesUnit->GetValueType())
 			throwCompatibleError(gr, nrSkippedArgs, i, "ValueType", arg1_ValuesUnit->GetValueType()->GetName().c_str(), currArg_ValuesUnit->GetValueType()->GetName().c_str());
@@ -174,8 +179,8 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		else if (!IsEmpty(currArg_MetricPtr))
 		{
 			// empty metrics are overruled
-			a1MetricPtr = currArg_MetricPtr;
-			arg1_ValuesUnit        = currArg_ValuesUnit;
+			a1MetricPtr     = currArg_MetricPtr;
+			arg1_ValuesUnit = currArg_ValuesUnit;
 		}
 
 		const UnitProjection* currArg_ProjectionPtr = currArg_ValuesUnit->GetProjection();
@@ -192,7 +197,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		}
 		dms_assert(IsEmpty(currArg_MetricPtr) || !currArg_ProjectionPtr); // this code assumes units never have both a metric and a projection
 	}
-	MG_CHECK(!catUnit || catUnit == arg1_ValuesUnit);
+	MG_CHECK(!catUnit || arg1_ValuesUnit && catUnit->UnifyDomain(arg1_ValuesUnit, "", "", UM_AllowDefaultRight));
 
 	return arg1_ValuesUnit;
 }
