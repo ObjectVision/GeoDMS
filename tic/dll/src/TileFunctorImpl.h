@@ -130,7 +130,6 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 	FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn
 		, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC_ARG)
 	: DelayedTileFunctor<V>(tiledDomainRangeData, valueRangePtr, tn MG_DEBUG_ALLOCATOR_SRC_PARAM)
-	, pFunc(pFunc_)
 	, aFunc(aFunc_)
 #if defined(MG_DEBUG_ALLOCATOR)
 	, md_SrcStr(srcStr)
@@ -138,10 +137,9 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 	{
 		dms_assert(tn > 1);
 		for (tile_id t = 0; t != tn; ++t)
-			this->m_ActiveTiles[t] = new tile_record(pFunc(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
-	PrepareFunc pFunc;
 	ApplyFunc aFunc;
 
 #if defined(MG_DEBUG_ALLOCATOR)
