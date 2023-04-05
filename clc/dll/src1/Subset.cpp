@@ -150,7 +150,9 @@ struct SubsetOperator: public UnaryOperator
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
 		AbstrUnit* res  = resDomainCls->CreateResultUnit(resultHolder);
-		dms_assert(res);
+		assert(res);
+		res->SetTSF(TSF_Categorical);
+
 		resultHolder = res;
 
 		AbstrDataItem* resSub = nullptr;
@@ -337,9 +339,9 @@ struct AbstrCollectByCondOperator : TernaryOperator
 	{
 		dms_assert(args.size() == 3);
 
-		const AbstrUnit* subset = debug_cast<const AbstrUnit*>(args[0]);
-		const AbstrDataItem* condA = debug_cast<const AbstrDataItem*>(args[1]);
-		const AbstrDataItem* dataA = debug_cast<const AbstrDataItem*>(args[2]);
+		const AbstrUnit* subset = AsUnit(args[0]);
+		const AbstrDataItem* condA = AsDataItem(args[1]);
+		const AbstrDataItem* dataA = AsDataItem(args[2]);
 		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (!resultHolder)

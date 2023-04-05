@@ -300,7 +300,6 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 		}
 	}
 	resAtomicRegionGridLock.Commit();
-//REMOVE	prodIdMapLockDO.reset();
 
 	// save per partitioning: AR->region relation
 	const overlay_partitioning_info_t* pPtr = partitioningInfo.begin();
@@ -368,7 +367,9 @@ public:
 		MG_CHECK(p < 256);
 
 		AbstrUnit* resAtomicRegions = Unit<ResID>::GetStaticClass()->CreateResultUnit(resultHolder);
-		dbg_assert(resAtomicRegions);
+		assert(resAtomicRegions);
+		resAtomicRegions->SetTSF(TSF_Categorical);
+
 		resultHolder = resAtomicRegions;
 
 		AbstrDataItem* resAtomicRegionGrid = CreateDataItem(resAtomicRegions, t_UnionData, gridDomain, resAtomicRegions);
@@ -379,7 +380,7 @@ public:
 		DataReadLock ggPartNamesLock(ggPartNamesA);
 
 		const DataArray<SharedStr>* ggPartNames = const_array_cast<SharedStr>(ggPartNamesA);
-		dms_assert(ggPartNames);
+		assert(ggPartNames);
 
 		for (UInt32 j = 0; j != p; ++j)
 		{
@@ -392,7 +393,7 @@ public:
 			if (!partitioningTI)
 				throwErrorF("Overlay", "%s not found in %s", partNameID.GetStr().c_str(), GetItem(args[2])->GetSourceName().c_str());
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
-			dms_assert(partitioningDI);
+			assert(partitioningDI);
 
 			AbstrDataItem* resPartitionRel = 
 				CreateDataItem(

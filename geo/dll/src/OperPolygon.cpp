@@ -438,16 +438,18 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
+		auto arg1A = AsDataItem(args[0]);
+		assert(arg1A);
 
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
 		ResultUnitType* resDomain = debug_cast<ResultUnitType*>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
-		dms_assert(resDomain);
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -706,7 +708,9 @@ struct AbstrDynaPointOperator : public TernaryOperator
 			=	debug_cast<ResultUnitType*>(
 					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
 				);
-		dms_assert(resDomain);
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 

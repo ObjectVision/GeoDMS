@@ -63,12 +63,12 @@ public:
 		const AbstrUnit* argUnitA= AsUnit(args[m_ReverseArgs ? 0 : 1]);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(
-				argDataA->GetAbstrDomainUnit() 
-			,	argUnitA 
-			,	m_VC
-			);
-		
+		{
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, m_VC);
+			if (argUnitA->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
+		}
+
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());

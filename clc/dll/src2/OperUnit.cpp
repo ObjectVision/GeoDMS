@@ -220,11 +220,13 @@ public:
 	{
 		if (!resultHolder)
 		{
-			dms_assert(!mustCalc);
+			assert(!mustCalc);
 			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
 		}
 		auto resUnit = AsUnit(resultHolder.GetNew());
-		dms_assert(resUnit);
+		assert(resUnit);
+		resUnit->SetTSF(TSF_Categorical);
+
 		return UnitCombine_impl(resUnit, args, mustCalc, m_MustCreateBackRefs);
 	}
 };
@@ -965,9 +967,11 @@ struct AbstrTiledUnitOper: BinaryOperator
 
 		if (!resultHolder)
 		{
-			dms_assert(!mustCalc);
+			assert(!mustCalc);
 			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
-			dms_assert(result);
+			assert(result);
+			result->SetTSF(TSF_Categorical);
+
 			resultHolder = result;
 			result->DuplFrom(a1->GetAbstrValuesUnit());
 		}
@@ -1034,16 +1038,18 @@ struct AbstrTiledUnitFromSizeOper: UnaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* a1 = AsDataItem(args[0]);
 		checked_domain<Void>(a1, "a1");
 
 		if (!resultHolder)
 		{
-			dms_assert(!mustCalc);
+			assert(!mustCalc);
 			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
-			dms_assert(result);
+			assert(result);
+			result->SetTSF(TSF_Categorical);
+
 			resultHolder = result;
 			result->DuplFrom(a1->GetAbstrValuesUnit());
 		}

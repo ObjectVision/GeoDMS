@@ -276,7 +276,8 @@ public:
 		if (!hadToTryWithoutCategoricalCheck)
 			for (arg_index i = 1; i <= n; ++i)
 			{
-				if (AsDataItem(args[i])->GetTSF(TSF_Categorical))
+				auto adi = AsDataItem(args[i]); assert(adi);
+				if (adi->GetTSF(TSF_Categorical))
 					isCategorical = true;
 				Unify(vc, AsDataItem(args[i])->GetValueComposition());
 			}

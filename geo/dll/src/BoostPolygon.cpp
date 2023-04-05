@@ -571,6 +571,8 @@ protected:
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+			resUnit->SetTSF(TSF_Categorical);
+
 			resultHolder = resUnit;
 			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon);
 			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
@@ -984,6 +986,8 @@ protected:
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
 		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		res->SetTSF(TSF_Categorical);
+
 		resultHolder = res;
 
 		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, domain1Unit);

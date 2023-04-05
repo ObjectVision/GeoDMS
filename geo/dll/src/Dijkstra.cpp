@@ -1348,6 +1348,8 @@ public:
 		if (flags(df & DijkstraFlag::OD))
 		{ 
 			mutableResultUnit = GetResultUnitClass(df)->CreateResultUnit(resultHolder);
+			mutableResultUnit->SetTSF(TSF_Categorical);
+
 			resultHolder = mutableResultUnit;
 			resultUnit = mutableResultUnit;
 			resultContext = resultHolder;

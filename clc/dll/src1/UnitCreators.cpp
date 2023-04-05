@@ -145,7 +145,7 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 		{
 			auto adi = AsDataItem(args[cat_unit_index]);
 			auto avu = AbstrValuesUnit(adi);
-			if (avu && (adi->GetTSF(TSF_Categorical) || avu->GetTSF(TSF_Categorical)))
+			if (avu && adi->GetTSF(TSF_Categorical))
 			{
 				catUnit = avu;
 				break;
