@@ -561,17 +561,13 @@ class UnitRangeOperator : public TernaryOperator
 	typedef DataArray<T>         Arg3Type; // UpperBound
 
 	static_assert(has_var_range_field_v<T>);
+	bool m_IsCatRangeFunc;
 
 public:
-	UnitRangeOperator(AbstrOperGroup* gr)
-		:	TernaryOperator(gr,
-				ResultType::GetStaticClass(), 
-				Arg1Type::GetStaticClass(), 
-				Arg2Type::GetStaticClass(),
-				Arg3Type::GetStaticClass()
-			)
+	UnitRangeOperator(AbstrOperGroup* gr, bool isCatRangeFunc)
+		:	TernaryOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass())
+		,	m_IsCatRangeFunc(isCatRangeFunc)
 	{}
-
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -591,6 +587,8 @@ public:
 			dms_assert(result);
 			resultHolder = result;
 			result->DuplFrom(arg1);
+			if (m_IsCatRangeFunc)
+				result->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)
@@ -1102,7 +1100,8 @@ namespace
 
 	CommonOperGroup
 		cog_Range(token::range), 
-		cog_LowerBound("LowerBound"), 
+		cog_CatRange("cat_range"),
+		cog_LowerBound("LowerBound"),
 		cog_UpperBound("UpperBound"), 
 		cog_BoundRange("BoundRange"), 
 		cog_BoundCenter("BoundCenter");
@@ -1111,7 +1110,7 @@ namespace
 	struct UnitRangeOperators
 	{
 		UnitRangeOperators()
-			: ur(&cog_Range)
+			: ur(&cog_Range, false)
 			, lb(&cog_LowerBound)
 			, ub(&cog_UpperBound)
 			, rb(&cog_BoundRange)
@@ -1155,6 +1154,8 @@ namespace
 
 	tl_oper::inst_tuple<typelists::ranged_unit_objects, UnitRangeOperators<_> > unitRangeOpers;
 	tl_oper::inst_tuple<typelists::bints, UnitFixedRangeOperators<_> > unitFixedRangeOpers;
+
+	tl_oper::inst_tuple<typelists::domain_objects, UnitRangeOperator<_>, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
 
 	CommonOperGroup cog_combine("combine", oper_policy::allow_extra_args);
 	CommonOperGroup cog_combine08("combine_uint8", oper_policy::allow_extra_args);
