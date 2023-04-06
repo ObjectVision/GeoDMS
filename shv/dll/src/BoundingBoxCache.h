@@ -107,10 +107,9 @@ BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 	tile_id tn=featureData->GetTiledRangeData()->GetNrTiles();
 	m_BoxData.resize(tn);
 
-	leveled_critical_section resultAccess(item_level_type(0), ord_level_type::BoundingBoxCache2, "BoundingBoxCacheResult");
-	parallel_tileloop(tn, [this, da, &resultAccess](tile_id tp)
+	parallel_tileloop(tn, [this, da](tile_id tp)
 	{
-		auto data = da->GetLockedDataRead(tp);
+		auto data = da->GetTile(tp);
 		auto
 			i = data.begin(),
 			e = data.end();
@@ -120,12 +119,10 @@ BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 		featBoundArray.resize(e-i);
 		typename RectArrayType::iterator ri = featBoundArray.begin();
 		for (; i != e; ++ri, ++i)
-		{
 			*ri = RangeFromSequence(i->begin(), i->end());
-		}
+
 		resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, featBoundArray, c_BlockSize);
 
-		leveled_critical_section::scoped_lock resultLock(resultAccess);
 		m_BoxData[tp] = std::move(resultBoxes);
 	});
 }
