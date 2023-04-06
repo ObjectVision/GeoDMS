@@ -484,14 +484,42 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		subDirNameStr = MakeAbsolutePath(subDirName);
 		subDirName = subDirNameStr.c_str();
 	}
+
+	UInt32 substCount = 0;
 	while (true)
 	{
+		if (storageName.ssize() > 65000)
+			throwDmsErrF("GetFullStorageName('%s'): length of storage name is %d, which is considereed too large."
+				"\nNumber of completed substitutions: %d"
+				"\nCurent substitution result       : '%s'"
+				, storageNameCStr
+				, storageName.ssize()
+				, substCount
+				, storageName.c_str()
+			);
+
 		CharPtr p1 = storageName.find('%');
 		if (p1 == storageName.csend())
 			break;
 		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
 		if (p2 == storageName.csend())
-			throwDmsErrF("GetFullStorageName('%s'): unbalanced placeholder delimiters (%%).", storageName.c_str());
+			throwDmsErrF("GetFullStorageName('%s'): unbalanced placeholder delimiter (%%) at position %d."
+				"\nNumber of completed substitutions: %d"
+				"\nCurent substitution result       : '%s'"
+				, storageNameCStr
+				, p1 - storageName.begin()
+				, substCount
+				, storageName.c_str()
+			);
+		if (substCount >= 1024)
+			throwDmsErrF("GetFullStorageName('%s'): substitution aborted aftert too many substitutions. Resursion suspected."
+				"\nNumber of completed substitutions: %d"
+				"\nCurent substitution result       : '%s'"
+				, storageNameCStr
+				, substCount
+				, storageName.c_str()
+			);
+		++substCount;
 		storageName 
 				= SharedStr(storageName.cbegin(), p1) 
 				+ GetPlaceholderValue(subDirName,  SharedStr(p1+1, p2).c_str(), true)
