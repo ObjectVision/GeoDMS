@@ -1679,9 +1679,16 @@ bool DrawArcs(
 
 						if (entityIndex == fe || isSelected)
 						{
-							int width = 7;
+							int width = 4 * d.GetSubPixelFactor();
+							assert(width > 0);
 							if (penIndices)
+							{
 								width += penIndices->GetWidth(entityIndex);
+								assert(width > 0);
+							}
+							width += width / 2;
+							assert(width > 0);
+
 							COLORREF brushColor = (entityIndex == fe)
 								? ::GetSysColor(COLOR_HIGHLIGHT)
 								: GetSelectedClr(selectionsArray[entityIndex]);
