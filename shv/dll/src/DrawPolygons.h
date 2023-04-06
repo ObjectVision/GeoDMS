@@ -304,13 +304,13 @@ bool DrawPolygons(
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
 
 	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
-	SelectionIdCPtr selectionsArray; dms_assert(!selectionsArray);
-
+	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
 	if (fd.m_SelValues)
 	{
 		selectionsArray = fd.m_SelValues.value().begin();
-		dms_assert(selectionsArray);
+		assert(selectionsArray);
 	}
+
 	// draw Interiors
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
@@ -362,7 +362,7 @@ bool DrawPolygons(
 		pointIndexBuffer_t pointIndexBuffer;
 		if (penIndices && !layer->IsDisabledAspectGroup(AG_Pen))
 		{
-			PenArray pa(d.GetDC(), penIndices);
+			PenArray pa(d.GetDC(), penIndices, true);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for(tile_id t = tileCounter.Value(); t<tn; ++t)

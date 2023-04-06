@@ -49,6 +49,7 @@ class AbstrThemeValueGetter;
 struct ResourceIndexCache
 {
 	resource_index_t GetKeyIndex(entity_id entityId) const;
+	Int32 GetWidth(entity_id e) const;
 
 protected: 
 	ResourceIndexCache(

@@ -232,7 +232,7 @@ DcClipRegionSelector::~DcClipRegionSelector()
 	}
 	m_OrgRegionPtr->swap(m_OrgRegionCopy);
 
-	dms_assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
+	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
 }
 
 

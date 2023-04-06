@@ -206,10 +206,10 @@ void PenIndexCache::AddKey(Float64 penSize, Float64 worldSize, DmsColor penColor
 		&&	IsDefined(worldSize)
 		)
 	{
-		dms_assert(penSize >= 0.0);
-		dms_assert(worldSize >= 0.0);
+		assert(penSize >= 0.0);
+		assert(worldSize >= 0.0);
 		Int32 totalSize = penSize * m_LastSubPixelFactor + worldSize * m_LastNrPixelsPerWorldUnit;
-		dms_assert(totalSize >= 0);
+		assert(totalSize >= 0);
 
 		m_Keys.push_back(
 			PenKeyType(
@@ -249,13 +249,12 @@ void PenIndexCache::MakeKeyIndex() const
 // struct  : PenArray
 //----------------------------------------------------------------------
 
-PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
+PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache, bool dontAssumeUsingOtherPens)
 	:	m_hDC(hDC)
-	,	m_OrgHPen(NULL) // zodat dat weer terug te zetten is in destructor, bewaar pas bij eerste Selectie
 {
-	dms_assert(hDC != NULL);
-	dms_assert(indexCache != 0);
-	dms_assert(indexCache->m_Keys.size() > 0);
+	assert(hDC != nullptr);
+	assert(indexCache != 0);
+	assert(indexCache->m_Keys.size() > 0);
 
 	m_Collection.reserve(indexCache->m_Keys.size());
 
@@ -309,12 +308,10 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 				);
 		}
 	}
-	dms_assert(size() > 0);
-	if (size() == 1)
-	{
-		SelectPen(0);
-		indexCache = 0; // don't use this font in selection
-	}
+	assert(size() > 0);
+	SelectPen(0);
+	if (size() == 1 && dontAssumeUsingOtherPens)
+		indexCache = nullptr; // don't use this penarrau in selection
 }
 
 
@@ -328,13 +325,14 @@ PenArray::~PenArray()
 
 bool PenArray::SelectPen(UInt32 index)
 {
-	dms_assert( index < m_Collection.size());
-
-	HPEN penHandle = m_Collection[index];
-	if (penHandle == NULL)
+	HPEN penHandle;
+	assert(index < m_Collection.size());
+	penHandle = m_Collection[index];
+	if (penHandle == nullptr)
 		return false;
+
 	HGDIOBJ prevPenHandle = SelectObject(m_hDC, penHandle);
-	if (m_OrgHPen == NULL)
+	if (m_OrgHPen == nullptr)
 		m_OrgHPen = reinterpret_cast<HPEN>(prevPenHandle);
 	return true;
 }

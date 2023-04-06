@@ -1336,7 +1336,7 @@ bool DrawNetwork(
 		{
 			GPoint pointBuffer[2];
 
-			PenArray pa(d.GetDC(), penIndices);
+			PenArray pa(d.GetDC(), penIndices, false);
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
@@ -1618,7 +1618,20 @@ bool DrawArcs(
 
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
+	bool selectedOnly = layer->ShowSelectedOnly();
+	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
+	if (fd.m_SelValues)
+	{
+		selectionsArray = fd.m_SelValues.value().begin();
+		assert(selectionsArray);
+	}
+
 	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
+	PenArray::SafePenHandle specialPenHolder;
+
+	SizeT fe = UNDEFINED_VALUE(SizeT);
+	if (layer->IsActive())
+		fe = layer->GetFocusElemIndex();
 
 	if (mainCount == 0)
 	{
@@ -1626,7 +1639,7 @@ bool DrawArcs(
 		{
 			std::vector<POINT> pointBuffer;
 
-			PenArray pa(d.GetDC(), penIndices);
+			PenArray pa(d.GetDC(), penIndices, selectionsArray && !selectedOnly || IsDefined(fe));
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for (tile_id t=tileCounter.Value(); t!=tn; ++t)
@@ -1649,15 +1662,35 @@ bool DrawArcs(
 					&&	(_Width (*ri) >= minWorldWidth || _Height(*ri) >= minWorldHeight)
 					)
 					{
-						if (penIndices)
+						entity_id entityIndex = (i - b) + tileIndexBase;
+						if (indexCollector)
 						{
-							UInt32 entityIndex = (i - b) + tileIndexBase;
-							if (indexCollector)
-							{
-								entityIndex = indexCollector->GetEntityIndex(entityIndex);
-								if (!IsDefined(entityIndex))
-									goto nextArc;
-							}
+							entityIndex = indexCollector->GetEntityIndex(entityIndex);
+							if (!IsDefined(entityIndex))
+								goto nextArc;
+						}
+
+						bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
+						if (selectedOnly)
+						{
+							if (!isSelected) goto nextArc;
+							isSelected = false;
+						}
+
+						if (entityIndex == fe || isSelected)
+						{
+							int width = 7;
+							if (penIndices)
+								width += penIndices->GetWidth(entityIndex);
+							COLORREF brushColor = (entityIndex == fe)
+								? ::GetSysColor(COLOR_HIGHLIGHT)
+								: GetSelectedClr(selectionsArray[entityIndex]);
+
+							specialPenHolder = CreatePen(PS_SOLID, width, GetSelectedClr(selectionsArray[entityIndex]));
+							SelectObject(d.GetDC(), specialPenHolder);
+						}
+						else if (penIndices)
+						{
 							if (! pa.SelectPen(penIndices->GetKeyIndex(entityIndex)) )
 								goto nextArc;
 						}

@@ -129,10 +129,33 @@ UInt32 ResourceIndexCache::GetKeyIndex(entity_id entityId) const
 	if (m_CompatibleTheme)
 	{
 		entityId = m_CompatibleTheme->GetClassIndex(entityId);
-		if (!IsDefined(entityId)) entityId = m_KeyIndices.size()-1; // inserted by AddUndefinedKey
+		if (!IsDefined(entityId)) 
+			entityId = m_KeyIndices.size()-1; // inserted by AddUndefinedKey
 	}
 
 	dms_assert(entityId < m_KeyIndices.size());
 	return m_KeyIndices[entityId];
+}
+
+
+
+Int32 ResourceIndexCache::GetWidth(entity_id e) const
+{
+	assert(m_LastSubPixelFactor >= 0);
+	assert(m_LastNrPixelsPerWorldUnit >= 0);
+
+	Float64  penPixelWidth = m_DefaultPixelWidth;
+	Float64  penWorldWidth = m_DefaultWorldWidth;
+
+	if (m_PixelWidthValueGetter)
+		penPixelWidth = m_PixelWidthValueGetter->CreatePaletteGetter()->GetNumericValue(e);
+	if (m_WorldWidthValueGetter)
+		penWorldWidth = m_WorldWidthValueGetter->CreatePaletteGetter()->GetNumericValue(e);
+
+	assert(penPixelWidth >= 0.0);
+	assert(penWorldWidth >= 0.0);
+	Int32 totalSize = penPixelWidth * m_LastSubPixelFactor + penWorldWidth * m_LastNrPixelsPerWorldUnit;
+	assert(totalSize >= 0);
+	return totalSize;
 }
 
