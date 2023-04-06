@@ -575,17 +575,18 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 
 	bool keepExistingValues = doSetClassID || !IsCreateNewEvent(eventID);
 
+	auto tileLoc = selAttrObj->GetTiledLocation(selectedIndex);
 	if (doSetClassID)
 	{ 
-		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetDataWrite();
-		if (ClassID(selData[selectedIndex]) == currClassID)
+		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetWritableTile(tileLoc.first);
+		if (ClassID(selData[tileLoc.second]) == currClassID)
 			goto cancel;
 
-		selData[selectedIndex] = currClassID;
+		selData[tileLoc.second] = currClassID;
 	}
 	else
 	{
-		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetDataWrite();
+		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetWritableTile(tileLoc.first);
 
 		// oldValue  FALSE   TRUE
 		// ========  ======  =====
@@ -593,10 +594,10 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 		// FALSE     ->TRUE  cancel
 		// TRUE      ->TRUE  ->FALSE
 
-		if (doToggle && !selData[selectedIndex] )
+		if (doToggle && !selData[tileLoc.second] )
 			goto cancel;
 
-		selData[selectedIndex] = (not doToggle) || ( selData[selectedIndex]==0);
+		selData[tileLoc.second] = (not doToggle) || ( selData[tileLoc.second]==0);
 	}
 	if (keepExistingValues && !HasEntityAggr())
 	{
