@@ -547,17 +547,18 @@ CrdRect FeatureLayer::CalcSelectedClientWorldRect() const
 
 	if (m_Themes[AN_Selections])
 	{
-
 		auto selTheme = CreateSelectionsTheme();
-		dms_assert(selTheme);
+		assert(selTheme);
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
+		assert(selAttr);
 
 		PreparedDataReadLock selLock(selAttr);
 
 		SizeT f = bbCache->GetFeatureCount();
 		while (f)
 		{
-			if (IsFeatureSelected(--f))
+			auto entityID = Feature2EntityIndex(--f);
+			if (selAttr->GetValue<SelectionID>(entityID))
 				selectRect |= bbCache->GetBounds(f);
 		}
 	}
@@ -987,7 +988,8 @@ CrdRect GraphicPointLayer::CalcSelectedClientWorldRect() const
 		UInt32 f = featureAttr->GetAbstrDomainUnit()->GetCount();
 		while (f)
 		{
-			if (IsFeatureSelected(--f))
+			auto entityID = Feature2EntityIndex(--f);
+			if (selAttr->GetValue<SelectionID>(entityID))
 				selectRect |= featureData->GetValueAsDPoint(f);
 		}
 	}

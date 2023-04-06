@@ -632,10 +632,12 @@ bool GraphicLayer::IsEntitySelected(SizeT entityID) const
 		return false;
 
 	auto selTheme =  CreateSelectionsTheme();
-	dms_assert(selTheme);
-	const AbstrDataItem* selAttr = const_cast<AbstrDataItem*>(selTheme->GetThemeAttr());
+	assert(selTheme);
+	const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
+	assert(selAttr);
 
-	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	assert(selAttr->m_DataLockCount > 0); //	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	return selAttr->GetValue<SelectionID>(entityID);
 }
 
 
