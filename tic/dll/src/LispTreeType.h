@@ -70,6 +70,8 @@ namespace token {
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
 
+	inline bool isConst(TokenID t) { return t == true_ || t == false_; }
+
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
 	extern TIC_CALL TokenID convert;

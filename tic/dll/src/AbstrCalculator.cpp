@@ -391,8 +391,15 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 
 bool AbstrCalculator::IsSourceRef() const
 {
-	return GetLispExprOrg().IsSymb() 
-		&& !ValueClass::FindByScriptName(GetLispExprOrg().GetSymbID());
+	auto lispRefOrg = GetLispExprOrg();
+	if (!lispRefOrg.IsSymb())
+		return false;
+	auto symbID = lispRefOrg.GetSymbID();
+	if (ValueClass::FindByScriptName(symbID))
+		return false;
+	if (token::isConst(symbID))
+		return false;
+	return true;
 }
 
 AcConstructor* s_Constructor = nullptr;
@@ -759,6 +766,9 @@ LispRef& SubstitutionBuffer::BufferedLispRef(metainfo_policy_flags mpf, LispPtr 
 LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr supplRef, metainfo_policy_flags mpf) const
 {
 	TokenID supplRefID = supplRef.GetSymbID();
+	if (token::isConst(supplRefID))
+		return ExprList(supplRefID);
+
 	const TreeItem* supplier = FindItem(supplRefID);
 	if (!supplier || supplier->IsCacheItem())
 	{
