@@ -1446,29 +1446,48 @@ SizeT FindArcByPoint(
 	typedef DataArray<PolygonType>                      DataArrayType;
 	typedef BoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
 
-	const DataArrayType* da = debug_valcast<const DataArrayType*>(featureData);
+	auto da = const_array_cast<PolygonType>(featureData);
+	auto bbCache = MakeShared( GetBoundingBoxCache<ScalarType>(layer) );
+	assert(bbCache);
+
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
+
+	ArcProjectionHandle<Float64, ScalarType> aph(&pnt, MAX_VALUE(Float64));
 
 	auto domain = featureData->GetTiledRangeData();
 	for (tile_id t=0, tn = domain->GetNrTiles(); t!=tn; ++t)
 	{
-		const RectArrayType& rectArray = GetBoundingBoxCache<ScalarType>(layer)->GetBoundsArray(t);
+		if (aph.CanSkip(bbCache->GetBoxData(t).m_TotalBound))
+			continue;
+
+		const RectArrayType& blocksArray = bbCache->GetBlockBoundArray(t);
+		const RectArrayType& boundsArray = bbCache->GetBoundsArray(t);
 
 		auto data = da->GetLockedDataRead(t);
 		auto
 			b = data.begin(),
 			e = data.end();
-
-		ArcProjectionHandle<Float64, ScalarType> aph(&pnt, MAX_VALUE(Float64));
-
+		auto s = data.size();
 		// search backwards so that last drawn object will be first selected
-		while (b!=e)
+		while (s)
 		{
-			--e;
-			if (aph.Project2Arc(begin_ptr(*e), end_ptr(*e)))
-				entityID = domain->GetRowIndex(t, e - data.begin());
+			if (!(s % AbstrBoundingBoxCache::c_BlockSize))
+				while (s && aph.CanSkip(boundsArray[s / AbstrBoundingBoxCache::c_BlockSize - 1]))
+				{
+					s -= AbstrBoundingBoxCache::c_BlockSize;
+					if (!s)
+						goto break_loops;
+				}
+			assert(s);
+			--s; // now s could be zero
+			if (aph.CanSkip(boundsArray[s]))
+				continue;
+			auto i = b + s;
+			if (aph.Project2Arc(begin_ptr(*i), end_ptr(*i)))
+				entityID = domain->GetRowIndex(t, s);
 		}
 	}
+break_loops:
 	return entityID;
 }
 

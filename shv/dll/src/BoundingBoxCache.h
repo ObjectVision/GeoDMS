@@ -38,7 +38,7 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 {
 	typedef Point<F>                                            PointType;
 	typedef Range<PointType>                                    RectType;
-	typedef std::vector<RectType>                                RectArrayType;
+	typedef std::vector<RectType>                               RectArrayType;
 	typedef typename sequence_traits<PointType>::container_type PolygonType;
 	typedef DataArray<PolygonType>                              DataArrayType;
 

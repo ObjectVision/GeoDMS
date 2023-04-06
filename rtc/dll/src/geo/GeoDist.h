@@ -36,6 +36,34 @@ granted by an additional written contract for support, assistance and/or develop
 typedef UInt32 seq_elem_index_type;
 
 //----------------------------------------------------------------------
+// Section      : Distance Bounds
+//----------------------------------------------------------------------
+
+template <typename T>
+T MinDistToRange(T v, Range<T> r)
+{
+	assert(r.first <= r.second);
+	if (v < r.first) return r.first - v;
+	if (v > r.second) return v - r.second;
+	return 0;
+}
+
+template <typename T>
+T MaxDistToRange(T v, Range<T> r)
+{
+	return Max<T>(Dist(v, r.first), Dist(v, r.second));
+}
+
+template <typename T>
+Point<T> MinDistToRange(Point<T> v, Range<Point<T>> r)
+{
+	return Point<T>(
+		MinDistToRange(v.first, Range<T>(r.first.first, r.second.first)),
+		MinDistToRange(v.second, Range<T>(r.first.second, r.second.second))
+	);
+}
+
+//----------------------------------------------------------------------
 // Section      : Distance Measures
 //----------------------------------------------------------------------
 
@@ -78,6 +106,7 @@ template <typename R, typename T>
 struct ArcProjectionHandle
 {
 	typedef Point<T>         PointType;
+	typedef Range<PointType> RectType;
 	typedef const PointType* ConstPointPtr;
 	typedef R                sqrdist_type;
 
@@ -96,6 +125,12 @@ struct ArcProjectionHandle
 		,	m_FoundAny(false)
 		,	m_MinSqrDist(minSqrDist)
 	{}
+
+	bool CanSkip(const RectType& bb)
+	{
+		auto dist = MinDistToRange(*m_Point, bb);
+		return m_MinSqrDist < Norm<R>(dist);
+	}
 
 	bool MakeSafeMin(sqrdist_type newDist)
 	{
