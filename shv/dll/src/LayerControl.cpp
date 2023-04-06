@@ -479,6 +479,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 	SharedPtr<const AbstrDataItem> themeAttr;
 	if (IsDefined(selectedID))
 	{
+		text = AsString(selectedID) + ": ";
 		auto activeTheme = m_Layer->GetActiveTheme();
 		if (activeTheme && !activeTheme->IsAspectParameter())
 		{
@@ -489,7 +490,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 				if (SuspendTrigger::DidSuspend())
 					return AVS_SuspendedOrFailed;
 				GuiReadLockPair locks;
-				text = 
+				text += 
 					DisplayValue(themeAttr, selectedID, true,
 						m_LabelLocks, MAX_TEXTOUT_SIZE, locks
 					);
@@ -497,7 +498,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 			else
 			{
 				GuiReadLock lock;
-				text =
+				text +=
 					DisplayValue(activeTheme->GetThemeEntityUnit(), selectedID, true,
 						m_LabelLocks.m_DomainLabel, MAX_TEXTOUT_SIZE, lock
 					);
@@ -507,7 +508,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 		{
 			GuiReadLock lock;
 			dms_assert(m_Layer->GetActiveAttr() == m_Layer->GetTheme(AN_Feature)->GetPaletteAttr());
-			text =
+			text +=
 				DisplayValue(m_Layer->GetTheme(AN_Feature)->GetThemeEntityUnit(), selectedID, true,
 					m_LabelLocks.m_DomainLabel, MAX_TEXTOUT_SIZE, lock
 				);
