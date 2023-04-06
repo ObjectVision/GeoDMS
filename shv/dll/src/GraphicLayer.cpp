@@ -142,7 +142,6 @@ void GraphicLayer::SetActive(bool newState)
 		}
 		if (newState)
 		{
-			CreateViewValueAction(GetActiveAttr(), GetFocusElemIndex(), false);
 			auto dv = GetDataView().lock();
 			dv->OnCaptionChanged();
 		}
