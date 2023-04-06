@@ -51,15 +51,20 @@
 [(select_data (select_orgrel_uint16 _Cond) _Data) (select_data (select_orgrel_uint16 _Cond) _Cond _Data)]
 [(select_data (select_orgrel_uint32 _Cond) _Data) (select_data (select_orgrel_uint32 _Cond) _Cond _Data)]
 
-[(collect_by_org_rel (select        _Cond) _Data) (collect_by_org_rel (select        _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint8  _Cond) _Data) (collect_by_org_rel (select_uint8  _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint16 _Cond) _Data) (collect_by_org_rel (select_uint16 _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint32 _Cond) _Data) (collect_by_org_rel (select_uint32 _Cond) _Cond _Data)]
+[(collect_by_cond (select        _Cond) _Data) (collect_by_cond (select        _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint8  _Cond) _Data) (collect_by_cond (select_uint8  _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint16 _Cond) _Data) (collect_by_cond (select_uint16 _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint32 _Cond) _Data) (collect_by_cond (select_uint32 _Cond) _Cond _Data)]
 
-[(collect_by_org_rel (select_org_rel        _Cond) _Data) (collect_by_org_rel (select_org_rel        _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint8_org_rel  _Cond) _Data) (collect_by_org_rel (select_uint8_org_rel  _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint16_org_rel _Cond) _Data) (collect_by_org_rel (select_uint16_org_rel _Cond) _Cond _Data)]
-[(collect_by_org_rel (select_uint32_org_rel _Cond) _Data) (collect_by_org_rel (select_uint32_org_rel _Cond) _Cond _Data)]
+[(collect_by_cond (select_org_rel        _Cond) _Data) (collect_by_cond (select_org_rel        _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint8_org_rel  _Cond) _Data) (collect_by_cond (select_uint8_org_rel  _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint16_org_rel _Cond) _Data) (collect_by_cond (select_uint16_org_rel _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint32_org_rel _Cond) _Data) (collect_by_cond (select_uint32_org_rel _Cond) _Cond _Data)]
+
+[(collect_by_org_rel (select_org_rel        _Cond) _Data) (lookup (subitem (select_org_rel _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint8_org_rel  _Cond) _Data) (lookup (subitem (select_org_rel _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint16_org_rel _Cond) _Data) (lookup (subitem (select_org_rel _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint32_org_rel _Cond) _Data) (lookup (subitem (select_org_rel _Cond) "org_rel") _Data)]
 
 /*********** Elementary funcs  *********/
 
