@@ -1452,7 +1452,7 @@ SizeT FindArcByPoint(
 
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
 
-	ArcProjectionHandle<Float64, ScalarType> aph(&pnt, MAX_VALUE(Float64));
+	ArcProjectionHandle<Float64, ScalarType> aph(pnt, MAX_VALUE(Float64));
 
 	auto domain = featureData->GetTiledRangeData();
 	for (tile_id t=0, tn = domain->GetNrTiles(); t!=tn; ++t)

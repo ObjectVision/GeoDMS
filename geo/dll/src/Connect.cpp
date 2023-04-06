@@ -452,13 +452,13 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 	}
 
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
 	{
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
 	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(*p, maxDepth, optionalMaxSqrDistPtr));
-			for (auto iter = spIndex.begin(Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
+			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr));
+			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
@@ -466,7 +466,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 				{
 					m_ArcPtr = streetPtr;
-					iter.RefineSearch( Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist)) );
+					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
 				}
 			}
 			if (aph.m_FoundAny || !maxDepth)
@@ -746,9 +746,10 @@ public:
 						SizeT currRow = 0;
 						for (; pointPtr != pointEnd; ++r1, ++pointPtr)
 						{
-							if (IsDefined(*pointPtr))
+							auto point = *pointPtr;
+							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -1039,11 +1040,12 @@ public:
 				};
 				for (;pointPtr != pointEnd; ++pointPtr)
 				{
-					if (!IsDefined(*pointPtr))
+					auto point = *pointPtr;
+					if (!IsDefined(point))
 						continue;
 					dms_assert(resStreetEnd < resCutBegin);
 
-					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 					if (arcHnd.m_FoundAny)
 					{
 

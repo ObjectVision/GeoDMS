@@ -110,7 +110,7 @@ struct ArcProjectionHandle
 	typedef const PointType* ConstPointPtr;
 	typedef R                sqrdist_type;
 
-	ConstPointPtr m_Point      = nullptr;
+	PointType     m_Point;
 	sqrdist_type  m_MinSqrDist = 0;
 
 	// result vars
@@ -120,7 +120,7 @@ struct ArcProjectionHandle
 	
 	ArcProjectionHandle() {}
 
-	ArcProjectionHandle(ConstPointPtr p, sqrdist_type minSqrDist)
+	ArcProjectionHandle(PointType p, sqrdist_type minSqrDist)
 		:	m_Point(p)
 		,	m_FoundAny(false)
 		,	m_MinSqrDist(minSqrDist)
@@ -128,7 +128,7 @@ struct ArcProjectionHandle
 
 	bool CanSkip(const RectType& bb)
 	{
-		auto dist = MinDistToRange(*m_Point, bb);
+		auto dist = MinDistToRange(m_Point, bb);
 		return m_MinSqrDist < Norm<R>(dist);
 	}
 
@@ -156,11 +156,11 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 		i = j, 
 		nearestSegm = nullptr;
 
-	if	( MakeSafeMin(Norm<sqrdist_type>(*m_Point - *arcBegin) ) )
+	if	( MakeSafeMin(Norm<sqrdist_type>(m_Point - *arcBegin) ) )
 		nearestSegm = arcBegin;
 
 	for ( ; ++j != arcEnd ; i = j)
-		if (MakeSafeMin( SqrDist2Segm<sqrdist_type>(*m_Point, *i, *j)) )
+		if (MakeSafeMin( SqrDist2Segm<sqrdist_type>(m_Point, *i, *j)) )
 			nearestSegm = i;
 
 	if (nearestSegm == nullptr)
@@ -179,7 +179,7 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 	}
 	else
 	{
-		m_CutPoint= Project2Segm<R>(*m_Point, *nearestSegm, *nearestSegmEnd);
+		m_CutPoint= Project2Segm<R>(m_Point, *nearestSegm, *nearestSegmEnd);
 		m_InArc   = (nearestSegm != arcBegin || m_CutPoint != *arcBegin) 
 				 && (nearestSegm != i-1      || m_CutPoint != *i);
 	}
@@ -213,7 +213,7 @@ struct ArcProjectionHandleWithDist : ArcProjectionHandle<R, T>
 
 	ArcProjectionHandleWithDist() {}
 
-	ArcProjectionHandleWithDist(typename ArcProjectionHandleWithDist::ConstPointPtr p, typename ArcProjectionHandleWithDist::sqrdist_type minSqrDist)
+	ArcProjectionHandleWithDist(typename ArcProjectionHandleWithDist::PointType p, typename ArcProjectionHandleWithDist::sqrdist_type minSqrDist)
 		:	ArcProjectionHandle<R, T>(p, minSqrDist)
 		,	m_Dist(CalcDist())
 	{}
