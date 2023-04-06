@@ -166,14 +166,14 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 	if (nearestSegm == nullptr)
 		return false;
 
-	dms_assert(i+1 ==arcEnd);
+	assert(i+1 == arcEnd);
 
 	m_SegmIndex = nearestSegm - arcBegin;
 	ConstPointPtr nearestSegmEnd = nearestSegm+1;
 	if (nearestSegmEnd == arcEnd)
 	{
-		dms_assert(nearestSegm == arcBegin);
-		dms_assert(arcBegin + 1 == arcEnd);
+		assert(nearestSegm == arcBegin);
+		assert(arcBegin + 1 == arcEnd);
 		m_CutPoint= *nearestSegm;
 		m_InArc   = false;
 	}
@@ -186,7 +186,7 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 	m_InSegm  = m_InArc && (*nearestSegmEnd != m_CutPoint);
 	m_FoundAny = true;
 
-	dms_assert(m_InArc
+	assert(m_InArc
 		?	arcBegin + m_SegmIndex +  (m_InSegm ? 1 : 2) < arcEnd
 		:	(m_SegmIndex == 0 || arcBegin + m_SegmIndex + 2 == arcEnd)
 	);
@@ -200,9 +200,9 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 template <typename T> inline
 T SafeBet(T val)
 {
-	dms_assert(val > 0);
+	assert(val > 0);
 	T result = val * 1.001;
-	dms_assert(val < result);
+	assert(val < result);
 	return result;
 }
 

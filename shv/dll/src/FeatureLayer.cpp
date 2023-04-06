@@ -1474,11 +1474,11 @@ SizeT FindArcByPoint(
 		while (s)
 		{
 			if (!(s % AbstrBoundingBoxCache::c_BlockSize))
-				while (s && aph.CanSkip(boundsArray[s / AbstrBoundingBoxCache::c_BlockSize - 1]))
+				while (aph.CanSkip(blocksArray[s / AbstrBoundingBoxCache::c_BlockSize - 1]))
 				{
 					s -= AbstrBoundingBoxCache::c_BlockSize;
 					if (!s)
-						goto break_loops;
+						goto continue_next_tile;
 				}
 			assert(s);
 			--s; // now s could be zero
@@ -1488,8 +1488,9 @@ SizeT FindArcByPoint(
 			if (aph.Project2Arc(begin_ptr(*i), end_ptr(*i)))
 				entityID = domain->GetRowIndex(t, s);
 		}
+	continue_next_tile:
+		;
 	}
-break_loops:
 	return entityID;
 }
 
