@@ -137,7 +137,7 @@ void GraphicLayer::SetActive(bool newState)
 			{
 				e = Entity2FeatureIndex(e);
 				if (IsDefined(e))
-					_InvalidateFeature(e);
+					InvalidateFeature(e);
 			}
 		}
 		if (newState)
@@ -603,7 +603,7 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 	{
 		selectedIndex = Entity2FeatureIndex(selectedIndex);
 		if (IsDefined(selectedIndex))
-			_InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
+			InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
 	}
 	else
 		InvalidateDraw(); // change 
@@ -660,8 +660,8 @@ void GraphicLayer::OnFocusElemChanged(SizeT newSelectedID, SizeT oldSelectedID)
 		return;
 	}
 
-	if (IsDefined(oldSelectedID)) _InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
-	if (IsDefined(newSelectedID)) _InvalidateFeature(Entity2FeatureIndex(newSelectedID));
+	if (IsDefined(oldSelectedID)) InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
+	if (IsDefined(newSelectedID)) InvalidateFeature(Entity2FeatureIndex(newSelectedID));
 }
 
 bool GraphicLayer::OnCommand(ToolButtonID id)

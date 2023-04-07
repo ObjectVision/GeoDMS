@@ -631,7 +631,7 @@ CrdRect GridLayer::GetWorldExtents(feature_id featureIndex) const
 	return ::GetWorldExtents(geoCrdUnit->GetRangeAsIRect(), geoCrdUnit->GetProjection(), featureIndex);
 }
 
-void GridLayer::_InvalidateFeature(SizeT featureIndex)
+void GridLayer::InvalidateFeature(SizeT featureIndex)
 {
 	dms_assert(IsDefined(featureIndex));
 

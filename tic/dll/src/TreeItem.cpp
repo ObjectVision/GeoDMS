@@ -3860,18 +3860,7 @@ void TreeItem::CheckFlagInvariants() const
 #endif
 
 // ============== BLOB ====================
-/* REMOVE
-bool TreeItem::LoadBlobIfAny() const
-{
-	dms_assert(GetCurrUltimateItem() == this);
-	if (DataAllocated())
-		return true;
-	if (!GetTSF(TSF_DSM_SdKnown))
-		return false;
 
-	return DataStoreManager::Curr()->LoadBlob(this, false);
-}
-*/
 void TreeItem::LoadBlobBuffer (const BlobBuffer& rs)
 {
 	dms_assert(IsCacheRoot());

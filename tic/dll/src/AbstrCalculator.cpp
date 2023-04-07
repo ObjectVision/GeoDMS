@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -122,36 +94,7 @@ LispRef GetLispRefForTreeItem(const TreeItem* sourceObject, const CopyTreeContex
 }
 
 using item_ref_type = std::variant<SharedTreeItem, LispRef>;
-/*
-auto GetItemRefForSubItem(const TreeItem* sourceItem, SharedStr relPath) -> item_ref_type
-{
-	if (sourceItem->IsCacheItem())
-	{
-		return slSubItemCall(sourceItem->)
-	}
-	auto end = relPath.send();
-	auto begin = relPath.begin();
-	while (true)
-	{
-		dms_assert(!sourceItem->IsCacheItem());
-		if (begin == end)
-			return { sourceItem, TokenID() };
-		auto delimPos = begin;
-		while (delimPos != end && *delimPos != DELIMITER_CHAR)
-			++delimPos;
-		auto subItem = sourceItem->GetConstSubTreeItemByID(GetTokenID_mt(begin, delimPos));
-		if (subItem->IsCacheItem())
-			return item_ref_type{ sourceItem, GetTokenID_mt( begin, end ) };
-		sourceItem = subItem;
-		begin = delimPos; 
-		if (begin != end)
-		{
-			dms_assert(*begin == DELIMITER_CHAR);
-			++begin;
-		}
-	}
-}
-*/
+
 SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 {
 	auto end = relPath.send();
@@ -1056,13 +999,9 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs, FormattingFlags::ThousandSeparator)));
 #endif
 
-//	if (holder->GetDynamicClass() != TreeItem::GetStaticClass())
-//		holder->throwItemError("Only containers can be the sink for Meta Functions");
-
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;
-//	UpdateMarker::ChangeSourceLock changeStamp(holder, "ApplyMetaFunction");
-//	Actor::UpdateLock lock(holder, actor_flag_set::AF_UpdatingMetaInfo);
+
 	SuspendTrigger::FencedBlocker lockSuspend;
 
 	bool resultFlag = ApplyMetaFunc_impl(holder, ac, og, metaCallArgs);
@@ -1184,11 +1123,6 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					bufferValue = std::get<1>(metaInfo);
 				goto exit;
 			}
-//			if (head->GetSymbID() == token::DomainUnit)
-//			{
-//				xxx;
-//			}
-//			dms_assert(head.GetSymbID() != token::sourceDescr); // TODO G8: Clean-up the mess
 			if (head.GetSymbID() == token::sourceDescr)
 			{
 				LispPtr sourceRef = localExpr.Right().Left();

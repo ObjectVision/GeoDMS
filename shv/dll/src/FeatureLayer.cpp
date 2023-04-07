@@ -604,21 +604,18 @@ GraphicPointLayer::GraphicPointLayer(GraphicObject* owner , const LayerClass* cl
 {}
 
 template <typename ScalarType>
-SizeT FindNearestPoint(
-	const GraphicPointLayer* layer,
-	const AbstrDataObject*   points,
-	const CrdPoint&          geoPnt)
+SizeT FindNearestPoint(const GraphicPointLayer* layer, const CrdPoint& geoPnt)
 {
-	typedef Point<ScalarType>    PointType;
-	typedef DataArray<PointType> DataArrayType;
+	using PointType = Point<ScalarType>;
 
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
 	Float64 sqrDist = MAX_VALUE(Float64);
 
-	auto domain = points->GetTiledRangeData();
-	for (tile_id t=0, tn = domain->GetNrTiles(); t!=tn; ++t)
+	auto featureData = layer->GetFeatureAttr()->GetRefObj();
+	auto trd = featureData->GetTiledRangeData();
+	for (tile_id t=0, tn = trd->GetNrTiles(); t!=tn; ++t)
 	{
-		const DataArrayType* da = debug_cast<const DataArrayType*>(points);
+		auto da = const_array_cast<PointType>(featureData);
 
 		auto data = da->GetTile(t);
 		auto
@@ -631,7 +628,7 @@ SizeT FindNearestPoint(
 			--e;
 			if (MakeMin(sqrDist, SqrDist<Float64>(Convert<CrdPoint>(*e), geoPnt)))
 			{
-				entityID = domain->GetRowIndex(t, e - data.begin());
+				entityID = trd->GetRowIndex(t, e - data.begin());
 			}
 		}
 	}
@@ -641,18 +638,15 @@ SizeT FindNearestPoint(
 void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 {
 	const AbstrDataItem* featureItem = GetFeatureAttr();
-	dms_assert(featureItem);
+	assert(featureItem);
 
 	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
 	if (!SuspendTrigger::DidSuspend() && featureItem->PrepareData())
 	{
 		DataReadLock lck(featureItem);
 		dms_assert(lck.IsLocked());
-		featureIndex = _FindFeatureByPoint(
-			GetGeoTransformation().Reverse(worldPnt),
-			featureItem->GetRefObj(),
-			featureItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID()
-		);
+		auto geoPoint = GetGeoTransformation().Reverse(worldPnt);
+		featureIndex = FindFeatureByPoint(geoPoint);
 	}
 	if (SuspendTrigger::DidSuspend())
 		return;
@@ -670,13 +664,14 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 	}
 }
 
-SizeT GraphicPointLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)
+SizeT GraphicPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
 {
 	SizeT result = UNDEFINED_VALUE(SizeT);
-	visit<typelists::points>(featureData->GetValueClass(), 
-		[this, featureData, &geoPnt, &result] <typename P> (const P*) 
+
+	visit<typelists::points>(GetFeatureAttr()->GetAbstrValuesUnit(), 
+		[this, &geoPnt, &result] <typename P> (const Unit<P>*) 
 		{
-			result = FindNearestPoint< scalar_of_t<P> >(this, featureData, geoPnt);
+			result = FindNearestPoint<scalar_of_t<P>>(this, geoPnt);
 		}
 	);
 
@@ -1014,7 +1009,7 @@ CrdRect GraphicPointLayer::CalcSelectedClientWorldRect() const
 	return selectRect;
 }
 
-void GraphicPointLayer::_InvalidateFeature(SizeT featureIndex)
+void GraphicPointLayer::InvalidateFeature(SizeT featureIndex)
 {
 	dms_assert(IsDefined(featureIndex));
 
@@ -1182,7 +1177,6 @@ bool DrawPoints(
 	if (mainCount == 1 && fd.HasLabelText() && !layer->IsDisabledAspectGroup(AG_Label))
 	{	
 		LabelDrawer ld(fd); // allocate font(s) required for drawing labels
-//		Int32 maxFontSize = ld.m_LabelFontIndexCache->GetMaxFontSize();
 
 		ResumableCounter tileCounter(d.GetCounterStacks(), true);
 		for (tile_id t=tileCounter.Value(); t!=tn; ++t)
@@ -1438,17 +1432,13 @@ IMPL_DYNC_LAYERCLASS(GraphicNetworkLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_
 #include "geo/GeoDist.h"
 
 template <typename ScalarType>
-SizeT FindArcByPoint(
-	const GraphicArcLayer*   layer,
-	const AbstrDataObject*   featureData,
-	const Point<ScalarType>& pnt)
+SizeT FindArcByPoint(const GraphicArcLayer* layer, const Point<ScalarType>& pnt)
 {
-	typedef Point<ScalarType>                           PointType;
-	typedef sequence_traits<PointType>::container_type  PolygonType;
-	typedef DataArray<PolygonType>                      DataArrayType;
-	typedef BoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
+	using PointType = Point<ScalarType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
 
-	auto da = const_array_cast<PolygonType>(featureData);
+	auto featureData = layer->GetFeatureAttr()->GetRefObj();
+	auto da = const_array_cast<PointSequenceType>(featureData);
 	auto bbCache = MakeShared( GetBoundingBoxCache<ScalarType>(layer) );
 	assert(bbCache);
 
@@ -1456,14 +1446,14 @@ SizeT FindArcByPoint(
 
 	ArcProjectionHandle<Float64, ScalarType> aph(pnt, MAX_VALUE(Float64));
 
-	auto domain = featureData->GetTiledRangeData();
-	for (tile_id t=0, tn = domain->GetNrTiles(); t!=tn; ++t)
+	auto trd = featureData->GetTiledRangeData();
+	for (tile_id t=0, tn = trd->GetNrTiles(); t!=tn; ++t)
 	{
 		if (aph.CanSkip(bbCache->GetBoxData(t).m_TotalBound))
 			continue;
 
-		const RectArrayType& blocksArray = bbCache->GetBlockBoundArray(t);
-		const RectArrayType& boundsArray = bbCache->GetBoundsArray(t);
+		const auto& blocksArray = bbCache->GetBlockBoundArray(t);
+		const auto& boundsArray = bbCache->GetBoundsArray(t);
 
 		auto data = da->GetLockedDataRead(t);
 		auto
@@ -1486,7 +1476,7 @@ SizeT FindArcByPoint(
 				continue;
 			auto i = b + s;
 			if (aph.Project2Arc(begin_ptr(*i), end_ptr(*i)))
-				entityID = domain->GetRowIndex(t, s);
+				entityID = trd->GetRowIndex(t, s);
 		}
 	continue_next_tile:
 		;
@@ -1498,15 +1488,18 @@ GraphicArcLayer::GraphicArcLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicArcLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)
+SizeT GraphicArcLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
 {
-	switch (vid)
-	{
-		#define INSTANTIATE(P) case VT_##P: return FindArcByPoint< scalar_of<P>::type >(this, featureData, Convert<P>(geoPnt));
-			INSTANTIATE_SEQ_POINTS
-		#undef INSTANTIATE
-	}
-	return UNDEFINED_VALUE(SizeT);
+	auto result = UNDEFINED_VALUE(SizeT);
+
+	visit<typelists::points>(GetFeatureAttr()->GetAbstrValuesUnit(),
+		[this, &geoPnt, &result] <typename P> (const Unit<P>*)
+		{
+			result = FindArcByPoint< scalar_of_t<P> >(this, Convert<P>(geoPnt));
+		}
+	);
+
+	return result;
 }
 
 void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
@@ -1580,7 +1573,7 @@ void GraphicArcLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last,
 	throwItemError("SelectPolygon on ArcLayer Not Yet Implemented (NYI)");
 }
 
-void GraphicArcLayer::_InvalidateFeature(SizeT featureIndex)
+void GraphicArcLayer::InvalidateFeature(SizeT featureIndex)
 {
 	dms_assert(IsDefined(featureIndex));
 
@@ -1842,30 +1835,25 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 #include "geo/IsInside.h"
 
 template <typename ScalarType>
-row_id FindPolygonByPoint(
-	const GraphicPolygonLayer* layer,
-	const AbstrDataObject*     featureData,
-	const Point<ScalarType>&   pnt)
+row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt)
 {
-	typedef Point<ScalarType>                           PointType;
-	typedef sequence_traits<PointType>::container_type  PolygonType;
-	typedef DataArray<PolygonType>                      DataArrayType;
-	typedef BoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
+	using PointType = Point<ScalarType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
 
-	const DataArrayType* da = debug_valcast<const DataArrayType*>(featureData);
+	auto featureData = layer->GetFeatureAttr()->GetRefObj();
+	auto da = const_array_cast<PointSequenceType>(featureData);
 
-	auto domain = featureData->GetTiledRangeData();
-
-	for (tile_id t=0, tn = domain->GetNrTiles(); t<tn; ++t)
+	auto trd = featureData->GetTiledRangeData();
+	for (tile_id t=0, tn = trd->GetNrTiles(); t<tn; ++t)
 	{
-		const RectArrayType& rectArray  = GetBoundingBoxCache<ScalarType>(layer)->GetBoundsArray(t);
-		const RectArrayType& blockArray = GetBoundingBoxCache<ScalarType>(layer)->GetBlockBoundArray(t);
+		const auto& rectArray  = GetBoundingBoxCache<ScalarType>(layer)->GetBoundsArray(t);
+		const auto& blockArray = GetBoundingBoxCache<ScalarType>(layer)->GetBlockBoundArray(t);
 
 		auto data = da->GetLockedDataRead(t);
 		auto
 			b = data.begin(),
 			e = data.end();
-		typename RectArrayType::const_iterator ri = rectArray.end();
+		auto ri = rectArray.end();
 		SizeT i = data.size();
 		if (!i) goto nextTile;
 
@@ -1893,7 +1881,7 @@ row_id FindPolygonByPoint(
 			--e; --ri; --i;
 			if (	IsIncluding(*ri, pnt)
 				&& IsInside(e->begin(), e->end(), pnt))
-				return domain->GetRowIndex(t, i);
+				return trd->GetRowIndex(t, i);
 		}
 	nextTile:
 		dms_assert(ri == rectArray.begin());
@@ -1905,15 +1893,18 @@ GraphicPolygonLayer::GraphicPolygonLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicPolygonLayer::_FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)
+SizeT GraphicPolygonLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
 {
-	switch (vid)
-	{
-		#define INSTANTIATE(P) case VT_##P: return FindPolygonByPoint< scalar_of<P>::type >(this, featureData, Convert<P>(geoPnt));
-			INSTANTIATE_SEQ_POINTS
-		#undef INSTANTIATE
-	}
-	return UNDEFINED_VALUE(SizeT);
+	auto result = UNDEFINED_VALUE(SizeT);
+
+	visit<typelists::points>(GetFeatureAttr()->GetAbstrValuesUnit(),
+		[this, &geoPnt, &result] <typename P> (const Unit<P>*)
+		{
+			result = FindPolygonByPoint<scalar_of_t<P>>(this, Convert<P>(geoPnt));
+		}
+	);
+
+	return result;
 }
 
 void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
@@ -1987,7 +1978,7 @@ void GraphicPolygonLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* l
 	throwItemError("SelectPolygon on PolygonLayer Not Yet Implemented (NYI)");
 }
 
-void GraphicPolygonLayer::_InvalidateFeature(SizeT featureIndex)
+void GraphicPolygonLayer::InvalidateFeature(SizeT featureIndex)
 {
 	dms_assert(IsDefined(featureIndex));
 
