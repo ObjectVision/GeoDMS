@@ -141,6 +141,15 @@ void parallel_tileloop(tile_id last, Func&& func)
 	parallel_for<tile_id>(0, last, [func = std::move(func), &sequentialTileNumber](tile_id t) { func(sequentialTileNumber++); });
 }
 
+template <typename Func>
+void parallel_tileloop_if(bool canRunParallel, tile_id last, Func&& func)
+{
+	if (canRunParallel)
+		parallel_tileloop(last, std::move(func));
+	else
+		serial_for<tile_id>(0, last, std::move(func));
+}
+
 template <typename E, typename Func>
 typename std::enable_if<is_separable_v<E>>::type
 parallel_tileloop_if_separable(tile_id last, Func&& func)

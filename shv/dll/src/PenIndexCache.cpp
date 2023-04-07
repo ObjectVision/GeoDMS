@@ -170,8 +170,7 @@ void PenIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 sub
 
 		AddKey(m_DefaultPixelWidth, m_DefaultWorldWidth, m_DefaultPenColor, m_DefaultPenStyle);
 	}
-	MakeKeyIndex();
-	dms_assert(m_KeyIndices.size() > 0); // PostCondition
+	MakeKeyIndex(m_KeyIndices, m_Keys);
 }
 
 void PenIndexCache::AddKeys(const AbstrThemeValueGetter* pixelWidthVG, const AbstrThemeValueGetter*  worldWidthVG, const AbstrThemeValueGetter* penColorVG, const AbstrThemeValueGetter* penStyleVG, entity_id n) const
@@ -228,29 +227,12 @@ void PenIndexCache::AddUndefinedKey() const
 	m_Keys.push_back( PenKeyType(0, 0, PS_NULL) ); // Extra Pen for features with Undefined ClassId
 }
 
-void PenIndexCache::MakeKeyIndex() const
-{
-	std::vector<PenKeyType> orgKeys = m_Keys;
-
-	std::sort(m_Keys.begin(), m_Keys.end());
-	m_Keys.erase(
-		std::unique(m_Keys.begin(), m_Keys.end()),
-		m_Keys.end()
-	);
-
-	m_KeyIndices.resize(orgKeys.size());
-	rlookup2index_array_unchecked(m_KeyIndices,
-		orgKeys,
-		m_Keys
-	);
-}
-
 //----------------------------------------------------------------------
 // struct  : PenArray
 //----------------------------------------------------------------------
 
-PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache, bool dontAssumeUsingOtherPens)
-	:	m_hDC(hDC)
+PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
+	: m_hDC(hDC)
 {
 	assert(hDC != nullptr);
 	assert(indexCache != 0);
@@ -264,56 +246,34 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache, bool dontAssumeUsi
 	logBrush.lbStyle = BS_SOLID;
 
 	DWORD userPenStyleArray[1];
-	
-	for (auto i = indexCache->m_Keys.begin(), e = indexCache->m_Keys.end(); i!=e; ++i)
+
+	for (const PenKeyType& pk : indexCache->m_Keys)
 	{
-		if (i->m_Width <= 1 && i->m_Style != PS_USERSTYLE)
-			m_Collection.push_back(
-				GdiHandle<HPEN>(
-					CreatePen(
-						i->m_Style
-					,	i->m_Width
-					,	i->m_Color
-					)
-				)
-			);
+		HPEN pen;
+		if (pk.m_Width <= 1 && pk.m_Style != PS_USERSTYLE)
+			pen = CreatePen(pk.m_Style, pk.m_Width, pk.m_Color);
 		else
 		{
-			logBrush.lbColor = i->m_Color;
-			if (i->m_Style == PS_USERSTYLE)
-			{
-				userPenStyleArray[0] = i->m_Width * 2;
-				m_Collection.push_back(
-					GdiHandle<HPEN>( 
-						ExtCreatePen(
-							PS_GEOMETRIC|(i->m_Style)|PS_ENDCAP_ROUND|PS_JOIN_ROUND
-						,	i->m_Width
-						,	&logBrush
-						,	1
-						,	userPenStyleArray
-						)
-					)
-				);
-			}
-			else
-				m_Collection.push_back(
-					GdiHandle<HPEN>( 
-						ExtCreatePen(
-							PS_GEOMETRIC|(i->m_Style)|PS_ENDCAP_ROUND|PS_JOIN_ROUND
-						,	i->m_Width
-						,	&logBrush
-						,	0, 0
-						)
-					)
-				);
+			logBrush.lbColor = pk.m_Color;
+			if (pk.m_Style == PS_USERSTYLE)
+				userPenStyleArray[0] = pk.m_Width * 2;
+
+			pen = ExtCreatePen(PS_GEOMETRIC | (pk.m_Style) | PS_ENDCAP_ROUND | PS_JOIN_ROUND
+				, pk.m_Width
+				, &logBrush
+				, (pk.m_Style == PS_USERSTYLE) ? 1 : 0
+				, (pk.m_Style == PS_USERSTYLE) ? userPenStyleArray : nullptr
+			);
 		}
+		m_Collection.emplace_back(pen);
 	}
 	assert(size() > 0);
-	SelectPen(0);
-	if (size() == 1 && dontAssumeUsingOtherPens)
-		indexCache = nullptr; // don't use this penarrau in selection
+	if (size() == 1)
+	{
+		indexCache = nullptr; // don't use this penarray in selection
+		SelectPen(0);
+	}
 }
-
 
 PenArray::~PenArray()
 {
@@ -323,6 +283,28 @@ PenArray::~PenArray()
 	// default destructor of ResourceContainer will do the rest.
 }
 
+void PenArray::SetSpecificPen(HPEN penHandle)
+{
+	SetPen(penHandle);
+	m_CurrPenIsExceptional = true;
+}
+
+void PenArray::ResetPen()
+{
+	if (!m_CurrPenIsExceptional)
+		return;
+	SelectPen(0);
+	m_CurrPenIsExceptional = false;
+}
+
+
+void PenArray::SetPen(HPEN penHandle)
+{
+	HGDIOBJ prevPenHandle = SelectObject(m_hDC, penHandle);
+	if (m_OrgHPen == nullptr)
+		m_OrgHPen = reinterpret_cast<HPEN>(prevPenHandle);
+}
+
 bool PenArray::SelectPen(UInt32 index)
 {
 	HPEN penHandle;
@@ -330,10 +312,7 @@ bool PenArray::SelectPen(UInt32 index)
 	penHandle = m_Collection[index];
 	if (penHandle == nullptr)
 		return false;
-
-	HGDIOBJ prevPenHandle = SelectObject(m_hDC, penHandle);
-	if (m_OrgHPen == nullptr)
-		m_OrgHPen = reinterpret_cast<HPEN>(prevPenHandle);
+	SetPen(penHandle);
 	return true;
 }
 

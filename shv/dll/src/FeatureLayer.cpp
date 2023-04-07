@@ -281,8 +281,9 @@ void FeatureLayer::DoUpdateView()
 	if (!HasNoExtent())
 	{
 		const AbstrDataItem* valuesItem = GetFeatureAttr();
-		dms_assert(valuesItem);
-	if (PrepareDataOrUpdateViewLater(valuesItem)) {
+		assert(valuesItem);
+		if (PrepareDataOrUpdateViewLater(valuesItem)) 
+		{
 			PreparedDataReadLock lock(valuesItem);
 			m_FeatureDataExtents = AsWorldExtents(
 				valuesItem->GetCurrRefObj()->GetActualRangeAsDRect(
@@ -688,21 +689,18 @@ bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points,
 	auto da = const_array_cast<PointType>(points);
 	auto trd = da->GetTiledRangeData();
 
-	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
-	{
-		auto data = da->GetTile(t);
-		auto b = data.begin(), e = data.end();
-
-		while (b != e)
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, geoRect, &writeLock, &result, eventID](tile_id t)
 		{
-			if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
-			{
-				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
-				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
-			}
-			++b;
+			auto data = da->GetTile(t);
+			for (auto b = data.begin(), e = data.end(); b != e; ++b)
+				if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
+				{
+					SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+					if (layer->SelectFeatureIndex(writeLock, entityID, eventID))
+						result = true;
+				}
 		}
-	}
+	);
 	if (result)
 		writeLock.Commit();
 	return result;
@@ -720,18 +718,18 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect 
 	auto da = const_array_cast<ArcType>(arcs);
 	auto trd = arcs->GetTiledRangeData();
 
-	for (tile_id t=0, tn = trd->GetNrTiles(); t!=tn; ++t)
-	{
-		auto data = da->GetTile(t);
-		for (auto b = data.begin(), e = data.end(); b != e; ++b)
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, geoRect, &writeLock, &result, eventID](tile_id t)
 		{
-			if (IsIncluding(geoRect, Convert<CrdRect>(Range<PointType>(b->begin(), b->end(), true, false))))
-			{
-				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
-				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
-			}
+			auto data = da->GetTile(t);
+			for (auto b = data.begin(), e = data.end(); b != e; ++b)
+				if (IsIncluding(geoRect, Convert<CrdRect>(Range<PointType>(b->begin(), b->end(), true, false))))
+				{
+					SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+					if (layer->SelectFeatureIndex(writeLock, entityID, eventID))
+						result = true;
+				}
 		}
-	}
+	);
 	if (result)
 		writeLock.Commit();
 	return result;
@@ -1324,15 +1322,15 @@ bool DrawNetwork(
 		{
 			GPoint pointBuffer[2];
 
-			PenArray pa(d.GetDC(), penIndices, false);
+			PenArray pa(d.GetDC(), penIndices);
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
-			UInt32 n = f1->GetCount();
+			auto n = f1->GetCount();
 
-			for (UInt32 i = itemCounter.Value(); i != n; ++i)
+			for (auto i = itemCounter.Value(); i != n; ++i)
 			{
-				UInt32
+				auto
 					f1i = f1->GetCardinalValue(i)
 				,	f2i = f2->GetCardinalValue(i);
 
@@ -1344,7 +1342,7 @@ bool DrawNetwork(
 					pointBuffer[1] = Convert<GPoint>(transformer.Apply(p2));
 					if (penIndices)
 					{
-						UInt32 entityIndex = i;
+						auto entityIndex = i;
 						if (indexCollector)
 						{
 							entityIndex = indexCollector->GetEntityIndex(entityIndex);
@@ -1516,10 +1514,10 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 		dms_assert(lck.IsLocked());
 
 		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*)
-		{
-			result = SelectArcsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
-		}
+			[this, valuesItem, geoRect, eventID, &result] <typename P> (const Unit<P>*)
+			{
+				result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+			}
 		);
 	}
 	if (result && !HasEntityAggr())
@@ -1592,7 +1590,8 @@ bool DrawArcs(
 	const GraphDrawer& d = fd.m_Drawer;
 
 	const DataArrayType* da = const_array_cast<PolygonType>(featureItem);
-	tile_id tn = featureItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto trd = da->GetTiledRangeData();
+	tile_id tn = trd->GetNrTiles();
 
 	CrdTransformation transformer = d.GetTransformation();
 	RangeType clipRect = Convert<RangeType>( layer->GetWorldClipRect(d) );
@@ -1626,13 +1625,13 @@ bool DrawArcs(
 		{
 			std::vector<POINT> pointBuffer;
 
-			PenArray pa(d.GetDC(), penIndices, selectionsArray && !selectedOnly || IsDefined(fe));
+			PenArray pa(d.GetDC(), penIndices);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for (tile_id t=tileCounter.Value(); t!=tn; ++t)
 			{
 				const RectArrayType& rectArray = GetBoundingBoxCache<ScalarType>(layer)->GetBoundsArray(t);
-				auto data = da->GetLockedDataRead(t);
+				auto data = da->GetTile(t);
 				auto
 					b = data.begin(),
 					e = data.end();
@@ -1644,11 +1643,26 @@ bool DrawArcs(
 
 				for (auto i=b + itemCounter.Value(); i != e; ++i, ++ri)
 				{
-					if 
-					(	IsIntersecting(clipRect, *ri )
-					&&	(_Width (*ri) >= minWorldWidth || _Height(*ri) >= minWorldHeight)
-					)
+					if (!IsIntersecting(clipRect, *ri))
+						goto nextArc;
+//					if ((_Width(*ri) >= minWorldWidth) || (_Height(*ri) >= minWorldHeight)) 
 					{
+						UInt32 nrPoints = i->size();
+						pointBuffer.resize(nrPoints);
+						auto bi = pointBuffer.begin();
+
+						for (auto pnt: *i)
+							*bi++ = Convert<GPoint>(transformer.Apply(pnt));
+
+						// remove duplicates
+						pointBuffer.erase(
+							std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
+						,	pointBuffer.end()
+						); 
+
+						if (pointBuffer.size() < 2)
+							goto nextArc;
+
 						entity_id entityIndex = (i - b) + tileIndexBase;
 						if (indexCollector)
 						{
@@ -1685,30 +1699,20 @@ bool DrawArcs(
 						}
 						else if (penIndices)
 						{
-							if (! pa.SelectPen(penIndices->GetKeyIndex(entityIndex)) )
+							if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
 								goto nextArc;
 						}
+						else
+							pa.ResetPen();
 
-						UInt32 nrPoints = i->size();
-						pointBuffer.resize(nrPoints);
 
-						std::vector<POINT>::iterator 
-							bi = pointBuffer.begin();
-						auto
-							ii = i->begin(),
-							ie = i->end  ();
-
-						for (; ii!=ie; ++bi, ++ii)
-							*bi = Convert<GPoint>(transformer.Apply(*ii));
-					
-						if (pointBuffer.size() >= 2)
 						CheckedGdiCall(
 							Polyline(
 								d.GetDC(),
-								&*pointBuffer.begin(),
-								nrPoints
+								begin_ptr( pointBuffer ),
+								pointBuffer.size()
 							)
-						,	"DrawArc"
+							, "DrawArc"
 						);
 					}
 				nextArc:
@@ -1775,14 +1779,16 @@ bool GraphicArcLayer::DrawImpl(FeatureDrawer& fd) const
 		return false;
 
 	penIndices->UpdateForZoomLevel(fd.m_WorldZoomLevel, fd.m_Drawer.GetSubPixelFactor());
+	bool result = false;
 
-	switch (valuesItem->GetAbstrValuesUnit()->GetValueType()->GetValueClassID())
-	{
-		#define INSTANTIATE(P) case VT_##P: return DrawArcs< scalar_of<P>::type >(this, fd, penIndices);
-			INSTANTIATE_SEQ_POINTS
-		#undef INSTANTIATE
-	}
-	return false;
+	visit<typelists::points>(valuesItem->GetAbstrValuesUnit(),
+		[&result, this, penIndices, &fd]<typename P>(const Unit<P>*) 
+		{
+			result = DrawArcs< scalar_of_t<P> >(this, fd, penIndices);
+		}
+	);
+
+	return result;
 }
 
 GRect GraphicArcLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const

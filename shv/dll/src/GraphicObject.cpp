@@ -629,7 +629,7 @@ void GraphicObject::SetShowSelectedOnly(bool on)
 
 	InvalidateViews();
 	InvalidateDraw();
-	OnVisibilityChanged();
+//	OnVisibilityChanged();
 
 	SyncShowSelOnly(SM_Save);
 	UpdateShowSelOnly();

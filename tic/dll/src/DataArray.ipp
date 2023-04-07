@@ -483,18 +483,19 @@ DRect GeoArrayAdapter<Base>::GetActualRangeAsDRect(bool checkForNulls) const
 {
 	using field_t = typename Base::field_t;
 	Range<field_t> result;
-	for (tile_id t = 0, tn = this->GetTiledRangeData()->GetNrTiles(); t != tn; ++t)
-	{
-		auto data = this->GetDataRead(t);
-
-		result |=
-			Range<field_t>(
-				data.begin(), 
-				data.end(), 
-				checkForNulls,
-				false // don't call MakeStrictlyGreater on upper bound of the range
-			);
-	}
+	std::mutex resultMutationCS;
+	parallel_tileloop(this->GetTiledRangeData()->GetNrTiles(), [&result, &resultMutationCS, this, checkForNulls](tile_id t)
+		{
+			auto data = this->GetTile(t);
+			auto range = 
+				Range<field_t>(data.begin(), data.end()
+				,	checkForNulls
+				,	false // don't call MakeStrictlyGreater on upper bound of the range
+				);
+			auto exclusiveAccessLock = std::lock_guard(resultMutationCS);
+			result |= range;
+		}
+	);
 	return Convert<DRect>(result);
 }
 

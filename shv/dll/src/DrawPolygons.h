@@ -362,7 +362,7 @@ bool DrawPolygons(
 		pointIndexBuffer_t pointIndexBuffer;
 		if (penIndices && !layer->IsDisabledAspectGroup(AG_Pen))
 		{
-			PenArray pa(d.GetDC(), penIndices, true);
+			PenArray pa(d.GetDC(), penIndices);
 
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for(tile_id t = tileCounter.Value(); t<tn; ++t)

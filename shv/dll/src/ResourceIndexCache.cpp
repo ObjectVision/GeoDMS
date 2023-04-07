@@ -120,11 +120,13 @@ bool ResourceIndexCache::IsDifferent(Float64 nrPixelsPerWorldUnit, Float64 subPi
 
 UInt32 ResourceIndexCache::GetKeyIndex(entity_id entityId) const
 {
-	dms_assert(m_KeyIndices.size() > 0); // UpdateForZoomLevel must have been called at least once
-	dms_assert(m_LastSubPixelFactor> 0); // idem
-	dms_assert(IsDefined(entityId));
+	assert(IsDefined(entityId));
+	assert(m_LastSubPixelFactor > 0); // UpdateForZoomLevel must have been called at least once
 
-	dms_assert(entityId < m_EntityDomainCount);
+	if (m_KeyIndices.empty())
+		return 0;
+
+	assert(entityId < m_EntityDomainCount);
 
 	if (m_CompatibleTheme)
 	{
@@ -132,8 +134,9 @@ UInt32 ResourceIndexCache::GetKeyIndex(entity_id entityId) const
 		if (!IsDefined(entityId)) 
 			entityId = m_KeyIndices.size()-1; // inserted by AddUndefinedKey
 	}
-
-	dms_assert(entityId < m_KeyIndices.size());
+	if (entityId >= m_KeyIndices.size())
+		entityId = 0;
+	assert(entityId < m_KeyIndices.size());
 	return m_KeyIndices[entityId];
 }
 
