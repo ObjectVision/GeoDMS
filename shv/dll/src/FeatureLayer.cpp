@@ -613,14 +613,13 @@ SizeT FindNearestPoint(const GraphicPointLayer* layer, const CrdPoint& geoPnt)
 
 	auto featureData = layer->GetFeatureAttr()->GetRefObj();
 	auto trd = featureData->GetTiledRangeData();
+	auto da = const_array_cast<PointType>(featureData);
+
 	for (tile_id t=0, tn = trd->GetNrTiles(); t!=tn; ++t)
 	{
-		auto da = const_array_cast<PointType>(featureData);
 
 		auto data = da->GetTile(t);
-		auto
-			b = data.begin(),
-			e = data.end();
+		auto b = data.begin(), e = data.end();
 
 		// search backwards so that last drawn object will be first selected
 		while (b!=e)
@@ -683,25 +682,26 @@ bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points,
 {
 	using PointType = Point<ScalarType>;
 
-	auto da = const_array_cast<PointType>(points);
-	auto data = da->GetDataRead();
-	auto b = data.begin(), e = data.end();
-
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), 
-		CompoundWriteType(eventID)
-	);
-
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
 
-	while (b!=e)
+	auto da = const_array_cast<PointType>(points);
+	auto trd = da->GetTiledRangeData();
+
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 	{
-		if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
+		auto data = da->GetTile(t);
+		auto b = data.begin(), e = data.end();
+
+		while (b != e)
 		{
-			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
+			{
+				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			}
+			++b;
 		}
-		++b;
 	}
 	if (result)
 		writeLock.Commit();
@@ -714,26 +714,23 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect 
 	using PointType = Point<ScalarType>;
 	using ArcType = typename sequence_traits<PointType>::container_type ;
 
-	auto da = const_array_cast<ArcType>(arcs);
-
-	auto data = da->GetDataRead();
-	auto b = data.begin(), e = data.end();
-
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()),
-		CompoundWriteType(eventID)
-	);
-
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
 
-	while (b != e)
+	auto da = const_array_cast<ArcType>(arcs);
+	auto trd = arcs->GetTiledRangeData();
+
+	for (tile_id t=0, tn = trd->GetNrTiles(); t!=tn; ++t)
 	{
-		if (IsIncluding(geoRect, Convert<CrdRect>(Range<PointType>(b->begin(), b->end(), true, false))))
+		auto data = da->GetTile(t);
+		for (auto b = data.begin(), e = data.end(); b != e; ++b)
 		{
-			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			if (IsIncluding(geoRect, Convert<CrdRect>(Range<PointType>(b->begin(), b->end(), true, false))))
+			{
+				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			}
 		}
-		++b;
 	}
 	if (result)
 		writeLock.Commit();
@@ -751,23 +748,24 @@ bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* point
 	CrdRect geoRect    = layer->GetGeoTransformation().Reverse(worldRect);
 	CrdType geoRadius2 = Area(geoRect) / 4;
 
-	auto da = const_array_cast<PointType>(points);
-	auto data = da->GetDataRead();
-	auto b = data.begin(), e = data.end();
-
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
-
 	bool result = false;
 
-	while (b!=e)
+	auto da = const_array_cast<PointType>(points);
+	auto trd = points->GetTiledRangeData();
+
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 	{
-		CrdPoint dataPnt = Convert<CrdPoint>(*b);
-		if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
+		auto data = da->GetTile(t);
+		for (auto b = data.begin(), e = data.end(); b != e; ++b)
 		{
-			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			CrdPoint dataPnt = Convert<CrdPoint>(*b);
+			if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
+			{
+				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			}
 		}
-		++b;
 	}
 	if (result)
 		writeLock.Commit();
@@ -787,28 +785,30 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 
 	PointType geoPntInT = Convert<PointType>(geoPnt);
 
-	auto da = const_array_cast<ArcType>(arcs);
-	auto data = da->GetDataRead();
-	auto b = data.begin(), e = data.end();
-
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
-
 	bool result = false;
 
-	for (; b != e; ++b)
-	{
-		auto arcRect = Range<CrdPoint>(b->begin(), b->end(), true, false);
-		if (IsIncluding(geoRect, arcRect))
-		{
-			for (const auto& p : *b)
-				if (SqrDist<CrdType>(geoPntInT, p) > geoRadius2)
-					goto nextArc;
+	auto da = const_array_cast<ArcType>(arcs);
+	auto trd = arcs->GetTiledRangeData();
 
-			SizeT entityID = b - data.begin();
-			result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+	{
+		auto data = da->GetTile(t);
+		for (auto b = data.begin(), e = data.end(); b != e; ++b)
+		{
+			auto arcRect = Range<CrdPoint>(b->begin(), b->end(), true, false);
+			if (IsIncluding(geoRect, arcRect))
+			{
+				for (const auto& p : *b)
+					if (SqrDist<CrdType>(geoPntInT, p) > geoRadius2)
+						goto nextArc;
+
+				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+			}
+		nextArc:
+			;
 		}
-	nextArc:
-		;
 	}
 	if (result)
 		writeLock.Commit();
@@ -819,38 +819,32 @@ template <typename ScalarType>
 bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect polyWorldRect, const CrdPoint* first, const CrdPoint* last, EventID eventID)
 {
 	typedef Point<ScalarType>    PointType;
-	typedef DataArray<PointType> DataArrayType;
-
-	const DataArrayType* da = debug_cast<const DataArrayType*>(points);
-
-	auto data = da->GetDataRead();
-	auto
-		b = data.begin(),
-		e = data.end();
-
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), 
-		CompoundWriteType(eventID)
-	);
-
-	bool result = false;
 
 	CrdTransformation geo2worldTr = layer->GetGeoTransformation();
 	CrdRect           polyGeoRect = geo2worldTr.Reverse(polyWorldRect);
 
-	while (b!=e)
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
+	bool result = false;
+
+	auto da = const_array_cast<PointType>(points);
+	auto trd = points->GetTiledRangeData();
+
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 	{
-		CrdPoint geoPnt = Convert<CrdPoint>(*b);
-		if (IsIncluding(polyGeoRect, geoPnt))
+		auto data = da->GetTile(t);
+		for (auto b = data.begin(), e = data.end(); b != e; ++b)
 		{
-			CrdPoint worldPnt = geo2worldTr.Apply(geoPnt);
-			if (IsInside(first, last, worldPnt))
+			CrdPoint geoPnt = Convert<CrdPoint>(*b);
+			if (IsIncluding(polyGeoRect, geoPnt))
 			{
-				SizeT entityID = b - data.begin();
-				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+				CrdPoint worldPnt = geo2worldTr.Apply(geoPnt);
+				if (IsInside(first, last, worldPnt))
+				{
+					SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+					result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+				}
 			}
 		}
-		++b;
 	}
 	if (result)
 		writeLock.Commit();
@@ -980,7 +974,7 @@ CrdRect GraphicPointLayer::CalcSelectedClientWorldRect() const
 
 		PreparedDataReadLock selLock(selAttr);
 
-		UInt32 f = featureAttr->GetAbstrDomainUnit()->GetCount();
+		auto f = featureAttr->GetAbstrDomainUnit()->GetCount();
 		while (f)
 		{
 			auto entityID = Feature2EntityIndex(--f);
