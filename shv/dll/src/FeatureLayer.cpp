@@ -318,17 +318,11 @@ void FeatureLayer::DoInvalidate() const
 
 const AbstrBoundingBoxCache* FeatureLayer::GetBoundingBoxCache() const
 {
-	const AbstrDataItem* featureItem = GetFeatureAttr();
-	assert(featureItem);
-
-	const AbstrBoundingBoxCache* result = nullptr;
-
-	visit<typelists::seq_points>(featureItem->GetAbstrValuesUnit(), [&result, this]<typename P>(const Unit<P>*) 
+	return visit_and_return_result<typelists::seq_points, const AbstrBoundingBoxCache*>(GetFeatureAttr()->GetAbstrValuesUnit(), [this]<typename P>(const Unit<P>*)
 		{
-			result = ::GetBoundingBoxCache<scalar_of_t<P>>(this);
+			return ::GetBoundingBoxCache<scalar_of_t<P>>(this);
 		}
 	);
-	return result;
 }
 
 FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
@@ -667,16 +661,12 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 
 SizeT GraphicPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
 {
-	SizeT result = UNDEFINED_VALUE(SizeT);
-
-	visit<typelists::points>(GetFeatureAttr()->GetAbstrValuesUnit(), 
-		[this, &geoPnt, &result] <typename P> (const Unit<P>*) 
+	return visit_and_return_result<typelists::points, SizeT>(GetFeatureAttr()->GetAbstrValuesUnit(), 
+		[this, &geoPnt] <typename P> (const Unit<P>*) 
 		{
-			result = FindNearestPoint<scalar_of_t<P>>(this, geoPnt);
+			return FindNearestPoint<scalar_of_t<P>>(this, geoPnt);
 		}
 	);
-
-	return result;
 }
 
 template <typename ScalarType>
@@ -885,8 +875,8 @@ bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* poin
 
 void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
-	const AbstrDataItem* valuesItem = GetFeatureAttr();
-	dms_assert(valuesItem);
+	const AbstrDataItem* featureAttr = GetFeatureAttr();
+	dms_assert(featureAttr);
 
 	InvalidationBlock lock1(this);
 
@@ -895,18 +885,18 @@ void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 
 	bool result = false;
 
-	if (valuesItem->PrepareData())
+	if (featureAttr->PrepareData())
 	{
 		auto layer2worldTransformation = GetGeoTransformation();
 		CrdRect geoRect = layer2worldTransformation.Reverse(worldRect);
 
-		DataReadLock lck(valuesItem); 
+		DataReadLock lck(featureAttr); 
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
-			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*) 
+		result = visit_and_return_result<typelists::points, bool>(featureAttr->GetAbstrValuesUnit(), 
+			[this, featureAttr, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*) 
 			{
-				result = SelectPointsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+				return SelectPointsInRect< scalar_of_t<a_type> >(this, featureAttr->GetRefObj(), geoRect, eventID);
 			}
 		);
 	}
@@ -940,10 +930,10 @@ void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Eve
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
+		result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(), 
 			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
 			{
-				result = SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoPnt, geoRadius, eventID);
+				return SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoPnt, geoRadius, eventID);
 			}
 		);
 	}
@@ -1417,12 +1407,10 @@ bool GraphicNetworkLayer::DrawImpl(FeatureDrawer& fd) const
 				return false;
 
 			penIndices->UpdateForZoomLevel(fd.m_WorldZoomLevel, fd.m_Drawer.GetSubPixelFactor());
-			bool result = false;
-			visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
-				[this, valuesItem, penIndices, f1, f2, &fd, &result] <typename P> (const Unit<P>*) 
+			bool result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(),
+				[this, valuesItem, penIndices, f1, f2, &fd] <typename P> (const Unit<P>*) 
 				{
-					using T = typename scalar_of<P>::type;
-					result = DrawNetwork< T >(this, fd, valuesItem, penIndices, GetValueGetter(f1.get()), GetValueGetter(f2.get()));
+					return DrawNetwork< scalar_of_t<P> >(this, fd, valuesItem, penIndices, GetValueGetter(f1.get()), GetValueGetter(f2.get()));
 				}
 			);
 			if (result)
@@ -1541,10 +1529,10 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
 			[this, valuesItem, geoRect, eventID, &result] <typename P> (const Unit<P>*)
 			{
-				result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
+				return SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
 			}
 		);
 	}
@@ -1574,10 +1562,10 @@ void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Event
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, worldPnt, worldRadius, eventID, &result] <typename a_type> (const Unit<a_type>*)
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, worldPnt, worldRadius, eventID] <typename a_type> (const Unit<a_type>*)
 			{
-				result = SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+				return SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
 			}
 		);
 	}
@@ -1886,30 +1874,32 @@ row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pn
 	auto featureData = layer->GetFeatureAttr()->GetRefObj();
 	auto da = const_array_cast<PointSequenceType>(featureData);
 
+	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
 	auto trd = featureData->GetTiledRangeData();
 	for (tile_id t = trd->GetNrTiles(); t--; )
 	{
-		const auto& rectArray  = GetBoundingBoxCache<ScalarType>(layer)->GetBoundsArray(t);
-		const auto& blockArray = GetBoundingBoxCache<ScalarType>(layer)->GetBlockBoundArray(t);
+		const auto& rectArray  = bbCache->GetBoxData(t);
+		if (!IsIncluding(rectArray.m_TotalBound, pnt))
+			continue;
 
-		auto data = da->GetLockedDataRead(t);
+		auto data = da->GetTile(t);
 		auto b = data.begin();
 		SizeT i = data.size();
 
 		if (i % BoundingBoxCache<ScalarType>::c_BlockSize != 0)
-			if (!IsIncluding(blockArray[(i - 1) / BoundingBoxCache<ScalarType>::c_BlockSize], pnt))
+			if (!IsIncluding(rectArray.m_BlockBoundArray[(i - 1) / BoundingBoxCache<ScalarType>::c_BlockSize], pnt))
 				i &= ~(BoundingBoxCache<ScalarType>::c_BlockSize - 1);
 
 		// search backwards so that last drawn object will be first selected
 		while (i)
 		{
 			if (i % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
-				while (!IsIncluding(blockArray[i / BoundingBoxCache<ScalarType>::c_BlockSize-1], pnt))
+				while (!IsIncluding(rectArray.m_BlockBoundArray[i / BoundingBoxCache<ScalarType>::c_BlockSize-1], pnt))
 					if ((i -= BoundingBoxCache<ScalarType>::c_BlockSize) == 0)
 						goto nextTile;
 			--i;
 			auto polygonPtr = b + i;
-			if (IsIncluding(rectArray[i], pnt) && IsInside(polygonPtr->begin(), polygonPtr->end(), pnt))
+			if (IsIncluding(rectArray.m_FeatBoundArray[i], pnt) && IsInside(polygonPtr->begin(), polygonPtr->end(), pnt))
 				return trd->GetRowIndex(t, i);
 		}
 	nextTile:;
@@ -1954,10 +1944,10 @@ void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, geoRect, eventID, &result] <typename P> (const Unit<P>*)
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, geoRect, eventID] <typename P> (const Unit<P>*)
 		{
-			result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
+			return SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
 		}
 		);
 	}
@@ -1987,10 +1977,10 @@ void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, E
 		DataReadLock lck(valuesItem);
 		dms_assert(lck.IsLocked());
 
-		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, worldPnt, worldRadius, eventID, &result] <typename a_type> (const Unit<a_type>*)
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, worldPnt, worldRadius, eventID] <typename P> (const Unit<P>*)
 			{
-				result = SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
 			}
 		);
 	}
@@ -2073,4 +2063,3 @@ CrdRect GraphicPolygonLayer::GetFeatureWorldExtents() const
 }
 
 IMPL_DYNC_LAYERCLASS(GraphicPolygonLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Brush|ASE_Pen|ASE_PixSizes|ASE_Selections, AN_BrushColor, 2)
-
