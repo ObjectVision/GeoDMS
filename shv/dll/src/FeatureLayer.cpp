@@ -708,7 +708,7 @@ bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points,
 }
 
 template <typename ScalarType>
-bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect geoRect, EventID eventID)
+bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, Range<Point<ScalarType>> geoRect, EventID eventID)
 {
 	using PointType = Point<ScalarType>;
 	using ArcType = typename sequence_traits<PointType>::container_type ;
@@ -719,11 +719,13 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect 
 	auto da = const_array_cast<ArcType>(arcs);
 	auto trd = arcs->GetTiledRangeData();
 
-	auto bbCache = layer->m_BoundingBoxCache;
+	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
+
 	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, &writeLock, &result, eventID](tile_id t)
 		{
-			if (!IsIntersecting(geoRect, bbCache->GetTileBounds(t)))
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
 				return;
 
 			auto data = da->GetTile(t);
@@ -731,11 +733,11 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, CrdRect 
 			for (tile_offset i=0; i!=ts; ++i)
 			{
 				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
-					while(!IsIntersecting(geoRect, bbCache->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
+					while(!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
 						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
 							return;
 
-				if (IsIncluding(geoRect, bbCache->GetBounds(t, i)))
+				if (IsIncluding(geoRect, rectArray.m_FeatBoundArray[i]))
 				{
 					SizeT entityID = trd->GetRowIndex(t, i);
 					if (layer->SelectFeatureIndex(writeLock, entityID, eventID))
@@ -792,7 +794,7 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 
 	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 	CrdPoint geoPnt = layer->GetGeoTransformation().Reverse(worldPnt);
-	CrdRect geoRect = layer->GetGeoTransformation().Reverse(worldRect);
+	auto geoRect = Convert<Range<PointType>>(layer->GetGeoTransformation().Reverse(worldRect));
 	CrdType geoRadius2 = Area(geoRect) / 4;
 
 	PointType geoPntInT = Convert<PointType>(geoPnt);
@@ -803,11 +805,13 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 	auto da = const_array_cast<ArcType>(arcs);
 	auto trd = arcs->GetTiledRangeData();
 
-	auto bbCache = layer->m_BoundingBoxCache;
+	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
+
 	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPntInT, geoRadius2, &writeLock, &result, eventID](tile_id t)
 		{
-			if (!IsIntersecting(geoRect, bbCache->GetTileBounds(t)))
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
 				return;
 
 			auto data = da->GetTile(t);
@@ -815,12 +819,12 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 			for (tile_offset i = 0; i != ts; ++i)
 			{
 				if (i % AbstrBoundingBoxCache::c_BlockSize == 0) 
-					while (!IsIntersecting(geoRect, bbCache->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
 						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
 							return;
 
 				auto arcCPtr = data.begin() + i;
-				if (IsIncluding(geoRect, bbCache->GetBounds(t, i)))
+				if (IsIncluding(geoRect, rectArray.m_FeatBoundArray[i]))
 				{
 					for (const auto& p : *arcCPtr)
 						if (SqrDist<CrdType>(geoPntInT, p) > geoRadius2)
@@ -1540,7 +1544,7 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
 			[this, valuesItem, geoRect, eventID, &result] <typename P> (const Unit<P>*)
 			{
-				result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+				result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
 			}
 		);
 	}
@@ -1618,7 +1622,7 @@ bool DrawArcs(
 	tile_id tn = trd->GetNrTiles();
 
 	CrdTransformation transformer = d.GetTransformation();
-	RangeType geoRect = Convert<RangeType>( layer->GetWorldClipRect(d) );
+	auto geoRect = Convert<RangeType>( layer->GetWorldClipRect(d) );
 
 	CrdType zoomLevel = Abs(transformer.ZoomLevel());
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
@@ -1667,7 +1671,7 @@ bool DrawArcs(
 					while (itemCounter < ts)
 					{
 						if (itemCounter % AbstrBoundingBoxCache::c_BlockSize == 0)
-							while(!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[itemCounter % AbstrBoundingBoxCache::c_BlockSize]))
+							while(!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[itemCounter / AbstrBoundingBoxCache::c_BlockSize]))
 							{
 								itemCounter += AbstrBoundingBoxCache::c_BlockSize;
 								if (itemCounter >= ts)
@@ -1951,9 +1955,9 @@ void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 		dms_assert(lck.IsLocked());
 
 		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*)
+			[this, valuesItem, geoRect, eventID, &result] <typename P> (const Unit<P>*)
 		{
-			result = SelectArcsInRect< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), geoRect, eventID);
+			result = SelectArcsInRect< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
 		}
 		);
 	}
