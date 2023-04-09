@@ -253,7 +253,7 @@ bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(),
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(),
 			[borrowedReadResultHolder, shpImpFeatureCount, &impl] <typename P> (const Unit<P>*)
 			{
 				ReadSequences<P>(borrowedReadResultHolder, shpImpFeatureCount, &impl); // also reads (Multi)Polygons
@@ -420,7 +420,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(), 
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(), 
 			[this, ado, storageHolder, adi, &impl] <typename P> (const Unit<P>*)
 			{
 				WriteSequences<P>(ado, &impl, this->GetNameStr(), storageHolder, adi); // also reads (Multi)Polygons

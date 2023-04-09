@@ -230,7 +230,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 	{
 		AddClientOffset localBase(this, gc->GetCurrClientRelPos());
 
-		while (counter.Value() < n)
+		while (counter < n)
 		{
 			MovableObject* gEntry = gc->GetEntry( counter.Value() );
 			dms_assert(gEntry);
@@ -238,7 +238,6 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 				goto nextEntry;
 			else
 			{	
-//				dms_assert(!HasCounterStacks() || gEntry->IsUpdated());
 				if (gEntry->GetClippedCurrFullAbsRect(*this).empty())
 					goto nextEntry;
 			}
@@ -246,7 +245,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 				return GVS_Break; // suspend processing, come back here with the same counter
 
 		nextEntry:
-			if (! counter.Inc())
+			if (!counter.Inc())
 				return GVS_Break; // euqals GVS_Handled
 		}
 	}

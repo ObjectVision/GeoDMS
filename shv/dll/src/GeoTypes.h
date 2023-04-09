@@ -53,11 +53,11 @@ struct GPoint : POINT
 
 	GPoint ScreenToClient(HWND hWnd) const;
 
-	void operator -=(const POINT& rhs)       { x -= rhs.x; y-=rhs.y; }
-	void operator +=(const POINT& rhs)       { x += rhs.x; y+=rhs.y; }
+	void operator -=(POINT rhs)       { x -= rhs.x; y-=rhs.y; }
+	void operator +=(POINT rhs)       { x += rhs.x; y+=rhs.y; }
 
-	bool operator ==(const POINT& rhs) const { return x == rhs.x && y == rhs.y; }
-	bool operator !=(const POINT& rhs) const { return x != rhs.x || y != rhs.y; }
+	bool operator ==(POINT rhs) const { return x == rhs.x && y == rhs.y; }
+	bool operator !=(POINT rhs) const { return x != rhs.x || y != rhs.y; }
 	bool IsSingular() const { return !x || !y; }
 };
 
@@ -67,9 +67,9 @@ typedef Int64 TType;
 typedef Int32 TType;
 #endif //defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 
-inline GPoint operator + (GPoint a, const POINT& b) { a += b; return a; }
-inline GPoint operator - (GPoint a, const POINT& b) { a -= b; return a; }
-inline GPoint operator - (const POINT& b) { return GPoint(-b.x, -b.y); }
+inline GPoint operator + (GPoint a, POINT b) { a += b; return a; }
+inline GPoint operator - (GPoint a, POINT b) { a -= b; return a; }
+inline GPoint operator - (POINT b) { return GPoint(-b.x, -b.y); }
 
 
 struct TPoint : Point<TType> //: POINT
@@ -77,76 +77,75 @@ struct TPoint : Point<TType> //: POINT
 	TPoint() : Point(-1, -1) {}
 	TPoint(TType x, TType y) : Point(x, y) {}
 
-//	TPoint(const Point& src) : Point(src) {}
 	explicit TPoint(const GPoint& src): Point(src.x, src.y) {}
 
-	const TType& x() const { return first;  }
-	const TType& y() const { return second; }
+	TType x() const { return first;  }
+	TType y() const { return second; }
 	TType& x() { return first;  }
 	TType& y() { return second; }
 
-	void operator -=(const TPoint& rhs)       { first -= rhs.first; second -= rhs.second; }
-	void operator +=(const TPoint& rhs)       { first += rhs.first; second += rhs.second; }
-	void operator *=(const TPoint& rhs)       { first *= rhs.first; second *= rhs.second; }
+	void operator -=(TPoint rhs)       { first -= rhs.first; second -= rhs.second; }
+	void operator +=(TPoint rhs)       { first += rhs.first; second += rhs.second; }
+	void operator *=(TPoint rhs)       { first *= rhs.first; second *= rhs.second; }
 
-	bool operator ==(const TPoint& rhs) const { return first == rhs.first && second == rhs.second; }
-	bool operator !=(const TPoint& rhs) const { return first != rhs.first || second != rhs.second; }
+	bool operator ==(TPoint rhs) const { return first == rhs.first && second == rhs.second; }
+	bool operator !=(TPoint rhs) const { return first != rhs.first || second != rhs.second; }
 	bool IsSingular() const { return !first || !second; }
 };
 
-inline GPoint UpperBound(const POINT& lhs, const POINT& rhs) 
+inline GPoint UpperBound(POINT lhs, POINT rhs) 
 {
 	return GPoint(Max<GType>(lhs.x, rhs.x), Max<GType>(lhs.y, rhs.y));
 }
 
-inline GPoint LowerBound(const POINT& lhs, const POINT& rhs) 
+inline GPoint LowerBound(POINT lhs, POINT rhs) 
 {
 	return GPoint(Min<GType>(lhs.x, rhs.x), Min<GType>(lhs.y, rhs.y));
 }
 
-inline TPoint UpperBound(const TPoint& lhs, const TPoint& rhs) 
+inline TPoint UpperBound(TPoint lhs, TPoint rhs) 
 {
 	return TPoint(Max<TType>(lhs.first, rhs.first), Max<TType>(lhs.second, rhs.second));
 }
 
-inline TPoint LowerBound(const TPoint& lhs, const TPoint& rhs) 
+inline TPoint LowerBound(TPoint lhs, TPoint rhs) 
 {
 	return TPoint(Min<TType>(lhs.first, rhs.first), Min<TType>(lhs.second, rhs.second));
 }
 
-inline void MakeUpperBound(POINT& lhs, const POINT& rhs) 
+inline void MakeUpperBound(POINT& lhs, POINT rhs) 
 {
 	MakeMax(lhs.x, rhs.x);
 	MakeMax(lhs.y, rhs.y);
 }
 
-inline void MakeLowerBound(POINT& lhs, const POINT& rhs) 
+inline void MakeLowerBound(POINT& lhs, POINT rhs) 
 {
 	MakeMin(lhs.x, rhs.x);
 	MakeMin(lhs.y, rhs.y);
 }
 
-inline TPoint operator + (TPoint a, const TPoint& b) { a += b; return a; }
-inline TPoint operator * (TPoint a, const TPoint& b) { a *= b; return a; }
-inline TPoint operator - (TPoint a, const TPoint& b) { a -= b; return a; }
-inline TPoint operator - (const TPoint& b) { return TPoint(-b.first, -b.second); }
+inline TPoint operator + (TPoint a, TPoint b) { a += b; return a; }
+inline TPoint operator * (TPoint a, TPoint b) { a *= b; return a; }
+inline TPoint operator - (TPoint a, TPoint b) { a -= b; return a; }
+inline TPoint operator - (TPoint b) { return TPoint(-b.first, -b.second); }
 
-inline bool IsLowerBound(const POINT& a, const POINT& b)
+inline bool IsLowerBound(POINT a, POINT b)
 { 
 	return IsLowerBound(DMS_LONG(a.x), DMS_LONG(b.x)) && IsLowerBound(DMS_LONG(a.y), DMS_LONG(b.y));
 }
 
-inline bool IsStrictlyLower(const POINT& a, const POINT& b)
+inline bool IsStrictlyLower(POINT a, POINT b)
 { 
 	return IsStrictlyLower(DMS_LONG(a.x), DMS_LONG(b.x)) && IsStrictlyLower(DMS_LONG(a.y), DMS_LONG(b.y));
 }
 
-inline TPoint ConcatVertical(const TPoint& a, const TPoint& b)
+inline TPoint ConcatVertical(TPoint a, TPoint b)
 {
 	return TPoint(Max<TType>(a.first, b.first), a.second + b.second);
 }
 
-inline TPoint ConcatHorizontal(const TPoint& a, const TPoint& b)
+inline TPoint ConcatHorizontal(TPoint a, TPoint b)
 {
 	return TPoint(a.first+b.first, Max<TType>(a.second, b.second));
 }
@@ -163,7 +162,7 @@ struct GRect : RECT
 		right  = _right;
 		bottom = _bottom;
 	}
-	GRect(const GPoint& topLeft, const GPoint& bottomRight)
+	GRect(GPoint topLeft, GPoint bottomRight)
 	{
 		left   = topLeft.x;
 		top    = topLeft.y;
@@ -286,23 +285,23 @@ struct GRect : RECT
 	}
 };
 
-inline GRect operator + (GRect a, const POINT& b) { a += b; return a; }
-inline GRect operator - (GRect a, const POINT& b) { a -= b; return a; }
-inline GRect operator + (GRect a, const RECT & b) { a += b; return a; }
-inline GRect operator - (GRect a, const RECT & b) { a -= b; return a; }
-inline GRect operator & (GRect a, const RECT&  b) { a &= b; return a; }
+inline GRect operator + (GRect a, POINT b) { a += b; return a; }
+inline GRect operator - (GRect a, POINT b) { a -= b; return a; }
+inline GRect operator + (GRect a, RECT  b) { a += b; return a; }
+inline GRect operator - (GRect a, RECT  b) { a -= b; return a; }
+inline GRect operator & (GRect a, RECT  b) { a &= b; return a; }
 
-inline bool IsIncluding(const GRect& a, const POINT& p)
+inline bool IsIncluding(GRect a, POINT p)
 {
 	return IsLowerBound(a.TopLeft(), p) && IsStrictlyLower(p, a.BottomRight());
 }
 
-inline bool IsIncluding(const GRect& a, const GRect& b)
+inline bool IsIncluding(GRect a, GRect b)
 {
 	return IsLowerBound(a.TopLeft(), b.TopLeft()) && IsLowerBound(b.BottomRight(), a.BottomRight());
 }
 
-inline bool IsIntersecting(const GRect& a, const GRect& b)
+inline bool IsIntersecting(GRect a, GRect b)
 {
 	return IsStrictlyLower(b.TopLeft(), a.BottomRight()) 
 		&& IsStrictlyLower(a.TopLeft(), b.BottomRight());
@@ -316,16 +315,16 @@ struct TRect : Range<TPoint>
 	TRect(const Range& src): Range(src.first, src.second) {}
 	explicit TRect(const GRect& src): Range(TPoint(src.TopLeft()), TPoint(src.BottomRight())) {}
 
-	const TType&  Left  () const { return TopLeft().x(); }
-	const TType&  Top   () const { return TopLeft().y(); }
-	const TType&  Right () const { return BottomRight().x(); }
-	const TType&  Bottom() const { return BottomRight().y(); }
+	TType  Left  () const { return TopLeft().x(); }
+	TType  Top   () const { return TopLeft().y(); }
+	TType  Right () const { return BottomRight().x(); }
+	TType  Bottom() const { return BottomRight().y(); }
 	TType&  Left  () { return TopLeft().x(); }
 	TType&  Top   () { return TopLeft().y(); }
 	TType&  Right () { return BottomRight().x(); }
 	TType&  Bottom() { return BottomRight().y(); }
-	const TPoint& TopLeft      () const { return first; }
-	const TPoint& BottomRight  () const { return second; }
+	TPoint  TopLeft      () const { return first; }
+	TPoint  BottomRight  () const { return second; }
 	TPoint& TopLeft      () { return first; }
 	TPoint& BottomRight  () { return second; }
 	TPoint TopRight     () const { return TPoint(Right(), Top()); }

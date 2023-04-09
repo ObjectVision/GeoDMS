@@ -47,16 +47,18 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 		RectArrayType m_BlockBoundArray;
 		RectType      m_TotalBound;
 	};
+
 	const BoxData& GetBoxData(tile_id t) const
 	{
 		if (!IsDefined(t))
 		{
-			dms_assert(m_BoxData.size() == 1);
+			assert(m_BoxData.size() == 1);
 			t = 0;
 		}
-		dms_assert(t< m_BoxData.size());
+		assert(t< m_BoxData.size());
 		return m_BoxData[t];
 	}
+
 	BoundingBoxCache(const AbstrDataObject* featureData);
 	const RectArrayType& GetBoundsArray    (tile_id t) const { return GetBoxData(t).m_FeatBoundArray ; }
 	const RectArrayType& GetBlockBoundArray(tile_id t) const { return GetBoxData(t).m_BlockBoundArray; }
@@ -68,7 +70,7 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 
 	DRect GetBounds(tile_id t, tile_offset featureID) const override
 	{
-		dms_assert(featureID < GetBoxData(t).m_FeatBoundArray.size());
+		assert(featureID < GetBoxData(t).m_FeatBoundArray.size());
 		return Convert<DRect>(GetBoxData(t).m_FeatBoundArray[featureID]);
 	}
 
@@ -80,7 +82,7 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 
 	DRect GetBlockBounds(tile_id t, tile_offset blockNr) const override
 	{
-		dms_assert(blockNr < GetBoxData(t).m_BlockBoundArray.size());
+		assert(blockNr < GetBoxData(t).m_BlockBoundArray.size());
 		return Convert<DRect>(GetBoxData(t).m_BlockBoundArray[blockNr]);
 	}
 
@@ -99,12 +101,12 @@ template <typename F>
 BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 	:	AbstrBoundingBoxCache(featureData)
 {
-	dms_assert(featureData);
+	assert(featureData);
 
-	const DataArrayType* da = debug_valcast<const DataArray<PolygonType>*>(featureData);
-	dms_assert(da);
+	auto da = const_array_cast<PolygonType>(featureData);
+	assert(da);
 
-	tile_id tn=featureData->GetTiledRangeData()->GetNrTiles();
+	tile_id tn = featureData->GetTiledRangeData()->GetNrTiles();
 	m_BoxData.resize(tn);
 
 	parallel_tileloop(tn, [this, da](tile_id tp)
