@@ -74,7 +74,7 @@ struct polygon_traits
 	typedef Range<PointType>                                     RangeType;
 	typedef typename sequence_traits<PointType>::container_type  PolygonType;
 	typedef DataArray<PolygonType>                               DataArrayType;
-	typedef typename BoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
+	using RectArrayType = typename SequenceBoundingBoxCache<ScalarType>::RectArrayType;
 	typedef typename sequence_traits<PolygonType>::cseq_t        CPolySeqType;
 	typedef typename DataArrayType::const_iterator               CPolyIterType;
 	typedef typename DataArrayType::locked_cseq_t                LockedSeqType;
@@ -86,7 +86,7 @@ bool DrawPolygonInterior(
 	,	const Theme* brushColorTheme
 	,	const Theme* hatchStyleTheme
 	,	const GraphDrawer& d
-	,	const BoundingBoxCache<ScalarType>* boundingBoxCache
+	,	const SequenceBoundingBoxCache<ScalarType>* boundingBoxCache
 	,	const AbstrTileRangeData* trd, tile_id t
 	,	typename polygon_traits<ScalarType>::CPolySeqType featureData
 	,	WeakPtr<const IndexCollector> indexCollector
@@ -141,12 +141,12 @@ bool DrawPolygonInterior(
 	for (auto b = featureData.begin(), e = featureData.end(), i= b+itemCounter; i != e; ++i)
 	{
 		if ((i-b) % AbstrBoundingBoxCache::c_BlockSize == 0)
-			while (!IsIntersecting(clipRect, blockArray[(i-b) / BoundingBoxCache<ScalarType>::c_BlockSize]))
+			while (!IsIntersecting(clipRect, blockArray[(i-b) / AbstrBoundingBoxCache::c_BlockSize]))
 			{
-				i  += BoundingBoxCache<ScalarType>::c_BlockSize;
+				i  += AbstrBoundingBoxCache::c_BlockSize;
 				if (!(i<e)) 
 					goto exitFill;
-				itemCounter += BoundingBoxCache<ScalarType>::c_BlockSize;
+				itemCounter += AbstrBoundingBoxCache::c_BlockSize;
 				if (itemCounter.MustBreakOrSuspend()) 
 					return true;
 			}
@@ -282,7 +282,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	auto trd = da->GetTiledRangeData();
 	tile_id tn = trd->GetNrTiles();
 
-	const BoundingBoxCache<ScalarType>* boundingBoxCache =  GetBoundingBoxCache<ScalarType>(layer);
+	auto boundingBoxCache =  GetSequenceBoundingBoxCache<ScalarType>(layer);
 
 	pointBuffer_t pointBuffer;
 
@@ -367,10 +367,10 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 				while (itemCounter != ts)
 				{
-					if (itemCounter % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
-						while (!IsIntersecting(clipRect, blockArray[itemCounter / BoundingBoxCache<ScalarType>::c_BlockSize]))
+					if (itemCounter % AbstrBoundingBoxCache::c_BlockSize == 0)
+						while (!IsIntersecting(clipRect, blockArray[itemCounter / AbstrBoundingBoxCache::c_BlockSize]))
 						{
-							itemCounter += BoundingBoxCache<ScalarType>::c_BlockSize;
+							itemCounter += AbstrBoundingBoxCache::c_BlockSize;
 							if (itemCounter >= ts) 
 								goto exitDrawBorders;
 							if (itemCounter.MustBreakOrSuspend()) 
@@ -458,14 +458,14 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 			for (typename p_traits::CPolyIterType i=b+itemCounter.Value(); i != e; ++i, ++ri)
 			{
-				if ((i - b) % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
-					while (!IsIntersecting(clipRect, blockArray[(i-b) / BoundingBoxCache<ScalarType>::c_BlockSize]))
+				if ((i - b) % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(clipRect, blockArray[(i-b) / AbstrBoundingBoxCache::c_BlockSize]))
 					{
-						i  += BoundingBoxCache<ScalarType>::c_BlockSize;
+						i  += AbstrBoundingBoxCache::c_BlockSize;
 						if (!(i<e)) goto exitLabelDraw;
-						itemCounter += BoundingBoxCache<ScalarType>::c_BlockSize;
+						itemCounter += AbstrBoundingBoxCache::c_BlockSize;
 						if (itemCounter.MustBreakOrSuspend()) return true;
-						ri += BoundingBoxCache<ScalarType>::c_BlockSize;
+						ri += AbstrBoundingBoxCache::c_BlockSize;
 					}
 				UInt32 nrPoints = i->size();		
 				if	(	nrPoints >= 3

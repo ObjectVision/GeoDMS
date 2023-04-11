@@ -15,32 +15,77 @@ extern leveled_critical_section cs_BB;
 //----------------------------------------------------------------------
 
 template <typename RectArrayType, typename FeatArrayType>
-typename RectArrayType::value_type MakeBlockBoundArray(RectArrayType& blockArray, const FeatArrayType& featArray, UInt32 blockSize)
+typename RectArrayType::value_type MakeBlockBoundArray(RectArrayType& blockArray, const FeatArrayType& featArray)
 {
 	SizeT n = featArray.size();
 
 	blockArray.clear();
-	blockArray.reserve( (n + (blockSize-1))/blockSize );
+	blockArray.reserve( (n + (AbstrBoundingBoxCache::c_BlockSize-1))/ AbstrBoundingBoxCache::c_BlockSize);
 	auto
 		i = featArray.begin(),
 		e = featArray.end();
-	while (i != e)
+
+	SizeT nrFullBlocks = n / AbstrBoundingBoxCache::c_BlockSize;
+	while (nrFullBlocks--)
 	{
-		auto blockEnd = (SizeT(e-i) > blockSize) ? i+blockSize : e;
+		auto blockEnd = i + AbstrBoundingBoxCache::c_BlockSize;
 		blockArray.push_back(RectArrayType::value_type(i, blockEnd, false, true));
 		i = blockEnd;
 	}
+	if (i!=e)
+		blockArray.push_back(RectArrayType::value_type(i, e, false, true));
+	assert(blockArray.size() == blockArray.capacity());
 	return RectArrayType::value_type(blockArray.begin(), blockArray.end(), false, false);
 }
 
 template <typename F>
-struct BoundingBoxCache : AbstrBoundingBoxCache
+struct PointBoundingBoxCache : AbstrBoundingBoxCache
 {
-	typedef Point<F>                                            PointType;
-	typedef Range<PointType>                                    RectType;
-	typedef std::vector<RectType>                               RectArrayType;
-	typedef typename sequence_traits<PointType>::container_type PolygonType;
-	typedef DataArray<PolygonType>                              DataArrayType;
+	using PointType = Point<F>;
+	using RectType = Range<PointType>;
+	using RectArrayType= std::vector<RectType>;
+
+	struct BoxData {
+		RectArrayType m_BlockBoundArray;
+		RectType      m_TotalBound;
+	};
+
+	const BoxData& GetBoxData(tile_id t) const
+	{
+		if (!IsDefined(t))
+		{
+			assert(m_BoxData.size() == 1);
+			t = 0;
+		}
+		assert(t < m_BoxData.size());
+		return m_BoxData[t];
+	}
+
+	PointBoundingBoxCache(const AbstrDataObject* featureData);
+	const RectArrayType& GetBlockBoundArray(tile_id t) const { return GetBoxData(t).m_BlockBoundArray; }
+
+	DRect GetTileBounds(tile_id t) const override
+	{
+		return Convert<DRect>(GetBoxData(t).m_TotalBound);
+	}
+
+	DRect GetBlockBounds(tile_id t, tile_offset blockNr) const override
+	{
+		assert(blockNr < GetBoxData(t).m_BlockBoundArray.size());
+		return Convert<DRect>(GetBoxData(t).m_BlockBoundArray[blockNr]);
+	}
+
+	std::vector<BoxData> m_BoxData;
+};
+
+
+template <typename F>
+struct SequenceBoundingBoxCache : AbstrBoundingBoxCache
+{
+	using PointType = Point<F>;
+	using RectType = Range<PointType>;
+	using RectArrayType = std::vector<RectType>;
+	using PolygonType = typename sequence_traits<PointType>::container_type;
 
 	struct BoxData {
 		RectArrayType m_FeatBoundArray;
@@ -59,7 +104,7 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 		return m_BoxData[t];
 	}
 
-	BoundingBoxCache(const AbstrDataObject* featureData);
+	SequenceBoundingBoxCache(const AbstrDataObject* featureData);
 	const RectArrayType& GetBoundsArray    (tile_id t) const { return GetBoxData(t).m_FeatBoundArray ; }
 	const RectArrayType& GetBlockBoundArray(tile_id t) const { return GetBoxData(t).m_BlockBoundArray; }
 
@@ -74,31 +119,44 @@ struct BoundingBoxCache : AbstrBoundingBoxCache
 		return Convert<DRect>(GetBoxData(t).m_FeatBoundArray[featureID]);
 	}
 
-	DRect GetBounds(SizeT featureID) const override
-	{
-		tile_loc tl = m_FeatureData->GetTiledLocation(featureID);
-		return GetBounds(tl.first, tl.second);
-	}
-
 	DRect GetBlockBounds(tile_id t, tile_offset blockNr) const override
 	{
 		assert(blockNr < GetBoxData(t).m_BlockBoundArray.size());
 		return Convert<DRect>(GetBoxData(t).m_BlockBoundArray[blockNr]);
 	}
 
-	SizeT GetFeatureCount() const override
-	{
-		SizeT result = 0;
-		for (auto b=m_BoxData.begin(), e=m_BoxData.end(); b!=e; ++b)
-			result += b->m_FeatBoundArray.size();
-		return result;
-	}
 	std::vector<BoxData> m_BoxData;
 };
 
 
 template <typename F>
-BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
+PointBoundingBoxCache<F>::PointBoundingBoxCache(const AbstrDataObject* featureData)
+	: AbstrBoundingBoxCache(featureData)
+{
+	assert(featureData);
+
+	auto da = const_array_cast<PointType>(featureData);
+	assert(da);
+
+	tile_id tn = featureData->GetTiledRangeData()->GetNrTiles();
+	m_BoxData.resize(tn);
+
+	parallel_tileloop(tn, [this, da](tile_id t)
+		{
+			auto data = da->GetTile(t);
+			auto
+				i = data.begin(),
+				e = data.end();
+
+			BoxData resultBoxes;
+			resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, da->GetTile(t));
+
+			m_BoxData[t] = std::move(resultBoxes);
+		});
+}
+
+template <typename F>
+SequenceBoundingBoxCache<F>::SequenceBoundingBoxCache(const AbstrDataObject* featureData)
 	:	AbstrBoundingBoxCache(featureData)
 {
 	assert(featureData);
@@ -109,23 +167,20 @@ BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 	tile_id tn = featureData->GetTiledRangeData()->GetNrTiles();
 	m_BoxData.resize(tn);
 
-	parallel_tileloop(tn, [this, da](tile_id tp)
+	parallel_tileloop(tn, [this, da](tile_id t)
 	{
-		auto data = da->GetTile(tp);
-		auto
-			i = data.begin(),
-			e = data.end();
-		
+		auto data = da->GetTile(t);
+				
 		BoxData resultBoxes;
 		RectArrayType& featBoundArray = resultBoxes.m_FeatBoundArray;
-		featBoundArray.resize(e-i);
-		typename RectArrayType::iterator ri = featBoundArray.begin();
-		for (; i != e; ++ri, ++i)
+		featBoundArray.resize(data.size());
+		auto ri = featBoundArray.begin();
+		for (auto i = data.begin(), e = data.end(); i != e; ++ri, ++i)
 			*ri = RangeFromSequence(i->begin(), i->end());
 
-		resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, featBoundArray, c_BlockSize);
+		resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, featBoundArray);
 
-		m_BoxData[tp] = std::move(resultBoxes);
+		m_BoxData[t] = std::move(resultBoxes);
 	});
 }
 
@@ -134,32 +189,75 @@ BoundingBoxCache<F>::BoundingBoxCache(const AbstrDataObject* featureData)
 //----------------------------------------------------------------------
 
 template <typename ScalarType>
-const BoundingBoxCache<ScalarType>*
-GetBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureItem, bool mustPrepare)
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
 {
-	dms_assert(featureItem);
+	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
-	DataReadLock readLock(featureItem);
-	dms_assert(featureItem->GetDataRefLockCount() > 0);
+	DataReadLock readLock(featureAttr);
+	assert(featureAttr->GetDataRefLockCount() > 0);
 
-	const AbstrDataObject* featureData = featureItem->GetCurrRefObj();
+	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
 	auto& bbCache = g_BB_Register[featureData];
 	if (!bbCache)
 	{
-		auto bbPtr = std::make_unique<BoundingBoxCache<ScalarType>> (featureData);
+		auto bbPtr = std::make_unique<SequenceBoundingBoxCache<ScalarType>> (featureData);
 		bbPtr->Register(); // remove from global cache upon destruction
 		bbCache = bbPtr.release();
 	}
 	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
-	return debug_cast<const BoundingBoxCache<ScalarType>*>(bbCache);
+	return debug_cast<const SequenceBoundingBoxCache<ScalarType>*>(bbCache);
 }
 
 template <typename ScalarType>
-const BoundingBoxCache<ScalarType>*
-GetBoundingBoxCache(const FeatureLayer* layer)
+const PointBoundingBoxCache<ScalarType>*
+GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
+{
+	assert(featureAttr);
+	leveled_critical_section::scoped_lock lock(cs_BB);
+	DataReadLock readLock(featureAttr);
+	assert(featureAttr->GetDataRefLockCount() > 0);
+
+	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
+	auto& bbCache = g_BB_Register[featureData];
+	if (!bbCache)
+	{
+		auto bbPtr = std::make_unique<PointBoundingBoxCache<ScalarType>>(featureData);
+		bbPtr->Register(); // remove from global cache upon destruction
+		bbCache = bbPtr.release();
+	}
+	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
+	return debug_cast<const PointBoundingBoxCache<ScalarType>*>(bbCache);
+}
+
+template <typename ScalarType>
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const PointBoundingBoxCache<ScalarType>*
+GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceBoundingBoxCache(const FeatureLayer* layer)
 {
 	dms_assert(IsMetaThread());
-	return GetBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const PointBoundingBoxCache<ScalarType>*
+GetPointBoundingBoxCache(const FeatureLayer* layer)
+{
+	dms_assert(IsMetaThread());
+	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
 }
 
 #endif // __SHV_BOUNDINGBOXCACHE_H

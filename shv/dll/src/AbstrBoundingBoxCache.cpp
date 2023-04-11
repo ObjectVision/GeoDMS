@@ -53,8 +53,16 @@ AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 	}
 }
 
-DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
+DRect AbstrBoundingBoxCache::GetBounds(tile_id t, tile_offset featureID) const
 {
 	throwIllegalAbstract(MG_POS, "AbstrBoundingBoxCache::GetBounds");
 }
+
+DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
+{
+	tile_loc tl = m_FeatureData->GetTiledLocation(featureID);
+	return GetBounds(tl.first, tl.second);
+}
+
+
 

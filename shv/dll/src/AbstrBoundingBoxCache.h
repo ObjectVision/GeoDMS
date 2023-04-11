@@ -48,11 +48,10 @@ public:
 	void Register() { m_HasBeenRegistered = true; }
 
 	virtual DRect GetTileBounds(tile_id t) const = 0;
-	virtual DRect GetBounds(SizeT featureID) const =0;
-	virtual SizeT GetFeatureCount() const = 0;
-
 	virtual DRect GetBlockBounds(tile_id t, tile_offset blockNr) const = 0;
-	virtual DRect GetBounds(tile_id t, tile_offset featureID) const = 0;
+	virtual DRect GetBounds(tile_id t, tile_offset featureID) const;
+
+	DRect GetBounds(SizeT featureID) const;
 
 	static const UInt32 c_BlockSize = 256;
 
