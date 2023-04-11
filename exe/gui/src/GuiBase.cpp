@@ -540,8 +540,16 @@ void StringToTable(std::string& input, md_table_data& result, std::string separa
         if (!colon_separated_line.empty())
         {
             result.emplace_back();
+
+            element_type type = element_type::NONE;
+            bool         is_failed = false;
+            bool         is_selected = false;
+            UInt8        indentation = 0;
+            std::string	 text = "";
+            std::string  link = "";
+
             for (auto& part : colon_separated_line)
-                result.back().back().emplace_back(PET_TEXT, false, part);
+                result.back().back().emplace_back(element_type::TEXT, false, false, 0, part, "");
         }
     }
 }
