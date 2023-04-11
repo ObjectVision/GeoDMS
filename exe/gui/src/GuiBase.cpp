@@ -530,16 +530,16 @@ void PostEmptyEventToGLFWContext()
     glfwPostEmptyEvent();
 }
 
-void StringToTable(std::string& input, md_table_data& result, std::string separator)
+void StringToTable(std::string& input, md_table& result, std::string separator)
 {
-    result.clear();
+    result.rows.clear();
     auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
     for (auto& line : lines)
     {
         auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
         if (!colon_separated_line.empty())
         {
-            result.emplace_back();
+            result.rows.emplace_back();
 
             element_type type = element_type::NONE;
             bool         is_failed = false;
@@ -549,12 +549,12 @@ void StringToTable(std::string& input, md_table_data& result, std::string separa
             std::string  link = "";
 
             for (auto& part : colon_separated_line)
-                result.back().back().emplace_back(element_type::TEXT, false, false, 0, part, "");
+                result.rows.back().elements.back().parts.emplace_back(element_type::TEXT, false, false, 0, part, "");
         }
     }
 }
 
-void DrawProperties(GuiState& state, md_table_data& properties)
+void DrawProperties(GuiState& state, md_table& properties)
 {
     /*auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise

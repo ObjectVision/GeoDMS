@@ -150,7 +150,7 @@ public:
     void Clear();
 
 private:
-    void ParseLink();
+    bool ParseLink();
     void ParseTable();
     void ParseCodeBlock();
     void ParseDropDown();
@@ -165,11 +165,13 @@ private:
     void AddTable();
     void AddRow();
     void AddElement();
+    void AddElementPart();
+    void AddInitialEmptyElement();
 
-    markdown_data m_data;
-    MarkDownLine m_line;
-    MarkDownEmphasis m_emphasis;
-    MarkDownLink m_link;
+    md_data m_markdown_data;
+    //MarkDownLine m_line;
+    //MarkDownEmphasis m_emphasis;
+    //MarkDownLink m_link;
 
     size_t      m_index = 0;
     std::string m_markdown_text = "";
@@ -208,12 +210,12 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    md_table_data            m_GeneralProperties;
-    md_table_data            m_AllProperties;
-    md_table_data            m_ExploreProperties;
-    md_table_data            m_ValueInfo;
-    md_table_data            m_SourceDescription;
-    md_table_data            m_Configuration;
+    /*md_data            m_GeneralProperties;
+    md_data            m_AllProperties;
+    md_data            m_ExploreProperties;
+    md_data            m_ValueInfo;
+    md_data            m_SourceDescription;
+    md_data            m_Configuration;*/
 
     std::unique_ptr<GuiMarkDownPage> m_GeneralProperties_MD;
 
