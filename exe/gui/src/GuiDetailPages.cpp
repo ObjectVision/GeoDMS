@@ -390,11 +390,12 @@ bool GuiMarkDownPage::ParseTable()
         }
         }
     }
+    return true;
 }
 
 bool GuiMarkDownPage::ParseCodeBlock()
 {
-
+    return true;
 }
 
 void GuiMarkDownPage::ParseDropDown()
@@ -811,8 +812,8 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            if (!m_GeneralProperties_MD)
-                UpdateGeneralProperties(state);
+            //if (!m_GeneralProperties_MD)
+            //    UpdateGeneralProperties(state);
             ////DrawProperties(state, m_GeneralProperties);
         }
         break;
@@ -896,8 +897,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         if (detail_pages_docknode)
         {
             AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
-            //Collapse(detail_pages_docknode);
-            Expand(DetailPageActiveTab::General, detail_pages_docknode);
+            Collapse(detail_pages_docknode);
+            //Expand(DetailPageActiveTab::General, detail_pages_docknode); // testing purposes
         }
     }
 
