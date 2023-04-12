@@ -125,18 +125,47 @@ namespace token {
 	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");
 
+//	SELECT section BEGIN
+	TIC_CALL TokenID select = GetTokenID_st("select");
+	TIC_CALL TokenID select_uint8 = GetTokenID_st("select_uint8");
+	TIC_CALL TokenID select_uint16 = GetTokenID_st("select_uint16");
+	TIC_CALL TokenID select_uint32 = GetTokenID_st("select_uint32");
+
+	TIC_CALL TokenID select_with_org_rel = GetTokenID_st("select_with_org_rel");
+	TIC_CALL TokenID select_uint8_with_org_rel = GetTokenID_st("select_uint8_with_org_rel");
+	TIC_CALL TokenID select_uint16_with_org_rel = GetTokenID_st("select_uint16_with_org_rel");
+	TIC_CALL TokenID select_uint32_with_org_rel = GetTokenID_st("select_uint32_with_org_rel");
+
+	// DEPRECIATED BEGIN
 	TIC_CALL TokenID select_unit = GetTokenID_st("select_unit");
 	TIC_CALL TokenID select_orgrel = GetTokenID_st("select_orgrel");
 	TIC_CALL TokenID select_unit_uint8 = GetTokenID_st("select_unit_uint8");
 	TIC_CALL TokenID select_orgrel_uint8 = GetTokenID_st("select_orgrel_uint8");
+	TIC_CALL TokenID select_unit_uint8_org_rel = GetTokenID_st("select_org_rel_uint8");
 	TIC_CALL TokenID select_unit_uint16 = GetTokenID_st("select_unit_uint16");
 	TIC_CALL TokenID select_orgrel_uint16 = GetTokenID_st("select_orgrel_uint16");
 	TIC_CALL TokenID select_unit_uint32 = GetTokenID_st("select_unit_uint32");
 	TIC_CALL TokenID select_orgrel_uint32 = GetTokenID_st("select_orgrel_uint32");
+	// DEPRECIATED END
 
-	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
+
+	TIC_CALL TokenID select_with_attr_by_cond = GetTokenID_st("select_with_attr_by_cond");
+	TIC_CALL TokenID select_uint8_with_attr_by_cond= GetTokenID_st("select_uint8_with_attr_by_cond");
+	TIC_CALL TokenID select_uint16_with_attr_by_cond= GetTokenID_st("select_uint16_with_attr_by_cond");
+	TIC_CALL TokenID select_uint32_with_attr_by_cond= GetTokenID_st("select_uint32_with_attr_by_cond");
+
+	TIC_CALL TokenID select_with_org_rel_with_attr_by_cond= GetTokenID_st("select_with_org_rel_with_attr_by_cond");
+	TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond  = GetTokenID_st("select_uint8_with_org_rel_with_attr_by_cond");
+	TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint16_with_org_rel_with_attr_by_cond");
+	TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint32_with_org_rel_with_attr_by_cond");
+
+	TIC_CALL TokenID select_with_attr_by_org_rel = GetTokenID_st("select_with_attr_by_org_rel");
+	TIC_CALL TokenID select_uint8_with_attr_by_org_rel = GetTokenID_st("select_uint8_with_attr_by_org_rel");
+	TIC_CALL TokenID select_uint16_with_attr_by_org_rel = GetTokenID_st("select_uint16_with_attr_by_org_rel");
+	TIC_CALL TokenID select_uint32_with_attr_by_org_rel = GetTokenID_st("select_uint32_with_attr_by_org_rel");
+
+	// DEPRECIATED BEGIN
 	TIC_CALL TokenID select_many = GetTokenID_st("select_many");
-	TIC_CALL TokenID relate_attr = GetTokenID_st("relate_attr");
 	TIC_CALL TokenID select_afew = GetTokenID_st("select_afew");
 	TIC_CALL TokenID select_many_uint8 = GetTokenID_st("select_many_uint8");
 	TIC_CALL TokenID select_afew_uint8 = GetTokenID_st("select_afew_uint8");
@@ -144,10 +173,30 @@ namespace token {
 	TIC_CALL TokenID select_afew_uint16 = GetTokenID_st("select_afew_uint16");
 	TIC_CALL TokenID select_many_uint32 = GetTokenID_st("select_many_uint32");
 	TIC_CALL TokenID select_afew_uint32 = GetTokenID_st("select_afew_uint32");
+	// DEPRECIATED END
+
+	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
+
+	TIC_CALL TokenID collect_by_cond = GetTokenID_st("collect_by_cond"); // synonymous with select_data
+	TIC_CALL TokenID collect_by_org_rel = GetTokenID_st("collect_by_org_rel"); // synonimous with lookup, arrow-operator, and (reversed) array-index operator
+
+	TIC_CALL TokenID collect_attr_by_cond = GetTokenID_st("collect_attr_by_cond");
+	TIC_CALL TokenID collect_attr_by_org_rel = GetTokenID_st("collect_attr_by_org_rel");
+
+	TIC_CALL TokenID recollect_by_cond = GetTokenID_st("recollect_by_cond");
+	TIC_CALL TokenID recollect_by_org_rel = GetTokenID_st("recollect_by_org_rel");
+
+//	SELECT section END
+
 	TIC_CALL TokenID nr_OrgEntity = GetTokenID_st("nr_OrgEntity");
+	TIC_CALL TokenID polygon_rel = GetTokenID_st("polygon_rel");
+	TIC_CALL TokenID part_rel = GetTokenID_st("part_rel");
+	TIC_CALL TokenID arc_rel = GetTokenID_st("arc_rel");;
+	TIC_CALL TokenID sequence_rel = GetTokenID_st("sequence_rel");;
 	TIC_CALL TokenID org_rel = GetTokenID_st("org_rel");
 	TIC_CALL TokenID first_rel = GetTokenID_st("first_rel");
 	TIC_CALL TokenID second_rel = GetTokenID_st("second_rel");
+	TIC_CALL TokenID ordinal = GetTokenID_st("ordinal");
 	TIC_CALL TokenID BaseUnit = GetTokenID_st("BaseUnit");
 	TIC_CALL TokenID UInt32 = GetTokenID_st("UInt32");
 	TIC_CALL TokenID left = GetTokenID_st("left");
@@ -282,7 +331,7 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 	result = LispRef(LispRef(GetTokenID("SigAndSub")), result); // TOOD G8: move to token::
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace,"CreateLispSubTree %d %s",  inclSubTree, AsFLispSharedStr(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace,"CreateLispSubTree %d %s",  inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
 	dms_assert(IsExpr(result));
 #endif
 
@@ -296,7 +345,7 @@ LispRef CreateLispTree(const TreeItem* self, bool inclSubTree)
 	,	CreateLispSubTree(self, inclSubTree)
 	);
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "CreateLispTree: %d %s", inclSubTree, AsFLispSharedStr(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "CreateLispTree: %d %s", inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	return result;

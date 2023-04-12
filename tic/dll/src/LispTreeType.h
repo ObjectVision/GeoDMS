@@ -70,6 +70,8 @@ namespace token {
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
 
+	inline bool isConst(TokenID t) { return t == true_ || t == false_; }
+
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
 	extern TIC_CALL TokenID convert;
@@ -92,28 +94,78 @@ namespace token {
 	extern TIC_CALL TokenID union_data;
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
-	extern TIC_CALL TokenID select_data;
+
+//	SELECT section BEGIN
+	extern TIC_CALL TokenID select;
+	extern TIC_CALL TokenID select_uint8;
+	extern TIC_CALL TokenID select_uint16;
+	extern TIC_CALL TokenID select_uint32;
+
+	extern TIC_CALL TokenID select_with_org_rel;
+	extern TIC_CALL TokenID select_uint8_with_org_rel;
+	extern TIC_CALL TokenID select_uint16_with_org_rel;
+	extern TIC_CALL TokenID select_uint32_with_org_rel;
+
+	// DEPRECIATED BEGIN
 	extern TIC_CALL TokenID select_unit;
 	extern TIC_CALL TokenID select_orgrel;
 	extern TIC_CALL TokenID select_unit_uint8;
 	extern TIC_CALL TokenID select_orgrel_uint8;
+	extern TIC_CALL TokenID select_unit_uint8_org_rel;
 	extern TIC_CALL TokenID select_unit_uint16;
 	extern TIC_CALL TokenID select_orgrel_uint16;
 	extern TIC_CALL TokenID select_unit_uint32;
 	extern TIC_CALL TokenID select_orgrel_uint32;
+	// DEPRECIATED END
+
+	extern TIC_CALL TokenID select_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint8_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint16_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint32_with_attr_by_cond;
+
+	extern TIC_CALL TokenID select_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond;
+
+	extern TIC_CALL TokenID select_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint8_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint16_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint32_with_attr_by_org_rel;
+
+	extern TIC_CALL TokenID select_data;
+
+	extern TIC_CALL TokenID collect_by_cond;  // synonymous with select_data
+	extern TIC_CALL TokenID collect_by_org_rel; // synonimous with lookup, arrow-operator, and (reversed) array-index operator
+
+	extern TIC_CALL TokenID collect_attr_by_cond;
+	extern TIC_CALL TokenID collect_attr_by_org_rel;
+
+	// DEPRECIATED BEGIN
 	extern TIC_CALL TokenID select_many;
 	extern TIC_CALL TokenID select_afew;
-	extern TIC_CALL TokenID relate_attr;
 	extern TIC_CALL TokenID select_many_uint8;
 	extern TIC_CALL TokenID select_afew_uint8;
 	extern TIC_CALL TokenID select_many_uint16;
 	extern TIC_CALL TokenID select_afew_uint16;
 	extern TIC_CALL TokenID select_many_uint32;
 	extern TIC_CALL TokenID select_afew_uint32;
+	// DEPRECIATED END
+
+	extern TIC_CALL TokenID recollect_by_cond;
+	extern TIC_CALL TokenID recollect_by_org_rel;
+
+//	SELECT section END
+
 	extern TIC_CALL TokenID nr_OrgEntity;
+	extern TIC_CALL TokenID polygon_rel;
+	extern TIC_CALL TokenID part_rel;
+	extern TIC_CALL TokenID arc_rel;
+	extern TIC_CALL TokenID sequence_rel;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;
+	extern TIC_CALL TokenID ordinal;
 	extern TIC_CALL TokenID integrity_check;
 
 	extern TIC_CALL TokenID map;

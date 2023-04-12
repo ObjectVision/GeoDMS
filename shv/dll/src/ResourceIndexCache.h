@@ -49,6 +49,7 @@ class AbstrThemeValueGetter;
 struct ResourceIndexCache
 {
 	resource_index_t GetKeyIndex(entity_id entityId) const;
+	Int32 GetWidth(entity_id e) const;
 
 protected: 
 	ResourceIndexCache(
@@ -76,6 +77,24 @@ protected:
 
 	mutable std::vector<resource_index_t> m_KeyIndices;
 };
+
+template<typename KeyType> 
+void MakeKeyIndex(std::vector<resource_index_t>& keyIndices, KeyType& keys)
+{
+	assert(keys.size());
+	auto orgKeys = keys;
+
+	std::sort(keys.begin(), keys.end());
+	keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+
+	if (keys.size() > 1)
+	{
+		keyIndices.resize(orgKeys.size());
+		rlookup2index_array_unchecked(keyIndices, orgKeys, keys);
+	}
+	else
+		keyIndices.clear();
+}
 
 
 #endif // __SHV_INDEXCACHE_H

@@ -72,7 +72,8 @@ struct ptr : ptr_base<T, copyable>
 	explicit ptr(T* p) : ptr_base<T, copyable>( p ) {}
 };
 
-struct abstr_future_tile : TileBase {
+struct abstr_future_tile : TileBase
+{
 	virtual auto GetTileCRef() -> TileCRef = 0;
 };
 

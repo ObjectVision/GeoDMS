@@ -86,7 +86,7 @@ void DoInterpolateLinear(
 	iter_x_t xi = xCoords.begin();
 	SizeT    n  = xCoords.size();
 
-	OwningPtrSizedArray<SizeT> index(n MG_DEBUG_ALLOCATOR_SRC( "DoInterpolateLinear: index"));
+	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC( "DoInterpolateLinear: index"));
 	auto indexBegin = index.begin(), indexEnd = index.end(); assert(indexEnd - indexBegin == n);
 	make_index_in_existing_span(indexBegin, indexEnd, xi);
 

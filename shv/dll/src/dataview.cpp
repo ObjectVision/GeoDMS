@@ -79,6 +79,7 @@ granted by an additional written contract for support, assistance and/or develop
 //    NOANIMATE    Animate control.
 
 #include "CommCtrl.h"
+ActorVisitState UpdateChildViews(DataViewList* dvl);
 
 ////////////////////////////////////////////////////////////////////////////
 // const
@@ -106,7 +107,7 @@ bool MsgStruct::Send() const
 // class  : DataViewList
 //----------------------------------------------------------------------
 
-DataViewList g_DataViews;
+DataViewList g_DataViewRoots;
 
 void DataViewList::BringChildToTop(DataView* dv)
 {
@@ -117,7 +118,7 @@ void DataViewList::BringChildToTop(DataView* dv)
 void DataViewList::AddChildView(DataView* childView)
 {
 	dms_assert(childView);
-	dms_assert(childView->m_ParentView == 0);
+	dms_assert(childView->m_ParentView == nullptr);
 	AddSub(childView);
 	childView->m_ParentView = this;
 }
@@ -127,8 +128,24 @@ void DataViewList::DelChildView(DataView* childView)
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == this);
 	DelSub(childView); 
-	childView->m_ParentView = 0;
+	childView->m_ParentView = nullptr;
 }
+
+void DataViewList::BroadcastCmd(ToolButtonID id)
+{
+	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
+	{
+		if (auto contents = cv->GetContents())
+			contents->OnCommand(id);
+		cv->BroadcastCmd(id);
+	}
+}
+
+void BroadcastCommandToAllDataViews(ToolButtonID id)
+{
+	g_DataViewRoots.BroadcastCmd(id);
+}
+
 
 //----------------------------------------------------------------------
 // section: DEBUG TOOLS
@@ -155,9 +172,12 @@ DbgInvalidateDrawLock::~DbgInvalidateDrawLock()
 
 #if defined(MG_DEBUG_DATAVIEWSET)
 
+std::mutex g_csActiveDataViewSet;
 std::set<DataView*> g_ActiveDataViews;
+
 bool DataView::IsInActiveDataViewSet()
 {
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	return g_ActiveDataViews.find(this) != g_ActiveDataViews.end();
 }
 
@@ -212,6 +232,7 @@ DataView::DataView(TreeItem* viewContext)
 
 	IdleTimer::Subscribe(this);
 #if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.insert(this);
 #endif //defined(MG_DEBUG_DATAVIEWSET)
 }
@@ -238,9 +259,11 @@ DataView::~DataView()
 	dbg_assert(md_InvalidateDrawLock == 0);
 
 	OnDestroyDataView(this); // remove remaining messages for this DataView from the queue.
+
 #if defined(MG_DEBUG_DATAVIEWSET)
+	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.erase(this);
-#endif
+#endif //defined(MG_DEBUG_DATAVIEWSET)
 }
 
 void DataView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode sm)
@@ -268,6 +291,7 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
 
@@ -277,7 +301,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 			GdiHandle<HFONT>(
 				CreateFont(
 	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96
-					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(72.0 / 96.0),
+					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(96.0 / 72.0),
 					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
 					  0, // nEscapement
 					  0, // nOrientaion
@@ -290,7 +314,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 					CLIP_DEFAULT_PRECIS,       // DWORD fdwClipPrecision,  // clipping precision
 					PROOF_QUALITY,             // DWORD fdwQuality,        // output quality
 					DEFAULT_PITCH|FF_DONTCARE, // DWORD fdwPitchAndFamily,  // pitch and family
-					"Noto Sans Medium"                   // pointer to typeface name string
+					"Noto Sans Medium"         // pointer to typeface name string
 				)
 			);
 	}
@@ -316,7 +340,7 @@ void DataView::RemoveCaret(AbstrCaret* c)
 
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()));
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()));
 		c->Reverse(dc, false);
 	}
 	vector_erase(m_CaretVector, c);
@@ -341,7 +365,7 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 	if (m_State.Get(DVF_CaretsVisible))
 		caret->Move(
 			caretOperator, 
-			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()))
+			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()))
 		);
 	else
 		caretOperator(caret);
@@ -423,7 +447,7 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 	}
 	else
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor())); // activates xorMode in its constructor
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor())); // activates xorMode in its constructor
 		ReverseCaretsImpl(dc, newVisibleState);
 	}
 }
@@ -701,6 +725,10 @@ bool DataView::OnKeyDown(UInt32 nVirtKey)
 {
 	if (GetKeyState(VK_CONTROL) & 0x8000)
 		nVirtKey |= KeyInfo::Flag::Ctrl;
+	if (GetKeyState(VK_MENU) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Menu;
+	if (GetKeyState(VK_SHIFT) & 0x8000)
+		nVirtKey |= KeyInfo::Flag::Shift;
 	if (m_ActivationInfo)
 		return m_ActivationInfo.OnKeyDown(nVirtKey);
 	return GetContents()->OnKeyDown(nVirtKey);
@@ -858,9 +886,13 @@ GraphVisitState DataView::UpdateView()
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
 	if (!m_DoneGraphics.Empty()) // DEBUG, REMOVE when above assert is proven to hold
 		return GVS_Break;
-	return SuspendTrigger::DidSuspend()
-		?	GVS_Break
-		:	GVS_Continue;
+
+	if (SuspendTrigger::DidSuspend())
+		return GVS_Break;
+
+	if (UpdateChildViews(this) == AVS_SuspendedOrFailed)
+		return GVS_Break;
+	return GVS_Ready;
 }
 
 #include "utl/Environment.h"
@@ -913,12 +945,14 @@ ActorVisitState UpdateChildViews(DataViewList* dvl)
 	return AVS_Ready;
 }
 
+/* REMOVE
 ActorVisitState DataView::UpdateViews()
 {
 	if (g_DispatchLockCount > 1) // any other locks than the one from SHV_DataView_Update?
 		return AVS_SuspendedOrFailed;
-	return UpdateChildViews(&g_DataViews);
+	return UpdateChildViews(&g_DataViewRoots);
 }
+*/
 
 void DataView::Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src)
 {
@@ -1380,7 +1414,7 @@ void DataView::ResetHWnd(HWND hWnd)
 	dms_assert(hWnd);
 	m_hWnd = hWnd;
 	if (!m_ParentView)
-		g_DataViews.AddChildView(this);
+		g_DataViewRoots.AddChildView(this);
 }
 
 void DataView::SetScrollEventsReceiver(ScrollPort* sp)
@@ -1604,7 +1638,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		m_hWnd = createStruct.hWnd;
 		if (m_ParentView)
 			m_ParentView->DelChildView(this);
-		g_DataViews.AddChildView(this);
+		g_DataViewRoots.AddChildView(this);
 		return true;
 	}
 	return false;

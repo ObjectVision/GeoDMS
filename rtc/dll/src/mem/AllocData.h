@@ -44,7 +44,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	using typename base_type::size_type;
 	using typename base_type::iterator;
 
-	alloc_data() {}
+	alloc_data() {} // value-initialisation
 
 	alloc_data(iterator first, iterator last, size_type cap)
 		: base_type(first, last)

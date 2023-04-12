@@ -290,7 +290,7 @@ DataControllerMap::~DataControllerMap()
 					#if defined (MG_DEBUG_DCDATA)
 						dcPtr->md_sKeyExpr.c_str()
 					#else
-						AsFLispSharedStr(dcPtr->GetLispRef()).c_str()
+						AsFLispSharedStr(dcPtr->GetLispRef(), FormattingFlags::ThousandSeparator).c_str()
 					#endif
 				);
 			}			
@@ -312,7 +312,7 @@ inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); 
 DataController::DataController(LispPtr keyExpr)
 	:	m_Key(keyExpr)
 #if defined(MG_DEBUG_DCDATA)
-	,	md_sKeyExpr(AsFLispSharedStr(keyExpr))
+	,	md_sKeyExpr(AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator))
 #endif
 {}
 
@@ -322,7 +322,9 @@ DataController::~DataController()
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
 	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
-	CurrDcMap().erase(m_Key);
+	auto curr = SessionData::Curr();
+	if (curr)
+		curr->GetDcMap().erase(m_Key);
 }
 
 DataControllerRef
@@ -413,7 +415,7 @@ FutureData DataController::CalcCertainResult()  const
 
 SharedStr DataController::GetSourceName() const
 {
-	auto keyStr = AsFLispSharedStr(m_Key);
+	auto keyStr = AsFLispSharedStr(m_Key, FormattingFlags::None);
 	return mySSPrintF("%s: %s"
 		,	keyStr.c_str()
 		,	GetClsName().c_str()

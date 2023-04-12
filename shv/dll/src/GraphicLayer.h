@@ -105,7 +105,7 @@ public:
 
 	virtual CrdRect CalcSelectedFullWorldRect() const = 0;
 
-	virtual void _InvalidateFeature(SizeT featureIndex) = 0;
+	virtual void InvalidateFeature(SizeT featureIndex) = 0;
 
 	std::weak_ptr<LayerSet> GetLayerSet();
 

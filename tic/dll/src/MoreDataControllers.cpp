@@ -142,6 +142,8 @@ const AbstrDataItem* AsDataItem(const ArgRef& ar)
 // Section:     FuncDC implementation
 // *****************************************************************************
 
+#include "TreeItemContextHandle.h"
+
 FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	:	DataController(keyExpr)
 	,	m_OperatorGroup(og)
@@ -149,13 +151,21 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	dms_assert(og && (og->MustCacheResult() || !og->CanResultToConfigItem()));
 
 	DBG_START("FuncDC", "ctor", false);
-	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr).c_str()));
+	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s.\n%s"
+			, og->GetName()
+			, og->GetObsoleteMsg()
+			, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
+		);
 
 	if (og->IsObsolete())
-		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s.\n%s"
+			, og->GetName()
+			, og->GetObsoleteMsg()
+			, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
+		);
 
 	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
 	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
@@ -169,7 +179,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	OwningPtr<DcRefListElem>* nextArgPtr = &m_Args;
 	for (LispPtr tailPtr = keyExpr.Right(); !tailPtr.EndP(); tailPtr = tailPtr.Right()) 
 	{
-		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left()).c_str()));
+		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
 		nextArgPtr->assign(dcRef);
 		MG_CHECK(tailPtr->Left());
@@ -525,6 +535,7 @@ bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
 		case oper_arg_policy::calc_always:    
 			return true;
 //		case oper_arg_policy::calc_never:
+//		case oper_arg_policy::calc_at_subitem:
 //		case oper_arg_policy::is_templ:       
 //		case oper_arg_policy::subst_with_subitems:
 		default:

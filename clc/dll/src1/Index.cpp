@@ -46,6 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "OperRelUni.h"
 #include "UnitProcessor.h"
+#include "LispTreeType.h"
 
 // *****************************************************************************
 //                         Helper Funcs
@@ -53,7 +54,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 CommonOperGroup cog_dir_index("direct_index");
 CommonOperGroup cog_index    ("index", oper_policy::dynamic_result_class);
-CommonOperGroup cog_ordinal  ("ordinal");
+CommonOperGroup cog_ordinal  (token::ordinal);
 CommonOperGroup cog_subindex ("subindex", oper_policy::dynamic_result_class);
 
 // *****************************************************************************

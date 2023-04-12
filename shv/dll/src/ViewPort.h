@@ -49,11 +49,29 @@ struct SelValuesData;
 struct WmsLayer;
 
 enum ToolButtonID;
+using SharedRwDataItemInterestPtr = InterestPtr<SharedPtr<AbstrDataItem> >;
+
+//----------------------------------------------------------------------
+// class  : ViewPoint
+//----------------------------------------------------------------------
+
+struct ViewPoint
+{
+	CrdPoint center = Undefined();
+	CrdType  zoomLevel = UNDEFINED_VALUE(CrdType);
+	SharedStr spatialReference;
+
+	ViewPoint(CrdPoint c, CrdType zl, SharedStr sr)
+		: center(c), zoomLevel(zl), spatialReference(sr)
+	{}
+	ViewPoint(CharPtrRange viewPointStr);
+
+	bool WriteAsString(char* buffer, SizeT len, FormattingFlags flags);
+};
 
 //----------------------------------------------------------------------
 // class  : ViewPort
 //----------------------------------------------------------------------
-typedef InterestPtr<SharedPtr<AbstrDataItem> > SharedRwDataItemInterestPtr;
 
 class ViewPort : public Wrapper
 {
@@ -89,7 +107,11 @@ public:
 
 	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
+
 	void PanToClipboardLocation();
+	void ZoomToClipboardLocation();
+	void PanAndZoomToClipboardLocation();
+	void CopyLocationAndZoomlevelToClipboard();
 
 	bool IsNeedleVisible() const { return m_State.Get(VPF_NeedleVisible); }
 	void ToggleNeedleController();

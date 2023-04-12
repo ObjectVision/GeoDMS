@@ -85,7 +85,7 @@ public:
 
 	void grow(alloc_t& seq, SizeT n, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // grow sequence, reserve extra space if neccesary; maintain old sequence is maintained.
 	{
-		resizeSP(seq, seq.size() + n, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		resizeSP(seq, seq.size() + n, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	} 
 };
 

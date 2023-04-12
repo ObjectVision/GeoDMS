@@ -1040,7 +1040,7 @@ namespace Explain { // local defs
 			NewLine(stream);
 		stream << "Expression ";
 		PrintSeqNr(stream);
-		stream << ": "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
+		stream << ": "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str());
 		NewLine(stream);
 
 		GetDescrBase(self, stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
@@ -1082,7 +1082,7 @@ namespace Explain { // local defs
 			NewLine(stream);
 		stream << (m_Expr.size() > 1 ? "Addition " : "Factors");
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1114,7 +1114,7 @@ namespace Explain { // local defs
 				}
 				else
 				{
-					auto factorStr = AsFLispSharedStr(factor);
+					auto factorStr = AsFLispSharedStr(factor, FormattingFlags::ThousandSeparator);
 					row.ValueCell(factorStr.c_str());
 				}
 			}
@@ -1127,7 +1127,7 @@ namespace Explain { // local defs
 
 		stream << (m_Expr.size() > 1 ? "Union of conditions " : "Conditions");
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1160,7 +1160,7 @@ namespace Explain { // local defs
 				}
 				else
 				{
-					auto factorStr = AsFLispSharedStr(factor);
+					auto factorStr = AsFLispSharedStr(factor, FormattingFlags::ThousandSeparator);
 					row.ValueCell(factorStr.c_str());
 				}
 			}

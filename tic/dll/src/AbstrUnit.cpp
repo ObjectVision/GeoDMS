@@ -180,6 +180,8 @@ SharedStr AbstrUnit::GetProjMetrString() const
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
 
+
+
 auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
 {
 	if (!role[2]) // zero-termination
@@ -669,6 +671,11 @@ void AbstrUnit::OnDomainChange(const DomainChangeInfo* info)
 SizeT AbstrUnit::GetPreparedCount(bool throwOnUndefined) const  // Returns 0 if non-countable unit
 {
 	return GetCount();
+}
+
+bool AbstrUnit::PrepareRange() const  // Returns 0 if non-countable unit
+{
+	return true;
 }
 
 SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit

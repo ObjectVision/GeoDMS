@@ -41,7 +41,8 @@ enum class oper_arg_policy {
 	calc_subitem_root = 2,
 	calc_always = 3,
 	is_templ = 4, // arg is used as template in a for_each situation
-	subst_with_subitems = 5
+	subst_with_subitems = 5,
+	calc_at_subitem = 6
 };
 
 enum class metainfo_policy_flags {

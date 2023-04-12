@@ -46,6 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "RtcBase.h"
 #include "ser/format.h"
 class Object;
+struct TokenID;
 
 //----------------------------------------------------------------------
 // Statements like:
@@ -122,15 +123,15 @@ private:
 #define MG_POS __FILE__, __LINE__
 #define MG_NIL 0, 0
 
-[[noreturn]] RTC_CALL void throwErrorD             (CharPtr type, CharPtr msg);
-[[noreturn]] RTC_CALL void throwDmsErrD            (              CharPtr msg);
+[[noreturn]] RTC_CALL void throwErrorD (CharPtr type, CharPtr msg);
+[[noreturn]] RTC_CALL void throwDmsErrD(              CharPtr msg);
+[[noreturn]] RTC_CALL void throwErrorD (const TokenID& type, CharPtr msg);
 
-template<typename ...Args>
-[[noreturn]] void throwErrorF(CharPtr type, CharPtr format, Args&&... args)
+template<typename Type, typename ...Args>
+[[noreturn]] void throwErrorF(Type&& type, CharPtr format, Args&&... args)
 {
-	throwErrorD(type, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+	throwErrorD(std::forward<Type>(type), mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
-
 
 template<typename ...Args>
 [[noreturn]] void throwDmsErrF(CharPtr format, Args&&... args)

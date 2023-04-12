@@ -334,7 +334,7 @@ struct partitioning_info_t
 		DataReadLock lock(m_AtomicRegionPartitioningDI);
 		auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
 		MG_DEBUGCODE( md_NrAtomicRegions = nrAtomicRegions);
-		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
+		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions, dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
 		m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
 	}
 
@@ -2615,7 +2615,7 @@ public:
 		dms_assert(res);
 
 		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
-		resLanduse->SetTSF(DSF_Categorical);
+		resLanduse->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStatus =
 			CreateDataItem(

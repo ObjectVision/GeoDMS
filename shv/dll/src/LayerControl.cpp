@@ -101,7 +101,6 @@ void LayerInfoControl::ExplainValue()
 LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSetElem)
 	:	base_type(owner)
 	,	m_LayerElem   (layerSetElem)
-	,	m_FID(FontSizeCategory::SMALL)
 	,	m_connDetailsVisibilityChanged(layerSetElem->m_cmdDetailsVisibilityChanged.connect([this]() { this->OnDetailsVisibilityChanged();}))
 	,	m_connVisibilityChanged(layerSetElem->m_cmdVisibilityChanged.connect([this]() { this->InvalidateDraw();}))
 {
@@ -122,8 +121,8 @@ void LayerControlBase::SetFontSizeCategory(FontSizeCategory fid)
 	if (m_FID == fid)
 		return;
 	m_FID = fid;
-	m_HeaderControl->SetHeight(GetDefaultFontHeightDIP(fid));
-	InvalidateDraw();
+	m_HeaderControl->SetHeight(GetDefaultFontHeightDIP(fid) * (96.0 / 72.0));
+	m_HeaderControl->InvalidateDraw();
 }
 
 ScalableObject* LayerControlBase::GetLayerSetElem() const
@@ -174,7 +173,7 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 			,	GetDynamicClass()->GetName().c_str()
 			,	GetCaption()
 			)
-		,	new MembFuncCmd<GraphicObject>(&GraphicObject::ToggleVisibility)
+		,   make_MembFuncCmd(&GraphicObject::ToggleVisibility)
 		,	this
 		)
 	);
@@ -405,7 +404,7 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 
 	med.m_MenuData.push_back(
 		MenuItem(SharedStr("Show &Palette"),
-			new MembFuncCmd<GraphicLayer>(&GraphicLayer::ToggleDetailsVisibility), 
+			make_MembFuncCmd(&GraphicLayer::ToggleDetailsVisibility),
 			m_Layer.get(), 
 			GetEntry(2)->IsVisible() ? MFS_CHECKED : 0 
 		)
@@ -416,10 +415,10 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 	auto attr = theme->GetActiveAttr(); if (!attr) return;
 
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("&Edit Palette"),
-			new MembFuncCmd<LayerControl>(&LayerControl::EditPalette), 
-			this, 
-			0 // GetEntry(2)->IsVisible() ? 0 : MFS_DISABLED
+		MenuItem(SharedStr("&Edit Palette")
+		,	make_MembFuncCmd(&LayerControl::EditPalette)
+		,	this
+		,	0 // GetEntry(2)->IsVisible() ? 0 : MFS_DISABLED
 		)
 	);
 }
@@ -480,6 +479,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 	SharedPtr<const AbstrDataItem> themeAttr;
 	if (IsDefined(selectedID))
 	{
+		text = AsString(selectedID) + ": ";
 		auto activeTheme = m_Layer->GetActiveTheme();
 		if (activeTheme && !activeTheme->IsAspectParameter())
 		{
@@ -490,7 +490,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 				if (SuspendTrigger::DidSuspend())
 					return AVS_SuspendedOrFailed;
 				GuiReadLockPair locks;
-				text = 
+				text += 
 					DisplayValue(themeAttr, selectedID, true,
 						m_LabelLocks, MAX_TEXTOUT_SIZE, locks
 					);
@@ -498,7 +498,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 			else
 			{
 				GuiReadLock lock;
-				text =
+				text +=
 					DisplayValue(activeTheme->GetThemeEntityUnit(), selectedID, true,
 						m_LabelLocks.m_DomainLabel, MAX_TEXTOUT_SIZE, lock
 					);
@@ -508,7 +508,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 		{
 			GuiReadLock lock;
 			dms_assert(m_Layer->GetActiveAttr() == m_Layer->GetTheme(AN_Feature)->GetPaletteAttr());
-			text =
+			text +=
 				DisplayValue(m_Layer->GetTheme(AN_Feature)->GetThemeEntityUnit(), selectedID, true,
 					m_LabelLocks.m_DomainLabel, MAX_TEXTOUT_SIZE, lock
 				);
@@ -558,7 +558,7 @@ void LayerControl::SetFontSizeCategory(FontSizeCategory fid)
 
 	base_type::SetFontSizeCategory(fid);
 
-	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
+	m_InfoControl->SetHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()) * (96.0 / 72.0));
 	m_InfoControl->InvalidateDraw();
 	if (m_PaletteControl)
 		m_PaletteControl->InvalidateView();
@@ -712,8 +712,8 @@ void LayerControlSet::FillMenu(MouseEventDispatcher& med)
 	if (IsVisible() && HasHiddenControls())
 		med.m_MenuData.push_back(
 			MenuItem(SharedStr("&Show Hidden LayerControls")
-			,	new MembFuncCmd<LayerControlSet>(&LayerControlSet::ShowHiddenControls)
-			,	this
+			, make_MembFuncCmd(&LayerControlSet::ShowHiddenControls)
+			, this
 			)
 		);
 }
@@ -760,10 +760,10 @@ void LayerControlGroup::FillMenu(MouseEventDispatcher& med)
 	const LayerControlSet* lcs = GetConstControlSet();
 	bool layerControlSetVisible = lcs->IsVisible();
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Show &LayerControls"),
-			new MembFuncCmd<LayerSet>(&LayerSet::ToggleDetailsVisibility), 
-			m_LayerSet.get(), 
-			layerControlSetVisible ? MFS_CHECKED : 0 
+		MenuItem(SharedStr("Show &LayerControls")
+		,	make_MembFuncCmd(&LayerSet::ToggleDetailsVisibility)
+		,	m_LayerSet.get() 
+		,	layerControlSetVisible ? MFS_CHECKED : 0 
 		)
 	);
 }

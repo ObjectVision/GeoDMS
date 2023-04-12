@@ -629,7 +629,7 @@ void GraphicObject::SetShowSelectedOnly(bool on)
 
 	InvalidateViews();
 	InvalidateDraw();
-	OnVisibilityChanged();
+//	OnVisibilityChanged();
 
 	SyncShowSelOnly(SM_Save);
 	UpdateShowSelOnly();
@@ -696,7 +696,7 @@ FontSizeCategory GraphicObject::GetFontSizeCategory() const
 	auto owner = GetOwner().lock();
 	if (owner)
 		return owner->GetFontSizeCategory();
-	return FontSizeCategory::SMALL;
+	return FontSizeCategory::MEDIUM;
 }
 
 bool GraphicObject::MouseEvent(MouseEventDispatcher& med)

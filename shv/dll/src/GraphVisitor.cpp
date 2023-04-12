@@ -230,7 +230,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 	{
 		AddClientOffset localBase(this, gc->GetCurrClientRelPos());
 
-		while (counter.Value() < n)
+		while (counter < n)
 		{
 			MovableObject* gEntry = gc->GetEntry( counter.Value() );
 			dms_assert(gEntry);
@@ -238,7 +238,6 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 				goto nextEntry;
 			else
 			{	
-//				dms_assert(!HasCounterStacks() || gEntry->IsUpdated());
 				if (gEntry->GetClippedCurrFullAbsRect(*this).empty())
 					goto nextEntry;
 			}
@@ -246,7 +245,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 				return GVS_Break; // suspend processing, come back here with the same counter
 
 		nextEntry:
-			if (! counter.Inc())
+			if (!counter.Inc())
 				return GVS_Break; // euqals GVS_Handled
 		}
 	}
@@ -280,7 +279,7 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 			goto nextEntry;
 		else
 		{	
-			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
+//			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
 			if (gEntry->GetClippedCurrFullAbsRect(*this).empty() && gEntry->HasDefinedExtent())
 				goto nextEntry;
 		}
@@ -848,25 +847,23 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort*  vp)
 	dms_assert(r_EventInfo.m_EventID & EID_OBJECTFOUND);
 
 	dms_assert(IsMainThread());
-	static ExternalVectorOutStreamBuff::VectorType buffer;
 
-	buffer.clear();
-	buffer.reserve(30);
-	ExternalVectorOutStreamBuff strBuff(buffer);
-	auto dv = m_Owner.lock();
-	if (dv)
+	auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrZoomLevel(), {});
+	char buffer[201];;
+
+	if (auto dv = m_Owner.lock())
 	{
-		FormattedOutStream out(&strBuff, FormattingFlags::ThousandSeparator);
-		out << "X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << char(0);
-		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, &*buffer.begin());
+		if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
+			buffer[200] = char(0); // truncate
+		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
 	}
-	buffer.clear();
 	if (r_EventInfo.m_EventID & EID_COPYCOORD )
 	{
-		FormattedOutStream out(&strBuff, FormattingFlags::None);
-		out << "[ X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << "]" << char(0);
-		ClipBoard clp;
-		clp.AddTextLine(&*buffer.begin());
+		if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+		{
+			ClipBoard clp;
+			clp.AddTextLine(buffer);
+		}
 	}
 
 	return result;

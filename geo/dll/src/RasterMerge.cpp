@@ -72,7 +72,7 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 
 		const AbstrDataItem* arg1A = m_IsIndexed ? AsDataItem(args[0]) : nullptr;
 		const AbstrUnit*     v1    = AsUnit(args[1]); dms_assert(v1);
-		const AbstrUnit*     e1    = m_IsIndexed ? arg1A->GetAbstrDomainUnit() : AsUnit(args[0]); dms_assert(e1);
+		const AbstrUnit*     e1    = m_IsIndexed ? arg1A->GetAbstrDomainUnit() : AsUnit(args[0]); assert(e1);
 
 		if (m_IsRasterMerge && e1->GetNrDimensions() != 2)
 			resultHolder.throwItemError("Raster domain expected");
@@ -117,8 +117,12 @@ struct AbstrRasterMergeOperator : public BinaryOperator
 				const AbstrUnit* argDU_range = AsUnit(argDU->GetCurrRangeItem());
 
 				// m_IsIndexed ? "Domain of Index" : "First argument", "Domain of any subsequent attribute"
-				if (e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight))
+				bool isSame = e1->UnifyDomain(argDU, "", "", UM_AllowVoidRight);
+				if (!m_IsRasterMerge || isSame)
 				{
+					if (!isSame)
+						e1->UnifyDomain(argDU, "e1", "Domain of a subsequent attribute", UM_AllowVoidRight | UM_Throw);
+
 					ViewPortInfoEx<Int64> vpi(res, e1_range, t, e1_range, t);
 					if (vpi.IsGridCurrVisible())
 						CopyWhere(dwlReg.get(), arg1A, t, argDi, t, vpi, a - 2);

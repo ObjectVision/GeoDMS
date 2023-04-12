@@ -48,13 +48,18 @@ struct array_traits
 {
 	using pointer = typename sequence_traits<T>::pointer;
 	
-	static pointer Create(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	static pointer CreateUninitialized(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
 		auto result = CreateMyAllocator<T>()->allocate(nrElems MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		return result;
+	}
+	static pointer CreateDefaultConstructed(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		auto result = CreateUninitialized(nrElems MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		std::uninitialized_default_construct(result, result + nrElems);
 		return result;
 	}
-	static void Destroy(pointer p, SizeT nrElems)  
+	static void Destroy(pointer p, SizeT nrElems)
 	{
 		std::destroy_n(p, nrElems);
 		CreateMyAllocator<T>()->deallocate(p, nrElems);
@@ -74,9 +79,13 @@ struct array_traits<bit_value<N> >
 		nr_elems_per_byte = 8/N, 
 		last_elem_in_byte = nr_elems_per_byte - 1 
 	};
-	static pointer Create(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	static pointer CreateUninitialized(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
-		return pointer(array_traits<block_type>::Create(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
+		return pointer(array_traits<block_type>::CreateUninitialized(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
+	}
+	static pointer CreateDefaultConstructed(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		return pointer(array_traits<block_type>::CreateDefaultConstructed(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
 	}
 	static void Destroy(pointer p, SizeT nrElems)  { array_traits<block_type>::Destroy(p.data_begin(), pointer::calc_nr_blocks(nrElems)); }
 	static SizeT ByteAlign(SizeT nrElems) { return (nrElems+last_elem_in_byte) & ~last_elem_in_byte; }

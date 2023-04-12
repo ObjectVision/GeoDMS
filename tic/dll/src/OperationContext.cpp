@@ -1209,7 +1209,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 				if (self->m_Result && self->m_Result->m_BackRef && !self->m_Result->m_BackRef->IsCacheItem() && IsDataItem(self->m_Result.get_ptr()) && AsDataItem(self->m_Result.get_ptr())->GetAbstrDomainUnit()->GetNrTiles() > 1)
 					reportF(ST_MinorTrace, "Starting calculation of %s with KeyExpr %s"
 						, self->m_Result->m_BackRef->GetFullName().c_str()
-						, funcDC ? AsFLispSharedStr(funcDC->GetLispRef()).c_str() : "(null)"
+						, funcDC ? AsFLispSharedStr(funcDC->GetLispRef(), FormattingFlags::ThousandSeparator).c_str() : "(null)"
 					);
 #endif //defined(MG_DEBUG_OPERATIONS)
 

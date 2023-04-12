@@ -46,8 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #define MIN_WORLD_SIZE 0.5
 
-typedef std::vector<GPoint>         pointBuffer_t;
-//typedef std::vector<Range<UInt32> > pointIndexBuffer_t;
+using pointBuffer_t = std::vector<GPoint>;
 
 template <typename PI>
 void fillPointBuffer(pointBuffer_t& buf, PI ii, PI ie, CrdTransformation transformer)
@@ -88,7 +87,7 @@ bool DrawPolygonInterior(
 	,	const Theme* hatchStyleTheme
 	,	const GraphDrawer& d
 	,	const BoundingBoxCache<ScalarType>* boundingBoxCache
-	,	tile_id t, SizeT tileIndexBase
+	,	const AbstrTileRangeData* trd, tile_id t
 	,	typename polygon_traits<ScalarType>::CPolySeqType featureData
 	,	WeakPtr<const IndexCollector> indexCollector
 	,	pointBuffer_t& pointBuffer
@@ -139,30 +138,25 @@ bool DrawPolygonInterior(
 
 	ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
-	typename p_traits::RectArrayType::const_iterator ri = rectArray.begin() + itemCounter.Value();
-	for (typename p_traits::CPolyIterType b = featureData.begin(), e = featureData.end(), i=b+itemCounter.Value();
-		i != e; 
-		++i, ++ri)
+	for (auto b = featureData.begin(), e = featureData.end(), i= b+itemCounter; i != e; ++i)
 	{
-		if (!((i-b) % AbstrBoundingBoxCache::c_BlockSize))
+		if ((i-b) % AbstrBoundingBoxCache::c_BlockSize == 0)
 			while (!IsIntersecting(clipRect, blockArray[(i-b) / BoundingBoxCache<ScalarType>::c_BlockSize]))
 			{
 				i  += BoundingBoxCache<ScalarType>::c_BlockSize;
-				if (!(i<e)) goto exitFill;
+				if (!(i<e)) 
+					goto exitFill;
 				itemCounter += BoundingBoxCache<ScalarType>::c_BlockSize;
-				if (itemCounter.MustBreakOrSuspend()) return true;
-				ri += BoundingBoxCache<ScalarType>::c_BlockSize;
+				if (itemCounter.MustBreakOrSuspend()) 
+					return true;
 			}
-		if	(	i->size() >= 3 
-			&&	IsIntersecting(clipRect, *ri )
-			&&	_Width (*ri) >= minWorldWidth
-			&&	_Height(*ri) >= minWorldHeight
-			)
+		auto ri = rectArray.begin() + itemCounter;
+		if	(i->size() >= 3 && IsIntersecting(clipRect, *ri ) && _Width (*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
 		{
 			COLORREF brushColor = defBrushColor;
 			Int32    hatchStyle = -1;
 
-			entity_id entityIndex = (i - b) + tileIndexBase;
+			entity_id entityIndex = trd->GetRowIndex(t, i - b);
 			if (indexCollector)
 			{
 				entityIndex = indexCollector->GetEntityIndex(entityIndex);
@@ -278,25 +272,22 @@ exitFill:
 #include "FeatureLayer.h"
 
 template <typename ScalarType>
-bool DrawPolygons(
-	const GraphicPolygonLayer* layer,
-	const FeatureDrawer&       fd,
-	const AbstrDataItem*       featureItem,
-	const PenIndexCache*       penIndices)
+bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, const AbstrDataItem* featureItem, const PenIndexCache* penIndices)
 {
 	typedef polygon_traits<ScalarType> p_traits;
 	const GraphDrawer& d = fd.m_Drawer;
 
 	const AbstrDataObject* featureData = featureItem->GetRefObj();
-	const typename p_traits::DataArrayType* da = debug_cast<const typename p_traits::DataArrayType*>(featureData);
-	tile_id tn = featureItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto da = const_array_cast<typename p_traits::PolygonType>(featureData);
+	auto trd = da->GetTiledRangeData();
+	tile_id tn = trd->GetNrTiles();
 
 	const BoundingBoxCache<ScalarType>* boundingBoxCache =  GetBoundingBoxCache<ScalarType>(layer);
 
-	pointBuffer_t      pointBuffer;
+	pointBuffer_t pointBuffer;
 
 	CrdType zoomLevel = Abs(d.GetTransformation().ZoomLevel());
-	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
+	assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
 	ScalarType minWorldWidth  = MIN_WORLD_SIZE / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
@@ -304,13 +295,13 @@ bool DrawPolygons(
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
 
 	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
-	SelectionIdCPtr selectionsArray; dms_assert(!selectionsArray);
-
+	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
 	if (fd.m_SelValues)
 	{
 		selectionsArray = fd.m_SelValues.value().begin();
-		dms_assert(selectionsArray);
+		assert(selectionsArray);
 	}
+
 	// draw Interiors
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
@@ -329,19 +320,17 @@ bool DrawPolygons(
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for(tile_id t = tileCounter.Value(); t<tn; ++t)
 			{
-				typename p_traits::LockedSeqType lockedData = da->GetLockedDataRead(t);
-				SizeT tileIndexBase = featureItem->GetAbstrDomainUnit()->GetTileFirstIndex(t);
+				auto data = da->GetTile(t);
 
 				if (DrawPolygonInterior(
-						(transparentBrush)
-							?	TRANSPARENT_COLORREF
-							:	DmsColor2COLORREF(layer->GetDefaultOrThemeColor(AN_BrushColor) ) // green as default color for polygons isn't really used since we have a theme
-					,	layer->GetEnabledTheme(AN_BrushColor).get()
-					,	layer->GetEnabledTheme(AN_HatchStyle).get()
-					,	d
-					,   boundingBoxCache
-					,	t, tileIndexBase
-					,	lockedData
+					(transparentBrush)
+					? TRANSPARENT_COLORREF
+					: DmsColor2COLORREF(layer->GetDefaultOrThemeColor(AN_BrushColor)) // green as default color for polygons isn't really used since we have a theme
+					, layer->GetEnabledTheme(AN_BrushColor).get()
+					, layer->GetEnabledTheme(AN_HatchStyle).get()
+					, d, boundingBoxCache
+					, trd, t
+					, data
 					,	indexCollector
 					,	pointBuffer
 					,	selectedOnly, selectionsArray
@@ -367,74 +356,64 @@ bool DrawPolygons(
 			ResumableCounter tileCounter(d.GetCounterStacks(), true);
 			for(tile_id t = tileCounter.Value(); t<tn; ++t)
 			{
-				typename p_traits::LockedSeqType lockedData = da->GetLockedDataRead(t);
-				typename p_traits::CPolyIterType
-					b = lockedData.begin(),
-					e = lockedData.end();
+				auto data = da->GetTile(t);
+				auto ts = data.size();
+				auto b = data.begin();
 
-				const typename p_traits::RectArrayType& rectArray  = boundingBoxCache->GetBoundsArray(t);
-				const typename p_traits::RectArrayType& blockArray = boundingBoxCache->GetBlockBoundArray(t);
-				lfs_assert(rectArray.size() == e-b);
-				SizeT tileIndexBase = featureItem->GetAbstrDomainUnit()->GetTileFirstIndex(t);
+				const auto& rectArray  = boundingBoxCache->GetBoundsArray(t);
+				const auto& blockArray = boundingBoxCache->GetBlockBoundArray(t);
 
 				ResumableCounter itemCounter(d.GetCounterStacks(), true);
-				typename p_traits::RectArrayType::const_iterator ri = rectArray.begin() + itemCounter.Value();
 
-				for (typename p_traits::CPolyIterType i = b + itemCounter.Value(); i != e; ++i, ++ri)
+				while (itemCounter != ts)
 				{
-					if (!((i-b) & (BoundingBoxCache<ScalarType>::c_BlockSize -1)))
-						while (!IsIntersecting(clipRect, blockArray[(i-b) / BoundingBoxCache<ScalarType>::c_BlockSize]))
+					if (itemCounter % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
+						while (!IsIntersecting(clipRect, blockArray[itemCounter / BoundingBoxCache<ScalarType>::c_BlockSize]))
 						{
-							i  += BoundingBoxCache<ScalarType>::c_BlockSize;
-							if (!(i<e)) goto exitDrawBorders;
 							itemCounter += BoundingBoxCache<ScalarType>::c_BlockSize;
+							if (itemCounter >= ts) 
+								goto exitDrawBorders;
 							if (itemCounter.MustBreakOrSuspend()) 
 								return true;
-							ri += BoundingBoxCache<ScalarType>::c_BlockSize;
 						}
-					if	(	i->size() >= 3
-						&&	IsIntersecting(clipRect, *ri)
-						&&	(_Width (*ri) >= minWorldWidth || _Height(*ri) >= minWorldHeight)
-						)
+					auto featurePtr = b + itemCounter;
+					auto ri = rectArray.begin() + itemCounter;
+					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && _Width(*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
 					{
 						if (penIndices || selectedOnly)
 						{
-							SizeT entityIndex = (i - b) + tileIndexBase;
+							SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
 							if (indexCollector)
 								entityIndex = indexCollector->GetEntityIndex(entityIndex);
 							if (!IsDefined(entityIndex))
 								goto nextBorder;
-							if (penIndices   && ! pa.SelectPen(penIndices->GetKeyIndex(entityIndex) ) )
+							if (penIndices && ! pa.SelectPen(penIndices->GetKeyIndex(entityIndex) ) )
 								goto nextBorder;
 							if (selectedOnly && !(selectionsArray && SelectionID( selectionsArray[entityIndex])))
 								goto nextBorder;
 						}
 
-						fillPointBuffer     (pointBuffer,      i->begin(), i->end(), d.GetTransformation());
-						fillPointIndexBuffer(pointIndexBuffer, i->begin(), i->end());
+						fillPointBuffer     (pointBuffer, featurePtr->begin(), featurePtr->end(), d.GetTransformation());
+						fillPointIndexBuffer(pointIndexBuffer, featurePtr->begin(), featurePtr->end());
 
-						pointBuffer_t::iterator 
-							bi = pointBuffer.begin();
+						auto bi = pointBuffer.begin();
 
 						// draw Polyline for each island and lake; identified by repetition of start-point
-						pointIndexBuffer_t::const_iterator 
-							ii = pointIndexBuffer.begin(),
-							ie = pointIndexBuffer.end();
+						auto ii = pointIndexBuffer.begin(), ie = pointIndexBuffer.end();
 
-						lfs_assert(i->size());
-						const typename p_traits::PointType* iBegin = begin_ptr(*i);
+						lfs_assert(featurePtr->size());
+						auto iBegin = begin_ptr(*featurePtr);
 						for (; ii != ie; ++ii)
 						{
-							dms_assert(ii->first <= ii->second);
-							dms_assert(ii->second <= pointBuffer.size());
+							assert(ii->first <= ii->second);
+							assert(ii->second <= pointBuffer.size());
 
 							auto bufferOffset    = bi + ii->first;
 							auto bufferOffsetEnd = bi + ii->second;
 
 							bufferOffsetEnd = std::unique(bufferOffset, bufferOffsetEnd);
-							UInt32 lineSize        =  bufferOffsetEnd - bufferOffset;
-							if	(	lineSize >= 2
-								)
+							UInt32 lineSize =  bufferOffsetEnd - bufferOffset;
+							if	(lineSize >= 2)
 								CheckedGdiCall(
 									Polyline(
 										d.GetDC(), 
@@ -472,7 +451,6 @@ bool DrawPolygons(
 			const typename p_traits::RectArrayType& rectArray  = boundingBoxCache->GetBoundsArray(t);
 			const typename p_traits::RectArrayType& blockArray = boundingBoxCache->GetBlockBoundArray(t);
 			lfs_assert(rectArray.size() == e-b);
-			SizeT tileIndexBase = featureItem->GetAbstrDomainUnit()->GetTileFirstIndex(t);
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 			typename p_traits::RectArrayType::const_iterator ri = rectArray.begin() + itemCounter.Value();
@@ -480,7 +458,7 @@ bool DrawPolygons(
 
 			for (typename p_traits::CPolyIterType i=b+itemCounter.Value(); i != e; ++i, ++ri)
 			{
-				if (!((i-b) & (BoundingBoxCache<ScalarType>::c_BlockSize -1)))
+				if ((i - b) % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
 					while (!IsIntersecting(clipRect, blockArray[(i-b) / BoundingBoxCache<ScalarType>::c_BlockSize]))
 					{
 						i  += BoundingBoxCache<ScalarType>::c_BlockSize;
@@ -502,7 +480,7 @@ bool DrawPolygons(
 					;
 	//				dms_assert(IsIncluding(*ri, centroid));
 
-					UInt32 entityIndex = (i - b) + tileIndexBase;
+					auto entityIndex = trd->GetRowIndex(t, i - b);
 					if (indexCollector)
 					{
 						entityIndex = indexCollector->GetEntityIndex(entityIndex);

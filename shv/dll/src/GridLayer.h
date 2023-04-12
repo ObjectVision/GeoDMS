@@ -76,7 +76,7 @@ protected:
 
 	const AbstrDataItem* GetGridAttr() const;
 	const AbstrUnit* GetGeoCrdUnit() const       override;
-	void  _InvalidateFeature(SizeT selectedID) override;
+	void  InvalidateFeature(SizeT selectedID) override;
 
 	void AssignValues(sequence_traits<Bool>::cseq_t selData);
 	void AssignSelValues();

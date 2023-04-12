@@ -88,6 +88,8 @@ const TreeItemStatusFlags TSF_InHidden                    = 0x00020000;
 const TreeItemStatusFlags TSF_IsTemplate                  = 0x00040000;
 const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 
+const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
+const TreeItemStatusFlags TSF_XXXXXXXXXXX                 = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
 
@@ -106,7 +108,6 @@ const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 3;
 const int VC_MASK = 0x03U;
 const DataItemStatusFlags DSF_VC_Range               = 0x08000000; // VC_Range   << VC2DSF_SHIFT
 const DataItemStatusFlags DSF_VC_Sequence            = 0x10000000; // VC_Sequence<< VC2DSF_SHIFT
-const DataItemStatusFlags DSF_Categorical            = 0x20000000;
 
 struct treeitem_flag_set : flag_set
 {

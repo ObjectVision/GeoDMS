@@ -34,6 +34,62 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TileLock.h"
 
 //----------------------------------------------------------------------
+// struct  : tile_read_channel
+//----------------------------------------------------------------------
+
+template <typename V>
+struct tile_read_channel
+{
+	tile_id currTile = 0, lastTile = 0;
+
+	SharedPtr<const DataArray<V>> tileArray;
+
+	typename DataArray<V>::locked_cseq_t currTileData;
+	typename DataArray<V>::const_iterator currPtr = {}, lastPtr = {};
+
+	tile_read_channel(const DataArray<V>* tileArray_)
+		: tileArray(tileArray_)
+		, lastTile(tileArray_->GetTiledRangeData()->GetNrTiles())
+	{
+		InitCurrTile();
+	}
+
+	void InitCurrTile()
+	{
+		if (currTile == lastTile)
+			return;
+		currTileData = tileArray->GetTile(currTile);
+		currPtr = currTileData.begin();
+		lastPtr = currTileData.end();
+		assert(!AtEnd());
+	}
+
+	auto operator *() const
+	{
+		assert(!AtEnd());
+		return *currPtr;
+	}
+
+	void operator ++ ()
+	{
+		assert(!AtEnd());
+		++currPtr;
+		if (currPtr == lastPtr)
+		{
+			assert(currTile != lastTile);
+			++currTile;
+			InitCurrTile();
+		}
+	}
+	bool AtEnd() const
+	{
+		assert(currPtr != lastPtr || currTile == lastTile);
+		return currPtr == lastPtr;
+	}
+
+};
+
+//----------------------------------------------------------------------
 // struct  : abstr_tile_write_channel
 //----------------------------------------------------------------------
 
@@ -56,13 +112,6 @@ struct abstr_tile_write_channel
 		return GetTiledRangeData()->GetTileSize(m_Cursor.first) - m_Cursor.second;
 	}
 
-/* REMOVE
-	iterator Curr()
-	{
-		return m_LockedSeq.begin() + m_Cursor.second;
-	}
-	*/
-
 	AbstrDataObject* GetTileFunctor() const
 	{
 		return m_TileFunctor;
@@ -79,58 +128,7 @@ struct abstr_tile_write_channel
 		while (IsEndOfTile())
 			GetNextTile();
 	}
-/*
-	template <typename CIter>
-	void Write(CIter first, CIter last)
-	{
-		SizeT numElems = std::distance(first, last);
-		while (true)
-		{
-			SizeT numWritable = NrFreeInTile();
-			SizeT numWrite = Min<SizeT>(numWritable, numElems);
-			CIter oldFirst = first;
-			first += numWrite;
-			fast_copy(oldFirst, first, Curr());
-			numElems -= numWrite;
-			if (!numElems)
-			{
-				m_Cursor.second += numWrite;
-				return;
-			}
-			GetNextTile();
-		}
-	}
-	template <typename CIter>
-	void Write(CIter first, SizeT numElems)
-	{
-		Write(first, first + numElems);
-	}
 
-	template<typename V>
-	void Write(V&& value)
-	{
-		SkipEOT();
-		dms_assert(m_Cursor.second < m_LockedSeq.size());
-		m_LockedSeq[m_Cursor.second++] = Convert<T>(std::forward<V>(value));
-	}
-
-	void WriteCounter(SizeT n)
-	{
-		SizeT i = 0;
-		while (n)
-		{
-			SkipEOT();
-
-			SizeT m = Min<SizeT>(NrFreeInTile(), n);
-
-			typename tile_write_channel<T>::iterator curr = Curr();
-			for (SizeT e = i + m; i != e; ++curr, ++i)
-				*curr = i;
-			n -= m;
-			m_Cursor.second += m;
-		}
-	}
-*/
 	void FillWithUInt32Values(SizeT numElems, UInt32 value)
 	{
 		while (true)
@@ -155,7 +153,6 @@ struct abstr_tile_write_channel
 	explicit operator bool() const { return m_TileFunctor; }
 	bool IsEndOfTile() const
 	{
-//		dms_assert(m_Cursor.second <= m_LockedSeq.size());
 		return m_Cursor.second >= GetTiledRangeData()->GetTileSize(m_Cursor.first);
 	}
 

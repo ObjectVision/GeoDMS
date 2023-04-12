@@ -614,11 +614,12 @@ void FillRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 // enum class FontSizeCategory
 //----------------------------------------------------------------------
 
-static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 16, 20, 24 };
+static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 12, 16, 20 };
 static CharPtr      g_DefaultFontName[static_cast<int>(FontSizeCategory::COUNT)] = { "Small", "Medium", "Large" };
 
 CharPtr GetDefaultFontName(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 
@@ -627,6 +628,7 @@ CharPtr GetDefaultFontName(FontSizeCategory fid)
 
 UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 
@@ -1107,7 +1109,7 @@ void UpdateShowSelOnlyImpl(
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)
 			expr = mySSPrintF("lookup(%s, %s)", indexAttr->GetFullName().c_str(), expr.c_str());
-		expr = mySSPrintF("SubSet(%s)", expr.c_str());
+		expr = mySSPrintF("select_org_rel(%s)", expr.c_str());
 
 		const ValueClass* vc           = entity->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
@@ -1127,11 +1129,12 @@ void UpdateShowSelOnlyImpl(
 		newSelIndexAttr->DisableStorage(true);
 
 
-		expr = "nr_OrgEntity";
 		if (indexAttr)
-			expr = mySSPrintF("lookup(%s, %s)", expr.c_str(), indexAttr->GetFullName().c_str());
+			expr = mySSPrintF("lookup(org_rel, %s)", indexAttr->GetFullName().c_str());
+		else
+			expr = "org_rel";
 
-		newSelIndexAttr->SetExpr( SharedStr(expr) );
+		newSelIndexAttr->SetExpr( expr );
 	}
 	else
 	{

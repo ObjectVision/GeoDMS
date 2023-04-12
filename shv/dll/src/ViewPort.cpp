@@ -72,6 +72,33 @@ granted by an additional written contract for support, assistance and/or develop
 #include "WmsLayer.h"
 
 //----------------------------------------------------------------------
+// class  : ViewPoint
+//----------------------------------------------------------------------
+
+#include "ser/MoreStreamBuff.h"
+
+ViewPoint::ViewPoint(CharPtrRange viewPointStr)
+{
+	auto streamWrap = MemoInpStreamBuff(viewPointStr.first, viewPointStr.second);
+	FormattedInpStream inp(&streamWrap);
+	inp >> "X=" >> center.Col() >> "; Y=" >> center.Row() >> "; Z=" >> zoomLevel;
+
+}
+
+bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
+{
+	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
+	FormattedOutStream out(&streamWrap, flags);
+	out << "X=" << center.Col() << "; Y=" << center.Row() << "; Z=" << zoomLevel;
+
+	if (streamWrap.CurrPos() >= len)
+		return false;
+	out << char(0);
+	return true;
+}
+
+
+//----------------------------------------------------------------------
 // class  : ViewPort
 //----------------------------------------------------------------------
 
@@ -519,16 +546,49 @@ void ViewPort::PanTo(CrdPoint newCenter)
 
 void ViewPort::PanToClipboardLocation()
 {
-	SharedStr clipboardText = ClipBoard().GetText();
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 
-	MemoInpStreamBuff buff(clipboardText.begin(), clipboardText.send());
-	FormattedInpStream fin(&buff);
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.center.first) && IsDefined(viewPoint.center.second))
+		PanTo(viewPoint.center);
+}
 
-	CrdPoint worldCrd;
-	dms_assert(worldCrd.first == 0.0 && worldCrd.second == 0.0);
-	fin >> "[ X=" >> worldCrd.Col() >> "; Y=" >> worldCrd.Row() >> "]";
-	if (worldCrd.first != 0.0 || worldCrd.second != 0.0)
-		PanTo(worldCrd);
+void ViewPort::ZoomToClipboardLocation()
+{
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.zoomLevel))
+		SetCurrZoomLevel(viewPoint.zoomLevel);
+}
+
+void ViewPort::PanAndZoomToClipboardLocation()
+{
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.center.first) && IsDefined(viewPoint.center.second))
+		PanTo(viewPoint.center);
+	if (IsDefined(viewPoint.zoomLevel))
+		SetCurrZoomLevel(viewPoint.zoomLevel);
+}
+
+void ViewPort::CopyLocationAndZoomlevelToClipboard()
+{
+	auto roi = GetROI();
+	auto center = Center(roi);
+	auto zoomLevel = GetCurrZoomLevel();
+	auto viewPoint = ViewPoint(center, GetCurrZoomLevel(), {});
+	char buffer[201];;
+	if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+	{
+		ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+		ClipBoard::ClearBuff();
+		clipBoard.AddTextLine(buffer);
+	}
 }
 
 bool ViewPort::MouseEvent(MouseEventDispatcher& med)
@@ -652,7 +712,7 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 		bmpInfo.bmiHeader.biSizeImage
 			=	abs(bmpInfo.bmiHeader.biHeight) * ((bmpInfo.bmiHeader.biWidth * (bmpInfo.bmiHeader.biBitCount+7)/8 + 0x03) & ~0x03);
 
-	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage MG_DEBUG_ALLOCATOR_SRC("SaveBitmap"));
+	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage, dont_initialize MG_DEBUG_ALLOCATOR_SRC("SaveBitmap"));
 
 	bmpInfo.bmiHeader.biCompression=BI_RGB;
 	GetDIBits(hdc,hBitmap,0,bmpInfo.bmiHeader.biHeight,pBuf.begin(), &bmpInfo, DIB_RGB_COLORS);
@@ -768,6 +828,17 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case 'F': return OnCommand(TB_ZoomSelectedObj);
 			case 'N': return OnCommand(TB_Export);
 			case 'G': return OnCommand(TB_GotoClipboardLocation);
+			case '1': return OnCommand(TB_GotoClipboardLocation);
+			case '2': return OnCommand(TB_GotoClipboardZoomlevel);
+			case '3': return OnCommand(TB_GotoClipboardLocationAndZoomlevel);
+			case '0': return OnCommand(TB_CopyLocationAndZoomlevelToClipboard);
+		}
+	}
+	else if (KeyInfo::IsShiftCtrl(virtKey)) {
+		switch (KeyInfo::CharOf(virtKey)) {
+			case '1': BroadcastCommandToAllDataViews(TB_GotoClipboardLocation); return true;
+			case '2': BroadcastCommandToAllDataViews(TB_GotoClipboardZoomlevel); return true;
+			case '3': BroadcastCommandToAllDataViews(TB_GotoClipboardLocationAndZoomlevel); return true;
 		}
 	} else if (KeyInfo::IsCtrlAlt(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {
@@ -856,6 +927,19 @@ bool ViewPort::OnCommand(ToolButtonID id)
 			}
 		case TB_GotoClipboardLocation:
 			PanToClipboardLocation();
+			return true;
+
+		case TB_GotoClipboardZoomlevel:
+			ZoomToClipboardLocation();
+			return true;
+
+		case TB_GotoClipboardLocationAndZoomlevel:
+			PanAndZoomToClipboardLocation();
+			return true;
+
+		case TB_CopyLocationAndZoomlevelToClipboard:
+			CopyLocationAndZoomlevelToClipboard();
+			return true;
 	}
 	return base_type::OnCommand(id);
 
@@ -868,8 +952,21 @@ setControllerID:
 void ViewPort::FillMenu(MouseEventDispatcher& med)
 {
 	//	Goto & Find
-	static SharedStr msg = SharedStr("Goto (Ctrl-G): take Clipboard contents such as [ X=999; y=999 ] and pan there");
-	med.m_MenuData.push_back(MenuItem(msg, new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
+	static SharedStr msg0 = SharedStr("Ctrl-0: Copy Location and Zoomlevel as ViewPoint to Clipboard");
+	static SharedStr msg1 = SharedStr("Ctrl-1: Pan to ViewPoint location in Clipboard");
+	static SharedStr msg2 = SharedStr("Ctrl-2: Zoom to ViewPoint zoom-level");
+	static SharedStr msg3 = SharedStr("Ctrl-3: Pan and Zoom to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msg0, make_MembFuncCmd(&ViewPort::CopyLocationAndZoomlevelToClipboard), this));
+	med.m_MenuData.push_back(MenuItem(msg1, make_MembFuncCmd(&ViewPort::PanToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg2, make_MembFuncCmd(&ViewPort::ZoomToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg3, make_MembFuncCmd(&ViewPort::PanAndZoomToClipboardLocation), this));
+
+	static SharedStr msgS1 = SharedStr("Shift-Ctrl-1: Pan all MapViews to ViewPoint location in Clipboard");
+	static SharedStr msgS2 = SharedStr("Shift-Ctrl-2: Zoom all MapViews to ViewPoint zoom-level");
+	static SharedStr msgS3 = SharedStr("Shift-Ctrl-3: Pan and Zoom all MapViews to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msgS1, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '1'), this));
+	med.m_MenuData.push_back(MenuItem(msgS2, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '2'), this));
+	med.m_MenuData.push_back(MenuItem(msgS3, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '3'), this));
 
 	base_type::FillMenu(med);
 }

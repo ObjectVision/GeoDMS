@@ -243,17 +243,18 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem*  arg1 = debug_cast<const AbstrDataItem*>(args[0]);
 
-		dms_assert(arg1);
+		assert(arg1);
 		const AbstrUnit*  arg1Values   = arg1->GetAbstrValuesUnit();
 		const ValueClass* vc           = arg1->GetAbstrDomainUnit()->GetUnitClass()->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
 		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder);
-		dms_assert(res);
+		assert(res);
+		res->SetTSF(TSF_Categorical);
 		resultHolder = res;
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_Values, res, arg1Values, arg1->GetValueComposition() );
