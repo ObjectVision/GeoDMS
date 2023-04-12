@@ -546,6 +546,24 @@ namespace
 	
 	SpecialOperGroup ipfGroup("ipf_alloc", 10, ipf_oap);
 	IterativeProportionalFittingOperator<Int32> ipf(&ipfGroup);
+
+	CharPtr rewriteObsoleteWarning = "claim correction related rewrite rules have been removed from RewriteExpr.lsp";
+	auto whatever = {
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div"),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr"),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL"),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64"),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D"),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L")
+	};
 }
 
 /******************************************************************************/
