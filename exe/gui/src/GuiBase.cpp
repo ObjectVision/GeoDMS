@@ -530,29 +530,31 @@ void PostEmptyEventToGLFWContext()
     glfwPostEmptyEvent();
 }
 
-// FIX TO ACCOMODATE COMPILER, TODO, BUG, REMOVE, WIP, NYI
-// #define PET_TEXT element_type::NONE
-
-void StringToTable(std::string input, md_table_data& result, std::string separator)
+void StringToTable(std::string& input, md_table& result, std::string separator)
 {
-
-    result.clear();
+    result.rows.clear();
     auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
     for (auto& line : lines)
     {
         auto colon_separated_line = DivideTreeItemFullNameIntoTreeItemNames(line, separator);
         if (!colon_separated_line.empty())
         {
-            result.emplace_back();
-            // FIX TO ACCOMODATE COMPILER, TODO, BUG, REMOVE, WIP, NYI
-//            for (auto& part : colon_separated_line)
-//                result.back().back().emplace_back(PET_TEXT, false, part);
-            // FIX TO ACCOMODATE COMPILER, TODO, BUG, REMOVE, WIP, NYI
+            result.rows.emplace_back();
+
+            element_type type = element_type::NONE;
+            bool         is_failed = false;
+            bool         is_selected = false;
+            UInt8        indentation = 0;
+            std::string	 text = "";
+            std::string  link = "";
+
+            for (auto& part : colon_separated_line)
+                result.rows.back().elements.back().parts.emplace_back(element_type::TEXT, false, false, 0, part, "");
         }
     }
 }
 
-void DrawProperties(GuiState& state, md_table_data& properties)
+void DrawProperties(GuiState& state, md_table& properties)
 {
     /*auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
