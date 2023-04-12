@@ -1696,7 +1696,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 				{
 					auto data = da->GetTile(tileCounter);
 					auto b = data.begin();
-					lfs_assert(rectArray.m_BoundsArray.size() == data.size());
+					lfs_assert(rectArray.m_FeatBoundArray.size() == data.size());
 					tile_offset ts = data.size();
 					ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
@@ -1811,8 +1811,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 			const auto& rectArray = bbCache->GetBoxData(tileCounter);
 			auto data = da->GetTile(t);
 			tile_id ts = data.size();
-			auto b = data.begin(), e = data.end();
-			lfs_assert(rectArray.m_BoundsArray.size() == e-b);
+			lfs_assert(rectArray.m_FeatBoundArray.size() == ts);
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
