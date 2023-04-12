@@ -185,8 +185,12 @@ inline bool IsDefined(const T& v) { return v != UNDEFINED_VALUE(T); }
 template <typename Field>
 inline bool IsDefined(const std::vector<Field>& v) { return v.size(); }
 
-inline bool IsDefined(Float32 v) { return fpclassify(v) <= 0; }
-inline bool IsDefined(Float64 v) { return fpclassify(v) <= 0; }
+//inline bool IsDefined(Float32 v) { return fpclassify(v) <= 0; }
+//inline bool IsDefined(Float64 v) { return fpclassify(v) <= 0; }
+#if defined(MG_USE_QNAN)
+inline bool IsDefined(Float32 v) { return !isnan(v); }
+inline bool IsDefined(Float64 v) { return !isnan(v); }
+#endif
 
 bool IsDefined(Void); // CHECK THAT THIS IS NEVER CALLED
 
