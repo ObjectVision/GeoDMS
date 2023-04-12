@@ -151,8 +151,8 @@ public:
 
 private:
     bool ParseLink();
-    void ParseTable();
-    void ParseCodeBlock();
+    bool ParseTable();
+    bool ParseCodeBlock();
     void ParseDropDown();
     void ParseIndentation();
     void ParseInlineHtml();

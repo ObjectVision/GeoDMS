@@ -364,12 +364,35 @@ bool GuiMarkDownPage::ParseLink()
     return false;
 }
 
-void GuiMarkDownPage::ParseTable()
+bool GuiMarkDownPage::ParseTable()
 {
+    // supported md table format:
+    // |text|text|
+    // |----|----|
+    // |val1|val2|
+    // |val3|val4|
 
+    md_table markdown_table;
+    auto starting_index = m_index;
+    UInt8 number_of_columns = 0;
+    size_t table_row_index = 0;
+
+    while (m_index < m_markdown_text.size())
+    {
+        auto chr = m_markdown_text.at(m_index);
+        m_index++;
+        switch (chr)
+        {
+        case '|':
+        default:
+        {
+            break;
+        }
+        }
+    }
 }
 
-void GuiMarkDownPage::ParseCodeBlock()
+bool GuiMarkDownPage::ParseCodeBlock()
 {
 
 }
