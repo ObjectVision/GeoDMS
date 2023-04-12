@@ -485,16 +485,24 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		subDirName = subDirNameStr.c_str();
 	}
 
+	if (storageName.ssize() > 65000)
+		throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of storage name is %d; anything larger than 65000 bytes is assumed to be faulty."
+			"\nStorage name: '%s'"
+			, storageNameCStr
+			, storageName.ssize()
+		);
+
 	UInt32 substCount = 0;
 	while (true)
 	{
 		if (storageName.ssize() > 65000)
-			throwDmsErrF("GetFullStorageName('%s'): length of storage name is %d, which is considereed too large."
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of intermediate name during substitution is %d; anything larger than 65000 bytes is assumed to be faulty."
 				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
 				"\nCurent substitution result       : '%s'"
-				, storageNameCStr
 				, storageName.ssize()
 				, substCount
+				, storageNameCStr
 				, storageName.c_str()
 			);
 
@@ -503,20 +511,22 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 			break;
 		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
 		if (p2 == storageName.csend())
-			throwDmsErrF("GetFullStorageName('%s'): unbalanced placeholder delimiter (%%) at position %d."
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): unbalanced placeholder delimiter (%%) at position %d."
 				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
 				"\nCurent substitution result       : '%s'"
-				, storageNameCStr
 				, p1 - storageName.begin()
 				, substCount
+				, storageNameCStr
 				, storageName.c_str()
 			);
 		if (substCount >= 1024)
-			throwDmsErrF("GetFullStorageName('%s'): substitution aborted aftert too many substitutions. Resursion suspected."
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): substitution aborted after too many substitutions. Resursion suspected."
 				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
 				"\nCurent substitution result       : '%s'"
-				, storageNameCStr
 				, substCount
+				, storageNameCStr
 				, storageName.c_str()
 			);
 		++substCount;
