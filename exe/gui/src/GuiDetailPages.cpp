@@ -366,16 +366,20 @@ bool GuiMarkDownPage::ParseLink()
 
 bool GuiMarkDownPage::ParseTable()
 {
+    // TODO: test markdown code on real-world situations
+
     // supported md table format:
     // |text|text|
     // |----|----|
     // |val1|val2|
     // |val3|val4|
 
-    md_table markdown_table;
     auto starting_index = m_index;
+    bool element_open = false;
     UInt8 number_of_columns = 0;
     size_t table_row_index = 0;
+    size_t table_col_index = 0;
+    AddTable();
 
     while (m_index < m_markdown_text.size())
     {
@@ -384,8 +388,40 @@ bool GuiMarkDownPage::ParseTable()
         switch (chr)
         {
         case '|':
+        {
+            if (table_row_index == 0)
+            {
+                number_of_columns++;
+            }
+            
+            // new table element
+            if (table_row_index != 1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
+            {
+                AddElement();
+                AddElementPart();
+            }
+
+            table_col_index++;
+            break;
+        }
+        case '[':
+        {
+            ParseLink();
+            break;
+        }
+        case '\n':
+        {
+            if (table_row_index!=1) // don't draw second markdown table row
+                AddRow();
+            
+            table_col_index = 0;
+            table_row_index++;
+            break;
+        }
         default:
         {
+            if (table_row_index != 1)
+                m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
             break;
         }
         }
@@ -812,8 +848,8 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            //if (!m_GeneralProperties_MD)
-            //    UpdateGeneralProperties(state);
+            if (!m_GeneralProperties_MD)
+                UpdateGeneralProperties(state);
             ////DrawProperties(state, m_GeneralProperties);
         }
         break;
@@ -897,8 +933,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         if (detail_pages_docknode)
         {
             AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
-            Collapse(detail_pages_docknode);
-            //Expand(DetailPageActiveTab::General, detail_pages_docknode); // testing purposes
+            //Collapse(detail_pages_docknode);
+            Expand(DetailPageActiveTab::General, detail_pages_docknode); // testing purposes
         }
     }
 

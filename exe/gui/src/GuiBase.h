@@ -428,11 +428,6 @@ struct md_data
 	std::vector<md_table> tables;
 };
 
-//using md_element_data  = std::vector<element_part>;
-//using md_row_data      = std::vector<md_element_data>;
-//using md_table_data    = std::vector<md_row_data>;
-//using markdown_data = std::vector<md_table_data>;
-
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
