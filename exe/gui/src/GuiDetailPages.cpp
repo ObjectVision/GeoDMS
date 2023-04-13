@@ -270,6 +270,7 @@ void GuiMarkDownPage::AddElementPart()
 void GuiMarkDownPage::AddElement()
 {
     m_markdown_data.tables.back().rows.back().elements.emplace_back();
+    AddElementPart();
 }
 
 void GuiMarkDownPage::AddRow()
@@ -381,6 +382,7 @@ bool GuiMarkDownPage::ParseTable()
     size_t table_col_index = 0;
     AddTable();
 
+    m_markdown_data;
     while (m_index < m_markdown_text.size())
     {
         auto chr = m_markdown_text.at(m_index);
@@ -393,15 +395,15 @@ bool GuiMarkDownPage::ParseTable()
             {
                 number_of_columns++;
             }
-            
+            table_col_index++;
+
             // new table element
-            if (table_row_index != 1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
+            if (table_row_index!=0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
             {
                 AddElement();
                 AddElementPart();
             }
 
-            table_col_index++;
             break;
         }
         case '[':
@@ -414,6 +416,13 @@ bool GuiMarkDownPage::ParseTable()
             if (table_row_index!=1) // don't draw second markdown table row
                 AddRow();
             
+            // end of table conditions
+            if (m_index == m_markdown_text.size())
+                return true;
+
+            if (m_markdown_text.at(m_index) != '|')
+                return true;
+
             table_col_index = 0;
             table_row_index++;
             break;
@@ -514,6 +523,7 @@ void GuiMarkDownPage::Parse()
     m_markdown_data.tables.clear();
     m_index = 0;
     bool new_line = true;
+    AddTable();
 
     for (m_index; m_index < m_markdown_text.size(); m_index++)
     {
@@ -525,7 +535,6 @@ void GuiMarkDownPage::Parse()
         { 
             if (new_line)
             {
-                AddTable();
                 ParseHeading();
                 AddRow();
                 continue;
