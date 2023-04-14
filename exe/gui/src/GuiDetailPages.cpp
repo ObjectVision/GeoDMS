@@ -395,15 +395,14 @@ bool GuiMarkDownPage::ParseTable()
             {
                 number_of_columns++;
             }
-            table_col_index++;
+            
 
             // new table element
-            if (table_row_index!=0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
+            if (table_col_index != 0 && table_row_index!=0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
             {
                 AddElement();
-                AddElementPart();
             }
-
+            table_col_index++;
             break;
         }
         case '[':
@@ -536,7 +535,6 @@ void GuiMarkDownPage::Parse()
             if (new_line)
             {
                 ParseHeading();
-                AddRow();
                 continue;
             }
             break;
