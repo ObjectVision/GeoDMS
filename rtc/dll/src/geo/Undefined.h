@@ -164,8 +164,29 @@ inline constexpr bool IsDefined(const std::vector<Field>& v) { return v.size(); 
 
 //inline bool IsDefined(Float32 v) { return fpclassify(v) <= 0; }
 //inline bool IsDefined(Float64 v) { return fpclassify(v) <= 0; }
-inline bool IsDefined(Float32 v) { return !isnan(v); }
-inline bool IsDefined(Float64 v) { return !isnan(v); }
+// https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+const UInt32 F32_EXP_FLAGS = 0xFF << 23;
+const UInt32 F32_SGN_FLAG = 1 << 31;
+
+// https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+const UInt64 F64_EXP_FLAGS = 0x7FFui64 << 52;
+const UInt64 F64_SGN_FLAG = 1ui64 << 63;
+
+inline bool IsDefined(Float32 v)
+{
+	//	return !isnan(v);
+	UInt32 vAsUInt32 = *reinterpret_cast<const UInt32*>(&v);
+	UInt32 expFlags = vAsUInt32 & F32_EXP_FLAGS;
+	return expFlags != F32_EXP_FLAGS;
+}
+
+inline bool IsDefined(Float64 v)
+{
+	//	return !isnan(v);
+	UInt64 vAsUInt64 = *reinterpret_cast<const UInt64*>(&v);
+	UInt64 expFlags = vAsUInt64 & F64_EXP_FLAGS;
+	return expFlags != F64_EXP_FLAGS;
+}
 
 bool IsDefined(Void); // CHECK THAT THIS IS NEVER CALLED
 
