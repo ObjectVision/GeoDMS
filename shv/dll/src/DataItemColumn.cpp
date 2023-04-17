@@ -1098,7 +1098,6 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
 		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
-
 		GType height = m_ElemSize.y + RowSepHeight();
 		if (HasElemBorder()) height += (2*BORDERSIZE);
 		SizeT rowNr = relClientPos.y() / height;
@@ -1209,8 +1208,8 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	{
 		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
 
-		med.m_MenuData.push_back( MenuItem(SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this) );
+		med.m_MenuData.emplace_back( SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
+		med.m_MenuData.emplace_back( SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
@@ -1226,20 +1225,32 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 
 //	Display Relative
 	if (IsNumeric())
-		med.m_MenuData.push_back( 
-			MenuItem(
-				SharedStr("&Relative Display (as % of total)")
-			,	make_MembFuncCmd(&DataItemColumn::ToggleRelativeDisplay)
-			,	this
-			,	m_State.Get(DIC_RelativeDisplay) ? MF_CHECKED : 0
-			)
+		med.m_MenuData.emplace_back(SharedStr("&Relative Display (as % of total)")
+		,	make_MembFuncCmd(&DataItemColumn::ToggleRelativeDisplay)
+		,	this
+		,	m_State.Get(DIC_RelativeDisplay) ? MF_CHECKED : 0
 		);
 //	Goto & Find
-	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), make_MembFuncCmd(&DataItemColumn::GotoClipboardRow), this));
-	med.m_MenuData.push_back(MenuItem(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), make_MembFuncCmd(&DataItemColumn::FindNextClipboardValue), this));
+	med.m_MenuData.emplace_back(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), make_MembFuncCmd(&DataItemColumn::GotoClipboardRow), this);
+	med.m_MenuData.emplace_back(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), make_MembFuncCmd(&DataItemColumn::FindNextClipboardValue), this);
 
+//	Explain Value
+	if (tc)
+	{
+		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
+		GType height = m_ElemSize.y + RowSepHeight();
+		if (HasElemBorder()) height += (2 * BORDERSIZE);
+		SizeT rowNr = relClientPos.y() / height;
+		if (rowNr <= tc->NrRows())
+		{
+			med.m_MenuData.emplace_back(mySSPrintF("&Value info for row %d of '%s'", rowNr, caption.c_str())
+			, make_LambdaCmd([this, tc, rowNr]() { CreateViewValueAction(this->GetActiveAttr(), tc->GetRecNo(rowNr), true); })
+			, this
+			);
+		}
+	}
 //	Remove DIC
-	med.m_MenuData.push_back( MenuItem(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this) );
+	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this);
 
 //	Ramping
 	SharedPtr<const AbstrDataItem> activeAttr = GetActiveAttr();
