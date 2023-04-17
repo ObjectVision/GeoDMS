@@ -483,7 +483,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 		auto activeTheme = m_Layer->GetActiveTheme();
 		if (activeTheme && !activeTheme->IsAspectParameter())
 		{
-			themeAttr = activeTheme->GetThemeAttr();
+			themeAttr = activeTheme->GetThemeOrPaletteAttr();
 			if (themeAttr)
 			{
 				themeAttr->PrepareDataUsage(DrlType::Suspendible);

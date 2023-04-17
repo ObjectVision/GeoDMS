@@ -127,15 +127,15 @@ const AbstrUnit* FontIndexCache::GetCommonClassIdUnit() const
 //	PARAMETERIZE ON (DC, worldUnitsPerPixel), redo when worldUnitsPerPixel has changed
 void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 subPixelFactor) const
 {
-	dms_assert( nrPixelsPerWorldUnit > 0.0);
-	dms_assert( subPixelFactor       > 0.0);
+	assert( nrPixelsPerWorldUnit > 0.0);
+	assert( subPixelFactor       > 0.0);
 
 	Float64 nrPointsPerPixel = (72.0 / 96.0) * subPixelFactor;
-	dms_assert(nrPointsPerPixel     > 0.0);
+	assert(nrPointsPerPixel     > 0.0);
 
 	if	((!IsDifferent(nrPixelsPerWorldUnit, subPixelFactor)) && m_LastNrPointsPerPixel == nrPointsPerPixel) // maybe we now render for a different Device (such as Printer)
 	{	
-		dms_assert(m_KeyIndices.size() > 0); // PostCondition (still) remains
+		assert(m_KeyIndices.size() > 0 || m_Keys.size() == 1); // PostCondition (still) remains
 		return;
 	}
 
@@ -160,14 +160,17 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 		}
 		else
 			AddKeys(m_PixelWidthValueGetter, m_WorldWidthValueGetter, m_FontNameValueGetter, m_FontAngleValueGetter, m_EntityDomainCount);
+		assert(m_Keys.size() > 0); // PostCondition
 	}
 	else
 	{
 		m_Keys.reserve(1);
 
 		AddKey(m_DefaultPixelWidth, m_DefaultWorldWidth, m_DefaultFontNameId, m_DefaultFontAngle);
+		assert(m_Keys.size() > 0); // PostCondition
 	}
 	MakeKeyIndex(m_KeyIndices, m_Keys);
+	assert(m_KeyIndices.size() > 0 || m_Keys.size() == 1); // PostCondition
 }
 
 void FontIndexCache::AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const
