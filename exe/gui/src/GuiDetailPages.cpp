@@ -262,6 +262,20 @@ GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
     Parse();
 }
 
+void GuiMarkDownPage::CleanupLastEmptyElementpart()
+{
+    if (m_markdown_data.tables.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.back().elements.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.back().elements.back().parts.empty())
+        return;
+    if (IsLastElementPartEmpty())
+        m_markdown_data.tables.back().rows.back().elements.back().parts.pop_back();
+}
+
 void GuiMarkDownPage::AddElementPart()
 {
     m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back();
@@ -281,9 +295,11 @@ void GuiMarkDownPage::AddRow()
 
 void GuiMarkDownPage::AddTable()
 {
+    CleanupLastEmptyElementpart();
     m_markdown_data.tables.emplace_back();
     AddRow();
 }
+
 
 void GuiMarkDownPage::AddInitialEmptyElement()
 {
@@ -295,6 +311,17 @@ void GuiMarkDownPage::AddInitialEmptyElement()
 
     if (m_markdown_data.tables.back().rows.back().elements.empty())
         AddElement();
+}
+
+bool GuiMarkDownPage::IsLastElementPartEmpty()
+{
+    AddInitialEmptyElement();
+    if (m_markdown_data.tables.back().rows.back().elements.back().parts.back().type == element_type::NONE &&
+        m_markdown_data.tables.back().rows.back().elements.back().parts.back().text.empty())
+    {
+        return true;
+    }
+    return false;
 }
 
 bool GuiMarkDownPage::ParseLink()
@@ -386,7 +413,11 @@ bool GuiMarkDownPage::ParseTable()
     while (m_index < m_markdown_text.size())
     {
         auto chr = m_markdown_text.at(m_index);
-        m_index++;
+        m_index++; 
+
+        auto test_string = m_markdown_text.substr(m_index);
+
+
         switch (chr)
         {
         case '|':
@@ -398,7 +429,7 @@ bool GuiMarkDownPage::ParseTable()
             
 
             // new table element
-            if (table_col_index != 0 && table_row_index!=0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
+            if (table_col_index != 0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
             {
                 AddElement();
             }
@@ -486,11 +517,20 @@ void GuiMarkDownPage::ParseHeading()
     {
         auto chr = m_markdown_text.at(m_index);
         m_index++;
+
+        auto test_string = m_markdown_text.substr(m_index);
+
         if (in_heading_counting && heading_counter && chr != '#')
         {
-            AddInitialEmptyElement();
+            //AddInitialEmptyElement();
             // add header indicator for table row
-            m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back( heading_counter==1?element_type::HEADING_1 : element_type::HEADING_2, false, false, 0, "", "");
+            if (!IsLastElementPartEmpty())
+                m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back(heading_counter == 1 ? element_type::HEADING_1 : element_type::HEADING_2, false, false, 0, "", "");
+            else
+            {
+                m_markdown_data.tables.back().rows.back().elements.back().parts.back().type = heading_counter == 1 ? element_type::HEADING_1 : element_type::HEADING_2;
+            }
+
             in_heading_counting = false;
         }
 
@@ -508,7 +548,10 @@ void GuiMarkDownPage::ParseHeading()
         {
             auto link_is_valid = ParseLink();
             if (link_is_valid)
+            {
                 m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back();
+                m_index--;
+            }
             else
                 m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
             break;
@@ -528,6 +571,8 @@ void GuiMarkDownPage::Parse()
     {
         auto chr = m_markdown_text.at(m_index);
         
+        auto test_string = m_markdown_text.substr(m_index);
+
         switch (chr) 
         {
         case '#': // header
@@ -599,7 +644,6 @@ void GuiMarkDownPage::Parse()
             AddElementPart();
 
         m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
-        m_index++;
     }
 }
 
