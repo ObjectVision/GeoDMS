@@ -114,6 +114,12 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
     return CanBeRasterDomain(adu);
 }
 
+void GuiExport::SetDefaultNativeDriverUsage()
+{
+
+
+}
+
 void GuiExport::SelectDriver(bool is_raster)
 {
     if (m_selected_driver.is_raster != is_raster)
@@ -121,6 +127,8 @@ void GuiExport::SelectDriver(bool is_raster)
 
     ImGui::Text("Format:               "); ImGui::SameLine();
     
+
+
     if (ImGui::BeginCombo("##driver_selector", m_selected_driver.shortname.c_str(), ImGuiComboFlags_None))
     {
         for (auto& available_driver : m_available_drivers)
@@ -136,6 +144,12 @@ void GuiExport::SelectDriver(bool is_raster)
         }
         ImGui::EndCombo();
     }
+
+    ImGui::SameLine();
+    ImGui::Checkbox("##native_driver", &m_use_native_driver);
+    ImGui::SameLine();
+    ImGui::Text("Use native driver");
+    
 }
 
 void GuiExport::SetStorageLocation()

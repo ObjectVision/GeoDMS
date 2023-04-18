@@ -136,7 +136,14 @@ void Button::UpdateTristate(GuiViews& view)
 
 void Button::UpdateModal(GuiViews& view)
 {
-
+    switch (m_ToolButtonId1)
+    {
+    case TB_Export:
+    {
+        view.m_dms_view_it->m_DataView->GetExportInfo();
+        return;
+    }
+    }
 }
 
 GuiToolbar::GuiToolbar()
