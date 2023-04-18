@@ -55,7 +55,8 @@ void GuiExport::SelectDriver(bool is_raster)
 }
 
 void GuiExport::SetStorageLocation()
-{               
+{            
+    // foldername
     ImGui::Text("Output folder:   "); ImGui::SameLine();
 
     if (ImGui::InputText("##LocalDataDir", &m_folder_name, ImGuiInputTextFlags_None, InputTextCallback, nullptr))
@@ -76,6 +77,7 @@ void GuiExport::SetStorageLocation()
     }
     ImGui::PopStyleColor(3);
 
+    // filename
     ImGui::TextUnformatted("Filename:           ");
     ImGui::SameLine();
     if (ImGui::InputText("##export_filename", &m_file_name, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
