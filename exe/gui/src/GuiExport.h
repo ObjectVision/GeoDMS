@@ -1,6 +1,15 @@
 #pragma once
 #include "GuiBase.h"
 
+enum class export_types
+{
+	//GPKG,
+	// tabel
+	// lijst tabellen
+	// raster
+	// lijst met rasters
+};
+
 class GuiExport
 {
 public:

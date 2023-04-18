@@ -562,6 +562,7 @@ void GuiMarkDownPage::ParseHeading()
 
 void GuiMarkDownPage::Parse()
 {
+    // TODO: work with begins and ends
     m_markdown_data.tables.clear();
     m_index = 0;
     bool new_line = true;

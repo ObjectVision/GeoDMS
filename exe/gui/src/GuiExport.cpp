@@ -52,7 +52,7 @@ void GuiExport::SetStorageLocation()
     }
     ImGui::PopStyleColor(3);
 
-    ImGui::TextUnformatted("Filename: ");
+    ImGui::TextUnformatted("Filename:           ");
     ImGui::SameLine();
     if (ImGui::InputText("##export_filename", &m_file_name, ImGuiInputTextFlags_EnterReturnsTrue, InputTextCallback, nullptr))
     {
@@ -73,7 +73,6 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         return;
     }
 
-
     if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
@@ -89,10 +88,8 @@ void GuiExport::Update(bool* p_open, GuiState &state)
             SetStorageLocation();
             ImGui::EndTabItem();
         }
-
-
         ImGui::EndDisabled();
-
+        
         ImGui::BeginDisabled(!enable_raster_export);
         if (ImGui::BeginTabItem("Raster"))
         {
@@ -100,12 +97,9 @@ void GuiExport::Update(bool* p_open, GuiState &state)
             ImGui::EndTabItem();
         }
 
-
         ImGui::EndDisabled();
-
         ImGui::EndTabBar();
     }
-
 
     auto options_window_pos = ImGui::GetWindowPos();
     auto options_window_content_region = ImGui::GetWindowContentRegionMax();
@@ -114,10 +108,16 @@ void GuiExport::Update(bool* p_open, GuiState &state)
 
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
+        // state.GetCurrentItem();
+        // string foldername 
+
+
+
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
+        state.ShowExportWindow = false;
     }
 
     ImGui::End();

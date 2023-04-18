@@ -225,8 +225,7 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     }
     case GLFW_KEY_O:
     {
-        if (mods & GLFW_MOD_CONTROL)
-            event_queues->MainEvents.Add(GuiEvents::OpenExportWindow);
+
 
 
         //if (mods == GLFW_MOD_SHIFT)   // SHIFT-O
@@ -243,6 +242,12 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
             event_queues->GuiMenuFileComponentEvents.Add(GuiEvents::ReopenCurrentConfiguration);
         }
 
+        return;
+    }
+    case GLFW_KEY_S:
+    {
+        if (mods & GLFW_MOD_CONTROL) // CTRL-S export primary data
+            event_queues->MainEvents.Add(GuiEvents::OpenExportWindow);
         return;
     }
     case GLFW_KEY_T:

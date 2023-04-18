@@ -96,7 +96,7 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
         else {  }
 
         //auto default_viewstyle = SHV_GetDefaultViewStyle(state.GetCurrentItem());
-
+        DrawRightMouseClickButtonElement("Export                   Ctrl-S", true, GuiEvents::OpenExportWindow); 
         DrawRightMouseClickButtonElement("Edit Config Source       Ctrl-E", true, GuiEvents::OpenConfigSource);
         DrawRightMouseClickButtonElement("Default View", (default_viewstyle== ViewStyle::tvsTableContainer) || (default_viewstyle== ViewStyle::tvsTableView) || (default_viewstyle==ViewStyle::tvsMapView), GuiEvents::OpenNewDefaultViewWindow);
         DrawRightMouseClickButtonElement("Table View               CTRL-D", vsflags & ViewStyleFlags::vsfTableView || vsflags & ViewStyleFlags::vsfTableContainer, GuiEvents::OpenNewTableViewWindow);
