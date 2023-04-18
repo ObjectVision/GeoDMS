@@ -226,7 +226,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible%s"
+	SharedStr msg = mgFormat2SharedStr("%s mismatch between %s%s (%s %s: %s) and %s%s (%s %s: %s)%s"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()

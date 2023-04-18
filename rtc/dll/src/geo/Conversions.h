@@ -45,6 +45,19 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/FormattedStream.h"
 
 //----------------------------------------------------------------------
+// Section      : has_equivalent_null
+//----------------------------------------------------------------------
+
+template <typename T, typename U> constexpr bool has_equivalent_null_v = 
+	(is_bitvalue_v<T> || is_bitvalue_v<U> 
+		? is_bitvalue_v<T> && is_bitvalue_v<U> 
+		: U(UNDEFINED_OR_ZERO(T)) == UNDEFINED_OR_ZERO(U)
+	);
+
+template <typename T, typename U> struct has_equivalent_null : std::bool_constant<has_equivalent_null_v<T, U>> {};
+template <typename T>             struct has_equivalent_null<T, T> : std::true_type {};
+
+//----------------------------------------------------------------------
 // Bool conversions
 //----------------------------------------------------------------------
 

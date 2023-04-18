@@ -962,7 +962,7 @@ void TableControl::SaveTo(OutStreamBuff* buffPtr) const
 	{
 		const DataItemColumn* dic = GetConstColumn(j);
 		if (!dic) continue;
-		const AbstrDataItem* adi = dic->GetActiveAttr();
+		const AbstrDataItem* adi = dic->GetActiveTextAttr();
 		if (adi)
 			itemArray.emplace_back(adi);
 	}

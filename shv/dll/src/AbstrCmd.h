@@ -53,6 +53,24 @@ public:
 };
 
 
+template <typename Func>
+struct LambdaCmd : AbstrCmd
+{
+	//	using MembFunc = RT(GO::*)(Args...);
+
+	LambdaCmd(Func&& f) : m_Func(std::move(f))
+	{}
+
+	GraphVisitState Visit(GraphicObject* ago) override
+	{
+		m_Func();
+		return GVS_Handled;
+	}
+
+private:
+	Func m_Func;
+};
+
 template <typename GO, typename RT, typename ...Args>
 struct MembFuncCmd : AbstrCmd
 {
@@ -78,8 +96,14 @@ private:
 	std::tuple<Args...> m_Args;
 };
 
+template <typename Func>
+auto make_LambdaCmd(Func&& f)
+{
+	return MakeOwned<AbstrCmd, LambdaCmd<Func>>(std::forward<Func>(f));
+}
+
 template <typename GO, typename RT, typename ...Args>
-auto make_MembFuncCmd(RT (GO::* mf)(Args...), Args ...args)
+auto make_MembFuncCmd(RT(GO::* mf)(Args...), Args ...args)
 {
 	return MakeOwned<AbstrCmd, MembFuncCmd<GO, RT, Args...>>(mf, std::forward<Args>(args)...);
 }

@@ -87,8 +87,9 @@ bool TreeItemHasPropertyValue(const TreeItem* ti, const AbstrPropDef* pd)
 
 #include "PropFuncs.h"
 
-TokenID TreeItem_GetDialogType(const TreeItem* self) { 
-	dms_assert(self);
+TokenID TreeItem_GetDialogType(const TreeItem* self) 
+{ 
+	assert(self);
 
 	if (dialogTypePropDefPtr->HasNonDefaultValue(self))
 		return dialogTypePropDefPtr->GetValue(self);
@@ -137,7 +138,7 @@ void MakeClassBreakAttr(AbstrDataItem* adi)
 
 bool HasMapType(const TreeItem* ti)
 {
-	dms_assert(ti);
+	assert(ti);
 	return TreeItem_GetDialogType(ti) == token::map;
 }
 

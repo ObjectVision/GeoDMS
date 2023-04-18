@@ -413,7 +413,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
 		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
-		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the results of the calculation", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 	}
 	dbg_assert(m_LastGetStateTS == refItem->m_LastGetStateTS || refItem->IsPassor());
@@ -939,39 +939,6 @@ TIC_CALL UInt32 DMS_CONV DMS_AbstrDataItem_GetNrFeatures(const AbstrDataItem* se
 	return 0;
 }
 
-/* REMOVE
-TIC_CALL void DMS_CONV DMS_DataItem_CopyData(AbstrDataItem* dest, const AbstrDataItem* source)
-{
-	DMS_CALL_BEGIN
-
-		CheckPtr(dest,   AbstrDataItem::GetStaticClass(), "DMS_DataItem_CopyData");
-		CheckPtr(source, AbstrDataItem::GetStaticClass(), "DMS_DataItem_CopyData");
-
-
-		source->GetAbstrDomainUnit()->UnifyDomain(dest->GetAbstrDomainUnit(), UnifyMode(UM_Throw| UM_AllowAllEqualCount));
-		source->GetAbstrValuesUnit()->UnifyValues(dest->GetAbstrValuesUnit(), UnifyMode(UM_Throw));
-
-		ExternalVectorOutStreamBuff::VectorType dataBuff;
-		PreparedDataReadLock sourceLock(source);
-		DataWriteLock        destLock(dest);
-		for (tile_id t = source->GetAbstrDomainUnit()->GetNrTiles(); t--; )
-		{
-			dataBuff.clear();
-			{
-				ExternalVectorOutStreamBuff streamToBuff(dataBuff);
-				BinaryOutStream os(&streamToBuff);
-				source->GetRefObj()->DoWriteData(os, t);
-			}
-			{
-				MemoInpStreamBuff streamFromBuff(begin_ptr(dataBuff), end_ptr(dataBuff));
-				BinaryInpStream is(&streamFromBuff);
-				destLock->DoReadData(is, t);
-			}
-		}
-		destLock.Commit();
-	DMS_CALL_END
-}
-REMOVE */
 TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPtr* dataItemArray, const ConstAbstrDataItemPtr* dataItemArrayEnd, const SizeT* recNos, const SizeT* recNoEnd)
 {
 	SizeT nrDataItems = dataItemArrayEnd - dataItemArray;

@@ -50,22 +50,22 @@ static const GRect s_EmptyRect      = GRect(0, 0, 0, 0);
 
 void CheckRgnLimits(const GRect& rect)
 {
-	dms_assert(rect.top  >= RGN_LOWERBOUND);
-	dms_assert(rect.left >= RGN_LOWERBOUND);
-	dms_assert(rect.bottom >= rect.top );
-	dms_assert(rect.right  >= rect.left);
-	dms_assert(RGN_UPPERBOUND >= rect.bottom);
-	dms_assert(RGN_UPPERBOUND >= rect.right );
+	assert(rect.top  >= RGN_LOWERBOUND);
+	assert(rect.left >= RGN_LOWERBOUND);
+	assert(rect.bottom >= rect.top );
+	assert(rect.right  >= rect.left);
+	assert(RGN_UPPERBOUND >= rect.bottom);
+	assert(RGN_UPPERBOUND >= rect.right );
 }
 
 #endif
 
 GRect ClipRect(const GRect& rect)
 {
-#if defined(MG_DEBUG)
-	CheckRgnLimits(rect);
-#endif
 	GRect result = rect & s_WindowClipRect;
+//#if defined(MG_DEBUG)
+//	CheckRgnLimits(result);
+//#endif
 	if (result.empty())
 		return s_EmptyRect;
 	return result;

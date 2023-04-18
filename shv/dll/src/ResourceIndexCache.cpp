@@ -106,8 +106,8 @@ bool ResourceIndexCache::CompareValueGetter(const AbstrThemeValueGetter* additio
 
 bool ResourceIndexCache::IsDifferent(Float64 nrPixelsPerWorldUnit, Float64 subPixelFactor) const
 {
-	dms_assert( nrPixelsPerWorldUnit > 0.0);
-	dms_assert( subPixelFactor       > 0.0);
+	assert( nrPixelsPerWorldUnit > 0.0);
+	assert( subPixelFactor       > 0.0);
 
 	if (m_LastNrPixelsPerWorldUnit == nrPixelsPerWorldUnit && m_LastSubPixelFactor == subPixelFactor)
 		return false;

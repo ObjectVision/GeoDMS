@@ -219,7 +219,7 @@ const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 	return AsDynamicDataItem( ref );
 }
 
-const TreeItem* GetMappingItem(const TreeItem* ti)
+auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 {
 	dms_assert(ti); // PRECONDITION
 	do
@@ -232,7 +232,7 @@ const TreeItem* GetMappingItem(const TreeItem* ti)
 	return nullptr;
 }
 
-const AbstrDataItem* GetMappedData(const TreeItem* ti)
+auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*
 {
 	dms_assert(ti); // PRECONDITION
 	ti = GetMappingItem(ti);

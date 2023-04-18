@@ -318,9 +318,11 @@ void FeatureLayer::DoInvalidate() const
 
 const AbstrBoundingBoxCache* FeatureLayer::GetBoundingBoxCache() const
 {
-	return visit_and_return_result<typelists::seq_points, const AbstrBoundingBoxCache*>(GetFeatureAttr()->GetAbstrValuesUnit(), [this]<typename P>(const Unit<P>*)
+	return visit_and_return_result<typelists::seq_points, const AbstrBoundingBoxCache*>(GetFeatureAttr()->GetAbstrValuesUnit(), [this]<typename P>(const Unit<P>*) -> const AbstrBoundingBoxCache*
 		{
-			return ::GetBoundingBoxCache<scalar_of_t<P>>(this);
+			if (GetFeatureAttr()->GetValueComposition() == ValueComposition::Single)
+				return ::GetPointBoundingBoxCache<scalar_of_t<P>>(this);
+			return ::GetSequenceBoundingBoxCache<scalar_of_t<P>>(this);
 		}
 	);
 }
@@ -534,12 +536,12 @@ void FeatureLayer::FillLcMenu(MenuData& menuData)
 }
 
 // default impl used by arc and polygon
-
 CrdRect FeatureLayer::CalcSelectedClientWorldRect() const
 {
 	DRect selectRect;
 
-	const AbstrBoundingBoxCache* bbCache = GetBoundingBoxCache();
+	auto bbCache = GetBoundingBoxCache();
+	auto featureCount = GetFeatureAttr()->GetAbstrDomainUnit()->GetCount();
 
 	if (m_Themes[AN_Selections])
 	{
@@ -550,7 +552,7 @@ CrdRect FeatureLayer::CalcSelectedClientWorldRect() const
 
 		PreparedDataReadLock selLock(selAttr);
 
-		SizeT f = bbCache->GetFeatureCount();
+		SizeT f = featureCount;
 		while (f)
 		{
 			auto entityID = Feature2EntityIndex(--f);
@@ -566,7 +568,7 @@ CrdRect FeatureLayer::CalcSelectedClientWorldRect() const
 		{
 			if (HasEntityAggr())
 			{
-				SizeT f = bbCache->GetFeatureCount();
+				SizeT f = featureCount;
 				while (f)
 				{
 					if (Feature2EntityIndex(--f) == e)
@@ -670,7 +672,7 @@ SizeT GraphicPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
 }
 
 template <typename ScalarType>
-bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect geoRect, EventID eventID)
+bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points, Range<Point<ScalarType>> geoRect, EventID eventID)
 {
 	using PointType = Point<ScalarType>;
 
@@ -680,16 +682,31 @@ bool SelectPointsInRect(GraphicPointLayer* layer, const AbstrDataObject* points,
 	auto da = const_array_cast<PointType>(points);
 	auto trd = da->GetTiledRangeData();
 
-	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, geoRect, &writeLock, &result, eventID](tile_id t)
+	auto bbCache = GetPointBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, &writeLock, &result, eventID](tile_id t)
 		{
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
 			auto data = da->GetTile(t);
-			for (auto b = data.begin(), e = data.end(); b != e; ++b)
-				if (IsIncluding(geoRect, Convert<CrdPoint>(*b)))
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
+			{
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				if (IsIncluding(geoRect, data[i]))
 				{
-					SizeT entityID = trd->GetRowIndex(t, b - data.begin());
+					SizeT entityID = trd->GetRowIndex(t, i);
 					if (layer->SelectFeatureIndex(writeLock, entityID, eventID))
 						result = true;
 				}
+			}
 		}
 	);
 	if (result)
@@ -709,7 +726,7 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, Range<Po
 	auto da = const_array_cast<ArcType>(arcs);
 	auto trd = arcs->GetTiledRangeData();
 
-	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
 	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, &writeLock, &result, eventID](tile_id t)
@@ -743,14 +760,14 @@ bool SelectArcsInRect(FeatureLayer* layer, const AbstrDataObject* arcs, Range<Po
 
 
 template <typename ScalarType>
-bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* points, CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* points, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID)
 {
 	using PointType = Point<ScalarType>;
+	using RangeType = Range<PointType>;
 
-	CrdRect worldRect  = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
-	CrdPoint geoPnt    = layer->GetGeoTransformation().Reverse(worldPnt);
-	CrdRect geoRect    = layer->GetGeoTransformation().Reverse(worldRect);
-	CrdType geoRadius2 = Area(geoRect) / 4;
+	auto radialDelta = PointType(geoRadius, geoRadius);
+	auto geoRect  = Inflate(geoPnt, radialDelta);
+	auto geoRadius2 = Norm<CrdType>(radialDelta);
 
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
@@ -758,19 +775,33 @@ bool SelectPointsInCircle(GraphicPointLayer* layer, const AbstrDataObject* point
 	auto da = const_array_cast<PointType>(points);
 	auto trd = points->GetTiledRangeData();
 
-	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
-	{
-		auto data = da->GetTile(t);
-		for (auto b = data.begin(), e = data.end(); b != e; ++b)
+	auto bbCache = GetPointBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, &writeLock, &result, eventID](tile_id t)
 		{
-			CrdPoint dataPnt = Convert<CrdPoint>(*b);
-			if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
 			{
-				SizeT entityID = trd->GetRowIndex(t, b - data.begin());
-				result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				auto dataPnt = data[i];
+				if (IsIncluding(geoRect, dataPnt) && SqrDist<CrdType>(geoPnt, dataPnt) <= geoRadius2)
+				{
+					SizeT entityID = trd->GetRowIndex(t, i);
+					result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+				}
 			}
 		}
-	}
+	);
 	if (result)
 		writeLock.Commit();
 	return result;
@@ -795,7 +826,7 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 	auto da = const_array_cast<ArcType>(arcs);
 	auto trd = arcs->GetTiledRangeData();
 
-	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
 	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPntInT, geoRadius2, &writeLock, &result, eventID](tile_id t)
@@ -835,12 +866,14 @@ bool SelectArcsInCircle(FeatureLayer* layer, const AbstrDataObject* arcs, CrdPoi
 }
 
 template <typename ScalarType>
-bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect polyWorldRect, const CrdPoint* first, const CrdPoint* last, EventID eventID)
+bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* points, CrdRect worldRect, const CrdPoint* first, const CrdPoint* last, EventID eventID)
 {
-	typedef Point<ScalarType>    PointType;
+	using PointType = Point<ScalarType>;
+	using RangeType = Range<PointType>;
+	using ArcType = typename sequence_traits<PointType>::container_type;
 
 	CrdTransformation geo2worldTr = layer->GetGeoTransformation();
-	CrdRect           polyGeoRect = geo2worldTr.Reverse(polyWorldRect);
+	auto geoRect = Convert<RangeType>(geo2worldTr.Reverse(worldRect));
 
 	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
 	bool result = false;
@@ -848,23 +881,37 @@ bool SelectPointsInPolygon(GraphicPointLayer* layer, const AbstrDataObject* poin
 	auto da = const_array_cast<PointType>(points);
 	auto trd = points->GetTiledRangeData();
 
-	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
-	{
-		auto data = da->GetTile(t);
-		for (auto b = data.begin(), e = data.end(); b != e; ++b)
+	auto bbCache = GetPointBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, first, last, geo2worldTr, &writeLock, &result, eventID](tile_id t)
 		{
-			CrdPoint geoPnt = Convert<CrdPoint>(*b);
-			if (IsIncluding(polyGeoRect, geoPnt))
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
 			{
-				CrdPoint worldPnt = geo2worldTr.Apply(geoPnt);
-				if (IsInside(first, last, worldPnt))
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				auto geoPnt = data[i];
+				if (IsIncluding(geoRect, geoPnt))
 				{
-					SizeT entityID = trd->GetRowIndex(t, b - data.begin());
-					result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+					CrdPoint worldPnt = geo2worldTr.Apply(geoPnt);
+					if (IsInside(first, last, worldPnt))
+					{
+						SizeT entityID = trd->GetRowIndex(t, i);
+						result |= layer->SelectFeatureIndex(writeLock, entityID, eventID);
+					}
 				}
 			}
 		}
-	}
+	);
 	if (result)
 		writeLock.Commit();
 	return result;
@@ -894,9 +941,9 @@ void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 		dms_assert(lck.IsLocked());
 
 		result = visit_and_return_result<typelists::points, bool>(featureAttr->GetAbstrValuesUnit(), 
-			[this, featureAttr, geoRect, eventID, &result] <typename a_type> (const Unit<a_type>*) 
+			[this, featureAttr, geoRect, eventID, &result] <typename P> (const Unit<P>*) 
 			{
-				return SelectPointsInRect< scalar_of_t<a_type> >(this, featureAttr->GetRefObj(), geoRect, eventID);
+				return SelectPointsInRect< scalar_of_t<P> >(this, featureAttr->GetRefObj(), Convert<Range<P>>(geoRect), eventID);
 			}
 		);
 	}
@@ -933,7 +980,7 @@ void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Eve
 		result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(), 
 			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
 			{
-				return SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), geoPnt, geoRadius, eventID);
+				return SelectPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID);
 			}
 		);
 	}
@@ -1445,7 +1492,7 @@ SizeT FindArcByPoint(const GraphicArcLayer* layer, const Point<ScalarType>& pnt)
 
 	auto featureData = layer->GetFeatureAttr()->GetRefObj();
 	auto da = const_array_cast<PointSequenceType>(featureData);
-	auto bbCache = MakeShared( GetBoundingBoxCache<ScalarType>(layer) );
+	auto bbCache = MakeShared( GetSequenceBoundingBoxCache<ScalarType>(layer) );
 	assert(bbCache);
 
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
@@ -1563,9 +1610,9 @@ void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Event
 		dms_assert(lck.IsLocked());
 
 		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(),
-			[this, valuesItem, worldPnt, worldRadius, eventID] <typename a_type> (const Unit<a_type>*)
+			[this, valuesItem, worldPnt, worldRadius, eventID] <typename P> (const Unit<P>*)
 			{
-				return SelectArcsInCircle< scalar_of_t<a_type> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
+				return SelectArcsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj(), worldPnt, worldRadius, eventID);
 			}
 		);
 	}
@@ -1591,16 +1638,13 @@ void GraphicArcLayer::InvalidateFeature(SizeT featureIndex)
 
 // TODO: SelectedColor and selectedOnly
 template <typename ScalarType>
-bool DrawArcs(
-	const GraphicArcLayer* layer, 
-	const FeatureDrawer& fd, 
-	const PenIndexCache*  penIndices)
+bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIndexCache*  penIndices)
 {
 	typedef Point<ScalarType>                           PointType;
 	typedef Range<PointType>                            RangeType;
 	typedef sequence_traits<PointType>::container_type  PolygonType;
 	typedef DataArray<PolygonType>                      DataArrayType;
-	typedef BoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
+	typedef SequenceBoundingBoxCache<ScalarType>::RectArrayType RectArrayType;
 
 	const AbstrDataItem* featureItem = layer->GetFeatureAttr();
 	const GraphDrawer& d = fd.m_Drawer;
@@ -1635,7 +1679,7 @@ bool DrawArcs(
 	if (layer->IsActive())
 		fe = layer->GetFocusElemIndex();
 
-	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 
 	if (mainCount == 0)
 	{
@@ -1719,8 +1763,8 @@ bool DrawArcs(
 									? ::GetSysColor(COLOR_HIGHLIGHT)
 									: GetSelectedClr(selectionsArray[entityIndex]);
 
-								specialPenHolder = CreatePen(PS_SOLID, width, GetSelectedClr(selectionsArray[entityIndex]));
-								SelectObject(d.GetDC(), specialPenHolder);
+								specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
+								pa.SetSpecificPen(specialPenHolder);
 							}
 							else if (penIndices)
 							{
@@ -1767,8 +1811,7 @@ bool DrawArcs(
 			const auto& rectArray = bbCache->GetBoxData(tileCounter);
 			auto data = da->GetTile(t);
 			tile_id ts = data.size();
-			auto b = data.begin(), e = data.end();
-			lfs_assert(rectArray.m_FeatBoundArray.size() == e-b);
+			lfs_assert(rectArray.m_FeatBoundArray.size() == ts);
 
 			ResumableCounter itemCounter(d.GetCounterStacks(), true);
 
@@ -1874,7 +1917,7 @@ row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pn
 	auto featureData = layer->GetFeatureAttr()->GetRefObj();
 	auto da = const_array_cast<PointSequenceType>(featureData);
 
-	auto bbCache = GetBoundingBoxCache<ScalarType>(layer);
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	auto trd = featureData->GetTiledRangeData();
 	for (tile_id t = trd->GetNrTiles(); t--; )
 	{
@@ -1886,16 +1929,16 @@ row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pn
 		auto b = data.begin();
 		SizeT i = data.size();
 
-		if (i % BoundingBoxCache<ScalarType>::c_BlockSize != 0)
-			if (!IsIncluding(rectArray.m_BlockBoundArray[(i - 1) / BoundingBoxCache<ScalarType>::c_BlockSize], pnt))
-				i &= ~(BoundingBoxCache<ScalarType>::c_BlockSize - 1);
+		if (i % AbstrBoundingBoxCache::c_BlockSize != 0)
+			if (!IsIncluding(rectArray.m_BlockBoundArray[(i - 1) / AbstrBoundingBoxCache::c_BlockSize], pnt))
+				i &= ~(AbstrBoundingBoxCache::c_BlockSize - 1);
 
 		// search backwards so that last drawn object will be first selected
 		while (i)
 		{
-			if (i % BoundingBoxCache<ScalarType>::c_BlockSize == 0)
-				while (!IsIncluding(rectArray.m_BlockBoundArray[i / BoundingBoxCache<ScalarType>::c_BlockSize-1], pnt))
-					if ((i -= BoundingBoxCache<ScalarType>::c_BlockSize) == 0)
+			if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+				while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize-1], pnt))
+					if ((i -= AbstrBoundingBoxCache::c_BlockSize) == 0)
 						goto nextTile;
 			--i;
 			auto polygonPtr = b + i;

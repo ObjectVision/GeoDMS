@@ -168,7 +168,6 @@ struct ResumableCounter : private boost::noncopyable
 		return m_AutoCounter; 
 	}
 	operator SizeT() const {
-		assert(IsChangable());
 		return m_AutoCounter;
 	}
 

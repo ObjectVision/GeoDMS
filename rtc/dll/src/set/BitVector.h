@@ -736,7 +736,7 @@ void BitVector<N, Block, Allocator>::clear_unused_bits()
 //----------------------------------------------------------------------
 
 template <bit_size_t N, typename Block>
-bit_value<N> UndefinedOrZero(const bit_reference<N, Block>* ) { return 0; }
+constexpr bit_value<N> UndefinedOrZero(const bit_reference<N, Block>* ) { return 0; }
 
 template <bit_size_t N, typename Block> inline bool IsDefined(bit_reference<N, Block>) { return true; }
 

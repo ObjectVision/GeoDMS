@@ -1879,6 +1879,8 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 		if (copyContext.MustUpdateMetaInfo())
 			UpdateMetaInfo();
+		if (isNew && copyContext.MergeProps())
+			result->DisableStorage();
 
 		if (!copyContext.InFenceOperator())
 		{
