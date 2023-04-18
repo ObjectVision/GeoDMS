@@ -79,7 +79,7 @@ enum class DetailPageActiveTab
     Configuration
 };
 
-struct MarkDownTextBlock {                  // subset of line
+/*struct MarkDownTextBlock {                  // subset of line
     int start = 0;
     int stop = 0;
     int size() const
@@ -139,7 +139,7 @@ struct MarkDownLine {
     int  lineStart = 0;
     int  lineEnd = 0;
     int  lastRenderPosition = 0;     // lines may get rendered in multiple pieces
-};
+};*/
 
 class GuiMarkDownPage
 {
@@ -162,10 +162,12 @@ private:
     bool IsEmphasis();
     void ParseHeading();
 
-    void AddTable();
+    void AddTable();    
     void AddRow();
     void AddElement();
     void AddElementPart();
+    void CleanupLastEmptyElementpart();
+    bool IsLastElementPartEmpty();
     void AddInitialEmptyElement();
 
     md_data m_markdown_data;

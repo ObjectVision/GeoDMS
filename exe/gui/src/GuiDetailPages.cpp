@@ -262,6 +262,20 @@ GuiMarkDownPage::GuiMarkDownPage(std::string_view markdown_text)
     Parse();
 }
 
+void GuiMarkDownPage::CleanupLastEmptyElementpart()
+{
+    if (m_markdown_data.tables.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.back().elements.empty())
+        return;
+    if (m_markdown_data.tables.back().rows.back().elements.back().parts.empty())
+        return;
+    if (IsLastElementPartEmpty())
+        m_markdown_data.tables.back().rows.back().elements.back().parts.pop_back();
+}
+
 void GuiMarkDownPage::AddElementPart()
 {
     m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back();
@@ -270,6 +284,7 @@ void GuiMarkDownPage::AddElementPart()
 void GuiMarkDownPage::AddElement()
 {
     m_markdown_data.tables.back().rows.back().elements.emplace_back();
+    AddElementPart();
 }
 
 void GuiMarkDownPage::AddRow()
@@ -280,9 +295,11 @@ void GuiMarkDownPage::AddRow()
 
 void GuiMarkDownPage::AddTable()
 {
+    CleanupLastEmptyElementpart();
     m_markdown_data.tables.emplace_back();
     AddRow();
 }
+
 
 void GuiMarkDownPage::AddInitialEmptyElement()
 {
@@ -294,6 +311,17 @@ void GuiMarkDownPage::AddInitialEmptyElement()
 
     if (m_markdown_data.tables.back().rows.back().elements.empty())
         AddElement();
+}
+
+bool GuiMarkDownPage::IsLastElementPartEmpty()
+{
+    AddInitialEmptyElement();
+    if (m_markdown_data.tables.back().rows.back().elements.back().parts.back().type == element_type::NONE &&
+        m_markdown_data.tables.back().rows.back().elements.back().parts.back().text.empty())
+    {
+        return true;
+    }
+    return false;
 }
 
 bool GuiMarkDownPage::ParseLink()
@@ -366,26 +394,73 @@ bool GuiMarkDownPage::ParseLink()
 
 bool GuiMarkDownPage::ParseTable()
 {
+    // TODO: test markdown code on real-world situations
+
     // supported md table format:
     // |text|text|
     // |----|----|
     // |val1|val2|
     // |val3|val4|
 
-    md_table markdown_table;
     auto starting_index = m_index;
+    bool element_open = false;
     UInt8 number_of_columns = 0;
     size_t table_row_index = 0;
+    size_t table_col_index = 0;
+    AddTable();
 
+    m_markdown_data;
     while (m_index < m_markdown_text.size())
     {
         auto chr = m_markdown_text.at(m_index);
-        m_index++;
+        m_index++; 
+
+        auto test_string = m_markdown_text.substr(m_index);
+
+
         switch (chr)
         {
         case '|':
+        {
+            if (table_row_index == 0)
+            {
+                number_of_columns++;
+            }
+            
+
+            // new table element
+            if (table_col_index != 0 && table_row_index!=1 && m_index < m_markdown_text.size() && !(m_markdown_text.at(m_index)=='\n'))
+            {
+                AddElement();
+            }
+            table_col_index++;
+            break;
+        }
+        case '[':
+        {
+            ParseLink();
+            break;
+        }
+        case '\n':
+        {
+            if (table_row_index!=1) // don't draw second markdown table row
+                AddRow();
+            
+            // end of table conditions
+            if (m_index == m_markdown_text.size())
+                return true;
+
+            if (m_markdown_text.at(m_index) != '|')
+                return true;
+
+            table_col_index = 0;
+            table_row_index++;
+            break;
+        }
         default:
         {
+            if (table_row_index != 1)
+                m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
             break;
         }
         }
@@ -442,11 +517,20 @@ void GuiMarkDownPage::ParseHeading()
     {
         auto chr = m_markdown_text.at(m_index);
         m_index++;
+
+        auto test_string = m_markdown_text.substr(m_index);
+
         if (in_heading_counting && heading_counter && chr != '#')
         {
-            AddInitialEmptyElement();
+            //AddInitialEmptyElement();
             // add header indicator for table row
-            m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back( heading_counter==1?element_type::HEADING_1 : element_type::HEADING_2, false, false, 0, "", "");
+            if (!IsLastElementPartEmpty())
+                m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back(heading_counter == 1 ? element_type::HEADING_1 : element_type::HEADING_2, false, false, 0, "", "");
+            else
+            {
+                m_markdown_data.tables.back().rows.back().elements.back().parts.back().type = heading_counter == 1 ? element_type::HEADING_1 : element_type::HEADING_2;
+            }
+
             in_heading_counting = false;
         }
 
@@ -464,7 +548,10 @@ void GuiMarkDownPage::ParseHeading()
         {
             auto link_is_valid = ParseLink();
             if (link_is_valid)
+            {
                 m_markdown_data.tables.back().rows.back().elements.back().parts.emplace_back();
+                m_index--;
+            }
             else
                 m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
             break;
@@ -478,20 +565,21 @@ void GuiMarkDownPage::Parse()
     m_markdown_data.tables.clear();
     m_index = 0;
     bool new_line = true;
+    AddTable();
 
     for (m_index; m_index < m_markdown_text.size(); m_index++)
     {
         auto chr = m_markdown_text.at(m_index);
         
+        auto test_string = m_markdown_text.substr(m_index);
+
         switch (chr) 
         {
         case '#': // header
         { 
             if (new_line)
             {
-                AddTable();
                 ParseHeading();
-                AddRow();
                 continue;
             }
             break;
@@ -556,7 +644,6 @@ void GuiMarkDownPage::Parse()
             AddElementPart();
 
         m_markdown_data.tables.back().rows.back().elements.back().parts.back().text += chr;
-        m_index++;
     }
 }
 
@@ -812,8 +899,8 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            //if (!m_GeneralProperties_MD)
-            //    UpdateGeneralProperties(state);
+            if (!m_GeneralProperties_MD)
+                UpdateGeneralProperties(state);
             ////DrawProperties(state, m_GeneralProperties);
         }
         break;
@@ -897,8 +984,8 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         if (detail_pages_docknode)
         {
             AutoHideWindowDocknodeTabBar(m_is_docking_initialized);
-            Collapse(detail_pages_docknode);
-            //Expand(DetailPageActiveTab::General, detail_pages_docknode); // testing purposes
+            //Collapse(detail_pages_docknode);
+            Expand(DetailPageActiveTab::General, detail_pages_docknode); // testing purposes
         }
     }
 
