@@ -58,7 +58,7 @@ void GuiExport::SelectDriver(bool is_raster)
     if (m_selected_driver.is_raster != is_raster)
         m_selected_driver = {};
 
-    ImGui::Text("GDAL driver:     "); ImGui::SameLine();
+    ImGui::Text("Format:               "); ImGui::SameLine();
     
     if (ImGui::BeginCombo("##driver_selector", m_selected_driver.shortname.c_str(), ImGuiComboFlags_None))
     {

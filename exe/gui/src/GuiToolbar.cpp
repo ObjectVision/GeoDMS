@@ -217,14 +217,14 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
         return;
     }
 
-    if (view.m_dms_views.empty())
+    /*if (view.m_dms_views.empty())
     {
         *p_open = false;
         ImGui::End();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
         return;
-    }
+    }*/
 
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
    
