@@ -1,13 +1,11 @@
 #pragma once
 #include "GuiBase.h"
 
-enum class export_types
+struct gdal_driver_id
 {
-	//GPKG,
-	// tabel
-	// lijst tabellen
-	// raster
-	// lijst met rasters
+	std::string shortname;
+	std::string name;
+	bool is_raster = false;
 };
 
 class GuiExport
@@ -17,8 +15,11 @@ public:
 	void Update(bool* p_open, GuiState& state);
 
 private:
+	void SelectDriver(bool is_raster);
 	void SetStorageLocation();
 
-	std::string m_folder_name;
-	std::string m_file_name;
+	std::vector<gdal_driver_id> m_available_drivers;
+	gdal_driver_id m_selected_driver;
+	std::string    m_folder_name;
+	std::string    m_file_name;
 };

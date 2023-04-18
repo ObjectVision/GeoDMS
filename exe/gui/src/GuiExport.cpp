@@ -30,8 +30,32 @@ bool CurrentItemCanBeExportedToRaster(TreeItem* item)
     return false;
 }
 
-void GuiExport::SetStorageLocation()
+void GuiExport::SelectDriver(bool is_raster)
 {
+    if (m_selected_driver.is_raster != is_raster)
+        m_selected_driver = {};
+
+    ImGui::Text("GDAL driver:     "); ImGui::SameLine();
+    
+    if (ImGui::BeginCombo("##driver_selector", m_selected_driver.shortname.c_str(), ImGuiComboFlags_None))
+    {
+        for (auto& available_driver : m_available_drivers)
+        {
+            if (is_raster != available_driver.is_raster)
+                continue;
+
+            bool is_selected = m_selected_driver.shortname == available_driver.shortname;
+            if (ImGui::Selectable(available_driver.shortname.c_str(), is_selected))
+            {
+                m_selected_driver = available_driver;
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
+
+void GuiExport::SetStorageLocation()
+{               
     ImGui::Text("Output folder:   "); ImGui::SameLine();
 
     if (ImGui::InputText("##LocalDataDir", &m_folder_name, ImGuiInputTextFlags_None, InputTextCallback, nullptr))
@@ -62,6 +86,16 @@ void GuiExport::SetStorageLocation()
 GuiExport::GuiExport()
 {
     m_folder_name = GetLocalDataDir().c_str();
+
+    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", false);
+    m_available_drivers.emplace_back("GPKG", "GeoPackage vector", false);
+    m_available_drivers.emplace_back("CSV", "Comma Separated Value(.csv)", false);
+    m_available_drivers.emplace_back("GML", "Geography Markup Language", false);
+    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", false);
+    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", true);
+    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", true);
+    m_available_drivers.emplace_back("PNG", "Portable Network Graphics", true);
+    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format", true);
 }
 
 void GuiExport::Update(bool* p_open, GuiState &state)
@@ -84,7 +118,7 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         ImGui::BeginDisabled(!enable_vector_export);
         if (ImGui::BeginTabItem("Vector"))
         {
-
+            SelectDriver(false);
             SetStorageLocation();
             ImGui::EndTabItem();
         }
@@ -93,6 +127,7 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         ImGui::BeginDisabled(!enable_raster_export);
         if (ImGui::BeginTabItem("Raster"))
         {
+            SelectDriver(true);
             SetStorageLocation();
             ImGui::EndTabItem();
         }
@@ -108,8 +143,10 @@ void GuiExport::Update(bool* p_open, GuiState &state)
 
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
-        // state.GetCurrentItem();
-        // string foldername 
+        // current treeitem:     state.GetCurrentItem()
+        // selected gdal driver: m_selected_driver
+        // string foldername:    m_folder_name
+        // string filename:      m_filename
 
 
 
