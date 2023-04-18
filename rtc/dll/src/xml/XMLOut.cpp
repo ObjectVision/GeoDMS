@@ -822,8 +822,7 @@ void OutStream_MD::CloseAttrList()
 // XML_OutElement
 //----------------------------------------------------------------------
 
-XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, 
-							   CharPtr tagName, CharPtr objName, bool isPaired)
+XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName, bool isPaired)
 	: m_XmlStream(xmlStream)
 	, m_IsPaired(isPaired)
 	, m_TagName(tagName)
