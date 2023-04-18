@@ -823,8 +823,8 @@ TIC_CALL const Class*     DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 
 GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 	: StorageMetaInfo(storageHolder, curr)
-	, m_OptionsItem(storageHolder->FindItem("GDAL_Options"))
-	, m_DriverItem(storageHolder->FindItem("GDAL_Driver"))
+	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Options"))
+	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Driver"))
 	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions"))
 	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions"))
 {

@@ -34,6 +34,7 @@
 #include "DataLocks.h"
 #include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
+#include "TreeItemProps.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -1157,6 +1158,12 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	auto driverArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_DriverItem);
 	auto layerOptionArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_LayerCreationOptions);
 	//auto configurationOptionsArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions);
+
+	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
+		optionArray.AddString(storageOptionsPropDefPtr->GetValue(storageHolder).c_str());
+
+	if (storageDriverPropDefPtr->HasNonDefaultValue(storageHolder))
+		driverArray.AddString(storageDriverPropDefPtr->GetValue(storageHolder).c_str());
 
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
