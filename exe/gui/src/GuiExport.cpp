@@ -117,8 +117,11 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
 
 void GuiExport::SetDefaultNativeDriverUsage()
 {
-
-
+    // TODO: expand logic, simplified implementation
+    if (m_selected_driver.is_native && m_selected_driver.shortname == "CSV")
+        m_use_native_driver = true;
+    else
+        m_use_native_driver = false;
 }
 
 void GuiExport::SelectDriver(bool is_raster)
