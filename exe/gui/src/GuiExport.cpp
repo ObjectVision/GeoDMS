@@ -6,6 +6,8 @@
 #include "AbstrUnit.h"
 #include "utl/Environment.h"
 
+#include "ShvUtils.h"
+
 bool CurrentItemCanBeExportedToVector(TreeItem* item)
 {
     if (!item)
@@ -16,18 +18,39 @@ bool CurrentItemCanBeExportedToVector(TreeItem* item)
     return true;
 }
 
+bool CanBeRasterDomain(const AbstrUnit* domainCandidate)
+{
+    assert(domainCandidate);
+    assert(domainCandidate->CanBeDomain()); // precondition that it was domain of something.
+    if (domainCandidate->GetNrDimensions() == 2)
+        return true;
+    if (RefersToMappable(domainCandidate))
+    { 
+        auto baseGridCandidate = GetMappedData(domainCandidate);
+        if (baseGridCandidate->GetAbstrDomainUnit()->GetNrDimensions() != 2) 
+            return false; // some other sort of reference ?
+        auto compactedDomain = baseGridCandidate->GetAbstrValuesUnit();
+        if (compactedDomain->UnifyDomain(domainCandidate))
+            return true;
+    }
+    return false;
+}
+
 bool CurrentItemCanBeExportedToRaster(TreeItem* item)
 {
     if (!item)
         return false;
 
     if (!IsDataItem(item))
+    {
+
         return false;
+    }
 
-    if (AsDataItem(item)->GetAbstrDomainUnit()->GetNrDimensions() == 2 && AsDataItem(item)->GetAbstrDomainUnit()->CanBeDomain()) // TODO: copy of HasRasterDomain
-        return true;
+    auto adi = AsDataItem(item); assert(adi);
+    auto adu = AsDataItem(item)->GetAbstrDomainUnit(); assert(adu);
 
-    return false;
+    return CanBeRasterDomain(adu);
 }
 
 void GuiExport::SetStorageLocation()

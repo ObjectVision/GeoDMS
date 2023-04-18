@@ -107,6 +107,9 @@ const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e
 const TreeItem* GetDialogDataRef(const TreeItem* item);
 void            SetDialogDataRef(      TreeItem* item, const TreeItem* ref);
 
+SHV_CALL auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*;
+SHV_CALL bool RefersToMappable(const TreeItem* ti);
+
 //----------------------------------------------------------------------
 // section : Sync & Save
 //----------------------------------------------------------------------
