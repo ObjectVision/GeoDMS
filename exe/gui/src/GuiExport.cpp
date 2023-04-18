@@ -10,14 +10,58 @@
 
 #include "ShvUtils.h"
 
-bool CurrentItemCanBeExportedToVector(TreeItem* item)
+bool CurrentItemCanBeExportedAsTable(const TreeItem* item)
+{
+    // category Table-a: domain with related data-items as sub-items
+    if (IsUnit(item))
+    {
+        auto domainCandidate = AsUnit(item);
+        if (!domainCandidate->CanBeDomain())
+            return false;
+        for (auto subItem = item; subItem; subItem = item->WalkConstSubTree(subItem))
+            if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
+                return true;
+        return false;
+    }
+
+    // category Table-b: container with data-items as direct sub-items that all have a compatible domain
+    const AbstrUnit* domainCandidate = nullptr;
+    for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+    {
+        if (IsDataItem(subItem))
+        {
+            auto adu = AsDataItem(subItem)->GetAbstrDomainUnit();
+            if (domainCandidate)
+            {
+                if (!domainCandidate->UnifyDomain(adu))
+                    return false;
+            }
+            else
+                domainCandidate = adu;
+        }
+    }
+    return domainCandidate != nullptr;
+}
+
+bool CurrentItemCanBeExportedToVector(const TreeItem* item)
 {
     if (!item)
         return false;
 
+    // category Attr: a single data item
+    if (IsDataItem(item))
+        return true;
 
+    // category Table
+    if (CurrentItemCanBeExportedAsTable(item))
+        return true;
 
-    return true;
+    // category Database: container with tables.
+    for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+        if (CurrentItemCanBeExportedAsTable(subItem))
+            return true;
+
+    return false;
 }
 
 bool CanBeRasterDomain(const AbstrUnit* domainCandidate)
