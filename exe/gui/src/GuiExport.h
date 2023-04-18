@@ -3,10 +3,17 @@
 
 struct gdal_driver_id
 {
-	std::string shortname;
-	std::string name;
-	bool is_raster = false;
-	bool is_native = false;
+	std::string shortname = "";
+	std::string name      = "";
+	bool is_raster        = false;
+	bool is_native        = false;
+
+	bool IsEmpty()
+	{
+		if (shortname.empty() || name.empty())
+			return true;
+		return false;
+	}
 };
 
 class GuiExport
