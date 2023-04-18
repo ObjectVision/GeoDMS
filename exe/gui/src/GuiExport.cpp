@@ -115,6 +115,15 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
     return CanBeRasterDomain(adu);
 }
 
+void GuiExport::SetDefaultNativeDriverUsage()
+{
+    // TODO: expand logic, simplified implementation
+    if (m_selected_driver.is_native && m_selected_driver.shortname == "CSV")
+        m_use_native_driver = true;
+    else
+        m_use_native_driver = false;
+}
+
 void GuiExport::SelectDriver(bool is_raster)
 {
     if (m_selected_driver.is_raster != is_raster)
@@ -122,6 +131,8 @@ void GuiExport::SelectDriver(bool is_raster)
 
     ImGui::Text("Format:               "); ImGui::SameLine();
     
+
+
     if (ImGui::BeginCombo("##driver_selector", m_selected_driver.shortname.c_str(), ImGuiComboFlags_None))
     {
         for (auto& available_driver : m_available_drivers)
@@ -133,10 +144,22 @@ void GuiExport::SelectDriver(bool is_raster)
             if (ImGui::Selectable(available_driver.shortname.c_str(), is_selected))
             {
                 m_selected_driver = available_driver;
+                SetDefaultNativeDriverUsage();
             }
         }
         ImGui::EndCombo();
     }
+
+    ImGui::SameLine();
+
+    // native driver selection
+    
+    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.is_native);
+    ImGui::Checkbox("##native_driver", &m_use_native_driver);
+    ImGui::SameLine();
+    ImGui::Text("Use native driver");
+    ImGui::EndDisabled();
+    
 }
 
 void GuiExport::SetStorageLocation()
@@ -174,15 +197,15 @@ GuiExport::GuiExport()
 {
     m_folder_name = GetLocalDataDir().c_str();
 
-    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", false);
-    m_available_drivers.emplace_back("GPKG", "GeoPackage vector", false);
-    m_available_drivers.emplace_back("CSV", "Comma Separated Value(.csv)", false);
-    m_available_drivers.emplace_back("GML", "Geography Markup Language", false);
-    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", false);
-    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", true);
-    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", true);
-    m_available_drivers.emplace_back("PNG", "Portable Network Graphics", true);
-    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format", true);
+    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", false, true);
+    m_available_drivers.emplace_back("GPKG", "GeoPackage vector", false, false);
+    m_available_drivers.emplace_back("CSV", "Comma Separated Value(.csv)", false, true);
+    m_available_drivers.emplace_back("GML", "Geography Markup Language", false, false);
+    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", false, false);
+    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", true, true);
+    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", true, false);
+    m_available_drivers.emplace_back("PNG", "Portable Network Graphics", true, false);
+    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format", true, false);
 }
 
 void GuiExport::Update(bool* p_open, GuiState &state)
@@ -253,6 +276,7 @@ void GuiExport::DoExport(GuiState& state)
 
     // TODO: make shadow items if a storage on this gets in the way of other things.
     // TODO: use driver or storageType
+    // TODO: use m_use_native_driver to make use of GeoDMS native driver
 
     SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
     CharPtr driverName = nullptr;
