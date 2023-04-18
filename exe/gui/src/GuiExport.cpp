@@ -36,14 +36,20 @@ bool CanBeRasterDomain(const AbstrUnit* domainCandidate)
     return false;
 }
 
-bool CurrentItemCanBeExportedToRaster(TreeItem* item)
+bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
 {
     if (!item)
         return false;
 
     if (!IsDataItem(item))
     {
-
+        if (IsUnit(item))
+        {
+            auto domainCandidate = AsUnit(item);
+            for (auto subItem = item; subItem; subItem = item->WalkConstSubTree(subItem))
+                if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
+                    return CanBeRasterDomain(domainCandidate);
+        }
         return false;
     }
 
