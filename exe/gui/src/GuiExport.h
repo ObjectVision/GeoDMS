@@ -6,6 +6,7 @@ struct gdal_driver_id
 	std::string shortname;
 	std::string name;
 	bool is_raster = false;
+	bool is_native = false;
 };
 
 class GuiExport
@@ -18,6 +19,7 @@ private:
 	void SetDefaultNativeDriverUsage();
 	void SelectDriver(bool is_raster);
 	void SetStorageLocation();
+	void DoExport(GuiState& state);
 
 	std::vector<gdal_driver_id> m_available_drivers;
 	gdal_driver_id m_selected_driver;

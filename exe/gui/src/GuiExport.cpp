@@ -7,6 +7,7 @@
 
 #include "mci/ValueClass.h"
 #include "utl/Environment.h"
+#include "utl/splitPath.h"
 
 #include "ShvUtils.h"
 
@@ -243,14 +244,9 @@ void GuiExport::Update(bool* p_open, GuiState &state)
 
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
-        // current treeitem:     state.GetCurrentItem()
-        // selected gdal driver: m_selected_driver
-        // string foldername:    m_folder_name
-        // string filename:      m_filename
-
-
-
+        DoExport(state);
     }
+
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
@@ -259,3 +255,28 @@ void GuiExport::Update(bool* p_open, GuiState &state)
 
     ImGui::End();
 }
+
+#include "stg/AbstrStoragemanager.h"
+
+void GuiExport::DoExport(GuiState& state)
+{
+    auto item = state.GetCurrentItem();
+    auto selectedDriver = m_selected_driver;
+    auto folderName = m_folder_name;
+    auto fileName = m_file_name;
+
+    // TODO: make shadow items if a storage on this gets in the way of other things.
+    // TODO: use driver or storageType
+
+    SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
+    CharPtr driverName = nullptr;
+    if (selectedDriver.is_native)
+        driverName = selectedDriver.shortname.c_str();
+    else if (selectedDriver.is_raster)
+        driverName = "gdalwrite.grid";
+    else
+        driverName = "gdalwrite.vect";
+
+    item->SetStorageManager(ffName.c_str(), driverName, false);
+}
+
