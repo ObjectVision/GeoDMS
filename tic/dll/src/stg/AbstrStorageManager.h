@@ -177,6 +177,7 @@ struct GdalMetaInfo :StorageMetaInfo
 	SharedTreeItemInterestPtr m_LayerCreationOptions;
 	SharedTreeItemInterestPtr m_ConfigurationOptions;
 	SharedTreeItemInterestPtr m_DriverItem;
+	SharedStr m_Driver, m_Options;
 };
 
 

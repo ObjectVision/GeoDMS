@@ -1152,18 +1152,19 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
 
+	auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
 	int nXSize = 0, nYSize = 0, nBands = 0;
 	GDALDataType eType = GDT_Unknown;
-	auto optionArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_OptionsItem);
-	auto driverArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_DriverItem);
-	auto layerOptionArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_LayerCreationOptions);
+	auto optionArray = GetOptionArray(gmi.m_OptionsItem);
+	auto driverArray = GetOptionArray(gmi.m_DriverItem);
+	auto layerOptionArray = GetOptionArray(gmi.m_LayerCreationOptions);
 	//auto configurationOptionsArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions);
 
-	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
-		optionArray.AddString(storageOptionsPropDefPtr->GetValue(storageHolder).c_str());
+	if (!gmi.m_Options.empty())
+		optionArray.AddString(gmi.m_Options.c_str());
 
-	if (storageDriverPropDefPtr->HasNonDefaultValue(storageHolder))
-		driverArray.AddString(storageDriverPropDefPtr->GetValue(storageHolder).c_str());
+	if (!gmi.m_Driver.empty())
+		driverArray.AddString(gmi.m_Driver.c_str());
 
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));

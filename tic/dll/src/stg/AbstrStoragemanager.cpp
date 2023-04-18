@@ -828,6 +828,12 @@ GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions"))
 	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions"))
 {
+	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
+		m_Options = storageOptionsPropDefPtr->GetValue(storageHolder).c_str();
+
+	if (storageDriverPropDefPtr->HasNonDefaultValue(storageHolder))
+		m_Driver = storageDriverPropDefPtr->GetValue(storageHolder).c_str();
+
 	if (m_OptionsItem)
 		m_OptionsItem->PrepareDataUsage(DrlType::Certain);
 	if (m_DriverItem)
