@@ -481,9 +481,9 @@ void ConfigProd::SetVC (ValueComposition    vc)
 // *****************************************************************************
 
 // REMOVE COMMENT: Integreer met DoNrOfRowsProp()
-void ConfigProd::DoUnitRangeProp()
+void ConfigProd::DoUnitRangeProp(bool isCategorical)
 {
-	dms_assert(m_pCurrent);
+	assert(m_pCurrent);
 	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
 	dms_assert(unit);
 	const ValueClass* vc = unit->GetValueType();
@@ -588,10 +588,19 @@ void ConfigProd::DoItemName()
 
 void ConfigProd::DoNrOfRowsProp()
 {
-	m_FloatInterval.first = 0;
-	m_FloatInterval.second = m_FloatVal;
-	m_eAssignmentDomainType = m_eValueType;
-	DoUnitRangeProp();
+	assert(m_eValueType == VT_UInt32);
+	assert(m_pCurrent);
+
+	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
+	assert(unit);
+	const ValueClass* vc = unit->GetValueType();
+	assert(vc);
+
+	if (!vc->IsNumeric())
+		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType %s of this unit", vc->GetName()).c_str());
+
+	unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
+	unit->SetRangeAsFloat64(0, m_IntValAsUInt32);
 }
 
 void ConfigProd::throwSemanticError(CharPtr msg)

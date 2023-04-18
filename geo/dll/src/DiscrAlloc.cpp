@@ -2615,7 +2615,7 @@ public:
 		dms_assert(res);
 
 		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
-		resLanduse->SetTSF(DSF_Categorical);
+		resLanduse->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStatus =
 			CreateDataItem(

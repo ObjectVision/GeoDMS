@@ -332,7 +332,6 @@ public:
 				Arg2Type::const_iterator i2 = arg2Data.begin(), e2 = arg2Data.end();
 				for(; i2 != e2; ++i2)
 				{
-	//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, *i2); 
 					SizeT polyNr = *i2;
 					polyNr -= polyIndexRange.first;
 					if (polyNr < nrPolys)
@@ -372,10 +371,8 @@ public:
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
-		{
 			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
-//			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
-		}
+
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
 			auto arg1Data = arg1->GetLockedDataRead(ta);
@@ -388,7 +385,6 @@ public:
 			auto b3 = arg3Data.begin();
 			for (SizeT i=0, n = arg1Data.size(); i!=n; ++i)
 			{
-//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, b2[i]);
 				SizeT polyNr = (arg2) ? b2[i] - polyIndexRange.first : 0;
 				if (polyNr < nrPolys)
 				{
@@ -410,8 +406,7 @@ public:
 
 static TokenID s_Point = token::point;
 static TokenID s_NextPoint = GetTokenID_st("NextPoint");
-static TokenID s_nrOrgEntity = GetTokenID_st("SequenceNr");
-static TokenID s_SequenceNr = GetTokenID_st("Ordinal");
+static TokenID s_DepreciatedSequenceNr = GetTokenID_st("SequenceNr");
 
 namespace {
 	enum TableCreateFlags
@@ -419,7 +414,7 @@ namespace {
 		DoCloseLast           = 0x0001
 	,	DoCreateNextPoint     = 0x0002
 	,	DoCreateNrOrgEntity   = 0x0004
-	,	DoCreateSequenceNr    = 0x0008
+	,	DoCreateOrdinal    = 0x0008
 	,	DoCreateDistFromStart = 0x0010
 	,	DoIncludeEndPoints    = 0x0020
 	};
@@ -443,23 +438,22 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
+		auto arg1A = AsDataItem(args[0]);
+		assert(arg1A);
 
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		ResultUnitType* resDomain
-			=	debug_cast<ResultUnitType*>(
-					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
-				);
-		dms_assert(resDomain);
+		ResultUnitType* resDomain = debug_cast<ResultUnitType*>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 
-		*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
+			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
 			*resSub2 = nullptr, 
 			*resSub3 = nullptr,
 			*resSub4 = nullptr;
@@ -474,14 +468,21 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && polyEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, polyEntity);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity);
 			MG_PRECONDITION(resSub3);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3->SetTSF(TSF_Categorical);
+			if (!mustCalc)
+			{
+				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, polyEntity);
+				depreciatedRes->SetTSF(TSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Depreciated);
+				depreciatedRes->SetReferredItem(resSub3);
+			}
 		}
 
-		if (m_CreateFlags & DoCreateSequenceNr)
+		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_SequenceNr, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
 			MG_PRECONDITION(resSub4);
 		}
 		
@@ -707,7 +708,9 @@ struct AbstrDynaPointOperator : public TernaryOperator
 			=	debug_cast<ResultUnitType*>(
 					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
 				);
-		dms_assert(resDomain);
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -726,15 +729,25 @@ struct AbstrDynaPointOperator : public TernaryOperator
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, pointEntity);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
+			resSub3->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub3);
+
+			if (!mustCalc)
+			{
+				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
+				depreciatedRes->SetTSF(TSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Depreciated);
+				depreciatedRes->SetReferredItem(resSub3);
+			}
 		}
 
-		if (m_CreateFlags & DoCreateSequenceNr)
+		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_SequenceNr, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub4);
+
 		}
 		
 		if (mustCalc)
@@ -779,7 +792,7 @@ class DynaPointOperator : public AbstrDynaPointOperator
 	typedef DataArray<DistType>        Arg3Type;
 	typedef DataArray<PointType>       ResultSub1Type; // Point
 	typedef DataArray<PointType>       ResultSub2Type; // NextPoint
-	typedef AbstrDataItem              ResultSub3Type; // SequenceNr (nr_OrgEntity)
+	typedef AbstrDataItem              ResultSub3Type; // sequence_rel
 	typedef DataArray<UInt32>          ResultSub4Type; // Ordinal
 
 public:
@@ -1041,7 +1054,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1350,7 +1363,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1581,8 +1594,8 @@ protected:
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
 		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
-		if (res1) res1->SetTSF(DSF_Categorical);
-		if (res2) res2->SetTSF(DSF_Categorical);
+		if (res1) res1->SetTSF(TSF_Categorical);
+		if (res2) res2->SetTSF(TSF_Categorical);
 
 		if (mustCalc)
 		{
@@ -1908,7 +1921,7 @@ namespace
 			, p2p_pso(&cogP2P_pso, true, true, ValueComposition::Polygon)
 
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
-			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateSequenceNr)
+			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateOrdinal)
 		{}
 
 	};
@@ -1944,10 +1957,10 @@ namespace
 
 			,	arcLength(&cogAL)
 			,	area(&cogAREA)
-			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateSequenceNr)
-			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateSequenceNr | DoIncludeEndPoints)
-			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateSequenceNr)
-			,	dynaPoint4(&cogDynaSegmentWithEnds, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateSequenceNr | DoIncludeEndPoints)
+			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateOrdinal)
+			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
+			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal)
+			,	dynaPoint4(&cogDynaSegmentWithEnds, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
 		{}
 
 	};

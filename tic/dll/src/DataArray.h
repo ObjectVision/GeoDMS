@@ -318,7 +318,6 @@ struct TileFunctor : data_array_traits<V>::type
 		this->InitValueRangeData(valueRangePtr);
 	}
 
-	virtual void Commit() { throwIllegalAbstract(MG_POS, "TileFunctor::Commit"); }
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;
 #endif
@@ -340,6 +339,7 @@ struct GeneratedTileFunctor : TileFunctor<V>
 		{
 			return self->GetTile(t);
 		}
+
 		tile_id t;
 		SharedPtr<const TileFunctor<V>> self;
 	};

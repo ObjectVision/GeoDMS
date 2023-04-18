@@ -847,9 +847,9 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<TA>(arg1A);
-		auto arg2 = debug_cast<const Arg2Type*>(argUnitA);
-		dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<TA>(arg1A));
+		auto arg2 = MakeShared(debug_cast<const Arg2Type*>(argUnitA));
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
@@ -873,6 +873,9 @@ public:
 		do_transform<TR, TA, TCF>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
 };
+
+
+
 
 
 template <typename TR, typename TA>
@@ -901,16 +904,17 @@ public:
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
 		auto arg1 = const_array_cast<TA>(arg1A);
-		auto arg2 = debug_cast<const Arg2Type*>(argUnitA);
-		dms_assert(arg1);
+		auto arg2 = MakeShared(debug_cast<const Arg2Type*>(argUnitA));
+		auto avu = MakeShared(arg1A->GetAbstrValuesUnit());
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
+			, [avu, arg2](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
-				do_convert<TR, TA, TypeConversionF>(arg2, arg1A->GetAbstrValuesUnit(), argData.begin(), argData.end(), resData.begin());
+				do_convert<TR, TA, TypeConversionF>(arg2, avu, argData.begin(), argData.end(), resData.begin());
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);

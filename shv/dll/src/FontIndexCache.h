@@ -79,7 +79,6 @@ private: friend struct FontArray;
 	void AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const;
 	void AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNameID, UInt16 fontAngle) const;
 	void AddUndefinedKey() const;
-	void MakeKeyIndex() const;
 
 	TokenID m_DefaultFontNameId;
 	UInt16  m_DefaultFontAngle;

@@ -50,6 +50,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include "IndexGetterCreator.h"
+#include "LispTreeType.h"
 
 CommonOperGroup cogCONNEIGH("connect_neighbour",   oper_policy::dynamic_result_class);
 CommonOperGroup cogCON     ("connect",             oper_policy::dynamic_result_class);
@@ -128,7 +129,7 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(pointDomain, pointDomain);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -302,7 +303,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(point2Entity, point1Entity);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)
@@ -451,13 +452,13 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 	}
 
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
 	{
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
 	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(*p, maxDepth, optionalMaxSqrDistPtr));
-			for (auto iter = spIndex.begin(Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
+			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr));
+			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
@@ -465,7 +466,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 				{
 					m_ArcPtr = streetPtr;
-					iter.RefineSearch( Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist)) );
+					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
 				}
 			}
 			if (aph.m_FoundAny || !maxDepth)
@@ -617,15 +618,20 @@ public:
 
 
 		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder, s_Dist, pointEntity, distUnit);
-		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_ArcID,    pointEntity, polyEntity);
+		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, token::arc_rel, pointEntity, polyEntity);
 		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_CutPoint, pointEntity, pointUnit );
 		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InArc,    pointEntity, boolUnit  );
 		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  );
 		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  );
 
-		if (resSub2)
-			resSub2->SetTSF(DSF_Categorical);
-
+		if (resSub2 && !mustCalc)
+		{
+			resSub2->SetTSF(TSF_Categorical);
+			auto resNrOrg_depreciated = CreateDataItem(resultHolder, s_ArcID, pointEntity, polyEntity);
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
+			resNrOrg_depreciated->SetReferredItem(resSub2);
+		}
 		if (mustCalc)
 		{
 			Timer processTimer;
@@ -740,9 +746,10 @@ public:
 						SizeT currRow = 0;
 						for (; pointPtr != pointEnd; ++r1, ++pointPtr)
 						{
-							if (IsDefined(*pointPtr))
+							auto point = *pointPtr;
+							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -806,10 +813,6 @@ public:
 // *****************************************************************************
 //									FastConnectOperator
 // *****************************************************************************
-
-static TokenID s_UnionData = GetTokenID_st("UnionData");
-static TokenID s_orgEntity = GetTokenID_st("nr_OrgEntity");
-static TokenID s_arc_rel   = GetTokenID_st("arc_rel");
 
 template <class T, class R = seq_index_type, compare_type CT = compare_type::none, typename E= UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false>
 class FastConnectOperator : std::conditional_t<CT == compare_type::none
@@ -911,17 +914,24 @@ public:
 		bool createNewResult = !resultHolder;
 		resultHolder = resDomain;
 
-		AbstrDataItem* resSub   = CreateDataItem(resDomain, s_UnionData, resDomain, polyUnit,	ValueComposition::Sequence);
-		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, s_arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
-		resNrOrg->SetTSF(DSF_Categorical);
-
-		if (createNewResult)
+		AbstrDataItem* resSub   = CreateDataItem(resDomain, token::geometry, resDomain, polyUnit, ValueComposition::Sequence);
+		if (!mustCalc)
 		{
-			AbstrDataItem* resNrOrg_depreciated = CreateDataItem(resDomain, s_orgEntity, resDomain, arg1A->GetAbstrDomainUnit());
-			resNrOrg_depreciated->SetTSF(DSF_Categorical);
+			auto resSub_depreciated = CreateDataItem(resDomain, GetTokenID_mt("UnionData"), resDomain, polyUnit, ValueComposition::Sequence);
+			resSub_depreciated->SetTSF(TSF_Depreciated);
+			resSub_depreciated->SetReferredItem(resSub);
+		}
+
+		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
+		resNrOrg->SetTSF(TSF_Categorical);
+		if (!mustCalc)
+		{
+			auto resNrOrg_depreciated = CreateDataItem(resDomain, token::nr_OrgEntity, resDomain, arg1A->GetAbstrDomainUnit());
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
 			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
 			resNrOrg_depreciated->SetReferredItem(resNrOrg);
 		}
+
 		MG_PRECONDITION(resSub);
 
 		if (mustCalc)
@@ -1030,11 +1040,12 @@ public:
 				};
 				for (;pointPtr != pointEnd; ++pointPtr)
 				{
-					if (!IsDefined(*pointPtr))
+					auto point = *pointPtr;
+					if (!IsDefined(point))
 						continue;
 					dms_assert(resStreetEnd < resCutBegin);
 
-					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 					if (arcHnd.m_FoundAny)
 					{
 

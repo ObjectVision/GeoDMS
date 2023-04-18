@@ -70,6 +70,8 @@ namespace token {
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
 
+	inline bool isConst(TokenID t) { return t == true_ || t == false_; }
+
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
 	extern TIC_CALL TokenID convert;
@@ -153,15 +155,17 @@ namespace token {
 	extern TIC_CALL TokenID recollect_by_cond;
 	extern TIC_CALL TokenID recollect_by_org_rel;
 
-	extern TIC_CALL TokenID recollect_attr_by_cond;
-	extern TIC_CALL TokenID recollect_attr_by_org_rel;
-
 //	SELECT section END
 
 	extern TIC_CALL TokenID nr_OrgEntity;
+	extern TIC_CALL TokenID polygon_rel;
+	extern TIC_CALL TokenID part_rel;
+	extern TIC_CALL TokenID arc_rel;
+	extern TIC_CALL TokenID sequence_rel;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;
+	extern TIC_CALL TokenID ordinal;
 	extern TIC_CALL TokenID integrity_check;
 
 	extern TIC_CALL TokenID map;

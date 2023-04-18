@@ -113,7 +113,7 @@ inline bool ContainsUndefined(const Range<T>& range)
 //----------------------------------------------------------------------
 
 template <typename Dst, typename Src, typename ExceptFunc, typename ConvertFunc> inline
-Range<Dst> Convert4(const Range<Src>& src, const Range<Dst>*, const ExceptFunc* ef, const ConvertFunc* cf)
+Range<Dst> Convert4(Range<Src> src, const Range<Dst>*, const ExceptFunc* ef, const ConvertFunc* cf)
 {
 	if (src.inverted())
 		return Range<Dst>();
@@ -135,67 +135,67 @@ Range<Dst> Convert4(const Range<Src>& src, const Range<Dst>*, const ExceptFunc* 
 //----------------------------------------------------------------------
 
 template <class T> inline
-bool IsTouching(const Range<T>& a, const Range<T>& b)
+bool IsTouching(Range<T> a, Range<T> b)
 {
 	return	IsLowerBound(b.first, a.second)
 		&&	IsLowerBound(a.first, b.second);
 }
 
 template <class T> inline
-bool IsTouching(const Range<T>& a, T e)
+bool IsTouching(Range<T> a, T e)
 {
 	return	IsLowerBound(a.first, e)
 		&&	IsLowerBound(e, a.second);
 }
 
 template <class T> inline
-bool IsIntersecting(const Range<T>& a, const Range<T>& b)
+bool IsIntersecting(Range<T> a, Range<T> b)
 {
 	return IsStrictlyLower(b.first, a.second) && IsStrictlyLower(a.first, b.second);
 }
 
 template <class T> inline
-bool IsIntersecting(const Range<T>& a, T e)
+bool IsIntersecting(Range<T> a, T e)
 {
 	return IsLowerBound(a.first, e) && IsStrictlyLower(e, a.second);
 }
 
 template <class T> inline
-bool IsIntersecting(T e, const Range<T>& a)
+bool IsIntersecting(T e, Range<T> a)
 {
 	return IsLowerBound(a.first, e) && IsStrictlyLower(e, a.second);
 }
 
 template <class T> inline
-void operator &= (Range<T>& a, const Range<T>& b)
+void operator &= (Range<T>& a, Range<T> b)
 {
 	MakeUpperBound(a.first,  b.first);
 	MakeLowerBound(a.second, b.second);
 }
 
 template <class T> inline
-Range<T> operator &(Range<T> a, const Range<T>& b)
+Range<T> operator &(Range<T> a, Range<T> b)
 {
 	a &= b;
 	return a;
 }
 
 template <typename T, typename U> inline
-void operator |= (Range<T>& a, const Range<U>& b)
+void operator |= (Range<T>& a, Range<U> b)
 {
 	MakeLowerBound(a.first,  Convert<T>(b.first));
 	MakeUpperBound(a.second, Convert<T>(b.second));
 }
 
 template <typename T, typename U> inline
-Range<T> operator |(Range<T> a, const Range<U>& b)
+Range<T> operator |(Range<T> a, Range<U> b)
 {
 	a |= b;
 	return a;
 }
 
 template <typename T, typename U> inline
-void operator |= (Range<T>& a, const U& b)
+void operator |= (Range<T>& a, U b)
 {
 	MakeLowerBound(a.first,  Convert<T>(b));
 	MakeUpperBound(a.second, Convert<T>(b));
@@ -215,19 +215,19 @@ void MakeIncluding(Range<T>& a, CIT first, CIT last)
 }
 
 template <class T> inline
-bool IsIncluding(const Range<T>& a, const Range<T>& b)
+bool IsIncluding(Range<T> a, Range<T> b)
 {
 	return IsLowerBound(a.first, b.first) && IsUpperBound(a.second, b.second);
 }
 
 template <class T> inline
-bool IsIncluding(const Range<T>& a, T e)
+bool IsIncluding(Range<T> a, T e)
 {
 	return IsLowerBound(a.first, e) && IsStrictlyLower(e, a.second);
 }
 
 template <bit_size_t N>
-inline bool IsIncluding(const Range<UInt32>& a, bit_value<N> e)
+inline bool IsIncluding(Range<UInt32> a, bit_value<N> e)
 {
 	dms_assert(a.first  == 0);
 	dms_assert(a.second == (1 << N));
@@ -236,13 +236,13 @@ inline bool IsIncluding(const Range<UInt32>& a, bit_value<N> e)
 }
 
 template <bit_size_t N, typename Block>
-inline bool IsIncluding(const Range<UInt32>& a, bit_reference<N, Block> e)
+inline bool IsIncluding(Range<UInt32> a, bit_reference<N, Block> e)
 {
 	return IsIncluding(a, bit_value<N>(e));
 }
 
 template <typename T, typename CIT> inline
-bool IsIncluding(const Range<T>& a, CIT first, CIT last)
+bool IsIncluding(Range<T> a, CIT first, CIT last)
 {
 	for (; first != last; ++first)
 		if (!IsIncluding(a, *first))
@@ -251,7 +251,7 @@ bool IsIncluding(const Range<T>& a, CIT first, CIT last)
 }
 
 template <typename T, typename CIT> inline
-bool IsIncludingOrUndefined(const Range<T>& a, CIT first, CIT last)
+bool IsIncludingOrUndefined(Range<T> a, CIT first, CIT last)
 {
 	for(; first != last; ++first)
 		if (IsDefined(*first) && !IsIncluding(a, *first))
@@ -260,21 +260,21 @@ bool IsIncludingOrUndefined(const Range<T>& a, CIT first, CIT last)
 }
 
 template <class T> inline
-void operator += (Range<T>& a, const Range<T>& b)
+void operator += (Range<T>& a, Range<T> b)
 {
 	a.first  += b.first;
 	a.second += b.second;
 }
 
 template <class T> inline
-void operator += (Range<T>& a, const T& b)
+void operator += (Range<T>& a, T b)
 {
 	a.first  += b;
 	a.second += b;
 }
 
 template <class T> inline
-void operator -= (Range<T>& a, const Range<T>& b)
+void operator -= (Range<T>& a, Range<T> b)
 {
 	a.first  -= b.first;
 	a.second -= b.second;
@@ -282,59 +282,59 @@ void operator -= (Range<T>& a, const Range<T>& b)
 }
 
 template <class T> inline
-void operator -= (Range<T>& a, const T& b)
+void operator -= (Range<T>& a, T b)
 {
 	a.first  -= b;
 	a.second -= b;
 }
 
 template <class T> inline
-Range<T> operator + (const Range<T>& a, const Range<T>& b)
+Range<T> operator + (Range<T> a, Range<T> b)
 {
 	return Range<T>(a.first + b.first, a.second + b.second);
 }
 
 template <class T> inline
-Range<T> operator + (const Range<T>& a, const T& b)
+Range<T> operator + (Range<T> a, T b)
 {
 	return Range<T>(a.first + b, a.second + b);
 }
 
 template <class T> inline
-Range<T> operator - (const Range<T>& a, const Range<T>& b)
+Range<T> operator - (Range<T> a, Range<T> b)
 {
 	return Range<T>(a.first - b.first, a.second - b.second);
 }
 
 template <class T> inline
-Range<T> operator - (const Range<T>& a, const T& b)
+Range<T> operator - (Range<T> a, T b)
 {
 	return Range<T>(a.first - b, a.second - b);
 }
 
 // unary negate range
 template <class T> inline
-Range<T> operator - (const Range<T>& a)
+Range<T> operator - (Range<T> a)
 {
 	return Range<T>(-a.second, -a.first);
 }
 
 template <class T>
-inline Float64 AsFloat64(const Range<T>& x )
+inline Float64 AsFloat64(Range<T> x )
 {
 	throwIllegalAbstract(MG_POS, "Range::AsFloat64");
 }
 
 template <class T> inline
-T Center(const Range<T>& r) { return (r.first+r.second) / scalar_of<T>::type(2); }
+T Center(Range<T> r) { return (r.first+r.second) / scalar_of<T>::type(2); }
 
 template <class T> inline
 typename unsigned_type<T>::type
-Size(const Range<T>& r) { return r.second - r.first; }
+Size(Range<T> r) { return r.second - r.first; }
 
 template <class T> inline
 SizeT
-Cardinality(const Range<T>& r)
+Cardinality(Range<T> r)
 { 
 	return IsDefined(r) 
 		?	r.empty()
@@ -345,11 +345,11 @@ Cardinality(const Range<T>& r)
 
 template <> inline
 SizeT
-Cardinality(const Range<Void>& ) { return 1; }
+Cardinality(Range<Void> ) { return 1; }
 
 template <class T> inline
 typename product_type<T>::type
-Area(const Range<Point<T> >& r)
+Area(Range<Point<T> > r)
 { 
 	return IsDefined(r) 
 		?	r.empty()
@@ -359,19 +359,19 @@ Area(const Range<Point<T> >& r)
 }
 
 template <class T> inline
-Range<T> Inflate(const Range<T>& r, const T& p) { return Range<T>(r.first-p, r.second+p); }
+Range<T> Inflate(Range<T> r, T p) { return Range<T>(r.first-p, r.second+p); }
 
 template <class T> inline
-Range<T> Deflate(const Range<T>& r, const T& p) { return Range<T>(r.first+p, r.second-p); }
+Range<T> Deflate(Range<T> r, T p) { return Range<T>(r.first+p, r.second-p); }
 
 template <class T> inline
-Range<T> Inflate(const T& center, const T& radius) { return Range<T>(center-radius, center+radius); }
+Range<T> Inflate(T center, T radius) { return Range<T>(center-radius, center+radius); }
 
-template <class T> inline T _Left  (const Range<Point<T> >& r) { return r.first .Col(); }
-template <class T> inline T _Top   (const Range<Point<T> >& r) { return r.first .Row(); }
-template <class T> inline T _Right (const Range<Point<T> >& r) { return r.second.Col(); }
-template <class T> inline T _Bottom(const Range<Point<T> >& r) { return r.second.Row(); }
-template <class T> inline T _Width (const Range<Point<T> >& r) { return _Right (r) - _Left(r); }
-template <class T> inline T _Height(const Range<Point<T> >& r) { return _Bottom(r) - _Top (r); }
+template <class T> inline T _Left  (Range<Point<T> > r) { return r.first .Col(); }
+template <class T> inline T _Top   (Range<Point<T> > r) { return r.first .Row(); }
+template <class T> inline T _Right (Range<Point<T> > r) { return r.second.Col(); }
+template <class T> inline T _Bottom(Range<Point<T> > r) { return r.second.Row(); }
+template <class T> inline T _Width (Range<Point<T> > r) { return _Right (r) - _Left(r); }
+template <class T> inline T _Height(Range<Point<T> > r) { return _Bottom(r) - _Top (r); }
 
 #endif // __RTC_GEO_RANGE_H

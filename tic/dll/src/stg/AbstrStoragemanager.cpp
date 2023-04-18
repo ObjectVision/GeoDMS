@@ -484,14 +484,52 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		subDirNameStr = MakeAbsolutePath(subDirName);
 		subDirName = subDirNameStr.c_str();
 	}
+
+	if (storageName.ssize() > 65000)
+		throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of storage name is %d; anything larger than 65000 bytes is assumed to be faulty."
+			"\nStorage name: '%s'"
+			, storageNameCStr
+			, storageName.ssize()
+		);
+
+	UInt32 substCount = 0;
 	while (true)
 	{
+		if (storageName.ssize() > 65000)
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of intermediate name during substitution is %d; anything larger than 65000 bytes is assumed to be faulty."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, storageName.ssize()
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+
 		CharPtr p1 = storageName.find('%');
 		if (p1 == storageName.csend())
 			break;
 		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
 		if (p2 == storageName.csend())
-			throwDmsErrF("GetFullStorageName('%s'): unbalanced placeholder delimiters (%%).", storageName.c_str());
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): unbalanced placeholder delimiter (%%) at position %d."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, p1 - storageName.begin()
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+		if (substCount >= 1024)
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): substitution aborted after too many substitutions. Resursion suspected."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+		++substCount;
 		storageName 
 				= SharedStr(storageName.cbegin(), p1) 
 				+ GetPlaceholderValue(subDirName,  SharedStr(p1+1, p2).c_str(), true)

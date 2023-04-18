@@ -107,12 +107,6 @@ void ExprProd::ProdUnaryOper(TokenID id)
 	);
 }
 		
-void ExprProd::ProdNullaryOper(TokenID id)
-{
-	// tail -> ((id), tail); as a nullary function call
-	m_Result.push_back(RewriteExprTop_InParse(List1<LispRef>(LispRef(id))));
-}
-
 void ExprProd::ProdStringValue()
 {
 	// tail -> (string, tail)

@@ -303,7 +303,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), leftRole, rightRole, UnifyMode(UM_AllowDefaultLeft|UM_Throw));
 
 /*
-	if (refAsDi->GetTSF(DSF_Categorical))
+	if (refAsDi->GetTSF(TSF_Categorical))
 	{
 		SharedStr resultMsg;
 		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
@@ -420,17 +420,28 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!myvu->UnifyValues(refvu, "the specified ValuesUnit", "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
-			goto failResultMsg;
-	}
-	if (adi->GetTSF(DSF_Categorical))
-	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft))
-			goto failResultMsg;
-		SetTSF(DSF_Categorical);
-	}
-	return true;
+		bool myvuIsCategorical = myvu->GetTSF(TSF_Categorical);
+		CharPtr myvuTypeStr = myvuIsCategorical
+			? "the specified categorical ValuesUnit"
+			: "the specified noncategorical ValuesUnit";
 
+		if (!myvu->UnifyValues(refvu, myvuTypeStr, "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+			goto failResultMsg;
+
+		if (adi->GetTSF(TSF_Categorical))
+		{
+			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+				goto failResultMsg;
+			SetTSF(TSF_Categorical);
+		}
+		else if (myvuIsCategorical)
+		{
+			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the noncategorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+				goto failResultMsg;
+			SetTSF(TSF_Categorical);
+		}
+		return true;
+	}
 failResultMsg:
 	Fail(errMsgStr, FR_Determine);
 	return false;
@@ -1034,7 +1045,7 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrDataItem_GetStaticClass()
 
 const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 {
-	dms_assert(adi);
+	assert(adi);
 	while (true)
 	{
 		auto au = adi->GetAbstrValuesUnit();

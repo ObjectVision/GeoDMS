@@ -45,47 +45,47 @@ granted by an additional written contract for support, assistance and/or develop
 template <bit_size_t N>
 struct bit_value
 {
-	typedef typename api_type<bit_value>::type base_type;
+	using base_type = typename api_type<bit_value>::type ;
 
 	static const bit_block_t nr_values = mpf::exp2<N>::value;
 	static const bit_block_t mask      = nr_values -1;
 
-	bit_value()                : m_Value(0) {}
-	bit_value(base_type value) : m_Value(value) 
+	constexpr bit_value()                : m_Value(0) {}
+	constexpr bit_value(base_type value) : m_Value(value)
 	{
 		static_assert(nr_values > 0);
 		static_assert(sizeof(bit_value<N>) == 1);
-		dms_assert(UInt32(value) <= mask);
+		assert(UInt32(value) <= mask);
 	}
 
 	template <bit_size_t M>
-	bit_value(const bit_value<M>& value): m_Value(value) 
+	constexpr bit_value(const bit_value<M>& value): m_Value(value)
 	{
-		dms_assert(UInt32(value) <= mask);
+		assert(UInt32(value) <= mask);
 	}
 
-	operator base_type() const { return m_Value; }
-	base_type base_value() const { return m_Value;  }
+	constexpr operator base_type() const { return m_Value; }
+	constexpr base_type base_value() const { return m_Value;  }
 
 	void operator =(base_type newValue)
 	{ 
-		dms_assert(UInt32(newValue) <= mask);
+		assert(UInt32(newValue) <= mask);
 		m_Value = newValue;  
 	}
 	template <bit_size_t M>
 	void operator = (const bit_value<M>& newValue)
 	{
-		dms_assert(UInt32(newValue) <= mask);
+		assert(UInt32(newValue) <= mask);
 		m_Value = newValue;
 	}
 
-	bool operator <  (bit_value<N> oth) const { return m_Value <  oth.m_Value; }
-	bool operator >  (bit_value<N> oth) const { return m_Value >  oth.m_Value; }
-	bool operator == (bit_value<N> oth) const { return m_Value == oth.m_Value; }
-	bool operator != (bit_value<N> oth) const { return m_Value != oth.m_Value; }
-	bool operator >= (bit_value<N> oth) const { return m_Value >= oth.m_Value; }
-	bool operator <= (bit_value<N> oth) const { return m_Value <= oth.m_Value; }
-	bool operator !  ()                 const { return m_Value == base_type(); }
+	constexpr bool operator <  (bit_value<N> oth) const { return m_Value <  oth.m_Value; }
+	constexpr bool operator >  (bit_value<N> oth) const { return m_Value >  oth.m_Value; }
+	constexpr bool operator == (bit_value<N> oth) const { return m_Value == oth.m_Value; }
+	constexpr bool operator != (bit_value<N> oth) const { return m_Value != oth.m_Value; }
+	constexpr bool operator >= (bit_value<N> oth) const { return m_Value >= oth.m_Value; }
+	constexpr bool operator <= (bit_value<N> oth) const { return m_Value <= oth.m_Value; }
+	constexpr bool operator !  ()                 const { return m_Value == base_type(); }
 
 private:
 	base_type m_Value; 
@@ -107,10 +107,10 @@ struct minmax_traits<bit_value<N> >
 //----------------------------------------------------------------------
 
 template <bit_size_t N>
-bit_value<N> UndefinedOrZero(const bit_value<N>* ) { return 0; }
+constexpr bit_value<N> UndefinedOrZero(const bit_value<N>* ) { return 0; }
 
 template <bit_size_t N>
-bit_value<N> UndefinedOrMax(const bit_value<N>* ) { return bit_value<N>::mask; }
+constexpr bit_value<N> UndefinedOrMax(const bit_value<N>* ) { return bit_value<N>::mask; }
 
 template <bit_size_t N> inline bool IsDefined(bit_value<N>) 
 {

@@ -60,7 +60,7 @@ public:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(arg1_DomainUnit, arg2_DomainUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)
@@ -146,7 +146,7 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 //		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<V>(arg1A);
+		auto arg1 = MakeShared(const_array_cast<V>(arg1A));
 		dms_assert(arg1);
 		auto indexBoxPtr = std::make_shared<std::any>(std::move(indexBox));
 		using prepare_data = SharedPtr<typename TileFunctor<V>::future_tile>;

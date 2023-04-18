@@ -66,6 +66,7 @@ struct OperationContext;
 struct UsingCache;
 struct SupplCache;
 struct SourceLocation;
+
 class AbstrCalculator;
 using TreeItemList = single_linked_list<TreeItem>;
 

@@ -355,29 +355,15 @@ void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, std::vector<DPoint>& po
 // *****************************************************************************
 #include "BoundingBoxCache.h"
 
-struct BoundsArraysGetterBase : UnitProcessor
-{
-	template <typename P>
-	void VisitImpl(const Unit<P>* inviter) const
-	{
-		GetBoundingBoxCache<typename scalar_of<P>::type>(m_Result, m_PolyAttr, m_MustPrepare);
-	}
-
-	const AbstrDataItem* m_PolyAttr = nullptr;
-	bool m_MustPrepare = false;
-	mutable SharedPtr<const AbstrBoundingBoxCache> m_Result;
-};
-
-struct BoundsArrayGetter : boost::mpl::fold<typelists::seq_points, BoundsArraysGetterBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
-{};
-
 SharedPtr<const AbstrBoundingBoxCache> GetBounds(const AbstrDataItem* polyAttr, bool mustPrepare)
 {
-	BoundsArrayGetter getter;
-	getter.m_PolyAttr = polyAttr;
-	getter.m_MustPrepare = mustPrepare;
-	polyAttr->GetAbstrValuesUnit()->InviteUnitProcessor(getter);
-	return getter.m_Result;
+	return visit_and_return_result<typelists::seq_points, SharedPtr<const AbstrBoundingBoxCache> >(polyAttr->GetAbstrValuesUnit(), [polyAttr, mustPrepare]<typename P >(const Unit<P>*)
+		{
+			SharedPtr<const AbstrBoundingBoxCache> result;
+			GetSequenceBoundingBoxCache<scalar_of_t<P>>(result, polyAttr, mustPrepare);
+			return result;
+		}
+	);
 }
 
 
@@ -398,7 +384,7 @@ namespace poly2grid
 
 		void OpenTile(const AbstrDataObject* polyData, tile_id t) override
 		{
-			m_Seq = debug_cast<const DataArray<PolyType>*>(polyData)->GetLockedDataRead(t);
+			m_Seq = const_array_cast<PolyType>(polyData)->GetTile(t);
 		}
 
 		void GetValue(SizeT i, std::vector<DPoint>& dPoints) override 

@@ -180,7 +180,7 @@ Int32 AbstrThemeValueGetter::GetOrdinalValue(SizeT entityIndex) const
 
 UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(Int32);
@@ -208,7 +208,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 		if (auto cvg = dynamic_cast<const ConstValueGetter<SharedStr>*>(this))
 			return TextInfo{ cvg->m_Value, false };
 	}
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 	{
@@ -226,7 +226,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 
 SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(SharedStr);
@@ -236,7 +236,7 @@ SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetr
 
 const AbstrThemeValueGetter* AbstrThemeValueGetter::CreatePaletteGetter() const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	if (IsDirectGetter())
 		return this;
 	if (m_PaletteGetter.is_null() || m_PaletteAttr != m_PaletteGetter->GetPaletteAttr())

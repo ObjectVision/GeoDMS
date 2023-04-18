@@ -65,8 +65,8 @@ inline UInt32 Undef32(ValueClassID streamTypeID)
 	case VT_Int32:
 		return UNDEFINED_VALUE(Int32);
 	case VT_Float32:
-		Float32 undef = UNDEFINED_VALUE(Float32);
-		return reinterpret_cast<UInt32&>(undef);
+		constexpr Float32 undef = UNDEFINED_VALUE(Float32);
+		return reinterpret_cast<const UInt32&>(undef);
 	}
 	dms_assert(streamTypeID == VT_UInt32);
 	return UNDEFINED_VALUE(UInt32);
@@ -78,8 +78,8 @@ inline UInt64 Undef64(ValueClassID streamTypeID)
 	case VT_Int64:
 		return UNDEFINED_VALUE(Int64);
 	case VT_Float64:
-		Float64 undef = UNDEFINED_VALUE(Float64);
-		return reinterpret_cast<UInt64&>(undef);
+		constexpr Float64 undef = UNDEFINED_VALUE(Float64);
+		return reinterpret_cast<const UInt64&>(undef);
 	}
 	dms_assert(streamTypeID == VT_UInt64);
 	return UNDEFINED_VALUE(UInt64);

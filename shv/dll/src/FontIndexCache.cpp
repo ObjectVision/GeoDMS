@@ -167,8 +167,7 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 
 		AddKey(m_DefaultPixelWidth, m_DefaultWorldWidth, m_DefaultFontNameId, m_DefaultFontAngle);
 	}
-	MakeKeyIndex();
-	dms_assert(m_KeyIndices.size() > 0); // PostCondition
+	MakeKeyIndex(m_KeyIndices, m_Keys);
 }
 
 void FontIndexCache::AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const
@@ -234,23 +233,6 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 void FontIndexCache::AddUndefinedKey() const
 {
 	m_Keys.push_back( FontKeyType(0, TokenID::GetEmptyID(), 0) ); // Extra Font for features with Undefined ClassId
-}
-
-void FontIndexCache::MakeKeyIndex() const
-{
-	std::vector<FontKeyType> orgFontKeys = m_Keys;
-
-	std::sort(m_Keys.begin(), m_Keys.end());
-	m_Keys.erase(
-		std::unique(m_Keys.begin(), m_Keys.end()),
-		m_Keys.end()
-	);
-
-	m_KeyIndices.resize(orgFontKeys.size());
-	rlookup2index_array_unchecked(m_KeyIndices,
-		orgFontKeys,
-		m_Keys
-	);
 }
 
 Int32 FontIndexCache::GetMaxFontSize() const

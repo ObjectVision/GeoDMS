@@ -63,12 +63,12 @@ public:
 		const AbstrUnit* argUnitA= AsUnit(args[m_ReverseArgs ? 0 : 1]);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(
-				argDataA->GetAbstrDomainUnit() 
-			,	argUnitA 
-			,	m_VC
-			);
-		
+		{
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, m_VC);
+			if (argUnitA->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
+		}
+
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -103,7 +103,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -249,12 +249,12 @@ public:
 	{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		const Arg1Type* arg1 = const_array_cast<Arg1Values>(arg1A);
+		auto arg1 = MakeShared(const_array_cast<Arg1Values>(arg1A));
 		dms_assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;

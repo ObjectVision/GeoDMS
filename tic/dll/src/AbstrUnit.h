@@ -81,6 +81,7 @@ const UInt32 MAX_TILE_SIZE = 0x10000;
 //----------------------------------------------------------------------
 // class  : AbstrUnit
 //----------------------------------------------------------------------
+
 enum UnifyMode {
 	UM_AllowDefaultLeft  =  1, 
 	UM_AllowDefaultRight =  2,
@@ -90,6 +91,8 @@ enum UnifyMode {
 	UM_AllowVoidRight    = 16,
 	UM_AllowAllEqualCount= 32,
 };
+
+inline auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
 
 class AbstrUnit : public TreeItem
 {

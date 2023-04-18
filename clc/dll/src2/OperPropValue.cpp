@@ -178,6 +178,8 @@ struct PropValueOperator : public BinaryOperator
 			if (m_ItemSetProvider)
 			{
 				resultHolder = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder); // count subitems.
+				resultHolder->SetTSF(TSF_Categorical);
+
 				resultHolder.GetNew()->SetKeepDataState(true);
 				for (SizeT p=0, pe = argDomain->GetCount(); p!=pe; ++p)
 					AbstrDataItem* resAttr = CreateDataItem(

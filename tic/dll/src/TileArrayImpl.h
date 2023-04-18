@@ -55,18 +55,6 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const ->locked_cseq_t override;
-
-	void Commit() override
-	{
-		MG_CHECK(m_Seqs.size() == this->m_TileRangeData->GetNrTiles());
-
-		tile_id t = 0;
-		for (auto& tile : m_Seqs)
-		{
-			MG_CHECK(tile->size() == this->m_TileRangeData->GetTileSize(t++));
-		}
-	}
-
 	mutable tiles_t m_Seqs;
 };
 
@@ -84,11 +72,6 @@ struct HeapSingleArray : GeneratedTileFunctor<V>
 
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
-
-	void Commit() override
-	{
-		MG_CHECK(m_Seq.size() == this->m_TileRangeData->GetTileSize(0));
-	}
 
 	tile_t m_Seq;
 };
@@ -129,16 +112,6 @@ struct FileTileArray : GeneratedTileFunctor<V>
 
 	locked_seq_t GetWritableTile(tile_id t, dms_rw_mode rwMode) override;
 	locked_cseq_t GetTile(tile_id t) const override;
-
-	void Commit() override
-	{
-		tile_id t = 0;
-		MG_CHECK(m_Files.size() == this->m_TileRangeData->GetNrTiles());
-		for (auto& file : m_Files)
-		{
-			MG_CHECK(file->size() == this->m_TileRangeData->GetTileSize(t++));
-		}
-	}
 
 	SharedStr m_CacheFileName;
 	files_t m_Files;
@@ -377,16 +350,6 @@ auto FileTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	dms_assert(filePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 	return locked_cseq_t(TileCRef(make_SharedThing( std::move(fileMapHandle) )), GetConstSeq(*filePtr));
 }
-/* REMOVE
-template <typename V>
-void FileTileArray<V>::DropData()
-{
-	tile_id tn = this->GetTiledRangeData()->GetNrTiles();
-	for (tile_id t=0; t!=tn; ++t)
-		m_Files[t]->Drop();
-}
-*/
-
 
 #endif //!defined(__TIC_TILEARRAYIMPL_H)
 

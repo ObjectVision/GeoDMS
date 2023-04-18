@@ -363,8 +363,8 @@ struct bit_sequence : bit_sequence_base<N, Block>
 		dms_assert( data_end  () == src.data_end  () );
 	}
 
-	template <typename OthBlock>
-	bit_sequence(BitVector<N, OthBlock>* cont)
+	template <typename OthBlock, typename Alloc>
+	bit_sequence(BitVector<N, OthBlock, Alloc>* cont)
 		:	bit_sequence_base<N, Block>(cont->data_begin(),  cont->size())
 	{}
 
@@ -736,7 +736,7 @@ void BitVector<N, Block, Allocator>::clear_unused_bits()
 //----------------------------------------------------------------------
 
 template <bit_size_t N, typename Block>
-bit_value<N> UndefinedOrZero(const bit_reference<N, Block>* ) { return 0; }
+constexpr bit_value<N> UndefinedOrZero(const bit_reference<N, Block>* ) { return 0; }
 
 template <bit_size_t N, typename Block> inline bool IsDefined(bit_reference<N, Block>) { return true; }
 

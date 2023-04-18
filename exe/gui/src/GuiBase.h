@@ -392,12 +392,13 @@ enum class element_type
 	TEXT,
 	PARAGRAPH,
 	LINK,
+	LINK_INTERNAL,
 	HEADING_1,
 	HEADING_2,
 	NONE
 };
 
-struct element_part
+struct md_element_part
 {
 	element_type type        = element_type::NONE;
 	bool         is_failed   = false;
@@ -407,10 +408,30 @@ struct element_part
 	std::string  link		 = "";
 };
 
-using md_element_data  = std::vector<element_part>;
-using md_row_data      = std::vector<md_element_data>;
-using md_table_data    = std::vector<md_row_data>;
-using markdown_data = std::vector<md_table_data>;
+struct md_element
+{
+	std::vector<md_element_part> parts;
+};
+
+struct md_row
+{
+	std::vector<md_element> elements;
+};
+
+struct md_table
+{
+	std::vector<md_row> rows;
+};
+
+struct md_data
+{
+	std::vector<md_table> tables;
+};
+
+//using md_element_data  = std::vector<element_part>;
+//using md_row_data      = std::vector<md_element_data>;
+//using md_table_data    = std::vector<md_row_data>;
+//using markdown_data = std::vector<md_table_data>;
 
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
@@ -429,5 +450,5 @@ auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_tex
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
-void StringToTable(std::string input, md_table_data& result, std::string separator = "");
-void DrawProperties(GuiState& state, md_table_data& properties);
+void StringToTable(std::string& input, md_table& result, std::string separator = "");
+void DrawProperties(GuiState& state, md_table& properties);

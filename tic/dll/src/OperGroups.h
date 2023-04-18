@@ -107,7 +107,11 @@ struct AbstrOperGroup : SharedObj
 	virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const =0;
 	virtual CharPtr GetObsoleteMsg() const { return "NO OBSOLETE MSG PROVIDED"; }
 
-	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const { auto oap = GetArgPolicy(argNr, firstArgValue); return oap != oper_arg_policy::is_templ && oap!=oper_arg_policy::calc_never; }
+	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const 
+	{ 
+		auto oap = GetArgPolicy(argNr, firstArgValue); 
+		return oap != oper_arg_policy::is_templ && oap != oper_arg_policy::calc_never && oap != oper_arg_policy::calc_at_subitem;
+	}
 	bool MustSupplyTree(arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::subst_with_subitems; }
 	bool IsArgTempl (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::is_templ; }
 

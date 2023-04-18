@@ -181,7 +181,8 @@ struct GdiHandle : private boost::noncopyable
 		:	m_hGdiObj(rhs.release())
 	{}
 
-	void operator = (GdiHandle&& rhs) noexcept { swap(rhs); }
+	void operator = (GdiHandle&& rhs) noexcept { std::swap(m_hGdiObj, rhs.m_hGdiObj); }
+	void operator = (HandleType hGdiObj) noexcept { operator = (GdiHandle(hGdiObj)); }
 
 	~GdiHandle() 
 	{

@@ -185,6 +185,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	if (unit->GetUnitClass() == Unit<Void>::GetStaticClass())
 		return true;
 
+	if (unit->GetTSF(TSF_Categorical))
+		xmlTable.NameValueRow("Categorical", "Yes");
+
 	if (unit->GetNrDimensions() == 1)
 	{
 		if (unit->GetValueType()->IsNumeric())
@@ -336,8 +339,7 @@ void NewLine(OutStreamBase& out)
 
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
-//	lispExpr.PrintAsFLisp(stream.FormattingStream(), 0); doesn't do HtmlEncode
-	stream << AsFLispSharedStr(lispExpr).c_str();
+	stream << AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str();
 }
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
@@ -403,7 +405,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		if (calc->IsDataBlock())
 			stream << "[ ... ]";
 		else
-			stream << calc->GetAsFLispExprOrg().c_str();
+			stream << calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 	}
 	return nullptr;
 }
@@ -529,6 +531,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		vc = di->GetValueComposition();
 		if (vc != ValueComposition::Single)
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
+		if (di->GetTSF(TSF_Categorical))
+			xmlTable.NameValueRow("Categorical", "Yes");
 
 		WriteCdf(xmlTable, di);
 	}
