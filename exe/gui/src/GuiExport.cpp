@@ -4,6 +4,8 @@
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
+
+#include "mci/ValueClass.h"
 #include "utl/Environment.h"
 
 #include "ShvUtils.h"
@@ -46,15 +48,24 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
         if (IsUnit(item))
         {
             auto domainCandidate = AsUnit(item);
+            if (!domainCandidate->CanBeDomain())
+                return false;
             for (auto subItem = item; subItem; subItem = item->WalkConstSubTree(subItem))
                 if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
-                    return CanBeRasterDomain(domainCandidate);
+                    if (CurrentItemCanBeExportedToRaster(subItem))
+                        return true;
         }
         return false;
     }
 
     auto adi = AsDataItem(item); assert(adi);
-    auto adu = AsDataItem(item)->GetAbstrDomainUnit(); assert(adu);
+    if (adi->GetValueComposition() != ValueComposition::Single)
+        return false;
+    auto avu = adi->GetAbstrValuesUnit(); assert(avu);
+    if (!avu->GetValueType()->IsNumericOrBool())
+        return false;
+
+    auto adu = adi->GetAbstrDomainUnit(); assert(adu);
 
     return CanBeRasterDomain(adu);
 }
