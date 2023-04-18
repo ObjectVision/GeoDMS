@@ -256,13 +256,16 @@ void GuiExport::DoExport(GuiState& state)
 
     SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
     CharPtr driverName = nullptr;
-    if (selectedDriver.is_native)
-        driverName = selectedDriver.shortname.c_str();
-    else if (selectedDriver.is_raster)
-        driverName = "gdalwrite.grid";
-    else
-        driverName = "gdalwrite.vect";
+    CharPtr storageTypeName = selectedDriver.shortname.c_str();
+    if (!selectedDriver.is_native)
+    {
+        driverName = storageTypeName;
+        if (selectedDriver.is_raster)
+            storageTypeName = "gdalwrite.grid";
+        else
+            storageTypeName = "gdalwrite.vect";
+    }
 
-    item->SetStorageManager(ffName.c_str(), driverName, false);
+    item->SetStorageManager(ffName.c_str(), storageTypeName, false, driverName);
 }
 

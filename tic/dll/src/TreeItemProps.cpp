@@ -694,6 +694,7 @@ namespace {
 	static StoredPropDef<TreeItem, SharedStr> integrityCheckPropDef(ICHECK_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
 	static StoredPropDef<TreeItem, SharedStr> storageNamePropDef(STORAGENAME_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, TokenID  > storageTypePropDef(STORAGETYPE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false, chg_mode::invalidate);
+	static StoredPropDef<TreeItem, SharedStr> storageDriverPropDef(STORAGEDRIVER_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageOptionsPropDef(STORAGEOPTIONS_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, PropBool > storageReadOnlyPropDef(STORAGEREADONLY_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
 	static StoredPropDef<TreeItem, TokenID  > syncModePropDef(SYNCMODE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
@@ -747,6 +748,7 @@ PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr  = &explicitSupplPropDef;
 
 PropDef<TreeItem, SharedStr>* storageNamePropDefPtr    = &storageNamePropDef;
 PropDef<TreeItem, TokenID  >* storageTypePropDefPtr    = &storageTypePropDef;
+PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr  = &storageDriverPropDef;
 PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr = &storageOptionsPropDef;
 PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr= &storageReadOnlyPropDef;
 PropDef<TreeItem, TokenID  >* syncModePropDefPtr       = &syncModePropDef;

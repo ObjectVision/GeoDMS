@@ -166,7 +166,7 @@ public:
 
 //	storage
 
-	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly);
+	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
 	TIC_CALL bool HasStorageManager() const;
 	TIC_CALL AbstrStorageManager* GetStorageManager(bool throwOnFailure = true) const;
 	         AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager; }

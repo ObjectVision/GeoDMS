@@ -43,6 +43,8 @@ TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* storageNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* storageTypePropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* syncModePropDefPtr;
 

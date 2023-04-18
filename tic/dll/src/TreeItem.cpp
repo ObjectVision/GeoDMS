@@ -3719,12 +3719,16 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 	return m_StorageManager;
 }
 
-void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly) // TODO replace CharPtr storageName door SharedStr
+void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver, CharPtr options)
 {
 	DBG_START("TreeItem", "SetStorageManager", false);
 	storageNamePropDefPtr->SetValue(this, SharedStr(storageName) );
 	storageTypePropDefPtr->SetValue(this, storageType ? GetTokenID_mt(storageType) : TokenID::GetEmptyID() );
 	storageReadOnlyPropDefPtr->SetValue(this, readOnly);
+	if (driver != nullptr)
+		storageDriverPropDefPtr->SetValue(this, SharedStr(driver));
+	if (options != nullptr)
+		storageOptionsPropDefPtr->SetValue(this, SharedStr(options));
 	SetStorageManager(nullptr);
 //	m_State.Clear(ASF_DataReadableDefined);
 	Invalidate();
