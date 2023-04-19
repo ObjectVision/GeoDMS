@@ -79,68 +79,6 @@ enum class DetailPageActiveTab
     Configuration
 };
 
-/*struct MarkDownTextBlock {                  // subset of line
-    int start = 0;
-    int stop = 0;
-    int size() const
-    {
-        return stop - start;
-    }
-};
-
-struct MarkDownEmphasis {
-    enum EmphasisState {
-        NONE,
-        LEFT,
-        MIDDLE,
-        RIGHT,
-    };
-    EmphasisState state = NONE;
-    MarkDownTextBlock text;
-    char sym;
-};
-
-struct MarkDownLink {
-    enum LinkState {
-        NO_LINK,
-        HAS_SQUARE_BRACKET_OPEN,
-        HAS_SQUARE_BRACKETS,
-        HAS_SQUARE_BRACKETS_ROUND_BRACKET_OPEN,
-    };
-    LinkState state = NO_LINK;
-    MarkDownTextBlock text;
-    MarkDownTextBlock url;
-    bool isImage = false;
-    int num_brackets_open = 0;
-};
-
-struct MarkDownLine {
-    void clear() 
-    {
-        isHeading = false;
-        isEmphasis = false;
-        isUnorderedListStart = false;
-        isLeadingSpace = true;     // spaces at start of line
-        leadSpaceCount = 0;
-        headingCount = 0;
-        emphasisCount = 0;
-        lineStart = 0;
-        lineEnd = 0;
-        lastRenderPosition = 0;
-    }
-
-    bool isHeading = false;
-    bool isEmphasis = false;
-    bool isUnorderedListStart = false;
-    bool isLeadingSpace = true;     // spaces at start of line
-    int  leadSpaceCount = 0;
-    int  headingCount = 0;
-    int  emphasisCount = 0;
-    int  lineStart = 0;
-    int  lineEnd = 0;
-    int  lastRenderPosition = 0;     // lines may get rendered in multiple pieces
-};*/
-
 class GuiMarkDownPage
 {
 public:
