@@ -332,8 +332,6 @@ void GuiEventLog::GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     auto main = reinterpret_cast<GuiMainComponent*>(clientHandle);
     main->m_State.contextMessage.Set(msg);
 
-    ImGuiIO& io = ImGui::GetIO();
-
     auto context_message_time = std::chrono::system_clock::now();
     std::chrono::duration<double, std::milli> time_since_last_update = context_message_time - main->m_State.m_last_update_time;
 
