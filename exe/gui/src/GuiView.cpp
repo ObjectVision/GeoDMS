@@ -428,8 +428,9 @@ void StatisticsView::UpdateData()
 //    DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
 
     m_done = false;
-    std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
-    m_data = StringToTable(std::move(statistics_string), ":"); // CODE REVIEW: why a table ?
+    m_data = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
+    //std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
+    //m_data = StringToTable(std::move(statistics_string), ":"); // CODE REVIEW: why a table ?
 
     m_is_ready = m_done;
 
@@ -444,11 +445,7 @@ void StatisticsView::UpdateData()
 bool StatisticsView::Update(GuiState& state)
 {
     if (!m_is_ready)
-        UpdateData();
-    else
-    {
-        int i = 0;
-    }
+        UpdateData(); // TODO: performance wise, check every idle time frame?
 
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
@@ -467,7 +464,9 @@ bool StatisticsView::Update(GuiState& state)
             has_been_docking_initialized = true;
     }
 
-    DrawProperties(state, m_data);
+    ImGui::TextWrapped(m_data.c_str());
+
+    //DrawProperties(state, m_data);
 
     ImGui::End();
 
