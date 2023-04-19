@@ -56,6 +56,21 @@ Float64 DMS_CONV DMS_GetVersionNumber()
 	return DMS_VERSION_MAJOR + 0.01 * DMS_VERSION_MINOR + DMS_VERSION_PATCH * 0.0001;
 }
 
+UInt32 DMS_CONV DMS_GetMajorVersionNumber()
+{
+	return DMS_VERSION_MAJOR;
+}
+
+UInt32 DMS_CONV DMS_GetMinorVersionNumber()
+{
+	return DMS_VERSION_MINOR;
+}
+
+UInt32 DMS_CONV DMS_GetPatchNumber()
+{
+	return DMS_VERSION_PATCH;
+}
+
 CharPtr DMS_CONV DMS_GetPlatform()
 {
 	return DMS_PLATFORM;

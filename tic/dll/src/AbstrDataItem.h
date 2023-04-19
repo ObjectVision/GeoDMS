@@ -187,6 +187,18 @@ public: // TODO G8: Re-encapsulate
 // PropDefPtrs
 //----------------------------------------------------------------------
 
+struct TableColumnSpec
+{
+	SharedDataItemInterestPtr m_DataItem;
+	TokenID m_ColumnName;
+	bool    m_RelativeDisplay = false;
+	mutable Float64 m_ColumnTotal = 0.0;
+};
+
+//----------------------------------------------------------------------
+// PropDefPtrs
+//----------------------------------------------------------------------
+
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 

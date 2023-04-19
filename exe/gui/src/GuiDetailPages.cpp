@@ -672,9 +672,12 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
 {
     clear();
     SuspendTrigger::Resume();
+    bool result;
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
-    auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
+    {
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
+    }
     m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
     m_Buff.Reset();
     /*// MD
@@ -699,9 +702,12 @@ void GuiDetailPages::clear()
 void GuiDetailPages::UpdateAllProperties(GuiState& state)
 {
     clear();
+    bool result;
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
-    auto result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
+    {
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
+    }   
     //m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
@@ -710,8 +716,10 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
 {
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
-    DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
+    {
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
+    }
     //m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
@@ -764,9 +772,10 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
 {
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
-    DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
-    
+    {
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL));
+        DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
+    }
     m_Configuration = m_Buff.InterpretBytesAsString();
     //StringToTable(conf_str, m_Configuration);
     m_Buff.Reset();

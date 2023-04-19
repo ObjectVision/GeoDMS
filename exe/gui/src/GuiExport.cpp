@@ -11,37 +11,59 @@
 
 #include "ShvUtils.h"
 
-bool CurrentItemCanBeExportedAsTable(const TreeItem* item)
+#include "Unit.h"
+
+const AbstrUnit* CommonDomain(const TreeItem* item)
 {
-    // category Table-a: domain with related data-items as sub-items
+    if (IsDataItem(item))
+        return AsDataItem(item)->GetAbstrDomainUnit();
+
+    const AbstrUnit* domainCandidate = nullptr;
+    bool foundSomeAttr = false;
     if (IsUnit(item))
     {
-        auto domainCandidate = AsUnit(item);
+        domainCandidate = AsUnit(item);
         if (!domainCandidate->CanBeDomain())
-            return false;
-        for (auto subItem = item; subItem; subItem = item->WalkConstSubTree(subItem))
-            if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
-                return true;
-        return false;
+            return nullptr;
     }
 
-    // category Table-b: container with data-items as direct sub-items that all have a compatible domain
-    const AbstrUnit* domainCandidate = nullptr;
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-    {
         if (IsDataItem(subItem))
         {
             auto adu = AsDataItem(subItem)->GetAbstrDomainUnit();
-            if (domainCandidate)
+            if (domainCandidate && domainCandidate->GetUnitClass() != Unit<Void>::GetStaticClass())
             {
-                if (!domainCandidate->UnifyDomain(adu))
-                    return false;
+                if (!domainCandidate->UnifyDomain(adu, "", "", UnifyMode::UM_AllowVoidRight))
+                    return nullptr;
             }
             else
                 domainCandidate = adu;
+            foundSomeAttr = true;
         }
-    }
-    return domainCandidate != nullptr;
+
+    return foundSomeAttr ? domainCandidate : nullptr;
+}
+
+bool CurrentItemCanBeExportedAsTable(const TreeItem* item)
+{
+    // category Attr: a single data item
+    return CommonDomain(item) != nullptr;
+}
+
+bool CurrentItemCanBeExportedAsDatabase(const TreeItem* item)
+{
+    // category Table-b: container with data-items as direct sub-items that all have a compatible domain
+    for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+        if (CommonDomain(subItem))
+            return true;
+    return false;
+}
+
+bool CurrentItemCanBeExportedAsTableOrDatabase(const TreeItem* item)
+{
+    if (CurrentItemCanBeExportedAsTable(item))
+        return true;
+    return CurrentItemCanBeExportedAsDatabase(item);
 }
 
 bool CurrentItemCanBeExportedToVector(const TreeItem* item)
@@ -49,12 +71,8 @@ bool CurrentItemCanBeExportedToVector(const TreeItem* item)
     if (!item)
         return false;
 
-    // category Attr: a single data item
-    if (IsDataItem(item))
-        return true;
-
     // category Table
-    if (CurrentItemCanBeExportedAsTable(item))
+    if (CurrentItemCanBeExportedAsTableOrDatabase(item))
         return true;
 
     // category Database: container with tables.
@@ -221,7 +239,8 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         SetKeyboardFocusToThisHwnd();
 
     bool enable_vector_export = CurrentItemCanBeExportedToVector(state.GetCurrentItem());
-    bool enable_raster_export = CurrentItemCanBeExportedToRaster(state.GetCurrentItem());;
+    bool enable_raster_export = CurrentItemCanBeExportedToRaster(state.GetCurrentItem());
+    bool enable_export = enable_vector_export || enable_raster_export;
 
     if (ImGui::BeginTabBar("ExportTypes", ImGuiTabBarFlags_None))
     {
@@ -251,10 +270,13 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     auto current_cursor_pos_X = ImGui::GetCursorPosX();
     ImGui::SetCursorPos(ImVec2(current_cursor_pos_X, options_window_content_region.y - 1.5 * ImGui::GetTextLineHeight()));
 
+    ImGui::BeginDisabled(!enable_export);
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
-        DoExport(state);
+        if (DoExport(state))
+            state.ShowExportWindow = false;
     }
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
@@ -265,18 +287,57 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     ImGui::End();
 }
 
-#include "stg/AbstrStoragemanager.h"
+// ========================== actual export procedures, possibly to move to a separate code unit
 
-void GuiExport::DoExport(GuiState& state)
+#include "ser/FileStreamBuff.h"
+#include "stg/AbstrStoragemanager.h"
+#include "TicInterface.h"
+
+void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
+{
+    std::vector<TableColumnSpec> columnSpecs;
+    auto domain = CommonDomain(tableItem);
+    assert(domain);
+
+    if (IsDataItem(tableItem))
+        columnSpecs.emplace_back().m_DataItem = AsDataItem(tableItem);
+    else for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem->GetNextItem())
+        if (IsDataItem(attrItem))
+        {
+            auto adi = AsDataItem(attrItem);
+            if (adi->GetAbstrDomainUnit()->UnifyDomain(domain)) // adi could also be a skippable parameter
+                columnSpecs.emplace_back().m_DataItem = adi;
+        }
+
+    auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), nullptr, true);
+
+    Table_Dump(fout.get(), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
+}
+
+void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr fullFileName)
+{
+    if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
+    {
+        DoExportTableToCSV(tableOrDatabaseItem, fullFileName);
+        return;
+    }
+    if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
+        return;
+
+    for (auto tableItem=tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem->GetNextItem())
+        if (CurrentItemCanBeExportedAsTable(tableItem))
+        {
+            auto subFileName = DelimitedConcat(fullFileName.c_str(), tableItem->GetName().c_str());
+            DoExportTableToCSV(tableItem, subFileName);
+        }
+}
+
+bool GuiExport::DoExport(GuiState& state)
 {
     auto item = state.GetCurrentItem();
     auto selectedDriver = m_selected_driver;
     auto folderName = m_folder_name;
     auto fileName = m_file_name;
-
-    // TODO: make shadow items if a storage on this gets in the way of other things.
-    // TODO: use driver or storageType
-    // TODO: use m_use_native_driver to make use of GeoDMS native driver
 
     SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
     CharPtr driverName = nullptr;
@@ -289,7 +350,14 @@ void GuiExport::DoExport(GuiState& state)
         else
             storageTypeName = "gdalwrite.vect";
     }
+    else if (!stricmp(storageTypeName,  "CSV"))
+    {
+        DoExportTableToCSV(item, ffName);
+        return true;
+    }
 
+    // TODO: make shadow items if a storage on this gets in the way of other things, such as template instantiation
     item->SetStorageManager(ffName.c_str(), storageTypeName, false, driverName);
+    return false;
 }
 

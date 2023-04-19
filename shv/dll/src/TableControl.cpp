@@ -957,18 +957,23 @@ void TableControl::SaveTo(OutStreamBuff* buffPtr) const
 
 	SizeT pk = k2 - 1;
 
-	std::vector<const AbstrDataItem*>   itemArray; itemArray.reserve(k2 - k1);
+	std::vector<TableColumnSpec> itemArray; itemArray.reserve(k2 - k1);
 	for (SizeT j = k1; j != k2; ++j)
 	{
 		const DataItemColumn* dic = GetConstColumn(j);
 		if (!dic) continue;
 		const AbstrDataItem* adi = dic->GetActiveTextAttr();
-		if (adi)
-			itemArray.emplace_back(adi);
+		if (!adi)
+			continue;
+		auto& currSpec = itemArray.emplace_back();
+		currSpec.m_DataItem = adi;
+		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetID();
+		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
 	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
 	for (SizeT i = n1; i != n2; ++i)
 		recNos.emplace_back(GetRecNo(i));
+
 	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
 }
 
