@@ -939,41 +939,50 @@ TIC_CALL UInt32 DMS_CONV DMS_AbstrDataItem_GetNrFeatures(const AbstrDataItem* se
 	return 0;
 }
 
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPtr* dataItemArray, const ConstAbstrDataItemPtr* dataItemArrayEnd, const SizeT* recNos, const SizeT* recNoEnd)
+TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
 {
-	SizeT nrDataItems = dataItemArrayEnd - dataItemArray;
+	SizeT nrDataItems = columnSpecEnd - columnSpecPtr;
 	if (!nrDataItems)
 		return;
 
-	const AbstrUnit* domain = dataItemArray[0]->GetAbstrDomainUnit();
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray + 1; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		domain->UnifyDomain((*dataItemIter)->GetAbstrDomainUnit(), "Domain of the first column", "Domain of a following column", UM_Throw);
-
-	std::vector<SharedDataItemInterestPtr> keepInterest; keepInterest.reserve(nrDataItems);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		keepInterest.emplace_back(*dataItemIter);
+	const AbstrUnit* domain = columnSpecPtr[0].m_DataItem->GetAbstrDomainUnit();
+	for (auto columnSpecIter = columnSpecPtr + 1; columnSpecIter != columnSpecEnd; ++columnSpecIter)
+		domain->UnifyDomain(columnSpecIter->m_DataItem->GetAbstrDomainUnit(), "Domain of the first column", "Domain of a following column", UM_Throw);
 
 	DataReadLockContainer readLocks; readLocks.reserve(nrDataItems);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		readLocks.push_back(PreparedDataReadLock(*dataItemIter));
-
-	std::vector<OwningPtr<const AbstrReadableTileData>> tileLocks; keepInterest.reserve(nrDataItems);
+	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
+	{
+		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem));
+		if (columnSpecIter->m_RelativeDisplay)
+			columnSpecIter->m_ColumnTotal = columnSpecIter->m_DataItem->GetRefObj()->GetSumAsFloat64();
+	}
+	std::vector<OwningPtr<const AbstrReadableTileData>> tileLocks; tileLocks.reserve(nrDataItems);
 	for (const auto& drl : readLocks)
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 
 	FormattedOutStream fout(out, FormattingFlags::None);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
+	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
 	{
-		if (dataItemIter != dataItemArray)
+		if (columnSpecIter != columnSpecPtr)
 			out->WriteByte(';');
-		SharedStr themeDisplName = GetDisplayNameWithinContext(*dataItemIter, true, [dataItemArray, dataItemArrayEnd]() mutable -> const AbstrDataItem*
-			{
-				if (dataItemArray == dataItemArrayEnd)
-					return nullptr;
-				return *dataItemArray++;
-			}
-		);
-		DoubleQuote(fout, themeDisplName);
+		if (columnSpecIter->m_ColumnName)
+		{
+			auto columnStr = columnSpecIter->m_ColumnName.AsStrRange();
+			DoubleQuote(fout, columnStr.m_CharPtrRange.first, columnStr.m_CharPtrRange.second);
+		}
+		else
+		{
+			SharedStr themeDisplName = GetDisplayNameWithinContext(columnSpecIter->m_DataItem, true, [columnSpecPtr, columnSpecEnd]() mutable -> const AbstrDataItem*
+				{
+					if (columnSpecPtr == columnSpecEnd)
+						return nullptr;
+					const AbstrDataItem* dataItem = columnSpecPtr->m_DataItem;
+					++columnSpecPtr;
+					return dataItem;
+				}
+			);
+			DoubleQuote(fout, themeDisplName);
+		}
 	}
 	out->WriteByte('\n');
 
@@ -996,7 +1005,16 @@ TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, co
 {
 	DMS_CALL_BEGIN
 
-		Table_Dump(out, dataItemArray, dataItemArray + nrDataItems, nullptr, nullptr);
+		std::vector<TableColumnSpec> columnSpecs;
+		columnSpecs.reserve(nrDataItems);
+		while (nrDataItems--)
+		{
+			auto& currDataItemSpec = columnSpecs.emplace_back();
+			auto dataItem = *dataItemArray++;
+			currDataItemSpec.m_DataItem = dataItem;
+//			currDataItemSpec.m_ColumnName = dataItem->GetID(); let Table_Dump fill this in
+		}
+		Table_Dump(out, begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
 
 	DMS_CALL_END
 }

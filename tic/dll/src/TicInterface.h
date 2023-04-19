@@ -328,9 +328,11 @@ TIC_CALL void		DMS_CONV DMS_Float32Attr_SetValueArray(AbstrDataItem* self, UInt3
 TIC_CALL void		DMS_CONV DMS_Float64Attr_SetValueArray(AbstrDataItem* self, UInt32 firstRow, UInt32 len, const Float64* clientBuffer);
 TIC_CALL void		DMS_CONV DMS_BoolAttr_SetValueArray   (AbstrDataItem* self, UInt32 firstRow, UInt32 len, const bool* clientBuffer);
 
-typedef const AbstrDataItem* ConstAbstrDataItemPtr;
+using ConstAbstrDataItemPtr = const AbstrDataItem*;
+struct TableColumnSpec;
+
 TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, const ConstAbstrDataItemPtr* dataItemArray);
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPtr* dataItemArray, const ConstAbstrDataItemPtr* dataItemArrayEnd, const SizeT* recNos, const SizeT* recNoEnd);
+TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd);
 
 /********** Stored PropDef creation                        **********/
 
