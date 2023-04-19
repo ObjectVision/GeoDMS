@@ -445,5 +445,5 @@ auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_tex
 auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
-void StringToTable(std::string& input, md_table& result, std::string separator = "");
+auto StringToTable(std::string&& input, std::string separator = "") -> md_table;
 void DrawProperties(GuiState& state, md_table& properties);

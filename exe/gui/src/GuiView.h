@@ -82,7 +82,7 @@ private:
 	
 	bool m_done = false;
 	bool m_is_ready = false;
-	TreeItem *m_item = nullptr; // to be released when statistics information is finalized
+	InterestPtr<SharedPtr<const TreeItem>> m_item; // to be released when statistics information is finalized
 	md_table m_data;
 };
 

@@ -430,11 +430,12 @@ void StatisticsView::UpdateData()
 
     m_done = false;
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
-    StringToTable(statistics_string, m_data, ":");
+    m_data = StringToTable(std::move(statistics_string), ":"); // CODE REVIEW: why a table ?
 
     m_is_ready = m_done;
 
-    if (DMS_TreeItem_GetProgressState(m_item)> NotificationCode::NC2_MetaReady && DMS_TreeItem_GetProgressState(m_item) <= NotificationCode::NC2_Committed) //TODO: fix bug with DMS_NumericDataItem_GetStatistics bool ptr
+    auto ps = DMS_TreeItem_GetProgressState(m_item);
+    if (ps > NotificationCode::NC2_MetaReady && ps <= NotificationCode::NC2_Committed) //TODO: fix bug with DMS_NumericDataItem_GetStatistics bool ptr
     {
         m_is_ready = true;
         m_item = nullptr;

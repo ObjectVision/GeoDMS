@@ -530,9 +530,10 @@ void PostEmptyEventToGLFWContext()
     glfwPostEmptyEvent();
 }
 
-void StringToTable(std::string& input, md_table& result, std::string separator)
+auto StringToTable(std::string&& input, std::string separator) -> md_table
 {
-    result.rows.clear();
+    md_table result;
+//    result.rows.clear();
     auto lines = DivideTreeItemFullNameIntoTreeItemNames(input, "\n");
     for (auto& line : lines)
     {
@@ -549,9 +550,13 @@ void StringToTable(std::string& input, md_table& result, std::string separator)
             std::string  link = "";
 
             for (auto& part : colon_separated_line)
+            {
+                result.rows.back().elements.emplace_back(); // else there is no last element.
                 result.rows.back().elements.back().parts.emplace_back(element_type::TEXT, false, false, 0, part, "");
         }
     }
+    }
+    return result;
 }
 
 void DrawProperties(GuiState& state, md_table& properties)
