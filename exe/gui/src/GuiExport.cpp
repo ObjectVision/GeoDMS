@@ -221,7 +221,8 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         SetKeyboardFocusToThisHwnd();
 
     bool enable_vector_export = CurrentItemCanBeExportedToVector(state.GetCurrentItem());
-    bool enable_raster_export = CurrentItemCanBeExportedToRaster(state.GetCurrentItem());;
+    bool enable_raster_export = CurrentItemCanBeExportedToRaster(state.GetCurrentItem());
+    bool enable_export = enable_vector_export || enable_raster_export;
 
     if (ImGui::BeginTabBar("ExportTypes", ImGuiTabBarFlags_None))
     {
@@ -251,10 +252,12 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     auto current_cursor_pos_X = ImGui::GetCursorPosX();
     ImGui::SetCursorPos(ImVec2(current_cursor_pos_X, options_window_content_region.y - 1.5 * ImGui::GetTextLineHeight()));
 
+    ImGui::BeginDisabled(!enable_export);
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
         DoExport(state);
     }
+    ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
