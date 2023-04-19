@@ -136,14 +136,13 @@ void Button::UpdateTristate(GuiViews& view)
 
 void Button::UpdateModal(GuiViews& view)
 {
-    switch (m_ToolButtonId1)
-    {
-    case TB_Export:
-    {
-        view.m_dms_view_it->m_DataView->GetExportInfo();
-        return;
-    }
-    }
+    auto export_info = view.m_dms_view_it->m_DataView->GetExportInfo();
+    SendMessage(view.GetHWND(), WM_COMMAND, m_ToolButtonId1, 0);
+    
+    if (view.m_dms_view_it->m_ViewStyle == tvsMapView)
+        reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase);
+    else
+        reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
 }
 
 GuiToolbar::GuiToolbar()
