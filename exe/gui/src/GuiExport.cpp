@@ -273,7 +273,8 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     ImGui::BeginDisabled(!enable_export);
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
-        DoExport(state);
+        if (DoExport(state))
+            state.ShowExportWindow = false;
     }
     ImGui::EndDisabled();
 
@@ -297,15 +298,15 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
     std::vector<TableColumnSpec> columnSpecs;
     auto domain = CommonDomain(tableItem);
     assert(domain);
-    for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem->GetNextItem())
+
+    if (IsDataItem(tableItem))
+        columnSpecs.emplace_back().m_DataItem = AsDataItem(tableItem);
+    else for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem->GetNextItem())
         if (IsDataItem(attrItem))
         {
             auto adi = AsDataItem(attrItem);
             if (adi->GetAbstrDomainUnit()->UnifyDomain(domain)) // adi could also be a skippable parameter
-            {
-                auto& currSpec = columnSpecs.emplace_back();
-                currSpec.m_DataItem = adi;
-            }
+                columnSpecs.emplace_back().m_DataItem = adi;
         }
 
     auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), nullptr, true);
@@ -331,7 +332,7 @@ void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr
         }
 }
 
-void GuiExport::DoExport(GuiState& state)
+bool GuiExport::DoExport(GuiState& state)
 {
     auto item = state.GetCurrentItem();
     auto selectedDriver = m_selected_driver;
@@ -352,10 +353,11 @@ void GuiExport::DoExport(GuiState& state)
     else if (!stricmp(storageTypeName,  "CSV"))
     {
         DoExportTableToCSV(item, ffName);
-        return;
+        return true;
     }
 
     // TODO: make shadow items if a storage on this gets in the way of other things, such as template instantiation
     item->SetStorageManager(ffName.c_str(), storageTypeName, false, driverName);
+    return false;
 }
 

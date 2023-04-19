@@ -26,7 +26,7 @@ private:
 	void SetDefaultNativeDriverUsage();
 	void SelectDriver(bool is_raster);
 	void SetStorageLocation();
-	void DoExport(GuiState& state);
+	bool DoExport(GuiState& state);
 
 	std::vector<gdal_driver_id> m_available_drivers;
 	gdal_driver_id m_selected_driver;
