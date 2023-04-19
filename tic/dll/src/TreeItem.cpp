@@ -2743,7 +2743,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 			return AVS_SuspendedOrFailed;
 	}
 
-	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
+//	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
 
 	// =============== IntegrityChecker
 

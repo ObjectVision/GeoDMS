@@ -348,25 +348,23 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
 
 void GuiTreeNode::DrawItemWriteStorageIcon()
 {
-    auto has_storage_manager = m_item->HasStorageManager();
-    auto parent = m_item->GetTreeParent();
+    assert(m_item);
 
-    if (!has_storage_manager && !parent) // root has no parent
+    const TreeItem* storageHolder = nullptr;
+    if (m_item->HasStorageManager())
+        storageHolder = m_item;
+    if (!storageHolder)
+    {
+        auto parent = m_item->GetTreeParent();
+        if (!parent) // root has no parent
+            return;
+        if (parent->HasStorageManager())
+            storageHolder = parent;
+    }
+    if (!storageHolder)
         return;
 
-    auto parent_has_storage_manager = parent->HasStorageManager();
-    
-    if (!(has_storage_manager || parent_has_storage_manager))
-        return;
-
-    bool is_read_only = has_storage_manager ? m_item->GetStorageManager()->IsReadOnly() : parent->GetStorageManager()->IsReadOnly();
-
-    //if (is_read_only && m_item->Clac())
-
-    //auto test = m_item->GetExpr();
-
-    
-
+    bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
     if (is_read_only && m_item->HasCalculator())
         return;
 
