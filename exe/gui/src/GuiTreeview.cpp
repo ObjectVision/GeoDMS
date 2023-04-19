@@ -740,6 +740,9 @@ void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
         if (!ImGui::IsWindowFocused())
             break;
 
+        if (!m_tree.m_curr_node)
+            break;
+
         auto descended_node = m_tree.DescendVisibleTree(*m_tree.m_curr_node);
         if (descended_node)
         {
