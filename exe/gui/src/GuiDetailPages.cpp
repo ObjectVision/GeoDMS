@@ -79,7 +79,7 @@ std::string GuiOutStreamBuff::GetHrefFromTag()
 
 }
 
-/*void GuiOutStreamBuff::InterpretTag(table_data& tableProperties)
+void GuiOutStreamBuff::InterpretTag(TableData& tableProperties)
 {
     // open tags
     if (m_Tag.text.size() >= 5 && std::string_view(m_Tag.text.data(), 5) == "<BODY")
@@ -149,7 +149,7 @@ std::string GuiOutStreamBuff::GetHrefFromTag()
         tableProperties.back().emplace_back(PET_SEPARATOR, false, m_Text);
     }
 
-}*/
+}
 
 bool GuiOutStreamBuff::IsOpenTag(UInt32 ind)
 {
@@ -196,7 +196,7 @@ auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
     return std::string(m_Buff.begin(), m_Buff.end());
 }
 
-/*void GuiOutStreamBuff::InterpretBytes(table_data& tableProperties)
+void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
 {
     m_ParserState = HTMLParserState::NONE;
     UInt32 ind = 0;
@@ -229,7 +229,7 @@ auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
         case HTMLParserState::TAGCLOSE:
         {
             m_Tag.text += chr;
-            //InterpretTag(tableProperties);
+            InterpretTag(tableProperties);
             m_Tag.text.clear();
             break;
         }
@@ -242,7 +242,7 @@ auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
         }
         }
     }
-}*/
+}
 
 streamsize_t GuiOutStreamBuff::CurrPos() const
 {
@@ -650,10 +650,10 @@ void GuiMarkDownPage::Parse()
 
 void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties, bool explore_properties, bool value_info, bool source_description, bool configuration)
 {
-    /*if (general)
+    if (general)
         m_GeneralProperties.clear();
 
-    if (all_properties)
+    /*if (all_properties)
         m_AllProperties.clear();
 
     if (explore_properties)
@@ -674,10 +674,11 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     clear();
     SuspendTrigger::Resume();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
-    /*auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
     m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
     
+    /*// MD
     //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
     auto mdOut = std::unique_ptr<OutStreamBase>( XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL) );
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), mdOut.get(), true); // TODO: use result
@@ -687,7 +688,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     m_GeneralProperties_MD = std::make_unique<GuiMarkDownPage>(general_string);
 
     //StringToTable(general_string, m_GeneralProperties);
-    m_Buff.Reset();
+    m_Buff.Reset();*/
 }
 
 void GuiDetailPages::clear()
@@ -900,9 +901,9 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            if (!m_GeneralProperties_MD)
+            if (m_GeneralProperties.empty())
                 UpdateGeneralProperties(state);
-            ////DrawProperties(state, m_GeneralProperties);
+            DrawProperties(state, m_GeneralProperties);
         }
         break;
     }

@@ -3,6 +3,7 @@
 #include <vector>
 #include "GuiBase.h"
 #include "ser/BaseStreamBuff.h"
+#include "xml/XMLOut.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -50,7 +51,7 @@ public:
     GuiOutStreamBuff();
     virtual ~GuiOutStreamBuff();
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    //auto InterpretBytes(table_data& tableProperties) -> void;
+    void InterpretBytes(TableData& tableProperties);
     auto InterpretBytesAsString() -> std::string;
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -59,7 +60,7 @@ public:
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
-    //void InterpretTag(table_data& tableProperties);
+    void InterpretTag(TableData& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
 
@@ -150,8 +151,8 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    /*md_data            m_GeneralProperties;
-    md_data            m_AllProperties;
+    TableData m_GeneralProperties;
+    /*md_data            m_AllProperties;
     md_data            m_ExploreProperties;
     md_data            m_ValueInfo;
     md_data            m_SourceDescription;

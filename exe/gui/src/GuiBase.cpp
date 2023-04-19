@@ -10,6 +10,7 @@
 #include "TicInterface.h"
 #include "utl/Environment.h"
 
+
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -559,9 +560,9 @@ auto StringToTable(std::string&& input, std::string separator) -> md_table
     return result;
 }
 
-void DrawProperties(GuiState& state, md_table& properties)
+void DrawProperties(GuiState& state, TableData& properties)
 {
-    /*auto event_queues = GuiEventQueues::getInstance();
+    auto event_queues = GuiEventQueues::getInstance();
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
         return;
 
@@ -623,5 +624,5 @@ void DrawProperties(GuiState& state, md_table& properties)
             OnItemClickItemTextTextToClipboard(col.text);
         }
     }
-    ImGui::EndTable();*/
+    ImGui::EndTable();
 }
