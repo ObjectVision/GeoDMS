@@ -261,11 +261,18 @@ namespace
 	CurrentDirParamOperator g_CurrentDirParamOperator(&cog_CurrDir);
 	FullPathNameOperator    g_FullPathNameOperator(&sog_FullPath);
 
-	CommonOperGroup cog_Version("GeoDmsVersion", oper_policy::is_transient);
+	Obsolete<CommonOperGroup> cog_Version ("GeoDmsVersion() is depreciated; use GeoDmsMajorVersionNumber(), GeoDmsMinorVersionNumber(), and/or GeoDmsPatchNumber()", "GeoDmsVersion", oper_policy::is_transient);
+	CommonOperGroup cog_MajorVNr("GeoDmsMajorVersionNumber", oper_policy::is_transient);
+	CommonOperGroup cog_MinorVNr("GeoDmsMinorVersionNumber", oper_policy::is_transient);
+	CommonOperGroup cog_PNr     ("GeoDmsPatchNumber", oper_policy::is_transient);
 	CommonOperGroup cog_Platform("GeoDmsPlatform", oper_policy::is_transient);
 	CommonOperGroup cog_BuildConfig("GeoDmsBuildConfig", oper_policy::is_transient);
 
-	ConstParamOperator<Float64>            cpVersion(&cog_Version, DMS_GetVersionNumber());
+	ConstParamOperator<Float64> cpVersion(&cog_Version, DMS_GetVersionNumber());
+	ConstParamOperator<UInt32>  cpMajorVNr(&cog_MajorVNr, DMS_GetMajorVersionNumber());
+	ConstParamOperator<UInt32>  cpMinorVNr(&cog_MinorVNr, DMS_GetMajorVersionNumber());
+	ConstParamOperator<UInt32>  cpPatchNr(&cog_PNr, DMS_GetPatchNumber());
+
 	ConstParamOperator<SharedStr, CharPtr> cpPlatform(&cog_Platform, DMS_GetPlatform());
 	ConstParamOperator<SharedStr, CharPtr> cpBuildConfig(&cog_BuildConfig, DMS_GetBuildConfig());
 }
