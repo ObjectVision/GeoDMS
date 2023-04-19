@@ -425,8 +425,7 @@ void StatisticsView::UpdateData()
     if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
         return;
 
-    DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
-    InterestPtr<TreeItem*> tmp_interest = m_item->IsFailed() || m_item->WasFailed() ? nullptr : m_item;
+//    DMS_ExplainValue_Clear(); // TODO: is this necessary? See fMain.pas line 629
 
     m_done = false;
     std::string statistics_string = DMS_NumericDataItem_GetStatistics(m_item, nullptr);//&m_done);
