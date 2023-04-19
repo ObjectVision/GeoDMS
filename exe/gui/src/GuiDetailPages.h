@@ -152,11 +152,11 @@ private:
 
     GuiOutStreamBuff m_Buff;
     TableData m_GeneralProperties;
+    std::string m_Configuration;
     /*md_data            m_AllProperties;
     md_data            m_ExploreProperties;
     md_data            m_ValueInfo;
-    md_data            m_SourceDescription;
-    md_data            m_Configuration;*/
+    md_data            m_SourceDescription;*/
 
     std::unique_ptr<GuiMarkDownPage> m_GeneralProperties_MD;
 

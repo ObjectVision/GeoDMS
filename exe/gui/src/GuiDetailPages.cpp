@@ -766,7 +766,8 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL);
     DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
-    auto conf_str = m_Buff.InterpretBytesAsString();
+    
+    m_Configuration = m_Buff.InterpretBytesAsString();
     //StringToTable(conf_str, m_Configuration);
     m_Buff.Reset();
 }
@@ -930,9 +931,10 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-        //   if (m_Configuration.empty())
-        //       UpdateConfiguration(state);
-        //   //DrawProperties(state, m_Configuration);
+           if (m_Configuration.empty())
+               UpdateConfiguration(state);
+           ImGui::TextWrapped(m_Configuration.c_str());
+           //DrawProperties(state, m_Configuration);
         }
         break;
     }
@@ -959,6 +961,7 @@ void GuiDetailPages::ProcessEvents(GuiState &state)
             }
 
             m_GeneralProperties.clear();
+            m_Configuration.clear();
             /*m_AllProperties.clear();
             m_ExploreProperties.clear();
             m_Configuration.clear();

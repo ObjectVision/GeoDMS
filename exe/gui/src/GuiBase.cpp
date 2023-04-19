@@ -569,8 +569,8 @@ void DrawProperties(GuiState& state, TableData& properties)
     int button_index = 0; //TODO: does assumption of max 2 columns hold?
     ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_SizingFixedFit);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
     
-    ImGui::TableSetupColumn("AAA", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-    ImGui::TableSetupColumn("BBB", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+    ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
     
     for (auto& row : properties)
     {
