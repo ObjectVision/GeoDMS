@@ -15,6 +15,7 @@
 #include "dbg/SeverityType.h"
 #include "TreeItemProps.h"
 #include "IconsFontRemixIcon.h"
+#include "Xml/XMLOut.h"
 
 struct ImGuiWindow;
 
@@ -428,6 +429,24 @@ struct md_data
 	std::vector<md_table> tables;
 };
 
+enum PropertyEntryType
+{
+	PET_SEPARATOR,
+	PET_TEXT,
+	PET_LINK,
+	PET_HEADING
+};
+
+struct PropertyEntry
+{
+	PropertyEntryType   type;
+	bool background_is_red = false;
+	std::string         text;
+};
+
+using RowData = std::vector<PropertyEntry>;
+using TableData = std::vector<RowData>;
+
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
@@ -446,4 +465,4 @@ auto BrowseFolder(std::string saved_path) -> std::string;
 void OpenUrlInWindowsDefaultBrowser(const std::string url);
 void PostEmptyEventToGLFWContext();
 auto StringToTable(std::string&& input, std::string separator = "") -> md_table;
-void DrawProperties(GuiState& state, md_table& properties);
+void DrawProperties(GuiState& state, TableData& properties);

@@ -56,13 +56,13 @@ GuiMainComponent::GuiMainComponent()
 
 GuiMainComponent::~GuiMainComponent()
 {
-    CloseCurrentConfig();
-    //m_View.CloseAll(); 
-    //m_Treeview.clear();
-    //m_State.clear();
-    GuiEventQueues::DeleteInstance();
-
+    // release callbacks
     DMS_ReleaseMsgCallback(&m_EventLog.GeoDMSMessage, nullptr);
+    DMS_ReleaseStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
+    DMS_SetContextNotification(nullptr, nullptr);
+
+    CloseCurrentConfig();
+    GuiEventQueues::DeleteInstance();
 }
 
 std::string FillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)

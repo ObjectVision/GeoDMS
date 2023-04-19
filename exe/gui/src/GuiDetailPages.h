@@ -3,6 +3,7 @@
 #include <vector>
 #include "GuiBase.h"
 #include "ser/BaseStreamBuff.h"
+#include "xml/XMLOut.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -50,7 +51,7 @@ public:
     GuiOutStreamBuff();
     virtual ~GuiOutStreamBuff();
     void WriteBytes(const Byte* data, streamsize_t size) override;
-    //auto InterpretBytes(table_data& tableProperties) -> void;
+    void InterpretBytes(TableData& tableProperties);
     auto InterpretBytesAsString() -> std::string;
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
@@ -59,7 +60,7 @@ public:
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
     std::string CleanStringFromHtmlEncoding(std::string text_in);
-    //void InterpretTag(table_data& tableProperties);
+    void InterpretTag(TableData& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
 
@@ -78,68 +79,6 @@ enum class DetailPageActiveTab
     Properties,
     Configuration
 };
-
-/*struct MarkDownTextBlock {                  // subset of line
-    int start = 0;
-    int stop = 0;
-    int size() const
-    {
-        return stop - start;
-    }
-};
-
-struct MarkDownEmphasis {
-    enum EmphasisState {
-        NONE,
-        LEFT,
-        MIDDLE,
-        RIGHT,
-    };
-    EmphasisState state = NONE;
-    MarkDownTextBlock text;
-    char sym;
-};
-
-struct MarkDownLink {
-    enum LinkState {
-        NO_LINK,
-        HAS_SQUARE_BRACKET_OPEN,
-        HAS_SQUARE_BRACKETS,
-        HAS_SQUARE_BRACKETS_ROUND_BRACKET_OPEN,
-    };
-    LinkState state = NO_LINK;
-    MarkDownTextBlock text;
-    MarkDownTextBlock url;
-    bool isImage = false;
-    int num_brackets_open = 0;
-};
-
-struct MarkDownLine {
-    void clear() 
-    {
-        isHeading = false;
-        isEmphasis = false;
-        isUnorderedListStart = false;
-        isLeadingSpace = true;     // spaces at start of line
-        leadSpaceCount = 0;
-        headingCount = 0;
-        emphasisCount = 0;
-        lineStart = 0;
-        lineEnd = 0;
-        lastRenderPosition = 0;
-    }
-
-    bool isHeading = false;
-    bool isEmphasis = false;
-    bool isUnorderedListStart = false;
-    bool isLeadingSpace = true;     // spaces at start of line
-    int  leadSpaceCount = 0;
-    int  headingCount = 0;
-    int  emphasisCount = 0;
-    int  lineStart = 0;
-    int  lineEnd = 0;
-    int  lastRenderPosition = 0;     // lines may get rendered in multiple pieces
-};*/
 
 class GuiMarkDownPage
 {
@@ -212,12 +151,12 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    /*md_data            m_GeneralProperties;
-    md_data            m_AllProperties;
+    TableData m_GeneralProperties;
+    std::string m_Configuration;
+    /*md_data            m_AllProperties;
     md_data            m_ExploreProperties;
     md_data            m_ValueInfo;
-    md_data            m_SourceDescription;
-    md_data            m_Configuration;*/
+    md_data            m_SourceDescription;*/
 
     std::unique_ptr<GuiMarkDownPage> m_GeneralProperties_MD;
 

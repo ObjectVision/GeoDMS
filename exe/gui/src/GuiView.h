@@ -83,7 +83,8 @@ private:
 	bool m_done = false;
 	bool m_is_ready = false;
 	InterestPtr<SharedPtr<const TreeItem>> m_item; // to be released when statistics information is finalized
-	md_table m_data;
+	std::string m_data;
+	//md_table m_data;
 };
 
 class GuiViews 
