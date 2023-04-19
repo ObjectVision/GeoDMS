@@ -199,7 +199,7 @@ ImFont* SetGuiFont(FontBuilderRecipy& recipy)
     ImGuiIO& io = ImGui::GetIO();
     auto exePath = GetExeFilePath();
     ImFontConfig config;
-
+    config.OversampleH = 2.0;
     for (auto& font_spec : recipy.recipy)
     {
         std::string fontFileName = exePath + font_spec.filename;
