@@ -739,6 +739,7 @@ auto GetIndexFromDPVIsActionString(const std::string &dpvi_str) -> UInt64
 
 bool GuiDetailPages::UpdateValueInfo(GuiState& state)
 {
+    // TODO: move value info to separate view in line with statistics page
     clear();
     std::string result_string = "Omitted in alpha version.";
     //StringToTable(result_string, m_ValueInfo);
@@ -942,7 +943,9 @@ void GuiDetailPages::DrawContent(GuiState& state)
         {
            if (m_Configuration.empty())
                UpdateConfiguration(state);
-           ImGui::TextWrapped(m_Configuration.c_str());
+           ImGui::TextUnformatted(m_Configuration.c_str(), m_Configuration.c_str()+ m_Configuration.size());
+               
+               //m_Configuration.c_str());
            //DrawProperties(state, m_Configuration);
         }
         break;
