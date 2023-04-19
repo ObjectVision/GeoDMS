@@ -122,6 +122,9 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
 
 void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem)
 {
+    if (nextSubItem == state.GetCurrentItem())
+        return;
+
     auto event_queues = GuiEventQueues::getInstance();
     state.SetCurrentItem(nextSubItem);
     event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
