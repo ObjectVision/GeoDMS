@@ -588,7 +588,12 @@ void DrawProperties(GuiState& state, TableData& properties)
                 SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight() + 1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
             {
+                float old_size = ImGui::GetFont()->Scale;
+                ImGui::GetFont()->Scale *= 1.3;
+                ImGui::PushFont(ImGui::GetFont());
                 ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());
+                ImGui::GetFont()->Scale = old_size;
+                ImGui::PopFont();
             }
             else if (col.type == PET_LINK)
             {
