@@ -148,7 +148,6 @@ void GuiOutStreamBuff::InterpretTag(TableData& tableProperties)
             tableProperties.emplace_back();
         tableProperties.back().emplace_back(PET_SEPARATOR, false, m_Text);
     }
-
 }
 
 bool GuiOutStreamBuff::IsOpenTag(UInt32 ind)
@@ -677,7 +676,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
     auto result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
     m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
-    
+    m_Buff.Reset();
     /*// MD
     //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
     auto mdOut = std::unique_ptr<OutStreamBase>( XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL) );
@@ -959,8 +958,8 @@ void GuiDetailPages::ProcessEvents(GuiState &state)
                 m_active_tab = DetailPageActiveTab::None;
             }
 
-            /*m_GeneralProperties.clear();
-            m_AllProperties.clear();
+            m_GeneralProperties.clear();
+            /*m_AllProperties.clear();
             m_ExploreProperties.clear();
             m_Configuration.clear();
             m_ValueInfo.clear();

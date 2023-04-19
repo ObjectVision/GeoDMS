@@ -567,7 +567,11 @@ void DrawProperties(GuiState& state, TableData& properties)
         return;
 
     int button_index = 0; //TODO: does assumption of max 2 columns hold?
-    ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_NoHostExtendX);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
+    ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_SizingFixedFit);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
+    
+    ImGui::TableSetupColumn("AAA", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+    ImGui::TableSetupColumn("BBB", ImGuiTableColumnFlags_WidthStretch);
+    
     for (auto& row : properties)
     {
         ImGui::TableNextRow();
@@ -576,7 +580,10 @@ void DrawProperties(GuiState& state, TableData& properties)
         {
             if (column_index == 2) // hardcoded 2
                 break;
+
             ImGui::TableSetColumnIndex(column_index);
+            //ImGui::TableSetupColumn(const char* label, ImGuiTableColumnFlags flags = 0, float init_width_or_weight = 0.0f, ImGuiID user_id = 0);
+
             if (col.background_is_red)
                 SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight() + 1.0));// ImGui::GetWindowSize
             if (col.type == PET_HEADING)
