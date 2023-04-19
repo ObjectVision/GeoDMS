@@ -675,7 +675,7 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
     bool result;
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     {
-        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr));
         result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
     }
     m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
@@ -705,7 +705,7 @@ void GuiDetailPages::UpdateAllProperties(GuiState& state)
     bool result;
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     {
-        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr));
         result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
     }   
     //m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
@@ -717,7 +717,7 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     {
-        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr));
         DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
     }
     //m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
@@ -751,9 +751,9 @@ bool GuiDetailPages::UpdateValueInfo(GuiState& state)
 
 
     InterestPtr<TreeItem*> tmpInterest = current_view_action.tiContext->IsFailed() || current_view_action.tiContext->WasFailed() ? nullptr : current_view_action.tiContext;
-    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL);
+    auto xmlOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr);
     auto dpvi_index = GetIndexFromDPVIsActionString(current_view_action.sAction);
-    auto result = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, NULL, true);
+    auto result = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_view_action.tiContext), xmlOut.get(), dpvi_index, nullptr, true);
 
     if (!result)
         return true;
@@ -773,7 +773,7 @@ void GuiDetailPages::UpdateConfiguration(GuiState& state)
     clear();
     InterestPtr<TreeItem*> tmpInterest = state.GetCurrentItem()->IsFailed() || state.GetCurrentItem()->WasFailed() ? nullptr : state.GetCurrentItem();
     {
-        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", NULL));
+        auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_DMS, "DMS", calcRulePropDefPtr));
         DMS_TreeItem_XML_Dump(state.GetCurrentItem(), xmlOut.get());
     }
     m_Configuration = m_Buff.InterpretBytesAsString();
