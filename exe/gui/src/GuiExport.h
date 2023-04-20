@@ -6,8 +6,8 @@ struct gdal_driver_id
 	std::string shortname = "";
 	std::string name      = "";
 
-	bool is_raster        = false;
-	bool is_native        = false;
+	bool is_raster          = false;
+	bool has_native_version = false;
 
 	bool IsEmpty()
 	{

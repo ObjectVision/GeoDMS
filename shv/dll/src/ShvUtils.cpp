@@ -454,14 +454,17 @@ TokenID UniqueName(TreeItem* context, CharPtr nameBase)
 TokenID UniqueName(TreeItem* context, TokenID nameBaseID)
 {
 	assert(context);
-	UInt32 i = 0;
-	while (true) {
-		SharedStr nameStr = mySSPrintF("%s%d", nameBaseID, i++);
-		TokenID result = GetTokenID_mt(nameStr.c_str() );
-		if  (!context->GetConstSubTreeItemByID(result)) 
-			return result;
+	TokenID result = nameBaseID;
+	if (context->GetConstSubTreeItemByID(nameBaseID))
+	{
+		UInt32 i = 0;
+		do {
+			SharedStr nameStr = mySSPrintF("%s%d", nameBaseID, ++i);
+			result = GetTokenID_mt(nameStr.c_str());
+		} while (context->GetConstSubTreeItemByID(result));
 	}
-}	
+	return result;
+}
 
 TokenID UniqueName(TreeItem* context, const Class* cls)
 {

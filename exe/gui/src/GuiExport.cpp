@@ -1,3 +1,6 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+
 #include <imgui.h>
 #include "GuiExport.h"
 
@@ -5,8 +8,10 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 
+#include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
 
 #include "ShvUtils.h"
@@ -137,7 +142,7 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
 void GuiExport::SetDefaultNativeDriverUsage()
 {
     // TODO: expand logic, simplified implementation
-    if (m_selected_driver.is_native && m_selected_driver.shortname == "CSV")
+    if (m_selected_driver.has_native_version && m_selected_driver.shortname == "CSV")
         m_use_native_driver = true;
     else
         m_use_native_driver = false;
@@ -173,7 +178,7 @@ void GuiExport::SelectDriver(bool is_raster)
 
     // native driver selection
     
-    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.is_native);
+    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.has_native_version);
     ImGui::Checkbox("##native_driver", &m_use_native_driver);
     ImGui::SameLine();
     ImGui::Text("Use native driver");
@@ -370,7 +375,7 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
         if (adi != adiGeometry)
         {
             // TODO: reproduce multi-level structure of DataContainer
-            auto vda = CreateDataItem(vdc, adi->GetID(), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
             vda->SetExpr(adi->GetFullName());
         }
 
@@ -390,10 +395,11 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 static TokenID exportTableID = GetTokenID("ExportTable");
 static TokenID exportDbID = GetTokenID("ExportDatabase");
 static TokenID dbTableID = GetTokenID("DbTable");
+static TokenID rasterID = GetTokenID("Raster");
 
-auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
 {
-    bool nativeShapeFile = !stricmp(storageTypeName, "ESRI Shapefile");
+    bool nativeShapeFile = nativeFlagged && !stricmp(storageTypeName, "ESRI Shapefile");
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
     TreeItem* vdc = nullptr;
 
@@ -421,13 +427,69 @@ auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, SharedStr fn, 
     }
 
     if (!nativeShapeFile)
-        vdc->SetStorageManager(fn.c_str(), storageTypeName, false, driverName);
+        vdc->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
 
     return vdc;
 }
 
+auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+{
+    if (!CurrentItemCanBeExportedToRaster(rasterItemOrDomain))
+        return nullptr;
+
+    if (nativeFlagged && !stricmp(storageTypeName, "GTiff"))
+        storageTypeName = "tif";
+
+    auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
+    auto subContainer = avd->CreateItem(UniqueName(avd, rasterID));
+
+    auto adu = IsUnit(rasterItemOrDomain) ? AsUnit(rasterItemOrDomain) : AsDataItem(rasterItemOrDomain)->GetAbstrDomainUnit();
+    assert(CanBeRasterDomain(adu));
+    const AbstrDataItem* baseGrid = nullptr;
+    if (adu->GetNrDimensions() != 2)
+    {
+        assert(RefersToMappable(adu));
+        baseGrid = GetMappedData(adu);
+    }
+    auto rasterDomain = baseGrid ? baseGrid->GetAbstrDomainUnit() : adu;
+
+    auto storeData = [=](const AbstrDataItem* adi)
+    {
+        assert(adi->GetValueComposition() == ValueComposition::Single);
+        auto vda = CreateDataItem(subContainer, UniqueName(subContainer, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        auto expr = adi->GetFullName();
+        if (baseGrid)
+            expr = mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
+        vda->SetExpr(expr);
+    };
+
+    if (IsDataItem(rasterItemOrDomain))
+        storeData(AsDataItem(rasterItemOrDomain));
+    else if (IsUnit(rasterItemOrDomain))
+    {
+        for (auto subItem = rasterItemOrDomain; subItem; subItem = rasterItemOrDomain->WalkConstSubTree(subItem))
+            if (IsDataItem(subItem))
+            {
+                auto adi = AsDataItem(subItem);
+                if (!adu->UnifyDomain(adi->GetAbstrDomainUnit()))
+                    continue;
+                if (adi->GetValueComposition() != ValueComposition::Single)
+                    continue;
+                if (!adi->GetAbstrValuesUnit()->GetValueType()->IsNumericOrBool())
+                    continue;
+                storeData(adi);
+            }
+    }
+
+    subContainer->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+
+    return subContainer;
+}
+
 bool GuiExport::DoExport(GuiState& state)
 {
+    DMS_CALL_BEGIN
+
     auto item = state.GetCurrentItem();
     auto selectedDriver = m_selected_driver;
     auto folderName = m_folder_name;
@@ -436,7 +498,7 @@ bool GuiExport::DoExport(GuiState& state)
     SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = selectedDriver.shortname.c_str();
-    if (!selectedDriver.is_native)
+    if (!m_use_native_driver || !selectedDriver.has_native_version)
     {
         driverName = storageTypeName;
         if (selectedDriver.is_raster)
@@ -446,20 +508,24 @@ bool GuiExport::DoExport(GuiState& state)
     }
     else if (!stricmp(storageTypeName,  "CSV"))
     {
+        assert(m_use_native_driver);
         DoExportTableToCSV(item, ffName);
         return true;
     }
+    const TreeItem* exportConfig = nullptr;
     if (selectedDriver.is_raster)
-        throwNYI(MG_POS, "RasterFile export");
+        exportConfig = DoExportRasterOrMatrixData(item, m_use_native_driver, ffName, storageTypeName, driverName, "");
     else
+        exportConfig = DoExportTableOrDatabase(item, m_use_native_driver, ffName, storageTypeName, driverName, "");
+
+    if (exportConfig)
     {
-        auto exportConfig = DoExportTableOrDatabase(item, ffName, storageTypeName, driverName, "");
-        if (exportConfig)
-        {
-            Tree_Update(exportConfig, "Export");
-            return true;
-        }
+        Tree_Update(exportConfig, "Export");
+        return true;
     }
+
+    DMS_CALL_END
+
     return false;
 }
 
