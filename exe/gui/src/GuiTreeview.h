@@ -23,6 +23,7 @@ public:
 	void SetOpenStatus(bool do_open);
 	bool IsOpen() { return m_is_open; };
 	void SetState(NotificationCode new_state);
+	void DeleteChildren();
 	void AddChildren();
 	auto GetState() -> NotificationCode;
 	auto GetFirstSibling() -> GuiTreeNode*;
@@ -48,7 +49,7 @@ private:
 	NotificationCode m_state = NotificationCode::NC2_Invalidated;
 
 	// visualization members
-	bool m_has_been_openend = false;
+	bool m_has_been_opened = false;
 	bool m_is_open = false;
 	
 };

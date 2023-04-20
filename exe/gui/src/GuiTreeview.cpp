@@ -194,7 +194,7 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     m_children = std::move(other.m_children);
     m_state = other.m_state;
     m_depth = other.m_depth;
-    m_has_been_openend = other.m_has_been_openend;
+    m_has_been_opened = other.m_has_been_opened;
     m_is_open = other.m_is_open;
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
@@ -398,24 +398,35 @@ void GuiTreeNode::clear()
         DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
         m_item = nullptr;
         m_children.clear();
-        m_has_been_openend = false;
+        m_has_been_opened = false;
     }
 }
 
 void GuiTreeNode::SetOpenStatus(bool do_open)
 { 
+    if (m_is_open && !do_open)
+    {
+        m_has_been_opened = false;
+        DeleteChildren();
+    }
+
     m_is_open = do_open;
 
-    if (m_is_open && !m_has_been_openend && m_state >= NotificationCode::NC2_MetaReady) // children unknown at this point
+    if (m_is_open && !m_has_been_opened && m_state >= NotificationCode::NC2_MetaReady) // children unknown at this point
     {
         AddChildren();
-        m_has_been_openend = true; // add children once and only once
+        m_has_been_opened = true; // add children once and only once
     }
 }
 
 void GuiTreeNode::SetState(NotificationCode new_state)
 {
     m_state = new_state;
+}
+
+void GuiTreeNode::DeleteChildren()
+{
+    m_children.clear();
 }
 
 auto GuiTreeNode::AddChildren() -> void
