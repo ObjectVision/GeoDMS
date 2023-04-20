@@ -332,6 +332,96 @@ void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr
         }
 }
 
+#include <filesystem>
+
+void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
+{
+    // common domain for applicable TreeItems
+    auto auCommon = CommonDomain(ti); if (!auCommon) return;
+
+    const AbstrDataItem* adiGeometry = nullptr;
+    // find geometry, if any.
+    if (RefersToMappable(auCommon)) {
+        adiGeometry = GetMappedData(auCommon);
+        if (adiGeometry)
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
+                adiGeometry = nullptr;
+    }
+
+    if (!adiGeometry)
+        while (adiGeometry = DataContainer_NextItem(ti, adiGeometry, auCommon, false))
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+                break;
+    if (!adiGeometry && auCommon != ti)
+        while (adiGeometry = DataContainer_NextItem(auCommon, adiGeometry, auCommon, false))
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+                break;
+
+    // install the storage manager(s) and run the export
+    AbstrDataItem* vdGeometry = nullptr;
+    if (adiGeometry) {
+        vdGeometry = DMS_CreateDataItem(vdc, "Geometry", auCommon, adiGeometry->GetAbstrValuesUnit(), adiGeometry->GetValueComposition());
+        vdGeometry->SetExpr(adiGeometry->GetFullName());
+    }
+
+    const AbstrDataItem* adi = nullptr;
+    while (adi = DataContainer_NextItem(ti, adi, auCommon, false))
+        if (adi != adiGeometry)
+        {
+            // TODO: reproduce multi-level structure of DataContainer
+            auto vda = CreateDataItem(vdc, adi->GetID(), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+            vda->SetExpr(adi->GetFullName());
+        }
+
+    if (fn.empty())
+        return;
+
+    auto filePath = std::filesystem::path(fn.c_str());
+    auto stem = filePath.stem();
+    if (vdGeometry)
+        vdGeometry->SetStorageManager((stem.generic_string() + ".shp").c_str(), "shp", false);
+    vdc->SetStorageManager((stem.generic_string() + ".dbf").c_str(), "dbf", false);
+}
+
+static TokenID exportTableID = GetTokenID("ExportTable");
+static TokenID exportDbID = GetTokenID("ExportDatabase");
+static TokenID dbTableID = GetTokenID("DbTable");
+
+auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+{
+    bool nativeShapeFile = !stricmp(storageTypeName, "ESRI Shapefile");
+    auto avd = GetViewDataContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
+    TreeItem* vdc = nullptr;
+
+    if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
+    {
+        vdc = avd->CreateItem(UniqueName(avd, exportTableID));
+        DoExportTable(tableOrDatabaseItem, nativeShapeFile ? fn : SharedStr(), vdc);
+    }
+    else
+    {
+        if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
+            return nullptr;
+
+        vdc = avd->CreateItem(UniqueName(avd, exportDbID));
+        for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
+            if (CurrentItemCanBeExportedAsTable(tableItem))
+            {
+                SharedStr subFileName;
+                if (nativeShapeFile)
+                    subFileName = DelimitedConcat(fn.c_str(), tableItem->GetName().c_str());
+                auto subContainer = vdc->CreateItem(UniqueName(vdc, dbTableID));
+
+                DoExportTable(tableItem, subFileName, subContainer);
+            }
+    }
+
+    if (!nativeShapeFile)
+        vdc->SetStorageManager(fn.c_str(), storageTypeName, false, driverName);
+
+    return vdc;
+}
+
 bool GuiExport::DoExport(GuiState& state)
 {
     auto item = state.GetCurrentItem();
@@ -355,9 +445,14 @@ bool GuiExport::DoExport(GuiState& state)
         DoExportTableToCSV(item, ffName);
         return true;
     }
-
-    // TODO: make shadow items if a storage on this gets in the way of other things, such as template instantiation
-    item->SetStorageManager(ffName.c_str(), storageTypeName, false, driverName);
+    if (selectedDriver.is_raster)
+        throwNYI(MG_POS, "RasterFile export");
+    else
+    {
+        auto exportConfig = DoExportTableOrDatabase(item, ffName, storageTypeName, driverName, "");
+        if (exportConfig)
+            DMS_TreeItem_Update(exportConfig);
+    }
     return false;
 }
 

@@ -137,7 +137,7 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew);
 // section : ViewContext
 //----------------------------------------------------------------------
 
-TokenID UniqueName(TreeItem* context, TokenID nameBaseID);
+SHV_CALL TokenID UniqueName(TreeItem* context, TokenID nameBaseID);
 TokenID UniqueName(TreeItem* context, const Class* cls);
 TokenID CopyName(TreeItem* context, TokenID orgNameID);
 
@@ -259,8 +259,10 @@ Float64 GetDesktopDIP2pixFactor();
 // desktop data section
 //----------------------------------------------------------------------
 
-TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item);
-TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
+SHV_CALL TreeItem* GetDefaultDesktopContainer(const TreeItem* ti);
+SHV_CALL TreeItem* GetViewDataContainer  (TreeItem* desktopItem);
+SHV_CALL TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item);
+SHV_CALL TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
 
 template <typename T>
 const T* GetUltimateSourceItem(const T* item)
@@ -310,6 +312,8 @@ extern "C" {
 	SHV_CALL UInt32               DMS_CONV SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode);
 	SHV_CALL const AbstrDataItem* DMS_CONV SHV_DataContainer_GetItem     (const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode);
 }
+
+SHV_CALL auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*;
 
 //----------------------------------------------------------------------
 // UpdateShowSelOnly section
