@@ -55,6 +55,18 @@ bool GuiOutStreamBuff::ReplaceStringInString(std::string& str, const std::string
 
     return true;
 }
+bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to)
+{
+    while (true)
+    {
+        size_t start_pos = str.find(from);
+        if (start_pos == std::string::npos)
+            break;
+        str.replace(start_pos, from.length(), to);
+    }
+
+    return true;
+}
 // CODE REVIEW; en &amp; ? Consider integrating with HtmlDecode in XmlParser.cpp, 
 // enventueel laten we die functie op een char range werken teneinde voor zowel std::string als SharedStr te laten werken.
 // HtmlDecode en helpers kunnen we verplaatsen naar Encodes.cpp voor een generieke set van consistente encoding en decoding functies.
@@ -68,13 +80,35 @@ std::string GuiOutStreamBuff::CleanStringFromHtmlEncoding(std::string text)
     return text;
 }
 
-std::string GuiOutStreamBuff::GetHrefFromTag()
+auto CleanStringFromHtmlEncoding(std::string& text) -> std::string
+{
+    ReplaceStringInString(text, "&apos;", "\'"); //&apos;
+    ReplaceStringInString(text, "&quot;", "\""); //&quot;
+    ReplaceStringInString(text, "&lt;", "<"); // &lt;
+    ReplaceStringInString(text, "&gt;", ">"); // &gt;
+    return text;
+}
+
+auto GuiOutStreamBuff::GetHrefFromTag() -> std::string
 {
     std::string href = "";
 
+    //TODO: generalize
     if (m_Tag.text.size() >= 23 && std::string_view(m_Tag.text.data()+9, 14) == "dms:dp.general")
         href = m_Tag.text.substr(24, m_Tag.text.length() - 26);
         
+    return href;
+
+}
+
+auto GetHrefFromTag(const Tag& tag) -> std::string
+{
+    std::string href = "";
+
+    //TODO: generalize
+    if (tag.text.size() >= 23 && std::string_view(tag.text.data() + 9, 14) == "dms:dp.general")
+        href = tag.text.substr(24, tag.text.length() - 26);
+
     return href;
 
 }
@@ -193,6 +227,173 @@ bool GuiOutStreamBuff::IsOpenTag(UInt32 ind)
 auto GuiOutStreamBuff::InterpretBytesAsString() -> std::string
 {
     return std::string(m_Buff.begin(), m_Buff.end());
+}
+
+bool IsOpenTag(const std::vector<char> &buff, UInt32 ind)
+{
+    std::string tmpTag;
+    while (buff[ind] != '>')
+    {
+        tmpTag += buff[ind];
+        ind++;
+    }
+    if (tmpTag.substr(0, 4) == "BODY")
+        return true;
+    else if (tmpTag.substr(0, 5) == "TABLE")
+        return true;
+    else if (tmpTag.substr(0, 2) == "TD")
+        return true;
+    else if (tmpTag.substr(0, 2) == "TR")
+        return true;
+    else if (tmpTag.substr(0, 1) == "A")
+        return true;
+    else if (tmpTag.substr(0, 2) == "H2")
+        return true;
+    else if (tmpTag.substr(0, 5) == "/BODY")
+        return true;
+    else if (tmpTag.substr(0, 6) == "/TABLE")
+        return true;
+    else if (tmpTag.substr(0, 3) == "/TD")
+        return true;
+    else if (tmpTag.substr(0, 3) == "/TR")
+        return true;
+    else if (tmpTag.substr(0, 2) == "/A")
+        return true;
+    else if (tmpTag.substr(0, 3) == "/H2")
+        return true;
+    else if (tmpTag.substr(0, 3) == "HR/")
+        return true;
+    else if (tmpTag.substr(0, 2) == "BR")
+        return true;
+
+    return false;
+}
+
+void InterpretTag(std::string& text, Tag& tag, std::vector<UInt16>& open_tags, TableData& table_data)
+{
+    // open tags
+    if (tag.text.size() >= 5 && std::string_view(tag.text.data(), 5) == "<BODY")
+        open_tags[int(HTMLTagType::BODY)]++;
+    else if (tag.text.substr(0, 2) == "<A")
+    {
+        open_tags[int(HTMLTagType::LINK)]++;
+        tag.href = GetHrefFromTag(tag);
+    }
+    else if (tag.text.substr(0, 6) == "<TABLE")
+    {
+        open_tags[int(HTMLTagType::TABLE)]++;
+    }
+    else if (tag.text.substr(0, 3) == "<TR")
+    {
+        open_tags[int(HTMLTagType::TABLEROW)]++;
+        if (!table_data.back().empty())
+            table_data.emplace_back();
+    }
+    else if (tag.text.substr(0, 3) == "<TD")
+        open_tags[int(HTMLTagType::TABLEDATA)]++;
+    else if (tag.text.substr(0, 3) == "<H2") {}
+
+    // close tags
+    else if (tag.text == "</BODY>")
+        open_tags[int(HTMLTagType::BODY)]--;
+    else if (tag.text == "</H2>")
+    {
+        tag.href.clear();
+        table_data.emplace_back();
+        table_data.back().emplace_back(PET_HEADING, false, text);
+        text.clear();
+    }
+    else if (tag.text == "</TABLE>")
+    {
+        open_tags[int(HTMLTagType::TABLE)]--;
+    }
+    else if (tag.text == "</TR>")
+        open_tags[int(HTMLTagType::TABLEROW)]--;
+    else if (tag.text == "</A>")
+        open_tags[int(HTMLTagType::LINK)]--;
+    else if (tag.text == "</TD>")
+    {
+        if (open_tags[int(HTMLTagType::TABLEDATA)] > 0)
+        {
+            open_tags[int(HTMLTagType::TABLEDATA)]--;
+
+            if (text.empty())
+                return;
+
+            bool text_contains_failreason = text.contains("FailState") || text.contains("FailReason");
+
+            if (!tag.href.empty())
+            {
+                table_data.back().emplace_back(PET_LINK, text_contains_failreason, CleanStringFromHtmlEncoding(text));
+                tag.href.clear();
+            }
+            else
+                table_data.back().emplace_back(PET_TEXT, text_contains_failreason, CleanStringFromHtmlEncoding(text));
+            text.clear();
+        }
+    }
+    else if (tag.text == "<HR/>")
+    {
+        if (!table_data.back().empty())
+            table_data.emplace_back();
+        table_data.back().emplace_back(PET_SEPARATOR, false, text);
+    }
+}
+
+void InterpretHTMStreamToTableData(const std::vector<char>& buff, TableData &data)
+{
+    auto parser_state = HTMLParserState::NONE;
+    Tag  tag;
+    //UInt16 open_tags[int(HTMLTagType::COUNT)] = {};
+
+    std::vector<UInt16> open_tags;// (int(HTMLTagType::COUNT));
+    open_tags.resize(int(HTMLTagType::COUNT));
+
+    std::string text;
+    UInt32 ind = 0;
+
+    for (auto& chr : buff)
+    {
+        ind++;
+        if (chr == '\n')
+            continue;
+
+        // set parser state
+        if (chr == '<' && IsOpenTag(buff, ind))
+        {
+            parser_state = HTMLParserState::TAGOPEN;
+        }
+        else if (chr == '>' && parser_state == HTMLParserState::TAGOPEN)
+            parser_state = HTMLParserState::TAGCLOSE;
+        else if (parser_state != HTMLParserState::TAGOPEN)
+        {
+            tag.clear();
+            parser_state = HTMLParserState::TEXT;
+        }
+
+        switch (parser_state)
+        {
+        case HTMLParserState::TAGOPEN:
+        {
+            tag.text += chr;
+            break;
+        }
+        case HTMLParserState::TAGCLOSE:
+        {
+            tag.text += chr;
+            InterpretTag(text, tag, open_tags, data);
+            tag.text.clear();
+            break;
+        }
+        case HTMLParserState::TEXT:
+        {
+            if (chr == '%') // to overcome formatting interpretation of %
+                text += chr;
+            text += chr;
+            break;
+        }
+        }
+    }
 }
 
 void GuiOutStreamBuff::InterpretBytes(TableData& tableProperties)
@@ -678,7 +879,9 @@ void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
         auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", NULL));
         result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
     }
-    m_Buff.InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
+    //InterpretBytes(m_GeneralProperties); // Create detail page from html stream*/
+    InterpretHTMStreamToTableData(m_Buff.m_Buff, m_GeneralProperties);
+    
     m_Buff.Reset();
     /*// MD
     //auto mdOut = (std::unique_ptr<OutStreamBase>)XML_OutStream_Create(&m_Buff, OutStreamBase::ST_MD, "", NULL);
