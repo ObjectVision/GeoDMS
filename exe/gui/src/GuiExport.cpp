@@ -229,7 +229,7 @@ GuiExport::GuiExport()
 void GuiExport::Update(bool* p_open, GuiState &state)
 {
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
-    if (!ImGui::Begin("Export", p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin((std::string("Export ") + state.GetCurrentItem()->GetFullName().c_str()).c_str(), p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;
