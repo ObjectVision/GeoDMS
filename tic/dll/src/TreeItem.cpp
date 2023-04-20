@@ -457,9 +457,9 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
 
-	dms_assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
+	assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	if (s_MakeEndoLockCount)
 		SetTSF(TSF_IsEndogenous);
 	if (parent) 
@@ -481,6 +481,7 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 			SetFreeDataState(true); 
 		if (parent->GetStoreDataState())
 			SetStoreDataState(true);
+		NotifyStateChange(parent, NC_NewSubItem);
 	}
 #if defined(MG_DEBUG_DATA)
 	md_FullName = GetFullName();
@@ -2345,7 +2346,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 //		if	(mc_RefItem && !GetTSF(TSF_InheritedRef) && !mc_Expr.empty())
 //			Unify(mc_RefItem);
-		NotifyStateChange(this, NC2_MetaReady);
+//		NotifyStateChange(this, NC2_MetaReady);
 	}
 	catch (...)
 	{

@@ -68,6 +68,8 @@ enum NotificationCode {
 	CC_CreateMdiChild    = 23,
 
 	CC_First             = 21,
+
+	NC_NewSubItem = 22,
 };
 
 //----------------------------------------------------------------------
