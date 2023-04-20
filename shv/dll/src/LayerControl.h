@@ -171,7 +171,7 @@ class LayerControlSet : public GraphicVarRows
 public:
 	LayerControlSet(MovableObject* owner, LayerSet* layerSet);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_PushVisibility|GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::PushVisibility| GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -206,7 +206,7 @@ public:
 	~LayerControlGroup();
 	void Init(LayerSet* layerSet, CharPtr caption);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
 	void FillMenu(MouseEventDispatcher& med) override;

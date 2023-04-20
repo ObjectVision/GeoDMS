@@ -70,7 +70,7 @@ public:
 	);
 	DataItemColumn(const DataItemColumn& src);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ClipExtents; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
 	~DataItemColumn(); // hide call to dtor of SharedPtr<FontIndexCache>
 

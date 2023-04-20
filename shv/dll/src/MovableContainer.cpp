@@ -61,18 +61,18 @@ void AutoSizeContainer::ProcessCollectionChange()
 {
 	TPoint clientSize(0, 0);
 	// calculate Size
-	gr_elem_index n = NrEntries();
+	auto n = NrEntries();
 	while (n)
 	{
 		MovableObject* entry = GetEntry(--n);
 		if (entry && entry->IsVisible())
 		{
 			TPoint entrySize = entry->GetCurrClientSize();
-			dms_assert(entry->GetCurrClientRelPos().x() + entry->GetBorderPixelExtents().Left() >= 0);
-			dms_assert(entry->GetCurrClientRelPos().y() + entry->GetBorderPixelExtents().Top () >= 0);
+			assert(entry->GetCurrClientRelPos().x() + entry->GetBorderPixelExtents().Left() >= 0);
+			assert(entry->GetCurrClientRelPos().y() + entry->GetBorderPixelExtents().Top () >= 0);
 
-			MakeUpperBound( clientSize, 
-				entrySize + entry->GetCurrClientRelPos() +  TPoint(entry->GetBorderPixelExtents().BottomRight())
+			MakeUpperBound( clientSize
+			,	entrySize + entry->GetCurrClientRelPos() + TPoint(entry->GetBorderPixelExtents().BottomRight())
 			);
 		}
 	}
@@ -93,9 +93,9 @@ GraphicVarRows::GraphicVarRows(MovableObject* owner)
 
 void GraphicVarRows::ProcessCollectionChange()
 {
-	SizeT n = NrEntries();
+	auto n = NrEntries();
 	TPoint resSize(m_MaxColWidth, m_RowSepHeight);
-	for (UInt32 i = 0; i!=n; ++i)
+	for (decltype(n) i = 0; i!=n; ++i)
 	{
 		MovableObject* entry = GetEntry(i);
 
@@ -385,4 +385,3 @@ void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 			base_type::GrowHor(width - m_ClientSize.x(), m_ClientSize.x(), 0);
 	}
 }
-

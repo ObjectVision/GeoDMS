@@ -80,7 +80,7 @@ class TableControl : public GraphicVarCols
 public:
 	TableControl(MovableObject* owner);
 	~TableControl();
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ChildCovered; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ChildCovered; };
 
 	DataItemColumn* GetColumn(gr_elem_index i);
 	const DataItemColumn* GetConstColumn(gr_elem_index i) const;
