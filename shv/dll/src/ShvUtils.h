@@ -260,6 +260,7 @@ Float64 GetDesktopDIP2pixFactor();
 //----------------------------------------------------------------------
 
 SHV_CALL TreeItem* GetDefaultDesktopContainer(const TreeItem* ti);
+SHV_CALL TreeItem* GetExportsContainer   (TreeItem* desktopItem);
 SHV_CALL TreeItem* GetViewDataContainer  (TreeItem* desktopItem);
 SHV_CALL TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item);
 SHV_CALL TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);

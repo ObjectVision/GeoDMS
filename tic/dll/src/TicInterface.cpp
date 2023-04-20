@@ -685,6 +685,13 @@ bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& 
 	return true;
 }
 
+TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
+{
+	SuspendTrigger::FencedBlocker lockSuspend;
+	TreeItemInterestPtr holder;
+	TreeUpdateImpl(self, context, holder);
+}
+
 #include "time.h"
 
 // TreeItem status management

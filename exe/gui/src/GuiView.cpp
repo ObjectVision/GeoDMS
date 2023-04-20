@@ -496,8 +496,8 @@ auto GuiViews::AddDMSView(GuiState& state, ViewStyle vs, std::string name) -> vo
         return;
 
     static int s_ViewCounter = 0;
-    auto rootItem = (TreeItem*)current_item->GetRoot();
-    auto desktopItem = rootItem->CreateItemFromPath("DesktopInfo");
+    auto rootItem = dynamic_cast<const TreeItem*>(current_item->GetRoot());
+    auto desktopItem = GetDefaultDesktopContainer(rootItem); // rootItem->CreateItemFromPath("DesktopInfo");
     auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
     m_dms_views.emplace_back(name, vs, SHV_DataView_Create(viewContextItem, vs, ShvSyncMode::SM_Load));

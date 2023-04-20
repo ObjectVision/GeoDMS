@@ -665,6 +665,7 @@ inline TreeItem* SafeCreateItemFromPath(TreeItem* context, CharPtr path)
 static TokenID desktopsID = GetTokenID_st("Desktops");
 static TokenID defaultID  = GetTokenID_st("Default");
 static TokenID viewDataID = GetTokenID_st("ViewData");
+static TokenID exportsID  = GetTokenID_st("Exports");
 
 TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 {
@@ -673,17 +674,24 @@ TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 	const TreeItem* pi = nullptr;
 	while (pi = ti->GetTreeParent())
 		ti = pi;
-	auto desktops = const_cast<TreeItem*>(pi)->CreateItem(desktopsID);
+	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
 	return desktops->CreateItem(defaultID);
+}
+
+TreeItem* GetExportsContainer(TreeItem* desktopItem)
+{
+	assert(desktopItem && !desktopItem->IsCacheItem());
+	auto result = desktopItem->CreateItem(exportsID);
+	assert(result && !result->IsCacheItem());
+	return result;
 }
 
 TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 {
-	TreeItem* viewDataContainer = desktopItem->GetSubTreeItemByID(viewDataID);
-	if (!viewDataContainer)
-		viewDataContainer = desktopItem->CreateItem(viewDataID);
-	dms_assert(viewDataContainer && !viewDataContainer->IsCacheItem());
-	return viewDataContainer;
+	assert(desktopItem && !desktopItem->IsCacheItem());
+	auto result = desktopItem->CreateItem(viewDataID);
+	assert(result && !result->IsCacheItem());
+	return result;
 }
 
 TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)

@@ -11,6 +11,7 @@
 
 #include "ShvUtils.h"
 
+#include "ItemUpdate.h"
 #include "Unit.h"
 
 const AbstrUnit* CommonDomain(const TreeItem* item)
@@ -216,14 +217,14 @@ GuiExport::GuiExport()
     m_folder_name = GetLocalDataDir().c_str();
 
     m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", false, true);
-    m_available_drivers.emplace_back("GPKG", "GeoPackage vector", false, false);
-    m_available_drivers.emplace_back("CSV", "Comma Separated Value(.csv)", false, true);
-    m_available_drivers.emplace_back("GML", "Geography Markup Language", false, false);
+    m_available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", false, false);
+    m_available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", false, true);
+    m_available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", false, false);
     m_available_drivers.emplace_back("GeoJSON", "GeoJSON", false, false);
     m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", true, true);
     m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", true, false);
-    m_available_drivers.emplace_back("PNG", "Portable Network Graphics", true, false);
-    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format", true, false);
+    m_available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", true, false);
+    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", true, false);
 }
 
 void GuiExport::Update(bool* p_open, GuiState &state)
@@ -377,10 +378,13 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
         return;
 
     auto filePath = std::filesystem::path(fn.c_str());
-    auto stem = filePath.stem();
     if (vdGeometry)
-        vdGeometry->SetStorageManager((stem.generic_string() + ".shp").c_str(), "shp", false);
-    vdc->SetStorageManager((stem.generic_string() + ".dbf").c_str(), "dbf", false);
+    {
+        auto shpPath = filePath; shpPath.replace_extension("shp");
+        vdGeometry->SetStorageManager(shpPath.generic_string().c_str(), "shp", false);
+    }
+    filePath.replace_extension("dbf");
+    vdc->SetStorageManager(filePath.generic_string().c_str(), "dbf", false);
 }
 
 static TokenID exportTableID = GetTokenID("ExportTable");
@@ -390,7 +394,7 @@ static TokenID dbTableID = GetTokenID("DbTable");
 auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
 {
     bool nativeShapeFile = !stricmp(storageTypeName, "ESRI Shapefile");
-    auto avd = GetViewDataContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
+    auto avd = GetExportsContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
     TreeItem* vdc = nullptr;
 
     if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
@@ -451,7 +455,10 @@ bool GuiExport::DoExport(GuiState& state)
     {
         auto exportConfig = DoExportTableOrDatabase(item, ffName, storageTypeName, driverName, "");
         if (exportConfig)
-            DMS_TreeItem_Update(exportConfig);
+        {
+            Tree_Update(exportConfig, "Export");
+            return true;
+        }
     }
     return false;
 }
