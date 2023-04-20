@@ -572,7 +572,7 @@ void DrawProperties(GuiState& state, TableData& properties)
         if (properties.at(0).size() == 1 && properties.at(0).at(0).type == PET_HEADING)
         {
             float old_size = ImGui::GetFont()->Scale;
-            ImGui::GetFont()->Scale *= 1.3;
+            ImGui::GetFont()->Scale *= 1.3f;
             ImGui::PushFont(ImGui::GetFont());
             ImGui::Text(properties.at(0).at(0).text.c_str());
             ImGui::GetFont()->Scale = old_size;
