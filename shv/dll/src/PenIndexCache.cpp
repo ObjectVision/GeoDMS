@@ -128,12 +128,12 @@ const AbstrUnit* PenIndexCache::GetCommonClassIdUnit() const
 //	PARAMETERIZE ON (DC, worldUnitsPerPixel), redo when worldUnitsPerPixel has changed
 void PenIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 subPixelFactor) const
 {
-	dms_assert( nrPixelsPerWorldUnit > 0.0);
-	dms_assert( subPixelFactor       > 0.0);
+	assert( nrPixelsPerWorldUnit > 0.0);
+	assert( subPixelFactor       > 0.0);
 
 	if	(!IsDifferent(nrPixelsPerWorldUnit, subPixelFactor)) // maybe we now render for a different Device (such as Printer)
 	{	
-		dms_assert(m_KeyIndices.size() > 0); // PostCondition (still) remains
+		assert(m_KeyIndices.size() > 0 || m_Keys.size() == 1); // PostCondition (still) remains
 		return;
 	}
 
@@ -171,6 +171,7 @@ void PenIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 sub
 		AddKey(m_DefaultPixelWidth, m_DefaultWorldWidth, m_DefaultPenColor, m_DefaultPenStyle);
 	}
 	MakeKeyIndex(m_KeyIndices, m_Keys);
+	assert(m_KeyIndices.size() > 0 || m_Keys.size() == 1); // PostCondition
 }
 
 void PenIndexCache::AddKeys(const AbstrThemeValueGetter* pixelWidthVG, const AbstrThemeValueGetter*  worldWidthVG, const AbstrThemeValueGetter* penColorVG, const AbstrThemeValueGetter* penStyleVG, entity_id n) const
