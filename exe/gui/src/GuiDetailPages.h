@@ -56,6 +56,7 @@ public:
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
     void Reset();
+    std::vector<char>             m_Buff;
 
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
@@ -63,8 +64,6 @@ private:
     void InterpretTag(TableData& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
-
-    std::vector<char>             m_Buff;
     HTMLParserState               m_ParserState = HTMLParserState::NONE;
     UInt16                        m_OpenTags[int(HTMLTagType::COUNT)] = {};
     Tag                           m_Tag;

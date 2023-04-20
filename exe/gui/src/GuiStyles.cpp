@@ -23,6 +23,11 @@ GuiIcon::~GuiIcon()
         glDeleteTextures(1, &m_Image);
 }
 
+auto GuiIcon::GetId() -> std::string_view
+{
+    return m_id;
+}
+
 GLuint GuiIcon::GetImage()
 {
     return m_Image;
@@ -45,6 +50,8 @@ bool GuiIcon::LoadTextureFromFile(std::string iconPath) // TODO: adaptive use of
     image_data = stbi_load(iconPath.c_str(), &m_Width, &m_Height, NULL, 4);
     if (image_data == NULL)
         return false;
+
+    m_id = iconPath;
 
     IM_ASSERT(image_data);
 

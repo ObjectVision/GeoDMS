@@ -85,6 +85,29 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     return result;
 }
 
+void OpenConfigSource(GuiState &state, std::string_view filename, std::string_view line)
+{
+    std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
+
+    if (!filename.empty() && !line.empty() && !command.empty())
+    {
+        auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
+        const TreeItem* TempItem = state.GetCurrentItem();
+        auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
+        
+        DMS_CALL_BEGIN
+            try
+        {
+            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
+        }
+        catch (...)
+        {
+            throw;
+        }
+        DMS_CALL_END
+    }
+}
+
 bool GuiMainComponent::ProcessEvent(GuiEvents e)
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -177,27 +200,9 @@ bool GuiMainComponent::ProcessEvent(GuiEvents e)
     {
         if (!m_State.GetCurrentItem())
             break;
-
         std::string filename = m_State.GetCurrentItem()->GetConfigFileName().c_str();
         std::string line = std::to_string(m_State.GetCurrentItem()->GetConfigFileLineNr());
-        std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
-
-        if (!filename.empty() && !line.empty() && !command.empty())
-        {
-            auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
-            const TreeItem* TempItem = m_State.GetCurrentItem();
-            auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-            DMS_CALL_BEGIN
-            try
-            {
-                StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str())); //TODO: crash in case fullPathCmd does not exist
-            }
-            catch (...)
-            {
-                throw;
-            }
-            DMS_CALL_END
-        }
+        OpenConfigSource(m_State, filename, line);
 
         break;
     }
@@ -304,6 +309,45 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
     return false;
 }
 
+struct link_info
+{
+    bool is_valid      = false;
+    std::string test   = "";
+    std::string line_number = "";
+    std::string col_number  = "";
+};
+
+auto get_link_from_error_message(std::string_view error_message) -> link_info
+{
+    //nPosHO: = pos('(', sSelection);
+    //nPosC: = pos(',', sSelection);
+    //nPosHS: = pos(')', sSelection);
+
+    auto round_bracked_open_pos  = error_message.find_first_of('(');
+    auto comma_pos               = error_message.find_first_of(',');
+    auto round_bracked_close_pos = error_message.find_first_of(')');
+
+    if (round_bracked_open_pos == error_message.npos || comma_pos == error_message.npos || round_bracked_close_pos == error_message.npos)
+        return {};
+
+    if (comma_pos < round_bracked_open_pos) // comma occured before open line,col position in file
+        return {};
+
+    if (round_bracked_close_pos < round_bracked_open_pos) // round close bracked occured before open round bracked
+        return {};
+
+    auto first_line_ending = error_message.find_first_of('\n');
+    auto second_line_ending = error_message.find_first_of('\n', first_line_ending);
+
+    std::string filename = std::string(error_message.substr(first_line_ending+1, round_bracked_open_pos-first_line_ending));
+    std::string line_number = std::string(error_message.substr(round_bracked_open_pos+1, comma_pos-round_bracked_open_pos));
+    std::string col_number = std::string(error_message.substr(comma_pos+1, round_bracked_close_pos-(--comma_pos)));;
+
+    return link_info(true, filename, line_number, col_number);
+
+}
+
+
 bool GuiMainComponent::ShowErrorDialogIfNecessary()
 {
     if (m_State.errorDialogMessage.HasNew())
@@ -314,10 +358,18 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
+        ImGui::BringWindowToFocusFront(ImGui::GetCurrentWindow()); //TODO: does not work for modal window, try other routes.
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         if (!m_State.errorDialogMessage._Get().empty())
         {
             ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str())); //TODO: interpret error message for link
+            
+            auto link = get_link_from_error_message(m_State.errorDialogMessage.Get());
+            
+            if (ImGui::IsItemClicked())
+            {
+                // follow link
+            }
         }
 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
