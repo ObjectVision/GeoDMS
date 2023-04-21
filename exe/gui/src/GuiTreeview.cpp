@@ -356,7 +356,7 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
     const TreeItem* storageHolder = nullptr;
     if (m_item->HasStorageManager())
         storageHolder = m_item;
-    if (!storageHolder)
+    else
     {
         auto parent = m_item->GetTreeParent();
         if (!parent) // root has no parent
