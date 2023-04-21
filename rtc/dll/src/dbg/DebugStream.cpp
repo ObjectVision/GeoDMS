@@ -488,7 +488,7 @@ RtcReportLock::RtcReportLock()
 #if defined(_MSC_VER)
 		_set_new_handler(MyNewExceptionHandler);
 #endif
-		dms_assert(IsMainThread());
+		assert(IsMainThread());
 	}
 }
 
@@ -502,7 +502,7 @@ RtcReportLock::~RtcReportLock()
 		DMS_CALL_BEGIN
 			
 			ReportExistingObjects(); // Dump Memory leaks of PersistentObjects; if registered
-			dms_assert(IsMainThread());
+			assert(IsMainThread());
 
 		DMS_CALL_END
 	}
