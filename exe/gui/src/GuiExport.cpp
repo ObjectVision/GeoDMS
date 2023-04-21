@@ -31,12 +31,14 @@ const AbstrUnit* CommonDomain(const TreeItem* item)
         domainCandidate = AsUnit(item);
         if (!domainCandidate->CanBeDomain())
             return nullptr;
+        domainCandidate->UpdateMetaInfo();
     }
 
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
         if (IsDataItem(subItem))
         {
             auto adu = AsDataItem(subItem)->GetAbstrDomainUnit();
+            adu->UpdateMetaInfo();
             if (domainCandidate && domainCandidate->GetUnitClass() != Unit<Void>::GetStaticClass())
             {
                 if (!domainCandidate->UnifyDomain(adu, "", "", UnifyMode::UM_AllowVoidRight))
@@ -142,7 +144,7 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
 void GuiExport::SetDefaultNativeDriverUsage()
 {
     // TODO: expand logic, simplified implementation
-    if (m_selected_driver.has_native_version && m_selected_driver.shortname == "CSV")
+    if (m_selected_driver.HasNativeVersion() && m_selected_driver.native_is_default)
         m_use_native_driver = true;
     else
         m_use_native_driver = false;
@@ -157,7 +159,7 @@ void GuiExport::SelectDriver(bool is_raster)
     
 
 
-    if (ImGui::BeginCombo("##driver_selector", m_selected_driver.shortname.c_str(), ImGuiComboFlags_None))
+    if (ImGui::BeginCombo("##driver_selector", m_selected_driver.Caption(), ImGuiComboFlags_None))
     {
         for (auto& available_driver : m_available_drivers)
         {
@@ -165,7 +167,7 @@ void GuiExport::SelectDriver(bool is_raster)
                 continue;
 
             bool is_selected = m_selected_driver.shortname == available_driver.shortname;
-            if (ImGui::Selectable(available_driver.shortname.c_str(), is_selected))
+            if (ImGui::Selectable(available_driver.Caption(), is_selected))
             {
                 m_selected_driver = available_driver;
                 SetDefaultNativeDriverUsage();
@@ -177,8 +179,7 @@ void GuiExport::SelectDriver(bool is_raster)
     ImGui::SameLine();
 
     // native driver selection
-    
-    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.has_native_version);
+    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.HasNativeVersion());
     ImGui::Checkbox("##native_driver", &m_use_native_driver);
     ImGui::SameLine();
     ImGui::Text("Use native driver");
@@ -221,21 +222,35 @@ GuiExport::GuiExport()
 {
     m_folder_name = GetLocalDataDir().c_str();
 
-    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", false, true);
-    m_available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", false, false);
-    m_available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", false, true);
-    m_available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", false, false);
-    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", false, false);
-    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", true, true);
-    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", true, false);
-    m_available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", true, false);
-    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", true, false);
+    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", false, false);
+    m_available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, false, false);
+    m_available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", false, true);
+    m_available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, false, false);
+    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, false, false);
+    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", true, false);
+    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, true, false);
+    m_available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, true, false);
+    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, true, false);
 }
 
 void GuiExport::Update(bool* p_open, GuiState &state)
 {
     ImGui::SetNextWindowSize(ImVec2(800, 400), ImGuiCond_Once);
-    if (!ImGui::Begin((std::string("Export ") + state.GetCurrentItem()->GetFullName().c_str()).c_str(), p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar))
+    if (!m_ExportRootItem)
+    {
+        // Open Dialog on current Item.
+        m_ExportRootItem = state.GetCurrentItem();
+        if (!m_ExportRootItem)
+        {
+            CloseDialog(state);
+            return;
+        }
+        m_Caption = std::string("Export ") + m_ExportRootItem->GetFullName().c_str();
+        m_EnableVector = CurrentItemCanBeExportedToVector(m_ExportRootItem);
+        m_EnableRaster = CurrentItemCanBeExportedToRaster(m_ExportRootItem);
+    }
+
+    if (!ImGui::Begin(m_Caption.c_str(), p_open, ImGuiWindowFlags_None | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
         return;
@@ -244,13 +259,11 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    bool enable_vector_export = CurrentItemCanBeExportedToVector(state.GetCurrentItem());
-    bool enable_raster_export = CurrentItemCanBeExportedToRaster(state.GetCurrentItem());
-    bool enable_export = enable_vector_export || enable_raster_export;
+    bool enable_export = m_EnableVector || m_EnableRaster;
 
     if (ImGui::BeginTabBar("ExportTypes", ImGuiTabBarFlags_None))
     {
-        ImGui::BeginDisabled(!enable_vector_export);
+        ImGui::BeginDisabled(!m_EnableVector);
         if (ImGui::BeginTabItem("Vector"))
         {
             SelectDriver(false);
@@ -259,7 +272,7 @@ void GuiExport::Update(bool* p_open, GuiState &state)
         }
         ImGui::EndDisabled();
         
-        ImGui::BeginDisabled(!enable_raster_export);
+        ImGui::BeginDisabled(!m_EnableRaster);
         if (ImGui::BeginTabItem("Raster"))
         {
             SelectDriver(true);
@@ -279,16 +292,14 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     ImGui::BeginDisabled(!enable_export);
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
-        if (DoExport(state))
-            state.ShowExportWindow = false;
+        if (DoExport())
+            CloseDialog(state);
     }
     ImGui::EndDisabled();
 
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
-    {
-        state.ShowExportWindow = false;
-    }
+        CloseDialog(state);
 
     ImGui::End();
 }
@@ -486,32 +497,37 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     return subContainer;
 }
 
-bool GuiExport::DoExport(GuiState& state)
+bool GuiExport::DoExport()
 {
     DMS_CALL_BEGIN
 
-    auto item = state.GetCurrentItem();
+    auto item = m_ExportRootItem;
     auto selectedDriver = m_selected_driver;
     auto folderName = m_folder_name;
     auto fileName = m_file_name;
 
     SharedStr ffName = DelimitedConcat(folderName.c_str(), fileName.c_str());
     CharPtr driverName = nullptr;
-    CharPtr storageTypeName = selectedDriver.shortname.c_str();
-    if (!m_use_native_driver || !selectedDriver.has_native_version)
+    CharPtr storageTypeName = nullptr;
+
+    if (m_use_native_driver && selectedDriver.HasNativeVersion())
     {
-        driverName = storageTypeName;
+        storageTypeName = selectedDriver.nativeName;
+        if (!stricmp(storageTypeName, "CSV"))
+        {
+            DoExportTableToCSV(item, ffName);
+            return true;
+        }
+    }
+    else
+    {
+        driverName = selectedDriver.shortname;
         if (selectedDriver.is_raster)
             storageTypeName = "gdalwrite.grid";
         else
             storageTypeName = "gdalwrite.vect";
     }
-    else if (!stricmp(storageTypeName,  "CSV"))
-    {
-        assert(m_use_native_driver);
-        DoExportTableToCSV(item, ffName);
-        return true;
-    }
+
     const TreeItem* exportConfig = nullptr;
     if (selectedDriver.is_raster)
         exportConfig = DoExportRasterOrMatrixData(item, m_use_native_driver, ffName, storageTypeName, driverName, "");

@@ -154,21 +154,29 @@ void GuiMenuFile::UpdateRecentOrPinnedFilesByCurrentConfiguration(GuiState& stat
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
 {
-    auto sPtr = static_cast<std::string*>(clientHandle);
+    auto& stream = *reinterpret_cast<FormattedOutStream*>(clientHandle);
     while (componentLevel)
     {
-        *sPtr += "-  ";
+        stream << "-  ";
         componentLevel--;
     }
-    *sPtr += componentName + std::string("\n");
+    for (char ch; ch = *componentName; ++componentName)
+        if (ch == '\n')
+            stream << "; ";
+        else
+            stream << ch;
+    stream << '\n';
 }
 
 auto GetGeoDMSAboutText() -> std::string
 {
-    std::string about_text = DMS_GetVersion();
-    about_text += ", copyright Object Vision BV\n";
-    DMS_VisitVersionComponents(&about_text, OnVersionComponentVisit);
-    return about_text;
+    VectorOutStreamBuff buff;
+    FormattedOutStream stream(&buff, FormattingFlags::None);
+
+    stream << DMS_GetVersion();
+    stream << ", Copyright (c) Object Vision b.v.\n";
+    DMS_VisitVersionComponents(&stream, OnVersionComponentVisit);
+    return { buff.GetData(), buff.GetDataEnd() };
 }
 
 void GuiMenuFile::Update(GuiState& state)

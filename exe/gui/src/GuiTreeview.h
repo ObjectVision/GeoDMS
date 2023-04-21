@@ -73,7 +73,7 @@ public:
 	void clear();
 	auto AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
 	auto DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
-	auto JumpToLetter(GuiState& state, std::string_view letter) -> TreeItem*;
+	auto JumpToLetter(GuiState& state, std::string_view letter) -> GuiTreeNode*;
 	void ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node);
 	
 	GuiTreeNode* m_curr_node = nullptr; //TODO: move to private variables
@@ -97,10 +97,11 @@ public:
 	auto clear() -> void;
 
 private:
-	auto ProcessTreeviewEvent(GuiEvents &event, GuiState& state) -> void;
-	auto CreateBranch(GuiState& state, TreeItem* branch) -> bool;
-	auto CreateTree(GuiState& state) -> bool;
-	auto IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped) -> bool;
+	void GotoNode(GuiState& state, GuiTreeNode* newNode);
+	void ProcessTreeviewEvent(GuiEvents &event, GuiState& state);
+	bool CreateBranch(GuiState& state, TreeItem* branch);
+	bool CreateTree(GuiState& state);
+	bool IsAlphabeticalKeyJump(GuiState& state, TreeItem* nextItem, bool looped);
 
 	TreeItem* m_TemporaryJumpItem = nullptr;
 	ImGuiTreeNodeFlags m_BaseFlags  = ImGuiWindowFlags_AlwaysAutoResize | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
