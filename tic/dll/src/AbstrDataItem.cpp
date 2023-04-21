@@ -995,7 +995,10 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 		for (SizeT j = 0; j != nrCols; ++j) {
 			if (j)
 				out->WriteByte(';');
-			tileLocks[j]->WriteFormattedValue(fout, recNo);
+			if (columnSpecPtr[j].m_RelativeDisplay)
+				fout << (100.0 * tileLocks[j]->GetAsFloat64(recNo) / columnSpecPtr[j].m_ColumnTotal);
+			else
+				tileLocks[j]->WriteFormattedValue(fout, recNo);
 		}
 		out->WriteByte('\n');
 	}
