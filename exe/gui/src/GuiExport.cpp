@@ -176,15 +176,14 @@ void GuiExport::SelectDriver(bool is_raster)
         ImGui::EndCombo();
     }
 
-    ImGui::SameLine();
-
     // native driver selection
-    ImGui::BeginDisabled(m_selected_driver.IsEmpty() || !m_selected_driver.HasNativeVersion());
-    ImGui::Checkbox("##native_driver", &m_use_native_driver);
-    ImGui::SameLine();
-    ImGui::Text("Use native driver");
-    ImGui::EndDisabled();
-    
+    if (!m_selected_driver.IsEmpty() && m_selected_driver.HasNativeVersion())
+    {
+        ImGui::SameLine();
+        ImGui::Checkbox("##native_driver", &m_use_native_driver);
+        ImGui::SameLine();
+        ImGui::Text("Use native driver");
+    }
 }
 
 void GuiExport::SetStorageLocation()
@@ -259,28 +258,29 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    bool enable_export = m_EnableVector || m_EnableRaster;
 
     if (ImGui::BeginTabBar("ExportTypes", ImGuiTabBarFlags_None))
     {
-        ImGui::BeginDisabled(!m_EnableVector);
-        if (ImGui::BeginTabItem("Vector"))
+        if (m_EnableRaster)
         {
-            SelectDriver(false);
-            SetStorageLocation();
-            ImGui::EndTabItem();
-        }
-        ImGui::EndDisabled();
-        
-        ImGui::BeginDisabled(!m_EnableRaster);
-        if (ImGui::BeginTabItem("Raster"))
-        {
-            SelectDriver(true);
-            SetStorageLocation();
-            ImGui::EndTabItem();
+            if (ImGui::BeginTabItem("Raster"))
+            {
+                SelectDriver(true);
+                SetStorageLocation();
+                ImGui::EndTabItem();
+            }
         }
 
-        ImGui::EndDisabled();
+        if (m_EnableVector)
+        {
+            if (ImGui::BeginTabItem("Vector"))
+            {
+                SelectDriver(false);
+                SetStorageLocation();
+                ImGui::EndTabItem();
+            }
+        }
+        
         ImGui::EndTabBar();
     }
 
@@ -289,6 +289,7 @@ void GuiExport::Update(bool* p_open, GuiState &state)
     auto current_cursor_pos_X = ImGui::GetCursorPosX();
     ImGui::SetCursorPos(ImVec2(current_cursor_pos_X, options_window_content_region.y - 1.5 * ImGui::GetTextLineHeight()));
 
+    bool enable_export = m_EnableVector || m_EnableRaster;
     ImGui::BeginDisabled(!enable_export);
     if (ImGui::Button("Export", ImVec2(50, 1.5 * ImGui::GetTextLineHeight())))
     {
@@ -515,7 +516,7 @@ bool GuiExport::DoExport()
         storageTypeName = selectedDriver.nativeName;
         if (!stricmp(storageTypeName, "CSV"))
         {
-            DoExportTableToCSV(item, ffName);
+            DoExportTableorDatabaseToCSV(item, ffName);
             return true;
         }
     }
