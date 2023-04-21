@@ -69,7 +69,7 @@ enum NotificationCode {
 
 	CC_First             = 21,
 
-	NC_NewSubItem = 22,
+	NC_NewSubItem = 24,
 };
 
 //----------------------------------------------------------------------
