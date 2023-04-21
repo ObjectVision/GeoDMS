@@ -301,6 +301,9 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 */
 
 	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(storageHolder);
+	if (!gridDataDomainRW)
+		return;
+
 	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW );
 	if (!uBase)
 		return;

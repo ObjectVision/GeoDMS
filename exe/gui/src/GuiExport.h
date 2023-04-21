@@ -17,11 +17,11 @@ struct gdal_driver_id
 		return shortname;
 	}
 
-	bool HasNativeVersion() { return nativeName;  }
+	bool HasNativeVersion() { return nativeName; }
 
 	bool IsEmpty()
 	{
-		return shortname = nullptr;
+		return shortname == nullptr;
 	}
 };
 
