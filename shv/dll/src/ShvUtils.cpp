@@ -1167,7 +1167,7 @@ void UpdateShowSelOnlyImpl(
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)
 			expr = mySSPrintF("lookup(%s, %s)", indexAttr->GetFullName().c_str(), expr.c_str());
-		expr = mySSPrintF("select_org_rel(%s)", expr.c_str());
+		expr = mySSPrintF("select_with_org_rel(%s)", expr.c_str());
 
 		const ValueClass* vc           = entity->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
