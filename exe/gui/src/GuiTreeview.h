@@ -26,9 +26,9 @@ public:
 	void DeleteChildren();
 	void AddChildren();
 	auto GetState() -> NotificationCode;
-	auto GetFirstSibling() -> GuiTreeNode*;
-	auto GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator;
-	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
+//REMOVE	auto GetFirstSibling() -> GuiTreeNode*;
+//REMOVE	auto GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator;
+//REMOVE	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
 	bool IsLeaf();
 	void Init(TreeItem* item);
 

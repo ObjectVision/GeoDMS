@@ -449,8 +449,11 @@ auto GuiTreeNode::GetState() -> NotificationCode
     return m_state;
 }
 
+/* REMOVE
 auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
 {
+    if (m_children.empty())
+        return nullptr;
     return &m_children.front();
 }
 
@@ -463,6 +466,7 @@ auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
 {
     return m_children.end();
 }
+*/
 
 bool GuiTreeNode::IsLeaf()
 {
@@ -515,6 +519,8 @@ bool GuiTree::SpaceIsAvailableForTreeNode()
 
 auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 {
+    assert(!node.IsLeaf()); // PRECONDITION
+
     auto& last_child_node = node.m_children.back();
 
     if (last_child_node.IsLeaf())
@@ -526,7 +532,7 @@ auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
     return &last_child_node;
 }
 
-auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
+auto GetNextNode(GuiTreeNode& node) -> GuiTreeNode*
 {
     auto parent_node = node.m_parent;
 
@@ -548,7 +554,7 @@ auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
         return &child_node;
     }
 
-    return GetFirstSibblingNode(*parent_node);
+    return GetNextNode(*parent_node);
 }
 
 auto GuiTree::AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
@@ -585,7 +591,7 @@ auto GuiTree::DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
     if (node.IsOpen() && !node.m_children.empty())
         return &*node.m_children.begin();
 
-    return GetFirstSibblingNode(node);
+    return GetNextNode(node);
 }
 
 auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> GuiTreeNode*

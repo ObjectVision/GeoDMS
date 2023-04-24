@@ -853,7 +853,7 @@ void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
     if (general)
         m_GeneralProperties.clear();
 
-    /*if (all_properties)
+    if (all_properties)
         m_AllProperties.clear();
 
     if (explore_properties)
@@ -866,7 +866,7 @@ void GuiDetailPages::ClearSpecificDetailPages(bool general, bool all_properties,
         m_SourceDescription.clear();
 
     if (configuration)
-        m_Configuration.clear();*/
+        m_Configuration.clear();
 }
 
 void GuiDetailPages::UpdateGeneralProperties(GuiState& state)
@@ -911,7 +911,8 @@ void GuiDetailPages::UpdateAllProperties(GuiState& state)
         auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr));
         result = DMS_TreeItem_XML_DumpAllProps(state.GetCurrentItem(), xmlOut.get(), false);
     }   
-    //m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
+    InterpretHTMStreamToTableData(m_Buff.m_Buff, m_AllProperties);
+//    m_Buff.InterpretBytes(m_AllProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -923,7 +924,8 @@ void GuiDetailPages::UpdateExploreProperties(GuiState& state)
         auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&m_Buff, OutStreamBase::ST_HTM, "", nullptr));
         DMS_TreeItem_XML_DumpExplore(state.GetCurrentItem(), xmlOut.get(), true);
     }
-    //m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
+    InterpretHTMStreamToTableData(m_Buff.m_Buff, m_ExploreProperties);
+//    m_Buff.InterpretBytes(m_ExploreProperties); // Create detail page from html stream
     m_Buff.Reset();
 }
 
@@ -1124,9 +1126,9 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            //if (m_ExploreProperties.empty())
-            //    UpdateExploreProperties(state);
-            ////DrawProperties(state, m_ExploreProperties);
+            if (m_ExploreProperties.empty())
+                UpdateExploreProperties(state);
+            DrawProperties(state, m_ExploreProperties);
         }
         break;
     }
@@ -1134,9 +1136,9 @@ void GuiDetailPages::DrawContent(GuiState& state)
     {
         if (state.GetCurrentItem())
         {
-            //if (m_AllProperties.empty())
-            //   UpdateAllProperties(state);
-            ////DrawProperties(state, m_AllProperties);
+            if (m_AllProperties.empty())
+               UpdateAllProperties(state);
+            DrawProperties(state, m_AllProperties);
         }
         break;
     }
@@ -1147,9 +1149,6 @@ void GuiDetailPages::DrawContent(GuiState& state)
            if (m_Configuration.empty())
                UpdateConfiguration(state);
            ImGui::TextUnformatted(m_Configuration.c_str(), m_Configuration.c_str()+ m_Configuration.size());
-               
-               //m_Configuration.c_str());
-           //DrawProperties(state, m_Configuration);
         }
         break;
     }

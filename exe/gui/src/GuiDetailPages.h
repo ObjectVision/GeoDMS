@@ -150,7 +150,7 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    TableData m_GeneralProperties;
+    TableData m_GeneralProperties, m_ExploreProperties, m_AllProperties, m_ValueInfo, m_SourceDescription;
     std::string m_Configuration;
     /*md_data            m_AllProperties;
     md_data            m_ExploreProperties;
