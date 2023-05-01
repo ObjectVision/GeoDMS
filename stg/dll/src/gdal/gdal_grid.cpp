@@ -268,6 +268,13 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 	);
 
 	// apply color table
+	auto color_table = poBand->GetColorTable();
+	if (!color_table)
+		return resultCode;
+
+	auto color_count = color_table->GetColorEntryCount();
+	
+	// TODO: implement
 
 	return resultCode;
 }
