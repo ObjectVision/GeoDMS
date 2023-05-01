@@ -197,7 +197,11 @@ namespace { // local defs
 	{
 	public:
 		ExprPropDef(bool depreciatedName)
-			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, chg_mode::invalidate, false, true, true)
+			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME
+				,	set_mode::optional
+				,	depreciatedName ? xml_mode::none : xml_mode::element
+				,	depreciatedName ? cpy_mode::none : cpy_mode::expr
+				,	chg_mode::invalidate, false, true, true)
 		{
 			if (depreciatedName)
 				SetDepreciated();

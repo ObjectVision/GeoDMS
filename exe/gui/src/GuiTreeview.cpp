@@ -122,6 +122,9 @@ void ShowRightMouseClickPopupWindowIfNeeded(GuiState& state)
 
 void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem)
 {
+    if (nextSubItem == state.GetCurrentItem())
+        return;
+
     auto event_queues = GuiEventQueues::getInstance();
     state.SetCurrentItem(nextSubItem);
     event_queues->CurrentItemBarEvents.Add(GuiEvents::UpdateCurrentItem);
@@ -131,12 +134,16 @@ void UpdateStateAfterItemClick(GuiState& state, TreeItem* nextSubItem)
 
 bool IsKeyboardFocused()
 {
+    if (!ImGui::IsItemFocused())
+        return false;
+
     auto minItemRect = ImGui::GetItemRectMin();
     auto maxItemRect = ImGui::GetItemRectMax();
-    if (ImGui::IsItemFocused() && !ImGui::IsMouseHoveringRect(minItemRect, maxItemRect) && (ImGui::IsKeyDown(ImGuiKey_UpArrow) || ImGui::IsKeyDown(ImGuiKey_DownArrow)))
-        return true;
 
-    return false;
+    if (ImGui::IsMouseHoveringRect(minItemRect, maxItemRect))
+        return false;
+
+    return ImGui::IsKeyDown(ImGuiKey_UpArrow) || ImGui::IsKeyDown(ImGuiKey_DownArrow);
 }
 
 void SetTreeViewIcon(GuiTextureID id)
@@ -191,7 +198,7 @@ GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
     m_children = std::move(other.m_children);
     m_state = other.m_state;
     m_depth = other.m_depth;
-    m_has_been_openend = other.m_has_been_openend;
+    m_has_been_opened = other.m_has_been_opened;
     m_is_open = other.m_is_open;
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
@@ -353,7 +360,7 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
     const TreeItem* storageHolder = nullptr;
     if (m_item->HasStorageManager())
         storageHolder = m_item;
-    if (!storageHolder)
+    else
     {
         auto parent = m_item->GetTreeParent();
         if (!parent) // root has no parent
@@ -395,24 +402,35 @@ void GuiTreeNode::clear()
         DMS_TreeItem_ReleaseStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
         m_item = nullptr;
         m_children.clear();
-        m_has_been_openend = false;
+        m_has_been_opened = false;
     }
 }
 
 void GuiTreeNode::SetOpenStatus(bool do_open)
 { 
+    if (m_is_open && !do_open)
+    {
+        m_has_been_opened = false;
+        DeleteChildren();
+    }
+
     m_is_open = do_open;
 
-    if (m_is_open && !m_has_been_openend && m_state >= NotificationCode::NC2_MetaReady) // children unknown at this point
+    if (m_is_open && !m_has_been_opened && m_state >= NotificationCode::NC2_MetaReady) // children unknown at this point
     {
         AddChildren();
-        m_has_been_openend = true; // add children once and only once
+        m_has_been_opened = true; // add children once and only once
     }
 }
 
 void GuiTreeNode::SetState(NotificationCode new_state)
 {
     m_state = new_state;
+}
+
+void GuiTreeNode::DeleteChildren()
+{
+    m_children.clear();
 }
 
 auto GuiTreeNode::AddChildren() -> void
@@ -431,8 +449,11 @@ auto GuiTreeNode::GetState() -> NotificationCode
     return m_state;
 }
 
+/* REMOVE
 auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
 {
+    if (m_children.empty())
+        return nullptr;
     return &m_children.front();
 }
 
@@ -445,6 +466,7 @@ auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
 {
     return m_children.end();
 }
+*/
 
 bool GuiTreeNode::IsLeaf()
 {
@@ -497,6 +519,8 @@ bool GuiTree::SpaceIsAvailableForTreeNode()
 
 auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
 {
+    assert(!node.IsLeaf()); // PRECONDITION
+
     auto& last_child_node = node.m_children.back();
 
     if (last_child_node.IsLeaf())
@@ -508,7 +532,7 @@ auto GetFinalSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
     return &last_child_node;
 }
 
-auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
+auto GetNextNode(GuiTreeNode& node) -> GuiTreeNode*
 {
     auto parent_node = node.m_parent;
 
@@ -530,7 +554,7 @@ auto GetFirstSibblingNode(GuiTreeNode& node) -> GuiTreeNode*
         return &child_node;
     }
 
-    return GetFirstSibblingNode(*parent_node);
+    return GetNextNode(*parent_node);
 }
 
 auto GuiTree::AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
@@ -567,10 +591,10 @@ auto GuiTree::DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*
     if (node.IsOpen() && !node.m_children.empty())
         return &*node.m_children.begin();
 
-    return GetFirstSibblingNode(node);
+    return GetNextNode(node);
 }
 
-auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem*
+auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> GuiTreeNode*
 {
     if (!m_curr_node)
         return {};
@@ -583,7 +607,7 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> TreeItem
         {
             UpdateStateAfterItemClick(state, next_visible_node->GetItem());
             m_curr_node = next_visible_node;
-            return next_visible_node->GetItem();
+            return next_visible_node;
         }
         if (next_visible_node == m_curr_node)
             return nullptr;
@@ -708,6 +732,16 @@ void GuiTreeView::clear()
     m_tree.clear();
 }
 
+void GuiTreeView::GotoNode(GuiState& state, GuiTreeNode* newNode)
+{
+    if (!newNode)
+        return;
+
+    UpdateStateAfterItemClick(state, newNode->GetItem());
+    m_tree.m_curr_node = newNode;
+    m_TemporaryJumpItem = newNode->GetItem();
+}
+
 void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -724,13 +758,19 @@ void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
         if (!ImGui::IsWindowFocused())
             break;
 
-        auto ascended_node = m_tree.AscendVisibleTree(*m_tree.m_curr_node);
-        if (ascended_node)
-        {
-            UpdateStateAfterItemClick(state, ascended_node->GetItem());
-            m_tree.m_curr_node = ascended_node;
-            m_TemporaryJumpItem = ascended_node->GetItem();
-        }
+        GotoNode(state,  m_tree.AscendVisibleTree(*m_tree.m_curr_node) );
+        break;
+    }
+    case GuiEvents::AscendPage: // TODO: known issue repeat key up not working
+    {
+        if (!ImGui::IsWindowFocused())
+            break;
+
+        GuiTreeNode* newNodePtr = m_tree.m_curr_node; int itemsPerPage = 20;
+        GuiTreeNode* newNodePtr2 = nullptr;
+        while ((newNodePtr2 = m_tree.AscendVisibleTree(*newNodePtr)) && --itemsPerPage)
+            newNodePtr = newNodePtr2;
+        GotoNode(state, newNodePtr);
         break;
     }
     case GuiEvents::DescendVisibleTree: // TODO: known issue repeat key down not working
@@ -741,13 +781,19 @@ void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
         if (!m_tree.m_curr_node)
             break;
 
-        auto descended_node = m_tree.DescendVisibleTree(*m_tree.m_curr_node);
-        if (descended_node)
-        {
-            UpdateStateAfterItemClick(state, descended_node->GetItem());
-            m_tree.m_curr_node = descended_node;
-            m_TemporaryJumpItem = descended_node->GetItem();
-        }
+        GotoNode(state, m_tree.DescendVisibleTree(*m_tree.m_curr_node));
+        break;
+    }
+    case GuiEvents::DescendPage: // TODO: known issue repeat key up not working
+    {
+        if (!ImGui::IsWindowFocused())
+            break;
+
+        GuiTreeNode* newNodePtr = m_tree.m_curr_node; int itemsPerPage = 20;
+        GuiTreeNode* newNodePtr2 = nullptr;
+        while ((newNodePtr2 = m_tree.DescendVisibleTree(*newNodePtr)) && --itemsPerPage)
+            newNodePtr = newNodePtr2;
+        GotoNode(state, newNodePtr);
         break;
     }
     case GuiEvents::CollapseTreeNode:
@@ -762,8 +808,9 @@ void GuiTreeView::ProcessTreeviewEvent(GuiEvents& event, GuiState& state)
     }
     case GuiEvents::TreeViewJumpKeyPress:
     {
-        m_TemporaryJumpItem = m_tree.JumpToLetter(state, GuiState::m_JumpLetter);
+        auto keyLetter = std::move(GuiState::m_JumpLetter);
         GuiState::m_JumpLetter.clear();
+        GotoNode(state, m_tree.JumpToLetter(state, keyLetter) );
         break;
     }
     default: break;

@@ -101,7 +101,8 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	if (rwMode > dms_rw_mode::read_only)
 	{
 		if (!GetGridData(smi.StorageHolder(), false))
-			smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
+			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
+				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
 		if (! imp->Open(GetNameStr(), TifFileMode::WRITE, DSM::GetSafeFileWriterArray(smi.StorageHolder())) )
 			throwItemError("Unable to open for Write");
 	}

@@ -18,6 +18,7 @@ public:
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID button_id3, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	void Update(GuiViews& view);
+	auto GetGroupIndex() -> int;
 
 private:
 	void UpdateSingle(GuiViews& view);

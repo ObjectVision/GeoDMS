@@ -125,7 +125,7 @@ protected:
 	UInt32              m_Level = 0;
 	UInt32              m_NrSubTags = 0;
 	XML_OutElement*     m_CurrElem = nullptr;
-	const AbstrPropDef* m_PrimaryPropDef;
+	const AbstrPropDef* m_PrimaryPropDef = nullptr;
 
 private:
 	bool                m_NeedsIndent;

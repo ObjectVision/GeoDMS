@@ -157,7 +157,7 @@ void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionCompo
 		c->Visit(clientHandle, callBack, 1);
 }
 
-VersionComponent s_Compiler  (BOOST_COMPILER " ( " BOOST_STRINGIZE(_MSC_VER) " ) ");
+VersionComponent s_Compiler  (CC_COMPILER_NAME " ( _MSC_VER = " BOOST_STRINGIZE(_MSC_VER) " ) ");
 VersionComponent s_Platform("Platform : " BOOST_PLATFORM);
 static SharedStr s_PtrSizeC = mySSPrintF("ptr size : %d bits", sizeof(void*)*8);
 static SharedStr s_IntSizeC = mySSPrintF("int size : %d bits", sizeof(int  )*8);

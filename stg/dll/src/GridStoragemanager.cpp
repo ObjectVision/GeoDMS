@@ -83,9 +83,14 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 	if (!m_GridDomainUnit)
 	{
 		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr);
-
-		StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read);
-		ReadUnitRange(*storageHandle.MetaInfo());
+		try {
+			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read, false);
+			ReadUnitRange(*storageHandle.MetaInfo());
+		}
+		catch (...)
+		{
+			m_GridDomainUnit = nullptr;
+		}
 	}
 	return m_GridDomainUnit;
 }
@@ -212,7 +217,7 @@ const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionS
 		{
 			pData = AsDynamicDataItem(storageHolder);
 			if (pData && !GridDomain(pData)) 
-				pData = 0;
+				pData = nullptr;
 		}
 	}
 	return pData;

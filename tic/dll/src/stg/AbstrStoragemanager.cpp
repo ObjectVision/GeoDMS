@@ -758,6 +758,8 @@ bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 	}
 	catch (...)
 	{
+		if (!smi.m_MustRememberFailure)
+			throw;
 		storageHolder->CatchFail(FR_MetaInfo);
 		storageHolder->ThrowFail();
 	}
@@ -914,17 +916,18 @@ StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)
 	Init();
 }
 
-StorageReadHandle::StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa)
+StorageReadHandle::StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRememberFailure)
 	: StorageCloseHandle(sm, storageHolder, focusItem, sa)
 {
+	m_MetaInfo->m_MustRememberFailure = mustRememberFailure;
 	Init();
 }
 
 void StorageReadHandle::Init()
 {
-	dms_assert(m_StorageManager);
-	dms_assert(m_StorageHolder);
-	dms_assert(MetaInfo());
+	assert(m_StorageManager);
+	assert(m_StorageHolder);
+	assert(MetaInfo());
 	m_StorageManager->OpenForRead(*MetaInfo());
 	if (m_StorageManager->IsOpen())
 	{
@@ -934,8 +937,8 @@ void StorageReadHandle::Init()
 
 bool StorageReadHandle::Read() const
 {
-	dms_assert(m_FocusItem); // note that storageHolder may be nullptr
-	dms_assert(m_StorageManager);
+	assert(m_FocusItem); // note that storageHolder may be nullptr
+	assert(m_StorageManager);
 	if (!m_StorageManager->IsOpen())
 		return false;
 

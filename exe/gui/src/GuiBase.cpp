@@ -566,14 +566,39 @@ void DrawProperties(GuiState& state, TableData& properties)
     if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
         return;
 
+    bool skip_heading_row = false;
+    if (!properties.empty())
+    {
+        if (properties.at(0).size() == 1 && properties.at(0).at(0).type == PET_HEADING)
+        {
+            float old_size = ImGui::GetFont()->Scale;
+            ImGui::GetFont()->Scale *= 1.3f;
+            ImGui::PushFont(ImGui::GetFont());
+            ImGui::Text(properties.at(0).at(0).text.c_str());
+            ImGui::GetFont()->Scale = old_size;
+            ImGui::PopFont();
+            skip_heading_row = true;
+        }
+    }
+
     int button_index = 0; //TODO: does assumption of max 2 columns hold?
     ImGui::BeginTable(" ", 2, ImGuiTableFlags_None | ImGuiTableFlags_SizingFixedFit);// ImGuiTableFlags_Resizable ImGuiTableFlags_ScrollX ImGuiTableFlags_NoHostExtendY // ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 8)
     
-    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+    ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 150.0f); // ImGuiTableColumnFlags_WidthFixed
     ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
     
+
+
+    size_t row_index = 0;
     for (auto& row : properties)
     {
+        if (row_index == 0 && skip_heading_row)
+        {
+            row_index++;
+            continue;
+        }
+        row_index++;
+
         ImGui::TableNextRow();
         UInt8 column_index = 0;
         for (auto& col : row)
@@ -585,10 +610,15 @@ void DrawProperties(GuiState& state, TableData& properties)
             //ImGui::TableSetupColumn(const char* label, ImGuiTableColumnFlags flags = 0, float init_width_or_weight = 0.0f, ImGuiID user_id = 0);
 
             if (col.background_is_red)
-                SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight() + 1.0));// ImGui::GetWindowSize
+                SetTextBackgroundColor(ImVec2(ImGui::GetScrollMaxX(), ImGui::GetTextLineHeight() + 1.0));
             if (col.type == PET_HEADING)
             {
+                float old_size = ImGui::GetFont()->Scale;
+                ImGui::GetFont()->Scale *= 1.5;
+                ImGui::PushFont(ImGui::GetFont());
                 ImGui::Text(col.text.c_str());//ImGui::TextWrapped(col.text.c_str());
+                ImGui::GetFont()->Scale = old_size;
+                ImGui::PopFont();
             }
             else if (col.type == PET_LINK)
             {

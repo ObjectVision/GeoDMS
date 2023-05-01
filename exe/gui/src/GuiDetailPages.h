@@ -56,6 +56,7 @@ public:
     streamsize_t CurrPos() const override;
     bool AtEnd() const override { return false; }
     void Reset();
+    std::vector<char>             m_Buff;
 
 private:
     bool ReplaceStringInString(std::string& str, const std::string& from, const std::string& to);
@@ -63,8 +64,6 @@ private:
     void InterpretTag(TableData& tableProperties);
     bool IsOpenTag(UInt32 ind);
     std::string GetHrefFromTag();
-
-    std::vector<char>             m_Buff;
     HTMLParserState               m_ParserState = HTMLParserState::NONE;
     UInt16                        m_OpenTags[int(HTMLTagType::COUNT)] = {};
     Tag                           m_Tag;
@@ -151,7 +150,7 @@ private:
     void CollapseOrExpand(GuiState& state, DetailPageActiveTab tab);
 
     GuiOutStreamBuff m_Buff;
-    TableData m_GeneralProperties;
+    TableData m_GeneralProperties, m_ExploreProperties, m_AllProperties, m_ValueInfo, m_SourceDescription;
     std::string m_Configuration;
     /*md_data            m_AllProperties;
     md_data            m_ExploreProperties;

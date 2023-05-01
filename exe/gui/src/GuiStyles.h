@@ -57,18 +57,21 @@ public:
     {
         std::swap(m_Image, src.m_Image);
 
+        m_id = src.m_id;
         m_Width = src.m_Width;
         m_Height = src.m_Height;
     }
 
-    GLuint GetImage();
-    int GetWidth();
-    int GetHeight();
+    auto GetId() -> std::string_view;
+    auto GetImage() -> GLuint;
+    auto GetWidth() -> int;
+    auto GetHeight() -> int;
 
 private:
     // Simple helper function to load an image into a OpenGL texture with common settings
     bool LoadTextureFromFile(std::string iconPath);
 
+    std::string m_id;
     GLuint m_Image = 0;
     int m_Width    = 0;
     int m_Height   = 0;

@@ -356,7 +356,7 @@ GdalVectSM::~GdalVectSM()
 void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	DBG_START("GdalVectSM", "OpenStorage", true);
-	dms_assert(m_hDS == nullptr);
+	assert(m_hDS == nullptr);
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
 		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()

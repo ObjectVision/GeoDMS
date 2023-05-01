@@ -167,6 +167,7 @@ protected:
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
+	bool      m_MustRememberFailure = true;
 };
 
 struct GdalMetaInfo :StorageMetaInfo
@@ -313,11 +314,10 @@ struct StorageCloseHandle
 private:
 	void Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem);
 
-	StorageMetaInfoPtr m_MetaInfo;
-
 protected:
+	StorageMetaInfoPtr                   m_MetaInfo;
 	SharedPtr<const AbstrStorageManager> m_StorageManager;
-	SharedPtr<const TreeItem>      m_StorageHolder, m_FocusItem;
+	SharedTreeItem                       m_StorageHolder, m_FocusItem;
 private:
 	AbstrStorageManager::lock_t    m_StorageLock;
 	TimeStamp                      m_TimeStampBefore;
@@ -330,7 +330,7 @@ private:
 
 struct StorageReadHandle : StorageCloseHandle
 {
-	TIC_CALL StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa);
+	TIC_CALL StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
 	TIC_CALL StorageReadHandle(StorageMetaInfoPtr&& info);
 
 	bool Read() const;

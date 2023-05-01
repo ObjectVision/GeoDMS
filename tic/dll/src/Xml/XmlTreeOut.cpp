@@ -173,10 +173,9 @@ void WriteCdf(XML_Table& xmlTable, const TreeItem* ti)
 
 bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo)
 {
-	dms_assert(unit);
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
-	dms_assert(IsMainThread());
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
+	assert(IsMainThread());
 
 	xmlTable.NameValueRow("ValueType", unit->GetValueType()->GetName().c_str());
 
@@ -261,9 +260,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 {
-	dms_assert(unit);
-
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
 
 	xmlTable.LinedRow();
 	if (unit->IsDefaultUnit())
@@ -682,8 +679,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(self->GetInterestCount() || self->WasFailed(FR_Data));
-		dms_assert(xmlOutStrPtr);
+		assert(xmlOutStrPtr);
 
 		SuspendTrigger::Resume();
 

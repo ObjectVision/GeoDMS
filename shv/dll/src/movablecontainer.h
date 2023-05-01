@@ -102,7 +102,7 @@ private:
 
 class GraphicVarCols : public AutoSizeContainer
 {
-	typedef AutoSizeContainer base_type;
+	using base_type = AutoSizeContainer;
 protected:
 	GraphicVarCols(MovableObject* owner);
 

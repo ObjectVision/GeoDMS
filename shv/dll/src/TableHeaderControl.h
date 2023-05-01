@@ -43,7 +43,7 @@ class TableHeaderControl: public GraphicVarCols
 public:
 	TableHeaderControl(MovableObject* owner, TableControl* tableControl);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ChildCovered; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ChildCovered; };
 
 //	implement GraphicObject methods
 	void DoUpdateView() override;

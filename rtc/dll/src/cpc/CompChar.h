@@ -99,8 +99,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #	define CC_BYTEORDER_INTEL
 
-#	if _MSC_VER < 1920
-#		error "This GeoDMS source is only valid for Microsoft Visual C++ 2019 Version 16.0 or newer"
+#	if _MSC_VER < 1930
+#		error "This GeoDMS source is only valid for Microsoft Visual C++ 2022 Version 17.0 or newer"
 #	endif
 #	define CC_COMPILER_NAME "Microsoft Visual C++"
 
