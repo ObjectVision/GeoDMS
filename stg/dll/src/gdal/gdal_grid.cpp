@@ -266,6 +266,9 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
+
+	// apply color table
+
 	return resultCode;
 }
 
@@ -677,10 +680,7 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 	if (number_of_raster_bands > 2) // Red Green Blue, at least.
 	{
 		auto gBand = dsHnd->GetRasterBand(2);
-		//assert(rBand->GetColorInterpretation() == GCI_GreenBand);
-
 		auto bBand = dsHnd->GetRasterBand(3);
-		//assert(rBand->GetColorInterpretation() == GCI_BlueBand);
 		
 		ReadBand(gBand, buffer.greenBand);
 		ReadBand(bBand, buffer.blueBand);
@@ -692,7 +692,6 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		if (number_of_raster_bands > 3) // also a transparency band ?
 		{
 			auto tBand = dsHnd->GetRasterBand(4);
-			//assert(rBand->GetColorInterpretation() == GCI_AlphaBand);
 			ReadBand(tBand, buffer.transBand);
 			auto alphaSize = Min<SizeT>(size, buffer.transBand.size());
 			for (i = 0; i != alphaSize; ++i)
