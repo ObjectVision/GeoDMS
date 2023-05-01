@@ -666,13 +666,19 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		//throwDmsErrF("GDAL: cannot open %s", fileName);
 
 	auto rBand = dsHnd->GetRasterBand(1);
+	assert(rBand->GetColorInterpretation() == GCI_RedBand);
+
 	MG_CHECK(rBand); 
 	ReadBand(rBand, buffer.redBand);
 	auto size = buffer.redBand.size();
 	if (dsHnd->GetRasterCount() > 2) // Red Green Blue, at least.
 	{
 		auto gBand = dsHnd->GetRasterBand(2);
+		assert(rBand->GetColorInterpretation() == GCI_GreenBand);
+
 		auto bBand = dsHnd->GetRasterBand(3);
+		assert(rBand->GetColorInterpretation() == GCI_BlueBand);
+		
 		ReadBand(gBand, buffer.greenBand);
 		ReadBand(bBand, buffer.blueBand);
 
@@ -684,6 +690,7 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		if (dsHnd->GetRasterCount() > 3) // also a transparency band ?
 		{
 			auto tBand = dsHnd->GetRasterBand(4);
+			assert(rBand->GetColorInterpretation() == GCI_AlphaBand);
 			ReadBand(tBand, buffer.transBand);
 			auto alphaSize = Min<SizeT>(size, buffer.transBand.size());
 			for (i = 0; i != alphaSize; ++i)
