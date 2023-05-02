@@ -298,27 +298,13 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(m_state, failed));
     ImGui::PushID(m_item);
 
-    //if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
-    //{
-    //    UpdateStateAfterItemClick(state, m_item);
-    //}
-
     ImGui::TextUnformatted(m_item->GetName().c_str()); // render treeitem text without extra string allocation
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
     {
+        //SetKeyboardFocusToThisHwnd();
         ImGui::CloseCurrentPopup();
         UpdateStateAfterItemClick(state, m_item);
     }
-
-
-
-    /*// click event
-    else if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
-        SetKeyboardFocusToThisHwnd();
-        UpdateStateAfterItemClick(state, m_item); // TODO: necessary?
-    }*/
-    //ImGui::PopStyleColor(3); // TODO: rework where push style color is set and popped
 
     // double click event
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -820,6 +806,9 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
     m_tree.Draw(state, m_TemporaryJumpItem);
 
     g.Style.ItemSpacing.y = backup_spacing;
+
+    if ((ImGui::IsWindowHovered(ImGuiHoveredFlags_None) || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
 
     ImGui::End();
 }

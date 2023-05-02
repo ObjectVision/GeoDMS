@@ -1207,7 +1207,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    if ((ImGui::IsWindowHovered(ImGuiHoveredFlags_None) || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     ProcessEvents(state);

@@ -563,7 +563,7 @@ auto StringToTable(std::string&& input, std::string separator) -> md_table
 void DrawProperties(GuiState& state, TableData& properties)
 {
     auto event_queues = GuiEventQueues::getInstance();
-    if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
+    if (ImGui::GetContentRegionAvail().y < 0) // table needs space
         return;
 
     bool skip_heading_row = false;
@@ -603,7 +603,7 @@ void DrawProperties(GuiState& state, TableData& properties)
         UInt8 column_index = 0;
         for (auto& col : row)
         {
-            if (column_index == 2) // hardcoded 2
+            if (column_index == 2) // TODO: move to more elegant datastructure, replace hardcodedness of 2 columns
                 break;
 
             ImGui::TableSetColumnIndex(column_index);
@@ -630,6 +630,7 @@ void DrawProperties(GuiState& state, TableData& properties)
 
                 if (ImGui::IsItemClicked())
                 {
+                    //SetKeyboardFocusToThisHwnd();
                     auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
                     if (jumpItem.first && jumpItem.first != state.GetRoot())
                     {
@@ -655,8 +656,10 @@ void DrawProperties(GuiState& state, TableData& properties)
                 ImGui::TableSetColumnIndex(column_index);
                 ImGui::Separator();
             }
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
+            //if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            //if (ImGui::IsItemClicked())
+            //    SetKeyboardFocusToThisHwnd();
+            
             column_index++;
             OnItemClickItemTextTextToClipboard(col.text);
         }

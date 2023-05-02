@@ -198,6 +198,8 @@ bool DMSView::Update(GuiState& state)
     assert(m_HWNDParent);
     assert(m_HWND);
 
+
+
     if (parentWindowState == WindowState::CHANGED)
     {
         SetParent(m_HWND, m_HWNDParent); // set new parent on dock/undock
@@ -206,9 +208,14 @@ bool DMSView::Update(GuiState& state)
     }
 
     // If view window is focused, focus imgui window as well
+    //if (GetActiveWindow() == m_HWND)
+    //    ImGui::FocusWindow(ImGui::GetCurrentWindow());
+    
     bool result = false;
-    if (ImGui::IsWindowFocused() || GetFocus() == m_HWND)
+
+    if (!ImGui::IsWindowFocused() && GetFocus() == m_HWND)
     {
+        ImGui::FocusWindow(ImGui::GetCurrentWindow());
         result = true;
     }
 
