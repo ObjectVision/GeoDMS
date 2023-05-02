@@ -218,7 +218,7 @@ void GuiToolbar::ShowMapViewButtons(GuiViews& view)
         if (cur_group_index == button.GetGroupIndex())
             ImGui::SameLine(0.0f, 0.0f);
         else
-            ImGui::SameLine(0.0f, 25.0f);
+            ImGui::SameLine(0.0f, 25.0f); // gap between button groups // TODO: move style parameters to separate code unit?
 
         cur_group_index = button.GetGroupIndex();
         button.Update(view);
@@ -233,7 +233,7 @@ void GuiToolbar::ShowTableViewButtons(GuiViews& view)
         if (cur_group_index == button.GetGroupIndex())
             ImGui::SameLine(0.0f, 0.0f);
         else
-            ImGui::SameLine(0.0f, 25.0f);
+            ImGui::SameLine(0.0f, 25.0f); // gap between button groups // TODO: move style parameters to separate code unit?
 
         cur_group_index = button.GetGroupIndex();
         button.Update(view);
@@ -248,6 +248,7 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
 
     if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || view.m_dms_views.empty())
     {
+        AutoHideWindowDocknodeTabBar(is_docking_initialized);
         ImGui::End();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
