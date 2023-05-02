@@ -31,7 +31,7 @@ public:
 //REMOVE	auto GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator;
 	bool IsLeaf();
 	void Init(TreeItem* item);
-
+	auto GetDepthFromTreeItem() -> UInt8;
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> ImRect;
 	static void OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state);
 	GuiTreeNode* m_parent = nullptr;
@@ -39,7 +39,6 @@ public:
 	UInt8 m_depth = 0;
 
 private:
-	auto GetDepthFromTreeItem() -> UInt8;
 	bool DrawItemDropDown(GuiState& state);
 	auto DrawItemIcon(GuiState& state) -> ImRect;
 	bool DrawItemText(GuiState& state, TreeItem*& jump_item);
@@ -74,6 +73,7 @@ public:
 	auto AscendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
 	auto DescendVisibleTree(GuiTreeNode& node) -> GuiTreeNode*;
 	auto JumpToLetter(GuiState& state, std::string_view letter) -> GuiTreeNode*;
+	void OpenThisAndAllChildNodesRecursively(GuiTreeNode* node);
 	void ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node);
 	
 	GuiTreeNode* m_curr_node = nullptr; //TODO: move to private variables

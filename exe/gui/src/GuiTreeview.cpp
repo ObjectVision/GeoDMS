@@ -381,7 +381,7 @@ void GuiTreeNode::clear()
 
 void GuiTreeNode::SetOpenStatus(bool do_open)
 { 
-    if (m_is_open && !do_open)
+    if (m_is_open && !do_open) // close treenode, delete children
     {
         m_has_been_opened = false;
         DeleteChildren();
@@ -490,7 +490,7 @@ auto GetNextNode(GuiTreeNode& node) -> GuiTreeNode*
 {
     auto parent_node = node.m_parent;
 
-    if (!parent_node)
+    if (!parent_node) // root node // TODO: may be a bug, what if GetNextNode is called from parent node?
         return &node;
 
     bool matched = false;
@@ -568,36 +568,68 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> GuiTreeN
     }
 }
 
+void GuiTree::OpenThisAndAllChildNodesRecursively(GuiTreeNode* node)
+{
+    // define stop node
+    auto curr_node_depth = node->GetDepthFromTreeItem();
+    GuiTreeNode* stop_node = nullptr;
+    GuiTreeNode* next_node = node;
+    while (true)
+    {
+        next_node = GetNextNode(*next_node);
+        auto next_node_depth = next_node->GetDepthFromTreeItem();
+
+        if (next_node_depth <= curr_node_depth)
+            stop_node = next_node;
+    }
+
+    // open tree nodes recursively
+    next_node = node;
+    while (next_node != stop_node)
+    {
+        if (!next_node->IsOpen())
+            next_node->SetOpenStatus(true);
+        next_node = GetNextNode(*next_node);
+    } // TODO: test this piece of code
+}
+
 void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
 {
+    if (!ImGui::IsWindowFocused())
+        return;
     
-    if (ImGui::IsWindowFocused() && node->GetItem() == state.GetCurrentItem())
+    if (node->GetItem() != state.GetCurrentItem())
+        return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) // expand tree node
     {
-        ImGuiIO& io = ImGui::GetIO();
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        io.AddKeyEvent(ImGuiKey_RightArrow, false);
+        if (node->IsOpen())
         {
-            io.AddKeyEvent(ImGuiKey_RightArrow, false);
-            if (node->IsOpen())
-            {
-                auto descended_node = DescendVisibleTree(*node);
-                if (descended_node)
-                    UpdateStateAfterItemClick(state, descended_node->GetItem());
-            }
-            else
-                node->SetOpenStatus(true);
+            auto descended_node = DescendVisibleTree(*node);
+            if (descended_node)
+                UpdateStateAfterItemClick(state, descended_node->GetItem());
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-        {
-            io.AddKeyEvent(ImGuiKey_LeftArrow, false);
-            if (!node->IsOpen())
-            {
-                if (node->m_parent)
-                    UpdateStateAfterItemClick(state, node->m_parent->GetItem());
-            }
-            else
-                node->SetOpenStatus(false);
-        }
+        else
+            node->SetOpenStatus(true);
     }
+    else if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) // collapse tre enode
+    {
+        io.AddKeyEvent(ImGuiKey_LeftArrow, false);
+        if (!node->IsOpen())
+        {
+            if (node->m_parent)
+                UpdateStateAfterItemClick(state, node->m_parent->GetItem());
+        }
+        else
+            node->SetOpenStatus(false);
+    }
+    else if (ImGui::IsKeyPressed(ImGuiKey_KeypadMultiply)) // recursively expand all tree nodes of and including current treenode
+    {
+        OpenThisAndAllChildNodesRecursively(node);
+    }
+
 }
 
 bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item, const ImRect& parent_node_rect)
