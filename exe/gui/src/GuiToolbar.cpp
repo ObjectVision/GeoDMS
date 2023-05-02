@@ -53,23 +53,22 @@ void Button::Update(GuiViews& view)
     //const ImVec2 uv0(0.0f, 0.0f);
     //const ImVec2 uv1(1.0f, 1.0f);
 
-    //const ImVec2 button_size(32.0f,32.0f);
+    //const ImVec2 button_size(32.0f,32.0f); 
     //const ImVec2 target_button_size(25.0f, 25.0f);
 
     //const ImVec2 uv0(((button_size.x-target_button_size.x)/2.0f) / button_size.x, (button_size.y - target_button_size.y) / button_size.y);
     //const ImVec2 uv1(target_button_size.x / button_size.x, target_button_size.y / button_size.y);
-    const ImVec4 background_color(0, 0, 0, 0);
-    //auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
-    auto texture_size = ImVec2(25, 25);
+    const ImVec4 background_color(0, 0, 1, 0);
+    auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
+    //auto texture_size = ImVec2(25, 25);
     auto test = GetIcon(m_TextureId).GetId();
-    //if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight()))) 
-    if (ImGui::ImageButton(GetIcon(m_TextureId).GetId().data(), (void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size, uv0, uv1, background_color)) // , const ImVec2 & uv0 = ImVec2(0, 0), const ImVec2 & uv1 = ImVec2(1, 1), const ImVec4 & bg_col = ImVec4(0, 0, 0, 0), const ImVec4 & tint_col = ImVec4(1, 1, 1, 1)
-        
-    //ImGui::Image
-    //auto image_sz = ImVec2(GetIcon(m_TextureId).GetWidth()/1.2f, GetIcon(m_TextureId).GetHeight()/1.2f);
-    //if (ImGui::ImageButton(/* m_ToolTip.c_str(), */(void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz, ImVec2(0.1, 0.1), ImVec2(0.9, 0.9), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
-    //ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz);
-    //if (ImGui::IsItemClicked())
+
+    //if (ImGui::ImageButton(GetIcon(m_TextureId).GetId().data(), (void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size, uv0, uv1, background_color)) // , const ImVec2 & uv0 = ImVec2(0, 0), const ImVec2 & uv1 = ImVec2(1, 1), const ImVec4 & bg_col = ImVec4(0, 0, 0, 0), const ImVec4 & tint_col = ImVec4(1, 1, 1, 1)
+    
+    
+    //IMGUI_API void          Image(ImTextureID user_texture_id, const ImVec2 & size, const ImVec2 & uv0 = ImVec2(0, 0), const ImVec2 & uv1 = ImVec2(1, 1), const ImVec4 & tint_col = ImVec4(1, 1, 1, 1), const ImVec4 & border_col = ImVec4(0, 0, 0, 0));
+    ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size);//, uv0, uv1);
+    if (ImGui::IsItemClicked())
     {
         switch (m_Type)
         {
@@ -254,15 +253,6 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
         ImGui::PopStyleColor();
         return;
     }
-
-    /*if (view.m_dms_views.empty())
-    {
-        *p_open = false;
-        ImGui::End();
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
-        return;
-    }*/
 
     AutoHideWindowDocknodeTabBar(is_docking_initialized);
    
