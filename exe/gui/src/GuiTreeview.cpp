@@ -343,12 +343,7 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
         jump_item = nullptr;
     }
 
-    // alphabetical letter jump
-
-
     ImGui::PopID();
-
-    //ImGui::Text(m_item->GetName().c_str());
     ImGui::PopStyleColor(); // treeitem color
     return 0;
 }
@@ -380,17 +375,9 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
 
     ImGui::SameLine();
 
-    /*float offset = 3.0;
-    ImGuiContext& g = *GImGui;
-    auto window = ImGui::GetCurrentWindow();
-    auto spacing_w = g.Style.ItemSpacing.x;
-    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;*/
-
     ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
     ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
-    //window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return;
 }
@@ -448,25 +435,6 @@ auto GuiTreeNode::GetState() -> NotificationCode
 {
     return m_state;
 }
-
-/* REMOVE
-auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
-{
-    if (m_children.empty())
-        return nullptr;
-    return &m_children.front();
-}
-
-auto GuiTreeNode::GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator
-{
-    return m_children.begin();
-}
-
-auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
-{
-    return m_children.end();
-}
-*/
 
 bool GuiTreeNode::IsLeaf()
 {
