@@ -239,13 +239,25 @@ void GuiToolbar::ShowTableViewButtons(GuiViews& view)
     }
 }
 
+auto GetToolBarDockNode(GuiState& state) -> ImGuiDockNode*
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+    ImGuiDockNode* toolbar_docknode = nullptr;
+    if (dockspace_docknode->ChildNodes[0])
+        toolbar_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
+
+    return toolbar_docknode;
+}
+
 void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
     // TODO: on selection what toolbar to use: dataview.cpp, lines 1318 and SetMdiToolbar fmain.pas 670
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0f/255.0f, 117.0f/255.0f, 138.0f/255.0f, 1.0f));
 
-    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || view.m_dms_views.empty())
+    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || view.m_dms_views.empty())
     {
         AutoHideWindowDocknodeTabBar(is_docking_initialized);
         ImGui::End();
