@@ -339,14 +339,6 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
     if (jump_item && jump_item == m_item)
     {
         UpdateStateAfterItemClick(state, m_item);
-
-        auto available_content_region = ImGui::GetContentRegionAvail();
-        auto max_content_region = ImGui::GetContentRegionMax();
-        auto cursor_pos = ImGui::GetCursorPosY();
-        auto scroll_y = ImGui::GetScrollY();
-
-        //if (available_content_region.y < 0.0f) // only scroll when treenode is not visible
-        //    ImGui::SetScrollHereY();
         ImGui::ScrollToItem(ImGuiScrollFlags_KeepVisibleEdgeY);
         jump_item = nullptr;
     }
