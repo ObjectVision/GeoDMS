@@ -1028,7 +1028,7 @@ auto GuiDetailPages::GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*
     ImGuiDockContext* dc = &ctx->DockContext;
     auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
     ImGuiDockNode* detail_pages_docknode = nullptr;
-    if (dockspace_docknode->ChildNodes[0])
+    if (dockspace_docknode->ChildNodes[0] && dockspace_docknode->ChildNodes[0]->ChildNodes[1] && dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1])
         detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
 
     return detail_pages_docknode;
