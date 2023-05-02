@@ -1108,7 +1108,7 @@ void GuiDetailPages::DrawTabbar(GuiState& state)
 void GuiDetailPages::DrawContent(GuiState& state)
 {
     // detail page content area if necessary
-    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_None); // ImGuiWindowFlags_NoScrollbar);
 
     switch (m_active_tab)
     {
