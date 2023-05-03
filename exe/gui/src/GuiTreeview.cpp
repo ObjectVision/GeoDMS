@@ -303,19 +303,18 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
     ImGui::TextUnformatted(m_item->GetName().c_str()); // render treeitem text without extra string allocation
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
     {
-        //SetKeyboardFocusToThisHwnd();
         ImGui::CloseCurrentPopup();
         UpdateStateAfterItemClick(state, m_item);
     }
 
-    // double click event
+    // double-click
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
     // right-mouse popup menu
     ShowRightMouseClickPopupWindowIfNeeded(state);
 
-    // drag-drop event
+    // drag-drop
     if (!(m_item == state.GetRoot()) && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
     {
         ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
@@ -671,13 +670,14 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (next_node.GetItem() == state.GetCurrentItem())
             m_curr_node = &next_node;        
         
+        // draw node
         auto next_node_icon_rect = next_node.Draw(state, jump_item);
         
         // draw horizontal line
         float horizontal_line_y = (next_node_icon_rect.Min.y + next_node_icon_rect.Max.y) / 2.0f;
         auto horizontal_line_end = ImVec2(next_node_icon_rect.Min.x-1, horizontal_line_y);
         auto horizontal_line_start = next_node.IsLeaf() ? ImVec2(vertical_line_mid, horizontal_line_y) : ImVec2(vertical_line_mid+8, horizontal_line_y);
-        drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to options
+        drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to central location
 
         // draw vertical line if closed by branch
         vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y); // was min
