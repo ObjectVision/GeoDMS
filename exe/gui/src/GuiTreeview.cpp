@@ -169,6 +169,7 @@ void GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* t
 {
     auto tree_node = static_cast<GuiTreeNode*>(clientHandle);
     tree_node->SetState(new_state);
+    tree_node->m_status_changed = true;
     PostEmptyEventToGLFWContext();
     return;
 }
@@ -193,13 +194,14 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
 
 GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
 {
-    m_item     = other.m_item;
-    m_parent   = other.m_parent;
-    m_children = std::move(other.m_children);
-    m_state = other.m_state;
-    m_depth = other.m_depth;
-    m_has_been_opened = other.m_has_been_opened;
-    m_is_open = other.m_is_open;
+    m_item            = std::move(other.m_item);
+    m_parent          = std::move(other.m_parent);
+    m_children        = std::move(other.m_children);
+    m_state           = std::move(other.m_state);
+    m_depth           = std::move(other.m_depth);
+    m_has_been_opened = std::move(other.m_has_been_opened);
+    m_is_open         = std::move(other.m_is_open);
+    m_status_changed  = std::move(other.m_status_changed);
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
