@@ -560,6 +560,26 @@ auto StringToTable(std::string&& input, std::string separator) -> md_table
     return result;
 }
 
+FontScaleScope::FontScaleScope(float new_font_scale)
+{
+    m_old_font_scale = ImGui::GetFont()->Scale;
+    ImGui::GetFont()->Scale *= new_font_scale;
+    ImGui::PushFont(ImGui::GetFont());
+}
+
+
+FontScaleScope::~FontScaleScope()
+{
+    ImGui::GetFont()->Scale = m_old_font_scale;
+    ImGui::PopFont();
+}
+
+void FontScaleScope::Reset()
+{
+    ImGui::GetFont()->Scale = m_old_font_scale;
+    ImGui::PopFont();
+}
+
 void DrawProperties(GuiState& state, TableData& properties)
 {
     auto event_queues = GuiEventQueues::getInstance();
@@ -571,12 +591,13 @@ void DrawProperties(GuiState& state, TableData& properties)
     {
         if (properties.at(0).size() == 1 && properties.at(0).at(0).type == PET_HEADING)
         {
-            float old_size = ImGui::GetFont()->Scale;
-            ImGui::GetFont()->Scale *= 1.3f;
-            ImGui::PushFont(ImGui::GetFont());
+            //float old_size = ImGui::GetFont()->Scale;
+            //ImGui::GetFont()->Scale *= 1.3f;
+            FontScaleScope font_scale_scope(1.3f);
+            //ImGui::PushFont(ImGui::GetFont());
             ImGui::Text(properties.at(0).at(0).text.c_str());
-            ImGui::GetFont()->Scale = old_size;
-            ImGui::PopFont();
+            //ImGui::GetFont()->Scale = old_size;
+            //ImGui::PopFont();
             skip_heading_row = true;
         }
     }

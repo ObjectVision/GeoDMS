@@ -245,7 +245,9 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
+    //FontScaleScope font_scale_scope(0.9f); // TODO: move param to central style
     ImGui::TextUnformatted(icon);
+    
     if (ImGui::IsItemClicked()) //(ImGui::SmallButton(icon))//, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))

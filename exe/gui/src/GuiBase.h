@@ -449,6 +449,17 @@ struct PropertyEntry
 using RowData = std::vector<PropertyEntry>;
 using TableData = std::vector<RowData>;
 
+class FontScaleScope
+{
+public:
+	FontScaleScope(float new_font_scale);
+	~FontScaleScope();
+	void Reset();
+
+private:
+	float m_old_font_scale = 1.0;
+};
+
 // Helper functions
 auto DivideTreeItemFullNameIntoTreeItemNames(std::string fullname, std::string separator = "/") -> std::vector<std::string>;
 auto GetExeFilePath() -> std::string;
