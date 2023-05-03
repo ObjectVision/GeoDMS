@@ -34,9 +34,12 @@ public:
 	auto GetDepthFromTreeItem() -> UInt8;
 	auto Draw(GuiState& state, TreeItem*& jump_item) -> ImRect;
 	static void OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* ti, NotificationCode new_state);
+	
+	// TODO: reconsider the public state part: 
 	GuiTreeNode* m_parent = nullptr;
 	std::vector<GuiTreeNode> m_children;
 	UInt8 m_depth = 0;
+	bool m_status_changed = false;
 
 private:
 	bool DrawItemDropDown(GuiState& state);
