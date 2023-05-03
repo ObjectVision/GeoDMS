@@ -361,7 +361,7 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
 
     ImGui::SameLine();
 
-    ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
+    ImGui::PushStyleColor(ImGuiCol_Text, m_item->IsDataFailed() ? IM_COL32(225, 6, 0, 200) : m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200)); // TODO: move hardcoded style color values to a central location.
     ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
 
