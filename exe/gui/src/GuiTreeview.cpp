@@ -284,15 +284,17 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
 {
     assert(m_item);
     auto event_queues = GuiEventQueues::getInstance();
-
-    // status color
-    //auto status = DMS_TreeItem_GetProgressState(m_item);
     auto failed = m_item->IsFailed();
-
     bool node_is_selected = (m_item == state.GetCurrentItem());
 
+    // notify detail page to update if current item has changed
+    if (node_is_selected && m_status_changed)
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+
+    m_status_changed = false;
+
     // red background for failed item
-    if (failed) 
+    if (failed)
         SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()));
     else if (node_is_selected)
         SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79));
