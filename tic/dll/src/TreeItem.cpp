@@ -2063,6 +2063,15 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 {
 	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
 	dms_assert(diagnostic_tests::DetermineStateWasCalled(this));
+	assert(IsMainThread());
+
+	if (m_State.Get(ASF_GetCalcMetaInfo))
+		throwItemError(
+			"Invalid recursion in TreeItem::GetCurrMetaInfo() detected.\n"
+			"Check calculation rule of this item"
+		);
+	auto_flag_recursion_lock<ASF_GetCalcMetaInfo> lock(m_State);
+
 	if (HasCalculatorImpl())
 	{
 		//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
