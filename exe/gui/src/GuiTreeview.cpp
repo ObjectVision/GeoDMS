@@ -571,26 +571,42 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> GuiTreeN
 void GuiTree::OpenThisAndAllChildNodesRecursively(GuiTreeNode* node)
 {
     // define stop node
-    auto curr_node_depth = node->GetDepthFromTreeItem();
+    auto curr_node_depth = node->m_depth;
     GuiTreeNode* stop_node = nullptr;
     GuiTreeNode* next_node = node;
     while (true)
     {
         next_node = GetNextNode(*next_node);
-        auto next_node_depth = next_node->GetDepthFromTreeItem();
+        auto next_node_depth = next_node->m_depth;
 
         if (next_node_depth <= curr_node_depth)
+        {
             stop_node = next_node;
+            break;
+        }
     }
 
-    // open tree nodes recursively
     next_node = node;
-    while (next_node != stop_node)
+
+    // start with first child in case of root node
+    if (next_node->m_depth == 0)
     {
         if (!next_node->IsOpen())
             next_node->SetOpenStatus(true);
-        next_node = GetNextNode(*next_node);
-    } // TODO: test this piece of code
+        if (next_node->IsOpen() && !next_node->m_children.empty())
+            next_node = &*next_node->m_children.begin();
+    }
+
+    // open tree nodes recursively
+    while (next_node != stop_node)
+    {
+        if (!next_node->IsLeaf() && !next_node->IsOpen())
+            next_node->SetOpenStatus(true);
+        if (next_node->IsOpen() && !next_node->m_children.empty())
+            next_node = &*next_node->m_children.begin();
+        else
+            next_node = GetNextNode(*next_node);
+    }
 }
 
 void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
