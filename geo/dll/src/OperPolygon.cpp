@@ -260,21 +260,13 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			parallel_tileloop(polyEntity->GetNrTiles(), [this, arg1A, arg2A, arg3A, resObj = resLock.get()](tile_id tr)->void
-				{
-					this->Calculate(resObj, tr, arg1A, arg2A, arg3A);
-				}
-			);
+			this->Calculate(resLock.get(), arg1A, arg2A, arg3A);
 			resLock.Commit();
 		}
 		return true;
 	}
 
-	virtual void Calculate(AbstrDataObject* res, tile_id tr
-	,	const AbstrDataItem* arg1A
-	,	const AbstrDataItem* arg2A
-	,	const AbstrDataItem* arg3A
-	)	const =0;
+	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const =0;
 };
 
 template <class T>
@@ -296,7 +288,7 @@ public:
 			)
 	{}
 
-	void Calculate(AbstrDataObject* res, tile_id tr
+	void Calculate(AbstrDataObject* res
 	,	const AbstrDataItem* arg1A
 	,	const AbstrDataItem* arg2A
 	,	const AbstrDataItem* arg3A
@@ -305,14 +297,14 @@ public:
 		const Arg1Type* arg1 = const_array_cast<PointType>(arg1A); // point array
 		const Arg2Type* arg2 = nullptr; if (arg2A) arg2 = const_array_cast<PolygonIndex>(arg2A); // polygon ordinal; nullptr indicates sequence set has void domain (thus, one sequence)
 		const Arg3Type* arg3 = nullptr; if (arg3A) arg3 = const_array_cast<OrdinalType> (arg3A); // ordinal within polygon; nullptr indicates ascending order
-		dms_assert(arg1); 
+		assert(arg1); 
 
 		ResultType *result = mutable_array_cast<PolygonType>(res);
-		dms_assert(result);
+		assert(result);
 
-		auto resData = result->GetWritableTile(tr);
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-		Range<PolygonIndex> polyIndexRange = arg2 ? arg2->GetValueRangeData()->GetTileRange(tr) : Range<PolygonIndex>(0, 1);
+		Range<PolygonIndex> polyIndexRange = arg2 ? arg2->GetValueRangeData()->GetRange() : Range<PolygonIndex>(0, 1);
 
 		PolygonIndex nrPolys = Cardinality(polyIndexRange);
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
@@ -352,7 +344,7 @@ public:
 		MG_DEBUGCODE( size_t cumulSize = 0; )
 		dbg_assert(cumulSize == resData.get_sa().actual_data_size());
 
-		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), 0);
+		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), SizeT(0));
 		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 
 		// ==== then resize each resulting polygon according to the nr of seen points.
