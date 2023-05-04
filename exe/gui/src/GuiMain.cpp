@@ -91,25 +91,25 @@ void OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
 
     if (!filename.empty() && !line.empty() && !command.empty())
     {
-        auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
+        auto unexpanded_open_config_source_command = FillOpenConfigSourceCommand(command, filename, line);
         
 
         const TreeItem* TempItem = state.GetCurrentItem();
         if (!TempItem)
             TempItem = state.GetRoot();
-        //if (!TempItem)
-        //    return;
-        
-        //auto storageName = SharedStr(openConfigCmd);
-        //storageName = ConvertDosFileName(storageName);
 
-        //auto fullPathCmd = AbstrStorageManager::GetFullStorageName(CharPtr(), openConfigCmd.c_str());
-        auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
-        
+        std::string open_config_source_command = "";
+        if (!TempItem)
+            open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();\
+        else
+            open_config_source_command = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
+
+        assert(!open_config_source_command.empty());
+
         DMS_CALL_BEGIN
             try
         {
-            StartChildProcess(NULL, const_cast<Char*>(fullPathCmd.c_str()));
+            StartChildProcess(NULL, const_cast<Char*>(open_config_source_command.c_str()));
         }
         catch (...)
         {
