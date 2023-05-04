@@ -92,17 +92,16 @@ void OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
     if (!filename.empty() && !line.empty() && !command.empty())
     {
         auto unexpanded_open_config_source_command = FillOpenConfigSourceCommand(command, filename, line);
-        
+        const TreeItem* config_store_item = state.GetCurrentItem();
 
-        const TreeItem* TempItem = state.GetCurrentItem();
-        if (!TempItem)
-            TempItem = state.GetRoot();
+        if (!config_store_item)
+            config_store_item = state.GetRoot();
 
         std::string open_config_source_command = "";
-        if (!TempItem)
+        if (!config_store_item)
             open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();\
         else
-            open_config_source_command = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
+            open_config_source_command = AbstrStorageManager::GetFullStorageName(config_store_item, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
         assert(!open_config_source_command.empty());
 
@@ -322,18 +321,16 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
 
 struct link_info
 {
-    bool is_valid      = false;
-    std::string filename   = "";
+    bool is_valid           = false;
+    size_t link_start       = 0;
+    size_t link_stop        = 0;
+    std::string filename    = "";
     std::string line_number = "";
     std::string col_number  = "";
 };
 
 auto get_link_from_error_message(std::string_view error_message) -> link_info
 {
-    //nPosHO: = pos('(', sSelection);
-    //nPosC: = pos(',', sSelection);
-    //nPosHS: = pos(')', sSelection);
-
     auto round_bracked_open_pos  = error_message.find_first_of('(');
     auto comma_pos               = error_message.find_first_of(',');
     auto round_bracked_close_pos = error_message.find_first_of(')');
@@ -354,7 +351,7 @@ auto get_link_from_error_message(std::string_view error_message) -> link_info
     std::string line_number = std::string(error_message.substr(round_bracked_open_pos+1, comma_pos-round_bracked_open_pos-1));
     std::string col_number = std::string(error_message.substr(comma_pos+1, round_bracked_close_pos-comma_pos));;
 
-    return link_info(true, filename, line_number, col_number);
+    return link_info(true, first_line_ending, round_bracked_close_pos, filename, line_number, col_number);
 
 }
 
@@ -373,14 +370,13 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         if (!m_State.errorDialogMessage._Get().empty())
         {
-            ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str())); //TODO: interpret error message for link
-            
-            auto link = get_link_from_error_message(m_State.errorDialogMessage.Get());
-            
-            if (ImGui::IsItemClicked())
-            {
+            auto error_message_text = m_State.errorDialogMessage.Get();
+            auto link = get_link_from_error_message(error_message_text);
+
+            //ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
+            ImGui::Text(error_message_text.c_str());
+            if (link.is_valid && ImGui::IsItemClicked())
                 OpenConfigSource(m_State, link.filename, link.line_number);
-            }
         }
 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
