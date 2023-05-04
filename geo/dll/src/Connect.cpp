@@ -1048,12 +1048,11 @@ public:
 					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 					if (arcHnd.m_FoundAny)
 					{
-
 						// add Arc with connection
 						dms_assert(resStreetEnd->empty());
 						resStreetEnd->resize_uninitialized(2);
 						auto resPointPtr = resStreetEnd->begin();
-						resPointPtr[0] = *pointPtr;
+						resPointPtr[0] = point;
 						resPointPtr[1] = arcHnd.m_CutPoint;
 						dms_assert(resPointPtr + 2 == resStreetEnd->end());
 

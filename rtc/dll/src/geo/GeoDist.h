@@ -122,7 +122,6 @@ struct ArcProjectionHandle
 
 	ArcProjectionHandle(PointType p, sqrdist_type minSqrDist)
 		:	m_Point(p)
-		,	m_FoundAny(false)
 		,	m_MinSqrDist(minSqrDist)
 	{}
 
@@ -170,12 +169,12 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 
 	m_SegmIndex = nearestSegm - arcBegin;
 	ConstPointPtr nearestSegmEnd = nearestSegm+1;
-	if (nearestSegmEnd == arcEnd)
+	if (nearestSegmEnd == arcEnd) // only possible when linestring is only one point
 	{
 		assert(nearestSegm == arcBegin);
 		assert(arcBegin + 1 == arcEnd);
-		m_CutPoint= *nearestSegm;
-		m_InArc   = false;
+		assert(m_InArc == false);
+		assert(m_CutPoint == *nearestSegm);
 	}
 	else
 	{
