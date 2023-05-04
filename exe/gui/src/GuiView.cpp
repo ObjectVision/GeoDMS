@@ -213,12 +213,6 @@ bool DMSView::Update(GuiState& state)
     
     bool result = false;
 
-    if (!ImGui::IsWindowFocused() && GetFocus() == m_HWND)
-    {
-        ImGui::FocusWindow(ImGui::GetCurrentWindow());
-        result = true;
-    }
-
     // update window
     SHV_DataView_Update(m_DataView);
 
