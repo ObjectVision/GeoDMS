@@ -1028,7 +1028,7 @@ auto GuiDetailPages::GetDetailPagesDockNode(GuiState& state) -> ImGuiDockNode*
     ImGuiDockContext* dc = &ctx->DockContext;
     auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
     ImGuiDockNode* detail_pages_docknode = nullptr;
-    if (dockspace_docknode->ChildNodes[0])
+    if (dockspace_docknode->ChildNodes[0] && dockspace_docknode->ChildNodes[0]->ChildNodes[1] && dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1])
         detail_pages_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[1];
 
     return detail_pages_docknode;
@@ -1108,7 +1108,7 @@ void GuiDetailPages::DrawTabbar(GuiState& state)
 void GuiDetailPages::DrawContent(GuiState& state)
 {
     // detail page content area if necessary
-    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("DetailPageContentArea", ImVec2(-20, 0), false, ImGuiWindowFlags_None); // ImGuiWindowFlags_NoScrollbar);
 
     switch (m_active_tab)
     {
@@ -1207,7 +1207,7 @@ void GuiDetailPages::Update(bool* p_open, GuiState& state)
         }
     }
 
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    if ((ImGui::IsWindowHovered(ImGuiHoveredFlags_None) || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
     ProcessEvents(state);

@@ -92,7 +92,18 @@ void OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
     if (!filename.empty() && !line.empty() && !command.empty())
     {
         auto openConfigCmd = FillOpenConfigSourceCommand(command, filename, line);
+        
+
         const TreeItem* TempItem = state.GetCurrentItem();
+        if (!TempItem)
+            TempItem = state.GetRoot();
+        //if (!TempItem)
+        //    return;
+        
+        //auto storageName = SharedStr(openConfigCmd);
+        //storageName = ConvertDosFileName(storageName);
+
+        //auto fullPathCmd = AbstrStorageManager::GetFullStorageName(CharPtr(), openConfigCmd.c_str());
         auto fullPathCmd = AbstrStorageManager::GetFullStorageName(TempItem, SharedStr(openConfigCmd.c_str()));
         
         DMS_CALL_BEGIN
@@ -312,7 +323,7 @@ bool GuiMainComponent::ShowLocalOrSourceDataDirChangedDialogIfNecessary(GuiState
 struct link_info
 {
     bool is_valid      = false;
-    std::string test   = "";
+    std::string filename   = "";
     std::string line_number = "";
     std::string col_number  = "";
 };
@@ -337,11 +348,11 @@ auto get_link_from_error_message(std::string_view error_message) -> link_info
         return {};
 
     auto first_line_ending = error_message.find_first_of('\n');
-    auto second_line_ending = error_message.find_first_of('\n', first_line_ending);
+    //auto second_line_ending = error_message.find_first_of('\n', first_line_ending);
 
-    std::string filename = std::string(error_message.substr(first_line_ending+1, round_bracked_open_pos-first_line_ending));
-    std::string line_number = std::string(error_message.substr(round_bracked_open_pos+1, comma_pos-round_bracked_open_pos));
-    std::string col_number = std::string(error_message.substr(comma_pos+1, round_bracked_close_pos-(--comma_pos)));;
+    std::string filename = std::string(error_message.substr(first_line_ending+1, round_bracked_open_pos-first_line_ending-1));
+    std::string line_number = std::string(error_message.substr(round_bracked_open_pos+1, comma_pos-round_bracked_open_pos-1));
+    std::string col_number = std::string(error_message.substr(comma_pos+1, round_bracked_close_pos-comma_pos));;
 
     return link_info(true, filename, line_number, col_number);
 
@@ -368,7 +379,7 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
             
             if (ImGui::IsItemClicked())
             {
-                // follow link
+                OpenConfigSource(m_State, link.filename, link.line_number);
             }
         }
 
@@ -588,8 +599,6 @@ int GuiMainComponent::Init()
     default_font_recipy.recipy.emplace_back(CreateNotoSansMediumFontSpec(25.0f));
     default_font_recipy.recipy.emplace_back(CreateNotoSansMathFontSpec(25.0f));
 
-    
-
     // Load gui state
     m_State.LoadWindowOpenStatusFlags();
 
@@ -606,10 +615,6 @@ int GuiMainComponent::Init()
 int GuiMainComponent::MainLoop()
 {
     ImGuiIO& io = ImGui::GetIO();
-
-    // state
-    //ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    //glClearColor(1.0, 0.0, 0.0, 1.0);
     glfwSetWindowTitle(m_MainWindow, (m_State.configFilenameManager._Get() + DMS_GetVersion()).c_str()); // default window title
 
     InitializeGuiTextures();
@@ -627,7 +632,7 @@ int GuiMainComponent::MainLoop()
         //else 
         //{
         
-        //glfwWaitEvents();
+        //glfwWaitEvents(); //TODO: reimplement this logic with interrupts from GeoDMS
         //glfwPostEmptyEvent();
         //glfwWaitEventsTimeout(1.0);
         //    if (UpdateFrameCounter == 0)
@@ -678,16 +683,6 @@ int GuiMainComponent::MainLoop()
 
         // rendering
         ImGui::Render();
-        
-        //int display_w, display_h;
-        //glfwGetFramebufferSize(m_MainWindow, &display_w, &display_h);
-        
-        //glViewport(0, 0, display_w/2, display_h/2);
-        //glClearColor(1.0, 0.0, 0.0, 1.0);
-        //glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        
-            
-        //glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); // render drawdata of main viewport
 
         // Update and Render additional Platform Windows
@@ -698,13 +693,6 @@ int GuiMainComponent::MainLoop()
 
         glfwMakeContextCurrent(backup_current_context);
         glfwSwapBuffers(m_MainWindow);
-        
-
-
-
-
-
-
         m_GuiUnitTest.Step();
         
         //break;
@@ -869,7 +857,7 @@ bool GuiMainComponent::Update()
             // TODO: check if dockspace_node is unsplit
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, tree_view_window, ImGuiDir_Left, 0.2f, true);
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, detail_pages_window, ImGuiDir_Right, 0.98f, true); // 0.8
-            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.035f, true); //0.025f
+            ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, toolbar_window, ImGuiDir_Up, 0.030f, true); //0.035f
             ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, dockspace_docknode, event_log_window, ImGuiDir_Down, 0.8f, true);
                         
             first_time_docking = false;

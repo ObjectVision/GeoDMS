@@ -48,28 +48,9 @@ auto Button::GetGroupIndex() -> int
 void Button::Update(GuiViews& view)
 {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
-    const ImVec2 uv0(0.1f, 0.1f);
-    const ImVec2 uv1(0.9f, 0.9f);
-    //const ImVec2 uv0(0.0f, 0.0f);
-    //const ImVec2 uv1(1.0f, 1.0f);
-
-    //const ImVec2 button_size(32.0f,32.0f);
-    //const ImVec2 target_button_size(25.0f, 25.0f);
-
-    //const ImVec2 uv0(((button_size.x-target_button_size.x)/2.0f) / button_size.x, (button_size.y - target_button_size.y) / button_size.y);
-    //const ImVec2 uv1(target_button_size.x / button_size.x, target_button_size.y / button_size.y);
-    const ImVec4 background_color(0, 0, 0, 0);
-    //auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
-    auto texture_size = ImVec2(25, 25);
-    auto test = GetIcon(m_TextureId).GetId();
-    //if (ImGui::ImageButton((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight()))) 
-    if (ImGui::ImageButton(GetIcon(m_TextureId).GetId().data(), (void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size, uv0, uv1, background_color)) // , const ImVec2 & uv0 = ImVec2(0, 0), const ImVec2 & uv1 = ImVec2(1, 1), const ImVec4 & bg_col = ImVec4(0, 0, 0, 0), const ImVec4 & tint_col = ImVec4(1, 1, 1, 1)
-        
-    //ImGui::Image
-    //auto image_sz = ImVec2(GetIcon(m_TextureId).GetWidth()/1.2f, GetIcon(m_TextureId).GetHeight()/1.2f);
-    //if (ImGui::ImageButton(/* m_ToolTip.c_str(), */(void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz, ImVec2(0.1, 0.1), ImVec2(0.9, 0.9), ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 1)))
-    //ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), image_sz);
-    //if (ImGui::IsItemClicked())
+    auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
+    ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size);
+    if (ImGui::IsItemClicked())
     {
         switch (m_Type)
         {
@@ -218,7 +199,7 @@ void GuiToolbar::ShowMapViewButtons(GuiViews& view)
         if (cur_group_index == button.GetGroupIndex())
             ImGui::SameLine(0.0f, 0.0f);
         else
-            ImGui::SameLine(0.0f, 25.0f);
+            ImGui::SameLine(0.0f, 25.0f); // gap between button groups // TODO: move style parameters to separate code unit?
 
         cur_group_index = button.GetGroupIndex();
         button.Update(view);
@@ -233,12 +214,36 @@ void GuiToolbar::ShowTableViewButtons(GuiViews& view)
         if (cur_group_index == button.GetGroupIndex())
             ImGui::SameLine(0.0f, 0.0f);
         else
-            ImGui::SameLine(0.0f, 25.0f);
+            ImGui::SameLine(0.0f, 25.0f); // gap between button groups // TODO: move style parameters to separate code unit?
 
         cur_group_index = button.GetGroupIndex();
         button.Update(view);
     }
 }
+
+auto GetToolBarDockNode(GuiState& state) -> ImGuiDockNode*
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+    ImGuiDockNode* toolbar_docknode = nullptr;
+    if (dockspace_docknode->ChildNodes[0] && dockspace_docknode->ChildNodes[0]->ChildNodes[0])
+        toolbar_docknode = dockspace_docknode->ChildNodes[0]->ChildNodes[0];
+
+    return toolbar_docknode;
+}
+
+void SetDefaultToolbarSize(GuiState& state)
+{
+    auto toolbar_docknode = GetToolBarDockNode(state);
+    if (toolbar_docknode)
+    {
+        auto window_size = ImGui::GetWindowSize();
+        ImGui::DockBuilderSetNodeSize(toolbar_docknode->ID, ImVec2(window_size.x, 32.0f));
+    }
+}
+
+
 
 void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
@@ -246,25 +251,18 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0f/255.0f, 117.0f/255.0f, 138.0f/255.0f, 1.0f));
 
-    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
+    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || view.m_dms_views.empty())
     {
+        SetDefaultToolbarSize(state);
+        AutoHideWindowDocknodeTabBar(is_docking_initialized);
         ImGui::End();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
         return;
     }
 
-    /*if (view.m_dms_views.empty())
-    {
-        *p_open = false;
-        ImGui::End();
-        ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
-        return;
-    }*/
-
-    AutoHideWindowDocknodeTabBar(is_docking_initialized);
-   
+    //AutoHideWindowDocknodeTabBar(is_docking_initialized);
+    SetDefaultToolbarSize(state);
     // focus window when clicked
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();

@@ -266,6 +266,16 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
+
+	// apply color table
+	auto color_table = poBand->GetColorTable();
+	if (!color_table)
+		return resultCode;
+
+	auto color_count = color_table->GetColorEntryCount();
+	
+	// TODO: implement
+
 	return resultCode;
 }
 
@@ -663,25 +673,30 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		return WPoint();
 	}
 
-		//throwDmsErrF("GDAL: cannot open %s", fileName);
+	auto number_of_raster_bands = dsHnd->GetRasterCount();
 
 	auto rBand = dsHnd->GetRasterBand(1);
+
 	MG_CHECK(rBand); 
 	ReadBand(rBand, buffer.redBand);
+
+	auto check = rBand->GetRasterDataType();
+
 	auto size = buffer.redBand.size();
-	if (dsHnd->GetRasterCount() > 2) // Red Green Blue, at least.
+	vector_resize(buffer.combinedBands, size);
+	if (number_of_raster_bands > 2) // Red Green Blue, at least.
 	{
 		auto gBand = dsHnd->GetRasterBand(2);
 		auto bBand = dsHnd->GetRasterBand(3);
+		
 		ReadBand(gBand, buffer.greenBand);
 		ReadBand(bBand, buffer.blueBand);
 
 		MakeMin(size, buffer.greenBand.size());
 		MakeMin(size, buffer.blueBand.size());
 
-		vector_resize(buffer.combinedBands, size);
 		SizeT i = 0;
-		if (dsHnd->GetRasterCount() > 3) // also a transparency band ?
+		if (number_of_raster_bands > 3) // also a transparency band ?
 		{
 			auto tBand = dsHnd->GetRasterBand(4);
 			ReadBand(tBand, buffer.transBand);
@@ -711,11 +726,28 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		for (; i != size; ++i)
 			buffer.combinedBands[i] = (buffer.redBand[i] << 16) | (buffer.greenBand[i] << 8) | buffer.blueBand[i];
 	}
-	else
+	else // single band
 	{
-		vector_resize(buffer.combinedBands, size);
-		for (SizeT i = 0; i != size; ++i)
-			buffer.combinedBands[i] = buffer.redBand[i] * 0x010101;
+		GDALColorTable* color_table = rBand->GetColorTable();
+		if (color_table && color_table->GetPaletteInterpretation() == GPI_RGB)
+		{ 
+			UInt8 r=0,g=0,b=0,a=0;
+			for (SizeT i = 0; i != size; ++i)
+			{
+				auto color_entry = color_table->GetColorEntry(buffer.redBand[i]);
+				r = static_cast<UInt8>(color_entry->c1);
+				g = static_cast<UInt8>(color_entry->c2);
+				b = static_cast<UInt8>(color_entry->c3);
+				a = static_cast<UInt8>(color_entry->c4);
+
+				buffer.combinedBands[i] = (a << 24) | (r << 16) | (g << 8) | b;
+			}
+		}
+		else // grayscale
+		{
+			for (SizeT i = 0; i != size; ++i)
+				buffer.combinedBands[i] = buffer.redBand[i] * 0x010101;
+		}
 	}
 
 	auto width = rBand->GetXSize();
