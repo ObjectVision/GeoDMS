@@ -545,7 +545,7 @@ void* AllocateFromStock_impl(size_t objectSize)
 		WaitForAvailableMemory(qWordCount * sizeof(UInt64));
 
 	auto result = s_QWordArrayAllocator.allocate(qWordCount);
-	assert(result);
+	MG_CHECK(result);
 	return result;
 }
 
