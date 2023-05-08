@@ -163,6 +163,6 @@ private:
     bool                    m_is_docking_initialized = false;
     bool                    m_pinned = true;
     DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
-    Float32                 m_min_size = 30.0f;
+    Float32                 m_collapsed_size = 30.0f;
     Float32                 m_expanded_size = 500.0f;
 };
