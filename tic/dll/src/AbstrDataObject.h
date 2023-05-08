@@ -89,6 +89,8 @@ public:
 	using data_read_begin_handle = locked_seq<ptr<const Byte>, TileCRef>;
 	using data_write_begin_handle = locked_seq<ptr<Byte>, TileRef>;
 
+	TIC_CALL ~AbstrDataObject();
+
 	TIC_CALL SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 
 	TIC_CALL virtual bool IsMemoryObject() const { return false; }
@@ -212,6 +214,7 @@ public:
 
 public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
+	mutable TileBase* m_shadowTilePtr = nullptr; // a kind of weak ptr
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;

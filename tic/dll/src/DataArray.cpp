@@ -109,7 +109,7 @@ struct mutable_shadow_tile : tile<V>
 };
 
 template <typename V>
-struct const_shadow_tile : tile<V>
+struct const_shadow_sequence_tile : tile<V>
 {
 	using tile<V>::tile;
 	std::vector< typename DataArrayBase<V>::locked_cseq_t > m_Seqs;
@@ -180,28 +180,86 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 	return { TileRef(shadowTilePtr.get_ptr()), GetSeq(*shadowTilePtr) };
 }
 
+
+
+template <typename V> struct const_tile_type;
+template <fixed_elem V> struct const_tile_type<V> { using type = tile<V>; };
+template <sequence_or_string V> struct const_tile_type<V> { using type = const_shadow_sequence_tile<V>; };
+
+template <typename V> using const_tile_t = typename const_tile_type<V>::type;
+
+std::mutex shadowPtrSection;
+
+template <typename V> 
+struct const_shadow : const_tile_t<V>
+{
+	const DataArrayBase<V>* m_Owner = nullptr;
+	std::mutex        m_TileGenerationCS;
+	bool              m_TileReady = false;
+
+	void Disconnect()
+	{
+		auto lockCS = std::unique_lock(shadowPtrSection);
+		if (!m_Owner)
+			return;
+		m_Owner->m_shadowTilePtr = nullptr;
+		m_Owner = nullptr;
+	}
+
+	void DecoupleShadowFromOwner() override
+	{
+		m_Owner = nullptr;
+	}
+
+	~const_shadow()
+	{
+		Disconnect();
+	}
+};
+
+
+AbstrDataObject::~AbstrDataObject()
+{
+	if (!m_shadowTilePtr)
+		return;
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!m_shadowTilePtr)
+		return;
+	m_shadowTilePtr->DecoupleShadowFromOwner();
+	m_shadowTilePtr = nullptr;
+}
+
+template<typename V>
+SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
+{
+	assert(ado);
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!ado->m_shadowTilePtr)
+	{
+		auto csPtr = new const_shadow<V>;
+		csPtr->m_Owner = ado;
+		ado->m_shadowTilePtr = csPtr;
+	}
+	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
+}
+
 template <fixed_elem V>
-auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto trd = tileFunctor->GetTiledRangeData();
 	assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<tile<V>> shadowTilePtr = new tile<V>; // normal tile
-
-	InitConstShadow<V>(tileFunctor, shadowTilePtr.get_ptr(), trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
-
-	return { TileCRef(shadowTilePtr.get_ptr()), GetConstSeq(*shadowTilePtr) };
+	InitConstShadow<V>(tileFunctor, shadowTilePtr, trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <sequence_or_string V>
-auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto trd = tileFunctor->GetTiledRangeData();
 	auto tn = trd->GetNrTiles();
 	assert(tn != 1);
 
 	using element_type = elem_of_t<V>;
-	SharedPtr<const_shadow_tile<V>> shadowTilePtr = new const_shadow_tile<V>; // normal tile, but keep using data sequences from original tles
 	if (tn != 0)
 	{
 		shadowTilePtr->m_Seqs.reserve(tn);
@@ -244,7 +302,6 @@ auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_
 			}
 		);
 	}
-	return { TileCRef(shadowTilePtr.get_ptr()) , GetConstSeq(*shadowTilePtr) };
 }
 
 #if defined(MG_DEBUG)
@@ -275,7 +332,16 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return ConstShadowTile(this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+		{
+			auto cstPtr = GetConstShadowTile(this);
+			auto cstGenerationLock = std::unique_lock(cstPtr->m_TileGenerationCS);
+			if (!cstPtr->m_TileReady)
+			{
+				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+				cstPtr->m_TileReady = true;
+			}
+			return { TileCRef(cstPtr.get_ptr()), GetConstSeq(*cstPtr) };
+		}
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());

@@ -150,18 +150,18 @@ public:
 
 	std::any MakeValuesArray(const AbstrDataItem* arg2A) const override
 	{
-		const Arg2Type* arg2 = const_array_cast<V>(arg2A);
-		dms_assert(arg2);
+		auto arg2 = const_array_cast<V>(arg2A);
+		assert(arg2);
 		return arg2->GetDataRead(); // ShadowTile
 	}
 
 	bool MustCheckRange(const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain) const override
 	{
-		const Arg1Type* arg1 = const_array_cast<T>(arg1A);
-		dms_assert(arg1);
+		auto arg1 = const_array_cast<T>(arg1A);
+		assert(arg1);
 
 		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2Domain);
-		dms_assert(arg2_DomainUnit);
+		assert(arg2_DomainUnit);
 
 		Arg1RangeType actualIndexRange = arg2_DomainUnit->GetRange();
 		Arg1RangeType formalIndexRange = arg1->GetValueRangeData()->GetRange();
