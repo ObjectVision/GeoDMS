@@ -203,9 +203,6 @@ GuiToolbar::GuiToolbar()
     m_MapViewButtons.emplace_back(TB_SP_All, TB_SP_Active, TB_SP_None, MV_toggle_palette, false, 3, ButtonType::TRISTATE, "Toggle Palette Visibiliy between{All, Active Layer Only, None}", false);
     m_MapViewButtons.emplace_back(TB_NeedleOn, TB_NeedleOff, MV_toggle_needle, false, 3, ButtonType::TOGGLE, "Show / Hide NeedleControler", false);
     m_MapViewButtons.emplace_back(TB_ScaleBarOn, TB_ScaleBarOff, MV_toggle_scalebar, false, 3, ButtonType::TOGGLE, "Show / Hide ScaleBar", false);
-    
-    
-
 }
 
 void GuiToolbar::ShowMapViewButtons(GuiViews& view)
