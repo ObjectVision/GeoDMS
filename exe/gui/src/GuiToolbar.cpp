@@ -186,8 +186,8 @@ GuiToolbar::GuiToolbar()
 
     m_MapViewButtons.emplace_back(TB_ZoomAllLayers,   MV_zoom_all_layers, false, 1, ButtonType::SINGLE, "Make the extents of all layers fit in the ViewPort", false);
     m_MapViewButtons.emplace_back(TB_ZoomActiveLayer, MV_zoom_active_layer, false, 1, ButtonType::SINGLE, "Make the extent of the active layer fit in the ViewPort", false);
-    m_MapViewButtons.emplace_back(TB_ZoomIn2,         MV_zoomin_button, true, 1, ButtonType::SINGLE, "Zoom in by drawing a rectangle", false);
-    m_MapViewButtons.emplace_back(TB_ZoomOut2,        MV_zoomout_button, true, 1, ButtonType::SINGLE, "Zoom out by clicking on a ViewPort location", false);
+    m_MapViewButtons.emplace_back(TB_ZoomIn2,  TB_Neutral, MV_zoomin_button, true, 1, ButtonType::TOGGLE, "Zoom in by drawing a rectangle", false);
+    m_MapViewButtons.emplace_back(TB_ZoomOut2, TB_Neutral, MV_zoomout_button, true, 1, ButtonType::TOGGLE, "Zoom out by clicking on a ViewPort location", false);
     
     m_MapViewButtons.emplace_back(TB_ZoomSelectedObj, MV_zoom_selected, false, 2, ButtonType::SINGLE, "Make the extent of the selected elements fit in the ViewPort", false);
     m_MapViewButtons.emplace_back(TB_SelectObject, MV_select_object, true, 2, ButtonType::SINGLE, "Select elements in the active layer by mouse-click(use Shift to add or Ctrl to deselect)", false);
