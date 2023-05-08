@@ -164,5 +164,5 @@ private:
     bool                    m_pinned = true;
     DetailPageActiveTab     m_active_tab = DetailPageActiveTab::None;
     Float32                 m_min_size = 30.0f;
-    Float32                 m_expanded_size = 1000.0f;
+    Float32                 m_expanded_size = 500.0f;
 };
