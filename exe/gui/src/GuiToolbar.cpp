@@ -57,9 +57,7 @@ void Button::Update(GuiViews& view)
 
     ImGui::PushStyleColor(ImGuiCol_Button, button_background_color);
     auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
-    //ImGui::Image((void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size, { 0,0 }, { 1,1 });
-    //if (ImGui::IsItemClicked())
-    //bool          ImageButton(const char* str_id, ImTextureID user_texture_id, const ImVec2 & size, const ImVec2 & uv0 = ImVec2(0, 0), const ImVec2 & uv1 = ImVec2(1, 1), const ImVec4 & bg_col = ImVec4(0, 0, 0, 0), const ImVec4 & tint_col = ImVec4(1, 1, 1, 1));
+
     if (ImGui::ImageButton(m_ToolTip.c_str(), (void*)(intptr_t)GetIcon(m_TextureId).GetImage(), texture_size, {0, 0.1f}, {1, 1.1f}))
     {
         switch (m_Type)
