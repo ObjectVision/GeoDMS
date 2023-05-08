@@ -17,7 +17,23 @@ public:
 	Button(ToolButtonID button_id1, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID button_id3, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
-	void Update(GuiViews& view);
+	friend bool operator==(const Button& l, const Button& r)
+	{
+		return l.m_TextureId == r.m_TextureId;
+	}
+	
+	bool Update(GuiViews& view);
+	void SetState(UInt8 new_state)
+	{
+		m_State = new_state;
+	}
+	bool GetUniqueness()
+	{
+		return m_IsUnique;
+	}
+
+	
+	
 	auto GetGroupIndex() -> int;
 
 private:

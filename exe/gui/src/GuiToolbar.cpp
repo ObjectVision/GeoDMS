@@ -48,12 +48,14 @@ auto Button::GetGroupIndex() -> int
     return m_GroupIndex;
 }
 
-void Button::Update(GuiViews& view)
+bool Button::Update(GuiViews& view)
 {
+    bool reset_unique_button_activation_state = false;
+
     // determine background color
     auto button_background_color = ImVec4(0.f, 0.f, 0.f, 0.f);
-    if (m_Type == ButtonType::TOGGLE && m_State == 1)
-        button_background_color = ImVec4(66.0f/255.0f, 150.0f/255.0f, 250.0f/255.0f, 100.0f/255.0f);
+    if ((m_Type == ButtonType::SINGLE || m_Type == ButtonType::TOGGLE) && m_State == 1)
+        button_background_color = ImVec4(66.0f/255.0f, 150.0f/255.0f, 250.0f/255.0f, 255.0f/255.0f);
 
     ImGui::PushStyleColor(ImGuiCol_Button, button_background_color);
     auto texture_size = ImVec2(GetIcon(m_TextureId).GetWidth(), GetIcon(m_TextureId).GetHeight());
@@ -64,6 +66,11 @@ void Button::Update(GuiViews& view)
         {
         case ButtonType::SINGLE:
         {
+            if (m_IsUnique)
+            {
+                m_State = m_State ? 0 : 1;
+                reset_unique_button_activation_state = true;
+            }
             UpdateSingle(view);
             break;
         }
@@ -93,6 +100,8 @@ void Button::Update(GuiViews& view)
         ImGui::SetTooltip(m_ToolTip.c_str());
     }
     ImGui::PopStyleColor();
+
+    return reset_unique_button_activation_state;
 }
 
 void Button::UpdateSingle(GuiViews& view)
@@ -210,7 +219,21 @@ void GuiToolbar::ShowMapViewButtons(GuiViews& view)
             ImGui::SameLine(0.0f, 25.0f); // gap between button groups // TODO: move style parameters to separate code unit?
 
         cur_group_index = button.GetGroupIndex();
-        button.Update(view);
+
+        if (button.Update(view)) // all unique buttons but this one need their visual state reset to 0
+        {
+            for (auto& _button : m_MapViewButtons)
+            {
+                if (!_button.GetUniqueness())
+                    continue;
+
+                if (_button == button)
+                    continue;
+
+                _button.SetState(0);
+            }
+        }
+    
     }
 }
 
