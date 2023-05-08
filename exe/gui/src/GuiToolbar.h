@@ -14,9 +14,9 @@ enum class ButtonType
 class Button
 {
 public:
-	Button(ToolButtonID button_id1, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
-	Button(ToolButtonID button_id1, ToolButtonID button_id2, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
-	Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID button_id3, GuiTextureID texture_id, int group_index, ButtonType type, std::string tooltip, UInt4 state);
+	Button(ToolButtonID button_id1, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
+	Button(ToolButtonID button_id1, ToolButtonID button_id2, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
+	Button(ToolButtonID button_id1, ToolButtonID button_id2, ToolButtonID button_id3, GuiTextureID texture_id, bool is_unique, int group_index, ButtonType type, std::string tooltip, UInt4 state);
 	void Update(GuiViews& view);
 	auto GetGroupIndex() -> int;
 
@@ -30,10 +30,11 @@ private:
 	ToolButtonID m_ToolButtonId2;
 	ToolButtonID m_ToolButtonId3;
 	GuiTextureID m_TextureId;
+	bool         m_IsUnique = false;
 	int          m_GroupIndex;
 	ButtonType   m_Type = ButtonType::SINGLE;
 	std::string  m_ToolTip = "";
-	UInt4		 m_State = 0;
+	UInt8		 m_State = 0;
 };
 
 class GuiToolbar
