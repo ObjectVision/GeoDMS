@@ -451,6 +451,7 @@ bool StatisticsView::Update(GuiState& state)
         UpdateData(); // TODO: performance wise, check every idle time frame?
 
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowDockID(GetGeoDMSDataViewAreaNodeID(state), ImGuiCond_Once);
     if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
