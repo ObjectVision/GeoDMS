@@ -93,7 +93,7 @@ class GuiViews
 	using dms_views = std::vector<DMSView>;
 	using statistics_views = std::vector<StatisticsView>;
 	using table_views = std::vector<GuiTableView>;
-	using dms_view_it = std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>>;
+	using dms_view_it = std::_Vector_iterator<std::_Vector_val<std::_Simple_types<DMSView>>>; // TODO: simplify
 
 public:
 	~GuiViews();

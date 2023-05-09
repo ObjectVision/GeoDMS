@@ -560,9 +560,21 @@ GuiViews::~GuiViews(){}
 
 auto GuiViews::UpdateAll(GuiState& state) -> void
 {
+    // determine clientarea docknode, if available
+    /*ImGuiID current_clientarea_docknode = GetGeoDMSDataViewAreaNodeID(state);
+    if (m_dms_view_it != m_dms_views.end())
+    {
+        // TODO: get imgui window ptr associated with m_dms_view_it
+        current_clientarea_docknode = m_dms_view_it->m_Name
+    }*/
+
+
     //auto edit_palette_it = m_EditPaletteWindows.begin();
     //for (auto& palette_editor : m_edit_palette_windows)
     //    palette_editor.Update(state);
+
+
+
 
     // update DMS views
     auto it = m_dms_views.begin();
