@@ -417,6 +417,11 @@ StatisticsView::StatisticsView(GuiState& state, std::string name) // TODO: move 
     m_Name = "\xE2\x88\x91 " + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; //  "\xE2\x88\x91" 
 }
 
+StatisticsView::~StatisticsView()
+{
+    m_item.release();
+}
+
 void StatisticsView::UpdateData()
 {
     if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
@@ -547,6 +552,7 @@ void GuiViews::AddStatisticsView(GuiState& state, std::string name)
 auto GuiViews::CloseAll() -> void
 {
     m_dms_views.clear();
+    m_statistic_views.clear();
 }
 
 GuiViews::~GuiViews(){}

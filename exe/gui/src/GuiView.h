@@ -75,6 +75,7 @@ class StatisticsView : public  AbstractView
 {
 public:
 	StatisticsView(GuiState &state, std::string name);
+	~StatisticsView();
 	bool Update(GuiState& state) override; // TODO: hotkey using CTRL-I, change invalidate hotkey to ALT-I
 	void UpdateData();
 
