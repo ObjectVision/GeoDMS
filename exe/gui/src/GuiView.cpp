@@ -136,6 +136,7 @@ bool DMSView::Update(GuiState& state)
 
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver); // TODO: use OnCaptionChanged to dynamically update caption
+    ImGui::SetNextWindowDockID(GetGeoDMSDataViewAreaNodeID(state), ImGuiCond_Once);
     if (!ImGui::Begin((m_Icon + m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
     {
         if (m_HWND)
@@ -227,7 +228,7 @@ bool DMSView::Update(GuiState& state)
             return result;
         }
 
-        if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
+        //if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
             has_been_docking_initialized = true;
     }
 
