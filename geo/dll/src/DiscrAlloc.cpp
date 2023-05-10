@@ -2410,7 +2410,11 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 		dms_assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		UInt32 ar = regionInfo.m_AtomicRegionMapData[regionInfo.m_CurrPI];
 		if (ar >= atomicRegionCount.size())
-			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF("Value %u out of range of valid Atomic Regions", ar);
+			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
+					"Value %u%s out of range of valid Atomic Regions"
+				,	ar
+				,	IsDefined(ar) ? "" : "(a.k.a. null-value)"
+			);
 		++atomicRegionCount[ar];
 	}
 	dms_assert(regionInfo.m_CurrPI >= regionInfo.m_N);
