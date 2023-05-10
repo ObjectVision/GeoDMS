@@ -444,6 +444,14 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
         ImGui::OpenPopup("Changed source file(s)");
     }
 
+    bool geodms_imgui_has_focus = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    if (geodms_imgui_has_focus)
+    {
+        ImGuiWindowClass windowClass;
+        windowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_TopMost;
+        ImGui::SetNextWindowClass(&windowClass);
+    }
+
     if (ImGui::BeginPopupModal("Changed source file(s)", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
         auto event_queues = GuiEventQueues::getInstance();

@@ -469,9 +469,6 @@ bool StatisticsView::Update(GuiState& state)
     }
 
     ImGui::TextWrapped(m_data.c_str());
-
-    //DrawProperties(state, m_data);
-
     ImGui::End();
 
     return true;
