@@ -218,7 +218,10 @@ void ModusTotDispatcher(
 // then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
 // Thus, tradeof is made at v*p <= n.
 
-template<typename V>
+template<typename V>template <typename V> using map_node_type = std::_Tree_node<std::pair<std::pair<SizeT, V>, SizeT>, void*>;
+template <typename V> UInt32 map_node_type_size = sizeof(map_node_type<V>);
+
+template <typename V> 
 void ModusTotDispatcher(
 	const AbstrDataItem* valuesItem
 ,	typename sequence_traits<V>::reference resData
@@ -231,7 +234,7 @@ void ModusTotDispatcher(
 		v = Cardinality(valuesRange);
 
 	if	(	IsDefined(v)
-		&&	v <= n
+		&&	(v / map_node_type_size<V> <= n / sizeof(V))
 		&& OnlyDefinedCheckRequired(valuesItem) // memory condition v*p<=n, thus TableTime <= 2n.
 		)
 		ModusTotByTable<V>(
@@ -266,7 +269,7 @@ void ModusPartBySet(
 	const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem,
 	OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
-	typedef std::pair<SizeT, V> value_type;
+	using value_type = std::pair<SizeT, V>;
 	std::map<value_type, SizeT> counters;
 	for (tile_id t=0, tn= valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -378,6 +381,7 @@ void ModusPartByIndexOrSet(
 		ModusPartByIndex<V, OIV>(valuesItem, indicesItem, resBegin, nrP);
 }
 
+
 template<typename V, typename OIV>
 void ModusPartByTable(const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem
 	, OIV resBegin
@@ -473,7 +477,7 @@ void ModusPartDispatcher(
 	dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
 
 	if	(	IsDefined(v)
-		&&	(!nrP || v <= n / nrP)
+		&&	(!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(V))
 		&&	OnlyDefinedCheckRequired(valuesItem)
 		) // memory condition v*p<=n, thus TableTime <= 2n.
 		ModusPartByTable<V>(
