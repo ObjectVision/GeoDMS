@@ -52,10 +52,7 @@ public:
 		dms_assert(arg1_DomainUnit);
 		dms_assert(arg2_DomainUnit);
 
-		arg1A->GetAbstrValuesUnit()->UnifyValues(
-			arg2A->GetAbstrValuesUnit(), 
-			"v1", "v2", UnifyMode(UM_Throw | UM_AllowDefault)
-		);
+		compatible_values_unit_creator_func(0, GetGroup(), args, true);
 
 		if (!resultHolder)
 		{
