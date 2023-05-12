@@ -366,7 +366,30 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
-        ImGui::BringWindowToFocusFront(ImGui::GetCurrentWindow()); //TODO: does not work for modal window, try other routes.
+        auto popup_window = ImGui::GetCurrentWindow();
+        //glfwFocusWindow(GLFWwindow * window);
+
+        ImGui::BringWindowToDisplayFront(popup_window); //TODO: does not work for modal window, try other routes.
+
+        auto vp = ImGui::GetWindowViewport();
+        auto glfw_platform_user_data = static_cast<ImGui_ImplGlfw_ViewportData*>(vp->PlatformUserData);
+        GLFWwindow* glfw_error_window = nullptr;
+        if (glfw_platform_user_data)
+            glfw_error_window = glfw_platform_user_data->Window;
+
+        if (glfw_error_window)
+        {
+            static bool test = false;
+            if (!test)
+            {
+                glfwFocusWindow(glfw_error_window);
+                glfwRequestWindowAttention(glfw_error_window);
+                test = true;
+            }
+            int i = 0;
+        }
+
+
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         if (!m_State.errorDialogMessage._Get().empty())
         {

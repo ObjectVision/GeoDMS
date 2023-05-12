@@ -299,7 +299,7 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
     if (failed)
         SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()));
     else if (node_is_selected)
-        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79));
+        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79)); // TODO: move to central style location
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(m_state, failed));
     ImGui::PushID(m_item);

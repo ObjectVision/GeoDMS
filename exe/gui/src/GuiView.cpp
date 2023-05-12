@@ -207,10 +207,6 @@ bool DMSView::Update(GuiState& state)
         ShowOrHideWindow(false);
     }
 
-    // If view window is focused, focus imgui window as well
-    //if (GetActiveWindow() == m_HWND)
-    //    ImGui::FocusWindow(ImGui::GetCurrentWindow());
-    
     bool result = false;
 
     // update window

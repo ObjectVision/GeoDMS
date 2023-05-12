@@ -1043,7 +1043,7 @@ void GuiDetailPages::Collapse(ImGuiDockNode* detail_pages_docknode)
 
     m_active_tab = DetailPageActiveTab::None;
     auto window_size = ImGui::GetWindowSize();
-    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_min_size, window_size.y));
+    ImGui::DockBuilderSetNodeSize(detail_pages_docknode->ID, ImVec2(m_collapsed_size, window_size.y));
 }
 
 void GuiDetailPages::Expand(DetailPageActiveTab tab, ImGuiDockNode* detail_pages_docknode)
