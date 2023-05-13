@@ -219,7 +219,7 @@ void ModusTotDispatcher(
 // Thus, tradeof is made at v*p <= n.
 
 template<typename V>template <typename V> using map_node_type = std::_Tree_node<std::pair<std::pair<SizeT, V>, SizeT>, void*>;
-template <typename V> UInt32 map_node_type_size = sizeof(map_node_type<V>);
+template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
 
 template <typename V> 
 void ModusTotDispatcher(
@@ -477,7 +477,8 @@ void ModusPartDispatcher(
 	dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
 
 	if	(	IsDefined(v)
-		&&	(!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(V))
+//		&& (!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(SizeT))
+		&&	(!nrP || v  <= n / nrP)
 		&&	OnlyDefinedCheckRequired(valuesItem)
 		) // memory condition v*p<=n, thus TableTime <= 2n.
 		ModusPartByTable<V>(

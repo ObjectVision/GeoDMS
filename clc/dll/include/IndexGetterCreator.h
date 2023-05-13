@@ -34,7 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 //=================================== IndexGetter
 
-typedef AbstrValueGetter<SizeT> IndexGetter;
+using IndexGetter = AbstrValueGetter<SizeT> ;
 
 struct IndexGetterCreatorBase : UnitProcessor
 {

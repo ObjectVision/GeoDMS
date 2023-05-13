@@ -1,0 +1,30 @@
+
+DataArray
+	virtual auto GetTile(tile_id t) const ->locked_cseq_t = 0;
+	virtual auto GetWritableTile(tile_id t, dms_rw_mode rwMode = dms_rw_mode::write_only_all) ->locked_seq_t;
+	virtual auto GetFutureTile(tile_id t) const -> std::sharedd_ptr<future_tile> = 0;
+
+
+struct TileFunctor<V> : ... :DataArrayBas
+		
+	DelayedTileFunctor<V>
+		FutureTileFunctor<V, PS, mustZero, PF, AF>
+			elementary operations, such as conversios
+	GeneratedTileFunctor<V> with future_caller
+		ConstTileFunctor<V>
+		
+		LazyTileFunctor<V, AF>
+			ID, mapping
+		
+		HeapTileArray
+		HeapSingleArray
+		HeapSingleValue
+		FileTileArray
+		
+		
+		
+
+
+FutureTileFunctor: t -> future(data) is read-only and remains able to deliver future(data), therefore cache future(data), which will become cached data when requested
+
+array of Future tiles: future(data)[t]: is mutable and therefore doesn't have to be able to unexpected deliver future(data), therefore, each tile can be discarded after use.
