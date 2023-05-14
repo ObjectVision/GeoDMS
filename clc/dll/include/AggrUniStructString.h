@@ -64,7 +64,7 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 		output.clear();
 	}
 
-	void operator()(accumulation_ref output, typename unary_assign_string_total_accumulation::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(accumulation_ref output, typename unary_assign_string_total_accumulation::value_cseq1 input) const
 	{
 		DBG_START("unary_assign_string_total_accumulation", "operator()", false);
 
@@ -73,14 +73,14 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 		InfiniteNullOutStreamBuff lengthFinderStreamBuff;
 		lengthFinderStreamBuff.m_CurrPos += sz;
 
-		aggr1_total_best(lengthFinderStreamBuff, input.begin(), input.end(), hasUndefinedValues, m_SerFunc);
+		aggr1_total_best(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
 
 		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 
 		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr( output ), end_ptr( output )));
 		writerStreamBuff.m_Curr += sz;
 		
-		aggr1_total_best(writerStreamBuff, input.begin(), input.end(), hasUndefinedValues, m_SerFunc);
+		aggr1_total_best(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
 	}
 
 	TSerFunc m_SerFunc;
@@ -116,9 +116,9 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 	:	m_AssignFunc(assignFunc) {}
 
 
-	void InspectData(length_finder_array& lengthFinderArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const
+	void InspectData(length_finder_array& lengthFinderArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, hasUndefinedValues, m_AssignFunc);
+		aggr_fw_best_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 
 	}
 
@@ -129,10 +129,10 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 			outStreamArray.push_back(ThrowingMemoOutStreamBuff(ByteRange(begin_ptr(resultSequence), end_ptr(resultSequence))));
 	}
 
-	void ProcessTileData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const
+	void ProcessTileData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
 		// re-write everything into the allocated buffers.
-		aggr_fw_best_partial(outStreamArray.begin(), input.begin(), input.end(), indices, hasUndefinedValues, m_AssignFunc);
+		aggr_fw_best_partial(outStreamArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 private:
 	TSerFunc m_AssignFunc;

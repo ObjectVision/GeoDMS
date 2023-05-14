@@ -88,7 +88,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		dms_assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
-			DataReadLock arg1Lock(arg1A);
+//			DataReadLock arg1Lock(arg1A);
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero); 
 			Calculate(resLock, arg1A);
 			resLock.Commit();
@@ -180,7 +180,6 @@ struct AbstrOperAccPartUni: BinaryOperator
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
 
 		dms_assert(resultHolder);
-//		DataReadLock arg2Lock(arg2A);
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 		dms_assert(res);
@@ -198,6 +197,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		}
 		if (context)
 		{
+			DataReadLock arg2Lock(arg2A);
 			SizeT f = context->m_Coordinate->first;
 
 			// search in partitioning for values with index f.
@@ -264,19 +264,15 @@ struct OperAccPartUni: AbstrOperAccPartUni, OperAccPartUniMixin<TAcc1Func, Resul
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A) const override
 	{
+		assert(arg2A);
 		auto arg1 = (DataReadLock(arg1A), MakeShared(const_array_cast<typename OperAccPartUni::ValueType>(arg1A)));
 		assert(arg1);
-		assert(arg2A);
 
 		tile_id tn  = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 
-		ProcessData(
-			mutable_array_cast<ResultValueType>(res)
-		,	std::move(arg1), arg2A
-		, 	tn,	arg1A->HasUndefinedValues()
-		);
+		ProcessData(mutable_array_cast<ResultValueType>(res), std::move(arg1), arg2A, tn);
 	}
-	virtual void ProcessData(typename OperAccPartUni::ResultType* result, SharedPtr<const typename OperAccPartUni::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const=0;
+	virtual void ProcessData(typename OperAccPartUni::ResultType* result, SharedPtr<const typename OperAccPartUni::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles) const=0;
 protected:
 	TAcc1Func m_Acc1Func;
 };
@@ -290,7 +286,7 @@ struct OperAccPartUniBuffered : OperAccPartUni<TAcc1Func, typename TAcc1Func::dm
 
 	void ProcessData(typename OperAccPartUniBuffered::ResultType* result,
 		SharedPtr<const typename OperAccPartUniBuffered::Arg1Type> arg1,
-		const AbstrDataItem* arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+		const AbstrDataItem* arg2, tile_id nrTiles) const override
 	{
 		using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
 		SizeT resCount = arg2->GetAbstrValuesUnit()->GetCount();
@@ -299,16 +295,18 @@ struct OperAccPartUniBuffered : OperAccPartUni<TAcc1Func, typename TAcc1Func::dm
 
 		this->m_Acc1Func.Init(OperAccPartUniBuffered::AccumulationSeq( &resBuffer ) );
 
+		auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
+		auto part_fta = (DataReadLock(arg2), GetAbstrFutureTileArray(arg2->GetCurrRefObj()));
+
 		for (tile_id t = 0; t!=nrTiles; ++t)
 		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, part_fta[t]); part_fta[t] = nullptr;
 
 			this->m_Acc1Func(
 				OperAccPartUniBuffered::AccumulationSeq( &resBuffer )
 			,	arg1Data
 			,	indexGetter 
-			,	arg1HasUndefinedValues
 			);
 		}
 
@@ -323,25 +321,20 @@ struct OperAccPartUniDirect : OperAccPartUni<TAcc1Func, typename TAcc1Func::resu
 		:	OperAccPartUni<TAcc1Func, typename TAcc1Func::result_type>(gr, acc1Func)
 	{}
 
-	void ProcessData(typename OperAccPartUniDirect::ResultType* result, SharedPtr<const typename OperAccPartUniDirect::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+	void ProcessData(typename OperAccPartUniDirect::ResultType* result, SharedPtr<const typename OperAccPartUniDirect::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles) const override
 	{
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); // check what Init does
 		m_Acc1Func.Init(resData);
 
 		auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
-		auto part_fta = (DataReadLock(arg2), GetAbstrFutureTileArray(arg2->GetRefObj()));
+		auto part_fta = (DataReadLock(arg2), GetAbstrFutureTileArray(arg2->GetCurrRefObj()));
 
 		for (tile_id t = 0; t!=nrTiles; ++t)
 		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, part_fta[t]); part_fta[t] = nullptr;
 
-			m_Acc1Func(
-				resData
-			,	arg1Data
-			,	indexGetter
-			,	arg1HasUndefinedValues
-			);
+			m_Acc1Func(resData, arg1Data, indexGetter);
 		}
 	}
 private:
@@ -368,23 +361,21 @@ struct OperAccPartUniSer_impl : OperAccPartUniMixin<TAcc1Func, SharedStr>
 		:	m_Acc1Func(acc1Func)
 	{}
 
-	void operator() (typename OperAccPartUniSer_impl::ResultType* result, const typename OperAccPartUniSer_impl::Arg1Type *arg1, const typename OperAccPartUniSer_impl::Arg2Type *arg2, tile_id nrTiles, bool arg1HasUndefinedValues)
+	void operator() (typename OperAccPartUniSer_impl::ResultType* result, SharedPtr<const typename OperAccPartUniSer_impl::Arg1Type> arg1, const typename OperAccPartUniSer_impl::Arg2Type *arg2, tile_id nrTiles)
 	{
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 //		m_Acc1Func.Init(resData);
 		{
+			auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
+			auto part_fta = (DataReadLock(arg2), GetAbstrFutureTileArray(arg2->GetCurrRefObj()));
+
 			length_finder_array lengthFinderArray(resData.size());
 			for (tile_id t = 0; t!=nrTiles; ++t)
 			{
-				auto arg1Data = arg1->GetTile(t);
-				OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+				auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+				OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, part_fta[t]); part_fta[t] = nullptr;
 
-				m_Acc1Func.InspectData(
-					lengthFinderArray
-				,	arg1Data
-				,	indexGetter 
-				,	arg1HasUndefinedValues
-				);
+				m_Acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter);
 			}
 			// allocate sufficent space in outputs
 			InitOutput(resData, lengthFinderArray);
@@ -400,12 +391,7 @@ struct OperAccPartUniSer_impl : OperAccPartUniMixin<TAcc1Func, SharedStr>
 			auto arg1Data = arg1->GetTile(t);
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
 
-			m_Acc1Func.ProcessTileData(
-				outStreamArray
-			,	arg1Data
-			,	indexGetter
-			,	arg1HasUndefinedValues
-			);
+			m_Acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter);
 		}
 	}
 	private:
@@ -420,10 +406,10 @@ struct OperAccPartUniSer : OperAccPartUni<TAcc1Func, SharedStr>
 		:	OperAccPartUni<TAcc1Func, SharedStr>(gr, acc1Func)
 	{}
 
-	void ProcessData(typename OperAccPartUniSer::ResultType* result, SharedPtr<const typename OperAccPartUniSer::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+	void ProcessData(typename OperAccPartUniSer::ResultType* result, SharedPtr<const typename OperAccPartUniSer::Arg1Type> arg1, const AbstrDataItem* arg2, tile_id nrTiles) const override
 	{
 		OperAccPartUniSer_impl<TAcc1Func> impl(this->m_Acc1Func);
-		impl(result, arg1, arg2, nrTiles, arg1HasUndefinedValues);
+		impl(result, std::move(arg1), arg2, nrTiles);
 	}
 };
 

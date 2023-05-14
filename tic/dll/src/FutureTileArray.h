@@ -4,6 +4,7 @@
 #define __TIC_FUTURETILEARRAY_H
 
 #include "DataArray.h"
+#include "ptr/OwningPtrSizedArray.h"
 
 using abstr_future_tile_ptr = SharedPtr<abstr_future_tile>;
 using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
@@ -18,7 +19,7 @@ auto GetFutureTileArray(const DataArrayBase<V>* da)
 	using future_tile_array = OwningPtrSizedArray< future_tile_ptr >;
 	assert(da); // PRECONDITION
 	auto tn = da->GetTiledRangeData()->GetNrTiles();
-	auto result = future_tile_array(tn, ValueConstruct_tag());
+	auto result = future_tile_array(tn, ValueConstruct_tag() MG_DEBUG_ALLOCATOR_SRC("GetFutureTileArray"));
 	for (tile_id t = 0; t != tn; ++t)
 		result[t] = da->GetFutureTile(t);
 	return result;

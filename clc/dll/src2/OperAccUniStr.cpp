@@ -55,7 +55,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 void InitOutput(sequence_traits<SharedStr>::seq_t& outputs, const length_finder_array& lengthFinderArray)
 {
-	dms_assert(outputs.size() == lengthFinderArray.size());
+	assert(outputs.size() == lengthFinderArray.size());
 	outputs.get_sa().data_reserve(lengthFinderArray.GetTotalLength() MG_DEBUG_ALLOCATOR_SRC("OperAccUniStr: outputs.get_sa().data_reserve()"));
 
 	sequence_traits<SharedStr>::container_type::iterator
@@ -85,24 +85,18 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* arg1A) const override
 	{
 		auto arg1 = const_array_cast<typename OperAccTotUniStr::ValueType>(arg1A);
-		dms_assert(arg1);
+		assert(arg1);
 
 		auto result = mutable_array_cast<typename OperAccTotUniStr::ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 
-		dms_assert(result->GetDataWrite().size() == 1);
+		assert(result->GetDataWrite().size() == 1);
 
 		m_Acc1Func.Init(result->GetDataWrite()[0]);
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		for (tile_id t = 0; t!=tn; ++t)
-		{
-			m_Acc1Func(
-				result->GetDataWrite()[0],
-				arg1->GetLockedDataRead(t), 
-				arg1A->HasUndefinedValues()
-			);
-		}
+			m_Acc1Func(result->GetDataWrite()[0], arg1->GetLockedDataRead(t));
 	}
 private:
 	TAcc1Func m_Acc1Func;
@@ -132,7 +126,7 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 		
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
@@ -152,12 +146,12 @@ public:
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
 			ResultType* result = mutable_array_cast<SharedStr>(resLock);
-			dms_assert(result);
+			assert(result);
 
 			auto arg2Data = arg2->GetDataRead();
 			auto resData  = result->GetDataWrite();
-			dms_assert(arg2Data.size() == 1);
-			dms_assert(resData .size() == 1);
+			assert(arg2Data.size() == 1);
+			assert(resData .size() == 1);
 
 			Arg2Type::const_reference arg2Value = arg2Data[0];
 			ResultType::reference     resValue  = resData[0];
@@ -173,7 +167,7 @@ public:
 				{
 					auto arg1Data = arg1->GetLockedDataRead(t);
 
-					aggr1_total_best<unary_ser_aslist>(lengthFinderStreamBuff, arg1Data.begin(), arg1Data.end(), arg1A->HasUndefinedValues(), m_SerFunc);
+					aggr1_total_best<unary_ser_aslist>(lengthFinderStreamBuff, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 				}
 				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 			}
@@ -181,7 +175,7 @@ public:
 			for (tile_id t=0; t!=te; ++t)
 			{
 				auto arg1Data = arg1->GetLockedDataRead(t);
-				aggr1_total_best<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), arg1A->HasUndefinedValues(), m_SerFunc);
+				aggr1_total_best<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 			}
 /////////////////////////////////////////////////////////////////////
 			resLock.Commit();
@@ -212,14 +206,14 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		const AbstrDataItem* arg3A = AsDataItem(args[2]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
-		dms_assert(arg3A);
+		assert(arg1A);
+		assert(arg2A);
+		assert(arg3A);
 
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
@@ -263,24 +257,24 @@ class OperAsListPart : public AbstrOperAsListPart
 public:
 	OperAsListPart() : AbstrOperAsListPart(Arg3Type::GetStaticClass())
 	{
-		dms_assert(ResultType::GetStaticClass() == GetResultClass());
+		assert(ResultType::GetStaticClass() == GetResultClass());
 	}
 
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		const Arg1Type* arg1 = const_array_cast<SharedStr>(arg1A);
 		const Arg2Type* arg2 = const_array_cast<SharedStr>(arg2A);
-		dms_assert(arg1);
-		dms_assert(arg2);
-		dms_assert(arg3A);
+		assert(arg1);
+		assert(arg2);
+		assert(arg3A);
 
 		ResultType* result = mutable_array_cast<ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 		
 		tile_id tn  = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		auto arg2Data = arg2->GetDataRead(); // no tiles, data locked by base class.
 
-		dms_assert(arg2Data.size() == 1);
+		assert(arg2Data.size() == 1);
 
 //		sequence_traits<AccumulationSeq::value_type>::container_type
 //			resBuffer(Cardinality(indexValueRange));
@@ -288,13 +282,7 @@ public:
 		TAcc2Func asListOper(arg2Data[0]);
 		OperAccPartUniSer_impl<TAcc2Func> impl(asListOper);
 
-		impl(
-			result
-		,	arg1
-		,	arg3A
-		,	tn
-		,	arg1A->HasUndefinedValues()
-		);
+		impl(result, arg1, arg3A, tn);
 	}
 };
 

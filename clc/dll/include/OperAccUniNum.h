@@ -68,14 +68,13 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		this->m_Acc1Func.Init(value);
 
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
+
 		// TODO G8: OPTIMIZE, use parallel_for and ThreadLocal container and aggregate afterwards.
+		auto values_fta = (DataReadLock(arg1A), GetFutureTileArray(arg1));
 		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
 		{
-			this->m_Acc1Func(
-				value, 
-				arg1->GetTile(t).get_view(),
-				arg1A->HasUndefinedValues()
-			);
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			this->m_Acc1Func(value, arg1Data.get_view());
 		}
 
 		auto resData = result->GetDataWrite();

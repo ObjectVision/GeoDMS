@@ -56,9 +56,9 @@ struct binary_assign_total_accumulation
 		,	m_Initializer(init) 
 	{}
 
-	void operator()(typename binary_assign_total_accumulation::assignee_ref output, typename binary_assign_total_accumulation::value_cseq1 input1, typename binary_assign_total_accumulation::value_cseq2 input2, bool hasUndefinedValues) const
+	void operator()(typename binary_assign_total_accumulation::assignee_ref output, typename binary_assign_total_accumulation::value_cseq1 input1, typename binary_assign_total_accumulation::value_cseq2 input2) const
 	{ 
-		aggr2_total_best<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), hasUndefinedValues, m_AssignFunc);
+		aggr2_total_best<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), m_AssignFunc);
 	}
 
 private:
@@ -66,7 +66,6 @@ private:
 	TNullaryOper m_Initializer;
 };
 
-// binary_assign_partial_accumulation(res, data, indices): init res with TNullaryFunc; for all v in vector: TUniAssign(res, v)
 template <
 	typename TBinAssign, 
 	typename TNullaryAssign = assign_default<typename TBinAssign::assignee_type>
@@ -93,11 +92,11 @@ struct binary_assign_partial_accumulation
 		transform_assign(outputs.begin(), outputs.end(), m_Initializer);
 	}
 
-	void operator()(typename binary_assign_partial_accumulation::accumulation_seq outputs, typename binary_assign_partial_accumulation::value_cseq1 input1, typename binary_assign_partial_accumulation::value_cseq2 input2, const IndexGetter* indices, bool hasUndefinedValues) const
+	void operator()(typename binary_assign_partial_accumulation::accumulation_seq outputs, typename binary_assign_partial_accumulation::value_cseq1 input1, typename binary_assign_partial_accumulation::value_cseq2 input2, const IndexGetter* indices) const
 	{ 
 		dms_assert(input1.size() == input2.size());
 
-		aggr2_fw_best_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, hasUndefinedValues, m_AssignFunc);
+		aggr2_fw_best_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, m_AssignFunc);
 	}
 
 	TBinAssign     m_AssignFunc;

@@ -189,12 +189,25 @@ template <typename E>
 void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 {
 	static_assert(has_undefines_v<E>);
-
 	const DataArray<E>* di = const_array_cast<E>(m_Adi);
-	DataCheckMode dcmIndices = m_Adi->GetCheckMode();
+	auto range = di->GetValueRangeData()->GetRange();
+	typename DataArray<E>::locked_cseq_t tileData;
+	DataCheckMode dcmIndices = DCM_CheckBoth;
+	if (m_Aft)
+	{
+		using future_tile = typename DataArray<E>::future_tile;
+		auto ft = debug_cast<future_tile*>(m_Aft);
+		tileData = ft->GetTile();
+	}
+	else
+	{
+		dcmIndices = m_Adi->GetCheckMode();
+		tileData = di->GetLockedDataRead(m_TileID);
+	}
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
-	typename Unit<E>::range_t range = di->GetValueRangeData()->GetRange();
-	auto tileData = di->GetLockedDataRead(m_TileID);
+	if (hasOutOfRangeIndices && !IsIncluding(range, UNDEFINED_VALUE(E)))
+		reinterpret_cast<UInt32&>(dcmIndices) &= ~DCM_CheckDefined;
+
 	if (!(dcmIndices & DCM_CheckDefined))
 		if (!hasOutOfRangeIndices)
 		{
@@ -241,6 +254,12 @@ IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, tile_id t)
 	m_TileID    = t;
 }
 
+IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile* aft)
+{
+	m_Adi = adi;
+	m_Aft = aft;
+}
+
 IndexGetter* IndexGetterCreator::Create()
 {
 	m_Adi->GetAbstrValuesUnit()->InviteUnitProcessor(*this);
@@ -251,4 +270,10 @@ IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, tile_id t)
 {
 	return IndexGetterCreator(adi, t).Create();
 }
+
+IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, abstr_future_tile* aft)
+{
+	return IndexGetterCreator(adi, aft).Create();
+}
+
 

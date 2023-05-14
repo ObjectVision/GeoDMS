@@ -70,9 +70,9 @@ bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 
 template <typename V>
 typename Unit<V>::range_t 
-GetRange(const AbstrDataItem* adi)
+GetRange(const DataArray<V>* da)
 {
-	return debug_cast<const Unit<V>*>( adi->GetAbstrValuesUnit() )->GetRange();
+	return da->GetValueRangeData()->GetRange();
 }
 
 template <typename V>
@@ -93,9 +93,10 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 {
 	std::map<V, SizeT> counters;
 
+	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
-		auto valuesLock = const_array_cast<V>(valuesItem)->GetLockedDataRead(t);
+		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		auto valuesIter = valuesLock.begin(),
 		     valuesEnd  = valuesLock.end();
 
@@ -120,6 +121,7 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 template<typename V>
 void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
 {
+	DataReadLock lock(valuesItem);
 	auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead();
 	auto valuesBegin = valuesLock.begin(),
 	     valuesEnd   = valuesLock.end();
@@ -174,9 +176,11 @@ void ModusTotByTable(
 	std::vector<SizeT> buffer(vCount, 0);
 	auto bufferB = buffer.begin();
 
+	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
+
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
-		auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead(t);
+		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		auto valuesIter  = valuesLock.begin(),
 		     valuesEnd   = valuesLock.end();
 		for (; valuesIter != valuesEnd; ++valuesIter)
@@ -402,114 +406,27 @@ void ModusPartByTable(const AbstrDataItem* valuesItem, const AbstrDataItem* indi
 		SizeT i=0;
 
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
-			if (IsDefined(*valuesIter))
-			{
-				UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
-				dms_assert(vi < vCount);
-				SizeT pi = indexGetter->Get(i);
-				if (IsNotUndef(pi))
-				{
-					dms_assert(pi < pCount);
-					++(bufferB[pi * vCount + vi]);
-				}
-			}
+		{
+			UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
+			if (vi >= vCount)
+				continue;
+			SizeT pi = indexGetter->Get(i);
+			if (pi < pCount)
+				++(bufferB[pi * vCount + vi]);
+		}
 	}
 
 	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
 		SizeT i = argmax<UInt32>(bufferB, vCount);
-		if (IsDefined(i))
+		if (i < vCount)
 			*resBegin = Range_GetValue_naked(valuesRange, i);
 		else
 			*resBegin = UNDEFINED_OR_ZERO(V);
 
 		bufferB += vCount;
 	}
-	dms_assert(bufferB == buffer.end());
-}
-
-/* REMOVE
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP,
-	const inf_type_tag*
-)
-{
-	// NonCountable values; go for Set implementation
-	ModusPartByIndexOrSet<V, P, OIV>(
-		valuesItem, indicesItem
-		resBegin,
-		nrP
-	);
-}
-*/
-
-// make tradeoff between 
-//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// when v is not countable(such as string, float), always choose the second method
-//
-// Note that ModusTotal is a special case of ModusPatial with p=1
-//
-// When memory condition doesnt favour Set: n >= v*p
-// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-// Thus, tradeof is made at v*p <= n.
-
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP, 
-	const int_type_tag*
-)
-{
-	typename Unit<V>::range_t valuesRange = GetRange<V>(valuesItem);
-
-	// Countable values; go for Table if sensible
-	SizeT
-		n = valuesItem->GetAbstrDomainUnit()->GetCount(),
-		v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
-
-	dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
-
-	if	(	IsDefined(v)
-//		&& (!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(SizeT))
-		&&	(!nrP || v  <= n / nrP)
-		&&	OnlyDefinedCheckRequired(valuesItem)
-		) // memory condition v*p<=n, thus TableTime <= 2n.
-		ModusPartByTable<V>(
-			valuesItem, indicesItem
-		,	resBegin
-		,	valuesRange
-		,	nrP
-		);
-	else 
-		ModusPartByIndexOrSet<V, OIV>(
-			valuesItem, indicesItem
-		,	resBegin
-		,	nrP
-		);
-}
-
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP, 
-	const bool_type_tag*
-)
-{
-	ModusPartByTable<V>(
-		valuesItem, indicesItem
-	,	resBegin
-	,	GetRange<V>(valuesItem)
-	,	nrP
-	);
+	assert(bufferB == buffer.end());
 }
 
 // *****************************************************************************
@@ -1043,7 +960,7 @@ public:
 };
 
 template <typename V> 
-struct ModusPart : public AbstrOperAccPartUni
+struct ModusPart : public OperAccPartUni<V>
 {
 	typedef V                     ValueType;
 	typedef DataArray<ValueType>  Arg1Type;   // value vector
@@ -1051,30 +968,71 @@ struct ModusPart : public AbstrOperAccPartUni
 	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value per index value
 			
 	ModusPart(AbstrOperGroup* gr) 
-		:	AbstrOperAccPartUni(gr
+		:	OperAccPartUni<V>(gr
 			,	ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			,	arg1_values_unit, COMPOSITION(ValueType)
 			)
 	{}
 
 	// Override Operator
-	void Calculate(DataWriteLock& res,
-		const AbstrDataItem* arg1A, 
-		const AbstrDataItem* arg2A
-	) const override
+	void ProcessData(ResultType* result, SharedPtr<const typename Arg1Type> arg1, const AbstrDataItem* arg2A, tile_id nrTiles) const override
 	{
-		ResultType* result = mutable_array_cast<ValueType>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-
 		dbg_assert(resData.size()  == arg2A->GetAbstrValuesUnit()->GetCount());
+		auto resBegin = resData.begin();
 
-		ModusPartDispatcher<V>(
-			arg1A, arg2A
-		,	resData.begin()
-		,	arg2A->GetAbstrValuesUnit()->GetCount()
-		,	TYPEID(elem_traits<V>)
-		);
+		auto nrP = arg2A->GetAbstrValuesUnit()->GetCount();
+
+		auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
+		auto part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj()));
+
+		if constexpr(is_bitvalue_v<V>)
+			ModusPartByTable<V>(
+				std::move(values_fta), std::move(part_fta)
+				, resBegin
+				, GetRange<V>(arg1)
+				, nrP
+			);
+		else
+		{
+			// make tradeoff between 
+			//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
+			//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
+			// when v is not countable(such as string, float), always choose the second method
+			//
+			// Note that ModusTotal is a special case of ModusPatial with p=1
+			//
+			// When memory condition doesnt favour Set: n >= v*p
+			// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
+			// Thus, tradeof is made at v*p <= n.
+
+			auto valuesRange = GetRange<V>(valuesItem);
+
+			// Countable values; go for Table if sensible
+			SizeT
+				n = valuesItem->GetAbstrDomainUnit()->GetCount(),
+				v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
+
+			dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
+
+			if (IsDefined(v)
+				//		&& (!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(SizeT))
+				&& (!nrP || v <= n / nrP)
+				) // memory condition v*p<=n, thus TableTime <= 2n.
+				ModusPartByTable<V>(
+					std::move(values_fta), std::move(part_fta)
+					, resBegin
+					, valuesRange
+					, nrP
+				);
+			else
+				ModusPartByIndexOrSet<V, OIV>(
+					std::move(values_fta), std::move(part_fta)
+					, resBegin
+					, nrP
+				);
+		}
 	}
 };
 

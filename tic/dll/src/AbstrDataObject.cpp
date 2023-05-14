@@ -229,7 +229,7 @@ TIC_CALL auto GetAbstrFutureTileArray(const AbstrDataObject* ado) -> abstr_futur
 	using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
 	assert(ado); // PRECONDITION
 	auto tn = ado->GetTiledRangeData()->GetNrTiles();
-	auto result = abstr_future_tile_array(tn, ValueConstruct_tag());
+	auto result = abstr_future_tile_array(tn, ValueConstruct_tag() MG_DEBUG_ALLOCATOR_SRC("GetAbstrFutureTileArray"));
 	for (tile_id t = 0; t != tn; ++t)
 		result[t] = ado->GetFutureAbstrTile(t);
 	return result;
