@@ -18,6 +18,7 @@
 #include "Xml/XMLOut.h"
 
 struct ImGuiWindow;
+struct GLFWwindow;
 
 enum GuiWindowOpenFlags
 {
@@ -362,6 +363,7 @@ public:
 	GuiFonts fonts;
 
 	// singletons //TODO: Remove singletons in light of good coding practice
+	static GLFWwindow* m_MainWindow;
 	static StringStateManager errorDialogMessage;
 	std::string aboutDialogMessage;
 	static StringStateManager contextMessage;
@@ -472,6 +474,7 @@ void SaveIniToRegistry();
 void OnItemClickItemTextTextToClipboard(std::string_view text);
 void SetTextBackgroundColor(ImVec2 background_rectangle_size, ImU32 col = IM_COL32(225, 6, 0, 200), ImDrawList* draw_list = nullptr, ImVec2* cursor_pos = nullptr); // TODO: move hardcoded red default color for text background to a central style location.
 void AutoHideWindowDocknodeTabBar(bool& is_docking_initialized);
+auto GetGeoDMSDataViewAreaNodeID(GuiState& state) -> ImGuiID;
 bool TryDockViewInGeoDMSDataViewAreaNode(GuiState& state, ImGuiWindow* window);
 auto StartWindowsFileDialog(std::string start_path, std::wstring file_dialog_text, std::wstring file_dialog_exts) -> std::string;
 auto BrowseFolder(std::string saved_path) -> std::string;

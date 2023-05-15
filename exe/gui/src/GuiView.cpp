@@ -114,7 +114,7 @@ bool IsDocked() // test if the MapViewWindow is docked inside the ImGui main win
     return false; // TODO: throw error
 }
 
-void CreateDockNodeForFloatingWindowIfNecessary(bool &has_been_docking_initialized, ImGuiWindow* window)
+void CreateDockNodeForFloatingWindowIfNecessary(const bool has_been_docking_initialized, ImGuiWindow* window)
 {
     if (has_been_docking_initialized && !IsDocked() && window->DockNodeAsHost == NULL && window->DockNode == NULL) // floating window
     {
@@ -130,12 +130,24 @@ void CreateDockNodeForFloatingWindowIfNecessary(bool &has_been_docking_initializ
     }
 }
 
+/*void UglyStackOverFlowUtility()
+{
+
+    while (true)
+    {
+        UglyStackOverFlowUtility();
+    }
+}*/
+
 bool DMSView::Update(GuiState& state)
 {
+    //UglyStackOverFlowUtility();
+    
     auto event_queues = GuiEventQueues::getInstance();
 
     // Open window
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver); // TODO: use OnCaptionChanged to dynamically update caption
+    ImGui::SetNextWindowDockID(GetGeoDMSDataViewAreaNodeID(state), ImGuiCond_Once);
     if (!ImGui::Begin((m_Icon + m_DataView->GetCaption().c_str() + m_Name).c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || CloseWindowOnMimimumSize() || !m_HWND)//|| m_Views.empty())
     {
         if (m_HWND)
@@ -146,6 +158,27 @@ bool DMSView::Update(GuiState& state)
     }
 
     auto view_window = ImGui::GetCurrentWindow();
+
+    static bool test = false;
+
+    auto view_window_hwnd_handle = (HWND)view_window->Viewport->PlatformHandleRaw;
+    auto view_window_parent = GetParent(view_window_hwnd_handle);
+    if (!test )//!view_window_parent) // parent not set, should always be GuiState::m_MainWindow;
+    {
+        /*SetParent(view_window_hwnd_handle, glfwGetWin32Window(state.m_MainWindow));
+        long style = GetWindowLong(view_window_hwnd_handle, GWL_STYLE);
+        style &= ~WS_POPUP; // remove popup style
+        style |= WS_CHILDWINDOW; // add childwindow style
+        SetWindowLong(view_window_hwnd_handle, GWL_STYLE, style);
+        */
+        //ImGui::UpdateWindowParentAndRootLinks(view_window, ImGuiWindowFlags_::ImGuiWindowFlags_None, ImGui::FindWindowByName("GeoDMSGui"));
+        test = true;
+    }
+    //auto error_code_1 = GetLastError();
+
+    //view_window_parent = GetParent(view_window_hwnd_handle);
+    //auto error_code_2 = GetLastError();
+    
 
     CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window);
 
@@ -227,7 +260,7 @@ bool DMSView::Update(GuiState& state)
             return result;
         }
 
-        if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
+        //if (TryDockViewInGeoDMSDataViewAreaNode(state, view_window)) // TODO: check if this is the correct window.
             has_been_docking_initialized = true;
     }
 
@@ -417,6 +450,11 @@ StatisticsView::StatisticsView(GuiState& state, std::string name) // TODO: move 
     m_Name = "\xE2\x88\x91 " + std::string("Statistics for ") + std::string(m_item->GetName().c_str()) + name; //  "\xE2\x88\x91" 
 }
 
+StatisticsView::~StatisticsView()
+{
+    m_item.release();
+}
+
 void StatisticsView::UpdateData()
 {
     if (!m_item) // TODO: make sure m_item gets cleared when opening a new configuration
@@ -445,6 +483,7 @@ bool StatisticsView::Update(GuiState& state)
         UpdateData(); // TODO: performance wise, check every idle time frame?
 
     ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowDockID(GetGeoDMSDataViewAreaNodeID(state), ImGuiCond_Once);
     if (!ImGui::Begin(m_Name.c_str(), &m_DoView, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar))
     {
         ImGui::End();
@@ -462,9 +501,6 @@ bool StatisticsView::Update(GuiState& state)
     }
 
     ImGui::TextWrapped(m_data.c_str());
-
-    //DrawProperties(state, m_data);
-
     ImGui::End();
 
     return true;
@@ -547,15 +583,28 @@ void GuiViews::AddStatisticsView(GuiState& state, std::string name)
 auto GuiViews::CloseAll() -> void
 {
     m_dms_views.clear();
+    m_statistic_views.clear();
 }
 
 GuiViews::~GuiViews(){}
 
 auto GuiViews::UpdateAll(GuiState& state) -> void
 {
+    // determine clientarea docknode, if available
+    /*ImGuiID current_clientarea_docknode = GetGeoDMSDataViewAreaNodeID(state);
+    if (m_dms_view_it != m_dms_views.end())
+    {
+        // TODO: get imgui window ptr associated with m_dms_view_it
+        current_clientarea_docknode = m_dms_view_it->m_Name
+    }*/
+
+
     //auto edit_palette_it = m_EditPaletteWindows.begin();
     //for (auto& palette_editor : m_edit_palette_windows)
     //    palette_editor.Update(state);
+
+
+
 
     // update DMS views
     auto it = m_dms_views.begin();

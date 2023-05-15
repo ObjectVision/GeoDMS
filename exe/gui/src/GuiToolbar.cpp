@@ -76,6 +76,10 @@ bool Button::Update(GuiViews& view)
         }
         case ButtonType::TOGGLE:
         {
+            if (m_IsUnique)
+            {
+                reset_unique_button_activation_state = true;
+            }
             UpdateToggle(view);
             break;
         }
@@ -271,13 +275,13 @@ void SetDefaultToolbarSize(GuiState& state)
     }
 }
 
-void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
+void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& views) // TODO: add int return to button which is its group. Untoggle all buttons in the same group.
 {
     // TODO: on selection what toolbar to use: dataview.cpp, lines 1318 and SetMdiToolbar fmain.pas 670
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(117.0f/255.0f, 117.0f/255.0f, 138.0f/255.0f, 1.0f));
 
-    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || view.m_dms_views.empty())
+    if (!ImGui::Begin("Toolbar", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar) || views.m_dms_views.empty())
     {
         SetDefaultToolbarSize(state);
         AutoHideWindowDocknodeTabBar(is_docking_initialized);
@@ -293,12 +297,12 @@ void GuiToolbar::Update(bool* p_open, GuiState& state, GuiViews& view) // TODO: 
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         SetKeyboardFocusToThisHwnd();
 
-    if (view.m_dms_view_it!=view.m_dms_views.end())
+    if (views.m_dms_view_it!=views.m_dms_views.end())
     {
-        if (view.m_dms_view_it->m_ViewStyle == tvsTableView)
-            ShowTableViewButtons(view);
-        else if (view.m_dms_view_it->m_ViewStyle == tvsMapView)
-            ShowMapViewButtons(view);
+        if (views.m_dms_view_it->m_ViewStyle == tvsTableView)
+            ShowTableViewButtons(views);
+        else if (views.m_dms_view_it->m_ViewStyle == tvsMapView)
+            ShowMapViewButtons(views);
     }
 
     ImGui::End();
