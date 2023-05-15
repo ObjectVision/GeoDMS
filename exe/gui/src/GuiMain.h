@@ -42,7 +42,7 @@ private:
 	void CreateMainWindowInWindowedFullscreenMode();
 
 public:
-	GLFWwindow*				        m_MainWindow	= nullptr;
+	//GLFWwindow*				        m_MainWindow	= nullptr;
 	GuiState						m_State			= {};
 	GuiInput						m_Input			= {};
 	GuiMenu							m_Menu			= {};

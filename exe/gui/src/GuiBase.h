@@ -18,6 +18,7 @@
 #include "Xml/XMLOut.h"
 
 struct ImGuiWindow;
+struct GLFWwindow;
 
 enum GuiWindowOpenFlags
 {
@@ -362,6 +363,7 @@ public:
 	GuiFonts fonts;
 
 	// singletons //TODO: Remove singletons in light of good coding practice
+	static GLFWwindow* m_MainWindow;
 	static StringStateManager errorDialogMessage;
 	std::string aboutDialogMessage;
 	static StringStateManager contextMessage;
