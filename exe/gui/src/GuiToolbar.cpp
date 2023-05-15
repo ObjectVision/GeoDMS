@@ -76,6 +76,10 @@ bool Button::Update(GuiViews& view)
         }
         case ButtonType::TOGGLE:
         {
+            if (m_IsUnique)
+            {
+                reset_unique_button_activation_state = true;
+            }
             UpdateToggle(view);
             break;
         }
