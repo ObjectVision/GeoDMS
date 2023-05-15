@@ -457,7 +457,7 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
         auto event_queues = GuiEventQueues::getInstance();
         ImGui::Text(const_cast<char*>(changed_files_result.c_str()));
 
-        if (ImGui::Button("Ok", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+        if (ImGui::Button("Keep current", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
         if (ImGui::Button("Reopen", ImVec2(120, 0)))
