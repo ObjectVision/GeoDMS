@@ -68,6 +68,7 @@ bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 	return !(dcm & DCM_CheckDefined);
 }
 
+/* REMOVE
 template <typename V>
 typename Unit<V>::range_t 
 GetRange(const DataArray<V>* da)
@@ -75,14 +76,7 @@ GetRange(const DataArray<V>* da)
 	return da->GetValueRangeData()->GetRange();
 }
 
-template <typename V>
-typename Unit<V>::range_t
-GetTileRange(const AbstrDataItem* adi, tile_id t)
-{
-	dms_assert(t != no_tile);
-	return debug_cast<const Unit<V>*>(adi->GetAbstrValuesUnit())->GetTileRange(t);
-}
-
+*/
 // *****************************************************************************
 //											ModusTot
 // *****************************************************************************
@@ -960,7 +954,7 @@ public:
 };
 
 template <typename V> 
-struct ModusPart : public OperAccPartUni<V>
+struct ModusPart : public OperAccPartUniWithCFTA<V>
 {
 	typedef V                     ValueType;
 	typedef DataArray<ValueType>  Arg1Type;   // value vector
@@ -968,31 +962,25 @@ struct ModusPart : public OperAccPartUni<V>
 	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value per index value
 			
 	ModusPart(AbstrOperGroup* gr) 
-		:	OperAccPartUni<V>(gr
+		:	OperAccPartUniWithCFTA<V>(gr
 			,	ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			,	arg1_values_unit, COMPOSITION(ValueType)
 			)
 	{}
 
-	// Override Operator
-	void ProcessData(ResultType* result, SharedPtr<const typename Arg1Type> arg1, const AbstrDataItem* arg2A, tile_id nrTiles) const override
+	void ProcessData(ResultType* result, const AbstrDataItem* arg2A, future_tile_array<ValueType> values_fta, abstr_future_tile_array part_fta, SizeT n, tile_id nrTiles, Arg1Type::unit_t::range_t valuesRange, SizeT resCount) const override
 	{
 		assert(result);
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		dbg_assert(resData.size()  == arg2A->GetAbstrValuesUnit()->GetCount());
 		auto resBegin = resData.begin();
 
-		auto nrP = arg2A->GetAbstrValuesUnit()->GetCount();
-
-		auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
-		auto part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj()));
-
 		if constexpr(is_bitvalue_v<V>)
 			ModusPartByTable<V>(
 				std::move(values_fta), std::move(part_fta)
 				, resBegin
-				, GetRange<V>(arg1)
-				, nrP
+				, valuesRange
+				, resCount
 			);
 		else
 		{
@@ -1007,30 +995,26 @@ struct ModusPart : public OperAccPartUni<V>
 			// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
 			// Thus, tradeof is made at v*p <= n.
 
-			auto valuesRange = GetRange<V>(valuesItem);
-
 			// Countable values; go for Table if sensible
-			SizeT
-				n = valuesItem->GetAbstrDomainUnit()->GetCount(),
-				v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
+			SizeT v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
 
-			dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
+			assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
 
 			if (IsDefined(v)
-				//		&& (!nrP || v / map_node_type_size<V> <= n / nrP / sizeof(SizeT))
-				&& (!nrP || v <= n / nrP)
+				//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
+				&& (!resCount || v <= n / resCount)
 				) // memory condition v*p<=n, thus TableTime <= 2n.
 				ModusPartByTable<V>(
 					std::move(values_fta), std::move(part_fta)
 					, resBegin
 					, valuesRange
-					, nrP
+					, resCount
 				);
 			else
 				ModusPartByIndexOrSet<V, OIV>(
 					std::move(values_fta), std::move(part_fta)
 					, resBegin
-					, nrP
+					, resCount
 				);
 		}
 	}

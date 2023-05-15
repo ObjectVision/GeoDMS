@@ -196,10 +196,10 @@ public:
 	typedef DataArray<SharedStr> Arg2Type; // separator
 	typedef DataArray<SharedStr> ResultType;
 
-	AbstrOperAsListPart(const Class* arg3Cls) 
+	AbstrOperAsListPart() 
 		: TernaryOperator(&cogAsList,
 				ResultType::GetStaticClass(), 
-				Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), arg3Cls
+				Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), AbstrDataItem::GetStaticClass()
 			)
 	{}
 
@@ -251,38 +251,25 @@ class OperAsListPart : public AbstrOperAsListPart
 	typedef aslist_partial              TAcc2Func;
 	typedef TAcc2Func::accumulation_seq AccumulationSeq;
 	typedef TAcc2Func::dms_result_type  ResultValueType;
-	typedef AbstrDataItem               Arg3Type; // index vector
 	typedef DataArray<ResultValueType>  ResultType;
 			
 public:
-	OperAsListPart() : AbstrOperAsListPart(Arg3Type::GetStaticClass())
+	OperAsListPart()
 	{
 		assert(ResultType::GetStaticClass() == GetResultClass());
 	}
 
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
-		const Arg1Type* arg1 = const_array_cast<SharedStr>(arg1A);
-		const Arg2Type* arg2 = const_array_cast<SharedStr>(arg2A);
-		assert(arg1);
-		assert(arg2);
 		assert(arg3A);
 
-		ResultType* result = mutable_array_cast<ResultValueType>(res);
-		assert(result);
-		
-		tile_id tn  = arg1A->GetAbstrDomainUnit()->GetNrTiles();
-		auto arg2Data = arg2->GetDataRead(); // no tiles, data locked by base class.
+		auto arg2Data = const_array_cast<SharedStr>(arg2A)->GetDataRead(); // no tiles, data locked by base class.
 
-		assert(arg2Data.size() == 1);
+		MG_CHECK(arg2Data.size() == 1);
 
-//		sequence_traits<AccumulationSeq::value_type>::container_type
-//			resBuffer(Cardinality(indexValueRange));
-		
-		TAcc2Func asListOper(arg2Data[0]);
-		OperAccPartUniSer_impl<TAcc2Func> impl(asListOper);
+		OperAccPartUniSer<aslist_partial> impl(nullptr, aslist_partial(arg2Data[0]));
 
-		impl(result, arg1, arg3A, tn);
+		impl.Calculate(res, arg1A, arg3A);
 	}
 };
 
