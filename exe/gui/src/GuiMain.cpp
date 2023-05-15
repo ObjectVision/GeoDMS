@@ -539,6 +539,7 @@ void GuiMainComponent::CreateMainWindowInWindowedFullscreenMode()
     GuiState::m_MainWindow = glfwCreateWindow(width, height, "", NULL, NULL); // 1280, 720
     glfwSetInputMode(GuiState::m_MainWindow, GLFW_LOCK_KEY_MODS, GLFW_TRUE); // pass through Num Lock and Caps Lock state
     auto main_hwnd = glfwGetWin32Window(GuiState::m_MainWindow);
+    SetGlobalMainWindowHandle(static_cast<void*>(main_hwnd));
     SendMessage(main_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 }
 
