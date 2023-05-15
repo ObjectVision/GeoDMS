@@ -589,6 +589,8 @@ int GuiMainComponent::Init()
     // windows always create their own viewport
     io.ConfigViewportsNoAutoMerge = true;
     io.ConfigDockingTransparentPayload = true;
+    io.ConfigViewportsNoTaskBarIcon = true;
+    io.ConfigViewportsNoDefaultParent = false;
 
     // setup Dear ImGui style
     ImGui::StyleColorsLight(); // TODO: make this a style option
