@@ -130,8 +130,19 @@ void CreateDockNodeForFloatingWindowIfNecessary(const bool has_been_docking_init
     }
 }
 
+/*void UglyStackOverFlowUtility()
+{
+
+    while (true)
+    {
+        UglyStackOverFlowUtility();
+    }
+}*/
+
 bool DMSView::Update(GuiState& state)
 {
+    //UglyStackOverFlowUtility();
+    
     auto event_queues = GuiEventQueues::getInstance();
 
     // Open window
@@ -148,20 +159,25 @@ bool DMSView::Update(GuiState& state)
 
     auto view_window = ImGui::GetCurrentWindow();
 
-
+    static bool test = false;
 
     auto view_window_hwnd_handle = (HWND)view_window->Viewport->PlatformHandleRaw;
     auto view_window_parent = GetParent(view_window_hwnd_handle);
-    if (!view_window_parent) // parent not set, should always be GuiState::m_MainWindow;
+    if (!test )//!view_window_parent) // parent not set, should always be GuiState::m_MainWindow;
     {
-        SetParent(view_window_hwnd_handle, glfwGetWin32Window(state.m_MainWindow));
-        ImGui::UpdateWindowParentAndRootLinks(view_window, ImGuiWindowFlags_::ImGuiWindowFlags_None, ImGui::FindWindowByName("GeoDMSGui"));
-        int i = 0;
+        /*SetParent(view_window_hwnd_handle, glfwGetWin32Window(state.m_MainWindow));
+        long style = GetWindowLong(view_window_hwnd_handle, GWL_STYLE);
+        style &= ~WS_POPUP; // remove popup style
+        style |= WS_CHILDWINDOW; // add childwindow style
+        SetWindowLong(view_window_hwnd_handle, GWL_STYLE, style);
+        */
+        //ImGui::UpdateWindowParentAndRootLinks(view_window, ImGuiWindowFlags_::ImGuiWindowFlags_None, ImGui::FindWindowByName("GeoDMSGui"));
+        test = true;
     }
-    auto error_code_1 = GetLastError();
+    //auto error_code_1 = GetLastError();
 
-    view_window_parent = GetParent(view_window_hwnd_handle);
-    auto error_code_2 = GetLastError();
+    //view_window_parent = GetParent(view_window_hwnd_handle);
+    //auto error_code_2 = GetLastError();
     
 
     CreateDockNodeForFloatingWindowIfNecessary(has_been_docking_initialized, view_window);
