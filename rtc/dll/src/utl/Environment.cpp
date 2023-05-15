@@ -150,6 +150,22 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 	return false;
 }
 
+//  -------------------- Main Window Handle
+
+static void* s_GlobalMainWindow = nullptr;
+
+RTC_CALL void* GetGlobalMainWindowHandle() {
+	return s_GlobalMainWindow; 
+}
+
+RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow)
+{
+	auto oldHandle = GetGlobalMainWindowHandle();
+	s_GlobalMainWindow = hWindow;
+	return oldHandle;
+}
+
+
 //  -----------------------------------------------------------------------
 
 #include "utl/IncrementalLock.h"

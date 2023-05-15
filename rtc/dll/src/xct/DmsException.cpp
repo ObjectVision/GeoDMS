@@ -582,7 +582,7 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 
 	if (mustTerminate)
 	{
-		MessageBox(nullptr, exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
+		MessageBox(reinterpret_cast<HWND>(GetGlobalMainWindowHandle()), exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
 		std::terminate();
 	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
