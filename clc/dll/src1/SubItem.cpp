@@ -184,7 +184,7 @@ struct FenceContainerOperator : BinaryOperator
 		}
 		fc->m_MetaInfo = make_noncopyable_any<fence_work_data>(std::move(workData));
 	}
-	bool CalcResult(TreeItemDualRef & resultHolder, const ArgRefs & args, OperationContext * fc, Explain::Context * context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
 		dms_assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();

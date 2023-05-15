@@ -1088,6 +1088,7 @@ struct InterestReporter : DebugReporter
 	{
 		if (!focusItem)
 			return;
+		assert(focusItem);
 
 		assert(focusItem->GetInterestCount());
 
@@ -1122,23 +1123,13 @@ struct InterestReporter : DebugReporter
 				ReportTree(done, tidr->m_Data, level, "CACHEDATA");
 #endif
 		}
-/*
-		const AbstrCalculator* ac = dynamic_cast<const AbstrCalculator*>(focusItem);
-		if (ac)
-		{
-			if (ac->m_DcRef)
-				ReportTree(done, ac->m_DcRef, "DC_REF");
-		}
-*/
 		if (ti)
 		{
-//			return;  // DEBUG
 
 			if (ti->IsCacheItem())
 				ReportTree(done, ti->GetTreeParent(), level, "PARENT");
 			ReportTree(done, ti->mc_RefItem, level, "REF_ITEM");
 			ReportTree(done, ti->mc_DC, level, "CALC");
-//			ReportTree(done, ti->mc_IntegrityChecker, "ICHECK");
 	
 
 			if (IsDataItem(focusItem))

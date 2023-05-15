@@ -250,7 +250,7 @@ struct RegCountOperator : public QuaternaryOperator
 		fc->m_MetaInfo = make_noncopyable_any<RegionInfoArray>(std::move(regionInfoArray));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		RegionInfoArray* regionInfoArrayPtr = noncopyable_any_cast<RegionInfoArray>(&fc->m_MetaInfo);

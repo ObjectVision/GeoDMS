@@ -896,7 +896,7 @@ public:
 			)
 	{}
 
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		ResultType* result = mutable_array_cast<ValueType>(res);
 		dms_assert(result);

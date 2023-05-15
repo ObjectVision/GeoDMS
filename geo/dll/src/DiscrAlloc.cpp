@@ -2664,7 +2664,7 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpInfo.m_PriceUnit);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(args.size() == 11);
 		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);

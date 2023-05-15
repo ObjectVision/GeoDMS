@@ -1220,19 +1220,20 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 				dms_assert(self->m_Status == task_status::running || self->m_Status == task_status::suspended);
 				dms_assert(!SuspendTrigger::DidSuspend());
 
+				std::vector<SharedPtr<const Actor>> statusActors; statusActors.reserve(argRefs.size());
+				for (const auto& argRef : argRefs)
+					statusActors.emplace_back( GetStatusActor(argRef) );
+
 				auto readLocks = self->SetReadLocks(allInterests); // TODO: move this into CalcResult, replace argRefs
 				allInterests.clear();
-				self->RunOperator(context, argRefs); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+				self->RunOperator(context, std::move(argRefs), std::move(readLocks)); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+				argRefs.clear();
 
 				// forward FR_Validate and FR_Committed failures
-				for (const auto& argRef : argRefs)
-				{
-					auto statusActor = GetStatusActor(argRef);
+				for (const auto& statusActor: statusActors)
 					if (statusActor && statusActor->WasFailed())
 						funcDC->Fail(statusActor);
-				}
 
-				argRefs.clear();
 			}
 		};
 //		auto func = Func{ this, std::move(argRefs), std::move(allInterests) };
@@ -1350,7 +1351,7 @@ task_status OperationContext::Join()
 	return m_Status;
 }
 
-void OperationContext::RunOperator(Explain::Context* context, const ArgRefs& argRefs)
+void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
 {
 	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
 	if (!funcDC || funcDC->WasFailed(FR_Data))
@@ -1371,7 +1372,7 @@ void OperationContext::RunOperator(Explain::Context* context, const ArgRefs& arg
 			if (funcDC->WasFailed(FR_MetaInfo))
 				return;
 
-			actualResult = m_Oper->CalcResult(resultHolder, argRefs, this, context); // ============== payload
+			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), this, context); // ============== payload
 
 			dms_assert(resultHolder || IsCanceled());
 			dms_assert(actualResult || SuspendTrigger::DidSuspend());

@@ -51,18 +51,18 @@ granted by an additional written contract for support, assistance and/or develop
 template <class TAcc1Func> 
 struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 {
-	OperAccTotUniNum(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		: OperAccTotUni<TAcc1Func>(gr, acc1Func)
+	OperAccTotUniNum(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func()) 
+		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
 	{}
 
 	// Override Operator
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		auto arg1 = const_array_cast<typename OperAccTotUniNum::ValueType>(arg1A);
-		dms_assert(arg1);
+		assert(arg1);
 
 		auto result = mutable_array_cast<typename OperAccTotUniNum::ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 
 		typename TAcc1Func::assignee_type value;
 		this->m_Acc1Func.Init(value);
@@ -78,7 +78,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		}
 
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == 1);
+		assert(resData.size() == 1);
 		this->m_Acc1Func.AssignOutput(resData[0], value );
 	}
 };

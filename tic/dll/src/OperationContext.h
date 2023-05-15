@@ -139,7 +139,7 @@ public:
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
 
 	TIC_CALL void AddDependency(const DataController* keyExpr);
-	void RunOperator(Explain::Context* context, const ArgRefs& allInterests);
+	void RunOperator(Explain::Context* context, ArgRefs allInterests, std::vector<ItemReadLock> readLocks);
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
 

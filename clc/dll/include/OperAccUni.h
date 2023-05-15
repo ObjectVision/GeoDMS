@@ -74,7 +74,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -90,7 +90,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		{
 //			DataReadLock arg1Lock(arg1A);
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero); 
-			Calculate(resLock, arg1A);
+			Calculate(resLock, arg1A, std::move(args), std::move(readLocks));
 			resLock.Commit();
 		}
 		if (context)
@@ -103,7 +103,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const =0;
+	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const =0;
 
 private:
 	UnitCreatorPtr m_UnitCreatorPtr;
@@ -119,7 +119,7 @@ struct OperAccTotUni : AbstrOperAccTotUni
 	typedef DataArray<ResultValueType>          ResultType;
 	typedef DataArray<ValueType>                ArgType;
 			
-	OperAccTotUni(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func())
+	OperAccTotUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		:	AbstrOperAccTotUni(gr
 			,	ResultType::GetStaticClass(), ArgType::GetStaticClass()
 			,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType)
@@ -172,7 +172,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
@@ -192,7 +192,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 
 			DataWriteLock resLock(res);
 
-			Calculate(resLock, arg1A, arg2A);
+			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
 
 			resLock.Commit();
 		}
@@ -216,7 +216,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A) const =0;
+	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const =0;
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;
@@ -277,14 +277,14 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 		SizeT resCount;
 	};
 
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		assert(arg2A);
-		auto arg1 = (DataReadLock(arg1A), MakeShared(const_array_cast<V>(arg1A)));
+		auto arg1 = (DataReadLock(arg1A), const_array_cast<V>(arg1A));
 		assert(arg1);
 		auto pdi = ProcessDataInfo{
 			.arg2A = arg2A,
-			.values_fta = GetFutureTileArray(arg1.get()),
+			.values_fta = GetFutureTileArray(arg1),
 			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
 			.n = arg1A->GetAbstrDomainUnit()->GetCount(),
 			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),
@@ -292,6 +292,8 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 			.resCount = arg2A->GetAbstrValuesUnit()->GetCount()
 		};
 		arg1 = nullptr;
+		args.clear();
+		readLocks.clear();
 
 		ProcessData(mutable_array_cast<R>(res), pdi);
 	}
@@ -441,7 +443,7 @@ struct OperAccPartUniSer : FuncOperAccPartUni<TAcc1Func, OperAccPartUni<typename
 		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		CalcOperAccPartUniSer<TAcc1Func>(res, arg1A, arg2A, this->m_Acc1Func);
 	}

@@ -77,12 +77,12 @@ void InitOutput(sequence_traits<SharedStr>::seq_t& outputs, const length_finder_
 template <class TAcc1Func> 
 struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 {
-	OperAccTotUniStr(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		: OperAccTotUni<TAcc1Func>(gr, acc1Func)
+	OperAccTotUniStr(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func()) 
+		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
 	{}
 
 	// Override Operator
-	void Calculate(DataWriteHandle& res, const AbstrDataItem* arg1A) const override
+	void Calculate(DataWriteHandle& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		auto arg1 = const_array_cast<typename OperAccTotUniStr::ValueType>(arg1A);
 		assert(arg1);
@@ -92,14 +92,12 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 
 		assert(result->GetDataWrite().size() == 1);
 
-		m_Acc1Func.Init(result->GetDataWrite()[0]);
+		this->m_Acc1Func.Init(result->GetDataWrite()[0]);
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		for (tile_id t = 0; t!=tn; ++t)
-			m_Acc1Func(result->GetDataWrite()[0], arg1->GetLockedDataRead(t));
+			this->m_Acc1Func(result->GetDataWrite()[0], arg1->GetTile(t));
 	}
-private:
-	TAcc1Func m_Acc1Func;
 };
 
 // *****************************************************************************
