@@ -267,9 +267,7 @@ public:
 
 		MG_CHECK(arg2Data.size() == 1);
 
-		OperAccPartUniSer<aslist_partial> impl(nullptr, aslist_partial(arg2Data[0]));
-
-		impl.Calculate(res, arg1A, arg3A);
+		CalcOperAccPartUniSer< aslist_partial>(res, arg1A, arg3A, aslist_partial(arg2Data[0]));
 	}
 };
 

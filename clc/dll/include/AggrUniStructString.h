@@ -109,27 +109,29 @@ typedef std::vector<ThrowingMemoOutStreamBuff> memo_out_stream_array;
 template <typename TSerFunc>
 struct unary_assign_string_partial_accumulation : unary_partial_accumulation<SharedStr, typename TSerFunc::arg1_type>
 {
+	using base_type = unary_partial_accumulation<SharedStr, typename TSerFunc::arg1_type>;
+	using value_cseq = typename base_type::value_cseq1;
+	using accumulator_seq = typename base_type::accumulation_seq;
+
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return TSerFunc::template unit_creator<R>(gr, args); }
 
 	unary_assign_string_partial_accumulation(const TSerFunc& assignFunc = TSerFunc())
-	:	m_AssignFunc(assignFunc) {}
+		:	m_AssignFunc(assignFunc) {}
 
-
-	void InspectData(length_finder_array& lengthFinderArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
+	void InspectData(length_finder_array& lengthFinderArray, value_cseq input, const IndexGetter* indices) const
 	{ 
 		aggr_fw_best_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
-
 	}
 
-	void ReserveData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::accumulation_seq outputs) const
+	void ReserveData(memo_out_stream_array& outStreamArray, accumulator_seq outputs) const
 	{ 
 		outStreamArray.reserve(outputs.size());
 		for (auto resultSequence: outputs)
 			outStreamArray.push_back(ThrowingMemoOutStreamBuff(ByteRange(begin_ptr(resultSequence), end_ptr(resultSequence))));
 	}
 
-	void ProcessTileData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
+	void ProcessTileData(memo_out_stream_array& outStreamArray, value_cseq input, const IndexGetter* indices) const
 	{ 
 		// re-write everything into the allocated buffers.
 		aggr_fw_best_partial(outStreamArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);

@@ -145,6 +145,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
 	{
+		assert(gr);
 		gr->SetCanExplainValue();
 	}
 
@@ -239,83 +240,104 @@ namespace impl {
 	};
 }
 
-template <typename TAcc1Func, typename ResultValueType = typename TAcc1Func::accumulation_seq::value_type> 
+template <typename V, typename R> 
 struct OperAccPartUni: AbstrOperAccPartUni
 {
+	using Arg1Type = DataArray<V>; // value vector
+	using Arg2Type = AbstrDataItem; // index vector, must be partition type
+	using ResultValueType = R;
+	using ResultType = DataArray<ResultValueType>;;
+	/*
 	using ValueType = typename TAcc1Func::value_type1;
 	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
-	using ResultType = DataArray<ResultValueType>;;
-	using Arg1Type = DataArray<ValueType>; // value vector
-	using Arg2Type = AbstrDataItem; // index vector, must be partition type
-
-	OperAccPartUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func)
+	*/
+	OperAccPartUni(AbstrOperGroup* gr, UnitCreatorPtr ucp)
 	:	AbstrOperAccPartUni(gr
 		,   ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
-		,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType)
+		,	ucp, COMPOSITION(ResultValueType)
 		)
-	,	m_Acc1Func(std::move(acc1Func))
 	{}
-
-protected:
-	TAcc1Func m_Acc1Func;
 };
 
 //template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
-template <typename TAcc1Func, typename ResultValueType = typename TAcc1Func::accumulation_seq::value_type>
-struct OperAccPartUniWithCFTA : OperAccPartUni<TAcc1Func, ResultValueType> // with consumable tile array
+template <typename V, typename R>
+struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile array
 {
-	using OperAccPartUni<TAcc1Func, ResultValueType>::OperAccPartUni;
-	using ValueType = typename OperAccPartUni<TAcc1Func, ResultValueType>::ValueType;
-	using ResultType = typename OperAccPartUni<TAcc1Func, ResultValueType>::ResultType;
+	using OperAccPartUni<V, R>::OperAccPartUni;
+	using ValueType = V;
+	using ResultType = DataArray<R>;
+
+	struct ProcessDataInfo {
+		const AbstrDataItem* arg2A;
+		future_tile_array<V> values_fta;
+		abstr_future_tile_array part_fta;
+		SizeT n;
+		tile_id nrTiles;
+		value_range_data<V> valuesRangeData;
+		SizeT resCount;
+	};
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
 	{
 		assert(arg2A);
-		auto arg1 = (DataReadLock(arg1A), MakeShared(const_array_cast<typename OperAccPartUni::ValueType>(arg1A)));
+		auto arg1 = (DataReadLock(arg1A), MakeShared(const_array_cast<V>(arg1A)));
 		assert(arg1);
-		auto values_fta = GetFutureTileArray(arg1.get()); arg1 = nullptr;
-		auto valuesRange = arg1->GetValueRangeData()->GetRange();;
-		auto part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj()));
+		auto pdi = ProcessDataInfo{
+			.arg2A = arg2A,
+			.values_fta = GetFutureTileArray(arg1.get()),
+			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
+			.n = arg1A->GetAbstrDomainUnit()->GetCount(),
+			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),
+			.valuesRangeData = arg1->GetValueRangeData(),
+			.resCount = arg2A->GetAbstrValuesUnit()->GetCount()
+		};
 		arg1 = nullptr;
 
-		SizeT n = arg1A->GetAbstrDomainUnit()->GetCount();
-		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
-		auto resCount = arg2A->GetAbstrValuesUnit()->GetCount();
-		ProcessData(mutable_array_cast<ResultValueType>(res), arg2A, std::move(values_fta), std::move(part_fta), n, tn, valuesRange, resCount);
+		ProcessData(mutable_array_cast<R>(res), pdi);
 	}
-	virtual void ProcessData(ResultType* result, const AbstrDataItem* arg2A, future_tile_array<ValueType> arg1CFTA, abstr_future_tile_array arg2CFTA, SizeT n, tile_id nrTiles, DataArray<ValueType>::unit_t::range_t valuesRange, SizeT resCount) const = 0;
+	virtual void ProcessData(ResultType* result, ProcessDataInfo& pdi) const = 0;
+};
+
+
+template <typename TAcc1Func, typename Base>
+struct FuncOperAccPartUni : Base
+{
+	FuncOperAccPartUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func)
+		: Base(gr, &TAcc1Func::template unit_creator<typename Base::ResultValueType>)
+		, m_Acc1Func(std::move(acc1Func))
+	{}
+
 protected:
 	TAcc1Func m_Acc1Func;
 };
 
 template <class TAcc1Func>
-struct OperAccPartUniBuffered : OperAccPartUniWithCFTA<TAcc1Func, typename TAcc1Func::dms_result_type>
+struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::dms_result_type> >
 {
 	using ResultValueType = typename TAcc1Func::dms_result_type;
-	using ValueType = typename OperAccPartUniWithCFTA<TAcc1Func, ResultValueType>::ValueType;
-	using ResultType = typename OperAccPartUniWithCFTA<TAcc1Func, ResultValueType>::ResultType;
+	using ValueType = typename TAcc1Func::value_type1;
+	using ResultType = DataArray<ResultValueType>;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<ValueType, ResultValueType> >;
+	using ProcessDataInfo = base_type::ProcessDataInfo;
+	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
 
 	OperAccPartUniBuffered(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
-		:	OperAccPartUniWithCFTA<TAcc1Func, typename TAcc1Func::dms_result_type>(gr, std::move(acc1Func))
+		:	base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, const AbstrDataItem* arg2A, future_tile_array<ValueType> values_fta, abstr_future_tile_array part_fta, SizeT n, tile_id nrTiles, DataArray<ValueType>::unit_t::range_t valuesRange, SizeT resCount) const override
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
 		using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
-		res_buffer_type resBuffer(resCount);
+		res_buffer_type resBuffer(pdi.resCount);
 
-		this->m_Acc1Func.Init(OperAccPartUniBuffered::AccumulationSeq( &resBuffer ) );
+		this->m_Acc1Func.Init(AccumulationSeq( &resBuffer ) );
 
-		for (tile_id t = 0; t!=nrTiles; ++t)
+		for (tile_id t = 0, tn = pdi.nrTiles; t!= tn; ++t)
 		{
-			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, part_fta[t]); part_fta[t] = nullptr;
+			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
-			this->m_Acc1Func(
-				OperAccPartUniBuffered::AccumulationSeq( &resBuffer )
-			,	arg1Data
-			,	indexGetter 
-			);
+			this->m_Acc1Func( AccumulationSeq( &resBuffer ),	arg1Data, indexGetter );
 		}
 
 		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
@@ -323,25 +345,27 @@ struct OperAccPartUniBuffered : OperAccPartUniWithCFTA<TAcc1Func, typename TAcc1
 };
 
 template <class TAcc1Func> 
-struct OperAccPartUniDirect : OperAccPartUniWithCFTA<TAcc1Func, typename TAcc1Func::result_type>
+struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::result_type> >
 {
 	using ResultValueType = typename TAcc1Func::result_type;
-	using ValueType = typename OperAccPartUniWithCFTA<TAcc1Func, ResultValueType>::ValueType;
-	using ResultType = typename OperAccPartUniWithCFTA<TAcc1Func, ResultValueType>::ResultType;
+	using ValueType = typename TAcc1Func::value_type1;
+	using ResultType = DataArray<ResultValueType>;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<ValueType, ResultValueType> >;
+	using ProcessDataInfo = base_type::ProcessDataInfo;
 
-	OperAccPartUniDirect(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func())
-		:	OperAccPartUni<TAcc1Func, typename TAcc1Func::result_type>(gr, acc1Func)
+	OperAccPartUniDirect(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, const AbstrDataItem* arg2A, future_tile_array<ValueType> values_fta, abstr_future_tile_array part_fta, SizeT n, tile_id nrTiles, DataArray<ValueType>::unit_t::range_t valuesRange, SizeT resCount) const override
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); // check what Init does
 		m_Acc1Func.Init(resData);
 
-		for (tile_id t = 0; t!=nrTiles; ++t)
+		for (tile_id t = 0, tn = pdi.nrTiles; t!=tn; ++t)
 		{
-			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, part_fta[t]); part_fta[t] = nullptr;
+			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
 			m_Acc1Func(resData, arg1Data, indexGetter);
 		}
@@ -364,50 +388,62 @@ struct OperAccPartUniBest: base_of<TAcc1Func>
 };
 
 
-template <typename TAcc1Func> 
-struct OperAccPartUniSer : OperAccPartUni<TAcc1Func, SharedStr>
-{
-	using ValueType = typename OperAccPartUni<TAcc1Func, SharedStr>::ValueType;
 
-	OperAccPartUniSer(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func())
-		:	OperAccPartUni<TAcc1Func, SharedStr>(gr, acc1Func)
+template <typename TAcc1Func>
+void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())
+{
+	using ValueType = typename TAcc1Func::value_type1;
+//	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
+
+	DataReadLock arg1Lock(arg1A);
+	DataReadLock arg2Lock(arg2A);
+
+	auto nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles();
+	auto arg1 = const_array_cast<ValueType>(arg1A);
+	auto resData = mutable_array_cast<SharedStr>(res)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+	//		m_Acc1Func.Init(resData);
+	{
+
+		length_finder_array lengthFinderArray(resData.size());
+		for (tile_id t = 0; t != nrTiles; ++t)
+		{
+			typename DataArray<ValueType>::locked_cseq_t arg1Data = arg1->GetTile(t);
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
+
+			acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter);
+		}
+		// allocate sufficent space in outputs
+		InitOutput(resData, lengthFinderArray);
+		// can destruct lengthFinderArray now
+	}
+
+	// build memo_out_stream_array that refers to each of the allocated output cells.
+	memo_out_stream_array outStreamArray;
+	acc1Func.ReserveData(outStreamArray, resData);
+
+	for (tile_id t = 0; t != nrTiles; ++t)
+	{
+		auto arg1Data = arg1->GetTile(t);
+		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
+
+		acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter);
+	}
+}
+
+
+template <typename TAcc1Func> 
+struct OperAccPartUniSer : FuncOperAccPartUni<TAcc1Func, OperAccPartUni<typename TAcc1Func::value_type1, SharedStr> >
+{
+	using ValueType = typename TAcc1Func::value_type1;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUni<ValueType, SharedStr> >;
+
+	OperAccPartUniSer(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, std::move(acc1Func))
 	{}
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
 	{
-		DataReadLock arg1Lock(arg1A);
-		DataReadLock arg2Lock(arg2A);
-
-		auto nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles();
-		auto arg1 = const_array_cast<ValueType>(arg1A);
-		auto resData = mutable_array_cast<SharedStr>(res)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-		//		m_Acc1Func.Init(resData);
-		{
-
-			length_finder_array lengthFinderArray(resData.size());
-			for (tile_id t = 0; t != nrTiles; ++t)
-			{
-				auto arg1Data = arg1->GetTile(t);
-				OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
-
-				this->m_Acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter);
-			}
-			// allocate sufficent space in outputs
-			InitOutput(resData, lengthFinderArray);
-			// can destruct lengthFinderArray now
-		}
-
-		// build memo_out_stream_array that refers to each of the allocated output cells.
-		memo_out_stream_array outStreamArray;
-		this->m_Acc1Func.ReserveData(outStreamArray, resData);
-
-		for (tile_id t = 0; t != nrTiles; ++t)
-		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
-
-			this->m_Acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter);
-		}
+		CalcOperAccPartUniSer<TAcc1Func>(res, arg1A, arg2A, this->m_Acc1Func);
 	}
 };
 

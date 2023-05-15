@@ -208,8 +208,8 @@ struct nullary_assign
 template<typename TAssigneeType, typename TArgumentType>
 struct unary_assign : nullary_assign<TAssigneeType>
 {
-	typedef TArgumentType                  arg1_type;
-	typedef typename cref<arg1_type>::type arg1_cref;
+	using arg1_type = TArgumentType                  ;
+	using arg1_cref = typename cref<arg1_type>::type ;
 
 	static void PrepareTile(typename sequence_traits<TAssigneeType>::seq_t res, typename sequence_traits<TArgumentType>::cseq_t a1)
 	{ /* NOP */ }

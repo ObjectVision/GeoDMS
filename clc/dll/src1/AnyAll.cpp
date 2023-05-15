@@ -39,9 +39,9 @@ namespace
 	CommonOperGroup cogAny("any");
 	CommonOperGroup cogAll("all");
 
-	OperAccTotUniNum<any_total> any_total(&cogAny);
-	OperAccTotUniNum<all_total> all_total(&cogAll);
+	OperAccTotUniNum<any_total> anyTotal(&cogAny);
+	OperAccTotUniNum<all_total> allTotal(&cogAll);
 
-	OperAccPartUniDirect<any_partial > any_Part(&cogAny);
-	OperAccPartUniDirect<all_partial > all_Part(&cogAll);
+	OperAccPartUniDirect<any_partial > anyPart(&cogAny);
+	OperAccPartUniDirect<all_partial > allPart(&cogAll);
 }

@@ -301,6 +301,8 @@ template <typename T> constexpr bool is_separable_v = has_fixed_elem_size_v<T> &
 template <typename T> constexpr bool has_var_range_v = is_separable_v<T> && !is_void_v<T>;
 template <typename T> constexpr bool has_var_range_field_v = has_var_range_v<field_of_t<T>>;
 
+template <typename T> constexpr bool has_range_v = has_var_range_v<T> || is_bitvalue_v<T> || is_void_v<T>;
+
 //----------------------------------------------------------------------
 // Section      : elem_traits
 //----------------------------------------------------------------------
