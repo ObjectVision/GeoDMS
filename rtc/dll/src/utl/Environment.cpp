@@ -1067,7 +1067,7 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	siStartInfo.cb = sizeof(STARTUPINFO);
 	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
 
-	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
+//	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
 
 	// Create the child process.
 	BOOL res = CreateProcessA
