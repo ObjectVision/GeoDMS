@@ -331,7 +331,7 @@ struct link_info
 
 auto get_link_from_error_message(std::string_view error_message, unsigned int lineNumber = 0) -> link_info
 {
-    std::size_t currLine = 0, currPos = 0, currLineNumber = 0;
+    std::size_t currPos = 0, currLineNumber = 0;
     link_info lastFoundLink;
     while (currPos < error_message.size())
     {
@@ -339,22 +339,23 @@ auto get_link_from_error_message(std::string_view error_message, unsigned int li
         if (currLineEnd == std::string::npos)
             currLineEnd = error_message.size();
 
-        auto round_bracked_open_pos = error_message.find_first_of("(", currPos, currLineEnd - currPos);
-        auto comma_pos = error_message.find_first_of(",", currPos, currLineEnd - currPos);
-            auto round_bracked_close_pos = error_message.find_first_of(")", currPos, currLineEnd - currPos);
+        auto lineView = std::string_view(&error_message[currPos], currLineEnd - currPos);
+        auto round_bracked_open_pos = lineView.find_first_of('(');
+        auto comma_pos = lineView.find_first_of(',');
+        auto round_bracked_close_pos = lineView.find_first_of(')');
         if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
         {
-            std::string filename = std::string(error_message.substr(currPos+ 1, round_bracked_open_pos - currPos - 1));
-            std::string line_number = std::string(error_message.substr(round_bracked_open_pos + 1, comma_pos - round_bracked_open_pos - 1));
-            std::string col_number = std::string(error_message.substr(comma_pos + 1, round_bracked_close_pos - comma_pos));;
+            auto filename = lineView.substr(0, round_bracked_open_pos);
+            auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+            auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
 
-            lastFoundLink = link_info(true, currPos, round_bracked_close_pos, filename, line_number, col_number);
+            lastFoundLink = link_info(true, currPos, round_bracked_close_pos, std::string(filename), std::string(line_number), std::string(col_number));
         }
         if (lineNumber <= currLineNumber && lastFoundLink.is_valid)
             break;
 
-        currPos = currLineEnd;
-        currLine++;
+        currPos = currLineEnd + 1;
+        currLineNumber++;
     }
     return lastFoundLink;
 }
