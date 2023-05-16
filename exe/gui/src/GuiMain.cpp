@@ -661,9 +661,16 @@ int GuiMainComponent::MainLoop()
     // Main loop
     while (!glfwWindowShouldClose(GuiState::m_MainWindow))
     {
-        
+/*
         //if (--UpdateFrameCounter) // when waking up from an event, update n frames
-        glfwPollEvents();
+        if (SuspendTrigger::DidSuspend())
+        {
+            glfwPollEvents();
+            SuspendTrigger::Resume();
+        }
+        else
+*/
+        glfwWaitEvents(); //TODO: reimplement this logic with interrupts from GeoDMS
         //else 
         //{
         

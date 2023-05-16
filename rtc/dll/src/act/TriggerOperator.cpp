@@ -424,7 +424,6 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
-
 		if (IsMetaThread())
 			ProcessMainThreadOpers();
 

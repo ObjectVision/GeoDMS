@@ -181,7 +181,8 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
+	return false;
+//	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
@@ -1066,7 +1067,9 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	siStartInfo.cb = sizeof(STARTUPINFO);
 	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
 
-	   // Create the child process.
+	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
+
+	// Create the child process.
 	BOOL res = CreateProcessA
 	(
 		moduleName,
