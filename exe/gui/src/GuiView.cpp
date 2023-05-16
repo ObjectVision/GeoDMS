@@ -165,12 +165,8 @@ bool DMSView::Update(GuiState& state)
     auto view_window_parent = GetParent(view_window_hwnd_handle);
     if (!test )//!view_window_parent) // parent not set, should always be GuiState::m_MainWindow;
     {
-        /*SetParent(view_window_hwnd_handle, glfwGetWin32Window(state.m_MainWindow));
-        long style = GetWindowLong(view_window_hwnd_handle, GWL_STYLE);
-        style &= ~WS_POPUP; // remove popup style
-        style |= WS_CHILDWINDOW; // add childwindow style
-        SetWindowLong(view_window_hwnd_handle, GWL_STYLE, style);
-        */
+        //SetParent(view_window_hwnd_handle, glfwGetWin32Window(state.m_MainWindow));
+        
         //ImGui::UpdateWindowParentAndRootLinks(view_window, ImGuiWindowFlags_::ImGuiWindowFlags_None, ImGui::FindWindowByName("GeoDMSGui"));
         test = true;
     }

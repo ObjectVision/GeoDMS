@@ -85,10 +85,10 @@ std::string FillOpenConfigSourceCommand(const std::string_view command, const st
     return result;
 }
 
-void OpenConfigSource(GuiState &state, std::string_view filename, std::string_view line)
+auto OpenConfigSource(GuiState &state, std::string_view filename, std::string_view line) -> std::string
 {
     std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
-
+    std::string open_config_source_command = "";
     if (!filename.empty() && !line.empty() && !command.empty())
     {
         auto unexpanded_open_config_source_command = FillOpenConfigSourceCommand(command, filename, line);
@@ -97,13 +97,14 @@ void OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
         if (!config_store_item)
             config_store_item = state.GetRoot();
 
-        std::string open_config_source_command = "";
+        //std::string open_config_source_command = "";
         if (!config_store_item)
             open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();\
         else
             open_config_source_command = AbstrStorageManager::GetFullStorageName(config_store_item, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
         assert(!open_config_source_command.empty());
+        reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
 
         DMS_CALL_BEGIN
             try
@@ -116,6 +117,8 @@ void OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
         }
         DMS_CALL_END
     }
+    
+    return open_config_source_command;
 }
 
 bool GuiMainComponent::ProcessEvent(GuiEvents e)
@@ -364,12 +367,18 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
         ImGui::OpenPopup("Error");
     }
 
+    ImGui::SetNextWindowFocus();
     if (ImGui::BeginPopupModal("Error", NULL, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoTitleBar))
     {
         auto popup_window = ImGui::GetCurrentWindow();
         //glfwFocusWindow(GLFWwindow * window);
 
+        auto error_window = ImGui::GetCurrentWindow();
+
+
         ImGui::BringWindowToDisplayFront(popup_window); //TODO: does not work for modal window, try other routes.
+        ImGui::FocusWindow(ImGui::FindWindowByName("Error"));
+        //ImGui::SetWindowFocus();
 
         auto vp = ImGui::GetWindowViewport();
         auto glfw_platform_user_data = static_cast<ImGui_ImplGlfw_ViewportData*>(vp->PlatformUserData);
@@ -391,15 +400,22 @@ bool GuiMainComponent::ShowErrorDialogIfNecessary()
 
 
         //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+        static std::string open_config_source_cmd = "";
         if (!m_State.errorDialogMessage._Get().empty())
         {
             auto error_message_text = m_State.errorDialogMessage.Get();
-            auto link = get_link_from_error_message(error_message_text);
+            
 
             //ImGui::Text(const_cast<char*>(m_State.errorDialogMessage.Get().c_str()));
             ImGui::Text(error_message_text.c_str());
-            if (link.is_valid && ImGui::IsItemClicked())
-                OpenConfigSource(m_State, link.filename, link.line_number);
+
+            if (ImGui::IsItemClicked())
+            {
+                auto link = get_link_from_error_message(error_message_text);
+                if (link.is_valid)
+                    open_config_source_cmd = OpenConfigSource(m_State, link.filename, link.line_number);
+            }
+            ImGui::Text(open_config_source_cmd.c_str());
         }
 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
@@ -436,12 +452,16 @@ bool GuiMainComponent::ShowSourceFileChangeDialogIfNecessary()
     //ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
     //TODO: build in timer for checks?
     static std::string changed_files_result;
-    auto changed_files = DMS_ReportChangedFiles(true);
-    if (changed_files)
+
+    if (ImGui::IsWindowHovered(ImGuiFocusedFlags_::ImGuiFocusedFlags_AnyWindow))
     {
-        changed_files_result = (*changed_files).c_str();
-        changed_files->Release(changed_files);
-        ImGui::OpenPopup("Changed source file(s)");
+        auto changed_files = DMS_ReportChangedFiles(true);
+        if (changed_files)
+        {
+            changed_files_result = (*changed_files).c_str();
+            changed_files->Release(changed_files);
+            ImGui::OpenPopup("Changed source file(s)");
+        }
     }
 
     bool geodms_imgui_has_focus = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
