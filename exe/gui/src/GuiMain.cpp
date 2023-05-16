@@ -329,30 +329,34 @@ struct link_info
     std::string col_number  = "";
 };
 
-auto get_link_from_error_message(std::string_view error_message) -> link_info
+auto get_link_from_error_message(std::string_view error_message, unsigned int lineNumber = 0) -> link_info
 {
-    auto round_bracked_open_pos  = error_message.find_first_of('(');
-    auto comma_pos               = error_message.find_first_of(',');
-    auto round_bracked_close_pos = error_message.find_first_of(')');
+    std::size_t currLine = 0, currPos = 0, currLineNumber = 0;
+    link_info lastFoundLink;
+    while (currPos < error_message.size())
+    {
+        auto currLineEnd = error_message.find_first_of('\n', currPos);
+        if (currLineEnd == std::string::npos)
+            currLineEnd = error_message.size();
 
-    if (round_bracked_open_pos == error_message.npos || comma_pos == error_message.npos || round_bracked_close_pos == error_message.npos)
-        return {};
+        auto round_bracked_open_pos = error_message.find_first_of("(", currPos, currLineEnd - currPos);
+        auto comma_pos = error_message.find_first_of(",", currPos, currLineEnd - currPos);
+            auto round_bracked_close_pos = error_message.find_first_of(")", currPos, currLineEnd - currPos);
+        if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
+        {
+            std::string filename = std::string(error_message.substr(currPos+ 1, round_bracked_open_pos - currPos - 1));
+            std::string line_number = std::string(error_message.substr(round_bracked_open_pos + 1, comma_pos - round_bracked_open_pos - 1));
+            std::string col_number = std::string(error_message.substr(comma_pos + 1, round_bracked_close_pos - comma_pos));;
 
-    if (comma_pos < round_bracked_open_pos) // comma occured before open line,col position in file
-        return {};
+            lastFoundLink = link_info(true, currPos, round_bracked_close_pos, filename, line_number, col_number);
+        }
+        if (lineNumber <= currLineNumber && lastFoundLink.is_valid)
+            break;
 
-    if (round_bracked_close_pos < round_bracked_open_pos) // round close bracked occured before open round bracked
-        return {};
-
-    auto first_line_ending = error_message.find_first_of('\n');
-    //auto second_line_ending = error_message.find_first_of('\n', first_line_ending);
-
-    std::string filename = std::string(error_message.substr(first_line_ending+1, round_bracked_open_pos-first_line_ending-1));
-    std::string line_number = std::string(error_message.substr(round_bracked_open_pos+1, comma_pos-round_bracked_open_pos-1));
-    std::string col_number = std::string(error_message.substr(comma_pos+1, round_bracked_close_pos-comma_pos));;
-
-    return link_info(true, first_line_ending, round_bracked_close_pos, filename, line_number, col_number);
-
+        currPos = currLineEnd;
+        currLine++;
+    }
+    return lastFoundLink;
 }
 
 
