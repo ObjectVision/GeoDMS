@@ -48,7 +48,7 @@ struct TreeItemContextHandle : ContextHandle
 
 	const TreeItem* GetItem() const { return m_Obj; }
 	static const TreeItem* FindCurrConfigItem();
-	static SharedStr CurrConfigItemAsStr();
+	TIC_CALL static SharedStr CurrConfigItemAsStr();
 
 protected:
 	TIC_CALL void GenerateDescription() override;
