@@ -88,8 +88,8 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFil
 			CharPtr fileName = sourceFileNameStr.c_str();
 			if (configLoadDir.ssize()) fileName += (configLoadDir.ssize()+1);
 
-			SessionData::Create( configLoadDir.c_str(), getFileNameBase(fileName).c_str() );
-			SessionData::Curr()->SetConfigPointColFirst( GetConfigPointColFirst() );
+			auto currSession = SessionData::Create( configLoadDir.c_str(), getFileNameBase(fileName).c_str() );
+			currSession->SetConfigPointColFirst( GetConfigPointColFirst() );
 
 			ConfigurationFilenameContainer filenameContainer(configLoadDir);
 			{
@@ -105,7 +105,7 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFil
 				#endif // MG_DEBUG_INTERESTSOURCE
 				res = AppendTreeFromConfiguration(fileName, 0);
 			}
-			SessionData::Curr()->Open(res);
+			currSession->Open(res);
 			auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
 			dms_assert(fts > UpdateMarker::tsBereshit);
 			return res;

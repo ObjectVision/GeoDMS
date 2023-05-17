@@ -43,36 +43,25 @@ struct TreeItem;
 extern std::recursive_mutex sd_SessionDataCriticalSection;
 extern leveled_counted_section s_SessionUsageCounter;
 
-struct SessionData
+struct SessionData : std::enable_shared_from_this<SessionData>
 {
-	static TIC_CALL void Create(CharPtr configLoadDir, CharPtr configSubDir); // call this before reading a config in order to set cfgColFirst right
-	static TIC_CALL void SetConfigPointColFirst(bool cfgColFirst); // call this after create because GetConfigPointColFirst requires the configDir of the Curr SessionData
+	static TIC_CALL std::shared_ptr<SessionData> Create(CharPtr configLoadDir, CharPtr configSubDir); // call this before reading a config in order to set cfgColFirst right
+
+	TIC_CALL void SetConfigPointColFirst(bool cfgColFirst); // call this after create because GetConfigPointColFirst requires the configDir of the Curr SessionData
 
 	TIC_CALL void Open  (const TreeItem* configRoot);       // call this after  reading a config to init the configRoot and open the DataStoreManager
 
-	static void ActivateIt(const TreeItem* configRoot) // for now, assume session to be a singleton
-	{
-		dms_assert(s_CurrSD && (s_CurrSD->GetConfigRoot() == configRoot || s_CurrSD->m_ConfigRoot.is_null()) ); 
-	}
-
 	void ActivateThis();
 
-	static WeakPtr<SessionData> GetIt(const TreeItem* configRoot)
-	{
-		if (Curr()) // Assumes SessionData is a singleton
-			ActivateIt(configRoot); 
-		return Curr(); 
-	}
-
+	static void ActivateIt(const TreeItem* configRoot); // for now, assume session to be a singleton
+	static std::shared_ptr<SessionData> GetIt(const TreeItem* configRoot);
 	static void CancelDataStoreManager(const TreeItem* configRoot);
-	bool IsCancelling() const { return m_IsCancelling;  }
-
 	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
 
-	static WeakPtr<SessionData> Curr()
-	{
-		return s_CurrSD;
-	}
+	bool IsCancelling() const { return m_IsCancelling;  }
+
+
+	TIC_CALL static std::shared_ptr<SessionData> Curr();
 
 	TIC_CALL void Release();
 
@@ -104,10 +93,10 @@ public: // ==== code analysis support: DMS_TreeItem_SetAnalysisSource
 	std::map<const Actor*, UInt32> m_SupplierLevels;
 	SharedPtr<const TreeItem>      m_SourceItem;
 
-private:
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
 	~SessionData();
-	SessionData(const SessionData&); // undefined
+private:
+	SessionData(const SessionData&) = delete;
 
 	void DeactivateThis();
 	SafeFileWriterArray           m_SFWA;
@@ -120,7 +109,6 @@ private:
 	DataControllerMap             m_DcMap;
 	bool                          m_cfgColFirst;
 	bool                          m_IsCancelling = false;
-	TIC_CALL static WeakPtr<SessionData>   s_CurrSD;
 };
 
 

@@ -32,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "SessionData.h"
 
 struct SafeFileWriterArray;
+struct SessionData;
 
 //----------------------------------------------------------------------
 // struct DataStoreManager
@@ -40,7 +41,7 @@ struct SafeFileWriterArray;
 namespace DSM 
 {
 
-	inline SessionData* Curr() { return SessionData::Curr(); }
+	inline std::shared_ptr<SessionData> Curr() { return SessionData::Curr(); }
 	inline bool IsCancelling() { auto curr = Curr();  return curr && curr->IsCancelling(); }
 	TIC_CALL void CancelIfOutOfInterest(const TreeItem* item = nullptr);
 	[[noreturn]] void CancelOrThrow(const TreeItem* item);

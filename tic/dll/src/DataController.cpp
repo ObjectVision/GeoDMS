@@ -323,7 +323,6 @@ DataController::~DataController()
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
 	auto curr = SessionData::Curr();
 	if (curr)
 		curr->GetDcMap().erase(m_Key);

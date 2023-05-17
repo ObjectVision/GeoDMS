@@ -121,7 +121,7 @@ extern "C" TIC_CALL void DMS_TreeItem_SetAnalysisTarget(const TreeItem* ti, bool
 		}
 		if (!ti)
 			return;
-		MarkSources(dsm, ti, 1);
+		MarkSources(dsm.get(), ti, 1);
 
 	DMS_CALL_END
 }
