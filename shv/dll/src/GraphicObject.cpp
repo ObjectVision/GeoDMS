@@ -766,8 +766,9 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 			bol = failReason.begin(),
 			eos = failReason.send();
 		SharedTreeItem item;
-		if (DSM::Curr() && DSM::Curr()->m_ConfigRoot)
-			item = DSM::Curr()->m_ConfigRoot->FindBestItem(fr->FullName()).first;
+		if (auto curr = DSM::Curr())
+			if (auto cr = curr->GetConfigRoot())
+				item = cr->FindBestItem(fr->FullName()).first;
 		while (true) {
 			CharPtr eol = std::find(bol, eos, '\n');
 			auto txt = SharedStr(bol, eol);

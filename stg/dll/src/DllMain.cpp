@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 #include "utl/Encodes.h"
 
 #include "AbstrDataItem.h"

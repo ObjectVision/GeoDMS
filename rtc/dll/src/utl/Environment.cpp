@@ -756,8 +756,6 @@ bool FindFileBlock::IsValid() const
 	return m_Handle != INVALID_HANDLE_VALUE;
 }
 
-// REMOVE COMMENT: Make DataStoreManager.GetDir subdir aware to be prepared for CalcCache partitioning
-
 DWORD FindFileBlock::GetFileAttr() const
 {
 	dms_assert(IsValid());

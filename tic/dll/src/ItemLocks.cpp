@@ -5,6 +5,7 @@
 #include "act/ActorLock.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"
+#include "mci/ValueClass.h"
 #include "utl/scoped_exit.h"
 
 #include "LockLevels.h"
@@ -13,6 +14,7 @@
 #include "DataStoreManagerCaller.h"
 #include "ItemLocks.h"
 #include "Parallel.h"
+#include "Unit.h"
 
 #include "OperationContext.h"
 
@@ -276,16 +278,16 @@ namespace cs_lock {
 
 	void ReadLockInit(const TreeItem* item)
 	{
-		dms_assert(item);
-		dms_assert(!std::uncaught_exceptions());
+		assert(item);
+		assert(!std::uncaught_exceptions());
 
-		if (!s_DataStoreManagerUsageCounter.try_lock_shared())
+		if (!s_SessionUsageCounter.try_lock_shared())
 		{
-			dms_assert(DSM::IsCancelling());
-			dms_assert(OperationContext::CancelableFrame::CurrActive());
+			assert(DSM::IsCancelling());
+			assert(OperationContext::CancelableFrame::CurrActive());
 			DSM::CancelOrThrow(item);
 		}
-		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_DataStoreManagerUsageCounter.unlock_shared(); });
+		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
 		dms_assert(item == item->GetCurrRangeItem());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
@@ -303,13 +305,13 @@ namespace cs_lock {
 		dms_assert(item);
 		dms_assert(!std::uncaught_exceptions());
 
-		if (!s_DataStoreManagerUsageCounter.try_lock_shared())
+		if (!s_SessionUsageCounter.try_lock_shared())
 		{
 			dms_assert(DSM::IsCancelling());
 			dms_assert(OperationContext::CancelableFrame::CurrActive());
 			DSM::CancelOrThrow(item);
 		}
-		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_DataStoreManagerUsageCounter.unlock_shared(); });
+		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
 		dms_assert(item == item->GetCurrRangeItem());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
@@ -387,7 +389,7 @@ ItemReadLock::~ItemReadLock()
 		return;
 
 	cs_lock::ReadFree(m_Ptr);
-	s_DataStoreManagerUsageCounter.unlock_shared();
+	s_SessionUsageCounter.unlock_shared();
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemReadLockCounter;
@@ -409,7 +411,7 @@ ItemWriteLock::ItemWriteLock(TreeItem* item, std::weak_ptr<OperationContext> ocb
 {
 	if (item)
 	{
-		s_DataStoreManagerUsageCounter.lock_shared();
+		s_SessionUsageCounter.lock_shared();
 
 		treeitem_production_task::lock_unique(item, ocb);
 		m_ItemPtr = item;
@@ -428,7 +430,7 @@ ItemWriteLock::~ItemWriteLock()
 	SharedPtr<const TreeItem> garbage = GetItem();
 
 	treeitem_production_task::unlock_unique(m_ItemPtr);
-	s_DataStoreManagerUsageCounter.unlock_shared();
+	s_SessionUsageCounter.unlock_shared();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemWriteLockCounter;
 #endif

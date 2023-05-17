@@ -51,6 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
+#include "AbstrUnit.h"
 #include "DataLocks.h"
 #include "DataArray.h"
 #include "DataStoreManagerCaller.h"
@@ -876,38 +877,42 @@ StorageCloseHandle::StorageCloseHandle(StorageMetaInfoPtr&& smi)
 
 void StorageCloseHandle::Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem)
 {
-	dms_assert(m_MetaInfo);
+	assert(m_MetaInfo);
 	if (storageHolder->DoesContain(focusItem))
 	{
-		dms_assert(focusItem);
+		assert(focusItem);
 		// enable Registration of external DateTime stamp changes during the lifetime of this StorageHandle
 		// Registers LastChange with the latest Filesystem TimeStamp of the storage to prevent data consumers from external 
 		// TODO: Also update FileSystem timestamp for other items with the same storageManager
 		// ISSUE: mapping between item hierarchy and hierarchy of external TimeStamps and external change detection
 		// ISSUE: different sources with the same external Filesystem Timestamp may be registered at different internal times
+/*
 		FileDateTime fdt = storageManager->GetCachedChangeDateTime(storageHolder, m_MetaInfo->m_RelativeName.c_str());
 		if (fdt)
 		{
 			m_TimeStampBefore = DataStoreManager::Curr()->DetermineExternalChange(fdt);
-			dms_assert(m_TimeStampBefore); // POSTCONDITION
+			assert(m_TimeStampBefore); // POSTCONDITION
 		}
 		else
-			m_TimeStampBefore = focusItem->GetLastChangeTS();
+	*/
+		m_TimeStampBefore = focusItem->GetLastChangeTS();
 	}
 };
 
 StorageCloseHandle::~StorageCloseHandle()
 {
-	dms_assert(m_StorageManager);
+	assert(m_StorageManager);
 	m_MetaInfo.reset();
 	m_StorageManager->CloseStorage();
+/*
 	if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
 	{
-		dms_assert(m_FocusItem);
+		assert(m_FocusItem);
 		FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
 		if (fdt)
 			DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
 	}
+*/
 }
 
 StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)

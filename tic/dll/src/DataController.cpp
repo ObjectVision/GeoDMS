@@ -6,6 +6,8 @@
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
+#include "ser/AsString.h"
+#include "utl/mySPrintF.h"
 
 #include "LispRef.h"
 
@@ -445,8 +447,6 @@ bool DataController::IsCalculating() const
 
 void DataController::DoInvalidate () const
 {
-	DataStoreManager::Curr()->InvalidateDC(this);
-
 	TreeItemDualRef::DoInvalidate();
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());

@@ -384,16 +384,10 @@ void TreeItem::EnableAutoDeleteRootImpl() // does not call UpdateMetaInfo
 	DBG_TRACE(("START ResetAllKeepIterest(this)"));
 	ResetAllKeepInterest(this);              // neccesary to bring interestCount to 0 and DataInMem to DiskCache         
 
-	SessionData::CancelDataStoreManager(this);
-
 	StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
 	SafeFileWriterArray sfwa;
-	DBG_TRACE(("START SessionData::CloseDataStoreManager(this, sfwa)"));
-
 	EnableAutoDeleteImpl(); // this may be destroyed
-
-	SessionData::CloseDataStoreManager(this, sfwa); // this may be destroyed
 
 	DBG_TRACE(("START SessionData::ReleaseIt(this)"));
 	SessionData::ReleaseIt(this);
@@ -2831,7 +2825,6 @@ garbage_t TreeItem::DropValue()
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection); // prevent concurrent (read or remove) access to m_TreeItemDcMap.
 	garbage_t garbageCan;
 	ClearData(garbageCan); // Resets m_SegsPtr (DoClearData) and resets TSF_DataInMem
 	return garbageCan;
@@ -2869,8 +2862,8 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 
 			if (lastFileChange)
 			{
-				MakeMax(lastChangeTS, DataStoreManager::Curr()->DetermineExternalChange(lastFileChange) );
-				dms_assert( UpdateMarker::CheckTS(lastChangeTS) );
+//				MakeMax(lastChangeTS, DSM::Curr()->DetermineExternalChange(lastFileChange) );
+				assert( UpdateMarker::CheckTS(lastChangeTS) );
 			}
 		}
 		catch (...)
@@ -3779,12 +3772,12 @@ UInt32 sd_ItemInterestCounter = 0;
 void TreeItem::StartInterest() const
 {
 	dms_assert(!std::uncaught_exceptions());
-	if (!s_DataStoreManagerUsageCounter.try_lock_shared())
+	if (!s_SessionUsageCounter.try_lock_shared())
 	{
 		dms_assert(OperationContext::CancelableFrame::CurrActive());
 		DSM::CancelOrThrow(this);
 	}
-	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_DataStoreManagerUsageCounter.unlock_shared(); });
+	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 	UpdateMetaInfo();
 	dms_assert(GetInterestCount() == 0);
 
@@ -3843,7 +3836,7 @@ garbage_t TreeItem::StopInterest() const noexcept
 	{
 		reportF(SeverityTypeID::ST_Warning, "%s uncaught exception ", GetSourceName());
 	}
-	s_DataStoreManagerUsageCounter.unlock_shared();
+	s_SessionUsageCounter.unlock_shared();
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemInterestCounter;

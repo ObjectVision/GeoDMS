@@ -1132,7 +1132,7 @@ BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 		auto fullName = x.AsErrMsg()->m_FullName;
 		if (!fullName.empty())
 		{
-			src = DSM::Curr()->m_ConfigRoot;
+			src = DSM::Curr()->GetConfigRoot();
 			if (src)
 				return src->FindBestItem(fullName);
 		}

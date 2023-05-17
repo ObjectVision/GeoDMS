@@ -31,16 +31,17 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
-struct TreeItem;
-struct DataStoreManager;
-struct SafeFileWriterArray;
+#include "ser/SafeFileWriter.h"
+
 #include "DataController.h"
+struct TreeItem;
 
 //----------------------------------------------------------------------
 // struct SessionData
 //----------------------------------------------------------------------
 
 extern std::recursive_mutex sd_SessionDataCriticalSection;
+extern leveled_counted_section s_SessionUsageCounter;
 
 struct SessionData
 {
@@ -64,7 +65,7 @@ struct SessionData
 	}
 
 	static void CancelDataStoreManager(const TreeItem* configRoot);
-	static void CloseDataStoreManager(const TreeItem* configRoot, SafeFileWriterArray& holder);
+	bool IsCancelling() const { return m_IsCancelling;  }
 
 	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
 
@@ -96,10 +97,12 @@ struct SessionData
 	const TreeItem* GetActiveDesktop() const;
 
 	DataControllerMap& GetDcMap() { return m_DcMap; }
+	SafeFileWriterArray* GetSafeFileWriterArray() { return &m_SFWA;  }
 
-#if defined(MG_DEBUG)
-	DataStoreManager* GetDSM() const { return m_DataStoreManager; }
-#endif
+
+public: // ==== code analysis support: DMS_TreeItem_SetAnalysisSource
+	std::map<const Actor*, UInt32> m_SupplierLevels;
+	SharedPtr<const TreeItem>      m_SourceItem;
 
 private:
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
@@ -107,6 +110,7 @@ private:
 	SessionData(const SessionData&); // undefined
 
 	void DeactivateThis();
+	SafeFileWriterArray           m_SFWA;
 
 	WeakPtr<const TreeItem>       m_ConfigRoot, m_ConfigSettings, m_ActiveDesktop;
 	SharedStr                     m_ConfigLoadDir;
@@ -114,11 +118,17 @@ private:
 	SharedStr                     m_ConfigDir;
 	TimeStamp                     m_ConfigLoadTS;
 	DataControllerMap             m_DcMap;
-	OwningPtr<DataStoreManager>   m_DataStoreManager;
 	bool                          m_cfgColFirst;
-
+	bool                          m_IsCancelling = false;
 	TIC_CALL static WeakPtr<SessionData>   s_CurrSD;
 };
+
+
+//----------------------------------------------------------------------
+// helper func
+//----------------------------------------------------------------------
+
+const TreeItem* GetCacheRoot(const TreeItem* subItem);
 
 
 #endif // __TIC_SESSIONDATA_H

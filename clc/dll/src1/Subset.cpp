@@ -32,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
+#include "utl/mySPrintF.h"
 
 #include "DataArray.h"
 #include "DataItemClass.h"

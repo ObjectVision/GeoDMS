@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
+#include "AbstrUnit.h"
 #include "DataStoreManagerCaller.h"
 #include "DataItemClass.h"
 

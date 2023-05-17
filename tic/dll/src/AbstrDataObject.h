@@ -82,7 +82,6 @@ class AbstrDataObject: public PersistentSharedObj
 	friend class AbstrDataItem; 
 	friend class AbstrStorageManager;
 	friend struct DataWriteLock;
-	friend struct DataStoreManager;
 
 	using base_type = AbstrDataItem;
 public:

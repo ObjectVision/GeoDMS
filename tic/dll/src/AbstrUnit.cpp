@@ -11,6 +11,7 @@
 #include "mci/ValueClass.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
+#include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"

@@ -42,6 +42,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "Param.h"
 
+std::mutex s_SessionDataCS;
+leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type(1), "SessionUsageCounter");
+
 //----------------------------------------------------------------------
 // struct SessionData for near singleton management: implementation of member functions
 //----------------------------------------------------------------------
@@ -62,6 +65,10 @@ SessionData::~SessionData()
 
 void SessionData::Release()
 {
+	leveled_counted_section::scoped_lock lock(s_SessionUsageCounter); // wait for readers
+
+	assert(m_IsCancelling);
+
 	DeactivateThis();
 	delete this;
 	s_CurrSD = nullptr;
@@ -69,23 +76,20 @@ void SessionData::Release()
 
 void SessionData::DeactivateThis()
 {
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection);
+	auto sectionLock = std::scoped_lock(s_SessionDataCS);
 
-	dms_assert(Curr() == this);
-	dms_assert(m_DataStoreManager == nullptr); // must already have been destroyed
-
+	assert(Curr() == this);
+	
 	// save curr globals to the deactivating session
-	dms_assert(s_CurrSD->m_cfgColFirst == g_cfgColFirst);
+	assert(s_CurrSD->m_cfgColFirst == g_cfgColFirst);
 	s_CurrSD->m_cfgColFirst = g_cfgColFirst; // ???
 
 	g_cfgColFirst = false; // back to default value
-	dms_assert(DataStoreManager::s_CurrDSM == nullptr); // must already have been destroyed
-	DataStoreManager::s_CurrDSM = nullptr; // ???
 }
 
 void SessionData::ActivateThis()
 {
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection);
+	auto sectionLock = std::scoped_lock(s_SessionDataCS);
 
 	if (s_CurrSD == this)
 		return;
@@ -98,12 +102,11 @@ void SessionData::ActivateThis()
 
 	// restore saved globals from the activating session
 	g_cfgColFirst = m_cfgColFirst;
-	DataStoreManager::s_CurrDSM.assign( m_DataStoreManager );
 }
 
 SharedStr SessionData::GetConfigDir() const
 {
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection);
+	auto sectionLock = std::scoped_lock(s_SessionDataCS);
 
 #if defined(MG_DEBUG_DATA)
 //	reportF(ST_MinorTrace, "m_ConfigDir: %s\n", m_ConfigDir.c_str());
@@ -124,7 +127,7 @@ SharedStr SessionData::GetConfigDir() const
 
 bool SessionData::IsConfigDirty() const
 {
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection);
+	auto sectionLock = std::scoped_lock(s_SessionDataCS);
 
 	dms_assert(m_ConfigLoadTS != -1); // PRECONDITION: SessionData::Open was called after this was created
 	return m_ConfigLoadTS < UpdateMarker::GetLastTS();
@@ -134,7 +137,7 @@ bool DMS_IsConfigDirty(const TreeItem* configRoot)
 {
 	DMS_CALL_BEGIN
 
-		dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection);
+		auto sectionLock = std::scoped_lock(s_SessionDataCS);
 
 		SessionData::ActivateIt(configRoot);
 		return SessionData::Curr()->IsConfigDirty();
@@ -246,13 +249,7 @@ void SessionData::Open(const TreeItem* configRoot)
 {
 	dms_assert(!m_ConfigRoot); // only open this once
 	m_ConfigRoot = configRoot;
-	m_DataStoreManager.assign( DataStoreManager::Create(configRoot) );
-
-	DataStoreManager::s_CurrDSM.assign( m_DataStoreManager ); // purge change
 	dms_assert(this);
-	dms_assert(m_DataStoreManager);
-
-	m_DataStoreManager->LoadCacheInfo();
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
 	WeakPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
@@ -263,39 +260,32 @@ void SessionData::Open(const TreeItem* configRoot)
 void SessionData::CancelDataStoreManager(const TreeItem* configRoot)
 {
 	WeakPtr<SessionData> sd = GetIt(configRoot);
-	if (sd && sd->m_DataStoreManager)
-		sd->m_DataStoreManager->m_IsCancelling = true;
-}
-
-void SessionData::CloseDataStoreManager(const TreeItem* configRoot, SafeFileWriterArray& holder)
-{
-//	dms_assert(IsMainThread());
-
-	WeakPtr<SessionData> sd = GetIt(configRoot);
-	if (sd && sd->m_DataStoreManager)
-	{
-		if (g_IsTerminating)
-		{
-//			sd->m_DataStoreManager->m_StreamManager->DoNotCommitOnClose();
-		}
-		else
-		{
-			sd->m_DataStoreManager->CloseCacheInfo(true);
-			holder.swap(sd->m_DataStoreManager->m_FileWriters);
-		}
-		sd->m_DataStoreManager->Clear();
-		sd->m_DataStoreManager.reset();
-		dms_assert(DataStoreManager::s_CurrDSM == nullptr);
-		DataStoreManager::s_CurrDSM = nullptr; // purge change
-	}
+	if (sd)
+		sd->m_IsCancelling = true;
 }
 
 void SessionData::ReleaseIt(const TreeItem* configRoot) // WARNING: this might point to a destroyed configRoot
 {
 	auto dcLock = std::scoped_lock(sd_SessionDataCriticalSection);
+
 	WeakPtr<SessionData> sd = GetIt(configRoot);
 	if (sd)
 		sd->Release();
+}
+
+//----------------------------------------------------------------------
+// helper func
+//----------------------------------------------------------------------
+
+const TreeItem* GetCacheRoot(const TreeItem* subItem)
+{
+	if (subItem->IsCacheItem())
+	{
+		while (auto parent = subItem->GetTreeParent())
+			subItem = parent;
+		dms_assert(subItem->IsCacheRoot());
+	}
+	return subItem;
 }
 
 extern "C" TIC_CALL void DMS_CONV DMS_Config_SetActiveDesktop(TreeItem* tiActive)
