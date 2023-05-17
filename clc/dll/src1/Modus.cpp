@@ -288,7 +288,7 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 				SizeT pi = indexGetter->Get(i);
 				if (IsDefined(pi))
 				{
-					dms_assert(pi < pCount);
+					assert(pi < pCount);
 					++counters[value_type(pi, *valuesIter)];
 				}
 			}

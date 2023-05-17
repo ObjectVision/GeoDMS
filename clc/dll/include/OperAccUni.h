@@ -172,7 +172,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* oc, Explain::Context* context) const override
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
@@ -295,6 +295,7 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 		args.clear();
 		readLocks.clear();
 
+//		if (IsMultiThreaded3())
 		ProcessData(mutable_array_cast<R>(res), pdi);
 	}
 	virtual void ProcessData(ResultType* result, ProcessDataInfo& pdi) const = 0;
