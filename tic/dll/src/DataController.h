@@ -100,10 +100,7 @@ TIC_CALL DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
 /********** DataControllerMap **********/
 
-struct DataControllerMap : std::map<DataController::DataControllerKey, const DataController*>
-{
-	~DataControllerMap(); // test that everything was cleaned-up neatly (debug only)
-};
+using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
 
 /********** DcRefListElem **********/
 

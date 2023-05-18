@@ -40,25 +40,25 @@ SessionData::~SessionData()
 
 void SessionData::Release()
 {
-	leveled_counted_section::scoped_lock lock(s_SessionUsageCounter); // wait for readers
-
-	assert(m_IsCancelling);
+	if (Curr().get() != this)
+		return;
 
 	DeactivateThis();
-	s_CurrSD = nullptr;
 }
 
 void SessionData::DeactivateThis()
 {
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
+	m_IsCancelling = true;
 
-	assert(Curr() == this);
+	assert(Curr().get() == this);
 	
 	// save curr globals to the deactivating session
 	assert(s_CurrSD->m_cfgColFirst == g_cfgColFirst);
 	s_CurrSD->m_cfgColFirst = g_cfgColFirst; // ???
 
 	g_cfgColFirst = false; // back to default value
+	s_CurrSD = nullptr;
 }
 
 void SessionData::ActivateThis()
@@ -220,14 +220,6 @@ void SessionData::Open(const TreeItem* configRoot)
 	WeakPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
 	m_ConfigSettings = configSettings.get_ptr();
-}
-
-
-void SessionData::CancelDataStoreManager(const TreeItem* configRoot)
-{
-	auto sd = GetIt(configRoot);
-	if (sd)
-		sd->m_IsCancelling = true;
 }
 
 std::shared_ptr<SessionData> SessionData::Curr()

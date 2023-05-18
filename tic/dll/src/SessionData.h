@@ -55,7 +55,6 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 
 	static void ActivateIt(const TreeItem* configRoot); // for now, assume session to be a singleton
 	static std::shared_ptr<SessionData> GetIt(const TreeItem* configRoot);
-	static void CancelDataStoreManager(const TreeItem* configRoot);
 	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
 
 	bool IsCancelling() const { return m_IsCancelling;  }
