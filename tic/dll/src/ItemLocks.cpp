@@ -38,12 +38,12 @@ namespace treeitem_production_task
 	{
 		DBG_START("treeitem_production_task", "lock_unique", MG_DEBUG_TPT_LOCKS(self));
 
-		dms_assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
+		assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount <= 0;  });
 
-		dms_assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
+		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
 		--self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 		self->m_Producer = oc;
@@ -57,7 +57,7 @@ namespace treeitem_production_task
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount == 0; });
 
-		dms_assert(self->m_Producer.expired()); // was cleaned up by producers task
+		assert(self->m_Producer.expired()); // was cleaned up by producers task
 		--self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 	}
@@ -81,8 +81,8 @@ namespace treeitem_production_task
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount >= 0;  });
 
-		dms_assert(self->m_Producer.expired()); // was cleaned up by producers task
-		dms_assert(self->m_ItemCount >= 0);
+		assert(self->m_Producer.expired()); // was cleaned up by producers task
+		assert(self->m_ItemCount >= 0);
 		++self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 	}
@@ -99,7 +99,7 @@ namespace treeitem_production_task
 			return false;
 
 		--self->m_ItemCount;
-		dms_assert(self->m_ItemCount == -1);
+		assert(self->m_ItemCount == -1);
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 		return true;
 	}
@@ -126,7 +126,7 @@ namespace treeitem_production_task
 
 		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
-		dms_assert(self->m_ItemCount == -1);
+		assert(self->m_ItemCount == -1);
 		++self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 		self->m_Producer.reset();
@@ -142,8 +142,8 @@ namespace treeitem_production_task
 
 		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
-		dms_assert(self->m_ItemCount > 0);
-		dms_assert(self->m_Producer.expired());
+		assert(self->m_ItemCount > 0);
+		assert(self->m_Producer.expired());
 		if (!--self->m_ItemCount)
 			cv_lockrelease.notify_all();
 		DBG_TRACE(("count=%d", self->m_ItemCount));
@@ -151,7 +151,7 @@ namespace treeitem_production_task
 /*  REMOVE
 	void unlock(const TreeItem* self) noexcept
 	{
-		dms_assert(self->m_ItemCount != 0); // assume this thread did lock one way or the other
+		assert(self->m_ItemCount != 0); // assume this thread did lock one way or the other
 		if (self->m_ItemCount > 0)
 			unlock_shared(self);
 		else
@@ -172,7 +172,7 @@ namespace cs_lock {
 
 	void PrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
 	{
-		dms_assert(key);
+		assert(key);
 		if (!key->IsCacheItem())
 			return;
 		const struct TreeItem* parent = key->GetTreeParent();
@@ -183,7 +183,7 @@ namespace cs_lock {
 
 	bool TryPrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
 	{
-		dms_assert(key);
+		assert(key);
 		if (!key->IsCacheItem())
 			return true;
 		const struct TreeItem* parent = key->GetTreeParent();
@@ -194,7 +194,7 @@ namespace cs_lock {
 
 	void FreeReadAccess(const TreeItem* key)
 	{
-		dms_assert(key);
+		assert(key);
 		if (!key->IsCacheItem())
 			return;
 		const struct TreeItem* parent = key->GetTreeParent();
@@ -289,7 +289,7 @@ namespace cs_lock {
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
-		dms_assert(item == item->GetCurrRangeItem());
+		assert(item == item->GetCurrRangeItem());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
 
 		// may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
@@ -297,23 +297,23 @@ namespace cs_lock {
 
 		// from here nothrow
 		unlockDsmUsageCounter.release();
-		dms_assert(item->WasFailed(FR_Data) || CheckDataReady(item));
+		assert(item->WasFailed(FR_Data) || CheckDataReady(item));
 	}
 
 	bool TryReadLockInit(const TreeItem* item)
 	{
-		dms_assert(item);
-		dms_assert(!std::uncaught_exceptions());
+		assert(item);
+		assert(!std::uncaught_exceptions());
 
 		if (!s_SessionUsageCounter.try_lock_shared())
 		{
-			dms_assert(DSM::IsCancelling());
-			dms_assert(OperationContext::CancelableFrame::CurrActive());
+			assert(DSM::IsCancelling());
+			assert(OperationContext::CancelableFrame::CurrActive());
 			DSM::CancelOrThrow(item);
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 
-		dms_assert(item == item->GetCurrRangeItem());
+		assert(item == item->GetCurrRangeItem());
 		dbg_assert(item->CheckMetaInfoReadyOrPassor());
 
 		// may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
@@ -322,7 +322,7 @@ namespace cs_lock {
 
 		// from here nothrow
 		unlockDsmUsageCounter.release();
-		dms_assert(item->WasFailed(FR_Data) || CheckDataReady(item));
+		assert(item->WasFailed(FR_Data) || CheckDataReady(item));
 		return true;
 	}
 
@@ -344,7 +344,7 @@ std::atomic<UInt32> sd_ItemReadLockCounter = 0; // DEBUG;
 
 ItemReadLock::ItemReadLock() noexcept
 {
-	dms_assert(!m_Ptr.has_ptr());
+	assert(!m_Ptr.has_ptr());
 }
 
 ItemReadLock::ItemReadLock(const TreeItem* item)
@@ -444,10 +444,10 @@ Int32 GetItemLockCount(const TreeItem* item)
 
 bool IsCalculating(const TreeItem* item)
 {
-	dms_assert(item);
-	dms_assert(item == item->GetCurrRangeItem());
+	assert(item);
+	assert(item == item->GetCurrRangeItem());
 
-	dms_assert(item);
+	assert(item);
 	do {
 		Int32 itemLockCount = GetItemLockCount(item);
 		if (itemLockCount < 0)
@@ -460,21 +460,21 @@ bool IsCalculating(const TreeItem* item)
 		if (!item->IsCacheItem())
 			return false;
 		item = item->GetTreeParent();
-		dms_assert(!item || item->IsCacheItem());
+		assert(!item || item->IsCacheItem());
 	} while (item);
 	return false;
 }
 /*
 bool CheckFilesPresent(const AbstrDataItem* adi)
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
 	if (DataStoreManager::Curr()->CheckFilesPresent(adi))
 	{
-		dms_assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
+		assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
 		return true;
 	}
-	dms_assert(!adi->IsFnKnown()); // avoid extra work
+	assert(!adi->IsFnKnown()); // avoid extra work
 	return false;
 }
 
@@ -482,18 +482,18 @@ bool CheckFilesPresent(const DataController* dc, const TreeItem* cacheRoot, cons
 {
 	if (DataStoreManager::Curr()->CheckFilesPresent(dc, cacheRoot, adi))
 	{
-		dms_assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
+		assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
 		return true;
 	}
-	dms_assert(!adi->IsFnKnown()); // avoid extra work
+	assert(!adi->IsFnKnown()); // avoid extra work
 	return false;
 }
 */
 
 bool IsDataCurrReady(const TreeItem* item)
 {
-	dms_assert(item);
-	dms_assert(item->GetCurrRangeItem() == item);
+	assert(item);
+	assert(item->GetCurrRangeItem() == item);
 
 	if (IsDataItem(item))
 	{
@@ -534,7 +534,7 @@ bool IsDataReady(const TreeItem* item)
 
 bool IsAllDataReady(const TreeItem* item)
 {
-	dms_assert(item->GetInterestCount()); // or else result would be volatile
+	assert(item->GetInterestCount()); // or else result would be volatile
 	return IsAllDataCurrReady(item);
 }
 
@@ -557,7 +557,7 @@ bool CheckAllSubDataReady(const TreeItem* item)
 
 bool IsAllocated(const TreeItem* item) // TODO G8: kan dit weg ?
 {
-//	dms_assert(IsDataItem(item) || !item->IsFnKnown());
+//	assert(IsDataItem(item) || !item->IsFnKnown());
 
 	if (IsDataReady(item))
 		return true;
@@ -575,8 +575,8 @@ bool IsDcReady(const DataController* dc, const TreeItem* cacheRoot, const TreeIt
 	{
 		if (!cacheItem->IsFnKnown())
 			return true;
-		dms_assert(IsDataItem(cacheItem)); // implied by TSF_DSM_FnKnown
-		dms_assert(IsMetaThread()); // ???
+		assert(IsDataItem(cacheItem)); // implied by TSF_DSM_FnKnown
+		assert(IsMetaThread()); // ???
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("IsDcReady") sg_ActorLockMap, cacheItem);
 		return CheckFilesPresent(dc, cacheRoot, AsDataItem(cacheItem));
 	}
@@ -584,7 +584,7 @@ bool IsDcReady(const DataController* dc, const TreeItem* cacheRoot, const TreeIt
 	if (!IsDataItem(cacheItem) && !IsUnit(cacheItem))
 		return true;
 
-	dms_assert(!cacheItem->IsFnKnown()); // it would have been ready
+	assert(!cacheItem->IsFnKnown()); // it would have been ready
 	return false;
 }
 */
@@ -629,9 +629,9 @@ void RunTasks() {
 
 bool RunTask(const TreeItem* item)
 {
-	dms_assert(IsMetaThread());
-	dms_assert(item);
-	dms_assert(item->HasInterest());
+	assert(IsMetaThread());
+	assert(item);
+	assert(item->HasInterest());
 
 	bool ready = IsDataReady(item->GetCurrUltimateItem());
 	if (!ready)
@@ -654,8 +654,8 @@ bool RunTask(const TreeItem* item)
 
 bool CheckCalculatingOrReady(const TreeItem* item)
 {
-	dms_assert(item);
-	dms_assert(item == item->GetCurrRangeItem());
+	assert(item);
+	assert(item == item->GetCurrRangeItem());
 
 //	if (item->DataAllocated())
 //		return true;
@@ -678,14 +678,14 @@ bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, c
 
 bool IsReadLocked(const TreeItem* item)
 {
-	dms_assert(item);
+	assert(item);
 	return GetItemLockCount(item) > 0;
 }
 
 bool IsInWriteLock(const TreeItem* item)
 {
 	do {
-		dms_assert(item);
+		assert(item);
 		Int32 itemLockCount = GetItemLockCount(item);
 		if (itemLockCount > 0)
 			return false; // read locks active
@@ -702,39 +702,39 @@ bool IsInWriteLock(const TreeItem* item)
 // TODO: zoek OperationContext op en oc->Join()
 bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 {
-	dms_assert(item);
-	dms_assert(item == item->GetCurrRangeItem());
+	assert(item);
+	assert(item == item->GetCurrRangeItem());
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 
 	if (SuspendTrigger::BlockerBase::IsBlocked())
 		return WaitReady(item);
 
-	dms_assert(CheckCalculatingOrReady(item));
+	assert(CheckCalculatingOrReady(item));
 
 	SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
 	do {
-		dms_assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic, POSTCONDITION for not MustSuspend
+		assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic, POSTCONDITION for not MustSuspend
 		if (!IsCalculating(item))
 		{
-			dms_assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic
+			assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic
 			return IsDataReady(item) || item->WasFailed(FR_Data);
 		}
 
-		dms_assert(IsMultiThreaded2());
+		assert(IsMultiThreaded2());
 		WaitForCompletedTaskOrTimeout();
 	} while (!SuspendTrigger::MustSuspend());
 
-	dms_assert(SuspendTrigger::DidSuspend()); // POSTCONDITION for MustSuspend returing true
+	assert(SuspendTrigger::DidSuspend()); // POSTCONDITION for MustSuspend returing true
 
 	return false;
 }
 
 bool WaitReady(const TreeItem* item)
 {
-	dms_assert(item);
-	dms_assert(item == item->GetCurrRangeItem());
-	dms_assert(CheckCalculatingOrReady(item) || item->WasFailed(FR_Data));
+	assert(item);
+	assert(item == item->GetCurrRangeItem());
+	assert(CheckCalculatingOrReady(item) || item->WasFailed(FR_Data));
 	if (IsDataReady(item))
 		return true;
 	if (item->WasFailed(FR_Data))
@@ -748,7 +748,7 @@ bool WaitReady(const TreeItem* item)
 std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)
 {
 	do {
-		dms_assert(item);
+		assert(item);
 
 		auto result = item->m_Producer.lock();
 		if (result)
@@ -759,7 +759,7 @@ std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)
 			break;
 		item = item->GetTreeParent(); // cache items can inherit write rights from parent
 	}	while (item);
-	dms_assert(!item || CheckDataReady(item) || item->IsDataReadable() || item->WasFailed());
+	assert(!item || CheckDataReady(item) || item->IsDataReadable() || item->WasFailed());
 	return std::shared_ptr<OperationContext>();
 }
 
