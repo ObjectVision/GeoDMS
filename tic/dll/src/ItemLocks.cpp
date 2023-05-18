@@ -713,6 +713,7 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 	assert(CheckCalculatingOrReady(item));
 
 	SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
+	UInt32 counter = 0;
 	do {
 		assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic, POSTCONDITION for not MustSuspend
 		if (!IsCalculating(item))
@@ -722,7 +723,9 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 		}
 
 		assert(IsMultiThreaded2());
-		WaitForCompletedTaskOrTimeout();
+		WaitForCompletedTaskOrTimeout(); // max 300 milliseconds
+		if (counter++ == 34) // sporadious wakeup at least every 10 secs to release from mysterious hang
+			SuspendTrigger::DoSuspend();
 	} while (!SuspendTrigger::MustSuspend());
 
 	assert(SuspendTrigger::DidSuspend()); // POSTCONDITION for MustSuspend returing true
