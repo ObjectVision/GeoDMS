@@ -136,7 +136,7 @@ inline ConstUnitRef compare_unit_creator(const AbstrOperGroup* gr, const ArgSeqT
 
 inline ConstUnitRef domain_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
+	assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
 	return AsDataItem(args[0])->GetAbstrDomainUnit();
 }
 
@@ -144,7 +144,7 @@ CLC1_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
 
 inline ConstUnitRef count_unit_creator(const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
+	assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
 	return count_unit_creator(AsDataItem(args[0]));
 }
 
