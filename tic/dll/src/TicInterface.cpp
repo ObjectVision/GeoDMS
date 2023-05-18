@@ -281,7 +281,7 @@ TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPt
 {
 	assert(context);
 
-	while (*path && !itemNameFirstChar_test(*path))
+	while (*path && *path != '/' && !itemNameFirstChar_test(*path))
 		++path;
 
 	CharPtrRange pathRange = { path, ParseTreeItemPath(path) }; // skip trailing trash
