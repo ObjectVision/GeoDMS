@@ -552,7 +552,7 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	m_ResKeeper = std::move(resKeeper);
 
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
-	auto selfCaller = [selfWptr]() { auto self = selfWptr.lock(); if (self) self->safe_run(); };
+	auto selfCaller = [selfWptr]() { auto self = selfWptr.lock(); if (self) self->safe_run_caller(); };
 
 	setTask(dms_task(selfCaller));
 }
@@ -594,7 +594,7 @@ task_status OperationContext::TryActivateTaskInline()
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	safe_run();
+	safe_run_caller();
 	return m_Status;
 }
 
@@ -787,7 +787,7 @@ garbage_t OperationContext::separateResources(task_status status)
 	dms_assert(!m_ResKeeper);
 
 
-	dms_assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run, which alwayws release the writeLock on completion
+	dms_assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run_caller, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
@@ -1070,7 +1070,7 @@ bool OperationContext::MustCalcArg(arg_index i, CharPtr firstArgValue) const
 	return m_FuncDC->MustCalcArg(i, true, firstArgValue);
 }
 
-void OperationContext::safe_run_impl() noexcept
+void OperationContext::safe_run_with_catch() noexcept
 {
 	try {
 		OperationContext::CancelableFrame frame(this);
@@ -1095,11 +1095,11 @@ void OperationContext::safe_run_impl() noexcept
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
-void OperationContext::safe_run_impl2() noexcept
+void OperationContext::safe_run_with_cleanup() noexcept
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	safe_run_impl();
+	safe_run_with_catch();
 
 	if (GetResult()->WasFailed(FR_Data))
 		OnException(); // clean-up
@@ -1118,11 +1118,11 @@ void OperationContext::safe_run_impl2() noexcept
 	dms_assert(!m_WriteLock);
 }
 
-void OperationContext::safe_run() noexcept
+void OperationContext::safe_run_caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
-		safe_run_impl2();
+		safe_run_with_cleanup();
 
 	DMS_SE_CALL_END
 }
@@ -1213,7 +1213,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 					);
 #endif //defined(MG_DEBUG_OPERATIONS)
 
-				if (!funcDC) return; // TODO G8: Debug why.
+				if (!funcDC) 
+					return; // TODO G8: Debug why.
 
 				dms_assert(funcDC && (funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context));
 
@@ -1226,6 +1227,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 				auto readLocks = self->SetReadLocks(allInterests); // TODO: move this into CalcResult, replace argRefs
 				allInterests.clear();
+				//funcDC->ResetOperContextImplAndStopSupplInterest(); // test
+				funcDC->StopSupplInterest();
 				self->RunOperator(context, std::move(argRefs), std::move(readLocks)); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
 				argRefs.clear();
 

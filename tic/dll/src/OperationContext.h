@@ -117,9 +117,9 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	SharedActorInterestPtr m_ResKeeper;
 	std::atomic<task_status> m_Status = task_status::none;
 
-	void safe_run_impl() noexcept;
-	void safe_run_impl2() noexcept;
-	void safe_run() noexcept;
+	void safe_run_with_catch() noexcept;
+	void safe_run_with_cleanup() noexcept;
+	void safe_run_caller() noexcept;
 public:
 	std::function<void(Explain::Context*)> m_TaskFunc;
 	Explain::Context*               m_Context = nullptr;

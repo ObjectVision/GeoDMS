@@ -315,13 +315,12 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV>
-void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, OIV resBegin, SizeT pCount)
+void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, abstr_future_tile* part_ft, OIV resBegin, SizeT pCount)
 {
 	auto valuesBegin = values.begin();
 	auto valuesEnd   = values.end();
 
-	DataReadLock indexLock(indicesItem);
-	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, no_tile);
+	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_ft);
 
 	SizeT n = valuesEnd - valuesBegin;
 
@@ -374,10 +373,11 @@ void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V
 {
 	fast_fill(resBegin, resBegin+nrP, UNDEFINED_OR_ZERO(V));
 
+	assert(values_fta.size() == part_fta.size());
 	if (values_fta.size() != 1)
 		ModusPartBySet  <V, OIV>(indicesItem, std::move(values_fta), std::move(part_fta), resBegin, nrP);
 	else
-		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), resBegin, nrP);
+		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), part_fta[0], resBegin, nrP);
 }
 
 

@@ -189,8 +189,7 @@ template <typename E>
 void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 {
 	static_assert(has_undefines_v<E>);
-	const DataArray<E>* di = const_array_cast<E>(m_Adi);
-	auto range = di->GetValueRangeData()->GetRange();
+	auto range = inviter->GetRange();
 	typename DataArray<E>::locked_cseq_t tileData;
 	DataCheckMode dcmIndices = DCM_CheckBoth;
 	if (m_Aft)
@@ -201,6 +200,7 @@ void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 	}
 	else
 	{
+		const DataArray<E>* di = const_array_cast<E>(m_Adi);
 		dcmIndices = m_Adi->GetCheckMode();
 		tileData = di->GetLockedDataRead(m_TileID);
 	}
