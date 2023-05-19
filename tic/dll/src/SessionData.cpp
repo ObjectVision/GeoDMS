@@ -43,12 +43,14 @@ void SessionData::Release()
 	if (Curr().get() != this)
 		return;
 
+	m_SFWA.Commit();
 	DeactivateThis();
 }
 
 void SessionData::DeactivateThis()
 {
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
+
 	m_IsCancelling = true;
 
 	assert(Curr().get() == this);

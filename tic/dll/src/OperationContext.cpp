@@ -106,9 +106,9 @@ static std::set<const OperationContext*> sd_ManagedContexts;
 struct ReportOnExit {
 	~ReportOnExit()
 	{
-		dms_assert(sd_ManagedContexts.empty());
-		dms_assert(s_NrRunningOperations == 0);
-		dms_assert(s_ScheduledContexts.empty());
+		assert(sd_ManagedContexts.empty());
+		assert(s_NrRunningOperations == 0);
+		assert(s_ScheduledContexts.empty());
 	}
 
 };
