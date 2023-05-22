@@ -108,6 +108,10 @@ void counted_mutex::unlock_shared()
 		s_cv_CountedMutexSection.notify_all();
 }
 
+void TileBase::DecoupleShadowFromOwner()
+{
+	throwIllegalAbstract(MG_POS, "TileBase::DecoupleShadowFromOwner()");
+}
 
 
 #if defined(MG_DEBUG_LOCKLEVEL)

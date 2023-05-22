@@ -105,7 +105,7 @@ SA_ConstReference<T>::SA_ConstReference(const SequenceArrayType* sa, const_seq_i
 	,	m_CSeqPtr(cSeqPtr) 
 {
 	assert_iter(m_SeqPtr != seq_iterator());
-	dms_assert( !is_null() );
+	assert( !is_null() );
 }
 
 //=======================================
@@ -176,16 +176,16 @@ bool SA_Reference<T>::operator < (const sequence_value_type& rhs) const
 template <typename T>
 void SA_Reference<T>::assign(const_iterator first, const_iterator last)
 {
-	dms_assert( !is_null() );
+	assert( !is_null() );
 
 	m_Container->allocateSequenceRange(m_SeqPtr, first, last);
-	dms_assert(size() == last - first);
+	assert(size() == last - first);
 }
 
 template <typename T>
 void SA_Reference<T>::assign(Undefined) 
 {
-	dms_assert( !is_null() );
+	assert( !is_null() );
 
 	m_Container->m_ActualDataSize -= size();
 	*m_SeqPtr = Undefined();
@@ -194,7 +194,7 @@ void SA_Reference<T>::assign(Undefined)
 template <typename T>
 void SA_Reference<T>::erase(iterator first, iterator last)
 {
-	dms_assert( !is_null() );
+	assert( !is_null() );
 
 	m_Container->cut_seq(m_SeqPtr, std::copy(last, end(), first) - begin());
 }
@@ -202,7 +202,7 @@ void SA_Reference<T>::erase(iterator first, iterator last)
 template <typename T>
 void SA_Reference<T>::clear()
 {
-	dms_assert( !is_null() );
+	assert( !is_null() );
 
 	m_Container->cut_seq(m_SeqPtr, 0);
 }
@@ -210,7 +210,7 @@ void SA_Reference<T>::clear()
 template <typename T>
 void SA_Reference<T>::resize(size_type seqSize, const value_type& initValue)
 {
-	dms_assert( !is_null() );
+	assert( !is_null() );
 
 	if (!::IsDefined(seqSize))
 		assign(Undefined());
@@ -222,7 +222,7 @@ void SA_Reference<T>::resize(size_type seqSize, const value_type& initValue)
 template <typename T>
 RTC_CALL void SA_Reference<T>::resize_uninitialized(size_type seqSize)
 {
-	dms_assert(!is_null());
+	assert(!is_null());
 
 	if (!::IsDefined(seqSize))
 		assign(Undefined());
@@ -234,16 +234,16 @@ RTC_CALL void SA_Reference<T>::resize_uninitialized(size_type seqSize)
 template <typename T>
 void SA_Reference<T>::push_back(const value_type& value)
 {
-	dms_assert( !is_null() );
-	dms_assert(size() == 0 || end()== m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
-	m_Container->allocateSequence(m_SeqPtr, size()+1, [value](auto i, auto e) { dms_assert(i + 1 == e);  *i = value; } );
+	assert( !is_null() );
+	assert(size() == 0 || end()== m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
+	m_Container->allocateSequence(m_SeqPtr, size()+1, [value](auto i, auto e) { assert(i + 1 == e);  *i = value; } );
 }
 
 template <typename T>
 void SA_Reference<T>::push_back()
 {
-	dms_assert(!is_null());
-	dms_assert(size() == 0 || end() == m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
+	assert(!is_null());
+	assert(size() == 0 || end() == m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
 	m_Container->allocateSequence(m_SeqPtr, size() + 1, [](auto i, auto e) {} );
 }
 
@@ -259,7 +259,7 @@ void SA_Reference<T>::operator =(SA_ConstReference<T> rhs)
 template <typename T>
 void SA_Reference<T>::operator =(SA_Reference rhs) 
 { 
-	dms_assert(!is_null() ); 
+	assert(!is_null() ); 
 	if (rhs.IsDefined())
 		assign(rhs.begin(), rhs.end()); 
 	else
@@ -279,8 +279,8 @@ void SA_Reference<T>::operator =(const typename sequence_traits<T>::container_ty
 template <typename T>
 void SA_Reference<T>::swap(SA_Reference<T>& rhs)
 {
-	dms_assert(!    is_null() );
-	dms_assert(!rhs.is_null() );
+	assert(!    is_null() );
+	assert(!rhs.is_null() );
 	if (m_Container == rhs.m_Container)
 		omni::swap(*m_SeqPtr, *rhs.m_SeqPtr);
 	else
@@ -306,7 +306,7 @@ template <typename T>
 SA_Reference<T>::SA_Reference()
 	:	m_SeqPtr() 
 {
-	dms_assert(is_null());
+	assert(is_null());
 }
 
 template <typename T>
@@ -315,7 +315,7 @@ SA_Reference<T>::SA_Reference(SequenceArrayType* container, seq_iterator seqPtr)
 	,	m_Container(container)
 {
 	assert_iter(m_SeqPtr != seq_iterator());
-	dms_assert(m_Container);
+	assert(m_Container);
 };
 
 //=======================================
@@ -342,9 +342,9 @@ sequence_vector<T>::sequence_vector(const_iterator i, const_iterator e)
 		++ri;
 		++i;
 	}
-	dms_assert(this->calcActualDataSize() == this->actual_data_size());
-	dms_assert(srcDataSize == this->actual_data_size());
-	dms_assert(!this->IsDirty());
+	assert(this->calcActualDataSize() == this->actual_data_size());
+	assert(srcDataSize == this->actual_data_size());
+	assert(!this->IsDirty());
 }
 */
 
@@ -361,7 +361,7 @@ void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expe
 	MGD_CHECKDATA(IsLocked());
 	MGD_CHECKDATA(src.IsLocked());
 
-	dms_assert(src.calcActualDataSize() == src.actual_data_size());
+	assert(src.calcActualDataSize() == src.actual_data_size());
 
 	reset(src.size(), src.actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_SA);
 
@@ -379,9 +379,9 @@ void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expe
 		else
 			Assign(*ri, Undefined() );
 
-	dms_assert(actual_data_size  () == src.actual_data_size());
-	dms_assert(calcActualDataSize() == actual_data_size());
-	dms_assert(!IsDirty());
+	assert(actual_data_size  () == src.actual_data_size());
+	assert(calcActualDataSize() == actual_data_size());
+	assert(!IsDirty());
 }
 
 template <typename T>
@@ -397,7 +397,7 @@ void sequence_array<T>::swap(sequence_array<T>& rhs) noexcept
 template <typename T>
 void sequence_array<T>::erase(const iterator& first, const iterator& last)
 {
-	dms_assert(first == last || (first.m_Container == this && last.m_Container == this));
+	assert(first == last || (first.m_Container == this && last.m_Container == this));
 
 	for (iterator i = first; i != last; ++i)
 		abandon(i.m_SeqPtr->first, i.m_SeqPtr->second);
@@ -409,7 +409,7 @@ template <typename T>
 void sequence_array<T>::clear()
 {
 	erase(begin(), end());
-	dms_assert(empty()); 
+	assert(empty()); 
 	m_Values.clear();
 }
 
@@ -418,7 +418,7 @@ void sequence_array<T>::clear()
 template <typename T>
 void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode != dms_rw_mode::unspecified);
 
 	m_Indices.Open(nrElem, rwMode == dms_rw_mode::write_only_all ? dms_rw_mode::write_only_mustzero : rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	try {
@@ -435,7 +435,7 @@ void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isT
 template <typename T>
 void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
 { 
-	dms_assert(rwMode >= dms_rw_mode::read_only); // no undefined nor check_only
+	assert(rwMode >= dms_rw_mode::read_only); // no undefined nor check_only
 
 	SeqLock<seq_vector_t> lock(m_Indices, dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_mustzero); // may throw without any rolbackhere
 	m_Values.Lock(dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_all);                            // may throw with rollback managed by lock
@@ -457,7 +457,7 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
 	MG_DEBUGCODE( checkActualDataSize(); )
 	MG_DEBUGCODE( checkConsecutiveness(); )
 
-//	dms_assert(!IsDirty()); // last unlock should have packed sequences
+//	assert(!IsDirty()); // last unlock should have packed sequences
 }
 
 template <typename T>
@@ -481,12 +481,12 @@ void sequence_array<T>::Reset(size_type nrSeqs, typename data_vector_t::size_typ
 
 	if (!m_Indices.IsAssigned())
 	{
-		dms_assert(!m_Values.IsAssigned());
+		assert(!m_Values.IsAssigned());
 
 		Reset(heap_sequence_provider<T>::CreateProvider());
 
-		dms_assert(m_Indices.IsAssigned());
-		dms_assert(m_Values.IsAssigned());
+		assert(m_Indices.IsAssigned());
+		assert(m_Values.IsAssigned());
 
 		if (!nrSeqs)
 			return;
@@ -506,9 +506,9 @@ void sequence_array<T>::reset(size_type nrSeqs, typename data_vector_t::size_typ
 	m_Values.clear();
 	data_reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	  
-//	dms_assert(m_Indices.size() == 0); // when else would this be called
+//	assert(m_Indices.size() == 0); // when else would this be called
 	m_Indices.clear();
-	dms_assert(m_Indices.size() == 0); // now we're certain
+	assert(m_Indices.size() == 0); // now we're certain
 	m_Indices.resizeSO(nrSeqs, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	m_ActualDataSize = 0;
 
@@ -518,7 +518,7 @@ void sequence_array<T>::reset(size_type nrSeqs, typename data_vector_t::size_typ
 template <typename T>
 void sequence_array<T>::Resize(typename data_vector_t::size_type expectedDataSize, size_type expectedSeqsSize, size_type nrSeqs MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(nrSeqs <= expectedSeqsSize); // PRECONDITION
+	assert(nrSeqs <= expectedSeqsSize); // PRECONDITION
 
 	if (!m_Indices.IsAssigned())
 		Reset(heap_sequence_provider<T>::CreateProvider());
@@ -527,7 +527,7 @@ void sequence_array<T>::Resize(typename data_vector_t::size_type expectedDataSiz
 
 	data_reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
-	dms_assert(m_Indices.size() <= nrSeqs);  // we don't allow cutting here
+	assert(m_Indices.size() <= nrSeqs);  // we don't allow cutting here
 
 	reserve(expectedSeqsSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
@@ -548,18 +548,18 @@ bool sequence_array<T>::allocate_data(data_size_type expectedGrowth MG_DEBUG_ALL
 template <typename T>
 bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vector_t::size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(oldData.empty());
-	dms_assert(oldData.IsAssigned());
-	dms_assert(oldData.IsHeapAllocated());
-//	dms_assert(m_Values.IsAssigned());
+	assert(oldData.empty());
+	assert(oldData.IsAssigned());
+	assert(oldData.IsHeapAllocated());
+//	assert(m_Values.IsAssigned());
 	MGD_CHECKDATA(oldData.IsLocked());
 	MGD_CHECKDATA(m_Values.IsLocked());
 
 	MG_DEBUGCODE( checkActualDataSize(); )
 
-	dms_assert(oldData.empty()     );
-	dms_assert(oldData.IsAssigned());
-	dms_assert(oldData.IsHeapAllocated());
+	assert(oldData.empty()     );
+	assert(oldData.IsAssigned());
+	assert(oldData.IsHeapAllocated());
 
 	// NYI: doe alleen m_Values en laat m_Indices ongemoeid
 	if (!IsDirty())
@@ -577,14 +577,14 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 		m_Values.swap(oldData);
 	else
 	{
-		dms_assert(IsDirty());
+		assert(IsDirty());
 		oldData.appendRange(m_Values.begin(), m_Values.end());
 		m_Values.clear();
 	}
 
-	dms_assert(m_Values.empty()    );
-	dms_assert(m_Values.size() == 0);
-	dms_assert(m_Values.IsAssigned());
+	assert(m_Values.empty()    );
+	assert(m_Values.size() == 0);
+	assert(m_Values.IsAssigned());
 
 	data_reserve(actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
@@ -597,13 +597,13 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	while (i!=e) 
 	{
 		data_size_type size = i->size();
-		dms_assert(size || !IsDefined(*i) || ((!i->first) && (!i->second)));
+		assert(size || !IsDefined(*i) || ((!i->first) && (!i->second)));
 		if (size)
 		{
 			data_size_type dataCurr = dataEnd;
 			m_Values.appendRange(oldBegin + i->first, oldBegin + i->second);
 			dataEnd += size;
-			dms_assert(dataEnd == m_Values.size());
+			assert(dataEnd == m_Values.size());
 			*i = seq_t(dataCurr, dataEnd);
 		}
 		++i;
@@ -612,8 +612,8 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	MG_DEBUGCODE( checkActualDataSize(); )
 	MG_DEBUGCODE( checkConsecutiveness(); )
 
-//	dms_assert(!IsDirty());
-	dms_assert(m_Values.size() +expectedGrowth == m_Values.capacity());
+//	assert(!IsDirty());
+	assert(m_Values.size() +expectedGrowth == m_Values.capacity());
 	return true;
 }
 
@@ -636,8 +636,8 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 {
 	MGD_CHECKDATA(IsLocked());
 	assert_iter(seqPtr!=seq_iterator());
-	dms_assert(seq_size_type(seqPtr - m_Indices.begin()) < m_Indices.size());
-	dms_assert(m_ActualDataSize >= seqPtr->size());
+	assert(seq_size_type(seqPtr - m_Indices.begin()) < m_Indices.size());
+	assert(m_ActualDataSize >= seqPtr->size());
 
 	data_size_type                          oldSize = seqPtr->size();
 	typename data_vector_t::difference_type delta   =  newSize - oldSize;
@@ -667,16 +667,16 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 			*seqPtr = seq_t();
 
 			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_SA);
-			dms_assert(!IsDirty());
+			assert(!IsDirty());
 			if (oldSize)
 			{
 				if (dataWasMoved)
 					appendRange(oldData.begin() + oldFirst, oldData.begin() + oldSecond);
 				else
 				{
-					dms_assert(oldFirst == m_Values.size());
+					assert(oldFirst == m_Values.size());
 					appendInitializer(oldSize, [](auto i, auto e) {}); // skip old range that was abandoned but is still there.
-					dms_assert(oldSecond == m_Values.size());
+					assert(oldSecond == m_Values.size());
 				}
 			}
 			appendInitializer(delta, initFunc);
@@ -689,7 +689,7 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 	else
 		cut_seq(seqPtr, newSize);
 
-	dms_assert(newSize == seqPtr->size());
+	assert(newSize == seqPtr->size());
 }
 
 template <typename T>
@@ -698,18 +698,18 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 	MGD_CHECKDATA(IsLocked());
 
 	assert_iter(seqPtr!=seq_iterator());
-	dms_assert(seq_size_type(seqPtr - m_Indices.begin()) < m_Indices.size());
+	assert(seq_size_type(seqPtr - m_Indices.begin()) < m_Indices.size());
 
 	data_size_type
 		newSize = last - first,
 		oldSize = seqPtr->size();
-	dms_assert(m_ActualDataSize >= oldSize);
+	assert(m_ActualDataSize >= oldSize);
 
 	typename data_vector_t::difference_type delta =  newSize - oldSize;
 
 	if (delta > 0)
 	{
-		dms_assert(newSize);
+		assert(newSize);
 		bool atEnd = (seqPtr->second == m_Values.size());
 		if ((atEnd ? newSize - oldSize : newSize) <= m_Values.capacity() - m_Values.size())
 		{
@@ -738,7 +738,7 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 
-			dms_assert(m_ActualDataSize == calcActualDataSize());
+			assert(m_ActualDataSize == calcActualDataSize());
 
 //			MG_DEBUGCODE( checkActualDataSize() );
 		}
@@ -748,7 +748,7 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 		fast_copy(first, last, m_Values.begin() + seqPtr->first);
 		cut_seq(seqPtr, newSize);
 	}
-	dms_assert(newSize == seqPtr->size());
+	assert(newSize == seqPtr->size());
 }
 
 template <typename T>
@@ -757,12 +757,12 @@ void sequence_array<T>::cut_seq(typename base_type::seq_iterator seqPtr, typenam
 	MGD_CHECKDATA(IsLocked());
 
 	assert_iter(seqPtr != seq_iterator());
-	dms_assert(SizeT(seqPtr - m_Indices.begin()) < m_Indices.size());
+	assert(SizeT(seqPtr - m_Indices.begin()) < m_Indices.size());
 
-	dms_assert(m_ActualDataSize >= seqPtr->size());
+	assert(m_ActualDataSize >= seqPtr->size());
 
 	size_type oldSize = seqPtr->size();
-	dms_assert(newSize <= oldSize);
+	assert(newSize <= oldSize);
 	
 	if (newSize < oldSize)
 	{
@@ -781,14 +781,14 @@ void sequence_array<T>::cut_seq(typename base_type::seq_iterator seqPtr, typenam
 	else
 		*seqPtr = seq_t(); // set all empty sequences to start of m_Values to avoid overlap after expanding a predecessing non-empty sequence
 
-	dms_assert(newSize == seqPtr->size());
+	assert(newSize == seqPtr->size());
 }
 
 template <typename T>
 void sequence_array<T>::abandon(data_size_type first, data_size_type last)
 {
 	data_size_type n = last - first;
-	dms_assert( n <= m_ActualDataSize);
+	assert( n <= m_ActualDataSize);
 	m_ActualDataSize -= n;
 	
 	destroy_range(m_Values.begin()+first, m_Values.begin() + last);
@@ -798,7 +798,7 @@ template <typename T>
 template <typename Initializer>
 void sequence_array<T>::appendInitializer(size_type n, Initializer&& initFunc)
 {
-	dms_assert(m_Values.capacity() - m_Values.size() >= n);
+	assert(m_Values.capacity() - m_Values.size() >= n);
 
 	m_Values.appendInitializer(n, initFunc);
 	m_ActualDataSize += n;
@@ -809,7 +809,7 @@ void sequence_array<T>::appendInitializer(size_type n, Initializer&& initFunc)
 template <typename T>
 void sequence_array<T>::appendRange(const_data_iterator first, const_data_iterator last)
 {
-	dms_assert((m_Values.capacity() - m_Values.size()) >= data_size_type(last - first));
+	assert((m_Values.capacity() - m_Values.size()) >= data_size_type(last - first));
 
 	m_Values.appendRange(first, last);
 	m_ActualDataSize += (last - first);
@@ -821,7 +821,7 @@ void sequence_array<T>::StreamOut(BinaryOutStream& ar) const
 	if (CanWrite())
 		const_cast<sequence_array<T>*>(this)->allocate_data(0 MG_DEBUG_ALLOCATOR_SRC_SA); // we only want to write allocated elements, so reallocate if dirty
 
-	dms_assert(! IsDirty() );
+	assert(! IsDirty() );
 
 	MG_DEBUGCODE( checkActualDataSize(); );
 
@@ -847,8 +847,8 @@ void sequence_array<T>::StreamIn (BinaryInpStream& ar, bool mayResize)
 				s, m_Indices.size()
 			);
 	}
-	dms_assert(m_Indices.size() == s);
-	dms_assert(m_Indices.begin() + s == m_Indices.end());
+	assert(m_Indices.size() == s);
+	assert(m_Indices.begin() + s == m_Indices.end());
 	for (SizeT i = 0; i != s; ++i)
 		ar >> m_Indices[i].first >> m_Indices[i].second;
 
@@ -868,7 +868,7 @@ void sequence_array<T>::checkActualDataSize() const
 		return;
 
 	SizeT as = calcActualDataSize(); // O(#elements)
-	dms_assert(as == m_ActualDataSize);
+	assert(as == m_ActualDataSize);
 }
 
 template <typename T>
@@ -877,8 +877,8 @@ void sequence_array<T>::checkConsecutiveness() const
 	MGD_CHECKDATA(IsLocked());
 	for (const auto& indexPair : m_Indices)
 	{
-		dms_assert((indexPair.first  <= indexPair.second) || !IsDefined(indexPair));
-		dms_assert((indexPair.second <= m_ActualDataSize) || !IsDefined(indexPair));
+		assert((indexPair.first  <= indexPair.second) || !IsDefined(indexPair));
+		assert((indexPair.second <= m_ActualDataSize) || !IsDefined(indexPair));
 	}
 }
 

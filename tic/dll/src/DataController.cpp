@@ -6,6 +6,8 @@
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
+#include "ser/AsString.h"
+#include "utl/mySPrintF.h"
 
 #include "LispRef.h"
 
@@ -266,48 +268,12 @@ namespace {
 }	// anonymous namespace
 
 // *****************************************************************************
-// Section:     DataControllerMap Component
-// *****************************************************************************
-
-DataControllerMap::~DataControllerMap()
-{
-	#if defined(MG_DEBUG_DATA)
-
-		UInt32 n = size();
-		if (n)
-		{
-			TreeItemAdmLock::Report(); // present additional info. Note that some non-config specific items might be destroyed later
-
-			DataControllerMap::const_iterator i = begin(), e = end();
-			UInt32 c=0;
-			while (i!=e)
-			{
-				const DataController* dcPtr = (*i++).second;
-				reportF(SeverityTypeID::ST_MajorTrace, "MemoryLeak DataController(%d, %d, %d): %s",
-					c++, 
-					dcPtr->GetRefCount(), 
-					dcPtr->GetInterestCount(), 
-					#if defined (MG_DEBUG_DCDATA)
-						dcPtr->md_sKeyExpr.c_str()
-					#else
-						AsFLispSharedStr(dcPtr->GetLispRef(), FormattingFlags::ThousandSeparator).c_str()
-					#endif
-				);
-			}			
-			reportF(SeverityTypeID::ST_Error, "MemoryLeak of %u DataControllers. See EventLog for details.", n);
-		}
-	#endif
-	dms_assert(!size());
-}
-
-
-// *****************************************************************************
 // Section:     DataController Implementation
 // *****************************************************************************
 
 #include "SessionData.h"
 
-inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); }
+//inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); }
 
 DataController::DataController(LispPtr keyExpr)
 	:	m_Key(keyExpr)
@@ -321,7 +287,6 @@ DataController::~DataController()
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
 	auto curr = SessionData::Curr();
 	if (curr)
 		curr->GetDcMap().erase(m_Key);
@@ -335,7 +300,9 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 
 	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
 
-	DataControllerMap& dcMap = CurrDcMap();
+	auto currSD = SessionData::Curr();
+	
+	DataControllerMap& dcMap = currSD->GetDcMap();
 	DataControllerMap::iterator dcPtrLoc = dcMap.lower_bound(keyExpr);
 	
 	if (dcPtrLoc != dcMap.end() && dcPtrLoc->first == keyExpr)
@@ -445,8 +412,6 @@ bool DataController::IsCalculating() const
 
 void DataController::DoInvalidate () const
 {
-	DataStoreManager::Curr()->InvalidateDC(this);
-
 	TreeItemDualRef::DoInvalidate();
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());

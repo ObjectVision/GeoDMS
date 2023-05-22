@@ -42,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 // const : GraphicClass flags
 //----------------------------------------------------------------------
 
-enum class GraphicClassFlags {
+enum class GraphicClassFlags : UInt32 {
 	None           = 0,
 	PushVisibility = 0x0001,
 	ChildCovered   = 0x0002, // Row and Col Containers are filled by children (thus don't require fill)

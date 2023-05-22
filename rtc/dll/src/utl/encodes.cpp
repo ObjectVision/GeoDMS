@@ -77,7 +77,7 @@ bool itemName_test(CharPtr p)
 
 CharPtr ParseTreeItemName(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	if (itemNameFirstChar_test(*name))
 	{
 		++name;
@@ -89,7 +89,7 @@ CharPtr ParseTreeItemName(CharPtr name)
 
 CharPtr ParseTreeItemPath(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	while (true)
 	{
 		name = ParseTreeItemName(name); // could be empty

@@ -216,7 +216,6 @@ protected:
 	RTC_CALL virtual SharedStr GetExpr() const { return SharedStr(); }
 #endif
 
-	friend struct DataStoreManager;
 	friend struct OperationContext;
 	friend struct DetermineStateLock;
 };

@@ -363,7 +363,7 @@ struct RapidXmlOperator : public BinaryOperator
 		dms_assert(resultHolder);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& argRefs, OperationContext*, Explain::Context* context = nullptr) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs argRefs, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const override
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.

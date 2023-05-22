@@ -150,6 +150,22 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 	return false;
 }
 
+//  -------------------- Main Window Handle
+
+static void* s_GlobalMainWindow = nullptr;
+
+RTC_CALL void* GetGlobalMainWindowHandle() {
+	return s_GlobalMainWindow; 
+}
+
+RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow)
+{
+	auto oldHandle = GetGlobalMainWindowHandle();
+	s_GlobalMainWindow = hWindow;
+	return oldHandle;
+}
+
+
 //  -----------------------------------------------------------------------
 
 #include "utl/IncrementalLock.h"
@@ -165,7 +181,8 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
+	return false;
+//	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
@@ -739,8 +756,6 @@ bool FindFileBlock::IsValid() const
 	return m_Handle != INVALID_HANDLE_VALUE;
 }
 
-// REMOVE COMMENT: Make DataStoreManager.GetDir subdir aware to be prepared for CalcCache partitioning
-
 DWORD FindFileBlock::GetFileAttr() const
 {
 	dms_assert(IsValid());
@@ -1050,7 +1065,9 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	siStartInfo.cb = sizeof(STARTUPINFO);
 	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
 
-	   // Create the child process.
+//	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
+
+	// Create the child process.
 	BOOL res = CreateProcessA
 	(
 		moduleName,

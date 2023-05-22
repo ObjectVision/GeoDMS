@@ -178,26 +178,22 @@ struct unary_assign_all : unary_assign<Bool, Bool>
 // *****************************************************************************
 
 template <typename V, typename I> 
-void count_best_total(I& output, const V* valuesFirst, const V* valuesLast, bool hasUndefinedValues)
+void count_best_total(I& output, const V* valuesFirst, const V* valuesLast)
 {
-	if (hasUndefinedValues)
-		aggr1_total_best<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast, hasUndefinedValues);
-	else
-		output += (valuesLast - valuesFirst);
+	aggr1_total_best<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast);
 }
 
 template <bit_size_t N, typename Block, typename I> 
-void count_best_total(I& output, bit_iterator<N, Block> valuesFirst, bit_iterator<N, Block> valuesLast, bool hasUndefinedValues)
+void count_best_total(I& output, bit_iterator<N, Block> valuesFirst, bit_iterator<N, Block> valuesLast)
 {
-	dms_assert(!hasUndefinedValues);
 	output += (valuesLast - valuesFirst);
 }
 
 template<typename CIV, typename OIA>
-void count_best_partial_best(OIA outFirst, CIV valuesFirst, CIV valuesLast, const IndexGetter* indices, bool hasUndefinedValues)
+void count_best_partial_best(OIA outFirst, CIV valuesFirst, CIV valuesLast, const IndexGetter* indices)
 {
 	typedef typename std::iterator_traits<CIV>::value_type V;
-	aggr_fw_best_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices, hasUndefinedValues);
+	aggr_fw_best_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices);
 }
 
 #endif // !defined(__CLC_AGGRFUNCNUM_H)

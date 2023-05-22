@@ -144,7 +144,7 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
 void GuiExport::SetDefaultNativeDriverUsage()
 {
     // TODO: expand logic, simplified implementation
-    if (m_selected_driver.HasNativeVersion() && m_selected_driver.native_is_default)
+    if (m_selected_driver.HasNativeVersion() && (m_selected_driver.drChars & driver_characteristics::native_is_default))
         m_use_native_driver = true;
     else
         m_use_native_driver = false;
@@ -152,7 +152,7 @@ void GuiExport::SetDefaultNativeDriverUsage()
 
 void GuiExport::SelectDriver(bool is_raster)
 {
-    if (m_selected_driver.is_raster != is_raster)
+    if ((m_selected_driver.drChars & driver_characteristics::is_raster) != is_raster)
         m_selected_driver = {};
 
     ImGui::Text("Format:               "); ImGui::SameLine();
@@ -163,7 +163,7 @@ void GuiExport::SelectDriver(bool is_raster)
     {
         for (auto& available_driver : m_available_drivers)
         {
-            if (is_raster != available_driver.is_raster)
+            if (is_raster != (available_driver.drChars & driver_characteristics::is_raster))
                 continue;
 
             bool is_selected = m_selected_driver.shortname == available_driver.shortname;
@@ -221,15 +221,15 @@ GuiExport::GuiExport()
 {
     m_folder_name = GetLocalDataDir().c_str();
 
-    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", false, false);
-    m_available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, false, false);
-    m_available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", false, true);
-    m_available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, false, false);
-    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, false, false);
-    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", true, false);
-    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, true, false);
-    m_available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, true, false);
-    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, true, false);
+    m_available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", driver_characteristics::tableset_is_folder);
+    m_available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr);
+    m_available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", driver_characteristics::native_is_default|driver_characteristics::tableset_is_folder);
+    m_available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr);
+    m_available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr);
+    m_available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    m_available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, driver_characteristics::is_raster);
+    m_available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    m_available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
 }
 
 void GuiExport::Update(bool* p_open, GuiState &state)
@@ -523,14 +523,14 @@ bool GuiExport::DoExport()
     else
     {
         driverName = selectedDriver.shortname;
-        if (selectedDriver.is_raster)
+        if (selectedDriver.drChars & driver_characteristics::is_raster)
             storageTypeName = "gdalwrite.grid";
         else
             storageTypeName = "gdalwrite.vect";
     }
 
     const TreeItem* exportConfig = nullptr;
-    if (selectedDriver.is_raster)
+    if (selectedDriver.drChars & driver_characteristics::is_raster)
         exportConfig = DoExportRasterOrMatrixData(item, m_use_native_driver, ffName, storageTypeName, driverName, "");
     else
         exportConfig = DoExportTableOrDatabase(item, m_use_native_driver, ffName, storageTypeName, driverName, "");

@@ -1062,7 +1062,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				// ===================== report nrOrgZones every 5 seconds
 				zoneCount++;
 				if (processTimer.PassedSecs(5))
-					reportF(SeverityTypeID::ST_MajorTrace, "DijkstraMatr %s %d of %d sources: resulted in %u od-pairs", actionMsg, zoneCount, ni.nrOrgZones, resultCount);
+					reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %d of %d sources: resulted in %u od-pairs", actionMsg, zoneCount, ni.nrOrgZones, resultCount);
 				&returnTokenOnExit;
 			}
 		));
@@ -1080,7 +1080,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	if (OperationContext::CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
-	reportF(SeverityTypeID::ST_MajorTrace, "DijkstraMatr %s all %d sources: resulted in %u od-pairs", actionMsg, ni.nrOrgZones, resultCount);
+	reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s all %d sources: resulted in %u od-pairs", actionMsg, ni.nrOrgZones, resultCount);
 
 	return resultCount;
 }
@@ -1483,7 +1483,7 @@ public:
 
 #if MG_DEBUG_DIJKSTRA
 			SharedStr groupName = SharedStr(GetGroup()->GetName());
-			DBG_START("DijkstraMatrOperator::Calc", groupName.c_str(), MG_DEBUG_DIJKSTRA);
+			DBG_START("ImpedanceMatrOperator::Calc", groupName.c_str(), MG_DEBUG_DIJKSTRA);
 #endif MG_DEBUG_DIJKSTRA
 
 			bool isBidirectional = flags(df & (DijkstraFlag::Bidirectional|DijkstraFlag::BidirFlag));

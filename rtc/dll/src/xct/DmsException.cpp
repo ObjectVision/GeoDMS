@@ -554,17 +554,23 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 	return SharedStr(result);
 }
 
+
 #define DMS_SE_CPP 0xE06D7363
 
-THREAD_LOCAL unsigned int g_ExceptionCode = 0;
+THREAD_LOCAL unsigned int g_StructuredExceptionCode = 0;
 THREAD_LOCAL _EXCEPTION_POINTERS* g_pExp;
+
+RTC_CALL unsigned int GetLastExceptionCode()
+{
+	return g_StructuredExceptionCode;
+}
 
 int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandException)
 {
 //	if ((u == DMS_SE_CPP) || (u == EXCEPTION_BORLAND_ERROR))
 	if (passBorlandException && u == EXCEPTION_BORLAND_ERROR)
 			return EXCEPTION_CONTINUE_SEARCH;
-	g_ExceptionCode = u;
+	g_StructuredExceptionCode = u;
 	g_pExp = pExp;
 
 	return EXCEPTION_EXECUTE_HANDLER;
@@ -582,7 +588,7 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 
 	if (mustTerminate)
 	{
-		MessageBox(nullptr, exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
+		MessageBox(reinterpret_cast<HWND>(GetGlobalMainWindowHandle()), exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
 		std::terminate();
 	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
@@ -594,12 +600,12 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 
 [[noreturn]] RTC_CALL void call_trans_SE2DMSfunc()
 {
-	trans_SE2DMSfunc(g_ExceptionCode, g_pExp, false);
+	trans_SE2DMSfunc(g_StructuredExceptionCode, g_pExp, false);
 }
 
 [[noreturn]] RTC_CALL void call_HaltOnSE()
 {
-	trans_SE2DMSfunc(g_ExceptionCode, g_pExp, true);
+	trans_SE2DMSfunc(g_StructuredExceptionCode, g_pExp, true);
 }
 
 

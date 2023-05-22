@@ -89,12 +89,10 @@ ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args)
 ConstUnitRef count_unit_creator(const AbstrDataItem* adi)
 {
 	const AbstrUnit* adu = adi->GetAbstrDomainUnit(); // Partition Domain
-	dms_assert(adu);
+	assert(adu);
 
-	const ValueClass* vc = adu->GetValueType(); dms_assert(vc);
+	const ValueClass* vc = adu->GetValueType(); assert(vc);
 	const ValueClass* vcCrd = vc->GetCrdClass();
-	if (vc == vcCrd)
-		return adu;
 	return UnitClass::Find(vcCrd)->CreateDefault();
 }
 

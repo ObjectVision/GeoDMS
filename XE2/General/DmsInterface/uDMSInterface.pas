@@ -63,6 +63,7 @@ function DMS_GetVersion: PMsgChar;                                              
 function DMS_GetVersionNumber: Float64;                                            cdecl; external RTC_DLL; // From RtcInterface.h
 
 procedure DMS_VisitVersionComponents(clientHandle: TClientHandle; callBack: TVersionComponentCallbackFunc); cdecl; external RTC_DLL;
+function  SetGlobalMainWindowHandle(hWindow: Pointer): Pointer; cdecl; external RTC_DLL;
 
 {*******************************************************************************
                   Diagnostics functions

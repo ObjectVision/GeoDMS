@@ -82,12 +82,13 @@ class AbstrDataObject: public PersistentSharedObj
 	friend class AbstrDataItem; 
 	friend class AbstrStorageManager;
 	friend struct DataWriteLock;
-	friend struct DataStoreManager;
 
 	using base_type = AbstrDataItem;
 public:
 	using data_read_begin_handle = locked_seq<ptr<const Byte>, TileCRef>;
 	using data_write_begin_handle = locked_seq<ptr<Byte>, TileRef>;
+
+	TIC_CALL ~AbstrDataObject();
 
 	TIC_CALL SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 
@@ -212,6 +213,7 @@ public:
 
 public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
+	mutable TileBase* m_shadowTilePtr = nullptr; // a kind of weak ptr
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;

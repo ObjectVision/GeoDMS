@@ -109,7 +109,7 @@ struct mutable_shadow_tile : tile<V>
 };
 
 template <typename V>
-struct const_shadow_tile : tile<V>
+struct const_shadow_sequence_tile : tile<V>
 {
 	using tile<V>::tile;
 	std::vector< typename DataArrayBase<V>::locked_cseq_t > m_Seqs;
@@ -180,28 +180,86 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 	return { TileRef(shadowTilePtr.get_ptr()), GetSeq(*shadowTilePtr) };
 }
 
+
+
+template <typename V> struct const_tile_type;
+template <fixed_elem V> struct const_tile_type<V> { using type = tile<V>; };
+template <sequence_or_string V> struct const_tile_type<V> { using type = const_shadow_sequence_tile<V>; };
+
+template <typename V> using const_tile_t = typename const_tile_type<V>::type;
+
+std::mutex shadowPtrSection;
+
+template <typename V> 
+struct const_shadow : const_tile_t<V>
+{
+	const DataArrayBase<V>* m_Owner = nullptr;
+	std::mutex        m_TileGenerationCS;
+	bool              m_TileReady = false;
+
+	void Disconnect()
+	{
+		auto lockCS = std::unique_lock(shadowPtrSection);
+		if (!m_Owner)
+			return;
+		m_Owner->m_shadowTilePtr = nullptr;
+		m_Owner = nullptr;
+	}
+
+	void DecoupleShadowFromOwner() override
+	{
+		m_Owner = nullptr;
+	}
+
+	~const_shadow()
+	{
+		Disconnect();
+	}
+};
+
+
+AbstrDataObject::~AbstrDataObject()
+{
+	if (!m_shadowTilePtr)
+		return;
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!m_shadowTilePtr)
+		return;
+	m_shadowTilePtr->DecoupleShadowFromOwner();
+	m_shadowTilePtr = nullptr;
+}
+
+template<typename V>
+SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
+{
+	assert(ado);
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!ado->m_shadowTilePtr)
+	{
+		auto csPtr = new const_shadow<V>;
+		csPtr->m_Owner = ado;
+		ado->m_shadowTilePtr = csPtr;
+	}
+	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
+}
+
 template <fixed_elem V>
-auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto trd = tileFunctor->GetTiledRangeData();
 	assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<tile<V>> shadowTilePtr = new tile<V>; // normal tile
-
-	InitConstShadow<V>(tileFunctor, shadowTilePtr.get_ptr(), trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
-
-	return { TileCRef(shadowTilePtr.get_ptr()), GetConstSeq(*shadowTilePtr) };
+	InitConstShadow<V>(tileFunctor, shadowTilePtr, trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <sequence_or_string V>
-auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto trd = tileFunctor->GetTiledRangeData();
 	auto tn = trd->GetNrTiles();
 	assert(tn != 1);
 
 	using element_type = elem_of_t<V>;
-	SharedPtr<const_shadow_tile<V>> shadowTilePtr = new const_shadow_tile<V>; // normal tile, but keep using data sequences from original tles
 	if (tn != 0)
 	{
 		shadowTilePtr->m_Seqs.reserve(tn);
@@ -244,7 +302,6 @@ auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_
 			}
 		);
 	}
-	return { TileCRef(shadowTilePtr.get_ptr()) , GetConstSeq(*shadowTilePtr) };
 }
 
 #if defined(MG_DEBUG)
@@ -275,7 +332,16 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return ConstShadowTile(this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+		{
+			auto cstPtr = GetConstShadowTile(this);
+			auto cstGenerationLock = std::unique_lock(cstPtr->m_TileGenerationCS);
+			if (!cstPtr->m_TileReady)
+			{
+				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+				cstPtr->m_TileReady = true;
+			}
+			return { TileCRef(cstPtr.get_ptr()), GetConstSeq(*cstPtr) };
+		}
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
@@ -451,88 +517,6 @@ SplitClasses(Iter c, Iter d, Iter r, Iter e)
 	}
 	dms_assert(d == c);
 }
-/* === NYI: SplitData in tiled domain  
-template <typename V>
-void FileTileArray<V>::FileTileArray(AbstrDataItem* adi, dms_rw_mode rwMode, const DomainChangeInfo* info, bool dontAlloc)
-{
-	dms_assert(rwMode == dms_rw_mode::read_write || rwMode == dms_rw_mode::write_only_mustzero || rwMode == dms_rw_mode::write_only_all);
-	dms_assert(rwMode == dms_rw_mode::read_write || !info);
-	dms_assert(!(dontAlloc && info));
-	dms_check_not_debugonly; 
-
-	const AbstrUnit* adu = GetTiledRangeData(); // NOTE THAT: adi may be nullptr, as for example when used in DoOverlay
-	dms_assert(CheckCalculatingOrReady(adu->GetCurrRangeItem()));
-	SizeT nrElem = (dontAlloc) ? 0 : (info) ? info->newSize : adu->GetCount();
-	if (!IsDefined(nrElem))
-		throwErrorD("DoCreateMemoryStorage", "Cannot derive cardinality for domain");
-//	if (!m_Seqs[0].CanWrite() || !m_Seqs[0].IsOpen())
-
-	tile_id tn = GetTiledRangeData()->GetNrTiles();
-	if (tn != m_Seqs.m_NrRealTiles || ta != m_Seqs.m_NrDataTiles)
-		m_Seqs = tile_array<V>(tn, ta);
-
-
-	bool isTiled = GetTiledRangeData()->IsCurrTiled();
-	dms_assert(isTiled || t==1);
-
-	if (rwMode == dms_rw_mode::read_write && !(adi && adi->DataAllocated()))
-		rwMode = dms_rw_mode::write_only_mustzero; // no data to be read, assume values must be initialized
-
-	if (rwMode > dms_rw_mode::read_write) // thus: dms_write_only_xxx
-		if (adi && IsFileable<V>(adi, nrElem) && !adi->IsSdKnown())
-		{
-			DataStoreManager::Curr()->CreateFileData(adi, rwMode); // calls OpenFileData -> DoCreateMappedFiles
-			return;
-		}
-	while (t--)
-	{
-		MGD_CHECKDATA( !IsLocked(t) );
-		if (info && info->delta < 0)
-		{
-			// merge and erase 
-			dms_assert(rwMode == dms_rw_mode::read_write);
-			dms_assert(m_Seqs[t].IsAssigned());
-			DoCreateWritable(adi, rwMode, info->OldSize(), t);
-
-			SeqLock<sequence_t> lock(m_Seqs[t], rwMode);
-
-			dms_assert(m_Seqs[t].IsAssigned());
-			dms_assert(m_Seqs[t].size() == info->OldSize());
-			dms_assert(info->changePos - info->delta <= info->OldSize());
-
-			m_Seqs[t].erase(m_Seqs[t].begin() + info->changePos, m_Seqs[t].begin() + info->changePos - info->delta);
-		}
-
-		nrElem = GetTiledRangeData()->GetTileSize(t);
-
-		DoCreateWritable(adi, rwMode, nrElem, t);
-
-		dms_assert(m_Seqs[t].CanWrite() && m_Seqs[t].Size() == nrElem);
-
-		if (info && info->delta > 0)
-		{
-			// split data with row doubling
-			dms_assert(info->changePos + info->delta <= info->OldSize());
-			dms_assert(rwMode == dms_rw_mode::read_write);
-
-			SeqLock<sequence_t> lock(m_Seqs[t], rwMode);
-			dms_assert(m_Seqs[t].size() == info->newSize);
-
-			iterator
-				c = m_Seqs[t].begin()+info->changePos,
-				d = c + info->delta,
-				e = m_Seqs[t].end(),
-				r = fast_move_backward(d, m_Seqs[t].begin()+info->OldSize(), e ); 
-
-			dms_assert(r == d + info->delta);
-
-			SplitClasses<V>(c, d, r, e);
-		}
-		MGD_CHECKDATA( !IsLocked(t) );
-	}
-	MGD_CHECKDATA(m_Seqs.size() && m_Seqs[0].IsHeapAllocated() || m_Seqs.m_NrRealTiles == 0); // DEBUG
-}
-*/
 
 //----------------------------------------------------------------------
 //	DataStorage

@@ -63,6 +63,9 @@ template<typename ...Args>
 
 bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry);
 
+extern "C" RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow); // Delphi code also calls this
+extern "C" RTC_CALL void* GetGlobalMainWindowHandle(); // Delphi code could also call this
+
 //  -----------------------------------------------------------------------
 
 // GetCurrentDir()

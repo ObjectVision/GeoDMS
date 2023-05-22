@@ -106,9 +106,9 @@ static std::set<const OperationContext*> sd_ManagedContexts;
 struct ReportOnExit {
 	~ReportOnExit()
 	{
-		dms_assert(sd_ManagedContexts.empty());
-		dms_assert(s_NrRunningOperations == 0);
-		dms_assert(s_ScheduledContexts.empty());
+		assert(sd_ManagedContexts.empty());
+		assert(s_NrRunningOperations == 0);
+		assert(s_ScheduledContexts.empty());
 	}
 
 };
@@ -552,7 +552,7 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	m_ResKeeper = std::move(resKeeper);
 
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
-	auto selfCaller = [selfWptr]() { auto self = selfWptr.lock(); if (self) self->safe_run(); };
+	auto selfCaller = [selfWptr]() { auto self = selfWptr.lock(); if (self) self->safe_run_caller(); };
 
 	setTask(dms_task(selfCaller));
 }
@@ -594,7 +594,7 @@ task_status OperationContext::TryActivateTaskInline()
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	safe_run();
+	safe_run_caller();
 	return m_Status;
 }
 
@@ -787,7 +787,7 @@ garbage_t OperationContext::separateResources(task_status status)
 	dms_assert(!m_ResKeeper);
 
 
-	dms_assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run, which alwayws release the writeLock on completion
+	dms_assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run_caller, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
@@ -1070,7 +1070,7 @@ bool OperationContext::MustCalcArg(arg_index i, CharPtr firstArgValue) const
 	return m_FuncDC->MustCalcArg(i, true, firstArgValue);
 }
 
-void OperationContext::safe_run_impl() noexcept
+void OperationContext::safe_run_with_catch() noexcept
 {
 	try {
 		OperationContext::CancelableFrame frame(this);
@@ -1095,11 +1095,11 @@ void OperationContext::safe_run_impl() noexcept
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
-void OperationContext::safe_run_impl2() noexcept
+void OperationContext::safe_run_with_cleanup() noexcept
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	safe_run_impl();
+	safe_run_with_catch();
 
 	if (GetResult()->WasFailed(FR_Data))
 		OnException(); // clean-up
@@ -1118,11 +1118,11 @@ void OperationContext::safe_run_impl2() noexcept
 	dms_assert(!m_WriteLock);
 }
 
-void OperationContext::safe_run() noexcept
+void OperationContext::safe_run_caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
-		safe_run_impl2();
+		safe_run_with_cleanup();
 
 	DMS_SE_CALL_END
 }
@@ -1213,26 +1213,30 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 					);
 #endif //defined(MG_DEBUG_OPERATIONS)
 
-				if (!funcDC) return; // TODO G8: Debug why.
+				if (!funcDC) 
+					return; // TODO G8: Debug why.
 
 				dms_assert(funcDC && (funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context));
 
 				dms_assert(self->m_Status == task_status::running || self->m_Status == task_status::suspended);
 				dms_assert(!SuspendTrigger::DidSuspend());
 
+				std::vector<SharedPtr<const Actor>> statusActors; statusActors.reserve(argRefs.size());
+				for (const auto& argRef : argRefs)
+					statusActors.emplace_back( GetStatusActor(argRef) );
+
 				auto readLocks = self->SetReadLocks(allInterests); // TODO: move this into CalcResult, replace argRefs
 				allInterests.clear();
-				self->RunOperator(context, argRefs); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+				//funcDC->ResetOperContextImplAndStopSupplInterest(); // test
+				funcDC->StopSupplInterest();
+				self->RunOperator(context, std::move(argRefs), std::move(readLocks)); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+				argRefs.clear();
 
 				// forward FR_Validate and FR_Committed failures
-				for (const auto& argRef : argRefs)
-				{
-					auto statusActor = GetStatusActor(argRef);
+				for (const auto& statusActor: statusActors)
 					if (statusActor && statusActor->WasFailed())
 						funcDC->Fail(statusActor);
-				}
 
-				argRefs.clear();
 			}
 		};
 //		auto func = Func{ this, std::move(argRefs), std::move(allInterests) };
@@ -1350,7 +1354,7 @@ task_status OperationContext::Join()
 	return m_Status;
 }
 
-void OperationContext::RunOperator(Explain::Context* context, const ArgRefs& argRefs)
+void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
 {
 	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
 	if (!funcDC || funcDC->WasFailed(FR_Data))
@@ -1371,7 +1375,7 @@ void OperationContext::RunOperator(Explain::Context* context, const ArgRefs& arg
 			if (funcDC->WasFailed(FR_MetaInfo))
 				return;
 
-			actualResult = m_Oper->CalcResult(resultHolder, argRefs, this, context); // ============== payload
+			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), this, context); // ============== payload
 
 			dms_assert(resultHolder || IsCanceled());
 			dms_assert(actualResult || SuspendTrigger::DidSuspend());

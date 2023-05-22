@@ -215,3 +215,22 @@ void AbstrDataObject::GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoint
 
 
 IMPL_CLASS(AbstrDataObject, 0)
+
+
+//----------------------------------------------------------------------
+// FutureTileArray
+//----------------------------------------------------------------------
+
+#include "FutureTileArray.h"
+
+TIC_CALL auto GetAbstrFutureTileArray(const AbstrDataObject* ado) -> abstr_future_tile_array
+{
+	using abstr_future_tile_ptr = SharedPtr<abstr_future_tile>;
+	using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
+	assert(ado); // PRECONDITION
+	auto tn = ado->GetTiledRangeData()->GetNrTiles();
+	auto result = abstr_future_tile_array(tn, ValueConstruct_tag() MG_DEBUG_ALLOCATOR_SRC("GetAbstrFutureTileArray"));
+	for (tile_id t = 0; t != tn; ++t)
+		result[t] = ado->GetFutureAbstrTile(t);
+	return result;
+}

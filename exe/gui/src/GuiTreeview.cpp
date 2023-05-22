@@ -169,6 +169,7 @@ void GuiTreeNode::OnTreeItemChanged(ClientHandle clientHandle, const TreeItem* t
 {
     auto tree_node = static_cast<GuiTreeNode*>(clientHandle);
     tree_node->SetState(new_state);
+    tree_node->m_status_changed = true;
     PostEmptyEventToGLFWContext();
     return;
 }
@@ -193,13 +194,14 @@ GuiTreeNode::GuiTreeNode(TreeItem* item, GuiTreeNode* parent, bool is_open)
 
 GuiTreeNode::GuiTreeNode(GuiTreeNode&& other) noexcept
 {
-    m_item     = other.m_item;
-    m_parent   = other.m_parent;
-    m_children = std::move(other.m_children);
-    m_state = other.m_state;
-    m_depth = other.m_depth;
-    m_has_been_opened = other.m_has_been_opened;
-    m_is_open = other.m_is_open;
+    m_item            = std::move(other.m_item);
+    m_parent          = std::move(other.m_parent);
+    m_children        = std::move(other.m_children);
+    m_state           = std::move(other.m_state);
+    m_depth           = std::move(other.m_depth);
+    m_has_been_opened = std::move(other.m_has_been_opened);
+    m_is_open         = std::move(other.m_is_open);
+    m_status_changed  = std::move(other.m_status_changed);
     
     DMS_TreeItem_RegisterStateChangeNotification(&GuiTreeNode::OnTreeItemChanged, m_item, this);
 }
@@ -243,7 +245,9 @@ bool GuiTreeNode::DrawItemDropDown(GuiState &state)
     auto icon = IsLeaf() ? "    " : m_is_open ? ICON_RI_SUB_BOX : ICON_RI_ADD_BOX;
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 150));
     ImGui::PushID(m_item); //TODO: do not create button in case if IsLeaf()
+    //FontScaleScope font_scale_scope(0.9f); // TODO: move param to central style
     ImGui::TextUnformatted(icon);
+    
     if (ImGui::IsItemClicked()) //(ImGui::SmallButton(icon))//, ImVec2(20, 15)))
     {
         if (IsOpen() && IsAncestor(m_item, state.GetCurrentItem()))
@@ -282,26 +286,23 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
 {
     assert(m_item);
     auto event_queues = GuiEventQueues::getInstance();
-
-    // status color
-    //auto status = DMS_TreeItem_GetProgressState(m_item);
     auto failed = m_item->IsFailed();
-
     bool node_is_selected = (m_item == state.GetCurrentItem());
 
+    // notify detail page to update if current item has changed
+    if (node_is_selected && m_status_changed)
+        event_queues->DetailPagesEvents.Add(GuiEvents::UpdateCurrentItem);
+
+    m_status_changed = false;
+
     // red background for failed item
-    if (failed) 
+    if (failed)
         SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()));
     else if (node_is_selected)
-        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79));
+        SetTextBackgroundColor(ImGui::CalcTextSize(m_item->GetName().c_str()), IM_COL32(66, 150, 250, 79)); // TODO: move to central style location
 
     ImGui::PushStyleColor(ImGuiCol_Text, GetColorFromTreeItemNotificationCode(m_state, failed));
     ImGui::PushID(m_item);
-
-    //if (ImGui::Selectable(m_item->GetName().c_str(), node_is_selected))
-    //{
-    //    UpdateStateAfterItemClick(state, m_item);
-    //}
 
     ImGui::TextUnformatted(m_item->GetName().c_str()); // render treeitem text without extra string allocation
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
@@ -310,24 +311,14 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
         UpdateStateAfterItemClick(state, m_item);
     }
 
-
-
-    /*// click event
-    else if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
-        SetKeyboardFocusToThisHwnd();
-        UpdateStateAfterItemClick(state, m_item); // TODO: necessary?
-    }*/
-    //ImGui::PopStyleColor(3); // TODO: rework where push style color is set and popped
-
-    // double click event
+    // double-click
     if (ImGui::IsItemClicked() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         event_queues->MainEvents.Add(GuiEvents::OpenNewDefaultViewWindow);
 
     // right-mouse popup menu
     ShowRightMouseClickPopupWindowIfNeeded(state);
 
-    // drag-drop event
+    // drag-drop
     if (!(m_item == state.GetRoot()) && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
     {
         ImGui::SetDragDropPayload("TreeItemPtr", m_item->GetFullName().c_str(), strlen(m_item->GetFullName().c_str()));  // type is a user defined string of maximum 32 characters. Strings starting with '_' are reserved for dear imgui internal types. Data is copied and held by imgui. Return true when payload has been accepted.
@@ -339,16 +330,11 @@ bool GuiTreeNode::DrawItemText(GuiState& state, TreeItem*& jump_item)
     if (jump_item && jump_item == m_item)
     {
         UpdateStateAfterItemClick(state, m_item);
-        ImGui::SetScrollHereY();
+        ImGui::ScrollToItem(ImGuiScrollFlags_KeepVisibleEdgeY);
         jump_item = nullptr;
     }
 
-    // alphabetical letter jump
-
-
     ImGui::PopID();
-
-    //ImGui::Text(m_item->GetName().c_str());
     ImGui::PopStyleColor(); // treeitem color
     return 0;
 }
@@ -380,17 +366,9 @@ void GuiTreeNode::DrawItemWriteStorageIcon()
 
     ImGui::SameLine();
 
-    /*float offset = 3.0;
-    ImGuiContext& g = *GImGui;
-    auto window = ImGui::GetCurrentWindow();
-    auto spacing_w = g.Style.ItemSpacing.x;
-    window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x + spacing_w;
-    window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y+offset;*/
-
-    ImGui::PushStyleColor(ImGuiCol_Text, m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200));
+    ImGui::PushStyleColor(ImGuiCol_Text, m_item->IsDataFailed() ? IM_COL32(225, 6, 0, 200) : m_state<NC2_Committed ? IM_COL32(0,0,0,100) : IM_COL32(0,0,0,200)); // TODO: move hardcoded style color values to a central location.
     ImGui::TextUnformatted(is_read_only ? ICON_RI_DATABASE_SOLID : ICON_RI_FLOPPY_SOLID);
     ImGui::PopStyleColor();
-    //window->DC.CursorPos.y = window->DC.CursorPos.y - offset;
 
     return;
 }
@@ -408,7 +386,7 @@ void GuiTreeNode::clear()
 
 void GuiTreeNode::SetOpenStatus(bool do_open)
 { 
-    if (m_is_open && !do_open)
+    if (m_is_open && !do_open) // close treenode, delete children
     {
         m_has_been_opened = false;
         DeleteChildren();
@@ -448,25 +426,6 @@ auto GuiTreeNode::GetState() -> NotificationCode
 {
     return m_state;
 }
-
-/* REMOVE
-auto GuiTreeNode::GetFirstSibling() -> GuiTreeNode*
-{
-    if (m_children.empty())
-        return nullptr;
-    return &m_children.front();
-}
-
-auto GuiTreeNode::GetSiblingIterator() -> std::vector<GuiTreeNode>::iterator
-{
-    return m_children.begin();
-}
-
-auto GuiTreeNode::GetSiblingEnd() -> std::vector<GuiTreeNode>::iterator
-{
-    return m_children.end();
-}
-*/
 
 bool GuiTreeNode::IsLeaf()
 {
@@ -536,7 +495,7 @@ auto GetNextNode(GuiTreeNode& node) -> GuiTreeNode*
 {
     auto parent_node = node.m_parent;
 
-    if (!parent_node)
+    if (!parent_node) // root node // TODO: may be a bug, what if GetNextNode is called from parent node?
         return &node;
 
     bool matched = false;
@@ -614,36 +573,84 @@ auto GuiTree::JumpToLetter(GuiState &state, std::string_view letter) -> GuiTreeN
     }
 }
 
-void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
+void GuiTree::OpenThisAndAllChildNodesRecursively(GuiTreeNode* node)
 {
-    
-    if (ImGui::IsWindowFocused() && node->GetItem() == state.GetCurrentItem())
+    // define stop node
+    auto curr_node_depth = node->m_depth;
+    GuiTreeNode* stop_node = nullptr;
+    GuiTreeNode* next_node = node;
+    while (true)
     {
-        ImGuiIO& io = ImGui::GetIO();
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        next_node = GetNextNode(*next_node);
+        auto next_node_depth = next_node->m_depth;
+
+        if (next_node_depth <= curr_node_depth)
         {
-            io.AddKeyEvent(ImGuiKey_RightArrow, false);
-            if (node->IsOpen())
-            {
-                auto descended_node = DescendVisibleTree(*node);
-                if (descended_node)
-                    UpdateStateAfterItemClick(state, descended_node->GetItem());
-            }
-            else
-                node->SetOpenStatus(true);
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-        {
-            io.AddKeyEvent(ImGuiKey_LeftArrow, false);
-            if (!node->IsOpen())
-            {
-                if (node->m_parent)
-                    UpdateStateAfterItemClick(state, node->m_parent->GetItem());
-            }
-            else
-                node->SetOpenStatus(false);
+            stop_node = next_node;
+            break;
         }
     }
+
+    next_node = node;
+
+    // start with first child in case of root node
+    if (next_node->m_depth == 0)
+    {
+        if (!next_node->IsOpen())
+            next_node->SetOpenStatus(true);
+        if (next_node->IsOpen() && !next_node->m_children.empty())
+            next_node = &*next_node->m_children.begin();
+    }
+
+    // open tree nodes recursively
+    while (next_node != stop_node)
+    {
+        if (!next_node->IsLeaf() && !next_node->IsOpen())
+            next_node->SetOpenStatus(true);
+        if (next_node->IsOpen() && !next_node->m_children.empty())
+            next_node = &*next_node->m_children.begin();
+        else
+            next_node = GetNextNode(*next_node);
+    }
+}
+
+void GuiTree::ActOnLeftRightArrowKeys(GuiState& state, GuiTreeNode* node)
+{
+    if (!ImGui::IsWindowFocused())
+        return;
+    
+    if (node->GetItem() != state.GetCurrentItem())
+        return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) // expand tree node
+    {
+        io.AddKeyEvent(ImGuiKey_RightArrow, false);
+        if (node->IsOpen())
+        {
+            auto descended_node = DescendVisibleTree(*node);
+            if (descended_node)
+                UpdateStateAfterItemClick(state, descended_node->GetItem());
+        }
+        else
+            node->SetOpenStatus(true);
+    }
+    else if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) // collapse tre enode
+    {
+        io.AddKeyEvent(ImGuiKey_LeftArrow, false);
+        if (!node->IsOpen())
+        {
+            if (node->m_parent)
+                UpdateStateAfterItemClick(state, node->m_parent->GetItem());
+        }
+        else
+            node->SetOpenStatus(false);
+    }
+    else if (ImGui::IsKeyPressed(ImGuiKey_KeypadMultiply)) // recursively expand all tree nodes of and including current treenode
+    {
+        OpenThisAndAllChildNodesRecursively(node);
+    }
+
 }
 
 bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_item, const ImRect& parent_node_rect)
@@ -667,13 +674,14 @@ bool GuiTree::DrawBranch(GuiTreeNode& node, GuiState& state, TreeItem*& jump_ite
         if (next_node.GetItem() == state.GetCurrentItem())
             m_curr_node = &next_node;        
         
+        // draw node
         auto next_node_icon_rect = next_node.Draw(state, jump_item);
         
         // draw horizontal line
         float horizontal_line_y = (next_node_icon_rect.Min.y + next_node_icon_rect.Max.y) / 2.0f;
         auto horizontal_line_end = ImVec2(next_node_icon_rect.Min.x-1, horizontal_line_y);
         auto horizontal_line_start = next_node.IsLeaf() ? ImVec2(vertical_line_mid, horizontal_line_y) : ImVec2(vertical_line_mid+8, horizontal_line_y);
-        drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to options
+        drawList->AddLine(horizontal_line_start, horizontal_line_end, ImColor(128, 128, 128, 100)); // TODO: move TreeView line color to central location
 
         // draw vertical line if closed by branch
         vertical_line_end = ImVec2(vertical_line_mid, ImGui::GetItemRectMin().y); // was min
@@ -852,6 +860,9 @@ void GuiTreeView::Update(bool* p_open, GuiState& state)
     m_tree.Draw(state, m_TemporaryJumpItem);
 
     g.Style.ItemSpacing.y = backup_spacing;
+
+    if ((ImGui::IsWindowHovered(ImGuiHoveredFlags_None) || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        SetKeyboardFocusToThisHwnd();
 
     ImGui::End();
 }

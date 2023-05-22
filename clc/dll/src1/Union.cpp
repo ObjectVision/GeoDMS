@@ -44,6 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Metric.h"
 #include "ParallelTiles.h"
 #include "TileChannel.h"
+#include "TreeItemContextHandle.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -267,7 +268,10 @@ public:
 		catch (const DmsException& x)
 		{
 			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
-			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s", x.AsErrMsg()->Why().c_str());
+			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s\n%s"
+				, x.AsErrMsg()->Why().c_str()
+				, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
+			);
 			hadToTryWithoutCategoricalCheck = true;
 		}
 
@@ -290,7 +294,7 @@ public:
 			resultHolder->SetTSF(TSF_Categorical);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 

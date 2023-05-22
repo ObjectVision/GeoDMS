@@ -162,11 +162,11 @@ void GuiInput::ProcessDMSKeyEvent(GLFWwindow* window, int key, int scancode, int
     // unmodified key press for step to in TreeView
     auto treeview_window = ImGui::FindWindowByName("TreeView"); // TODO: one location for Window names ie TreeView
     if (ImGui::GetCurrentContext()->WindowsFocusOrder.back() == treeview_window 
-        && key >= GLFW_KEY_A 
+        && key >= GLFW_KEY_A // TODO: very limited set of characters supported for key jump treeview navigation.
         && key <= GLFW_KEY_Z 
-        && !(mods == GLFW_MOD_CONTROL) 
-        && !(mods == GLFW_MOD_ALT) 
-        && !(mods == GLFW_MOD_SHIFT)
+        && !(mods & GLFW_MOD_CONTROL) 
+        && !(mods & GLFW_MOD_ALT) 
+        && !(mods & GLFW_MOD_SHIFT) 
         )
     {
         event_queues->TreeViewEvents.Add(GuiEvents::TreeViewJumpKeyPress);

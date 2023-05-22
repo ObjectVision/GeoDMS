@@ -27,16 +27,24 @@
 #include "GuiMain.h"
 #include <windows.h>
 
+int run_main_loop_in_se_guard(GuiMainComponent& main_component)
+{
+    DMS_SE_CALL_BEGIN
+    if (main_component.MainLoop())
+        return 1;
+    else
+        return 0;
+    DMS_SE_CALL_END
+    return GetLastExceptionCode();
+}
+
 int RunGui()
 {
-    GuiMainComponent guiMainComponent;
-    if (guiMainComponent.Init())
+    GuiMainComponent gui_main_component;
+    if (gui_main_component.Init())
         return 1;
 
-    if (guiMainComponent.MainLoop())
-        return 1;
-
-    return 0;
+    return run_main_loop_in_se_guard(gui_main_component);
 }
 
 int WINAPI WinMain(

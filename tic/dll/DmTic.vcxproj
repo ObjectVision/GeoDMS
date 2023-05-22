@@ -114,6 +114,7 @@
     <ClInclude Include="src\dedicatedattrs.h" />
     <ClInclude Include="src\Explain.h" />
     <ClInclude Include="src\ExprRewrite.h" />
+    <ClInclude Include="src\FutureTileArray.h" />
     <ClInclude Include="src\ItemContext.h" />
     <ClInclude Include="src\ItemLocks.h" />
     <ClInclude Include="src\LispContextHandle.h" />

@@ -67,20 +67,19 @@ bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 	DataCheckMode dcm = adi->GetCheckMode();
 	return !(dcm & DCM_CheckDefined);
 }
-
+/* 
 template <typename V>
 typename Unit<V>::range_t 
-GetRange(const AbstrDataItem* adi)
+GetRange(const DataArray<V>* da)
 {
-	return debug_cast<const Unit<V>*>( adi->GetAbstrValuesUnit() )->GetRange();
+	return da->GetValueRangeData()->GetRange();
 }
-
+*/
 template <typename V>
 typename Unit<V>::range_t
-GetTileRange(const AbstrDataItem* adi, tile_id t)
+GetRange(const AbstrDataItem* adi)
 {
-	dms_assert(t != no_tile);
-	return debug_cast<const Unit<V>*>(adi->GetAbstrValuesUnit())->GetTileRange(t);
+	return debug_cast<const Unit<V>*>(adi->GetAbstrValuesUnit())->GetRange();
 }
 
 // *****************************************************************************
@@ -93,9 +92,10 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 {
 	std::map<V, SizeT> counters;
 
+	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
-		auto valuesLock = const_array_cast<V>(valuesItem)->GetLockedDataRead(t);
+		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		auto valuesIter = valuesLock.begin(),
 		     valuesEnd  = valuesLock.end();
 
@@ -120,6 +120,7 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 template<typename V>
 void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
 {
+	DataReadLock lock(valuesItem);
 	auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead();
 	auto valuesBegin = valuesLock.begin(),
 	     valuesEnd   = valuesLock.end();
@@ -174,9 +175,11 @@ void ModusTotByTable(
 	std::vector<SizeT> buffer(vCount, 0);
 	auto bufferB = buffer.begin();
 
+	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
+
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
-		auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead(t);
+		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		auto valuesIter  = valuesLock.begin(),
 		     valuesEnd   = valuesLock.end();
 		for (; valuesIter != valuesEnd; ++valuesIter)
@@ -218,7 +221,10 @@ void ModusTotDispatcher(
 // then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
 // Thus, tradeof is made at v*p <= n.
 
-template<typename V>
+template<typename V>template <typename V> using map_node_type = std::_Tree_node<std::pair<std::pair<SizeT, V>, SizeT>, void*>;
+template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
+
+template <typename V> 
 void ModusTotDispatcher(
 	const AbstrDataItem* valuesItem
 ,	typename sequence_traits<V>::reference resData
@@ -231,7 +237,7 @@ void ModusTotDispatcher(
 		v = Cardinality(valuesRange);
 
 	if	(	IsDefined(v)
-		&&	v <= n
+		&&	(v / map_node_type_size<V> <= n / sizeof(V))
 		&& OnlyDefinedCheckRequired(valuesItem) // memory condition v*p<=n, thus TableTime <= 2n.
 		)
 		ModusTotByTable<V>(
@@ -262,16 +268,17 @@ void ModusTotDispatcher(
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV>
-void ModusPartBySet(
-	const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem,
-	OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
+void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
-	typedef std::pair<SizeT, V> value_type;
+	assert(values_fta.size() == part_fta.size());
+
+	using value_type = std::pair<SizeT, V>;
 	std::map<value_type, SizeT> counters;
-	for (tile_id t=0, tn= valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
+
+	for (tile_id t=0, tn= values_fta.size(); t!=tn; ++t)
 	{
-		auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead(t);
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, t);
+		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
 		auto valuesIter  = valuesLock.begin(),
 			 valuesEnd   = valuesLock.end();
 		SizeT i=0;
@@ -281,7 +288,7 @@ void ModusPartBySet(
 				SizeT pi = indexGetter->Get(i);
 				if (IsDefined(pi))
 				{
-					dms_assert(pi < pCount);
+					assert(pi < pCount);
 					++counters[value_type(pi, *valuesIter)];
 				}
 			}
@@ -308,14 +315,12 @@ void ModusPartBySet(
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV>
-void ModusPartByIndex(
-	const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem,
-	OIV resBegin, SizeT pCount)
+void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, abstr_future_tile* part_ft, OIV resBegin, SizeT pCount)
 {
-	auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead();
-	auto valuesBegin = valuesLock.begin();
-	auto valuesEnd   = valuesLock.end();
-	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, no_tile);
+	auto valuesBegin = values.begin();
+	auto valuesEnd   = values.end();
+
+	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_ft);
 
 	SizeT n = valuesEnd - valuesBegin;
 
@@ -364,147 +369,57 @@ void ModusPartByIndex(
 }
 
 template<typename V, typename OIV>
-void ModusPartByIndexOrSet(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin,
-	SizeT nrP)  // countable dommain unit of result; P can be Void.
+void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT nrP)  // countable dommain unit of result; P can be Void.
 {
 	fast_fill(resBegin, resBegin+nrP, UNDEFINED_OR_ZERO(V));
 
-	if (valuesItem->GetAbstrDomainUnit()->IsCurrTiled())
-		ModusPartBySet  <V, OIV>(valuesItem, indicesItem, resBegin, nrP);
+	assert(values_fta.size() == part_fta.size());
+	if (values_fta.size() != 1)
+		ModusPartBySet  <V, OIV>(indicesItem, std::move(values_fta), std::move(part_fta), resBegin, nrP);
 	else
-		ModusPartByIndex<V, OIV>(valuesItem, indicesItem, resBegin, nrP);
+		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), part_fta[0], resBegin, nrP);
 }
 
+
 template<typename V, typename OIV>
-void ModusPartByTable(const AbstrDataItem* valuesItem, const AbstrDataItem* indicesItem
-	, OIV resBegin
-	, typename Unit<V>::range_t valuesRange
-	, SizeT pCount)  // countable dommain unit of result; P can be Void.
+void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_afta
+	, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
 	SizeT vCount = Cardinality(valuesRange);
 	std::vector<SizeT> buffer(vCount*pCount, 0);
 	auto bufferB = buffer.begin();
 
-	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t != tn; ++t)
+	for (tile_id t =0, tn = values_fta.size(); t != tn; ++t)
 	{
-		auto valuesLock  = const_array_cast<V>(valuesItem )->GetLockedDataRead(t);
-		auto valuesIter  = valuesLock.begin(),
-		     valuesEnd   = valuesLock.end();
+		auto values = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+		auto valuesIter = values.begin(),
+		     valuesEnd  = values.end();
 
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, t);
+		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_afta[t]); part_afta[t] = nullptr;
 		SizeT i=0;
 
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
-			if (IsDefined(*valuesIter))
-			{
-				UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
-				dms_assert(vi < vCount);
-				SizeT pi = indexGetter->Get(i);
-				if (IsNotUndef(pi))
-				{
-					dms_assert(pi < pCount);
-					++(bufferB[pi * vCount + vi]);
-				}
-			}
+		{
+			UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
+			if (vi >= vCount)
+				continue;
+			SizeT pi = indexGetter->Get(i);
+			if (pi < pCount)
+				++(bufferB[pi * vCount + vi]);
+		}
 	}
 
 	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
 		SizeT i = argmax<UInt32>(bufferB, vCount);
-		if (IsDefined(i))
+		if (i < vCount)
 			*resBegin = Range_GetValue_naked(valuesRange, i);
 		else
 			*resBegin = UNDEFINED_OR_ZERO(V);
 
 		bufferB += vCount;
 	}
-	dms_assert(bufferB == buffer.end());
-}
-
-/* REMOVE
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP,
-	const inf_type_tag*
-)
-{
-	// NonCountable values; go for Set implementation
-	ModusPartByIndexOrSet<V, P, OIV>(
-		valuesItem, indicesItem
-		resBegin,
-		nrP
-	);
-}
-*/
-
-// make tradeoff between 
-//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
-//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
-// when v is not countable(such as string, float), always choose the second method
-//
-// Note that ModusTotal is a special case of ModusPatial with p=1
-//
-// When memory condition doesnt favour Set: n >= v*p
-// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
-// Thus, tradeof is made at v*p <= n.
-
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP, 
-	const int_type_tag*
-)
-{
-	typename Unit<V>::range_t valuesRange = GetRange<V>(valuesItem);
-
-	// Countable values; go for Table if sensible
-	SizeT
-		n = valuesItem->GetAbstrDomainUnit()->GetCount(),
-		v = valuesRange.empty() ? MAX_VALUE(SizeT) : Cardinality(valuesRange);
-
-	dms_assert(IsNotUndef(nrP)); //consequence of the checks on indexRange
-
-	if	(	IsDefined(v)
-		&&	(!nrP || v <= n / nrP)
-		&&	OnlyDefinedCheckRequired(valuesItem)
-		) // memory condition v*p<=n, thus TableTime <= 2n.
-		ModusPartByTable<V>(
-			valuesItem, indicesItem
-		,	resBegin
-		,	valuesRange
-		,	nrP
-		);
-	else 
-		ModusPartByIndexOrSet<V, OIV>(
-			valuesItem, indicesItem
-		,	resBegin
-		,	nrP
-		);
-}
-
-template<typename V, typename OIV>
-void ModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, 
-	SizeT nrP, 
-	const bool_type_tag*
-)
-{
-	ModusPartByTable<V>(
-		valuesItem, indicesItem
-	,	resBegin
-	,	GetRange<V>(valuesItem)
-	,	nrP
-	);
+	assert(bufferB == buffer.end());
 }
 
 // *****************************************************************************
@@ -828,11 +743,7 @@ void WeightedModusPartByIndex(
 }
 
 template<typename V, typename OIV>
-void WeightedModusPartByIndexOrSet(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* weightItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
+void WeightedModusPartByIndexOrSet(const AbstrDataItem* valuesItem, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
 {
 	fast_fill(resBegin, resBegin+pCount, UNDEFINED_OR_ZERO(V));
 
@@ -894,19 +805,11 @@ void WeightedModusPartByTable(
 }
 
 template<typename V, typename OIV>
-void WeightedModusPartDispatcher(
-	const AbstrDataItem* valuesItem,
-	const AbstrDataItem* weightItem,
-	const AbstrDataItem* indicesItem,
-	OIV resBegin, SizeT nrP,
-	const inf_type_tag*
-)
+void WeightedModusPartDispatcher(const AbstrDataItem* valuesItem, const AbstrDataItem* weightItem, const AbstrDataItem* indicesItem, OIV resBegin, SizeT nrP
+	, const inf_type_tag*)
 {
 	// NonCountable values; go for Set implementation
-	WeightedModusPartByIndexOrSet<V, OIV>(
-		valuesItem, weightItem, indicesItem, 
-		resBegin, nrP
-	);
+	WeightedModusPartByIndexOrSet<V, OIV>(valuesItem, weightItem, indicesItem, resBegin, nrP);
 }
 
 // make tradeoff between 
@@ -993,7 +896,7 @@ public:
 			)
 	{}
 
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		ResultType* result = mutable_array_cast<ValueType>(res);
 		dms_assert(result);
@@ -1038,38 +941,61 @@ public:
 };
 
 template <typename V> 
-struct ModusPart : public AbstrOperAccPartUni
+struct ModusPart : OperAccPartUniWithCFTA<V, V>
 {
 	typedef V                     ValueType;
 	typedef DataArray<ValueType>  Arg1Type;   // value vector
 	typedef AbstrDataItem         Arg2Type;   // index vector
+
 	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value per index value
-			
+	using base_type = OperAccPartUniWithCFTA<V, V>;
+	using ProcessDataInfo = base_type::ProcessDataInfo;
+
 	ModusPart(AbstrOperGroup* gr) 
-		:	AbstrOperAccPartUni(gr
-			,	ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
-			,	arg1_values_unit, COMPOSITION(ValueType)
-			)
+		: base_type(gr, arg1_values_unit)
 	{}
 
-	// Override Operator
-	void Calculate(DataWriteLock& res,
-		const AbstrDataItem* arg1A, 
-		const AbstrDataItem* arg2A
-	) const override
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
-		ResultType* result = mutable_array_cast<ValueType>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		dbg_assert(resData.size()  == pdi.arg2A->GetAbstrValuesUnit()->GetCount());
+		auto resBegin = resData.begin();
 
-		dbg_assert(resData.size()  == arg2A->GetAbstrValuesUnit()->GetCount());
+		if constexpr(is_bitvalue_v<V>)
+			ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, typename Unit<V>::range_t(0, 1 << nrbits_of_v<V>), pdi.resCount);
+		else
+		{
+			// make tradeoff between 
+			//      ModusPartTable: O(n+v*p)           processing with O(v*p) temp memory
+			//	and ModusPartSet:   O(n*log(min(n,v))) processing with O(t) temp memory with t <= min(n,v*p)
+			// when v is not countable(such as string, float), always choose the second method
+			//
+			// Note that ModusTotal is a special case of ModusPatial with p=1
+			//
+			// When memory condition doesnt favour Set: n >= v*p
+			// then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
+			// Thus, tradeof is made at v*p <= n.
 
-		ModusPartDispatcher<V>(
-			arg1A, arg2A
-		,	resData.begin()
-		,	arg2A->GetAbstrValuesUnit()->GetCount()
-		,	TYPEID(elem_traits<V>)
-		);
+			// Countable values; go for Table if sensible
+			SizeT v = MAX_VALUE(SizeT);
+			if constexpr (is_integral_v<field_of_t<V>>)
+			{
+				auto range = pdi.valuesRangeData->GetRange();
+				if (!range.empty())
+					v =  Cardinality(range);
+			}
+
+			assert(IsNotUndef(pdi.resCount)); //consequence of the checks on indexRange
+
+			if (IsDefined(v)
+				//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
+				&& (!pdi.resCount || v <= pdi.n / pdi.resCount)
+				) // memory condition v*p<=n, thus TableTime <= 2n.
+				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount);
+			else
+				ModusPartByIndexOrSet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount);
+		}
 	}
 };
 

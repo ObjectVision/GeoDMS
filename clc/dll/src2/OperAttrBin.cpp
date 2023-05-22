@@ -382,7 +382,7 @@ struct BinaryAttrFuncOper : BinaryAttrOper<typename BinOper::res_type, typename 
 
 template <typename TL, template <typename T> class MetaFunc>
 struct BinaryInstantiation{
-	typedef BinaryAttrFuncOper<MetaFunc<_> > OperTemplate;
+	using OperTemplate = BinaryAttrFuncOper<MetaFunc<_> > ;
 	tl_oper::inst_tuple<TL, OperTemplate, AbstrOperGroup*> m_OperList;
 
 	BinaryInstantiation(AbstrOperGroup* gr)

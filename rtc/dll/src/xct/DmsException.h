@@ -81,5 +81,6 @@ RTC_CALL SharedStr GetErrorContext(WeakStr msg);
 RTC_CALL SharedStr GetFirstLine(WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
 RTC_CALL ErrMsgPtr GetUnrollingErrorMsgPtr();
+RTC_CALL unsigned int GetLastExceptionCode();
 
 #endif // __RTC_XCT_DMSEXCEPTION_H

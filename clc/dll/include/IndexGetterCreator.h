@@ -34,7 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 //=================================== IndexGetter
 
-typedef AbstrValueGetter<SizeT> IndexGetter;
+using IndexGetter = AbstrValueGetter<SizeT> ;
 
 struct IndexGetterCreatorBase : UnitProcessor
 {
@@ -46,15 +46,18 @@ struct IndexGetterCreatorBase : UnitProcessor
 
 	WeakPtr<const AbstrDataItem> m_Adi;
 	tile_id                      m_TileID = no_tile;
+	abstr_future_tile* m_Aft = nullptr;
 	mutable WeakPtr<IndexGetter> m_Result;
 };
 
 struct IndexGetterCreator :  boost::mpl::fold<typelists::domain_elements, IndexGetterCreatorBase, VisitorImpl<Unit<_2>, _1> >::type
 {
 	static CLC1_CALL IndexGetter* Create(const AbstrDataItem* adi, tile_id t);
+	static CLC1_CALL IndexGetter* Create(const AbstrDataItem* adi, abstr_future_tile* aft);
 
 private:
 	IndexGetterCreator(const AbstrDataItem* adi, tile_id t);
+	IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile* aft);
 	IndexGetter* Create();
 };
 

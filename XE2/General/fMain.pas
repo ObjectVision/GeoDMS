@@ -321,7 +321,7 @@ end;
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   System.Math.SetExceptionMask(exAllArithmeticExceptions);
-
+  SetGlobalMainWindowHandle(Pointer(Handle));
   m_StatisticsInterest := Nil;
   tvTreeItem.PopupMenu := dmfGeneral.pmTreeItem;
   m_CurrSDM := SDM_Configured;
@@ -426,6 +426,7 @@ begin
     OnShowStateColorsChanged := Nil;
     OnAdminModeChanged := Nil;
   end;
+  SetGlobalMainWindowHandle(nil);
 end; // FormDestroy
 
 function TfrmMain.CloseCurrentConfiguration: boolean;
@@ -1000,7 +1001,7 @@ end;
 
 procedure TfrmMain.miDebugReportClick(Sender: TObject);
 begin
-  dmfGeneral.miTestClick;
+  dmfGeneral.miTestClick(sender);
 end;
 
 procedure TfrmMain.TileHorClick(Sender: TObject);

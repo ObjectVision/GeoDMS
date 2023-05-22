@@ -60,7 +60,7 @@ struct SafeFileWriter
 	WeakStr GetFileName() const { return m_FileName; }
 
 
-private: friend struct DataStoreManager; friend struct SafeFileWriterArray;
+private: friend struct SafeFileWriterArray;
 	SafeFileWriter(const SafeFileWriter&); // never call copy ctor
 	void  Commit();
 	void  PostCommit();

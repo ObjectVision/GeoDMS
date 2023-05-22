@@ -306,7 +306,7 @@ namespace std {
 
 //======================================= pointer destillation
 
-using TileBase = SharedObj;
+struct TileBase;
 using TileRef = SharedPtr < SharedObj >;
 using TileCRef = SharedPtr < const SharedObj >;
 

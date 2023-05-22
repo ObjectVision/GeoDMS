@@ -109,10 +109,12 @@ auto ViewActionHistory::GetEndIterator() -> std::list<ViewAction>::iterator
     return m_History.end();
 }
 
+// singletons
+GLFWwindow*        GuiState::m_MainWindow = nullptr;
 StringStateManager GuiState::errorDialogMessage;
 StringStateManager GuiState::contextMessage;
-ViewActionHistory GuiState::TreeItemHistoryList;
-std::string GuiState::m_JumpLetter;
+ViewActionHistory  GuiState::TreeItemHistoryList;
+std::string        GuiState::m_JumpLetter = "";
 
 auto GuiState::clear() -> void
 {
@@ -379,6 +381,34 @@ void AutoHideWindowDocknodeTabBar(bool &is_docking_initialized)
     }
 }
 
+auto GetGeoDMSDataViewAreaNodeID(GuiState& state) -> ImGuiID
+{
+    auto ctx = ImGui::GetCurrentContext();
+    ImGuiDockContext* dc = &ctx->DockContext;
+    auto dockspace_docknode = (ImGuiDockNode*)dc->Nodes.GetVoidPtr(state.dockspace_id);
+
+    // The following is a specific hardcoded default docking configuration of GeoDMS windows, if the pattern does not match do not dock the View
+    // Default starting client area root(Y, 0) >> 7(Y, 1) >> 6(X, 0) >> 3(X, 1) >> target(None)
+    if (!dockspace_docknode || dockspace_docknode->SplitAxis != ImGuiAxis_Y || !dockspace_docknode->ChildNodes[0]) // root(Y, 0)
+        return 0;
+
+    if (!dockspace_docknode->ChildNodes[0]->SplitAxis == ImGuiAxis_Y || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]) // 7(Y, 1)
+        return 0;
+
+    if (!dockspace_docknode->ChildNodes[0]->ChildNodes[1]->SplitAxis == ImGuiAxis_X || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]) // 6(X, 0)
+        return 0;
+
+    if (!dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->SplitAxis == ImGuiAxis_X || !dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1]) // 3(X, 1)
+        return 0;
+
+    ImGuiDockNode* target_node = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1];
+
+
+    
+
+    return target_node->ID;
+}
+
 bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
 {
     auto ctx = ImGui::GetCurrentContext();
@@ -402,7 +432,10 @@ bool TryDockViewInGeoDMSDataViewAreaNode(GuiState &state, ImGuiWindow* window)
     // TODO: check if the child node above is not split to avoid crashing
 
     ImGuiDockNode* target_node = dockspace_docknode->ChildNodes[0]->ChildNodes[1]->ChildNodes[0]->ChildNodes[1];
-    ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, target_node, window, ImGuiDir_None, 0.0f, false);
+
+    window->DockId = target_node->ID;
+
+    //ImGui::DockContextQueueDock(ctx, dockspace_docknode->HostWindow, target_node, window, ImGuiDir_None, 0.0f, false);
     return true;
 }
 
@@ -560,10 +593,30 @@ auto StringToTable(std::string&& input, std::string separator) -> md_table
     return result;
 }
 
+FontScaleScope::FontScaleScope(float new_font_scale)
+{
+    m_old_font_scale = ImGui::GetFont()->Scale;
+    ImGui::GetFont()->Scale *= new_font_scale;
+    ImGui::PushFont(ImGui::GetFont());
+}
+
+
+FontScaleScope::~FontScaleScope()
+{
+    ImGui::GetFont()->Scale = m_old_font_scale;
+    ImGui::PopFont();
+}
+
+void FontScaleScope::Reset()
+{
+    ImGui::GetFont()->Scale = m_old_font_scale;
+    ImGui::PopFont();
+}
+
 void DrawProperties(GuiState& state, TableData& properties)
 {
     auto event_queues = GuiEventQueues::getInstance();
-    if (ImGui::GetContentRegionAvail().y < 0) // table needs space, crashes otherwise
+    if (ImGui::GetContentRegionAvail().y < 0) // table needs space
         return;
 
     bool skip_heading_row = false;
@@ -571,12 +624,13 @@ void DrawProperties(GuiState& state, TableData& properties)
     {
         if (properties.at(0).size() == 1 && properties.at(0).at(0).type == PET_HEADING)
         {
-            float old_size = ImGui::GetFont()->Scale;
-            ImGui::GetFont()->Scale *= 1.3f;
-            ImGui::PushFont(ImGui::GetFont());
+            //float old_size = ImGui::GetFont()->Scale;
+            //ImGui::GetFont()->Scale *= 1.3f;
+            FontScaleScope font_scale_scope(1.3f);
+            //ImGui::PushFont(ImGui::GetFont());
             ImGui::Text(properties.at(0).at(0).text.c_str());
-            ImGui::GetFont()->Scale = old_size;
-            ImGui::PopFont();
+            //ImGui::GetFont()->Scale = old_size;
+            //ImGui::PopFont();
             skip_heading_row = true;
         }
     }
@@ -603,7 +657,7 @@ void DrawProperties(GuiState& state, TableData& properties)
         UInt8 column_index = 0;
         for (auto& col : row)
         {
-            if (column_index == 2) // hardcoded 2
+            if (column_index == 2) // TODO: move to more elegant datastructure, replace hardcodedness of 2 columns
                 break;
 
             ImGui::TableSetColumnIndex(column_index);
@@ -630,6 +684,7 @@ void DrawProperties(GuiState& state, TableData& properties)
 
                 if (ImGui::IsItemClicked())
                 {
+                    //SetKeyboardFocusToThisHwnd();
                     auto jumpItem = TreeItem_GetBestItemAndUnfoundPart(state.GetRoot(), col.text.c_str());
                     if (jumpItem.first && jumpItem.first != state.GetRoot())
                     {
@@ -655,8 +710,10 @@ void DrawProperties(GuiState& state, TableData& properties)
                 ImGui::TableSetColumnIndex(column_index);
                 ImGui::Separator();
             }
-            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                SetKeyboardFocusToThisHwnd();
+            //if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            //if (ImGui::IsItemClicked())
+            //    SetKeyboardFocusToThisHwnd();
+            
             column_index++;
             OnItemClickItemTextTextToClipboard(col.text);
         }

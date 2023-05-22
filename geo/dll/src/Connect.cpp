@@ -492,12 +492,13 @@ static TokenID s_InArc = GetTokenID_st("InArc");
 static TokenID s_InSegm = GetTokenID_st("InSegm");
 static TokenID s_SegmID = GetTokenID_st("SegmID");
 
+template <compare_type CT, bool HasMaxDist, bool HasMinDist>
+using ConnectInfoBaseClass = std::conditional_t < CT == compare_type::none,
+	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
+	, std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>>;
+
 template <typename P, typename E = UInt32, compare_type CT = compare_type::none, typename SegmID = UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false, bool OnlyDistResult = false>
-//class ConnectInfoOperator : public boost::mpl::if_c<CT== compare_type::none, BinaryOperator, QuaternaryOperator>::type
-class ConnectInfoOperator : std::conditional_t<CT == compare_type::none, 
-		std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
-	,	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>
-	>
+class ConnectInfoOperator : ConnectInfoBaseClass<CT, HasMaxDist, HasMinDist>
 {
 	typedef P                              PointType;
 	typedef Range<P>                       RangeType;
@@ -563,11 +564,47 @@ public:
 	{}
 
 	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && !HasMinDist && HasMaxDist>::type* = nullptr)
+		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && HasMinDist && HasMaxDist>::type* = nullptr)
+		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
 	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && !HasMaxDist>::type* = nullptr)
 		:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
 			,	Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			,	Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && HasMaxDist>::type* = nullptr)
+		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && HasMinDist && HasMaxDist>::type* = nullptr)
+		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
+		)
 	{}
 
 	// Override Operator
@@ -583,7 +620,6 @@ public:
 		const AbstrDataItem* argMaxDist = (HasMaxDist) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argMinDist = (HasMinDist) ? AsDataItem(args[argCount++]) : nullptr;
 		dms_assert(args.size() == argCount);
-
 
 		const AbstrUnit* polyUnit    = arg1A->GetAbstrValuesUnit();
 		const AbstrUnit* pointUnit   = arg2A->GetAbstrValuesUnit();
@@ -1048,12 +1084,11 @@ public:
 					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 					if (arcHnd.m_FoundAny)
 					{
-
 						// add Arc with connection
 						dms_assert(resStreetEnd->empty());
 						resStreetEnd->resize_uninitialized(2);
 						auto resPointPtr = resStreetEnd->begin();
-						resPointPtr[0] = *pointPtr;
+						resPointPtr[0] = point;
 						resPointPtr[1] = arcHnd.m_CutPoint;
 						dms_assert(resPointPtr + 2 == resStreetEnd->end());
 

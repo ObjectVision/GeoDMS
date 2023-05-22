@@ -46,6 +46,12 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TiledRangeData.h"
 #include "TileLock.h"
 
+template <typename V>
+using value_range_data = std::conditional_t<
+	has_range_v<field_of_t<V>>
+	, SharedPtr<const range_or_void_data<field_of_t<V>>>
+	, Void>;
+
 //----------------------------------------------------------------------
 // class  : DataArrayBase
 //----------------------------------------------------------------------
@@ -153,15 +159,17 @@ struct DataArrayBase : AbstrDataObject
 	void InitValueRangeData(value_range_ptr_t vrp) { m_ValueRangeDataPtr = std::move(vrp); }
 
 	[[no_unique_address]] value_range_ptr_t m_ValueRangeDataPtr;
-	auto GetValueRangeData() const -> const range_or_void_data<field_of_t<V>>*
+	auto GetValueRangeData() const -> value_range_data<V>
 	{
 		if constexpr (has_var_range_v < field_of_t<V>>)
 			return m_ValueRangeDataPtr.get_ptr();
-		else
+		else if constexpr (is_bitvalue_v<field_of_t<V>> || is_void_v<V>)
 		{
 			static LifetimeProtector< range_or_void_data<field_of_t<V>> > s_SingletonRangeData;
 			return &*s_SingletonRangeData;
 		}
+		else
+			return {};
 	}
 	TICTOC_CALL SharedPtr<const SharedObj> GetAbstrValuesRangeData() const override 
 	{ 

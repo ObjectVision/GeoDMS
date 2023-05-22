@@ -54,13 +54,12 @@ public:
 	PerimeterOperator():
 		UnaryOperator(&cogPerimeter, AbstrDataItem::GetStaticClass(), ArgType::GetStaticClass()) {}
 
-	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		MG_PRECONDITION(args.size() == 1);
 
 		const AbstrDataItem* inputGridA = AsDataItem(args[0]);
-		dms_assert(inputGridA);
+		assert(inputGridA);
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 		MG_CHECK(domain->GetValueType()->GetNrDims() == 2);
@@ -68,15 +67,15 @@ public:
 		const AbstrUnit* regionsUnit = inputGridA->GetAbstrValuesUnit();
 
 		const AbstrUnit* resUnit = count_unit_creator(args);
-		dms_assert(resUnit);
-		if (!resultHolder) resultHolder = CreateCacheDataItem(regionsUnit, resUnit);
-
+		assert(resUnit);
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(regionsUnit, resUnit);
 
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(inputGridA);
 			const ArgType* inputGrid = const_array_cast<T>(arg1Lock.get_ptr());
-			dms_assert(inputGrid);
+			assert(inputGrid);
 
 			AbstrDataItem* result = AsDataItem(resultHolder.GetNew());
 
@@ -85,9 +84,9 @@ public:
 			auto inputVec   = inputGrid->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
-			dms_assert(_Left(rect) < _Right (rect));
-			dms_assert(_Top (rect) < _Bottom(rect));
-			dms_assert(inputVec .size() == Cardinality(rect));
+			assert(_Left(rect) < _Right (rect));
+			assert(_Top (rect) < _Bottom(rect));
+			assert(inputVec .size() == Cardinality(rect));
 
 
 			// TODO: move to UniProcessor for resUnit to accomodate large (IPoint, UPoint) domains

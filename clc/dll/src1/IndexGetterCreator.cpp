@@ -39,17 +39,17 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename V>
 struct ZeroIndexGetter : IndexGetter
 {
-	ZeroIndexGetter(const DataArray<V>* ado, tile_id t, V upperBound)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_UpperBound(upperBound)
+	ZeroIndexGetter(DataArray<V>::locked_cseq_t&& data, V upperBound)
+		: m_Data(std::move(data))
+		, m_UpperBound(upperBound)
 	{}
 
 	SizeT Get(SizeT i) const override
 	{
-		dms_assert(i < m_Data.size());
+		assert(i < m_Data.size());
 		auto v = m_Data[i];
-		dms_assert(IsStrictlyLower(v, m_UpperBound));
-		dms_assert(IsDefined(v));
+		assert(IsStrictlyLower(v, m_UpperBound));
+		assert(IsDefined(v));
 
 		return Range_GetIndex_naked_zbase(m_UpperBound, v);
 	}
@@ -61,16 +61,16 @@ struct ZeroIndexGetter : IndexGetter
 template <typename V>
 struct NakedIndexGetter : IndexGetter
 {
-	NakedIndexGetter(const DataArray<V>* ado, tile_id t, typename Unit<V>::range_t range)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_Range(range)
+	NakedIndexGetter(DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
+		: m_Data(std::move(data))
+		, m_Range(range)
 	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
-		dms_assert(IsDefined(m_Data[t]));
-		dms_assert(IsIncluding(m_Range, m_Data[t]));
+		assert(t < m_Data.size());
+		assert(IsDefined(m_Data[t]));
+		assert(IsIncluding(m_Range, m_Data[t]));
 
 		return Range_GetIndex_naked(m_Range, m_Data[t]);
 	}
@@ -82,20 +82,18 @@ struct NakedIndexGetter : IndexGetter
 template <typename V>
 struct BoundedIndexGetter : IndexGetter
 {
-	BoundedIndexGetter(const DataArray<V>* ado, tile_id t, V upperBound)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_UpperBound(upperBound)
-	{
-		MG_CHECK(IsLowerBound(V(), upperBound));
-	}
+	BoundedIndexGetter(DataArray<V>::locked_cseq_t&& data, V upperBound)
+		: m_Data(std::move(data))
+		, m_UpperBound(upperBound)
+	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
+		assert(t < m_Data.size());
 		typename unsigned_type<V>::type v = m_Data[t];
 		if (!IsStrictlyLower(v, m_UpperBound))
 			return UNDEFINED_VALUE(SizeT);
-		dms_assert(IsDefined(v));
+		assert(IsDefined(v));
 
 		return Range_GetIndex_naked_zbase(m_UpperBound, v);
 	}
@@ -107,18 +105,18 @@ struct BoundedIndexGetter : IndexGetter
 template <typename V>
 struct RangedIndexGetter : IndexGetter
 {
-	RangedIndexGetter(const DataArray<V>* ado, tile_id t, typename Unit<V>::range_t range)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_Range(range)
+	RangedIndexGetter(DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
+		: m_Data(std::move(data))
+		, m_Range(range)
 	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
+		assert(t < m_Data.size());
 		typename DataArray<V>::const_reference v = m_Data[t];
 		if (!IsIncluding(m_Range, v))
 			return UNDEFINED_VALUE(SizeT);
-		dms_assert(IsDefined(v));
+		assert(IsDefined(v));
 		return Range_GetIndex_naked(m_Range, v);
 	}
 
@@ -129,14 +127,14 @@ struct RangedIndexGetter : IndexGetter
 template <typename V>
 struct ZeroNullIndexGetter : IndexGetter
 {
-	ZeroNullIndexGetter(const DataArray<V>* ado, tile_id t, V upperBOund)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_UpperBound(upperBOund)
+	ZeroNullIndexGetter(DataArray<V>::locked_cseq_t&& data, V upperBound)
+		: m_Data(std::move(data))
+		, m_UpperBound(upperBound)
 	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
+		assert(t < m_Data.size());
 		typename DataArray<V>::const_reference v = m_Data[t];
 		if (!IsDefined(v))
 			return UNDEFINED_VALUE(SizeT);
@@ -150,18 +148,18 @@ struct ZeroNullIndexGetter : IndexGetter
 template <typename V>
 struct NullIndexGetter : IndexGetter
 {
-	NullIndexGetter(const DataArray<V>* ado, tile_id t, typename Unit<V>::range_t range)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_Range(range)
+	NullIndexGetter(DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
+		: m_Data(std::move(data))
+		, m_Range(range)
 	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
+		assert(t < m_Data.size());
 		typename DataArray<V>::const_reference v = m_Data[t];
 		if (!IsDefined(v))
 			return UNDEFINED_VALUE(SizeT);
-		dms_assert(IsIncluding(m_Range, m_Data[t]));
+		assert(IsIncluding(m_Range, m_Data[t]));
 		return Range_GetIndex_naked(m_Range, v);
 	}
 
@@ -172,14 +170,14 @@ struct NullIndexGetter : IndexGetter
 template <typename V>
 struct CheckedIndexGetter : IndexGetter
 {
-	CheckedIndexGetter(const DataArray<V>* ado, tile_id t, typename Unit<V>::range_t range)
-		:	m_Data(ado->GetLockedDataRead(t) )
-		,	m_Range(range)
+	CheckedIndexGetter(DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
+		: m_Data(std::move(data))
+		, m_Range(range)
 	{}
 
 	SizeT Get(SizeT t) const override
 	{
-		dms_assert(t < m_Data.size());
+		assert(t < m_Data.size());
 		return Range_GetIndex_checked(m_Range, m_Data[t]);
 	}
 
@@ -191,43 +189,60 @@ template <typename E>
 void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 {
 	static_assert(has_undefines_v<E>);
-
-	const DataArray<E>* di = const_array_cast<E>(m_Adi);
-	DataCheckMode dcmIndices = m_Adi->GetCheckMode();
+	auto range = inviter->GetRange();
+	typename DataArray<E>::locked_cseq_t tileData;
+	DataCheckMode dcmIndices = DCM_CheckBoth;
+	if (m_Aft)
+	{
+		using future_tile = typename DataArray<E>::future_tile;
+		auto ft = debug_cast<future_tile*>(m_Aft);
+		tileData = ft->GetTile();
+	}
+	else
+	{
+		const DataArray<E>* di = const_array_cast<E>(m_Adi);
+		dcmIndices = m_Adi->GetCheckMode();
+		tileData = di->GetLockedDataRead(m_TileID);
+	}
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
-	typename Unit<E>::range_t range = di->GetValueRangeData()->GetRange();
+	if (hasOutOfRangeIndices && !IsIncluding(range, UNDEFINED_VALUE(E)))
+		reinterpret_cast<UInt32&>(dcmIndices) &= ~DCM_CheckDefined;
+
 	if (!(dcmIndices & DCM_CheckDefined))
 		if (!hasOutOfRangeIndices)
 		{
-			if (range.first == E() )
-				m_Result = new ZeroIndexGetter<E>(di, m_TileID, range.second);
+			if (range.first == E())
+				m_Result = new ZeroIndexGetter<E>(std::move(tileData), range.second);
 			else
-				m_Result = new NakedIndexGetter<E>(di, m_TileID, range);
+				m_Result = new NakedIndexGetter<E>( std::move(tileData), range );
 		}
 		else
-			if (range.first == E() )
-				m_Result = new BoundedIndexGetter<E>(di, m_TileID, range.second);
+			if (range.first == E())
+			{
+				MG_CHECK(IsLowerBound(E(), range.second));
+				m_Result = new BoundedIndexGetter<E>( std::move(tileData),  range.second );
+			}
 			else
-				m_Result = new RangedIndexGetter<E>(di, m_TileID, range);
+				m_Result = new RangedIndexGetter<E>(std::move(tileData), range);
 	else
 		if (!hasOutOfRangeIndices)
 		{
 			if (range.first == E())
-				m_Result = new ZeroNullIndexGetter<E>(di, m_TileID, range.second);
+				m_Result = new ZeroNullIndexGetter<E>( std::move(tileData),  range.second );
 			else
-				m_Result = new NullIndexGetter<E>(di, m_TileID, range);
+				m_Result = new NullIndexGetter<E>( std::move(tileData),  range );
 		}
 		else
 		{
-			dms_assert(IsIncluding(range, UNDEFINED_VALUE(E))); // GetTiledCheckMode would change to only range checking if null is outside the range.
-			m_Result = new CheckedIndexGetter<E>(di, m_TileID, range);
+			assert(IsIncluding(range, UNDEFINED_VALUE(E))); // GetTiledCheckMode would change to only range checking if null is outside the range.
+			m_Result = new CheckedIndexGetter<E>( std::move(tileData),  range );
 		}
 }
 
 template <int N>
 void IndexGetterCreatorBase::VisitImpl(const Unit<bit_value<N>>* inviter) const
 {
-	BOOST_MPL_ASSERT_NOT(( has_undefines<bit_value<N>> ));
+	static_assert( ! has_undefines_v<bit_value<N>>);
 
 	m_Result = new ValueGetter<SizeT, bit_value<N>>(const_array_cast<bit_value<N>>(m_Adi), m_TileID);
 }
@@ -237,6 +252,12 @@ IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, tile_id t)
 {
 	m_Adi       = adi;
 	m_TileID    = t;
+}
+
+IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile* aft)
+{
+	m_Adi = adi;
+	m_Aft = aft;
 }
 
 IndexGetter* IndexGetterCreator::Create()
@@ -249,4 +270,10 @@ IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, tile_id t)
 {
 	return IndexGetterCreator(adi, t).Create();
 }
+
+IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, abstr_future_tile* aft)
+{
+	return IndexGetterCreator(adi, aft).Create();
+}
+
 

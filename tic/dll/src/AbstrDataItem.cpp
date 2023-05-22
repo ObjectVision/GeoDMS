@@ -82,8 +82,8 @@ AbstrDataItem::AbstrDataItem()
 
 AbstrDataItem::~AbstrDataItem() noexcept
 {
-	dms_assert(!GetInterestCount());
-	dms_assert(!GetRefCount());
+	assert(!GetInterestCount());
+	assert(!GetRefCount());
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);
@@ -94,7 +94,7 @@ AbstrDataItem::~AbstrDataItem() noexcept
 	m_DomainUnit.reset();
 	m_ValuesUnit.reset();
 
-	dms_assert(m_DataLockCount == 0);
+	assert(m_DataLockCount == 0);
 }
 
 //----------------------------------------------------------------------
@@ -126,7 +126,7 @@ inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const
 
 inline const AbstrDataObject* AbstrDataItem::GetRefObj()          const 
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 	return debug_cast<const AbstrDataItem*>(GetUltimateItem())->GetDataObj(); 
@@ -148,26 +148,26 @@ AbstrValue* AbstrDataItem::CreateAbstrValue  () const
 
 void AbstrDataItem::ClearData(garbage_t& garbage) const
 {
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 #if defined(MG_DEBUG)
 //	static TokenID testsID = GetTokenID("tests");
 //	if (m_BackRef && m_BackRef->GetID() == testsID)
 //		__debugbreak();
 #endif
 	garbage |= std::move(m_DataObject);
-	dms_assert(!m_DataObject);
+	assert(!m_DataObject);
 
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 }
 
 /* REMOVE
 garbage_t AbstrDataItem::CloseData() const
 {
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 
 	garbage_t garbage;
 	garbage |= std::move(m_DataObject);
-	dms_assert(!m_DataObject);
+	assert(!m_DataObject);
 
 	return garbage;
 }
@@ -175,7 +175,7 @@ garbage_t AbstrDataItem::CloseData() const
 
 void AbstrDataItem::XML_DumpData(OutStreamBase* xmlOutStr) const
 { 
-	dms_assert(GetInterestCount()); // PRECONDITION, Callers responsibility
+	assert(GetInterestCount()); // PRECONDITION, Callers responsibility
 	XML_DataBracket dataBracket(*xmlOutStr);
 	GetDataObj()->XML_DumpObjData(xmlOutStr, this); 
 }
@@ -194,10 +194,10 @@ TokenID AbstrDataItem::GetXmlClassID() const
 
 bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 {
-	dms_assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
+	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
 	AbstrStorageManager* sm = smi->StorageManager();
-	dms_assert(sm);
+	assert(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
@@ -228,7 +228,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 
 bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
-	dms_assert(CheckDataReady(GetCurrUltimateItem()));
+	assert(CheckDataReady(GetCurrUltimateItem()));
 
 	DataReadLock lockForSave(this);
 
@@ -264,9 +264,9 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 			debug_newValuesUnitStr = valuesUnit.GetStr().c_str();
 #endif
 
-	dms_assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
-	dms_assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
-//	dms_assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
+	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
+	assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
+//	assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
 
 	m_tDomainUnit = domainUnit;
 	m_tValuesUnit = valuesUnit;
@@ -354,30 +354,30 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 ValueComposition AbstrDataItem::GetValueComposition() const
 {
 	ValueComposition vc = m_StatusFlags.GetValueComposition();
-	dms_assert(vc != ValueComposition::Unknown);
+	assert(vc != ValueComposition::Unknown);
 	return vc;
 }
 
 void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	
-//	dms_assert(IsMetaThread());
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
-	dms_assert(GetCurrDataObj());
-	dms_assert(!m_DataLockCount);
-//	dms_assert(IsSdKnown());
+//	assert(IsMetaThread());
+	assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
+	assert(GetCurrDataObj());
+	assert(!m_DataLockCount);
+//	assert(IsSdKnown());
 
 	const AbstrUnit* adu = GetAbstrDomainUnit();
-	dms_assert(adu && adu->GetInterestCount());
+	assert(adu && adu->GetInterestCount());
 	const AbstrUnit* adr = AsUnit(adu->GetCurrRangeItem());
-	dms_assert(adr && adr->GetInterestCount());
-	dms_assert(CheckDataReady(adr));
+	assert(adr && adr->GetInterestCount());
+	assert(CheckDataReady(adr));
 
-	dms_assert(CheckCalculatingOrReady(adr));
+	assert(CheckCalculatingOrReady(adr));
 
-	dms_assert(IsReadLocked(this) || !IsMultiThreaded2());
+	assert(IsReadLocked(this) || !IsMultiThreaded2());
 	DataWriteLock lock(const_cast<AbstrDataItem*>(this));
-	//	dms_assert(m_DataLockCount < 0);
+	//	assert(m_DataLockCount < 0);
 	BinaryInpStream ar(f);
 
 //	auto adu = GetAbstrDomainUnit()->GetTiledRangeData();
@@ -394,8 +394,8 @@ void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 
 void AbstrDataItem::StoreBlobStream(OutStreamBuff* f) const
 {
-	dms_assert(GetCurrDataObj());
-	dms_assert(!GetAbstrDomainUnit()->IsCurrTiled());
+	assert(GetCurrDataObj());
+	assert(!GetAbstrDomainUnit()->IsCurrTiled());
 
 	BinaryOutStream out(f);
 	for (tile_id t = 0, e = GetAbstrDomainUnit()->GetNrTiles(); t != e; ++t)
@@ -404,7 +404,7 @@ void AbstrDataItem::StoreBlobStream(OutStreamBuff* f) const
 
 bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 {
-	dms_assert(refItem);
+	assert(refItem);
 	if (!base_type::CheckResultItem(refItem))
 		return false;
 	const AbstrDataItem* adi = AsDataItem(refItem);
@@ -449,7 +449,7 @@ failResultMsg:
 
 const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueComposition* vcPtr) const
 {
-	dms_assert(GetTreeParent());
+	assert(GetTreeParent());
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined %s unit", role), FR_MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
@@ -463,7 +463,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 
 void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic)
 {
-	dms_assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
+	assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
 	m_DomainUnit = du;
 	m_ValuesUnit = vu;
 }
@@ -471,16 +471,16 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
 	auto dataObj = m_DataObject;
-	dms_assert(dataObj);
+	assert(dataObj);
 
 //	if (!dataObj)
 //		throwItemError("No DataObj");
-//	dms_assert(m_DataLockCount > 0);
-//	dms_assert(m_DataObject);
+//	assert(m_DataLockCount > 0);
+//	assert(m_DataObject);
 /* REMOVE
 	if (!m_DataObject)
 	{
-		dms_assert((GetTreeParent() == nullptr) or GetTreeParent()->Was(PS_MetaInfo) or GetTreeParent()->WasFailed(FR_MetaInfo));
+		assert((GetTreeParent() == nullptr) or GetTreeParent()->Was(PS_MetaInfo) or GetTreeParent()->WasFailed(FR_MetaInfo));
 
 		MG_CHECK2(false, "TODO G8");
 
@@ -507,7 +507,7 @@ const Object* AbstrDataItem::_GetAs(const Class* cls) const
 //	Override Actor
 void AbstrDataItem::StartInterest() const
 {
-	dms_assert(GetInterestCount()==0);
+	assert(GetInterestCount()==0);
 
 	InterestPtr<const TreeItem*>
 		domainHolder = GetAbstrDomainUnit()
@@ -523,7 +523,7 @@ void AbstrDataItem::StartInterest() const
 
 garbage_t AbstrDataItem::StopInterest() const noexcept
 {
-	dms_assert(GetInterestCount() == 0);
+	assert(GetInterestCount() == 0);
 
 	garbage_t garbage;
 	garbage |= OptionalInterestDec( GetAbstrDomainUnit() );
@@ -555,11 +555,11 @@ bool AbstrDataItem::HasUndefinedValues() const // REMOVE, XXX TRY TO REPLACE BY 
 
 void AbstrDataItem::GetRawCheckModeImpl() const
 {
-	dms_assert(!GetTSF(DSF_ValuesChecked)); // PRECONDITION
+	assert(!GetTSF(DSF_ValuesChecked)); // PRECONDITION
 	const AbstrDataObject* ado = GetDataObj();
 	DataCheckMode dcm = ado->DoGetCheckMode();
 
-	dms_assert(!GetTSF(DSF_ValuesChecked)); // NO CONCURRENCY
+	assert(!GetTSF(DSF_ValuesChecked)); // NO CONCURRENCY
 	m_StatusFlags.SetDataCheckMode(dcm);
 }
 
@@ -578,15 +578,15 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 	MG_LOCKER_NO_UPDATEMETAINFO
 
 	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem()); 
-	dms_assert(adi);
-	dms_assert(CheckDataReady(adi));
+	assert(adi);
+	assert(CheckDataReady(adi));
 
-	dms_assert(adi->GetDataObjLockCount() > 0 );
+	assert(adi->GetDataObjLockCount() > 0 );
 
 	if (!adi->GetTSF(DSF_ValuesChecked))
 	{
 		dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-		dms_assert(IsMetaThread() || IsMultiThreaded2());
+		assert(IsMetaThread() || IsMultiThreaded2());
 		if (IsMultiThreaded2())
 		{
 			data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -595,7 +595,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 		}
 		else
 		{
-			dms_assert(IsMetaThread());
+			assert(IsMetaThread());
 			adi->GetRawCheckModeImpl();
 		}
 	}
@@ -608,13 +608,13 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	MG_LOCKER_NO_UPDATEMETAINFO
 	
 	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem());
-	dms_assert(adi);
-	dms_assert(CheckDataReady(adi));
+	assert(adi);
+	assert(CheckDataReady(adi));
 
-	dms_assert(adi->GetDataObjLockCount() > 0);
+	assert(adi->GetDataObjLockCount() > 0);
 
 	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded2());
 	if (IsMultiThreaded2())
 	{
 		data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -622,7 +622,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	}
 	else
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 		return adi->DetermineRawCheckModeImpl();
 	}
 }
@@ -651,7 +651,7 @@ DataCheckMode AbstrDataItem::GetTiledCheckMode(tile_id t) const
 	}
 	else
 	{
-		dms_assert(t == no_tile || t == 0);
+		assert(t == no_tile || t == 0);
 		return GetCheckMode();
 	}
 }
@@ -668,13 +668,13 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 	{
 		// is info->oldRangeData nog "actief" ? "actief" <-> Actor <-> TimeStamp of land change <-!-> Value Bases Calculation <-> declarative modelling
 		try {
-			dms_assert(!GetDataObjLockCount());
+			assert(!GetDataObjLockCount());
 			auto oldDataObject = GetDataObj();
 			
 			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); is dan nu ineens info->newDataRange "actief" ?
 			CopyData(oldDataObject, lock.get(), info); // can I reuse tiles ?
 			lock.Commit();
-			dms_assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
+			assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
 		}
 		catch (DmsException& x)
 		{
@@ -696,10 +696,10 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 		return false;
 
 	//ClearTSF(TSF_DataInMem);
-	dms_assert(!GetTSF(TSF_DataInMem));
+	assert(!GetTSF(TSF_DataInMem));
 
-	dms_assert(!GetDataObjLockCount());
-	dms_assert(!PartOfInterest());
+	assert(!GetDataObjLockCount());
+	assert(!PartOfInterest());
 
 	if (GetDataRefLockCount())
 		return false;
@@ -707,13 +707,13 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 	if (!m_DataObject)
 		return false;
 
-	dms_assert(!PartOfInterestOrKeep());
+	assert(!PartOfInterestOrKeep());
 
 	if (m_DataObject->IsMemoryObject() && m_DataObject->IsSmallerThan(KEEPMEM_MAX_NR_BYTES)) // TODO G8: Consider leaning on CleanupMem; is the same if applied twice ?
 		return true;
 
 	bool hasSource = !HasCurrConfigData();
-//	dms_assert(!hasSource || IsCacheItem() || GetCurrStorageParent(false) || mc_Calculator)
+//	assert(!hasSource || IsCacheItem() || GetCurrStorageParent(false) || mc_Calculator)
 	garbageCan |= const_cast<AbstrDataItem*>(this)->CleanupMem(hasSource, KEEPMEM_MAX_NR_BYTES+1);
 
 	// copied from TreeItem::TryCleanupMemImpl, TODO G8: Reorder logic and avoid double code
@@ -730,7 +730,7 @@ garbage_t AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	dms_assert(m_DataObject);
+	assert(m_DataObject);
 	// Drop Composite from root when Out Of Interest
 	garbage_t garbageCan;
 	if (hasSourceOrExit && !GetKeepDataState())
@@ -776,7 +776,7 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
 	{ 
-		dms_assert(IsDefined(item->m_tDomainUnit));
+		assert(IsDefined(item->m_tDomainUnit));
 		if (item->m_tDomainUnit)
 			return SharedStr(item->m_tDomainUnit);
 
@@ -797,7 +797,7 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const -> SharedStr override
 	{ 
-		dms_assert(IsDefined(item->m_tValuesUnit));
+		assert(IsDefined(item->m_tValuesUnit));
 		if (item->m_tValuesUnit)
 			return SharedStr(item->m_tValuesUnit);
 
@@ -1088,8 +1088,9 @@ struct InterestReporter : DebugReporter
 	{
 		if (!focusItem)
 			return;
+		assert(focusItem);
 
-		dms_assert(focusItem->GetInterestCount());
+		assert(focusItem->GetInterestCount());
 
 		const TreeItem* ti = dynamic_cast<const TreeItem*>(focusItem);
 
@@ -1122,23 +1123,13 @@ struct InterestReporter : DebugReporter
 				ReportTree(done, tidr->m_Data, level, "CACHEDATA");
 #endif
 		}
-/*
-		const AbstrCalculator* ac = dynamic_cast<const AbstrCalculator*>(focusItem);
-		if (ac)
-		{
-			if (ac->m_DcRef)
-				ReportTree(done, ac->m_DcRef, "DC_REF");
-		}
-*/
 		if (ti)
 		{
-//			return;  // DEBUG
 
 			if (ti->IsCacheItem())
 				ReportTree(done, ti->GetTreeParent(), level, "PARENT");
 			ReportTree(done, ti->mc_RefItem, level, "REF_ITEM");
 			ReportTree(done, ti->mc_DC, level, "CALC");
-//			ReportTree(done, ti->mc_IntegrityChecker, "ICHECK");
 	
 
 			if (IsDataItem(focusItem))
@@ -1170,15 +1161,15 @@ struct InterestReporter : DebugReporter
 	}
 	static void TrimSuppliers(ActorMap& interestRoots, const Actor* focusItem)
 	{
-		dms_assert(focusItem);
-		dms_assert(focusItem->GetInterestCount());
+		assert(focusItem);
+		assert(focusItem->GetInterestCount());
 
 		if (focusItem->DoesHaveSupplInterest() && s_SupplTreeInterest)
 		{
 			auto supplPtr = s_SupplTreeInterest->find(focusItem);
 			if (supplPtr != s_SupplTreeInterest->end())
 			{
-				dms_assert(supplPtr->first == focusItem);
+				assert(supplPtr->first == focusItem);
 				for (SupplInterestListElem* suppl = supplPtr->second; suppl; suppl = suppl->m_NextPtr)
 					ReduceInterest(interestRoots, suppl->m_Value.get_ptr());
 			}
@@ -1217,9 +1208,9 @@ struct InterestReporter : DebugReporter
 		if (!a)
 			return;
 		auto asPtr = as.find(a);
-		dms_assert(asPtr != as.end());
-		dms_assert(asPtr->first == a);
-		dms_assert(asPtr->second > 0);
+		assert(asPtr != as.end());
+		assert(asPtr->first == a);
+		assert(asPtr->second > 0);
 		asPtr->second--;
 /* REMOVE
 		if (!--asPtr->second)

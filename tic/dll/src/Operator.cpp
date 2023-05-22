@@ -53,8 +53,8 @@ Operator::Operator(AbstrOperGroup* group, ClassCPtr resultCls, const ClassCPtr* 
 	,	m_ResultClass(resultCls)
 	,	m_NrOptionalArgs(0)
 {
-	dms_assert(resultCls);
-
+	assert(resultCls);
+	assert(group);
 	group->Register(this);
 }
 
