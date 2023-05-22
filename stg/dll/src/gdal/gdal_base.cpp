@@ -1287,7 +1287,11 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	//if (driverArray.empty()) // need one driver, and one driver only
 	//{
-		auto driverShortName = FileExtensionToRegisteredGDALDriverShortName(ext);
+	//std::string driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
+
+
+
+		auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
 		if (!driverShortName.empty())
 			driverArray.AddString(driverShortName.c_str());
 	//}
