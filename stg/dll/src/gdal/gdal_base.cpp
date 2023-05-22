@@ -1142,6 +1142,21 @@ auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> std::st
 	return GDALRegisterTrustedDriverFromKnownDriverShortName(knownDriverShortName);
 }
 
+bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDALDriver* driver)
+{
+	if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
+	{
+		if (GDALGetMetadataItem(driver, GDAL_DCAP_RASTER, nullptr) == nullptr) // this driver does not support raster
+			return false;
+	}
+	else if (gdalOpenFlags & GDAL_OF_VECTOR)
+	{
+		if (GDALGetMetadataItem(driver, GDAL_DCAP_VECTOR, nullptr) == nullptr) // this driver does not support vector
+			return false;
+	}
+	return true;
+}
+
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
 	dms_assert(rwMode != dms_rw_mode::unspecified);
@@ -1287,8 +1302,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
  	if (not continueWrite || not GDALDriverSupportsUpdating(datasourceName))
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
-		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);
-
+		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);		
 		
 		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
 		{
@@ -1307,6 +1321,20 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			{
 				result->SetGeoTransform(&affine_transformation[0]);
 			}
+		}
+
+		if (!result && !Gdal_DetermineIfDriverHasVectorOrRasterCapability(gdalOpenFlags, driver))
+		{
+			if (gdal_error_frame.HasError())
+			{
+				gdal_error_frame.GetMsgAndReleaseError();
+			}
+
+			if (gdalOpenFlags & GDAL_OF_VECTOR)
+				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driverShortName.c_str());
+			else 
+				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driverShortName.c_str());
+
 		}
 
 	}
