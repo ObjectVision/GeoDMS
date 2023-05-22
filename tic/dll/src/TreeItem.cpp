@@ -3602,8 +3602,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 					dirName += ".xml";
 			}
 			xmlOutStr->WriteInclude(dirName.c_str());
+			auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 			if (xmlOutStr->HasFileName())
-				IncludeFileSave(this, dirName.c_str(), DSM::GetSafeFileWriterArray(this));
+				IncludeFileSave(this, dirName.c_str(), sfwa.get());
 			return;
 		}
 	}

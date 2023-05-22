@@ -157,7 +157,10 @@ bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName)
 
 	auto [gridBegin, gridEnd] = colDomain->GetRangeAsDRect();
 	
-	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, DSM::GetSafeFileWriterArray(diGrid), FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, sfwa.get(), FCM_CreateAlways, true, NR_PAGES_HDRFILE);
 
 	if (bmpwHnd == NULL)
 		return false;
@@ -197,11 +200,9 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	{
 		FilePtrHandle file;
 
-		file.OpenFH(
-			geoRefFileName
-		,	DSM::GetSafeFileWriterArray(uDomain)
-		,	FCM_OpenReadOnly, false, NR_PAGES_HDRFILE
-		);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (sfwa)
+			file.OpenFH(geoRefFileName, sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_HDRFILE);
 		if(file)
 		{
 			SizeT size = file.GetFileSize();

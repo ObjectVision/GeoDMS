@@ -85,7 +85,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	const TreeItem* GetActiveDesktop() const;
 
 	DataControllerMap& GetDcMap() { return m_DcMap; }
-	SafeFileWriterArray* GetSafeFileWriterArray() { return &m_SFWA;  }
+	std::shared_ptr<SafeFileWriterArray> GetSafeFileWriterArray() { return { shared_from_this(), &m_SFWA }; }
 
 
 public: // ==== code analysis support: DMS_TreeItem_SetAnalysisSource

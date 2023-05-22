@@ -239,11 +239,14 @@ auto CreateFileData(AbstrDataItem* adi, bool mustClear) -> std::unique_ptr<Abstr
 	bool isTmp = !isPersistent;
 
 	SharedStr filename = adi->m_FileName;
-	dms_assert(!filename.empty());
+	assert(!filename.empty());
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return {};
 	return CreateFileTileArray(adi
 		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
 		,	filename, isTmp
-		,	DSM::Curr()->GetSafeFileWriterArray()
+		,	sfwa.get()
 	);
 }
 

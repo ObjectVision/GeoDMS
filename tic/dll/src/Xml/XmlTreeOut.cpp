@@ -1084,7 +1084,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 			dms_assert(s_gDumpFolder.empty() );
 			fileNameStr = MakeAbsolutePath( fileNameStr.c_str() );
 		}
-		ItemSave(self, fileNameStr.c_str(), DSM::GetSafeFileWriterArray(self), isRoot);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa)
+			return false;
+		ItemSave(self, fileNameStr.c_str(), sfwa.get(), isRoot);
 		return true;
 
 	DMS_CALL_END

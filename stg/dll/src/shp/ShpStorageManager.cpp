@@ -233,7 +233,11 @@ bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 
 	ShpImp impl;
 
-	if (!impl.Read( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!impl.Read( GetNameStr(), sfwa.get()) )
 		return false;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
@@ -345,7 +349,8 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -369,7 +374,9 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+
+	if (!sfwa || !pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -444,8 +451,12 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
+
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get() ))
 		return; // nothing read; file does not exist; probably has to write data and not read
 
 	const AbstrDataItem* pData = nullptr;
@@ -477,8 +488,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder()) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get()))
 		return false;
 
 	AbstrUnit* au = smi.CurrWU();
