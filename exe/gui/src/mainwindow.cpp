@@ -28,26 +28,26 @@ MainWindow::MainWindow()
     //setStyle(fusion_style);
 
     // set example table view
-   /* m_table_view_model = new MyModel;
+    m_table_view_model = new MyModel;
     m_table_view = new QTableView;
     m_table_view->setModel(m_table_view_model);
 
     
     //setCentralWidget(textEdit);
-    setCentralWidget(m_table_view);*/
+    setCentralWidget(m_table_view);
     //setCentralWidget(nullptr);
     
     
-    //createActions();
-    //createStatusBar();
+    createActions();
+    createStatusBar();
 
-    //statusBar()->showMessage(DMS_GetVersion());
+    statusBar()->showMessage(DMS_GetVersion());
 
-    //createDockWindows();
+    createDockWindows();
 
-    //setWindowTitle(tr("GeoDMS"));
+    setWindowTitle(tr("GeoDMS"));
 
-    //setUnifiedTitleAndToolBarOnMac(true);
+    setUnifiedTitleAndToolBarOnMac(true);
 }
 
 void MainWindow::print()
@@ -193,17 +193,15 @@ void MainWindow::createDockWindows()
             << "Sally Hobart, Tiroli Tea, 67 Long River, Fedula");
     
     */
-    dock->setTitleBarWidget(new QWidget(dock));
-    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    //dock->setTitleBarWidget(new QWidget(dock));
+    //dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     dock->setWidget(m_tree_view_widget);
     //dock->setWidget(m_tree_view);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
     viewMenu->addAction(dock->toggleViewAction());
 
 
-
     dock = new QDockWidget(tr("DetailPages"), this);
-
     m_detail_pages_textbrowser = new QTextBrowser(dock);
     m_detail_pages_textbrowser->setMarkdown("# Fisher's Natural Breaks Classification complexity proof\n"
         "An ***O(k x n x log(n))*** algorithm is presented here, with proof of its validity and complexity, for the [[classification]] of an array of* n* numeric\n"
@@ -225,7 +223,7 @@ void MainWindow::createDockWindows()
 
     dock->setWidget(m_detail_pages_textbrowser);
     dock->setTitleBarWidget(new QWidget(dock));
-    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    //dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     addDockWidget(Qt::RightDockWidgetArea, dock);
     viewMenu->addAction(dock->toggleViewAction());
 
