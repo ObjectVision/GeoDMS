@@ -14,8 +14,6 @@
     <ProjectGuid>{77EDB66F-676D-45ED-8421-044B2689D85A}</ProjectGuid>
     <RootNamespace>GeoDmsGuiQt</RootNamespace>
     <Keyword>QtVS_v304</Keyword>
-    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
     <QtMsBuild Condition="'$(QtMsBuild)'=='' or !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
     <ProjectName>GeoDmsGuiQt</ProjectName>
   </PropertyGroup>
