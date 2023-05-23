@@ -421,7 +421,13 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
-	dms_assert(m_State.GetProgress() < PS_MetaInfo);
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+//	static TokenID m25_rel = GetTokenID_mt("m25_rel");
+//	if (id == m25_rel)
+//		m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
+	assert(m_State.GetProgress() < PS_MetaInfo);
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
 
@@ -1048,6 +1054,11 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 	dms_assert(!refItem || !refItem->InTemplate());
 	if (mc_RefItem == refItem)
 		return;
+
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+	if (m_State.Get(actor_flag_set::AFD_PivotElem) && refItem)
+		refItem->m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
 
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
@@ -3032,6 +3043,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
 		if (dc->WasFailed()) //  && !WasFailed())
 		{
+			self->StopSupplInterest();
 			self->Fail(dc.get_ptr());
 		}
 		if (self->WasFailed(FR_Data))
@@ -3043,6 +3055,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 		}
 		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;
+		self->StopSupplInterest();
 		dms_assert(dc2);
 	}
 	else
