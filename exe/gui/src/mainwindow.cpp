@@ -216,7 +216,7 @@ void MainWindow::createActions()
 
     QToolBar *fileToolBar = addToolBar(tr("File"));
 
-    const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":/images/new.png"));
+    const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":resources/images/new.png"));
     QAction *newLetterAct = new QAction(newIcon, tr("&New Letter"), this);
     newLetterAct->setShortcuts(QKeySequence::New);
     newLetterAct->setStatusTip(tr("Create a new form letter"));
@@ -224,7 +224,7 @@ void MainWindow::createActions()
     fileMenu->addAction(newLetterAct);
     fileToolBar->addAction(newLetterAct);
 
-    const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+    const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":resources/images/save.png"));
     QAction *saveAct = new QAction(saveIcon, tr("&Save..."), this);
     saveAct->setShortcuts(QKeySequence::Save);
     saveAct->setStatusTip(tr("Save the current form letter"));
@@ -232,7 +232,7 @@ void MainWindow::createActions()
     fileMenu->addAction(saveAct);
     fileToolBar->addAction(saveAct);
 
-    const QIcon printIcon = QIcon::fromTheme("document-print", QIcon(":/images/print.png"));
+    const QIcon printIcon = QIcon::fromTheme("document-print", QIcon(":resources/images/print.png"));
     QAction *printAct = new QAction(printIcon, tr("&Print..."), this);
     printAct->setShortcuts(QKeySequence::Print);
     printAct->setStatusTip(tr("Print the current form letter"));
@@ -251,7 +251,7 @@ void MainWindow::createActions()
 
 
 
-    const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":/images/undo.png"));
+    const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":resources/images/undo.png"));
     QAction *undoAct = new QAction(undoIcon, tr("&Undo"), this);
     undoAct->setShortcuts(QKeySequence::Undo);
     undoAct->setStatusTip(tr("Undo the last editing action"));
@@ -287,7 +287,7 @@ void MainWindow::createDockWindows()
     dock->setAllowedAreas(Qt::AllDockWidgetAreas | Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     m_tree_view = new QListWidget(dock);
     
-    QFile file(":images/default.txt");
+    QFile file(":resources/images/default.txt");
     
     file.open(QIODevice::ReadOnly);
     //auto test = file.readAll();
