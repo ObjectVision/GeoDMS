@@ -35,6 +35,7 @@ private slots:
     void insertCustomer(const QString &customer);
     void addParagraph(const QString &paragraph);
 
+
 private:
     void createActions();
     void createStatusBar();
