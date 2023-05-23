@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 //! [0]
+
+#include "RtcInterface.h"
 #include <QtWidgets>
 #include <QTextBrowser>
 #if defined(QT_PRINTSUPPORT_LIB)
@@ -16,6 +18,8 @@
 #include "mainwindow.h"
 #include "treemodel.h"
 #include "mymodel.h"
+
+
 
 //! [0]
 
@@ -33,11 +37,15 @@ MainWindow::MainWindow()
     m_table_view = new QTableView;
     m_table_view->setModel(m_table_view_model);
 
-
+    
     //setCentralWidget(textEdit);
     setCentralWidget(m_table_view);
+    //setCentralWidget(nullptr);
     createActions();
     createStatusBar();
+
+    statusBar()->showMessage(DMS_GetVersion());
+
     createDockWindows();
 
     setWindowTitle(tr("GeoDMS"));
@@ -326,7 +334,7 @@ void MainWindow::createDockWindows()
     m_detail_pages_textbrowser->setMarkdown("# Fisher's Natural Breaks Classification complexity proof\n"
         "An ***O(k x n x log(n))*** algorithm is presented here, with proof of its validity and complexity, for the [[classification]] of an array of* n* numeric\n"
         "values into * k * classes such that the sum of the squared deviations from the class means is minimal, known as Fisher's Natural Breaks Classification. This algorithm is an improvement of [Jenks' Natural Breaks Classification Method](http://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization),\n"
-        "which is a(re)implementation of the algorithm described by Fisher within the context of[choropleth maps](http ://en.wikipedia.org/wiki/Choropleth_map), which has time complexity ***O(k x n <sup>2</sup>)***.\n"
+        "which is a(re)implementation of the algorithm described by Fisher within the context of [choropleth maps](http://en.wikipedia.org/wiki/Choropleth_map), which has time complexity ***O(k x n <sup>2</sup>)***.\n"
         "\n"
         "Finding breaks for 15 classes for a data array of 7 million unique values now takes 20 seconds on a desktop PC.\n"
         "\n"
