@@ -297,7 +297,6 @@ void MainWindow::createDockWindows()
 
     m_tree_view_widget = new QTreeView(dock);
     m_tree_view_widget->setModel(&*m_tree_model);
-
     m_tree_view_widget->setHeaderHidden(true);
     m_tree_view_widget->setAnimated(false);
     m_tree_view_widget->setUniformRowHeights(true);
