@@ -5,6 +5,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QPointer>
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -41,18 +42,16 @@ private:
     void createStatusBar();
     void createDockWindows();
 
-    QTextEdit *textEdit;
     MyModel *m_table_view_model;
-    QTableView *m_table_view;
-    QListWidget *m_tree_view;
-    QListWidget *m_detail_pages;
-    QTextBrowser *m_detail_pages_textbrowser;
-    QListWidget* m_eventlog;
-    QTreeView* m_tree_view_widget;
+    QPointer<QTableView> m_table_view;
+    QPointer<QListWidget> m_tree_view;
+    QPointer<QListWidget> m_detail_pages;
+    QPointer<QTextBrowser> m_detail_pages_textbrowser;
+    QPointer<QListWidget> m_eventlog;
+    QPointer<QTreeView> m_tree_view_widget;
     TreeModel* m_tree_model;
 
     QMenu *viewMenu;
 };
-//! [0]
 
 #endif
