@@ -130,7 +130,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;debug;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;debug;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <BrowseInformation>false</BrowseInformation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -205,4 +205,27 @@
     <Import Project="$(QtMsBuild)\qt.targets" />
   </ImportGroup>
   <ImportGroup Label="ExtensionTargets" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\clc\dll\Clc1.vcxproj">
+      <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\clc\dll\Clc2.vcxproj">
+      <Project>{604fd9aa-6df6-46d7-a1b9-e66b413dc21b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\geo\dll\GeoDLL.vcxproj">
+      <Project>{c0c75a4b-dd01-4272-8fb5-3a242da125ba}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
+      <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\shv\dll\ShvDLL.vcxproj">
+      <Project>{ba9fd377-1ee3-45aa-8a7b-2ac7be68e989}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
+      <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
+      <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
+    </ProjectReference>
+  </ItemGroup>
 </Project>
