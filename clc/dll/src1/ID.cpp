@@ -66,10 +66,10 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrUnit* e1 = AsUnit(args[0]);
-		dms_assert(e1);
+		assert(e1);
 
 		if (!resultHolder)
 		{
@@ -81,7 +81,6 @@ public:
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
-		
 			const AbstrIDOperator* idOper = this;
 			auto trd = MakeShared(e1->GetTiledRangeData());
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
@@ -116,7 +115,7 @@ public:
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrTileRangeData* tileRanges, tile_id t) const override
 	{
 		ResultType* result = mutable_array_cast<E1>(borrowedDataHandle);
-		dms_assert(result);
+		assert(result);
 
 		auto resData = result->GetWritableTile(t, dms_rw_mode::write_only_all);
 		auto resRange = debug_cast<const typename Unit<E1>::range_data_t*>(tileRanges)->GetTileRange(t);

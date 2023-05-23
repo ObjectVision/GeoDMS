@@ -143,32 +143,6 @@ std::atomic<UInt32> TreeItem::s_NotifyChangeLockCount = 0;
 UInt32 TreeItem::s_MakeEndoLockCount     = 0;
 UInt32 TreeItem::s_ConfigReadLockCount   = 0;
 
-
-#if defined(MG_DEBUG)
-
-/* REMOVE
-SizeT d_DcKnownCount = 0;
-
-SizeT TreeItem::GetDcKnownCount() { return d_DcKnownCount; }
-
-#endif //defined(MG_DEBUG)
-
-void TreeItem::SetDcKnown  () const
-{
-//	dms_assert(!IsDcKnown());
-	SetTSF  (TSF_DSM_CrKnown);
-	MG_DEBUGCODE( ++d_DcKnownCount; )
-}
-
-void TreeItem::ClearDcKnown() const
-{
-//	dms_assert( IsDcKnown());
-	ClearTSF(TSF_DSM_CrKnown);
-	MG_DEBUGCODE( --d_DcKnownCount; )
-}
-*/
-#endif //defined(MG_DEBUG)
-
 #if defined(MG_DEBUG_DATA)
 
 namespace {
