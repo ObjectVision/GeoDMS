@@ -48,6 +48,15 @@ MainWindow::MainWindow()
     setUnifiedTitleAndToolBarOnMac(true);
 }
 
+MainWindow::~MainWindow()
+{
+    m_CurrentItem.reset();
+    if (m_Root.has_ptr())
+        m_Root->EnableAutoDelete();
+
+    m_Root.reset();
+}
+
 void MainWindow::print() {} // TODO: remove
 void MainWindow::save() {} // TODO: remove
 void MainWindow::undo() {} // TODO: remove
