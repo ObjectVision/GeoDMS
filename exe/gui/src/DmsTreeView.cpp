@@ -4,34 +4,40 @@
 #include <QDockWidget>
 #include <QMenubar>
 #include <QFile>
-#include <QTreeView>
 
 #include "DmsTreeView.h"
 #include "DmsMainWindow.h"
 #include <QMainWindow>
-#include "treemodel.h"
 
-auto createTreeview(MainWindow* dms_main_window) -> QPointer<QTreeView>
+auto createTreeview(MainWindow* dms_main_window) -> QPointer<QListWidget>
 {
-    QDockWidget* dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
-    QFile file(":res/images/default.txt");
-
-    file.open(QIODevice::ReadOnly);
-    auto m_tree_model = new TreeModel(file.readAll());
-    file.close();
-    
-    QPointer<QTreeView> dms_eventlog_widget_pointer = new QTreeView(dock);
-    dms_eventlog_widget_pointer->setModel(m_tree_model);
-    dms_eventlog_widget_pointer->setHeaderHidden(true);
-    dms_eventlog_widget_pointer->setAnimated(false);
-    dms_eventlog_widget_pointer->setUniformRowHeights(true);
-
+    auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
+    QPointer<QListWidget> dms_eventlog_widget_pointer = new QListWidget(dock);
+    dms_eventlog_widget_pointer->addItems(QStringList()
+        << "Thank you for your payment which we have received today."
+        << "Your order has been dispatched and should be with you "
+        "within 28 days."
+        << "We have dispatched those items that were in stock. The "
+        "rest of your order will be dispatched once all the "
+        "remaining items have arrived at our warehouse. No "
+        "additional shipping charges will be made."
+        << "You made a small overpayment (less than $5) which we "
+        "will keep on account for you, or return at your request."
+        << "You made a small underpayment (less than $1), but we have "
+        "sent your order anyway. We'll add this underpayment to "
+        "your next bill."
+        << "Unfortunately you did not send enough money. Please remit "
+        "an additional $. Your order will be dispatched as soon as "
+        "the complete amount has been received."
+        << "You made an overpayment (more than $5). Do you wish to "
+        "buy more items, or should we return the excess to you?");
+    dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    dock->setWidget(dms_eventlog_widget_pointer);
-    //dock->setWidget(m_tree_view);
     dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
 
-    return dms_eventlog_widget_pointer;
     //viewMenu->addAction(dock->toggleViewAction());
+    return dms_eventlog_widget_pointer;
+
+
 }

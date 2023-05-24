@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QPointer>
+#include "TreeItem.h"
+#include "ptr/SharedPtr.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -11,7 +13,6 @@ class QMenu;
 class QTextEdit;
 class QTextBrowser;
 class QTreeView;
-class TreeModel;
 class QTableView;
 class MyModel; // TODO: remove from namespace
 QT_END_NAMESPACE
@@ -39,12 +40,14 @@ private:
     void createStatusBar();
     void createDockWindows();
 
+    SharedPtr<TreeItem> m_Root;
+    SharedPtr<TreeItem> m_CurrentItem;
+
     MyModel *m_table_view_model;
     QPointer<QTableView> m_table_view; // TODO: remove
     QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<QTreeView> m_treeview;
-    TreeModel* m_tree_model;
+    QPointer<QListWidget> m_treeview;
 
     QMenu *viewMenu;
 };

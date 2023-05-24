@@ -1,7 +1,9 @@
 // dms
 #include "RtcInterface.h"
+#include "StxInterface.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
+#include "utl/Environment.h"
 
 #include <QtWidgets>
 #include <QTextBrowser>
@@ -14,34 +16,33 @@
 
 #include <QTableView>
 #include "DmsMainWindow.h"
-#include "mymodel.h"
-
 #include "DmsEventLog.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
 #include <string>
 
+#include "mymodel.h"
+
 MainWindow::MainWindow()
-{
-    //auto valid_keys = QStyleFactory::keys();
+{ 
     auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
-    //auto fusion_style = QStyleFactory::create("windows");
     setStyle(fusion_style);
     setupDmsCallbacks();
+
+    // read initial last config file
+    std::string geodms_last_config_file = GetGeoDmsRegKey("LastConfigFile").c_str();
+    if (!geodms_last_config_file.empty())
+        m_Root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
 
     // set example table view
     m_table_view_model = new MyModel;
     m_table_view = new QTableView;
     m_table_view->setModel(m_table_view_model);
 
-    
-    //setCentralWidget(textEdit);
     setCentralWidget(m_table_view);
-    //setCentralWidget(nullptr);
     
     createActions();
     createStatusBar();
-    //statusBar()->showMessage(DMS_GetVersion()); // TODO: implement statusbar callback 
     createDockWindows();
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);

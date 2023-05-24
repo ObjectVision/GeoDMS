@@ -179,8 +179,6 @@
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\main_qt.cpp" />
     <ClCompile Include="src\mymodel.cpp" />
-    <ClCompile Include="src\treeitem.cpp" />
-    <ClCompile Include="src\treemodel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\mymodel.h" />
@@ -190,8 +188,6 @@
     <ClInclude Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsMainWindow.h" />
     <ClInclude Include="src\DmsTreeView.h" />
-    <ClInclude Include="src\treeitem.h" />
-    <QtMoc Include="src\treemodel.h" />
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GeoDmsGuiQt.qrc" />
