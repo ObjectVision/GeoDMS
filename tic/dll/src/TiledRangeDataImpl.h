@@ -64,7 +64,7 @@ struct DefaultTileRangeDataBase : TiledRangeData<V>
 
 	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override
 	{
-		return AsLispRef(this->m_Range, asCategorical, base);
+		return AsLispRef(this->m_Range, base, asCategorical);
 	}
 
 	static tile_extent_t<V> tile_extent() { return default_tile_size<V>(); }
