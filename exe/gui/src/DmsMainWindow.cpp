@@ -25,6 +25,9 @@
 
 MainWindow::MainWindow()
 { 
+    auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
+    setStyle(fusion_style);
+
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
@@ -72,8 +75,11 @@ MainWindow::MainWindow()
     PropertiesDockWidget->setMinimumSize(200, 150);
     m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget, CentralDockArea);
 
-    auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
-    setStyle(fusion_style);
+    createActions();
+    createStatusBar();
+    createDockWindows();
+
+
     setupDmsCallbacks();
 
     // read initial last config file
@@ -89,9 +95,6 @@ MainWindow::MainWindow()
     setCentralWidget(m_table_view);
     */
 
-    createActions();
-    createStatusBar();
-    createDockWindows();
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
 }
@@ -147,7 +150,7 @@ void MainWindow::about()
 
 void MainWindow::newLetter() {} // TODO: remove
 
-void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
+void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
     dms_main_window->statusBar()->showMessage(msg);
@@ -157,8 +160,8 @@ void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 void MainWindow::setupDmsCallbacks()
 {
     //DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
-    //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
-    DMS_SetContextNotification(&GeoDMSContextMessage, this);
+    DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_SetContextNotification(&geoDMSContextMessage, this);
     //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
     //SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }

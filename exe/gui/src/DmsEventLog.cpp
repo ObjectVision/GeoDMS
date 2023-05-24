@@ -8,11 +8,20 @@
 #include "DmsMainWindow.h"
 #include <QMainWindow>
 
+void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
+{
+    auto eventlog_widget_pointer = reinterpret_cast<QListWidget*>(clientHandle); // TODO: make eventlog lazy using custom model
+    assert(eventlog_widget_pointer);                                             // TODO: create fancy styling of eventlog items using view implementation of model/view
+    eventlog_widget_pointer->addItem(msg);
+
+    return;
+}
+
 auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
 {
     auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
     QPointer<QListWidget> dms_eventlog_widget_pointer = new QListWidget(dock);
-    dms_eventlog_widget_pointer->addItems(QStringList()
+    /*dms_eventlog_widget_pointer->addItems(QStringList()
         << "Thank you for your payment which we have received today."
         << "Your order has been dispatched and should be with you "
         "within 28 days."
@@ -29,7 +38,7 @@ auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
         "an additional $. Your order will be dispatched as soon as "
         "the complete amount has been received."
         << "You made an overpayment (more than $5). Do you wish to "
-        "buy more items, or should we return the excess to you?");
+        "buy more items, or should we return the excess to you?");*/
     dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
