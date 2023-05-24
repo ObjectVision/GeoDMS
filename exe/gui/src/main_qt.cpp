@@ -59,7 +59,8 @@ int main(int argc, char *argv[])
     
     Q_INIT_RESOURCE(GeoDmsGuiQt);
     MainWindow main_window;
-    main_window.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
+    dms_app.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
+    //main_window.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
     main_window.showMaximized();
     return dms_app.exec();
 }
