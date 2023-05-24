@@ -173,19 +173,23 @@
     </QtRcc>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\mainwindow.cpp" />
+    <ClCompile Include="src\DmsDetailPages.cpp" />
+    <ClCompile Include="src\DmsEventLog.cpp" />
+    <ClCompile Include="src\DmsMainWindow.cpp" />
+    <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\main_qt.cpp" />
     <ClCompile Include="src\mymodel.cpp" />
     <ClCompile Include="src\treeitem.cpp" />
     <ClCompile Include="src\treemodel.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="src\mainwindow.h" />
-  </ItemGroup>
-  <ItemGroup>
     <QtMoc Include="src\mymodel.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\DmsDetailPages.h" />
+    <ClInclude Include="src\DmsEventLog.h" />
+    <QtMoc Include="src\DmsMainWindow.h" />
+    <ClInclude Include="src\DmsTreeView.h" />
     <ClInclude Include="src\treeitem.h" />
     <QtMoc Include="src\treemodel.h" />
   </ItemGroup>

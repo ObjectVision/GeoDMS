@@ -9,7 +9,7 @@
 #include "utl/splitPath.h"
 #include "dbg/DebugLog.h"
 
-#include "mainwindow.h"
+#include "DmsMainWindow.h"
 
 void interpret_command_line_parameters()
 {

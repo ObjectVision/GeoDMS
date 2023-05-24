@@ -16,7 +16,7 @@ class QTextBrowser;
 class QTreeView;
 class TreeModel;
 class QTableView;
-class MyModel;
+class MyModel; // TODO: remove from namespace
 QT_END_NAMESPACE
 
 //! [0]
@@ -36,19 +36,16 @@ private slots:
     void insertCustomer(const QString &customer);
     void addParagraph(const QString &paragraph);
 
-
 private:
     void createActions();
     void createStatusBar();
     void createDockWindows();
 
     MyModel *m_table_view_model;
-    QPointer<QTableView> m_table_view;
-    QPointer<QListWidget> m_tree_view;
-    QPointer<QListWidget> m_detail_pages;
-    QPointer<QTextBrowser> m_detail_pages_textbrowser;
+    QPointer<QTableView> m_table_view; // TODO: remove
+    QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<QTreeView> m_tree_view_widget;
+    QPointer<QTreeView> m_treeview;
     TreeModel* m_tree_model;
 
     QMenu *viewMenu;
