@@ -1,9 +1,8 @@
-// Copyright (C) 2016 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
-//! [0]
-
+// dms
 #include "RtcInterface.h"
+#include "dbg/Debug.h"
+#include "dbg/DebugLog.h"
+
 #include <QtWidgets>
 #include <QTextBrowser>
 #if defined(QT_PRINTSUPPORT_LIB)
@@ -21,6 +20,7 @@
 #include "DmsEventLog.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include <string>
 
 MainWindow::MainWindow()
 {
@@ -77,13 +77,38 @@ void MainWindow::addParagraph(const QString &paragraph)
 
 }
 
+void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
+{
+    auto& stream = *reinterpret_cast<FormattedOutStream*>(clientHandle);
+    while (componentLevel)
+    {
+        stream << "-  ";
+        componentLevel--;
+    }
+    for (char ch; ch = *componentName; ++componentName)
+        if (ch == '\n')
+            stream << "; ";
+        else
+            stream << ch;
+    stream << '\n';
+}
+
+auto getGeoDMSAboutText() -> std::string
+{
+    VectorOutStreamBuff buff;
+    FormattedOutStream stream(&buff, FormattingFlags::None);
+
+    stream << DMS_GetVersion();
+    stream << ", Copyright (c) Object Vision b.v.\n";
+    DMS_VisitVersionComponents(&stream, OnVersionComponentVisit);
+    return { buff.GetData(), buff.GetDataEnd() };
+}
+
 void MainWindow::about()
 {
-   QMessageBox::about(this, tr("About Dock Widgets"),
-            tr("The <b>Dock Widgets</b> example demonstrates how to "
-               "use Qt's dock widgets. You can enter your own text, "
-               "click a customer to add a customer name and "
-               "address, and click standard paragraphs to add them."));
+    auto dms_about_text = getGeoDMSAboutText();
+    QMessageBox::about(this, tr("About"),
+            tr(dms_about_text.c_str()));
 }
 
 void MainWindow::newLetter()
