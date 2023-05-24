@@ -91,11 +91,11 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	DBG_START("TiffSM", "OpenStorage", true);
 
 	dms_assert(!IsOpen());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode != dms_rw_mode::unspecified);
 
 	DBG_TRACE(("storageName =  %s", GetNameStr().c_str()));
 
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 
 	auto imp = std::make_unique<TifImp>();
 	if (rwMode > dms_rw_mode::read_only)
@@ -103,12 +103,14 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 		if (!GetGridData(smi.StorageHolder(), false))
 			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
 				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
-		if (! imp->Open(GetNameStr(), TifFileMode::WRITE, DSM::GetSafeFileWriterArray(smi.StorageHolder())) )
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa|| ! imp->Open(GetNameStr(), TifFileMode::WRITE, sfwa.get()) )
 			throwItemError("Unable to open for Write");
 	}
 	else
 	{
-		bool result = imp->Open(GetNameStr(), TifFileMode::READ, DSM::GetSafeFileWriterArray(smi.StorageHolder()));
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		bool result = sfwa && imp->Open(GetNameStr(), TifFileMode::READ, sfwa.get());
 		MG_CHECK(result); // false after TIFF open error
 	}
 	m_pImp = imp.release();
@@ -121,12 +123,12 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	DBG_START("TiffSM", "DoCloseStorage", true);
 
 	dms_assert(IsOpen());
-	dms_assert(m_pImp.has_ptr());
+	assert(m_pImp.has_ptr());
 
 	DBG_TRACE(("storageName=  %s", GetNameStr().c_str()));
 
 	m_pImp.reset();
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 }
 
 

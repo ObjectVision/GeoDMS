@@ -436,7 +436,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		}
 		else if (myvuIsCategorical)
 		{
-			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the noncategorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the noncategorical calculation results", UnifyMode::UM_AllowDefaultRight, &errMsgStr))
 				goto failResultMsg;
 			SetTSF(TSF_Categorical);
 		}

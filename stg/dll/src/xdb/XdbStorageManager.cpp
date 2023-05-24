@@ -69,7 +69,10 @@ bool XdbStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo); 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	bool result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
 
 	MG_CHECK2(result, "Cannot open Xdb for reading");
 
@@ -95,14 +98,17 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.Open  (GetNameStr(), DSM::GetSafeFileWriterArray(), FCM_OpenRwFixed, m_DatExtension, m_SaveColInfo);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	bool result = imp.Open  (GetNameStr(), sfwa.get(), FCM_OpenRwFixed, m_DatExtension, m_SaveColInfo);
 	if (!result)
-		result  = imp.Create(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo);
+		result  = imp.Create(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
 	MG_CHECK2(result, "Cannot open Xdb");
 
 	const AbstrDataItem* adi = smi->CurrRD();
 
-	dms_assert(adi->GetDataRefLockCount());
+	assert(adi->GetDataRefLockCount());
 
 	const AbstrDataObject* ado = adi->GetRefObj();
 	ValueClassID  vclsid = ado->GetValuesType()->GetValueClassID();
@@ -130,7 +136,11 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo))
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo))
 		return false;
 
 	smi.CurrWU()->SetCount(imp.NrOfRows());
@@ -153,8 +163,9 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	XdbImp imp;
 	UpdateColInfo(imp);
 
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	// Pick up the content of the file
-	if (m_SaveColInfo && !imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, true))
+	if (m_SaveColInfo && !imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, true))
 		return;
 
 	const AbstrUnit* u_row = StorageHolder_GetTableDomain(storageHolder);
@@ -200,8 +211,8 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	const AbstrUnit* du = curdi->GetAbstrDomainUnit();
 	const AbstrUnit* vu = curdi->GetAbstrValuesUnit();
 
-	dms_assert(du);
-	dms_assert(vu);
+	assert(du);
+	assert(vu);
 
 	// Get domain range
 	long range = du->GetCount();
@@ -223,7 +234,8 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	DBG_TRACE(("col_size = %d", col_size));
 
 	// Write dummy content to disk (if the column doesn't exist yet)
-	imp.AppendColumn(curdi->GetName().c_str(), DSM::GetSafeFileWriterArray(subItem), col_size, vid, range, saveColInfo);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
 }
 
 // Unclear in this context, but obligatory
@@ -235,8 +247,9 @@ void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	// inspect the tree and append the corresponding columns
 	// if the column exists nothing is changed	
 
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	XdbImp imp;
-	imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
+	imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
 	SyncItem(this, imp, m_SaveColInfo, storageHolder);
 	for (const TreeItem* subItem = storageHolder->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		SyncItem(this, imp, m_SaveColInfo, subItem);

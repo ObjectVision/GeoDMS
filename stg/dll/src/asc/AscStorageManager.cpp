@@ -92,8 +92,11 @@ bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem
 	if (!vpi.IsNonScaling())
 		throwItemError("Reading asciigrid for a scaled grid not implemented");
 	// Pass a stream object
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	GridDataReader reader;
-	if (! reader.m_Imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray()) )
+	if (! reader.m_Imp.OpenForRead(GetNameStr(), sfwa.get()) )
 		throwItemError("cannot open file for reading");
 
 	reader.m_VPI    = &vpi;
@@ -110,10 +113,11 @@ bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem
 void AsciiStorageManager::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	DBG_START("AsciiStorageManager", "ReadGridCounts", false);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 
 	AsciiImp imp;
 	// Pass a stream object
-	if (! imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray()) )
+	if (! imp.OpenForRead(GetNameStr(), sfwa.get()) )
 		throwItemError("cannot open file for reading");
 
 	const ValueClass* streamType = GetStreamType(borrowedReadResultHolder);
@@ -165,7 +169,10 @@ struct GridDataWriterBase : UnitProcessor
 		dms_assert(m_ADI);
 
 		auto data = const_array_cast<E>(m_ADI)->GetDataRead();
-		m_Success = m_Imp.WriteCells<E>(m_FileNameStr, DSM::GetSafeFileWriterArray(inviter), data.begin(), m_NrElem);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa)
+			return;
+		m_Success = m_Imp.WriteCells<E>(m_FileNameStr, sfwa.get(), data.begin(), m_NrElem);
 	}
 public:
 	mutable AsciiImp     m_Imp;
@@ -234,8 +241,12 @@ bool AsciiStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	if (gridDataDomain->GetNrDimensions() != 2)
 		return false;
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
 	AsciiImp imp;
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder())))
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get()))
 		return false;
 
 	dms_assert(gridDataDomain);
@@ -267,9 +278,11 @@ void AsciiStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* 
 		return;
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
-
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
 	AsciiImp imp;
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder)))
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get()))
 		return;
 
 	DPoint offset, factor;

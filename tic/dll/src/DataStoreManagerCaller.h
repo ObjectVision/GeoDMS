@@ -46,9 +46,12 @@ namespace DSM
 	TIC_CALL void CancelIfOutOfInterest(const TreeItem* item = nullptr);
 	[[noreturn]] void CancelOrThrow(const TreeItem* item);
 
-	inline SafeFileWriterArray* GetSafeFileWriterArray(const TreeItem* item = nullptr)
+	inline auto GetSafeFileWriterArray() -> std::shared_ptr< SafeFileWriterArray>
 	{
-		return Curr()->GetSafeFileWriterArray();
+		auto curr = Curr();
+		if (!curr)
+			return {};
+		return curr->GetSafeFileWriterArray();
 	}
 }; // namespace DSM 
 

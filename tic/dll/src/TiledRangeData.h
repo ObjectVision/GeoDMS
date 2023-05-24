@@ -73,7 +73,7 @@ struct SimpleRangeData : SharedObj
 			return m_Range.first == 0;
 	}
 
-	auto GetAsLispRef(LispPtr base) const->LispRef;
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef;
 
 	Range<V> m_Range;
 };
@@ -97,7 +97,7 @@ struct AbstrTileRangeData : SharedObj
 	virtual void Load(BinaryInpStream& pis) {}
 	virtual void Save(BinaryOutStream& pis) const {}
 
-	virtual LispRef GetAsLispRef(LispPtr base) const = 0;
+	virtual LispRef GetAsLispRef(LispPtr base, bool asCategorical) const = 0;
 
 	TIC_CALL hash_code GetHashCode() const;
 	TIC_CALL row_id GetElemCount() const;
@@ -137,7 +137,7 @@ struct SmallRangeData : AbstrTileRangeData
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return m_Range.first == 0; }
 
-	auto GetAsLispRef(LispPtr base) const -> LispRef override;
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef override;
 
 	V GetTileValue(tile_id t, tile_offset localIndex) const
 	{
@@ -177,7 +177,7 @@ struct FixedRange : AbstrTileRangeData
 		return localIndex;
 	}
 
-	LispRef GetAsLispRef(LispPtr base) const override { return base; }
+	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override { return base; }
 };
 
 template <typename V>
@@ -358,7 +358,7 @@ struct MaxRangeData : TiledRangeData<V>
 	row_id GetElemCount() const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetElemCount"); }
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
-	auto GetAsLispRef(LispPtr base) const->LispRef override { return base; }
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef override { return base; }
 };
 
 //----------------------------------------------------------------------

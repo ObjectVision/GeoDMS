@@ -133,8 +133,11 @@ struct bit_sequence;
 
 #if defined(MG_DEBUG_INTERESTSOURCE) || defined(MG_DEBUG_ALLOCATOR)
 #	define MG_DEBUGREPORTER
+#	define MG_DEBUG_INTERESTSOURCE_LOGGING
 #	define MG_DEBUG_DATA
 #   define MG_UNIT_TESTING
+#else
+#	undef MG_DEBUG_INTERESTSOURCE_LOGGING
 #endif
 
 #if defined(MG_DEBUG)

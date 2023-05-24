@@ -143,32 +143,6 @@ std::atomic<UInt32> TreeItem::s_NotifyChangeLockCount = 0;
 UInt32 TreeItem::s_MakeEndoLockCount     = 0;
 UInt32 TreeItem::s_ConfigReadLockCount   = 0;
 
-
-#if defined(MG_DEBUG)
-
-/* REMOVE
-SizeT d_DcKnownCount = 0;
-
-SizeT TreeItem::GetDcKnownCount() { return d_DcKnownCount; }
-
-#endif //defined(MG_DEBUG)
-
-void TreeItem::SetDcKnown  () const
-{
-//	dms_assert(!IsDcKnown());
-	SetTSF  (TSF_DSM_CrKnown);
-	MG_DEBUGCODE( ++d_DcKnownCount; )
-}
-
-void TreeItem::ClearDcKnown() const
-{
-//	dms_assert( IsDcKnown());
-	ClearTSF(TSF_DSM_CrKnown);
-	MG_DEBUGCODE( --d_DcKnownCount; )
-}
-*/
-#endif //defined(MG_DEBUG)
-
 #if defined(MG_DEBUG_DATA)
 
 namespace {
@@ -447,7 +421,13 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
-	dms_assert(m_State.GetProgress() < PS_MetaInfo);
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+//	static TokenID m25_rel = GetTokenID_mt("m25_rel");
+//	if (id == m25_rel)
+//		m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
+	assert(m_State.GetProgress() < PS_MetaInfo);
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
 
@@ -1074,6 +1054,11 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 	dms_assert(!refItem || !refItem->InTemplate());
 	if (mc_RefItem == refItem)
 		return;
+
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+	if (m_State.Get(actor_flag_set::AFD_PivotElem) && refItem)
+		refItem->m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
 
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
@@ -1786,7 +1771,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 {
 	const Class* cls = GetDynamicClass();
 
-	dms_assert(dest || !id);
+	assert(dest || !id);
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return nullptr; 
@@ -1794,7 +1779,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	if (isNew && copyContext.MustMakePassor())
 		result->SetPassor();
 
-	dms_assert(result);
+	assert(result);
 //	result->m_State.Clear(ASF_DataReadableDefined);
 
 	bool mustCopyProps = true;
@@ -1806,8 +1791,8 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 	if (dstIsRoot)
 	{
-		dms_assert(!isArg);
-		dms_assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
+		assert(!isArg);
+		assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
 		copyContext.m_DstRoot = result;
 		mustCopyProps = copyContext.MustCopyRoot();
 	}
@@ -1858,13 +1843,16 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result)))
 			result->SetTSF(TSF_InheritedRef);
 
+		if (GetTSF(TSF_Categorical))
+			result->SetTSF(TSF_Categorical);
+
 		CopyProps(result, copyContext);
 
 		//	Now, copy data if requested
 		if (isArg)
 		{
-			dms_assert(!dest->InTemplate());
-			dms_assert(copyContext.m_ArgList.IsRealList());
+			assert(!dest->InTemplate());
+			assert(copyContext.m_ArgList.IsRealList());
 
 			result->SetCalculator( AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc) );
 			result->SetIsHidden(true);
@@ -3058,6 +3046,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
 		if (dc->WasFailed()) //  && !WasFailed())
 		{
+			self->StopSupplInterest();
 			self->Fail(dc.get_ptr());
 		}
 		if (self->WasFailed(FR_Data))
@@ -3069,6 +3058,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 		}
 		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;
+		self->StopSupplInterest();
 		dms_assert(dc2);
 	}
 	else
@@ -3602,8 +3592,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 					dirName += ".xml";
 			}
 			xmlOutStr->WriteInclude(dirName.c_str());
+			auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 			if (xmlOutStr->HasFileName())
-				IncludeFileSave(this, dirName.c_str(), DSM::GetSafeFileWriterArray(this));
+				IncludeFileSave(this, dirName.c_str(), sfwa.get());
 			return;
 		}
 	}
