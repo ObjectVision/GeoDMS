@@ -156,10 +156,10 @@ void RemoveStoredPropValues(TreeItem* item, cpy_mode minCpyMode)
 
 void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
 	auto lock = std::scoped_lock(g_RemoveRequestMutex);
-	dms_assert(!IsCacheItem());
+	assert(!IsCacheItem());
 	if (!g_RemoveRequestSet) 
 		g_RemoveRequestSet.assign( new RemoveRequestSet );
 	g_RemoveRequestSet->insert(RemoveRequestSet::value_type(this, propDef));
@@ -169,7 +169,7 @@ void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 void TreeItem::SubPropAssoc(AbstrPropDef* propDef) const
 {
 	auto lock = std::scoped_lock(g_RemoveRequestMutex);
-	dms_assert(g_RemoveRequestSet);
+	assert(g_RemoveRequestSet);
 	RemoveRequestSet::iterator
 		it = g_RemoveRequestSet->find(RemoveRequestSet::value_type(this, propDef)),
 		e  = g_RemoveRequestSet->end();
@@ -265,7 +265,7 @@ void CopyPropsContext::Apply()
 
 void CopyPropsContext::CopyExternalProps(const Class* cls)
 {
-	dms_assert(cls);
+	assert(cls);
 
 	// skip propless classes
 	AbstrPropDef* propDef;
@@ -289,7 +289,7 @@ void CopyPropsContext::CopyExternalProps(const Class* cls)
 	{
 		if (propDef->GetCpyMode() >= m_MinCpyMode && MustCopy(propDef) )
 		{
-			dms_assert(propDef->GetSetMode() > set_mode::construction); // set mode obligated or optional, not construction or none
+			assert(propDef->GetSetMode() > set_mode::construction); // set mode obligated or optional, not construction or none
 			propDef->CopyValue(m_Src, m_Dst);
 		}
 		propDef = propDef->GetPrevCopyablePropDef();

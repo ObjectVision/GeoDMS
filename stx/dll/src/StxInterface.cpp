@@ -199,7 +199,9 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 
 	if (!stricmp(getFileNameExtension(sourcePathName), "xml"))
 	{
-		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, DSM::GetSafeFileWriterArray(), true);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		MG_CHECK(sfwa);
+		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
 		XmlTreeParser xmlParse(&streamBuff);
 		result =  xmlParse.ReadTree(context);
 
@@ -266,7 +268,7 @@ IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 
 		SharedStr localUrl = SharedStr(url);
 		SharedStr result;
-		MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray(), true, false );
+		MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
 		CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
 		while (true) {
 			CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search

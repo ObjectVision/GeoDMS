@@ -167,6 +167,7 @@
     <ClCompile Include="src\SessionData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FileName.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCalculator.h">
@@ -403,6 +404,7 @@
     <ClInclude Include="src\MetaInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\FutureTileArray.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\DataArray.ipp">

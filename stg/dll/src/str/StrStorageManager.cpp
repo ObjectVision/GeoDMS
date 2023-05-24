@@ -71,7 +71,10 @@ bool StrStorageManager::ReadDataItem (const StorageMetaInfo& smi, AbstrDataObjec
 	DataArray<SharedStr>* sdo = dynamic_cast<DataArray<SharedStr>*>(ado);
 	for (SizeT i=0, n = GetNrFiles(storageHolder, adi); i!=n; ++i) {
 		FilePtrHandle file;
-		if (! file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+		auto sfwa = DSM::GetSafeFileWriterArray(); 
+		if (!sfwa)
+			return false;
+		if (! file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
 			return false;
 
 		dms::filesize_t fileSize = file.GetFileSize();
@@ -107,6 +110,10 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const AbstrDataObject* ado = adi->GetRefObj();
 	const TreeItem* storageHolder = smi->StorageHolder();
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
 	auto sda = const_array_dynacast<SharedStr>(ado);
 	if (sda)
 	{
@@ -115,8 +122,9 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		dms_assert(sdData.size() == n);
 		for (SizeT i = 0; i != n; ++i)
 		{
+
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
+			if (!file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
 				return false;
 
 			auto dataBegin = sdData[i].begin();
@@ -130,7 +138,7 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		for (SizeT i = 0; i != n; ++i)
 		{
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
+			if (!file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
 				return false;
 			MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 

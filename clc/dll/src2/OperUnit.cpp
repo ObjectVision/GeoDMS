@@ -1106,7 +1106,7 @@ namespace
 
 	CommonOperGroup
 		cog_Range(token::range), 
-		cog_CatRange("cat_range"),
+		cog_CatRange(token::cat_range),
 		cog_LowerBound("LowerBound"),
 		cog_UpperBound("UpperBound"), 
 		cog_BoundRange("BoundRange"), 
@@ -1117,13 +1117,14 @@ namespace
 	{
 		UnitRangeOperators()
 			: ur(&cog_Range, false)
+			, cr(&cog_CatRange, true)
 			, lb(&cog_LowerBound)
 			, ub(&cog_UpperBound)
 			, rb(&cog_BoundRange)
 			, cb(&cog_BoundCenter)
 		{}
 
-		UnitRangeOperator  <RU> ur;
+		UnitRangeOperator  <RU> ur, cr;
 		LowerBoundOperator <RU> lb;
 		UpperBoundOperator <RU> ub;
 		BoundRangeOperator <RU> rb;

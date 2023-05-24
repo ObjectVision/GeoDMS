@@ -112,14 +112,14 @@ auto domain_change_context::GetCurrContext()->domain_change_context*
 }
 
 template <typename RD>
-auto GetRangeDataAsLispRef(const RD& rd, LispPtr base) -> LispRef
+auto GetRangeDataAsLispRef(const RD& rd, bool asCategorical, LispPtr base) -> LispRef
 {
 	if (!rd)
 		return base;
-	return rd->GetAsLispRef(base);
+	return rd->GetAsLispRef(base, asCategorical);
 }
 
-auto GetRangeDataAsLispRef(Void rd, LispPtr base) -> LispRef
+auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> LispRef
 {
 	return base;
 }
@@ -131,13 +131,7 @@ auto GetRangeDataAsLispRef(Void rd, LispPtr base) -> LispRef
 template <class V>
 LispRef UnitBase<V>::GetKeyExprImpl() const
 {
-/*
-	//	dms_assert(Was(PS_MetaInfo));
-	dms_assert(m_LastGetStateTS == UpdateMarker::GetLastTS()
-		|| HasConfigData()
-		|| InTemplate() || IsPassor()); // suppliers have been scanned, thus m_Calculator has been determined.
-*/
-	dms_assert(!IsCacheItem());
+	assert(!IsCacheItem());
 
 	LispRef result;
 	if (!IsDefaultUnit()) // || IsCacheRoot())
@@ -196,7 +190,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 #endif
 	// add range or tile spec to keyExpr
 	if (GetTSF(USF_HasConfigRange))
-		result = GetRangeDataAsLispRef(m_RangeDataPtr, result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
+		result = GetRangeDataAsLispRef(m_RangeDataPtr, GetTSF(TSF_Categorical), result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result).c_str());
@@ -354,21 +348,15 @@ tile_id RegularAdapter<Base>::GetNrTiles() const
 //-------------------------------LispRef	LispRef GetAsLispRef(LispRef base) const 
 
 template <typename V>
-auto SimpleRangeData<V>::GetAsLispRef(LispPtr base) const -> LispRef
+auto SimpleRangeData<V>::GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef
 {
-	return ExprList(GetTokenID("Range"), base
-		, AsLispRef(m_Range.first)
-		, AsLispRef(m_Range.second)
-	);
+	return AsLispRef(m_Range, base, asCategorical);
 }
 
 template <typename V>
-auto SmallRangeData<V>::GetAsLispRef(LispPtr base) const -> LispRef
+auto SmallRangeData<V>::GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef
 {
-	return ExprList(GetTokenID("Range"), base
-		, AsLispRef(m_Range.first)
-		, AsLispRef(m_Range.second)
-	);
+	return AsLispRef(m_Range, base, asCategorical);
 }
 
 //-------------------------------
