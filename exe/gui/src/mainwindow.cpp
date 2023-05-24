@@ -193,8 +193,8 @@ void MainWindow::createDockWindows()
             << "Sally Hobart, Tiroli Tea, 67 Long River, Fedula");
     
     */
-    //dock->setTitleBarWidget(new QWidget(dock));
-    //dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    dock->setTitleBarWidget(new QWidget(dock));
+    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     dock->setWidget(m_tree_view_widget);
     //dock->setWidget(m_tree_view);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
