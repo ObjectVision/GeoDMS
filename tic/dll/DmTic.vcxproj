@@ -54,6 +54,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FileName.cpp" />
     <ClCompile Include="src\Aspect.cpp" />
     <ClCompile Include="src\CalcDestroyer.cpp" />
     <ClCompile Include="src\DedicatedAttrs.cpp" />

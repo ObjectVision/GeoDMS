@@ -62,9 +62,9 @@ struct DefaultTileRangeDataBase : TiledRangeData<V>
 	DefaultTileRangeDataBase() = default;
 	DefaultTileRangeDataBase(const Range<V>& range) : TiledRangeData<V>(range) {}
 
-	LispRef GetAsLispRef(LispPtr base) const override
+	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override
 	{
-		return AsLispRef(this->m_Range, base);
+		return AsLispRef(this->m_Range, asCategorical, base);
 	}
 
 	static tile_extent_t<V> tile_extent() { return default_tile_size<V>(); }
@@ -84,11 +84,11 @@ struct RegularTileRangeDataBase : TiledRangeData<V>
 	void Load(BinaryInpStream& pis) override;
 	void Save(BinaryOutStream& pis) const override;
 
-	LispRef GetAsLispRef(LispPtr base) const override
+	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override
 	{
 		auto result = List(LispRef(token::TiledUnit)
 			,	slConvertedLispExpr(AsLispRef(m_TileExtent)
-				,	AsLispRef(this->m_Range, base)
+				,	AsLispRef(this->m_Range, base, asCategorical)
 				)
 			);
 
@@ -161,7 +161,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 	void Load(BinaryInpStream& pis) override;
 	void Save(BinaryOutStream& pis) const override;
 
-	LispRef GetAsLispRef(LispPtr base) const override
+	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override
 	{
 		std::vector<V> boundValues; boundValues.reserve(m_Ranges.size());
 		for (const auto& r : m_Ranges)

@@ -1771,7 +1771,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 {
 	const Class* cls = GetDynamicClass();
 
-	dms_assert(dest || !id);
+	assert(dest || !id);
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return nullptr; 
@@ -1779,7 +1779,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	if (isNew && copyContext.MustMakePassor())
 		result->SetPassor();
 
-	dms_assert(result);
+	assert(result);
 //	result->m_State.Clear(ASF_DataReadableDefined);
 
 	bool mustCopyProps = true;
@@ -1791,8 +1791,8 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 	if (dstIsRoot)
 	{
-		dms_assert(!isArg);
-		dms_assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
+		assert(!isArg);
+		assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
 		copyContext.m_DstRoot = result;
 		mustCopyProps = copyContext.MustCopyRoot();
 	}
@@ -1843,13 +1843,16 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result)))
 			result->SetTSF(TSF_InheritedRef);
 
+		if (GetTSF(TSF_Categorical))
+			result->SetTSF(TSF_Categorical);
+
 		CopyProps(result, copyContext);
 
 		//	Now, copy data if requested
 		if (isArg)
 		{
-			dms_assert(!dest->InTemplate());
-			dms_assert(copyContext.m_ArgList.IsRealList());
+			assert(!dest->InTemplate());
+			assert(copyContext.m_ArgList.IsRealList());
 
 			result->SetCalculator( AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc) );
 			result->SetIsHidden(true);

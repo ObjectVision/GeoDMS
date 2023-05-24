@@ -118,6 +118,7 @@ namespace token {
 	TIC_CALL TokenID subitem = GetTokenID_st("SubItem");
 	TIC_CALL TokenID NrOfRows = GetTokenID_st("NrOfRows");
 	TIC_CALL TokenID range = GetTokenID_st("range");
+	TIC_CALL TokenID cat_range = GetTokenID_st("cat_range");
 	TIC_CALL TokenID TiledUnit = GetTokenID_st("TiledUnit");
 
 	TIC_CALL TokenID point = GetTokenID_st("point");
@@ -369,7 +370,7 @@ LispRef slUnionDataLispExpr(LispPtr valueList, SizeT sz)
 		return valueList.Left();
 	}
 	static auto uint32Ref = ExprList(ValueWrap<UInt32>::GetStaticClass()->GetID());
-	auto unionRange = AsLispRef(Range<UInt32>(0, sz), std::move(uint32Ref));
+	auto unionRange = AsLispRef(Range<UInt32>(0, sz), std::move(uint32Ref), true);
 
 	return LispRef(LispRef(token::union_data), LispRef(unionRange, valueList));
 }

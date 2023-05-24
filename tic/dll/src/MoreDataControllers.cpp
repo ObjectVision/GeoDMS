@@ -314,10 +314,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -341,50 +341,8 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	
-	if (IsNew()) // && !m_State.Get(DCF_CacheRootKnown))
-	{
-		dms_assert(m_Data->IsCacheRoot());
-/*
-		auto storeRecordPtr = DataStoreManager::Curr()->GetStoreRecord(GetLispRef());
-		if (storeRecordPtr)
-		{
-			m_State.Set(DCF_CacheRootKnown);
-			bool isStored = (storeRecordPtr->ts != 0);
-			auto sfwa = DataStoreManager::Curr()->GetSafeFileWriterArray();
+	assert(!IsNew() || m_Data->IsCacheRoot());
 
-			SharedStr filenameBase = DataStoreManager::Curr()->m_StoreMap[GetLispRef()].fileNameBase;
-			dms_assert(!filenameBase.empty());
-
-			auto cacheRoot = GetNew();
-			for (auto cacheItem = cacheRoot; cacheItem; cacheItem->WalkCurrSubTree(cacheItem))
-			{
-				bool isDataItem = IsDataItem(cacheItem);
-				if (!isStored && !isDataItem)
-					continue;
-				SharedStr filename = filenameBase;
-				if (cacheItem != cacheRoot)
-					filename += '/' + cacheRoot->GetRelativeName(cacheItem);
-					
-				if (isDataItem)
-				{
-					auto openFile = OpenFileData(AsDataItem(cacheItem), filename+".dmsdata", sfwa); // issue: requires DataReady on domain => always store domain
-					if (isStored)
-						AsDataItem(cacheItem)->m_DataObject.assign(openFile.release());
-					else
-						AsDataItem(cacheItem)->m_FileName = filename;
-				}
-				else if (IsUnit(cacheItem))
-				{
-					MappedFileInpStreamBuff fin(filename+".dmsunit", sfwa, true, false);
-					cacheItem->LoadBlobStream(&fin);
-				}
-
-			}
-		}
-*/
-	}
-
-//	dms_assert(m_State.Get(DCF_CacheRootKnown) == (IsNew() && m_Data->IsDcKnown()));
 	if (m_Data->WasFailed(FR_MetaInfo))
 		Fail(m_Data);
 
@@ -410,7 +368,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
 	dms_assert(IsMetaThread());
