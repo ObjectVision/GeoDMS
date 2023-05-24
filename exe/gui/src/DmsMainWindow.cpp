@@ -14,7 +14,6 @@
 
 #include <QTableView>
 #include "DmsMainWindow.h"
-
 #include "mymodel.h"
 
 #include "DmsEventLog.h"
@@ -28,6 +27,7 @@ MainWindow::MainWindow()
     auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //auto fusion_style = QStyleFactory::create("windows");
     setStyle(fusion_style);
+    setupDmsCallbacks();
 
     // set example table view
     m_table_view_model = new MyModel;
@@ -39,43 +39,19 @@ MainWindow::MainWindow()
     setCentralWidget(m_table_view);
     //setCentralWidget(nullptr);
     
-    
     createActions();
     createStatusBar();
-
-    statusBar()->showMessage(DMS_GetVersion());
-
+    //statusBar()->showMessage(DMS_GetVersion()); // TODO: implement statusbar callback 
     createDockWindows();
-
     setWindowTitle(tr("GeoDMS"));
-
     setUnifiedTitleAndToolBarOnMac(true);
 }
 
-void MainWindow::print()
-{
-
-}
-
-void MainWindow::save()
-{
-
-}
-
-void MainWindow::undo()
-{
-
-}
-
-void MainWindow::insertCustomer(const QString &customer)
-{
-
-}
-
-void MainWindow::addParagraph(const QString &paragraph)
-{
-
-}
+void MainWindow::print() {} // TODO: remove
+void MainWindow::save() {} // TODO: remove
+void MainWindow::undo() {} // TODO: remove
+void MainWindow::insertCustomer(const QString &customer) {} // TODO: remove
+void MainWindow::addParagraph(const QString &paragraph) {} // TODO: remove
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
 {
@@ -111,16 +87,27 @@ void MainWindow::about()
             tr(dms_about_text.c_str()));
 }
 
-void MainWindow::newLetter()
-{
+void MainWindow::newLetter() {} // TODO: remove
 
+void GeoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
+{
+    auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
+    dms_main_window->statusBar()->showMessage(msg);
+    return;
+}
+
+void MainWindow::setupDmsCallbacks()
+{
+    //DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
+    //DMS_RegisterMsgCallback(&m_EventLog.GeoDMSMessage, this);
+    DMS_SetContextNotification(&GeoDMSContextMessage, this);
+    //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
+    //SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
 void MainWindow::createActions()
 {
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-
-
     QToolBar* current_item_bar_container = addToolBar(tr("test"));
     QLineEdit* current_item_bar = new QLineEdit(this);
     current_item_bar_container->addWidget(current_item_bar);
@@ -128,7 +115,6 @@ void MainWindow::createActions()
     addToolBarBreak();
 
     QToolBar *fileToolBar = addToolBar(tr("File"));
-
     const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":res/images/new.png"));
     QAction *newLetterAct = new QAction(newIcon, tr("&New Letter"), this);
     newLetterAct->setShortcuts(QKeySequence::New);
@@ -154,15 +140,12 @@ void MainWindow::createActions()
     fileToolBar->addAction(printAct);
 
     fileMenu->addSeparator();
-
     QAction *quitAct = fileMenu->addAction(tr("&Quit"), qApp, &QCoreApplication::quit);
     quitAct->setShortcuts(QKeySequence::Quit);
     quitAct->setStatusTip(tr("Quit the application"));
 
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
     QToolBar *editToolBar = addToolBar(tr("Edit"));
-
-
 
     const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":res/images/undo.png"));
     QAction *undoAct = new QAction(undoIcon, tr("&Undo"), this);
@@ -173,14 +156,10 @@ void MainWindow::createActions()
     editToolBar->addAction(undoAct);
 
     viewMenu = menuBar()->addMenu(tr("&View"));
-
     menuBar()->addSeparator();
-
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
-
     QAction *aboutAct = helpMenu->addAction(tr("&About"), this, &MainWindow::about);
     aboutAct->setStatusTip(tr("Show the application's About box"));
-
     QAction *aboutQtAct = helpMenu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
 }

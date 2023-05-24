@@ -34,6 +34,7 @@ private slots:
     void addParagraph(const QString &paragraph);
 
 private:
+    void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
     void createDockWindows();
