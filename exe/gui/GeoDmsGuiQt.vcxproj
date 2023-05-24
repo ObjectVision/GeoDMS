@@ -65,7 +65,7 @@
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;release;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;release;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <BrowseInformation>false</BrowseInformation>
       <DebugInformationFormat>None</DebugInformationFormat>
@@ -122,7 +122,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;debug;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;debug;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <BrowseInformation>false</BrowseInformation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -179,6 +179,28 @@
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\main_qt.cpp" />
     <ClCompile Include="src\mymodel.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\ads_globals.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\AutoHideDockContainer.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\AutoHideSideBar.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\AutoHideTab.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockAreaTabBar.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockAreaTitleBar.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockAreaWidget.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockComponentsFactory.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockContainerWidget.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockFocusController.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockingStateReader.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockManager.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockOverlay.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockSplitter.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockWidget.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\DockWidgetTab.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\ElidingLabel.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\FloatingDockContainer.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\FloatingDragPreview.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\IconProvider.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\PushButton.cpp" />
+    <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\mymodel.h" />
@@ -186,6 +208,29 @@
   <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h" />
     <ClInclude Include="src\DmsEventLog.h" />
+    <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
+    <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
+    <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\ResizeHandle.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\PushButton.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\FloatingDragPreview.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\FloatingDockContainer.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\ElidingLabel.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockWidgetTab.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockWidget.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockSplitter.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockOverlay.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockManager.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockFocusController.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockContainerWidget.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockAreaWidget.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTitleBar_p.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTitleBar.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTabBar.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\AutoHideTab.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\AutoHideSideBar.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\AutoHideDockContainer.h" />
+    <QtMoc Include="src\qt_advanced_docking_system\ads_globals.h" />
     <QtMoc Include="src\DmsMainWindow.h" />
     <ClInclude Include="src\DmsTreeView.h" />
   </ItemGroup>

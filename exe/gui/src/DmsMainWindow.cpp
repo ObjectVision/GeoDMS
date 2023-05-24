@@ -25,6 +25,53 @@
 
 MainWindow::MainWindow()
 { 
+    ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
+    ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
+    m_DockManager = new ads::CDockManager(this);
+
+    QListWidget* dms_eventlog_widget_pointer = new QListWidget(this);
+    dms_eventlog_widget_pointer->addItems(QStringList()
+        << "Thank you for your payment which we have received today."
+        << "Your order has been dispatched and should be with you "
+        "within 28 days."
+        << "We have dispatched those items that were in stock. The "
+        "rest of your order will be dispatched once all the "
+        "remaining items have arrived at our warehouse. No "
+        "additional shipping charges will be made."
+        << "You made a small overpayment (less than $5) which we "
+        "will keep on account for you, or return at your request."
+        << "You made a small underpayment (less than $1), but we have "
+        "sent your order anyway. We'll add this underpayment to "
+        "your next bill."
+        << "Unfortunately you did not send enough money. Please remit "
+        "an additional $. Your order will be dispatched as soon as "
+        "the complete amount has been received."
+        << "You made an overpayment (more than $5). Do you wish to "
+        "buy more items, or should we return the excess to you?");
+
+
+    QLabel* label = new QLabel();
+    label->setText("dms client area");
+    label->setAlignment(Qt::AlignCenter);
+    ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
+    CentralDockWidget->setWidget(label);
+    CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
+
+    auto* CentralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
+    
+
+    QTableWidget* propertiesTable = new QTableWidget();
+    propertiesTable->setColumnCount(3);
+    propertiesTable->setRowCount(10);
+    ads::CDockWidget* PropertiesDockWidget = new ads::CDockWidget("Properties");
+    PropertiesDockWidget->setWidget(propertiesTable);
+    PropertiesDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
+    PropertiesDockWidget->resize(250, 150);
+    PropertiesDockWidget->setMinimumSize(200, 150);
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget, CentralDockArea);
+
     auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     setStyle(fusion_style);
     setupDmsCallbacks();
@@ -35,12 +82,13 @@ MainWindow::MainWindow()
         m_Root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
 
     // set example table view
-    m_table_view_model = new MyModel;
+    /*m_table_view_model = new MyModel;
     m_table_view = new QTableView;
     m_table_view->setModel(m_table_view_model);
 
     setCentralWidget(m_table_view);
-    
+    */
+
     createActions();
     createStatusBar();
     createDockWindows();

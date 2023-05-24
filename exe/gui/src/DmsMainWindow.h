@@ -6,6 +6,10 @@
 #include "TreeItem.h"
 #include "ptr/SharedPtr.h"
 
+#include "DockManager.h"
+#include "DockAreaWidget.h"
+#include "DockWidget.h"
+
 QT_BEGIN_NAMESPACE
 class QAction;
 class QListWidget;
@@ -17,13 +21,13 @@ class QTableView;
 class MyModel; // TODO: remove from namespace
 QT_END_NAMESPACE
 
-//! [0]
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
     MainWindow();
+    ~MainWindow();
 
 private slots:
     void newLetter();
@@ -42,6 +46,10 @@ private:
 
     SharedPtr<TreeItem> m_Root;
     SharedPtr<TreeItem> m_CurrentItem;
+
+    ads::CDockManager* m_DockManager;
+    ads::CDockAreaWidget* StatusDockArea;
+    ads::CDockWidget* TimelineDockWidget;
 
     MyModel *m_table_view_model;
     QPointer<QTableView> m_table_view; // TODO: remove
