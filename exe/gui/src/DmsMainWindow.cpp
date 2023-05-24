@@ -28,7 +28,7 @@ MainWindow::MainWindow()
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
+    //ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
     m_DockManager = new ads::CDockManager(this);
 
     QListWidget* dms_eventlog_widget_pointer = new QListWidget(this);
