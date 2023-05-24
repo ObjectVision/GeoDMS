@@ -6,6 +6,7 @@
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 #include "dbg/DebugLog.h"
+#include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
 
@@ -38,26 +39,27 @@ void interpret_command_line_parameters()
     }
 }
 
-int init_geodms()
+int init_geodms(QApplication& dms_app) // TODO: move this logic to GeoDmsEngine class, ie separate gui logic from geodms engine logic.
 {
-    //std::string exePath = GetExeFilePath();
-    //DMS_Appl_SetExeDir(exePath.c_str()); // sets MainThread id
-    //QByteArray test(" ");
-    //auto exe_path = QCoreApplication::applicationDirPath().toUtf8();
+    DMS_Shv_Load();
+    DBG_INIT_COUT;
+    SHV_SetAdminMode(true);
+    auto exe_path = dms_app.applicationDirPath().toUtf8();
+    DMS_Appl_SetExeDir(exe_path);
+    interpret_command_line_parameters();
     
-    //interpret_command_line_parameters();
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    //DMS_Shv_Load();
-    //DBG_INIT_COUT;
+    QApplication dms_app(argc, argv);
+    init_geodms(dms_app);
 
-    QApplication app(argc, argv);
+    
     Q_INIT_RESOURCE(GeoDmsGuiQt);
     MainWindow main_window;
     main_window.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
     main_window.showMaximized();
-    return app.exec();
+    return dms_app.exec();
 }
