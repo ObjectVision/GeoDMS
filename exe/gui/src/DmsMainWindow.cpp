@@ -14,6 +14,8 @@
 #endif
 #endif
 
+#include <QMdiArea>
+
 #include <QTableView>
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
@@ -28,6 +30,17 @@ MainWindow::MainWindow()
     auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     setStyle(fusion_style);
 
+    // test widget for ads and mdi
+    QTableWidget* propertiesTable_1 = new QTableWidget();
+    propertiesTable_1->setColumnCount(3);
+    propertiesTable_1->setRowCount(10);
+
+    QTableWidget* propertiesTable_2 = new QTableWidget();
+    propertiesTable_2->setColumnCount(3);
+    propertiesTable_2->setRowCount(10);
+
+    // Qt Advanced Docking System test
+    /*
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
@@ -63,17 +76,33 @@ MainWindow::MainWindow()
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
 
     auto* CentralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
-    
 
-    QTableWidget* propertiesTable = new QTableWidget();
-    propertiesTable->setColumnCount(3);
-    propertiesTable->setRowCount(10);
-    ads::CDockWidget* PropertiesDockWidget = new ads::CDockWidget("Properties");
-    PropertiesDockWidget->setWidget(propertiesTable);
-    PropertiesDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-    PropertiesDockWidget->resize(250, 150);
-    PropertiesDockWidget->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget, CentralDockArea);
+
+    ads::CDockWidget* PropertiesDockWidget_1 = new ads::CDockWidget("Properties");
+    PropertiesDockWidget_1->setWidget(propertiesTable_1);
+    PropertiesDockWidget_1->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
+    PropertiesDockWidget_1->resize(250, 150);
+    PropertiesDockWidget_1->setMinimumSize(200, 150);
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_1, CentralDockArea);
+
+    ads::CDockWidget* PropertiesDockWidget_2 = new ads::CDockWidget("Properties");
+    PropertiesDockWidget_2->setWidget(propertiesTable_2);
+    PropertiesDockWidget_2->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
+    PropertiesDockWidget_2->resize(250, 150);
+    PropertiesDockWidget_2->setMinimumSize(200, 150);
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_2, CentralDockArea);*/
+
+    // mdi area test
+    m_mdi_area = new QMdiArea(this);
+    
+    //m_mdi_area->setViewMode(QMdiArea::TabbedView);
+    //m_mdi_area->setDocumentMode(true);
+    //m_mdi_area->setTabsMovable(true);
+    m_mdi_area->addSubWindow(propertiesTable_1);
+    m_mdi_area->addSubWindow(propertiesTable_2);
+    setCentralWidget(m_mdi_area);
+
+
 
     createActions();
     createStatusBar();
