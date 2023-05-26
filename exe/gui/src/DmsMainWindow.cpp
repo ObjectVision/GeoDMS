@@ -271,9 +271,6 @@ void MainWindow::createDetailPagesToolbar()
     const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
     QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
     detail_pages_toolBar->addAction(value_info_page_act);
-
-    //m_detailpages_dock->hide();
-    //m_detailpages_dock->show();
 }
 
 void MainWindow::createDetailPagesDock()
