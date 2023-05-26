@@ -96,6 +96,9 @@ MainWindow::MainWindow()
     createStatusBar();
     createDmsHelperWindowDocks();
     createDetailPagesToolbar();
+
+    // connect current item changed signal to appropriate slots
+    connect(this, &MainWindow::currentItemChanged, m_detail_pages, &DmsDetailPages::newCurrentItem);
     
     setupDmsCallbacks();
 
@@ -105,7 +108,7 @@ MainWindow::MainWindow()
         m_root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
 
     if (m_root)
-        m_current_item = m_root;
+        setCurrentTreeitem(m_root); // as an example set current item to root, which emits signal currentItemChanged
 
     // set example table view
     /*m_table_view_model = new MyModel;
@@ -126,6 +129,12 @@ MainWindow::~MainWindow()
         m_root->EnableAutoDelete();
 
     m_root.reset();
+}
+
+void MainWindow::setCurrentTreeitem(TreeItem* new_current_item)
+{
+    m_current_item = new_current_item;
+    emit currentItemChanged();
 }
 
 void MainWindow::print() {} // TODO: remove

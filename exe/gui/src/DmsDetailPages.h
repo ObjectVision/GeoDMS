@@ -25,6 +25,7 @@ public:
 
 public slots:
 	void toggleGeneral();
+	void newCurrentItem();
 
 private slots:
 	void onAnchorClicked(const QUrl& link);

@@ -33,7 +33,11 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
-    auto getCurrentItem() -> TreeItem* { return m_current_item; } ;
+    auto getCurrentTreeitem() -> TreeItem* { return m_current_item; } ;
+    void setCurrentTreeitem(TreeItem* new_current_item);
+
+signals:
+    void currentItemChanged();
 
 private slots:
     void newLetter();

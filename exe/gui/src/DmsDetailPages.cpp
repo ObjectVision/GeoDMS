@@ -13,6 +13,12 @@ void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page
     m_active_detail_page = new_active_detail_page;
 }
 
+void DmsDetailPages::newCurrentItem()
+{
+    if (m_active_detail_page==ActiveDetailPage::GENERAL)
+        drawGeneralPage();
+}
+
 void DmsDetailPages::toggleGeneral()
 {
     auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
@@ -32,7 +38,7 @@ void DmsDetailPages::toggleGeneral()
 
 void DmsDetailPages::drawGeneralPage()
 {
-    auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentItem();
+    auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentTreeitem();
     if (!current_item)
         return;
 
