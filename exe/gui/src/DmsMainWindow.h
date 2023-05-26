@@ -24,6 +24,8 @@ class QMdiArea;
 class QMdiSubWindow;
 QT_END_NAMESPACE
 
+class DmsDetailPages;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -31,6 +33,11 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
+    auto getCurrentTreeitem() -> TreeItem* { return m_current_item; } ;
+    void setCurrentTreeitem(TreeItem* new_current_item);
+
+signals:
+    void currentItemChanged();
 
 private slots:
     void newLetter();
@@ -45,20 +52,27 @@ private:
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
-    void createDockWindows();
 
-    SharedPtr<TreeItem> m_Root;
-    SharedPtr<TreeItem> m_CurrentItem;
+    void createDetailPagesDock();
+    void createDetailPagesToolbar();
+    void createDmsHelperWindowDocks();
 
+    SharedPtr<TreeItem> m_root;
+    SharedPtr<TreeItem> m_current_item;
+
+    // helper window docks
+    QPointer<QDockWidget> m_detailpages_dock;
+
+    // advanced central widget dock
     ads::CDockManager* m_DockManager;
     ads::CDockAreaWidget* StatusDockArea;
     ads::CDockWidget* TimelineDockWidget;
 
-    QPointer<QMdiArea> m_mdi_area;
 
-    MyModel *m_table_view_model;
+    MyModel *m_table_view_model; // TODO: remove
     QPointer<QTableView> m_table_view; // TODO: remove
-    QPointer<QTextBrowser> m_detailpages;
+    QPointer<DmsDetailPages> m_detail_pages;
+    //QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
     QPointer<QListWidget> m_treeview;
 
