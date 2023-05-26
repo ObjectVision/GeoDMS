@@ -34,6 +34,7 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGui.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsImGui.exe
+  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsCaller.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
@@ -45,15 +46,38 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\gdaldata
   File ..\bin\Release\${GeoDmsPlatform}\gdaldata\*.*
   
-  SetOutPath $INSTDIR\proj4data
-  File ..\bin\Release\${GeoDmsPlatform}\proj4data\*.*
-
+  SetOutPath $INSTDIR\generic
+  File ..\bin\Release\${GeoDmsPlatform}\generic\*.*
+  
+  SetOutPath $INSTDIR\iconengines
+  File ..\bin\Release\${GeoDmsPlatform}\iconengines\*.*
+  
+  SetOutPath $INSTDIR\imageformats
+  File ..\bin\Release\${GeoDmsPlatform}\imageformats\*.*
+  
   SetOutPath $INSTDIR\misc\icons
   File ..\bin\Release\${GeoDmsPlatform}\misc\icons\*.*
   
   SetOutPath $INSTDIR\misc\fonts
   File ..\bin\Release\${GeoDmsPlatform}\misc\fonts\*.*
   
+  SetOutPath $INSTDIR\networkinformation
+  File ..\bin\Release\${GeoDmsPlatform}\networkinformation\*.*
+  
+  SetOutPath $INSTDIR\platforms
+  File ..\bin\Release\${GeoDmsPlatform}\platforms\*.*
+  
+  SetOutPath $INSTDIR\proj4data
+  File ..\bin\Release\${GeoDmsPlatform}\proj4data\*.*
+
+  SetOutPath $INSTDIR\styles
+  File ..\bin\Release\${GeoDmsPlatform}\styles\*.*
+  
+  SetOutPath $INSTDIR\tls
+  File ..\bin\Release\${GeoDmsPlatform}\tls\*.*
+  
+;  SetOutPath $INSTDIR\translations
+;  File ..\bin\Release\${GeoDmsPlatform}\translations\*.*
   
   MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
     SetShellVarContext all
@@ -72,6 +96,7 @@ Section uninstall
 
   Delete $INSTDIR\GeoDmsGui.exe
   Delete $INSTDIR\GeoDmsImGui.exe
+  Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\GeoDmsCaller.exe
   Delete $INSTDIR\RewriteExpr.lsp
@@ -80,9 +105,17 @@ Section uninstall
   Delete $INSTDIR\GeoDMS_npp_def.xml
 
   Delete $INSTDIR\gdaldata\*.*
-  Delete $INSTDIR\proj4data\*.*
+  Delete $INSTDIR\generic\*.*
+  Delete $INSTDIR\iconengines\*.*
+  Delete $INSTDIR\imageformats\*.*
   Delete $INSTDIR\misc\icons\*.*
   Delete $INSTDIR\misc\fonts\*.*
+  Delete $INSTDIR\networkinformation\*.*
+  Delete $INSTDIR\platforms\*.*
+  Delete $INSTDIR\proj4data\*.*
+  Delete $INSTDIR\styles\*.*
+  Delete $INSTDIR\tls\*.*
+;  Delete $INSTDIR\translations\*.*
 
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms imGui ${GeoDmsVersion}.lnk"
