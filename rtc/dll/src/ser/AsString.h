@@ -61,7 +61,7 @@ inline SharedStr AsString(const T& value, FormattingFlags ff = FormattingFlags::
 inline SharedStr AsString(WeakStr   value) { return SharedStr(value); }
 inline SharedStr AsString(SharedStr value) { return value; }
 inline SharedStr AsString(CharPtr   value) { return SharedStr(value); }
-inline SharedStr AsString(FormattedOutStream& out, const SharedStr&  v) { return v; }
+//inline SharedStr AsString(FormattedOutStream&, const SharedStr&  v) { return v; }
 
 // ===================== AsDataStr
 
@@ -118,14 +118,14 @@ inline bool AsCharArray(const T& value, char* buffer, SizeT bufLen, FormattingFl
 }
 
 
-inline bool AsCharArray(CharPtr value, char* buffer, SizeT bufLen, FormattingFlags ff)
+inline bool AsCharArray(CharPtr value, char* buffer, SizeT bufLen, FormattingFlags)
 { 
 //	strncpy(buffer, value, bufLen); 
 	while ((bufLen--) && (*buffer++ = *value++)) ; 
 	return !buffer[-1];
 }
 
-inline bool AsCharArray(WeakStr value, char* buffer, SizeT bufLen, FormattingFlags ff)
+inline bool AsCharArray(WeakStr value, char* buffer, SizeT bufLen, FormattingFlags)
 { 
 	SizeT size = value.ssize();
 	buffer = fast_copy(value.begin(), value.begin()+Min<SizeT>(size, bufLen), buffer);
@@ -135,8 +135,12 @@ inline bool AsCharArray(WeakStr value, char* buffer, SizeT bufLen, FormattingFla
 	return true;
 }
 
-inline bool AsCharArray(const SharedStr& value, char* buffer, SizeT bufLen, FormattingFlags ff) { return AsCharArray(typesafe_cast<WeakStr>(value), buffer, bufLen, ff); }
-inline bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags ff)
+inline bool AsCharArray(const SharedStr& value, char* buffer, SizeT bufLen, FormattingFlags ff) 
+{ 
+	return AsCharArray(typesafe_cast<WeakStr>(value), buffer, bufLen, ff); 
+}
+
+inline bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags)
 {
 	SizeT size;
 	CharPtr valueBegin;
@@ -167,10 +171,10 @@ inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlag
 	return Min<streamsize_t>(nullBuf.CurrPos(), maxLen);
 }
 
-inline SizeT AsCharArraySize(CharPtr value, streamsize_t maxLen, FormattingFlags ff) { return StrLen(value, maxLen); }
-inline SizeT AsCharArraySize(WeakStr value, streamsize_t maxLen, FormattingFlags ff) { return Min<streamsize_t>(maxLen, value.ssize()); }
-inline SizeT AsCharArraySize(const SharedStr& value, streamsize_t maxLen, FormattingFlags ff) { return Min<streamsize_t>(maxLen, value.ssize()); }
-inline SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags ff) { return Min<streamsize_t>(maxLen, value.size()); }
+inline SizeT AsCharArraySize(CharPtr value, streamsize_t maxLen, FormattingFlags) { return StrLen(value, maxLen); }
+inline SizeT AsCharArraySize(WeakStr value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
+inline SizeT AsCharArraySize(const SharedStr& value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
+inline SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.size()); }
 
 //----------------------------------------------------------------------
 // Section : IString, used for returning string-handles to ClientAppl

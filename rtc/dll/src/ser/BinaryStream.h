@@ -120,7 +120,7 @@ inline BinaryInpStream& operator >>(BinaryInpStream& is, UInt64& v)
 	return is;
 }
 
-inline SizeT NrStreamBytesOf(UInt32 s) { return sizeof(UInt32); }
+inline SizeT NrStreamBytesOf(UInt32) { return sizeof(UInt32); }
 inline SizeT NrStreamBytesOf(UInt64 s) { return s < MAX_VALUE(UInt32) ? sizeof(UInt32) : sizeof(UInt32) + sizeof(UInt64); }
 
 #endif // __RTC_SER_BINARYSTREAM
