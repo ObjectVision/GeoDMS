@@ -50,6 +50,7 @@ private:
     void createStatusBar();
 
     void createDetailPagesDock();
+    void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
 
     SharedPtr<TreeItem> m_root;

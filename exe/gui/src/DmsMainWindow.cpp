@@ -95,14 +95,17 @@ MainWindow::MainWindow()
     createActions();
     createStatusBar();
     createDmsHelperWindowDocks();
-
-
+    createDetailPagesToolbar();
+    
     setupDmsCallbacks();
 
     // read initial last config file
     std::string geodms_last_config_file = GetGeoDmsRegKey("LastConfigFile").c_str();
     if (!geodms_last_config_file.empty())
         m_root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
+
+    if (m_root)
+        m_current_item = m_root;
 
     // set example table view
     /*m_table_view_model = new MyModel;
@@ -247,13 +250,38 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
 }
 
+void MainWindow::createDetailPagesToolbar()
+{
+    QToolBar* detail_pages_toolBar = new QToolBar(tr("DetailPagesActions"), this);
+    addToolBar(Qt::ToolBarArea::RightToolBarArea, detail_pages_toolBar);
+
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
+    QAction* general_page_act = new QAction(general_icon, tr("&General"), this);
+    detail_pages_toolBar->addAction(general_page_act);
+    connect(general_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleGeneral);
+
+    const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
+    QAction* explore_page_act = new QAction(explore_icon, tr("&Explore"), this);
+    detail_pages_toolBar->addAction(explore_page_act);
+
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
+    QAction* properties_page_act = new QAction(properties_icon, tr("&Properties"), this);
+    detail_pages_toolBar->addAction(properties_page_act);
+
+    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
+    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
+    detail_pages_toolBar->addAction(value_info_page_act);
+
+    //m_detailpages_dock->hide();
+    //m_detailpages_dock->show();
+}
+
 void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
-    //m_detail_pages->setOpenExternalLinks(true);
     m_detailpages_dock->setWidget(m_detail_pages);
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
 }

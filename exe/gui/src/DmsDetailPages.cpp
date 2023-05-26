@@ -8,6 +8,43 @@
 #include "DmsMainWindow.h"
 #include <QMainWindow>
 
+void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
+{
+    m_active_detail_page = new_active_detail_page;
+}
+
+void DmsDetailPages::toggleGeneral()
+{
+    auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
+    if (detail_pages_dock->isHidden())
+    {
+        detail_pages_dock->show();
+        setActiveDetailPage(ActiveDetailPage::GENERAL);
+    }
+    else
+    {
+        detail_pages_dock->hide();
+        setActiveDetailPage(ActiveDetailPage::NONE);
+    }
+
+    drawGeneralPage();
+}
+
+void DmsDetailPages::drawGeneralPage()
+{
+    auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentItem();
+    if (!current_item)
+        return;
+
+    // stream general info for current_item to htm
+    //auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(buffer, OutStreamBase::ST_HTM, "", nullptr));
+    //result = DMS_TreeItem_XML_DumpGeneral(state.GetCurrentItem(), xmlOut.get(), true); // TODO: use result
+
+    // set buff to detail page:
+    //setHtml(buff.to_QString_constructor_compatible_type);
+    int i = 0;
+}
+
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
     auto link_string = link.toString().toUtf8();
