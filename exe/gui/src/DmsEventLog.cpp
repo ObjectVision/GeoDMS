@@ -19,6 +19,8 @@ void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
 
 auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
 {
+
+
     auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
     QPointer<QListWidget> dms_eventlog_widget_pointer = new QListWidget(dock);
     /*dms_eventlog_widget_pointer->addItems(QStringList()

@@ -27,8 +27,8 @@
 
 MainWindow::MainWindow()
 { 
-    auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
-    setStyle(fusion_style);
+    //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
+    //setStyle(fusion_style);
 
     // test widget for ads and mdi
     QTableWidget* propertiesTable_1 = new QTableWidget();
@@ -40,7 +40,7 @@ MainWindow::MainWindow()
     propertiesTable_2->setRowCount(10);
 
     // Qt Advanced Docking System test
-    /*
+    
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
@@ -90,23 +90,11 @@ MainWindow::MainWindow()
     PropertiesDockWidget_2->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
     PropertiesDockWidget_2->resize(250, 150);
     PropertiesDockWidget_2->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_2, CentralDockArea);*/
-
-    // mdi area test
-    m_mdi_area = new QMdiArea(this);
-    
-    //m_mdi_area->setViewMode(QMdiArea::TabbedView);
-    //m_mdi_area->setDocumentMode(true);
-    //m_mdi_area->setTabsMovable(true);
-    m_mdi_area->addSubWindow(propertiesTable_1);
-    m_mdi_area->addSubWindow(propertiesTable_2);
-    setCentralWidget(m_mdi_area);
-
-
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_2, CentralDockArea);
 
     createActions();
     createStatusBar();
-    createDockWindows();
+    createDmsHelperWindowDocks();
 
 
     setupDmsCallbacks();
@@ -114,7 +102,7 @@ MainWindow::MainWindow()
     // read initial last config file
     std::string geodms_last_config_file = GetGeoDmsRegKey("LastConfigFile").c_str();
     if (!geodms_last_config_file.empty())
-        m_Root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
+        m_root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
 
     // set example table view
     /*m_table_view_model = new MyModel;
@@ -130,11 +118,11 @@ MainWindow::MainWindow()
 
 MainWindow::~MainWindow()
 {
-    m_CurrentItem.reset();
-    if (m_Root.has_ptr())
-        m_Root->EnableAutoDelete();
+    m_current_item.reset();
+    if (m_root.has_ptr())
+        m_root->EnableAutoDelete();
 
-    m_Root.reset();
+    m_root.reset();
 }
 
 void MainWindow::print() {} // TODO: remove
@@ -259,9 +247,22 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
 }
 
-void MainWindow::createDockWindows()
+void MainWindow::createDetailPagesDock()
 {
-    m_treeview = createTreeview(this);
-    m_detailpages = createDetailPages(this);
+    m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
+    m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
+    m_detail_pages = new DmsDetailPages(m_detailpages_dock);
+    m_detail_pages->connectDetailPagesAnchorClicked();
+    //m_detail_pages->setOpenExternalLinks(true);
+    m_detailpages_dock->setWidget(m_detail_pages);
+    addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
+}
+
+void MainWindow::createDmsHelperWindowDocks()
+{
+    createDetailPagesDock();
+    m_detail_pages->setDummyText();
+
+    m_treeview = createTreeview(this);    
     m_eventlog = createEventLog(this);
 }
