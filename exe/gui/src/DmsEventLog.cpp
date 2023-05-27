@@ -7,14 +7,25 @@
 #include "DmsEventLog.h"
 #include "DmsMainWindow.h"
 #include <QMainWindow>
+#include "dbg/SeverityType.h"
 
 void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
 {
+
     auto eventlog_widget_pointer = reinterpret_cast<QListWidget*>(clientHandle); // TODO: make eventlog lazy using custom model
     assert(eventlog_widget_pointer);                                             // TODO: create fancy styling of eventlog items using view implementation of model/view
     eventlog_widget_pointer->addItem(msg);
 
-    return;
+    // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
+
+    Qt::GlobalColor clr;
+    switch (st) {
+    case SeverityTypeID::ST_Error     : clr = Qt::red; break;
+    case SeverityTypeID::ST_Warning   : clr = Qt::darkYellow; break;
+    case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
+    default: return;
+    }
+    eventlog_widget_pointer->item(eventlog_widget_pointer->count() - 1)->setForeground(clr);
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
