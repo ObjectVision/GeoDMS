@@ -116,9 +116,7 @@
     <ClCompile Include="src\Theme.cpp" />
     <ClCompile Include="src\ThemeReadLocks.cpp" />
     <ClCompile Include="src\ThemeSet.cpp" />
-    <ClCompile Include="src\ThemeValueGetter.cpp">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
-    </ClCompile>
+    <ClCompile Include="src\ThemeValueGetter.cpp" />
     <ClCompile Include="src\ViewControl.cpp" />
     <ClCompile Include="src\ViewPort.cpp" />
     <ClCompile Include="src\WmsLayer.cpp" />
