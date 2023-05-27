@@ -141,11 +141,11 @@ void MainWindow::setCurrentTreeitem(TreeItem* new_current_item)
 void MainWindow::fileOpen() 
 {
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
+    if (m_root)
+        m_root->EnableAutoDelete();
     auto newRoot = DMS_CreateTreeFromConfiguration(configFileName.toUtf8().data());
     if (newRoot)
     {
-        if (m_root)
-            m_root->EnableAutoDelete();
         m_root = newRoot;
         setCurrentTreeitem(m_root);
     }
