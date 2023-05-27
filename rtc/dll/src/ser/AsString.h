@@ -226,7 +226,8 @@ inline void AsString(StringRef& res, const T& v)
 
 inline SizeT StrLen(const StringCRef& x, SizeT maxLen)
 {
-	return StrLen(x.begin(), x.end());
+	MakeMin(maxLen, x.size());
+	return StrLen(x.begin(), maxLen);
 }
 
 
