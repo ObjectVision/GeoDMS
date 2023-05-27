@@ -21,7 +21,6 @@
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
 	  <EnablePREfast>true</EnablePREfast>
     </ClCompile>
