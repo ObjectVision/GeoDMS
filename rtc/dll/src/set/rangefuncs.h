@@ -114,7 +114,7 @@ template <typename T> struct trivially_move_assignable<Range<T> > : trivially_mo
 
 template <typename Iter> inline
 typename std::enable_if< raw_destructed< typename std::iterator_traits<Iter>::value_type >::value >::type
-destroy_range(Iter first, Iter last)
+destroy_range(Iter /*first*/, Iter /*last*/)
 {
 	// NOP
 }

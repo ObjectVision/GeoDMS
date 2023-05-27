@@ -157,8 +157,10 @@ void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const SQLHAN
 			message, 
 			DiagnosticString(db, rs, col).c_str()
 		);
-	if (ret != SQL_SUCCESS_WITH_INFO  || strcmp((char*)sqlstate, "IM006"))
+	if (ret != SQL_SUCCESS_WITH_INFO || strcmp((char*)sqlstate, "IM006"))
+	{
 		MGD_TRACE(("%s", msg.c_str()));
+	}
 	if (ret != SQL_SUCCESS_WITH_INFO)
 		::throwErrorD("ODBC", msg.c_str());
 }

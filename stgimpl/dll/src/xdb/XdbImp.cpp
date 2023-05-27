@@ -254,45 +254,6 @@ bool XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 	if (stripped < 0) stripped = 0;
 	if (stripped > 0) cnt = cnt - stripped;
     DBG_TRACE(("stripped  : %ld", stripped));
-/* DEBUG, NYI
-	fseek(m_FHD, 0, SEEK_END);
-	long srcfilesize = ftell(m_FHD);
-
-	// Write
-	recno_t i=0;
-	char sbuf[255]; sbuf[0] = 0;
-	long c = 0;
-	for (i=0; i<cnt; i++)
-	{
-		// Move to write position
-		long newpos = nRecPos * width + offset;
-		fseek( m_FHD, newpos, 0);
-		
-		// Construct string to write
-		switch(ColDescriptions[col_index].Type)
-		{
-			case VT_UInt32:
-			case VT_Int32:   WriteLong  (sbuf,  *(((long    *)buf)+i)); break;
-			case VT_Float32: WriteFloat (sbuf,  *(((Float32 *)buf)+i)); break;
-			case VT_Float64: WriteDouble(sbuf,  *(((Float64 *)buf)+i)); break;
-		}
-		for (c=StrLen(sbuf); c<colwidth; ++c)
-			sbuf[c] = ' ';
-
-		sbuf[colwidth] = 0;
-	    //DBG_TRACE(("sbuf  : %s", sbuf));
-
-		// Write string
-		long result = fprintf( m_FHD, "%s", sbuf);
-		//DBG_TRACE(("result: %d", result));
-		nRecPos++;
-		if (newpos >= srcfilesize)
-		{
-			fseek(m_FHD, nRecPos * width - 2, 0);
-			fprintf(m_FHD, "\n");
-		}
-	}
-*/
 	// Done
 	return true;
 }
