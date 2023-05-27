@@ -23,7 +23,6 @@
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <WarningLevel>Level3</WarningLevel>
 	  <EnablePREfast>true</EnablePREfast>
     </ClCompile>
     <Link>
