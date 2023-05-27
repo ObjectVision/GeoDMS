@@ -14,7 +14,6 @@
 #endif
 #endif
 
-#include <QMdiArea>
 
 #include <QTableView>
 #include "DmsMainWindow.h"
@@ -137,6 +136,21 @@ void MainWindow::setCurrentTreeitem(TreeItem* new_current_item)
     emit currentItemChanged();
 }
 
+#include <QFileDialog>
+
+void MainWindow::fileOpen() 
+{
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
+    auto newRoot = DMS_CreateTreeFromConfiguration(configFileName.toUtf8().data());
+    if (newRoot)
+    {
+        if (m_root)
+            m_root->EnableAutoDelete();
+        m_root = newRoot;
+        setCurrentTreeitem(m_root);
+    }
+}
+
 void MainWindow::print() {} // TODO: remove
 void MainWindow::save() {} // TODO: remove
 void MainWindow::undo() {} // TODO: remove
@@ -177,8 +191,6 @@ void MainWindow::about()
             tr(dms_about_text.c_str()));
 }
 
-void MainWindow::newLetter() {} // TODO: remove
-
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
@@ -206,12 +218,12 @@ void MainWindow::createActions()
 
     QToolBar *fileToolBar = addToolBar(tr("File"));
     const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":res/images/new.png"));
-    QAction *newLetterAct = new QAction(newIcon, tr("&New Letter"), this);
-    newLetterAct->setShortcuts(QKeySequence::New);
-    newLetterAct->setStatusTip(tr("Create a new form letter"));
-    connect(newLetterAct, &QAction::triggered, this, &MainWindow::newLetter);
-    fileMenu->addAction(newLetterAct);
-    fileToolBar->addAction(newLetterAct);
+    QAction *fileOpenAct = new QAction(newIcon, tr("File &Open"), this);
+    fileOpenAct->setShortcuts(QKeySequence::Open);
+    fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
+    connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
+    fileMenu->addAction(fileOpenAct);
+    fileToolBar->addAction(fileOpenAct);
 
     const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":res/images/save.png"));
     QAction *saveAct = new QAction(saveIcon, tr("&Save..."), this);

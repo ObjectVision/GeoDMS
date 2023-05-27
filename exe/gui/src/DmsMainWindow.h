@@ -40,7 +40,7 @@ signals:
     void currentItemChanged();
 
 private slots:
-    void newLetter();
+    void fileOpen();
     void save();
     void print();
     void undo();
