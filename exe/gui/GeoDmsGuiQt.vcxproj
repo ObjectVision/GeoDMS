@@ -42,21 +42,12 @@
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt_defaults.props')">
     <Import Project="$(QtMsBuild)\qt_defaults.props" />
   </ImportGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup>
     <TargetName>GeoDmsGuiQt</TargetName>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>GeoDmsGuiQt</TargetName>
-    <IgnoreImportLibrary>true</IgnoreImportLibrary>
-  </PropertyGroup>
-  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <QtInstall>6.5.0_msvc2019_64</QtInstall>
-    <QtModules>core;gui;widgets;printsupport</QtModules>
-    <QtDeploy>true</QtDeploy>
-  </PropertyGroup>
-  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <QtInstall>6.5.0_msvc2019_64</QtInstall>
+  <PropertyGroup Label="QtSettings">
+    <QtInstall>6.5.1</QtInstall>
     <QtModules>core;gui;widgets;printsupport</QtModules>
     <QtDeploy>true</QtDeploy>
   </PropertyGroup>
@@ -78,22 +69,22 @@
       <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
     </QtRcc>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;release;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <Optimization>MaxSpeed</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPoint.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -119,22 +110,16 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;.;debug;C:\VulkanSDK\1.2.198.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <BrowseInformation>false</BrowseInformation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPointd.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
