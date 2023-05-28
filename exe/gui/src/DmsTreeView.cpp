@@ -7,6 +7,7 @@
 
 #include "DmsTreeView.h"
 #include "DmsMainWindow.h"
+#include "TreeItem.h"
 #include <QMainWindow>
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<QListWidget>
