@@ -148,6 +148,7 @@ void MainWindow::fileOpen()
     {
         m_root = newRoot;
         setCurrentTreeitem(m_root);
+        m_treeview->setModel(new DmsModel( m_root )); // TODO: check Ownership ?
     }
 }
 
