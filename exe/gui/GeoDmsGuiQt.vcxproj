@@ -177,7 +177,7 @@
     <QtMoc Include="src\qt_advanced_docking_system\AutoHideDockContainer.h" />
     <QtMoc Include="src\qt_advanced_docking_system\ads_globals.h" />
     <QtMoc Include="src\DmsMainWindow.h" />
-    <ClInclude Include="src\DmsTreeView.h" />
+    <QtMoc Include="src\DmsTreeView.h" />
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GeoDmsGuiQt.qrc" />

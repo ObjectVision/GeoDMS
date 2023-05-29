@@ -167,6 +167,9 @@
     <QtMoc Include="src\qt_advanced_docking_system\ResizeHandle.h">
       <Filter>Qt Advanced Docking System</Filter>
     </QtMoc>
+    <QtMoc Include="src\DmsTreeView.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GeoDmsGuiQt.qrc">
@@ -178,9 +181,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\DmsDetailPages.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\DmsTreeView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h">

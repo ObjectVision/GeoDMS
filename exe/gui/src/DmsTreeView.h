@@ -25,6 +25,8 @@ private:
 
 class DmsModel : public QAbstractItemModel
 {
+	Q_OBJECT
+
 public:
 	DmsModel(TreeItem* root) : m_root(root) {}
 
@@ -36,6 +38,7 @@ public:
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
 
 private:
+	TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 	TreeItem* m_root = nullptr;
 };
 
