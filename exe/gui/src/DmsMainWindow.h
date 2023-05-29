@@ -13,6 +13,7 @@
 QT_BEGIN_NAMESPACE
 class QAction;
 class QListWidget;
+class QTreeWidget;
 class QMenu;
 class QTextEdit;
 class QTextBrowser;
@@ -74,7 +75,7 @@ private:
     QPointer<DmsDetailPages> m_detail_pages;
     //QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<QListWidget> m_treeview;
+    QPointer<QTreeView> m_treeview;
 
     QMenu *viewMenu;
 };
