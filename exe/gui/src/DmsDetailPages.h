@@ -20,7 +20,7 @@ class DmsDetailPages : public QTextBrowser
 {
 public:
 	using QTextBrowser::QTextBrowser;
-	void setDummyText();
+//	void setDummyText();
 	void connectDetailPagesAnchorClicked();
 
 public slots:
@@ -34,6 +34,6 @@ private:
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void drawGeneralPage();
 
-	ActiveDetailPage m_active_detail_page = ActiveDetailPage::NONE;
+	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 };
 
