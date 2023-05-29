@@ -50,6 +50,7 @@ private slots:
     void addParagraph(const QString &paragraph);
 
 private:
+    void LoadConfig(CharPtr filename);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();

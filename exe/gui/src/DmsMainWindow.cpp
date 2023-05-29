@@ -104,8 +104,8 @@ MainWindow::MainWindow()
     // read initial last config file
     std::string geodms_last_config_file = GetGeoDmsRegKey("LastConfigFile").c_str();
     if (!geodms_last_config_file.empty())
-        m_root = DMS_CreateTreeFromConfiguration(geodms_last_config_file.c_str());
-
+        LoadConfig(geodms_last_config_file.c_str());
+ 
     if (m_root)
         setCurrentTreeitem(m_root); // as an example set current item to root, which emits signal currentItemChanged
 
@@ -143,13 +143,7 @@ void MainWindow::fileOpen()
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
     if (m_root)
         m_root->EnableAutoDelete();
-    auto newRoot = DMS_CreateTreeFromConfiguration(configFileName.toUtf8().data());
-    if (newRoot)
-    {
-        m_root = newRoot;
-        setCurrentTreeitem(m_root);
-        m_treeview->setModel(new DmsModel( m_root )); // TODO: check Ownership ?
-    }
+    LoadConfig(configFileName.toUtf8().data());
 }
 
 void MainWindow::print() {} // TODO: remove
@@ -197,6 +191,17 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
     dms_main_window->statusBar()->showMessage(msg);
     return;
+}
+
+void MainWindow::LoadConfig(CharPtr fileName)
+{
+    auto newRoot = DMS_CreateTreeFromConfiguration(fileName);
+    if (newRoot)
+    {
+        m_root = newRoot;
+        setCurrentTreeitem(m_root);
+        m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
+    }
 }
 
 void MainWindow::setupDmsCallbacks()
