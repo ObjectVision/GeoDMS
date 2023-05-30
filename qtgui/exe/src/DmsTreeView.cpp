@@ -11,9 +11,9 @@
 #include <QMainWindow>
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> const TreeItem*
+	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
 	{
-		return reinterpret_cast<const TreeItem*>(mi.constInternalPointer());
+		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
 
 	int GetRow(const TreeItem* ti)
@@ -35,11 +35,27 @@ namespace {
 	}
 }
 
+TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
+{
+	auto ti = GetTreeItem(index);
+	if (!ti)
+		return m_root;
+	return ti;
+}
+
+QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
+		return data({}, role);
+
+	return QVariant();
+}
+
+
 QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) const
 {
-	auto ti = GetTreeItem(parent);
-	if (!ti)
-		return {};
+	auto ti = GetTreeItemOrRoot(parent);
+	assert(ti);
 
 	ti = ti->_GetFirstSubItem();
 	assert(ti);
@@ -62,9 +78,7 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const
 }
 int DmsModel::rowCount(const QModelIndex& parent) const
 {
-	auto ti = GetTreeItem(parent);
-	if (!ti)
-		return 0;
+	auto ti = GetTreeItemOrRoot(parent);
 
 	ti = ti->_GetFirstSubItem();
 	int row = 0;
@@ -83,19 +97,17 @@ int DmsModel::columnCount(const QModelIndex& parent) const
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const
 {
-	auto ti = GetTreeItem(index);
+	auto ti = GetTreeItemOrRoot(index);
 	auto name = QString(ti->GetName().c_str());
 	return name;
 }
 
 bool DmsModel::hasChildren(const QModelIndex& parent) const
 {
-	auto ti = GetTreeItem(parent);
+	auto ti = GetTreeItemOrRoot(parent);
 	return ti && ti->HasSubItems();
 }
 
-
-//const int DMS_QT_TREE_NODE_CATEGORY = 1000;
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<QTreeView>
 {
