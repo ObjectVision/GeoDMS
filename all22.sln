@@ -55,7 +55,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TicTst", "tic\tst\DmTicTst.
 		{DF25D3CA-DD28-4F0D-870A-09B12EADCB2E} = {DF25D3CA-DD28-4F0D-870A-09B12EADCB2E}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsRun", "exe\run\DmsRun.vcxproj", "{2D7A02E2-FAF5-4B89-8175-BFE0A4FC97FF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsRun", "run\exe\DmsRun.vcxproj", "{2D7A02E2-FAF5-4B89-8175-BFE0A4FC97FF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{EDE22514-D90D-4600-AA3C-F2E149E57A4E} = {EDE22514-D90D-4600-AA3C-F2E149E57A4E}
 		{C2602D25-F606-49E3-A167-68A495A46DFA} = {C2602D25-F606-49E3-A167-68A495A46DFA}
@@ -118,11 +118,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D3
 		doc\MT2-issues.txt = doc\MT2-issues.txt
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsCaller", "exe\caller\DmsCaller.vcxproj", "{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsCaller", "caller\exe\DmsCaller.vcxproj", "{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGUI", "exe\gui\GeoDmsGUI.vcxproj", "{42BD4215-A8DC-4B9D-9704-BFC26A324CA9}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGUI", "imgui\exe\GeoDmsGUI.vcxproj", "{42BD4215-A8DC-4B9D-9704-BFC26A324CA9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "exe\gui\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "qtgui\exe\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
