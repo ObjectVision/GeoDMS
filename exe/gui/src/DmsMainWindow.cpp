@@ -34,9 +34,7 @@ MainWindow::MainWindow()
     propertiesTable_1->setColumnCount(3);
     propertiesTable_1->setRowCount(10);
 
-    QTableWidget* propertiesTable_2 = new QTableWidget();
-    propertiesTable_2->setColumnCount(3);
-    propertiesTable_2->setRowCount(10);
+    auto tv2 = new QTreeView;
 
     // Qt Advanced Docking System test
     
@@ -47,26 +45,7 @@ MainWindow::MainWindow()
     m_DockManager = new ads::CDockManager(this);
 
     QListWidget* dms_eventlog_widget_pointer = new QListWidget(this);
-    dms_eventlog_widget_pointer->addItems(QStringList()
-        << "Thank you for your payment which we have received today."
-        << "Your order has been dispatched and should be with you "
-        "within 28 days."
-        << "We have dispatched those items that were in stock. The "
-        "rest of your order will be dispatched once all the "
-        "remaining items have arrived at our warehouse. No "
-        "additional shipping charges will be made."
-        << "You made a small overpayment (less than $5) which we "
-        "will keep on account for you, or return at your request."
-        << "You made a small underpayment (less than $1), but we have "
-        "sent your order anyway. We'll add this underpayment to "
-        "your next bill."
-        << "Unfortunately you did not send enough money. Please remit "
-        "an additional $. Your order will be dispatched as soon as "
-        "the complete amount has been received."
-        << "You made an overpayment (more than $5). Do you wish to "
-        "buy more items, or should we return the excess to you?");
-
-
+ 
     QLabel* label = new QLabel();
     label->setText("dms client area");
     label->setAlignment(Qt::AlignCenter);
@@ -85,7 +64,7 @@ MainWindow::MainWindow()
     m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_1, CentralDockArea);
 
     ads::CDockWidget* PropertiesDockWidget_2 = new ads::CDockWidget("Properties");
-    PropertiesDockWidget_2->setWidget(propertiesTable_2);
+    PropertiesDockWidget_2->setWidget(tv2);
     PropertiesDockWidget_2->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
     PropertiesDockWidget_2->resize(250, 150);
     PropertiesDockWidget_2->setMinimumSize(200, 150);
@@ -107,8 +86,10 @@ MainWindow::MainWindow()
         LoadConfig(geodms_last_config_file.c_str());
  
     if (m_root)
+    {
         setCurrentTreeitem(m_root); // as an example set current item to root, which emits signal currentItemChanged
-
+        tv2->setModel(new DmsModel(m_root));
+    }
     // set example table view
     /*m_table_view_model = new MyModel;
     m_table_view = new QTableView;
@@ -200,7 +181,12 @@ void MainWindow::LoadConfig(CharPtr fileName)
     {
         m_root = newRoot;
         setCurrentTreeitem(m_root);
+        m_treeview->setRootIsDecorated(true);
+        m_treeview->setUniformRowHeights(true);
+        m_treeview->setItemsExpandable(true);
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
+        m_treeview->setRootIndex({});
+        m_treeview->scrollTo({});
     }
 }
 
