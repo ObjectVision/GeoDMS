@@ -6,22 +6,7 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
-class TreeItem;
 
-
-class TreeNode
-{
-	explicit TreeNode(TreeItem* tree_item);
-	~TreeNode();
-	auto child(int number) -> TreeNode*;
-	auto childCount() -> int;
-	QVariant data(int column) const;
-	// TODO: continue here
-
-private:
-	TreeItem* m_tree_item = nullptr;
-	TreeNode* m_parent_node = nullptr;
-};
 
 class DmsModel : public QAbstractItemModel
 {
