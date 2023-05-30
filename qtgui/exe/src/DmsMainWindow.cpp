@@ -77,7 +77,7 @@ MainWindow::MainWindow()
 
     // connect current item changed signal to appropriate slots
     connect(this, &MainWindow::currentItemChanged, m_detail_pages, &DmsDetailPages::newCurrentItem);
-    
+
     setupDmsCallbacks();
 
     // read initial last config file
@@ -88,7 +88,11 @@ MainWindow::MainWindow()
     if (m_root)
     {
         setCurrentTreeitem(m_root); // as an example set current item to root, which emits signal currentItemChanged
-        tv2->setModel(new DmsModel(m_root));
+        m_treeview->setModel(new DmsModel(m_root));
+        auto test = m_treeview->rootIsDecorated();
+
+        //m_treeview->expandAll();
+        //tv2->setModel(new DmsModel(m_root));
     }
     // set example table view
     /*m_table_view_model = new MyModel;

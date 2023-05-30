@@ -54,12 +54,17 @@ QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role
 
 QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) const
 {
+	if (!hasIndex(row, column, parent))
+		return QModelIndex();
+
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
 
 	ti = ti->_GetFirstSubItem();
 	assert(ti);
-	while (row--)
+
+	int items_to_be_stepped = row;
+	while (items_to_be_stepped--)
 	{
 		ti = ti->GetNextItem();
 		assert(ti);
@@ -68,6 +73,9 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 }
 QModelIndex DmsModel::parent(const QModelIndex& child) const
 {
+	if (!child.isValid())
+		return QModelIndex();
+
 	auto ti = reinterpret_cast<const TreeItem*>(child.constInternalPointer());
 	assert(ti);
 	ti = ti->GetTreeParent();
@@ -97,6 +105,12 @@ int DmsModel::columnCount(const QModelIndex& parent) const
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const
 {
+	if (!index.isValid())
+		return QVariant();
+
+	if (role != Qt::DisplayRole)
+		return QVariant();
+
 	auto ti = GetTreeItemOrRoot(index);
 	auto name = QString(ti->GetName().c_str());
 	return name;
