@@ -13,5 +13,11 @@
         <file>res/images/DP_statistics.bmp</file>
         <file>res/images/DP_ValueInfo.bmp</file>
         <file>res/images/TV_globe.bmp</file>
+        <file>res/images/TV_container.bmp</file>
+        <file>res/images/TV_container_table.bmp</file>
+        <file>res/images/TV_palette.bmp</file>
+        <file>res/images/TV_table.bmp</file>
+        <file>res/images/TV_unit_transparant.bmp</file>
+        <file>res/images/TV_unit_white.bmp</file>
     </qresource>
 </RCC>
