@@ -18,9 +18,6 @@
     <ClCompile Include="src\main_qt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\mymodel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\DmsEventLog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -99,11 +96,11 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp">
       <Filter>Qt Advanced Docking System</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsViewArea.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="src\mymodel.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
     <QtMoc Include="src\DmsMainWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
@@ -191,6 +188,9 @@
     </ClInclude>
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
       <Filter>Qt Advanced Docking System</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DmsViewArea.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

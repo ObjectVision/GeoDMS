@@ -122,8 +122,8 @@
     <ClCompile Include="src\DmsEventLog.cpp" />
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsTreeView.cpp" />
+    <ClCompile Include="src\DmsViewArea.cpp" />
     <ClCompile Include="src\main_qt.cpp" />
-    <ClCompile Include="src\mymodel.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\ads_globals.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\AutoHideDockContainer.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\AutoHideSideBar.cpp" />
@@ -148,11 +148,9 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="src\mymodel.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h" />
     <ClInclude Include="src\DmsEventLog.h" />
+    <ClInclude Include="src\DmsViewArea.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />
