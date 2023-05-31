@@ -1,4 +1,5 @@
 #include <QPointer.h>
+#include <QTreeView>
 #include <qabstractitemmodel.h>
 
 QT_BEGIN_NAMESPACE
@@ -6,7 +7,6 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
-
 
 class DmsModel : public QAbstractItemModel
 {
@@ -28,4 +28,12 @@ private:
 	TreeItem* m_root = nullptr;
 };
 
-auto createTreeview(MainWindow* dms_main_window) -> QPointer<QTreeView>;
+class DmsTreeView : public QTreeView
+{
+public:
+	using QTreeView::QTreeView;
+	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
+
+};
+
+auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;

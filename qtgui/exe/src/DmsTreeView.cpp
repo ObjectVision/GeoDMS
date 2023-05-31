@@ -5,8 +5,8 @@
 #include <QMenubar>
 #include <QFile>
 
-#include "DmsTreeView.h"
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
 #include "TreeItem.h"
 #include <QMainWindow>
 
@@ -123,10 +123,19 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 }
 
 
-auto createTreeview(MainWindow* dms_main_window) -> QPointer<QTreeView>
+void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
+{
+
+	auto ti = reinterpret_cast<const TreeItem*>(current.constInternalPointer());
+	auto* main_window = static_cast<MainWindow*>(parent()->parent());
+	main_window->setCurrentTreeitem(const_cast<TreeItem*>(ti));
+	int i = 0;
+}
+
+auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
     auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
-    QPointer<QTreeView> dms_eventlog_widget_pointer = new QTreeView(dock);
+    QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
     dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);

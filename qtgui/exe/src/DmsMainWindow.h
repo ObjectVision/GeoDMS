@@ -5,7 +5,6 @@
 #include <QPointer>
 #include "TreeItem.h"
 #include "ptr/SharedPtr.h"
-
 #include "DockManager.h"
 #include "DockAreaWidget.h"
 #include "DockWidget.h"
@@ -26,6 +25,7 @@ class QMdiSubWindow;
 QT_END_NAMESPACE
 
 class DmsDetailPages;
+class DmsTreeView;
 
 class MainWindow : public QMainWindow
 {
@@ -76,7 +76,7 @@ private:
     QPointer<DmsDetailPages> m_detail_pages;
     //QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<QTreeView> m_treeview;
+    QPointer<DmsTreeView> m_treeview;
 
     QMenu *viewMenu;
 };
