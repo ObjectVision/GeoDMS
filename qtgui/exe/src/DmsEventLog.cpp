@@ -9,49 +9,17 @@
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 
-void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
+void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)
 {
-
-    auto eventlog_widget_pointer = reinterpret_cast<QListWidget*>(clientHandle); // TODO: make eventlog lazy using custom model
-    assert(eventlog_widget_pointer);                                             // TODO: create fancy styling of eventlog items using view implementation of model/view
-    eventlog_widget_pointer->addItem(msg);
-
-    // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
-
-    Qt::GlobalColor clr;
-    switch (st) {
-    case SeverityTypeID::ST_Error     : clr = Qt::red; break;
-    case SeverityTypeID::ST_Warning   : clr = Qt::darkYellow; break;
-    case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
-    default: return;
-    }
-    eventlog_widget_pointer->item(eventlog_widget_pointer->count() - 1)->setForeground(clr);
+//    auto eventlog_widget_pointer = reinterpret_cast<QListWidget*>(clientHandle); 
+//    assert(eventlog_widget_pointer);                                             
+    MainWindow::EventLog(st, msg);
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
 {
-
-
     auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
     QPointer<QListWidget> dms_eventlog_widget_pointer = new QListWidget(dock);
-    /*dms_eventlog_widget_pointer->addItems(QStringList()
-        << "Thank you for your payment which we have received today."
-        << "Your order has been dispatched and should be with you "
-        "within 28 days."
-        << "We have dispatched those items that were in stock. The "
-        "rest of your order will be dispatched once all the "
-        "remaining items have arrived at our warehouse. No "
-        "additional shipping charges will be made."
-        << "You made a small overpayment (less than $5) which we "
-        "will keep on account for you, or return at your request."
-        << "You made a small underpayment (less than $1), but we have "
-        "sent your order anyway. We'll add this underpayment to "
-        "your next bill."
-        << "Unfortunately you did not send enough money. Please remit "
-        "an additional $. Your order will be dispatched as soon as "
-        "the complete amount has been received."
-        << "You made an overpayment (more than $5). Do you wish to "
-        "buy more items, or should we return the excess to you?");*/
     dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);

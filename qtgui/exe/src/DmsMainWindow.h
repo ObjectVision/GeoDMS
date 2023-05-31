@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QPointer>
-#include "TreeItem.h"
 #include "ptr/SharedPtr.h"
 #include "DockManager.h"
 #include "DockAreaWidget.h"
@@ -18,12 +17,12 @@ class QTextEdit;
 class QTextBrowser;
 class QTreeView;
 class QTableView;
-class MyModel; // TODO: remove from namespace
 
 class QMdiArea;
 class QMdiSubWindow;
 QT_END_NAMESPACE
 
+struct TreeItem;
 class DmsDetailPages;
 class DmsTreeView;
 
@@ -37,17 +36,16 @@ public:
     auto getCurrentTreeitem() -> TreeItem* { return m_current_item; } ;
     void setCurrentTreeitem(TreeItem* new_current_item);
 
+    static MainWindow* TheOne();
+    static void EventLog(SeverityTypeID st, CharPtr msg);
+
 signals:
     void currentItemChanged();
 
 private slots:
     void fileOpen();
-    void save();
-    void print();
-    void undo();
-    void about();
-    void insertCustomer(const QString &customer);
-    void addParagraph(const QString &paragraph);
+    void aboutGeoDms();
+    void defaultView();
 
 private:
     void LoadConfig(CharPtr filename);
@@ -69,16 +67,14 @@ private:
     ads::CDockManager* m_DockManager;
     ads::CDockAreaWidget* StatusDockArea;
     ads::CDockWidget* TimelineDockWidget;
+    ads::CDockAreaWidget* centralDockArea;
 
-
-    MyModel *m_table_view_model; // TODO: remove
-    QPointer<QTableView> m_table_view; // TODO: remove
     QPointer<DmsDetailPages> m_detail_pages;
     //QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<DmsTreeView> m_treeview;
+    QPointer<QTreeView> m_treeview;
 
-    QMenu *viewMenu;
+
 };
 
 #endif

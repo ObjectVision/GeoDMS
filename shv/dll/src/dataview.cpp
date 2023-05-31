@@ -86,6 +86,7 @@ ActorVisitState UpdateChildViews(DataViewList* dvl);
 
 const int CN_BASE = 0x0000BC00;
 const int UM_COMMAND_STATUS = WM_APP;
+const int UPDATE_TIMER_ID = 3;
 
 GPoint LParam2Point(LPARAM lParam)
 {
@@ -531,7 +532,17 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 //			dbg_assert(!md_IsDrawingCount); can be Sent when Peeking msg in Update.
 			OnPaint();
 			return true;
-
+		case WM_TIMER:
+		{
+			if (msg.m_wParam == UPDATE_TIMER_ID)
+			{
+				auto status = UpdateView();
+				if (status == GraphVisitState::GVS_Break)
+					SetUpdateTimer();
+				goto completed;
+			}
+			goto defaultProcessing;
+		}
 		case WM_ERASEBKGND:
 			dms_assert(msg.m_ResultPtr);
 			goto completed;
@@ -1320,8 +1331,13 @@ void DataView::OnPaint()
 
 	if (m_State.Get(DVF_CaretsVisible))
 		ReverseCarets(paintDC, true); // draw carets also in new areas; PaintDcHandle validates updateRect
+	SetUpdateTimer();
 }
 
+void DataView::SetUpdateTimer()
+{
+	SetTimer(m_hWnd, UPDATE_TIMER_ID, 0, nullptr);
+}
 // ============   Mouse Handling
 
 void DataView::OnMouseMove(WPARAM nFlags, const GPoint& point) 

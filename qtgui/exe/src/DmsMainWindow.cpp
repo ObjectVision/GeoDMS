@@ -1,31 +1,32 @@
 // dms
 #include "RtcInterface.h"
 #include "StxInterface.h"
+#include "act/MainThread.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
+#include "dbg/SeverityType.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
+#include "TreeItem.h"
+#include "ShvUtils.h"
 
 #include <QtWidgets>
 #include <QTextBrowser>
-#if defined(QT_PRINTSUPPORT_LIB)
-#include <QtPrintSupport/qtprintsupportglobal.h>
-#if QT_CONFIG(printdialog)
-#include <QtPrintSupport>
-#endif
-#endif
 
-
-#include <QTableView>
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
+#include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
-#include <string>
+//#include <string>
 
-#include "mymodel.h"
+static MainWindow* s_CurrMainWindow = nullptr;
 
 MainWindow::MainWindow()
 { 
+    assert(s_CurrMainWindow == nullptr);
+    s_CurrMainWindow = this;
+
     //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //setStyle(fusion_style);
 
@@ -44,31 +45,13 @@ MainWindow::MainWindow()
     //ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
     m_DockManager = new ads::CDockManager(this);
 
-    QListWidget* dms_eventlog_widget_pointer = new QListWidget(this);
- 
     QLabel* label = new QLabel();
     label->setText("dms client area");
     label->setAlignment(Qt::AlignCenter);
     ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
     CentralDockWidget->setWidget(label);
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
-
-    auto* CentralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
-
-
-    ads::CDockWidget* PropertiesDockWidget_1 = new ads::CDockWidget("Properties");
-    PropertiesDockWidget_1->setWidget(propertiesTable_1);
-    PropertiesDockWidget_1->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-    PropertiesDockWidget_1->resize(250, 150);
-    PropertiesDockWidget_1->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_1, CentralDockArea);
-
-    ads::CDockWidget* PropertiesDockWidget_2 = new ads::CDockWidget("Properties");
-    PropertiesDockWidget_2->setWidget(tv2);
-    PropertiesDockWidget_2->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-    PropertiesDockWidget_2->resize(250, 150);
-    PropertiesDockWidget_2->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, PropertiesDockWidget_2, CentralDockArea);
+    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
 
     createActions();
     createStatusBar();
@@ -94,13 +77,6 @@ MainWindow::MainWindow()
         //m_treeview->expandAll();
         //tv2->setModel(new DmsModel(m_root));
     }
-    // set example table view
-    /*m_table_view_model = new MyModel;
-    m_table_view = new QTableView;
-    m_table_view->setModel(m_table_view_model);
-
-    setCentralWidget(m_table_view);
-    */
 
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
@@ -108,11 +84,44 @@ MainWindow::MainWindow()
 
 MainWindow::~MainWindow()
 {
+    assert(s_CurrMainWindow == this);
+    s_CurrMainWindow = nullptr;
+
     m_current_item.reset();
     if (m_root.has_ptr())
         m_root->EnableAutoDelete();
 
     m_root.reset();
+}
+
+MainWindow* MainWindow::TheOne()
+{
+    assert(IsMainThread()); // or use a mutex to guard access to TheOne.
+    assert(s_CurrMainWindow);
+    return s_CurrMainWindow;
+}
+
+void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
+{
+    if (!s_CurrMainWindow)
+        return;
+
+    // TODO: make eventlog lazy using custom model
+    // TODO: create fancy styling of eventlog items using view implementation of model/view
+
+    auto eventLogWidget = TheOne()->m_eventlog;
+    eventLogWidget->addItem(msg);
+
+    // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
+
+    Qt::GlobalColor clr;
+    switch (st) {
+    case SeverityTypeID::ST_Error: clr = Qt::red; break;
+    case SeverityTypeID::ST_Warning: clr = Qt::darkYellow; break;
+    case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
+    default: return;
+    }
+    eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
 void MainWindow::setCurrentTreeitem(TreeItem* new_current_item)
@@ -130,12 +139,6 @@ void MainWindow::fileOpen()
         m_root->EnableAutoDelete();
     LoadConfig(configFileName.toUtf8().data());
 }
-
-void MainWindow::print() {} // TODO: remove
-void MainWindow::save() {} // TODO: remove
-void MainWindow::undo() {} // TODO: remove
-void MainWindow::insertCustomer(const QString &customer) {} // TODO: remove
-void MainWindow::addParagraph(const QString &paragraph) {} // TODO: remove
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
 {
@@ -164,11 +167,38 @@ auto getGeoDMSAboutText() -> std::string
     return { buff.GetData(), buff.GetDataEnd() };
 }
 
-void MainWindow::about()
+void MainWindow::aboutGeoDms()
 {
     auto dms_about_text = getGeoDMSAboutText();
-    QMessageBox::about(this, tr("About"),
+    QMessageBox::about(this, tr("About GeoDms"),
             tr(dms_about_text.c_str()));
+}
+
+
+void MainWindow::defaultView()
+{
+    static UInt32 s_ViewCounter = 0;
+
+    auto currItem = getCurrentTreeitem();
+    if (!currItem)
+        return;
+
+    auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
+    auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
+
+    HWND hWndMain = (HWND)winId();
+
+    auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
+    auto dmsControl = new QDmsViewArea(dataViewDockWidget, hWndMain, viewContextItem, currItem);
+    //    m_dms_views.emplace_back(name, vs, dv);
+    //    m_dms_view_it = --m_dms_views.end();
+    //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
+
+    dataViewDockWidget->setWidget(dmsControl);
+    dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
+    dataViewDockWidget->resize(250, 150);
+    dataViewDockWidget->setMinimumSize(200, 150);
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
@@ -205,22 +235,39 @@ void MainWindow::setupDmsCallbacks()
 
 void MainWindow::createActions()
 {
-    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
-    QToolBar* current_item_bar_container = addToolBar(tr("test"));
-    QLineEdit* current_item_bar = new QLineEdit(this);
+    auto fileMenu = menuBar()->addMenu(tr("&File"));
+    auto current_item_bar_container = addToolBar(tr("test"));
+    auto current_item_bar = new QLineEdit(this);
     current_item_bar_container->addWidget(current_item_bar);
 
     addToolBarBreak();
 
-    QToolBar *fileToolBar = addToolBar(tr("File"));
-    const QIcon newIcon = QIcon::fromTheme("document-new", QIcon(":res/images/new.png"));
-    QAction *fileOpenAct = new QAction(newIcon, tr("File &Open"), this);
+    auto fileToolBar = addToolBar(tr("File"));
+    auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
+    auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
     fileMenu->addAction(fileOpenAct);
     fileToolBar->addAction(fileOpenAct);
 
+    auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
+    reOpenAct->setShortcuts(QKeySequence::Refresh);
+    reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
+    connect(reOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
+    fileMenu->addAction(reOpenAct);
+    fileToolBar->addAction(reOpenAct);
+
+    fileMenu->addSeparator();
+    auto epdm = fileMenu->addMenu(tr("Export Primary Data"));
+    auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)"));
+    auto epdmDbf = new QAction(tr("Table (*.dbf with a *.shp and *.shx if Feature data can be related)"));
+    auto epdmCsv = new QAction(tr("Text Table (*.csv with semiColon Separated Values"));
+    epdm->addAction(epdmBmp);
+    epdm->addAction(epdmDbf);
+    epdm->addAction(epdmCsv);
+
+/*
     const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":res/images/save.png"));
     QAction *saveAct = new QAction(saveIcon, tr("&Save..."), this);
     saveAct->setShortcuts(QKeySequence::Save);
@@ -228,15 +275,7 @@ void MainWindow::createActions()
     connect(saveAct, &QAction::triggered, this, &MainWindow::save);
     fileMenu->addAction(saveAct);
     fileToolBar->addAction(saveAct);
-
-    const QIcon printIcon = QIcon::fromTheme("document-print", QIcon(":res/images/print.png"));
-    QAction *printAct = new QAction(printIcon, tr("&Print..."), this);
-    printAct->setShortcuts(QKeySequence::Print);
-    printAct->setStatusTip(tr("Print the current form letter"));
-    connect(printAct, &QAction::triggered, this, &MainWindow::print);
-    fileMenu->addAction(printAct);
-    fileToolBar->addAction(printAct);
-
+*/
     fileMenu->addSeparator();
     QAction *quitAct = fileMenu->addAction(tr("&Quit"), qApp, &QCoreApplication::quit);
     quitAct->setShortcuts(QKeySequence::Quit);
@@ -245,6 +284,7 @@ void MainWindow::createActions()
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
     QToolBar *editToolBar = addToolBar(tr("Edit"));
 
+/*
     const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":res/images/undo.png"));
     QAction *undoAct = new QAction(undoIcon, tr("&Undo"), this);
     undoAct->setShortcuts(QKeySequence::Undo);
@@ -252,11 +292,16 @@ void MainWindow::createActions()
     connect(undoAct, &QAction::triggered, this, &MainWindow::undo);
     editMenu->addAction(undoAct);
     editToolBar->addAction(undoAct);
+*/
+    auto viewMenu = menuBar()->addMenu(tr("&View"));
+    auto viewDefaultAct = new QAction("Default View");
+    connect(viewDefaultAct, &QAction::triggered, this, &MainWindow::defaultView);
+    viewMenu->addAction(viewDefaultAct);
 
-    viewMenu = menuBar()->addMenu(tr("&View"));
     menuBar()->addSeparator();
-    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
-    QAction *aboutAct = helpMenu->addAction(tr("&About"), this, &MainWindow::about);
+
+    auto helpMenu = menuBar()->addMenu(tr("&Help"));
+    QAction *aboutAct = helpMenu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
     aboutAct->setStatusTip(tr("Show the application's About box"));
     QAction *aboutQtAct = helpMenu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));

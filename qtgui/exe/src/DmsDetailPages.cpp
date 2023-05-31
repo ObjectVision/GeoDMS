@@ -8,6 +8,7 @@
 #include "DmsMainWindow.h"
 #include <QMainWindow>
 
+#include "dbg/SeverityType.h"
 #include "ser/MoreStreamBuff.h"
 #include "xml/XmlOut.h"
 #include "TicInterface.h"
@@ -61,7 +62,9 @@ void DmsDetailPages::drawGeneralPage()
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
     auto link_string = link.toString().toUtf8();
-    int i = 0;
+
+    // log link action
+    MainWindow::EventLog(SeverityTypeID::ST_MajorTrace, link_string.data());
 }
 
 void DmsDetailPages::connectDetailPagesAnchorClicked()

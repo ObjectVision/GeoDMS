@@ -264,6 +264,7 @@ private:
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
+	void SetUpdateTimer();
 
 	void OnMouseMove(WPARAM nFlags, const GPoint& point);
 	void OnSize     (WPARAM nType,  const GPoint& point);

@@ -48,6 +48,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/check.h"
 #include "ser/FormattedStream.h"
 #include "ptr/OwningPtr.h"
+#include "ptr/SharedStr.h"
 
 struct XML_OutElement;
 class ImpStreamBuff;
