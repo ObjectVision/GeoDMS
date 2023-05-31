@@ -129,20 +129,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	if (!index.isValid())
 		return QVariant();
 
-	if (role == Qt::DecorationRole)
-	{
-		return getTreeItemIcon(index);
-		return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
-		//return QVariant();
-		//Qt::Variant.fromValue(Qt::Pixmap.new(':/path/to/resource'))
-	}
-
-	if (role != Qt::DisplayRole)
-		return QVariant();
-
 	auto ti = GetTreeItemOrRoot(index);
-	auto name = QString(ti->GetName().c_str());
-	return name;
+
+	switch (role)
+	{
+	case  Qt::DecorationRole: return getTreeItemIcon(index);
+	case  Qt::EditRole: return  QString(ti->GetFullName().c_str());
+	case  Qt::DisplayRole: return  QString(ti->GetName().c_str());
+	default: return QVariant();
+	}
 }
 
 bool DmsModel::hasChildren(const QModelIndex& parent) const

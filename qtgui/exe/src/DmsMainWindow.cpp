@@ -12,6 +12,7 @@
 
 #include <QtWidgets>
 #include <QTextBrowser>
+#include <QCompleter>
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
@@ -53,7 +54,7 @@ MainWindow::MainWindow()
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
     centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
 
-    createActions();
+
     createStatusBar();
     createDmsHelperWindowDocks();
     createDetailPagesToolbar();
@@ -77,6 +78,8 @@ MainWindow::MainWindow()
         //m_treeview->expandAll();
         //tv2->setModel(new DmsModel(m_root));
     }
+
+    createActions();
 
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
@@ -248,8 +251,14 @@ void MainWindow::createActions()
 {
     auto fileMenu = menuBar()->addMenu(tr("&File"));
     auto current_item_bar_container = addToolBar(tr("test"));
-    auto current_item_bar = new QLineEdit(this);
-    current_item_bar_container->addWidget(current_item_bar);
+    m_current_item_bar = new DmsCurrentItemBar(this);
+
+    QCompleter* completer = new QCompleter(this);
+    completer->setModel(new DmsModel(m_root));
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    m_current_item_bar->setCompleter(completer);
+
+    current_item_bar_container->addWidget(m_current_item_bar);
 
     addToolBarBreak();
 

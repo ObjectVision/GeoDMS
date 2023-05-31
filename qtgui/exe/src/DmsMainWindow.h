@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QPointer>
+#include <QLineEdit>
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
 #include "DockManager.h"
@@ -26,6 +27,13 @@ QT_END_NAMESPACE
 struct TreeItem;
 class DmsDetailPages;
 class DmsTreeView;
+
+class DmsCurrentItemBar : public QLineEdit
+{
+public:
+    using QLineEdit::QLineEdit;
+
+};
 
 class MainWindow : public QMainWindow
 {
@@ -72,6 +80,10 @@ private:
     ads::CDockWidget* TimelineDockWidget;
     ads::CDockAreaWidget* centralDockArea;
 
+    //toolbars
+    QPointer<DmsCurrentItemBar> m_current_item_bar;
+
+    // helper windows
     QPointer<DmsDetailPages> m_detail_pages;
     QPointer<QListWidget> m_eventlog;
     QPointer<QTreeView> m_treeview;
