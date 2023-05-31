@@ -4,13 +4,14 @@
         <file>res/images/print.png</file>
         <file>res/images/save.png</file>
         <file>res/images/undo.png</file>
-		<file>res/images/GeoDmsGui-0.png</file>
+        <file>res/images/GeoDmsGui-0.png</file>
         <file>res/images/default.txt</file>
-		<file>res/images/DP_properties.bmp</file>
-		<file>res/images/DP_explore.bmp</file>
-		<file>res/images/DP_configuration.bmp</file>
-		<file>res/images/DP_MetaData.bmp</file>
-		<file>res/images/DP_statistics.bmp</file>
-		<file>res/images/DP_ValueInfo.bmp</file>
+        <file>res/images/DP_properties.bmp</file>
+        <file>res/images/DP_explore.bmp</file>
+        <file>res/images/DP_configuration.bmp</file>
+        <file>res/images/DP_MetaData.bmp</file>
+        <file>res/images/DP_statistics.bmp</file>
+        <file>res/images/DP_ValueInfo.bmp</file>
+        <file>res/images/TV_globe.bmp</file>
     </qresource>
 </RCC>

@@ -224,6 +224,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
     {
         m_root = newRoot;
         setCurrentTreeItem(m_root);
+        m_treeview->setItemDelegate(new TreeItemDelegate());
         m_treeview->setRootIsDecorated(true);
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);

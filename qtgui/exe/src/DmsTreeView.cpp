@@ -4,6 +4,8 @@
 #include <QDockWidget>
 #include <QMenubar>
 #include <QFile>
+#include <QPainter>
+#include <QPixmap>
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -109,6 +111,13 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	if (!index.isValid())
 		return QVariant();
 
+	if (role == Qt::DecorationRole)
+	{
+		return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
+		//return QVariant();
+		//Qt::Variant.fromValue(Qt::Pixmap.new(':/path/to/resource'))
+	}
+
 	if (role != Qt::DisplayRole)
 		return QVariant();
 
@@ -123,10 +132,33 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 	return ti && ti->HasSubItems();
 }
 
+void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
+{
+	QStyledItemDelegate::paint(painter, option, index);
+	return;
+	//QStyleOptionViewItem opt = option;
+	//initStyleOption(&opt, index);
+
+	
+
+	painter->save();
+	auto ti = GetTreeItem(index);
+	painter->setRenderHint(QPainter::Antialiasing, true);
+	if (option.state & QStyle::State_Selected)
+		painter->fillRect(option.rect, option.palette.highlightedText());
+
+	//if (option.state & QStyle::State_MouseOver)
+	//	painter->fillRect(option.rect, option.palette.highlightedText());
+
+	//painter->translate(option.rect.x(), option.rect.y());
+	
+	painter->drawText(option.rect.topLeft().x(), option.rect.topLeft().y(), option.rect.topRight().x()-option.rect.topLeft().x(), option.rect.topLeft().y()-option.rect.bottomLeft().y(), Qt::AlignCenter, ti->GetName().c_str());
+	painter->restore();
+}
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
 {
-	auto ti = reinterpret_cast<const TreeItem*>(current.constInternalPointer());
+	auto ti = GetTreeItem(current);
 	auto* main_window = static_cast<MainWindow*>(parent()->parent());
 	main_window->setCurrentTreeItem(const_cast<TreeItem*>(ti));
 	int i = 0;
