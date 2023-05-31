@@ -1,5 +1,6 @@
 #include <QPointer.h>
 #include <QTreeView>
+#include <QStyledItemDelegate>
 #include <qabstractitemmodel.h>
 
 QT_BEGIN_NAMESPACE
@@ -26,6 +27,12 @@ public:
 private:
 	TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 	TreeItem* m_root = nullptr;
+};
+
+class TreeItemDelegate : public QStyledItemDelegate
+{
+public:
+	using QStyledItemDelegate::QStyledItemDelegate;
 };
 
 class DmsTreeView : public QTreeView

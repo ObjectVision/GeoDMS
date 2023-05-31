@@ -63,7 +63,7 @@ void DmsDetailPages::toggleConfiguration()
 
 void DmsDetailPages::drawPage()
 {
-    auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentTreeitem();
+    auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentTreeItem();
     if (!current_item)
         return;
 

@@ -128,7 +128,7 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 {
 	auto ti = reinterpret_cast<const TreeItem*>(current.constInternalPointer());
 	auto* main_window = static_cast<MainWindow*>(parent()->parent());
-	main_window->setCurrentTreeitem(const_cast<TreeItem*>(ti));
+	main_window->setCurrentTreeItem(const_cast<TreeItem*>(ti));
 	int i = 0;
 }
 

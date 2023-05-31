@@ -34,8 +34,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
-    auto getCurrentTreeitem() -> TreeItem* { return m_current_item; } ;
-    void setCurrentTreeitem(TreeItem* new_current_item);
+    auto getCurrentTreeItem() -> TreeItem* { return m_current_item; } ;
+    void setCurrentTreeItem(TreeItem* new_current_item);
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);

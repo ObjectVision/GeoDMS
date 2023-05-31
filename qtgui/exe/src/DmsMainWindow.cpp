@@ -70,7 +70,7 @@ MainWindow::MainWindow()
  
     if (m_root)
     {
-        setCurrentTreeitem(m_root); // as an example set current item to root, which emits signal currentItemChanged
+        setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
         m_treeview->setModel(new DmsModel(m_root));
         auto test = m_treeview->rootIsDecorated();
 
@@ -124,7 +124,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
-void MainWindow::setCurrentTreeitem(TreeItem* new_current_item)
+void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
     m_current_item = new_current_item;
     emit currentItemChanged();
@@ -188,7 +188,7 @@ void MainWindow::defaultView()
 {
     static UInt32 s_ViewCounter = 0;
 
-    auto currItem = getCurrentTreeitem();
+    auto currItem = getCurrentTreeItem();
     if (!currItem)
         return;
 
@@ -223,7 +223,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
     if (newRoot)
     {
         m_root = newRoot;
-        setCurrentTreeitem(m_root);
+        setCurrentTreeItem(m_root);
         m_treeview->setRootIsDecorated(true);
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);
