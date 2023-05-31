@@ -70,11 +70,8 @@ private:
     ads::CDockAreaWidget* centralDockArea;
 
     QPointer<DmsDetailPages> m_detail_pages;
-    //QPointer<QTextBrowser> m_detailpages;
     QPointer<QListWidget> m_eventlog;
     QPointer<QTreeView> m_treeview;
-
-
 };
 
 #endif

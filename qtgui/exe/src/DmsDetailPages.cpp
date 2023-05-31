@@ -20,17 +20,17 @@ void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page
 
 void DmsDetailPages::newCurrentItem()
 {
-    if (m_active_detail_page==ActiveDetailPage::GENERAL)
-        drawGeneralPage();
+    if (m_active_detail_page != ActiveDetailPage::NONE)
+        drawPage();
 }
 
-void DmsDetailPages::toggleGeneral()
+void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
     auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
-    if (detail_pages_dock->isHidden())
+    if (detail_pages_dock->isHidden() || m_active_detail_page != new_active_detail_page)
     {
         detail_pages_dock->show();
-        setActiveDetailPage(ActiveDetailPage::GENERAL);
+        setActiveDetailPage(new_active_detail_page);
     }
     else
     {
@@ -38,10 +38,30 @@ void DmsDetailPages::toggleGeneral()
         setActiveDetailPage(ActiveDetailPage::NONE);
     }
 
-    drawGeneralPage();
+    drawPage();
 }
 
-void DmsDetailPages::drawGeneralPage()
+void DmsDetailPages::toggleGeneral()
+{
+    toggle(ActiveDetailPage::GENERAL);
+}
+
+void DmsDetailPages::toggleExplorer()
+{
+    toggle(ActiveDetailPage::EXPLORE);
+}
+
+void DmsDetailPages::toggleProperties()
+{
+    toggle(ActiveDetailPage::PROPERTIES);
+}
+
+void DmsDetailPages::toggleConfiguration()
+{
+    toggle(ActiveDetailPage::CONFIGURATION);
+}
+
+void DmsDetailPages::drawPage()
 {
     auto* current_item = static_cast<MainWindow*>(parent()->parent())->getCurrentTreeitem();
     if (!current_item)
@@ -50,10 +70,26 @@ void DmsDetailPages::drawGeneralPage()
     // stream general info for current_item to htm
     VectorOutStreamBuff buffer;
     auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, OutStreamBase::ST_HTM, "", nullptr));
-    bool result = DMS_TreeItem_XML_DumpGeneral(current_item, xmlOut.get(), true);
-    buffer.WriteByte(0); // std::ends
+    bool result = true;
+    bool showAll = true;
+    switch (m_active_detail_page)
+    {
+    case ActiveDetailPage::GENERAL: 
+        result = DMS_TreeItem_XML_DumpGeneral(current_item, xmlOut.get(), showAll);
+        break;
+    case ActiveDetailPage::PROPERTIES:
+        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), showAll);
+        break;
+    case ActiveDetailPage::EXPLORE:
+        DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);
+        break;
+    case ActiveDetailPage::CONFIGURATION:
+        DMS_TreeItem_XML_Dump(current_item, xmlOut.get());
+        break;
+    }
     if (result)
     {
+        buffer.WriteByte(0); // std::ends
         // set buff to detail page:
         setHtml(buffer.GetData());
     }

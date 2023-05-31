@@ -325,10 +325,17 @@ void MainWindow::createDetailPagesToolbar()
     const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
     QAction* explore_page_act = new QAction(explore_icon, tr("&Explore"), this);
     detail_pages_toolBar->addAction(explore_page_act);
+    connect(explore_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
     const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
     QAction* properties_page_act = new QAction(properties_icon, tr("&Properties"), this);
     detail_pages_toolBar->addAction(properties_page_act);
+    connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
+
+    const QIcon configuraion_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
+    QAction* configuration_page_act = new QAction(properties_icon, tr("&Configuration"), this);
+    detail_pages_toolBar->addAction(configuration_page_act);
+    connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
     const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
     QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);

@@ -25,14 +25,19 @@ public:
 
 public slots:
 	void toggleGeneral();
+	void toggleExplorer();
+	void toggleProperties();
+	void toggleConfiguration();
+
 	void newCurrentItem();
 
 private slots:
 	void onAnchorClicked(const QUrl& link);
 
 private:
+	void toggle(ActiveDetailPage new_active_detail_page);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
-	void drawGeneralPage();
+	void drawPage();
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 };

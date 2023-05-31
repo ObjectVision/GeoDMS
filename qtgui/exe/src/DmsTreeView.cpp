@@ -51,7 +51,6 @@ QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role
 	return QVariant();
 }
 
-
 QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) const
 {
 	if (!hasIndex(row, column, parent))
@@ -71,19 +70,21 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	}
 	return createIndex(row, column, ti);
 }
+
 QModelIndex DmsModel::parent(const QModelIndex& child) const
 {
 	if (!child.isValid())
 		return QModelIndex();
 
-	auto ti = reinterpret_cast<const TreeItem*>(child.constInternalPointer());
+	auto ti = GetTreeItem(child);
 	assert(ti);
-	ti = ti->GetTreeParent();
-	if (!ti)
+	auto parent = ti->GetTreeParent();
+	if (!parent)
 		return{};
 
-	return createIndex(GetRow(ti), 0, ti);
+	return createIndex(GetRow(parent), 0, parent);
 }
+
 int DmsModel::rowCount(const QModelIndex& parent) const
 {
 	auto ti = GetTreeItemOrRoot(parent);
@@ -125,7 +126,6 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
 {
-
 	auto ti = reinterpret_cast<const TreeItem*>(current.constInternalPointer());
 	auto* main_window = static_cast<MainWindow*>(parent()->parent());
 	main_window->setCurrentTreeitem(const_cast<TreeItem*>(ti));
