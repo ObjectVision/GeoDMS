@@ -25,6 +25,7 @@ public:
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
 
 private:
+	QVariant getTreeItemIcon(const QModelIndex& index) const;
 	TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 	TreeItem* m_root = nullptr;
 };

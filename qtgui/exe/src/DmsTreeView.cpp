@@ -12,6 +12,9 @@
 #include "TreeItem.h"
 #include <QMainWindow>
 
+#include "ShvDllInterface.h"
+#include "dataview.h"
+
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
 	{
@@ -106,6 +109,21 @@ int DmsModel::columnCount(const QModelIndex& parent) const
 	return 1;
 }
 
+QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
+{
+	auto ti = GetTreeItemOrRoot(index);
+	if (!ti)
+		return QVariant();
+
+	auto vsflags = SHV_GetViewStyleFlags(ti);
+	if (vsflags & ViewStyleFlags::vsfMapView) { return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));}
+	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfTableView) { return QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
+	else { return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp")); } 
+}
+
 QVariant DmsModel::data(const QModelIndex& index, int role) const
 {
 	if (!index.isValid())
@@ -113,6 +131,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	if (role == Qt::DecorationRole)
 	{
+		return getTreeItemIcon(index);
 		return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
 		//return QVariant();
 		//Qt::Variant.fromValue(Qt::Pixmap.new(':/path/to/resource'))
