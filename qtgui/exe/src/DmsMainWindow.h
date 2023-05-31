@@ -32,7 +32,7 @@ class DmsCurrentItemBar : public QLineEdit
 {
 public:
     using QLineEdit::QLineEdit;
-
+    void setDmsCompleter(TreeItem* root);
 };
 
 class MainWindow : public QMainWindow

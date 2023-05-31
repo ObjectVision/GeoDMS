@@ -80,6 +80,8 @@ MainWindow::MainWindow()
     }
 
     createActions();
+    m_current_item_bar->setDmsCompleter(m_root);
+
 
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
@@ -95,6 +97,14 @@ MainWindow::~MainWindow()
         m_root->EnableAutoDelete();
 
     m_root.reset();
+}
+
+void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
+{
+    QCompleter* completer = new QCompleter(this);
+    completer->setModel(new DmsModel(root));
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    setCompleter(completer);
 }
 
 MainWindow* MainWindow::TheOne()
@@ -130,6 +140,8 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
     m_current_item = new_current_item;
+    if (m_current_item_bar)
+        m_current_item_bar->setText(m_current_item->GetFullName().c_str());
     emit currentItemChanged();
 }
 
@@ -252,11 +264,6 @@ void MainWindow::createActions()
     auto fileMenu = menuBar()->addMenu(tr("&File"));
     auto current_item_bar_container = addToolBar(tr("test"));
     m_current_item_bar = new DmsCurrentItemBar(this);
-
-    QCompleter* completer = new QCompleter(this);
-    completer->setModel(new DmsModel(m_root));
-    completer->setCaseSensitivity(Qt::CaseInsensitive);
-    m_current_item_bar->setCompleter(completer);
 
     current_item_bar_container->addWidget(m_current_item_bar);
 
