@@ -246,6 +246,26 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
         m_treeview->setRootIndex({});
         m_treeview->scrollTo({});
+        /*m_treeview->setStyleSheet(
+            "QTreeView::branch:has-siblings:!adjoins-item {\n"
+            "    border-image: url(:/res/images/TV_vline.png) 0;\n"
+            "}\n"
+            "QTreeView::branch:!has-children:!has-siblings:adjoins-item {\n"
+            "    border-image: url(:/res/images/TV_branch_end.png) 0;\n"
+            "}\n"
+            "QTreeView::branch:has-siblings:adjoins-item {\n"
+            "    border-image: url(:/res/images/TV_branch_more.png) 0;\n"
+            "}\n"
+            "QTreeView::branch:has-children:!has-siblings:closed,"
+            "QTreeView::branch:closed:has-children:has-siblings {"
+            "        border-image: none;"
+            "        image: url(:/res/images/TV_branch_closed.png);"
+            "}"
+            "QTreeView::branch:open:has-children:!has-siblings,"
+            "QTreeView::branch:open:has-children:has-siblings {"
+            "           border-image: none;"
+            "           image: url(:/res/images/TV_branch_open.png);"
+            "}");*/
     }
     m_currConfigFileName = fileName;
 }

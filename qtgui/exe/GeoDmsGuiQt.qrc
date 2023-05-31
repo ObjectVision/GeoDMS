@@ -19,5 +19,10 @@
         <file>res/images/TV_table.bmp</file>
         <file>res/images/TV_unit_transparant.bmp</file>
         <file>res/images/TV_unit_white.bmp</file>
+        <file>res/images/TV_branch_end.png</file>
+        <file>res/images/TV_branch_more.png</file>
+        <file>res/images/TV_vline.png</file>
+        <file>res/images/TV_branch_closed.png</file>
+        <file>res/images/TV_branch_open.png</file>
     </qresource>
 </RCC>
