@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QPointer>
 #include "ptr/SharedPtr.h"
+#include "ptr/SharedStr.h"
 #include "DockManager.h"
 #include "DockAreaWidget.h"
 #include "DockWidget.h"
@@ -44,6 +45,7 @@ signals:
 
 private slots:
     void fileOpen();
+    void reOpen();
     void aboutGeoDms();
     void defaultView();
 
@@ -57,6 +59,7 @@ private:
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
 
+    SharedStr m_currConfigFileName;
     SharedPtr<TreeItem> m_root;
     SharedPtr<TreeItem> m_current_item;
 

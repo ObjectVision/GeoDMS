@@ -140,6 +140,15 @@ void MainWindow::fileOpen()
     LoadConfig(configFileName.toUtf8().data());
 }
 
+void MainWindow::reOpen()
+{
+    // TODO: auto current_item_path = addressBar.GetString();
+    if (m_root)
+        m_root->EnableAutoDelete();
+    LoadConfig(m_currConfigFileName.c_str());
+    // TODO: addressBar.Goto(current_item_path);
+}
+
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
 {
     auto& stream = *reinterpret_cast<FormattedOutStream*>(clientHandle);
@@ -222,6 +231,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setRootIndex({});
         m_treeview->scrollTo({});
     }
+    m_currConfigFileName = fileName;
 }
 
 void MainWindow::setupDmsCallbacks()
@@ -254,7 +264,7 @@ void MainWindow::createActions()
     auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
-    connect(reOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
+    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
     fileMenu->addAction(reOpenAct);
     fileToolBar->addAction(reOpenAct);
 
