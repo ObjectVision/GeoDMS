@@ -1,5 +1,6 @@
 #include <QPointer.h>
 #include <QTreeView>
+#include <QCompleter>
 #include <QStyledItemDelegate>
 #include <qabstractitemmodel.h>
 
@@ -8,6 +9,27 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
+
+class TreeModelCompleter : public QCompleter
+{
+	Q_OBJECT
+		Q_PROPERTY(QString separator READ separator WRITE setSeparator)
+
+public:
+	explicit TreeModelCompleter(QObject* parent = nullptr);
+	explicit TreeModelCompleter(QAbstractItemModel* model, QObject* parent = nullptr);
+
+	QString separator() const;
+public slots:
+	void setSeparator(const QString& separator);
+
+protected:
+	QStringList splitPath(const QString& path) const override;
+	QString pathFromIndex(const QModelIndex& index) const override;
+
+private:
+	QString sep;
+};
 
 class DmsModel : public QAbstractItemModel
 {

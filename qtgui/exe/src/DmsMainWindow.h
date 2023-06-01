@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QPointer>
 #include <QLineEdit>
+#include <QCompleter>
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
 #include "DockManager.h"
@@ -28,12 +29,16 @@ struct TreeItem;
 class DmsDetailPages;
 class DmsTreeView;
 
+
+
 class DmsCurrentItemBar : public QLineEdit
 {
 public:
     using QLineEdit::QLineEdit;
     void setDmsCompleter(TreeItem* root);
 };
+
+
 
 class MainWindow : public QMainWindow
 {

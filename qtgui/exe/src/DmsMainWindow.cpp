@@ -101,8 +101,10 @@ MainWindow::~MainWindow()
 
 void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
 {
-    QCompleter* completer = new QCompleter(this);
+    TreeModelCompleter* completer = new TreeModelCompleter(this);
     completer->setModel(new DmsModel(root));
+    completer->setSeparator("/");
+    //completer->setCompletionPrefix("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     setCompleter(completer);
 }
@@ -244,7 +246,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
-        m_treeview->setRootIndex({});
+        m_treeview->setRootIndex(m_treeview->model()->index(0,0));
         m_treeview->scrollTo({});
         /*m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"

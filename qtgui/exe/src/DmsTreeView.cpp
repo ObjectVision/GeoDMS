@@ -28,7 +28,7 @@ namespace {
 		if (!p)
 			return 0;
 		auto si = p->GetFirstSubItem();
-		int row = 0;
+		int row = 1;
 		while (si != ti)
 		{
 			assert(si);
@@ -38,6 +38,49 @@ namespace {
 		return row;
 
 	}
+}
+
+TreeModelCompleter::TreeModelCompleter(QObject* parent)
+	: QCompleter(parent)
+{
+}
+
+TreeModelCompleter::TreeModelCompleter(QAbstractItemModel* model, QObject* parent)
+	: QCompleter(model, parent)
+{
+}
+
+void TreeModelCompleter::setSeparator(const QString& separator)
+{
+	sep = separator;
+}
+
+QString TreeModelCompleter::separator() const
+{
+	return sep;
+}
+
+QStringList TreeModelCompleter::splitPath(const QString& path) const
+{
+	//if (path == "/")
+	//	return QStringList("/");
+
+	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
+	split_path.remove(0);
+	return split_path;
+}
+
+QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
+{
+	if (sep.isNull())
+		return QCompleter::pathFromIndex(index);
+
+	// navigate up and accumulate data
+	QStringList dataList;
+	for (QModelIndex i = index; i.isValid(); i = i.parent())
+		dataList.prepend(model()->data(i, completionRole()).toString());
+
+	return dataList.join(sep);
 }
 
 TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
@@ -63,9 +106,13 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
+	//if (ti == m_root)
+	//	return createIndex(row, column, ti);
 
 	ti = ti->_GetFirstSubItem();
 	assert(ti);
+
+
 
 	int items_to_be_stepped = row;
 	while (items_to_be_stepped--)
@@ -134,7 +181,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	switch (role)
 	{
 	case  Qt::DecorationRole: return getTreeItemIcon(index);
-	case  Qt::EditRole: return  QString(ti->GetFullName().c_str());
+	case  Qt::EditRole: return QString(ti->GetFullName().c_str());
 	case  Qt::DisplayRole: return  QString(ti->GetName().c_str());
 	default: return QVariant();
 	}
