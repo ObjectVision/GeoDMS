@@ -92,19 +92,14 @@ GraphVisitState AbstrCmd::DoLayerSet(LayerSet* obj)
 //	*	PasteGridController
 
 
-AbstrController::AbstrController(
-	DataView*      owner, 
-	GraphicObject* target, 
-	UInt32         moveEvents,
-	UInt32         execEvents,
-	UInt32         stopEvents
-)	:	m_Owner(owner->weak_from_this())
+AbstrController::AbstrController(DataView* owner, GraphicObject* target
+	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
+	, ToolButtonID toolID)
+	:	m_Owner(owner->weak_from_this())
 	,	m_TargetObject(target->weak_from_this())
-	,	m_MoveEvents(moveEvents)
-	,	m_ExecEvents(execEvents)
-	,	m_StopEvents(stopEvents)
-{
-}
+	,	m_MoveEvents(moveEvents), m_ExecEvents(execEvents), m_StopEvents(stopEvents)
+	,	m_ToolID(toolID)
+{}
 
 AbstrController::~AbstrController()
 {}
@@ -161,13 +156,10 @@ void AbstrController::Stop()
 // class  : PointCaretController
 //----------------------------------------------------------------------
 
-PointCaretController::PointCaretController(
-	DataView* owner, AbstrCaret* caret,
-	GraphicObject* target,
-	UInt32 moveEvents,
-	UInt32 execEvents,
-	UInt32 stopEvents
-)	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents)
+PointCaretController::PointCaretController(DataView* owner, AbstrCaret* caret, GraphicObject* target
+	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
+	,	ToolButtonID toolID)
+	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Caret(caret)
 {
 	dms_assert(m_Caret);
@@ -205,32 +197,23 @@ void PointCaretController::Stop()
 // class  : DualPointControlller
 //----------------------------------------------------------------------
 
-DualPointController::DualPointController(
-	DataView*                owner,
-	GraphicObject*           target, 
-	const GPoint&            origin,
-	UInt32                   moveEvents,
-	UInt32                   execEvents,
-	UInt32                   stopEvents
-)	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents)
+DualPointController::DualPointController(DataView* owner, GraphicObject* target, const GPoint& origin
+	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents, ToolButtonID toolID)
+	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Origin(origin)
 {
-	dms_assert(target);
+	assert(target);
 }
 
 //----------------------------------------------------------------------
 // class  : DualPointCaretControlller
 //----------------------------------------------------------------------
 
-DualPointCaretController::DualPointCaretController(
-		DataView*                owner, 
-		AbstrCaret*              caret,
-		GraphicObject*           target, 
-		const GPoint&            origin,
-    	UInt32                   moveEvents, 
-    	UInt32                   execEvents, 
-		UInt32                   stopEvents
-)	:	DualPointController(owner, target, origin, moveEvents, execEvents, stopEvents)
+DualPointCaretController::DualPointCaretController(DataView* owner, AbstrCaret* caret
+	,	GraphicObject* target,  const GPoint& origin
+	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
+	,	ToolButtonID toolID)
+	:	DualPointController(owner, target, origin, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Caret(caret)
 {
 	dms_assert(m_Caret);
@@ -269,14 +252,10 @@ void DualPointCaretController::Stop()
 // class  : TieCursorController
 //----------------------------------------------------------------------
 
-TieCursorController::TieCursorController(
-		DataView*      owner, 
-		GraphicObject* target, 
-		const GRect&   tieRect,   
-		UInt32         moveEvents, // = EID_MOUSEDRAG,
-		UInt32         stopEvents  // = EID_CLOSE_EVENTS
-	)
-	:	AbstrController(owner, target, moveEvents, 0, stopEvents)
+TieCursorController::TieCursorController(DataView* owner, GraphicObject* target
+	,	const GRect&   tieRect
+	,	UInt32 moveEvents /*EID_MOUSEDRAG*/, UInt32 stopEvents  /*EID_CLOSE_EVENTS*/ )
+	:	AbstrController(owner, target, moveEvents, 0, stopEvents, ToolButtonID::TB_Undefined)
 	,	m_TieRect(tieRect)
 {
 	if (m_TieRect.top < m_TieRect.bottom) --m_TieRect.bottom;
@@ -303,20 +282,10 @@ bool TieCursorController::Move (EventInfo& eventInfo)
 #include "ViewPort.h"
 #include "Carets.h"
 
-ZoomInController::ZoomInController(
-	DataView* owner, 
-	ViewPort* target, 
-	const CrdTransformation& transformation, 
-	const GPoint& origin
-)	:	DualPointCaretController(
-			owner, 
-			new RoiCaret, 
-			target, 
-			origin,
-			EID_MOUSEDRAG,
-			EID_LBUTTONUP,
-			EID_CLOSE_EVENTS
-		)
+ZoomInController::ZoomInController(DataView* owner, ViewPort* target
+	,	const CrdTransformation& transformation, const GPoint& origin)
+	:	DualPointCaretController(owner, new RoiCaret, target, origin
+		,	EID_MOUSEDRAG,EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_ZoomIn2)
 	,	m_Transformation(transformation)
 {
 }
@@ -357,13 +326,7 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 //----------------------------------------------------------------------
 
 ZoomOutController::ZoomOutController(DataView* owner, ViewPort* target, const CrdTransformation& transformation)
-:	AbstrController(
-			owner, 
-			target, 
-			0,
-			EID_LBUTTONUP,
-			EID_CLOSE_EVENTS
-		)
+	:	AbstrController(owner, target, 0, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_ZoomOut2)
 	,	m_Transformation(transformation)
 {
 }
@@ -392,14 +355,8 @@ PanController::PanController(
 	DataView* owner, 
 	ViewPort* target, 
 	const GPoint& origin
-)	:	DualPointController(
-			owner, 
-			target, 
-			origin,
-			0,
-			EID_LBUTTONUP|EID_MOUSEDRAG,
-			EID_LBUTTONUP|EID_CAPTURECHANGED|EID_MOUSEMOVE
-		)
+)	:	DualPointController(owner, target, origin
+		,	0, EID_LBUTTONUP|EID_MOUSEDRAG, EID_LBUTTONUP|EID_CAPTURECHANGED|EID_MOUSEMOVE,	ToolButtonID::OBSOLETE_TB_Pan)
 	,	m_DidDrag(false)
 {}
 
@@ -426,17 +383,10 @@ bool PanController::Exec(EventInfo& eventInfo)
 
 #include "GraphicRect.h"
 
-RectPanController::RectPanController(
-	DataView*    owner, 
-	GraphicRect* target, 
-	const CrdTransformation& transformation, 
-	const GPoint& origin
-)	:	DualPointController(owner, target, 
-			origin,
-			0,
-			EID_LBUTTONUP|EID_MOUSEDRAG,
-			EID_CLOSE_EVENTS
-		)
+RectPanController::RectPanController(DataView* owner, GraphicRect* target
+	,	const CrdTransformation& transformation, const GPoint& origin)
+	:	DualPointController(owner, target, origin
+		, 0, EID_LBUTTONUP|EID_MOUSEDRAG, EID_CLOSE_EVENTS, ToolButtonID::OBSOLETE_TB_Pan)
 	,	m_Transformation(transformation)
 	,	m_OrgWP (transformation.Reverse( Convert<CrdPoint>(origin) ) )
 {
@@ -545,7 +495,8 @@ SelectObjectController::SelectObjectController(
 	DataView* owner, 
 	ViewPort* target, 
 	const CrdTransformation& transformation
-)	:	AbstrController(owner, target, 0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS)
+)	:	AbstrController(owner, target
+		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectObject)
 	,	m_Transformation(transformation)
 {}
 
@@ -575,23 +526,13 @@ bool SelectObjectController::Exec(EventInfo& eventInfo)
 // class  : SelectRectController
 //----------------------------------------------------------------------
 
-SelectRectController::SelectRectController(
-	DataView*                owner, 
-	ViewPort*                target, 
-	const CrdTransformation& transformation, 
-	const GPoint&            origin
-)	:	DualPointCaretController(
-			owner, 
-			new RectCaret, 
-			target, 
-			origin,
-			EID_MOUSEDRAG|EID_LBUTTONUP,
-			EID_LBUTTONUP,
-			EID_CLOSE_EVENTS
-		)
+SelectRectController::SelectRectController(DataView* owner, ViewPort* target
+	,	const CrdTransformation& transformation, const GPoint& origin)
+	:	DualPointCaretController(owner, new RectCaret
+		,	target, origin
+		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectRect)
 	,	m_Transformation(transformation)
-{
-}
+{}
 
 // override PointCaretController callback
 bool SelectRectController::Exec(EventInfo& eventInfo)
@@ -622,15 +563,8 @@ SelectCircleController::SelectCircleController(
 	ViewPort*                target, 
 	const CrdTransformation& transformation, 
 	const GPoint&            origin
-)	:	DualPointCaretController(
-			owner, 
-			new CircleCaret,
-			target, 
-			origin,
-			EID_MOUSEDRAG|EID_LBUTTONUP,
-			EID_LBUTTONUP,
-			EID_CLOSE_EVENTS
-		)
+)	:	DualPointCaretController(owner, new CircleCaret, target,  origin
+		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP,EID_CLOSE_EVENTS, ToolButtonID::TB_SelectCircle)
 	,	m_Transformation(transformation)
 {
 }
@@ -668,7 +602,8 @@ SelectDistrictController::SelectDistrictController(
 	DataView* owner, 
 	ViewPort* target, 
 	const CrdTransformation& transformation
-)	:	AbstrController(owner, target, 0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS)
+)	:	AbstrController(owner, target
+		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectDistrict)
 	,	m_Transformation(transformation)
 {}
 
@@ -707,6 +642,7 @@ DrawPolygonController::DrawPolygonController(
 		,	EID_MOUSEMOVE|EID_MOUSEDRAG|EID_LBUTTONDOWN|EID_LBUTTONUP|EID_LBUTTONDBLCLK
 		,	EID_LBUTTONDBLCLK
 		,	EID_LBUTTONDBLCLK|EID_RBUTTONDOWN|EID_CAPTURECHANGED|EID_SCROLLED
+		,	ToolButtonID::TB_SelectPolygon
 		)
 	,	m_EndLineCaret(0)
 	,	m_PolygonCaret(0)

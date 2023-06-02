@@ -231,7 +231,15 @@ enum ToolButtonID {
 	TB_GotoClipboardLocationAndZoomlevel,
 	TB_CopyLocationAndZoomlevelToClipboard,
 	//	TB_SetData,
+	TB_Undefined
+};
 
+enum class PressStatus
+{
+	DontCare,
+	Up,
+	Dn,
+	ThirdWay,
 };
 
 //----------------------------------------------------------------------

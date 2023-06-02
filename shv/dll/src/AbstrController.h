@@ -115,19 +115,25 @@ class AbstrController : public SharedObj
 {
 	typedef PersistentSharedObj base_type;
 public:
-	AbstrController(
-		DataView*                owner, 
-		GraphicObject*           target, 
-		EventIdType              moveEvents,  // = EID_MOUSEMOVE|EID_MOUSEDRAG
-		EventIdType              execEvents,
-		EventIdType              stopEvents
+	AbstrController(DataView* owner, GraphicObject* target
+	,	EventIdType moveEvents  // = EID_MOUSEMOVE|EID_MOUSEDRAG
+	,	EventIdType execEvents, EventIdType stopEvents
+	,	ToolButtonID toolID
 	);
+
 	virtual ~AbstrController();
 
 	std::weak_ptr<DataView>      GetOwner         () { return m_Owner; }
 	std::weak_ptr<GraphicObject> GetTargetObject  () { return m_TargetObject; }
 
 	bool Event(EventInfo& eventInfo);
+
+	auto GetPressStatus(ToolButtonID id) const -> PressStatus
+	{
+		if (id == m_ToolID)
+			return PressStatus::Dn;
+		return PressStatus::DontCare;
+	}
 
 protected:
 	virtual bool Move(EventInfo& eventInfo);
@@ -137,8 +143,8 @@ protected:
 private:
 	std::weak_ptr<DataView>      m_Owner;
 	std::weak_ptr<GraphicObject> m_TargetObject;
-
 	UInt32 m_MoveEvents, m_ExecEvents, m_StopEvents;
+	ToolButtonID                 m_ToolID;
 };
 
 //----------------------------------------------------------------------
