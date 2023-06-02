@@ -174,6 +174,8 @@ public:
 	DataView(TreeItem* viewContext);
 	virtual ~DataView();
 
+	virtual auto GetViewType() const->ViewStyle = 0;
+
 //	void StopOwning() { m_SelfOwned.reset(); }
 //	std::shared_ptr<DataView> shared_from_this() { return m_SelfOwned; }
 

@@ -24,6 +24,8 @@ class TableDataView : public DataView
 public:
 	TableDataView(TreeItem* viewContext, ShvSyncMode sm);
 
+	auto GetViewType() const -> ViewStyle override { return ViewStyle::tvsTableView; }
+
 	      TableViewControl* GetTableViewControl();
 	const TableViewControl* GetTableViewControl() const;
 	      TableControl*     GetTableControl();
