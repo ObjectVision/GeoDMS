@@ -200,6 +200,13 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+void MainWindow::updateToolbar(int index)
+{
+    //auto active_dock_widget = centralDockArea->dockWidget(index);
+    //auto dms_view_area = static_cast<QDmsViewArea*>(active_dock_widget->widget());
+    //auto test = dms_view_area->dv->;
+    //int i = 0;
+}
 
 void MainWindow::defaultView()
 {
@@ -291,21 +298,23 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    auto fileToolBar = addToolBar(tr("File"));
+    //auto fileToolBar = addToolBar(tr("File"));
+    m_toolbar = addToolBar(tr("dmstoolbar"));
+    connect(centralDockArea, &ads::CDockAreaWidget::currentChanged, this, &MainWindow::updateToolbar);
     auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
     fileMenu->addAction(fileOpenAct);
-    fileToolBar->addAction(fileOpenAct);
+    //fileToolBar->addAction(fileOpenAct);
 
     auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
     fileMenu->addAction(reOpenAct);
-    fileToolBar->addAction(reOpenAct);
+    //fileToolBar->addAction(reOpenAct);
 
     fileMenu->addSeparator();
     auto epdm = fileMenu->addMenu(tr("Export Primary Data"));

@@ -5,6 +5,7 @@
 #include <QPointer>
 #include <QLineEdit>
 #include <QCompleter>
+#include <QToolBar>
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
 #include "DockManager.h"
@@ -61,13 +62,13 @@ private slots:
     void reOpen();
     void aboutGeoDms();
     void defaultView();
+    void updateToolbar(int index);
 
 private:
     void LoadConfig(CharPtr filename);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
-
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
@@ -92,6 +93,7 @@ private:
     QPointer<DmsDetailPages> m_detail_pages;
     QPointer<QListWidget> m_eventlog;
     QPointer<QTreeView> m_treeview;
+    QPointer<QToolBar> m_toolbar;
 };
 
 #endif
