@@ -157,6 +157,8 @@ public:
 	EditPaletteView(TreeItem* viewContents, AbstrDataItem* classAttr, const AbstrDataItem* themeAttr, const AbstrUnit* themeUnit, ShvSyncMode sm);
 	EditPaletteView(TreeItem* viewContents, ShvSyncMode sm);
 
+	auto GetViewType() const -> ViewStyle override { return ViewStyle::tvsPaletteEdit;  }
+
 	      EditPaletteControl* GetEditPaletteControl()       { return debug_cast<      EditPaletteControl*>(GetContents().get()); }
 	const EditPaletteControl* GetEditPaletteControl() const { return debug_cast<const EditPaletteControl*>(GetContents().get()); }
 

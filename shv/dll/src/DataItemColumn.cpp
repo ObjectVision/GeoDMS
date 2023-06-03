@@ -1450,7 +1450,10 @@ protected:
 //----------------------------------------------------------------------
 
 ColumnSizerDragger::ColumnSizerDragger(DataView* owner, DataItemColumn* target)
-	:	AbstrController(owner, target, 0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS & ~EID_SCROLLED)
+	:	AbstrController(owner, target
+		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
+	)
 {}
 
 bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
@@ -1493,38 +1496,31 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 	SelectCol();
 
 	medOwner->InsertController(
-		new TieCursorController(
-			medOwner.get(),
-			owner.get(),
-			TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1)),
-			EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new TieCursorController(medOwner.get(), owner.get()
+		,	TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1))
+		,	EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		)
 	);
 
 	medOwner->InsertController(
-		new DualPointCaretController(
-			medOwner.get(),
-			new MovableRectCaret( TRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) ),
-			this,
-			mousePoint,
-			EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new DualPointCaretController(medOwner.get()
+		,	new MovableRectCaret( TRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) )
+		,	this, mousePoint
+		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
 		)
 	);
 
 	medOwner->InsertController(
-		new DualPointCaretController(
-			medOwner.get(),
-			new MovableRectCaret( TRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) ),
-			this,
-			mousePoint,
-			EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new DualPointCaretController(medOwner.get()
+		,	new MovableRectCaret( TRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) )
+		,	this, mousePoint
+		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
 		)
 	);
 	medOwner->InsertController(
-		new ColumnSizerDragger(
-			medOwner.get(),
-			this
-		)
+		new ColumnSizerDragger(medOwner.get(), this)
 	);
 }
 

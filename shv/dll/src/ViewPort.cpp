@@ -1006,10 +1006,11 @@ public:
 		GridLayer*     target, 
 		GridCoordPtr    gridCoords,
 		SelValuesData* selValues
-	)	:	AbstrController(owner, target, 
-				EID_LBUTTONDOWN|EID_MOUSEMOVE|EID_MOUSEDRAG,
-				EID_LBUTTONUP,
-				EID_LBUTTONUP|EID_RBUTTONDOWN|EID_RBUTTONUP|EID_CAPTURECHANGED|EID_SCROLLED
+	)	:	AbstrController(owner, target 
+			,	EID_LBUTTONDOWN|EID_MOUSEMOVE|EID_MOUSEDRAG
+			,	EID_LBUTTONUP
+			,	EID_LBUTTONUP|EID_RBUTTONDOWN|EID_RBUTTONUP|EID_CAPTURECHANGED|EID_SCROLLED
+			,	ToolButtonID::TB_PasteSel
 			)
 		,	m_ViewPort(vp)
 		,	m_GridLayer(target)

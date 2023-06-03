@@ -27,6 +27,8 @@ public:
 	std::shared_ptr < MapControl> GetContents();
 	std::shared_ptr < const MapControl> GetContents() const;
 
+	auto GetViewType() const -> ViewStyle override { return ViewStyle::tvsMapView; }
+
 protected:
 	bool CanContain(const TreeItem* viewCandidate) const override;
 	void AddLayer(const TreeItem*, bool isDropped) override;

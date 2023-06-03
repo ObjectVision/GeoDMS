@@ -193,7 +193,8 @@ class LayerControlBaseDragger : public DualPointCaretController
 	typedef DualPointCaretController base_type;
 public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
-		:	DualPointCaretController(owner, new RectCaret, target, origin, EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS)
+		:	DualPointCaretController(owner, new RectCaret, target, origin
+			,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		,	m_HooverRect( owner->ViewRect() )
 	{}
 protected:
@@ -289,20 +290,12 @@ bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 	{
 		auto medOwner = med.GetOwner().lock();
 		medOwner->InsertController(
-			new DualPointCaretController(
-				medOwner.get(), 
-				new BoundaryCaret(this),
-				this,
-				med.GetEventInfo().m_Point,
-				EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS
-			)
+			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
+			,	this, med.GetEventInfo().m_Point
+			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		);
 		medOwner->InsertController(
-			new LayerControlBaseDragger(
-				medOwner.get(), 
-				this,
-				med.GetEventInfo().m_Point
-			)
+			new LayerControlBaseDragger(medOwner.get(), this, med.GetEventInfo().m_Point)
 		);
 		return true;
 	}

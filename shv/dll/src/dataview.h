@@ -174,6 +174,8 @@ public:
 	DataView(TreeItem* viewContext);
 	virtual ~DataView();
 
+	virtual auto GetViewType() const->ViewStyle = 0;
+
 //	void StopOwning() { m_SelfOwned.reset(); }
 //	std::shared_ptr<DataView> shared_from_this() { return m_SelfOwned; }
 
@@ -221,6 +223,8 @@ public:
 	void XOrSelCaret (const Region& newSelCaret);
 	void SetTextCaret(const GPoint& caretPos);
 	void ClearTextCaret();
+
+	auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
 	void InvalidateRect(const GRect&  rect);
 	void InvalidateRgn (const Region& rgn );

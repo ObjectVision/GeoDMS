@@ -118,7 +118,8 @@ private:
 //----------------------------------------------------------------------
 
 ColumnHeaderDragger::ColumnHeaderDragger(DataView* owner, ColumnHeaderControl* target, GPoint origin)
-	:	DualPointCaretController(owner, new RectCaret, target, origin, EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS)
+	:	DualPointCaretController(owner, new RectCaret, target, origin
+		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 	,	m_HooverRect( owner->ViewRect() )
 	,	m_Activated(false)
 {}
@@ -206,38 +207,26 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		m_Dic->SelectCol();
 		auto owner = GetOwner().lock(); if (!owner) return true;
 		medOwner->InsertController(
-			new TieCursorController(
-				medOwner.get(),
-				owner.get(),
-				TRect2GRect(owner->GetCurrClientAbsRect()),
-				EID_MOUSEDRAG, EID_CLOSE_EVENTS
+			new TieCursorController(medOwner.get(), owner.get()
+			,	TRect2GRect(owner->GetCurrClientAbsRect())
+			,	EID_MOUSEDRAG, EID_CLOSE_EVENTS
 			)
 		);
 
 		medOwner->InsertController(
-			new DualPointCaretController(
-				medOwner.get(),
-				new BoundaryCaret(this),
-				this,
-				mousePoint,
-				EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS
+			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
+			,	this, mousePoint
+			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
-			new DualPointCaretController(
-				medOwner.get(),
-				new BoundaryCaret(m_Dic.get()),
-				this,
-				mousePoint,
-				EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS
+			new DualPointCaretController(medOwner.get(), new BoundaryCaret(m_Dic.get())
+			,	this, mousePoint
+			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
-			new ColumnHeaderDragger(
-				medOwner.get(), 
-				this,
-				mousePoint
-			)
+			new ColumnHeaderDragger(medOwner.get(), this, mousePoint)
 		);
 	}
 

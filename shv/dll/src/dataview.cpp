@@ -385,6 +385,23 @@ void DataView::ClearTextCaret()
 	UpdateTextCaret();
 }
 
+auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
+{
+	auto result = GetContents()->OnCommandEnable(id);
+	if (result == CommandStatus::ENABLED)
+	{
+		for (AbstrController* ctrlPtr: m_ControllerVector)
+		{
+			switch (ctrlPtr->GetPressStatus(id))
+			{
+				case PressStatus::DontCare: continue;
+				case PressStatus::Dn: return CommandStatus::DOWN;
+				case PressStatus::Up: return CommandStatus::UP;
+			}
+		}
+	}
+}
+
 void DataView::UpdateTextCaret()
 {
 	if (m_State.GetBits(DVF_HasFocus|DVF_HasTextCaret) == (DVF_HasFocus|DVF_HasTextCaret))
