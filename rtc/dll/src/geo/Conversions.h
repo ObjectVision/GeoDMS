@@ -337,7 +337,7 @@ inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFu
 
 // conversions to string
 template <typename T, typename ExceptFunc, typename ConvertFunc>
-inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* /*dummyExceptFunc*/, const ConvertFunc* /*dummyConvertFunc*/)
 {
 	return AsString(val);
 }

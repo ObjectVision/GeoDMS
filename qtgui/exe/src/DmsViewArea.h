@@ -5,12 +5,11 @@
 
 struct TreeItem;
 class DataView;
-using HANDLE = void*;
 
 class QDmsViewArea : public QWidget
 {
 public:
-    QDmsViewArea(QWidget* parent, HANDLE hWndMain, TreeItem* viewContext, TreeItem* currItem);
+    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, TreeItem* currItem);
     ~QDmsViewArea();
 
 private:
@@ -19,7 +18,7 @@ private:
 
     void UpdatePos();
 
-    HANDLE wnd = nullptr;
+    void*   wnd = nullptr;
     DataView* dv = nullptr;
     QPoint pos = QPoint(100, 100);
     QSize size = QSize(300, 200);

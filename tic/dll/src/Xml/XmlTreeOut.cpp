@@ -680,7 +680,6 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 	DMS_CALL_BEGIN
 
 		assert(xmlOutStrPtr);
-
 		SuspendTrigger::Resume();
 
 		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
@@ -688,6 +687,35 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 			if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
 				return false;
 		} catch (...)
+		{
+			auto err = catchException(true);
+			if (!err)
+				*xmlOutStrPtr << "unrecognized error";
+			else
+				*xmlOutStrPtr << *err;
+		}
+
+	DMS_CALL_END_NOTHROW
+	return true;
+}
+
+TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr, CharPtr url)
+{
+	DMS_CALL_BEGIN
+
+		assert(xmlOutStrPtr);
+		SuspendTrigger::Resume();
+
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+		try {
+
+			*xmlOutStrPtr << "Description or documentation available:";
+
+			XML_OutElement xmlElemA(*xmlOutStrPtr, "A");
+			xmlOutStrPtr->WriteAttr("href", url);
+			*xmlOutStrPtr << "[" << url << "]";
+		}
+		catch (...)
 		{
 			auto err = catchException(true);
 			if (!err)

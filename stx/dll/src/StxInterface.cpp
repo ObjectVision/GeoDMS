@@ -257,6 +257,32 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 
 #include "act/TriggerOperator.h"
 
+SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
+{
+	SharedStr localUrl = SharedStr(url);
+	SharedStr result;
+	MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
+	CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
+	while (true) {
+		CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
+		result += CharPtrRange(fileCurr, markerPos);
+		if (markerPos == fileEnd)
+			return result;
+		markerPos += 2;
+		fileCurr = Search(CharPtrRange(markerPos, fileEnd), "%>");
+		if (fileCurr == fileEnd)
+			throwErrorD("DMS_ProcessADMS", "unbalanced script markers");
+
+		SharedStr evalRes = AbstrCalculator::EvaluateExpr(const_cast<TreeItem*>(context), CharPtrRange(markerPos, fileCurr), CalcRole::Other, 1);
+		if (!evalRes.IsDefined())
+			evalRes = UNDEFINED_VALUE_STRING;
+		result += evalRes;
+
+		fileCurr += 2;
+	}
+	return {};
+}
+
 IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	DMS_CALL_BEGIN
@@ -264,29 +290,8 @@ IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 		SuspendTrigger::FencedBlocker blockSuspendCheck;  // DEBUG, HELPS?
 		StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
-		CDebugContextHandle checkPtr("STX", "DMS_ProcessADMS", true);
-
-		SharedStr localUrl = SharedStr(url);
-		SharedStr result;
-		MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
-		CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
-		while (true) {
-			CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
-			result += CharPtrRange(fileCurr, markerPos);
-			if (markerPos == fileEnd)
-				return IString::Create(result.c_str());
-			markerPos += 2;
-			fileCurr = Search( CharPtrRange(markerPos, fileEnd), "%>");
-			if (fileCurr == fileEnd)
-				throwErrorD("DMS_ProcessADMS", "unbalanced script markers");
-
-			SharedStr evalRes = AbstrCalculator::EvaluateExpr(const_cast<TreeItem*>(context), CharPtrRange(markerPos, fileCurr), CalcRole::Other, 1);
-			if (!evalRes.IsDefined())
-				evalRes = UNDEFINED_VALUE_STRING;
-			result += evalRes;
-
-			fileCurr += 2;
-		}
+		auto result = ProcessADMS(context, url);
+		return IString::Create(result.c_str());
 
 	DMS_CALL_END
 	return nullptr;
@@ -324,7 +329,7 @@ bool DMS_ProcessPostData(TreeItem* context, CharPtr postData, UInt32 dataSize)
 		DBG_START("DMS_ProcessPostData", postData, true);
 		TreeItemContextHandle checkPtr(context, "DMS_ProcessPostData");
 
-		dms_assert( (StrLen(postData) + 1) == dataSize );
+		assert( (StrLen(postData) + 1) == dataSize );
 		if (_strnicmp(postData, "DMSPOST=",8))
 			return false;
 

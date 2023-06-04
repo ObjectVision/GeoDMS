@@ -33,6 +33,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StxBase.h"
 
+SYNTAX_CALL SharedStr ProcessADMS(const TreeItem* context, CharPtr url);
+
 // External callable functions
 
 extern "C" {
@@ -45,6 +47,7 @@ SYNTAX_CALL bool           DMS_CONV DMS_ProcessPostData            (      TreeIt
 SYNTAX_CALL void           DMS_CONV DMS_Stx_Load();
 
 }
+
 
 
 #endif // __STX_INTERFACE_H

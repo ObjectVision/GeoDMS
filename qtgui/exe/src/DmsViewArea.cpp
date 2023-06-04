@@ -27,7 +27,7 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance)
     return className;
 }
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, HANDLE hWndMain, TreeItem* viewContext, TreeItem* currItem)
+QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, TreeItem* currItem)
     : QWidget(parent)
 {
     HINSTANCE instance = GetInstance((HWND)hWndMain);//m_Views.at(m_ViewIndex).m_HWNDParent);

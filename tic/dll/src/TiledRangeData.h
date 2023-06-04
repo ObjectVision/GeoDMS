@@ -85,7 +85,7 @@ struct AbstrTileRangeData : SharedObj
 	virtual tile_offset GetMaxTileSize() const = 0;
 	virtual bool IsCovered() const { return true; }
 	virtual tile_loc GetTiledLocation(row_id index) const = 0;
-	virtual tile_loc GetTiledLocation(row_id index, tile_id prevT) const { return GetTiledLocation(index); }
+	virtual tile_loc GetTiledLocation(row_id index, tile_id /*prevT*/) const { return GetTiledLocation(index); }
 	virtual row_id GetRangeSize() const = 0;
 	virtual row_id GetDataSize() const { return GetRangeSize(); }
 
@@ -94,8 +94,8 @@ struct AbstrTileRangeData : SharedObj
 	virtual row_id  GetFirstRowIndex(tile_id t) const = 0;
 	virtual row_id  GetRowIndex(tile_id t, tile_offset localIndex) const = 0;
 
-	virtual void Load(BinaryInpStream& pis) {}
-	virtual void Save(BinaryOutStream& pis) const {}
+	virtual void Load(BinaryInpStream& /*pis*/) {}
+	virtual void Save(BinaryOutStream& /*pos*/) const {}
 
 	virtual LispRef GetAsLispRef(LispPtr base, bool asCategorical) const = 0;
 

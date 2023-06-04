@@ -107,14 +107,9 @@ auto OpenConfigSource(GuiState &state, std::string_view filename, std::string_vi
         reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
 
         DMS_CALL_BEGIN
-            try
-        {
-            StartChildProcess(NULL, const_cast<Char*>(open_config_source_command.c_str()));
-        }
-        catch (...)
-        {
-            throw;
-        }
+
+            StartChildProcess(nullptr, const_cast<Char*>(open_config_source_command.c_str()));
+
         DMS_CALL_END
     }
     

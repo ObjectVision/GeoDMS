@@ -58,7 +58,7 @@
     <ClCompile>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;../../stgimpl/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <UseFullPaths>false</UseFullPaths>
     </ClCompile>
@@ -124,6 +124,7 @@
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
     <ClCompile Include="src\main_qt.cpp" />
+    <ClCompile Include="src\mymodel.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\ads_globals.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\AutoHideDockContainer.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\AutoHideSideBar.cpp" />
@@ -148,9 +149,11 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="src\mymodel.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h" />
     <ClInclude Include="src\DmsEventLog.h" />
-    <ClInclude Include="src\DmsViewArea.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />
@@ -200,6 +203,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\shv\dll\ShvDLL.vcxproj">
       <Project>{ba9fd377-1ee3-45aa-8a7b-2ac7be68e989}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\stgimpl\dll\StgImpl.vcxproj">
+      <Project>{c2602d25-f606-49e3-a167-68a495a46dfa}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
       <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>

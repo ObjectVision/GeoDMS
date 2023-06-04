@@ -1,9 +1,8 @@
 #include <QPointer>
-QT_BEGIN_NAMESPACE
-class QTreeView;
-class QTextBrowser;
-QT_END_NAMESPACE
-class MainWindow;
+#include <qtextbrowser>
+
+#include "ptr/SharedStr.h"
+#include "Ticbase.h"
 
 enum class ActiveDetailPage
 {
@@ -13,6 +12,8 @@ enum class ActiveDetailPage
 	METADATA,
 	VALUE_INFO,
 	CONFIGURATION,
+	SOURCEDESCR,
+	STATISTICS,
 	NONE
 };
 
@@ -31,6 +32,8 @@ public slots:
 
 	void newCurrentItem();
 
+	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
+
 private slots:
 	void onAnchorClicked(const QUrl& link);
 
@@ -40,5 +43,7 @@ private:
 	void drawPage();
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
+	SharedTreeItem m_tiContext;
+	SizeT m_RecNo;
 };
 
