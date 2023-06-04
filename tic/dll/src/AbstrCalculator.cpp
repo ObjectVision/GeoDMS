@@ -268,7 +268,7 @@ AbstrCalculator::AbstrCalculator(const TreeItem* context, LispPtr lispRefOrg, Ca
 		m_LispExprSubst = m_LispExprOrg;
 		m_HasSubstituted = true; // already done by caller ?
 	}
-	dms_assert(m_SearchContext);
+	assert(m_SearchContext);
 }
 
 
@@ -282,7 +282,9 @@ bool AbstrCalculator::CheckSyntax () const
 
 const TreeItem* AbstrCalculator::SearchContext() const
 {
-	return m_SearchContext;
+	auto searchContext = m_SearchContext;
+	MG_CHECK(searchContext);
+	return searchContext;
 }
 
 static TokenID thisToken = GetTokenID_st("this");
@@ -1100,10 +1102,18 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					, AsString(indexItem->GetDynamicClass()->GetID())
 					);
 
-				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
 
 				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get_ptr()) );
-				dms_assert(avu);
+				if (!avu)
+				{
+					auto formalDomainUnit = SharedStr(AsDataItem(indexItem.get())->DomainUnitToken());
+					auto formalValuesUnit = SharedStr(AsDataItem(indexItem.get())->ValuesUnitToken());
+					throwErrorF("Calculation Rule Parser", "DataItem with a specied formal domain and values-unit expected as left operand of the arrow operator;"
+						"\nHint: '%s' is specified with formal domain '%s' and values-unit '%s'. Check that these refer to unit definitions seen from the current context."
+						, AsString(indexExpr.GetSymbID()), formalDomainUnit.c_str(), formalValuesUnit.c_str()
+					);
+				}
+				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
 
 				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, avu);
 				SubstitutionBuffer localBuffer;
