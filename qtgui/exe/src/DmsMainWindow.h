@@ -7,7 +7,7 @@
 #include <QCompleter>
 #include <QToolBar>
 #include "ptr/SharedPtr.h"
-#include "ptr/SharedStr.h"
+#include "ShvUtils.h"
 #include "DockManager.h"
 #include "DockAreaWidget.h"
 #include "DockWidget.h"
@@ -30,8 +30,6 @@ struct TreeItem;
 class DmsDetailPages;
 class DmsTreeView;
 
-
-
 class DmsCurrentItemBar : public QLineEdit
 {
 public:
@@ -39,7 +37,39 @@ public:
     void setDmsCompleter(TreeItem* root);
 };
 
+enum class ButtonType
+{
+    SINGLE,
+    SINGLE_EXCLUSIVE,
+    MULTISTATE,
+    MODAL
+};
 
+struct ToolbarButtonData
+{
+    ButtonType type;
+    QString text;
+    std::vector<ToolButtonID> ids;
+    std::vector<QString> icons;
+};
+
+class DmsToolbuttonAction : public QAction
+{
+    Q_OBJECT
+public:
+    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {});
+
+signals:
+
+
+private slots:
+
+
+private:
+    
+    ToolbarButtonData m_data;
+        
+};
 
 class MainWindow : public QMainWindow
 {
