@@ -216,7 +216,6 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_TableCopy: return { ButtonType::SINGLE, "", {TB_TableCopy}, {":/res/images/TB_copy.bmp"} };
     case TB_Copy: return { ButtonType::SINGLE, "", {TB_Copy}, {":/res/images/TB_copy.bmp"} };
     case TB_CopyLC: return { ButtonType::SINGLE, "", {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"} };
-
     case TB_ZoomSelectedObj: return { ButtonType::SINGLE, "", {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"} };
     case TB_SelectRows: return { ButtonType::SINGLE, "", {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"} };
     case TB_SelectAll: return { ButtonType::SINGLE, "", {TB_SelectAll}, {":/res/images/TB_select_all.bmp"} };
@@ -236,25 +235,6 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_NeedleOn: return { ButtonType::SINGLE, "", {TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"} };
     case TB_ScaleBarOn: return { ButtonType::SINGLE, "", {TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"} };
     }
-
-    return {};
-    /*m_TableViewButtons.emplace_back(TB_Export, GV_save, false, 0, ButtonType::MODAL, "Save to file as semicolon delimited text", false);                 // SHV_DataView_GetExportInfo(m_DataView, @nrRows, @nrCols, @nrDotRows, @nrDotCols, @fullFileNameBaseStr) then format as 569 dmscontrol.pas
-    m_TableViewButtons.emplace_back(TB_TableCopy, GV_copy, false, 0, ButtonType::SINGLE, "Copy as semicolon delimited text to Clipboard ", false);
-    m_TableViewButtons.emplace_back(TB_Copy, GV_vcopy, false, 0, ButtonType::SINGLE, "Copy the visible contents as image to Clipboard", false);
-
-    m_TableViewButtons.emplace_back(TB_ZoomSelectedObj, MV_table_show_first_selected, false, 1, ButtonType::SINGLE, "Show the first selected row", false);
-    m_TableViewButtons.emplace_back(TB_SelectRows, MV_table_select_row, false, 1, ButtonType::SINGLE, "Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)", false);
-    m_TableViewButtons.emplace_back(TB_SelectAll, MV_select_all, false, 1, ButtonType::SINGLE, "Select all rows", false);
-    m_TableViewButtons.emplace_back(TB_SelectNone, MV_select_none, false, 1, ButtonType::SINGLE, "Deselect all rows", false);
-    m_TableViewButtons.emplace_back(TB_ShowSelOnlyOn, TB_ShowSelOnlyOff, MV_show_selected_features, false, 1, ButtonType::TOGGLE, "Show only selected rows", false);
-
-    m_TableViewButtons.emplace_back(TB_TableGroupBy, GV_group_by, false, 2, ButtonType::SINGLE, "Group by the highlighted columns", false);*/
-
-    /*m_MapViewButtons.emplace_back(TB_ZoomAllLayers, MV_zoom_all_layers, false, 1, ButtonType::SINGLE, "Make the extents of all layers fit in the ViewPort", false);
-    m_MapViewButtons.emplace_back(TB_ZoomActiveLayer, MV_zoom_active_layer, false, 1, ButtonType::SINGLE, "Make the extent of the active layer fit in the ViewPort", false);
-    m_MapViewButtons.emplace_back(TB_ZoomIn2, TB_Neutral, MV_zoomin_button, true, 1, ButtonType::TOGGLE, "Zoom in by drawing a rectangle", false);
-    m_MapViewButtons.emplace_back(TB_ZoomOut2, TB_Neutral, MV_zoomout_button, true, 1, ButtonType::TOGGLE, "Zoom out by clicking on a ViewPort location", false);*/
-
 
     return {};
 }
@@ -290,30 +270,9 @@ void MainWindow::updateToolbar(int index)
         auto button_icon = QIcon(button_data.icons[0]);
         auto action = new  DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
         m_toolbar->addAction(action);
+
+        // TODO: add connections
     }
-
-    //auto openIcon = QIcon::fromTheme("document-open", QIcon(":/res/images/save.png"));
-    //auto fileOpenAct = new DmsToolbuttonAction(openIcon, tr("&export"), m_toolbar, { ButtonType::SINGLE, {TB_Export}, {":/res/images/save.png"} });
-    //m_toolbar->addAction(fileOpenAct);
-
-    // TableView buttons
-    /*
-
-
-    m_MapViewButtons.emplace_back(TB_ZoomSelectedObj, MV_zoom_selected, false, 2, ButtonType::SINGLE, "Make the extent of the selected elements fit in the ViewPort", false);
-    m_MapViewButtons.emplace_back(TB_SelectObject, MV_select_object, true, 2, ButtonType::SINGLE, "Select elements in the active layer by mouse-click(use Shift to add or Ctrl to deselect)", false);
-    m_MapViewButtons.emplace_back(TB_SelectRect, MV_select_rect, true, 2, ButtonType::SINGLE, "Select elements in the active layer by drawing a rectangle(use Shift to add or Ctrl to deselect)", false);
-    m_MapViewButtons.emplace_back(TB_SelectCircle, MV_select_circle, true, 2, ButtonType::SINGLE, "Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)", false);
-    m_MapViewButtons.emplace_back(TB_SelectPolygon, MV_select_poly, true, 2, ButtonType::SINGLE, "Select elements in the active layer by drawing a polygon(use Shift to add or Ctrl to deselect)", false);
-    m_MapViewButtons.emplace_back(TB_SelectDistrict, MV_select_district, true, 2, ButtonType::SINGLE, "Select contiguous regions in the active layer by clicking on them (use Shift to add or Ctrl to deselect)", false);
-    m_MapViewButtons.emplace_back(TB_SelectAll, MV_select_all, false, 2, ButtonType::SINGLE, "Select all elements in the active layer", false);
-    m_MapViewButtons.emplace_back(TB_SelectNone, MV_select_none, false, 2, ButtonType::SINGLE, "Deselect all elements in the active layer", false);
-    m_MapViewButtons.emplace_back(TB_ShowSelOnlyOn, TB_ShowSelOnlyOff, MV_show_selected_features, false, 2, ButtonType::TOGGLE, "Show only selected elements", false);
-
-    m_MapViewButtons.emplace_back(TB_Show_VP, TB_Show_VPLC, TB_Show_VPLCOV, MV_toggle_layout_3, false, 3, ButtonType::TRISTATE, "Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList", false);
-    m_MapViewButtons.emplace_back(TB_SP_All, TB_SP_Active, TB_SP_None, MV_toggle_palette, false, 3, ButtonType::TRISTATE, "Toggle Palette Visibiliy between{All, Active Layer Only, None}", false);
-    m_MapViewButtons.emplace_back(TB_NeedleOn, TB_NeedleOff, MV_toggle_needle, false, 3, ButtonType::TOGGLE, "Show / Hide NeedleControler", false);
-    m_MapViewButtons.emplace_back(TB_ScaleBarOn, TB_ScaleBarOff, MV_toggle_scalebar, f*/
 }
 
 void MainWindow::defaultView()
