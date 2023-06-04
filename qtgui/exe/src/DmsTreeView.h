@@ -61,6 +61,7 @@ public:
 
 class DmsTreeView : public QTreeView
 {
+
 public:
 	using QTreeView::QTreeView;
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;

@@ -308,6 +308,26 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     return;
 }
 
+void MainWindow::showTreeviewContextMenu(const QPoint& pos)
+{
+    QModelIndex index = m_treeview->indexAt(pos);
+    if (!index.isValid())
+        return;
+
+    if (!m_treeview_context_menu)
+        m_treeview_context_menu = new QMenu(this); // TODO: does this get properly destroyed if parent gets destroyed?
+
+    m_treeview_context_menu->clear();
+    auto default_view_action = new QAction(tr("&Default View"), this);
+    default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    m_treeview_context_menu->addAction(default_view_action);
+
+    m_treeview_context_menu->exec(m_treeview->viewport()->mapToGlobal(pos));
+    //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
+
+    //contextMenu->exec(ui->treeView->viewport()->mapToGlobal(point));
+}
+
 void MainWindow::LoadConfig(CharPtr fileName)
 {
     auto newRoot = DMS_CreateTreeFromConfiguration(fileName);
@@ -321,6 +341,8 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setItemsExpandable(true);
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
         m_treeview->setRootIndex(m_treeview->model()->index(0,0));
+        m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
         m_treeview->scrollTo({});
         /*m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
