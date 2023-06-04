@@ -1108,7 +1108,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				{
 					auto formalDomainUnit = SharedStr(AsDataItem(indexItem.get())->DomainUnitToken());
 					auto formalValuesUnit = SharedStr(AsDataItem(indexItem.get())->ValuesUnitToken());
-					throwErrorF("Calculation Rule Parser", "DataItem with a specied formal domain and values-unit expected as left operand of the arrow operator;"
+					throwErrorF("Calculation Rule Parser", "DataItem with a specified formal domain and values-unit expected as left operand of the arrow operator;"
 						"\nHint: '%s' is specified with formal domain '%s' and values-unit '%s'. Check that these refer to unit definitions seen from the current context."
 						, AsString(indexExpr.GetSymbID()), formalDomainUnit.c_str(), formalValuesUnit.c_str()
 					);
