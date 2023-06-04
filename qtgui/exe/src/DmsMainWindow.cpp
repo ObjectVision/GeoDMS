@@ -8,7 +8,7 @@
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 #include "TreeItem.h"
-#include "ShvUtils.h"
+#include "DataView.h"
 
 #include <QtWidgets>
 #include <QTextBrowser>
@@ -19,6 +19,8 @@
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+
+#include "dataview.h"
 //#include <string>
 
 static MainWindow* s_CurrMainWindow = nullptr;
@@ -200,6 +202,78 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data)
+    : QAction(icon, text, parent)
+{
+    m_data = std::move(button_data);
+}
+
+auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
+{
+    switch (button_id)
+    {
+    case TB_Export: return { ButtonType::SINGLE, "", {TB_Export}, {":/res/images/TB_save.bmp"} };
+    case TB_TableCopy: return { ButtonType::SINGLE, "", {TB_TableCopy}, {":/res/images/TB_copy.bmp"} };
+    case TB_Copy: return { ButtonType::SINGLE, "", {TB_Copy}, {":/res/images/TB_copy.bmp"} };
+    case TB_CopyLC: return { ButtonType::SINGLE, "", {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"} };
+    case TB_ZoomSelectedObj: return { ButtonType::SINGLE, "", {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"} };
+    case TB_SelectRows: return { ButtonType::SINGLE, "", {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"} };
+    case TB_SelectAll: return { ButtonType::SINGLE, "", {TB_SelectAll}, {":/res/images/TB_select_all.bmp"} };
+    case TB_SelectNone: return { ButtonType::SINGLE, "", {TB_SelectNone}, {":/res/images/TB_select_none.bmp"} };
+    case TB_ShowSelOnlyOn: return { ButtonType::SINGLE, "", {TB_ShowSelOnlyOn}, {":/res/images/TB_show_selected_features.bmp"} };
+    case TB_TableGroupBy: return { ButtonType::SINGLE, "", {TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"} };
+    case TB_ZoomAllLayers: return { ButtonType::SINGLE, "", {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"} };
+    case TB_ZoomIn2: return { ButtonType::SINGLE, "", {TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"} };
+    case TB_ZoomOut2: return { ButtonType::SINGLE, "", {TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"} };
+    case TB_SelectObject: return { ButtonType::SINGLE, "", {TB_SelectObject}, {":/res/images/TB_select_object.bmp"} };
+    case TB_SelectRect: return { ButtonType::SINGLE, "", {TB_SelectRect}, {":/res/images/TB_select_rect.bmp"} };
+    case TB_SelectCircle: return { ButtonType::SINGLE, "", {TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"} };
+    case TB_SelectPolygon: return { ButtonType::SINGLE, "", {TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"} };
+    case TB_SelectDistrict: return { ButtonType::SINGLE, "", {TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"} };
+    case TB_Show_VP: return { ButtonType::SINGLE, "", {TB_Show_VP}, {":/res/images/TB_toggle_layout_3.bmp"} };
+    case TB_SP_All: return { ButtonType::SINGLE, "", {TB_SP_All}, {":/res/images/TB_toggle_palette.bmp"} };
+    case TB_NeedleOn: return { ButtonType::SINGLE, "", {TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"} };
+    case TB_ScaleBarOn: return { ButtonType::SINGLE, "", {TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"} };
+    }
+
+    return {};
+}
+
+void MainWindow::updateToolbar(int index)
+{
+    auto active_dock_widget = centralDockArea->dockWidget(index);
+    auto dms_view_area = dynamic_cast<QDmsViewArea*>(active_dock_widget->widget());
+    if (m_toolbar)
+        removeToolBar(m_toolbar);
+
+    m_toolbar = addToolBar(tr("dmstoolbar"));
+    if (!dms_view_area)
+        return;
+
+    // create new actions
+    auto* dv = dms_view_area->getDataView();// ->OnCommandEnable();
+    auto view_style = dv->GetViewType();
+
+    std::vector<ToolButtonID> available_buttons = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
+                                                    TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_TableGroupBy, TB_ZoomAllLayers,
+                                                    TB_ZoomIn2, TB_ZoomOut2, TB_SelectObject, TB_SelectRect, TB_SelectCircle,
+                                                    TB_SelectPolygon, TB_SelectDistrict, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn,
+                                                    TB_Show_VP, TB_SP_All, TB_NeedleOn, TB_ScaleBarOn };
+
+    for (auto button_id : available_buttons)
+    {
+        auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
+        if (!is_command_enabled)
+            continue;
+
+        auto button_data = getToolbarButtonData(button_id);
+        auto button_icon = QIcon(button_data.icons[0]);
+        auto action = new  DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
+        m_toolbar->addAction(action);
+
+        // TODO: add connections
+    }
+}
 
 void MainWindow::defaultView()
 {
@@ -291,21 +365,23 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    auto fileToolBar = addToolBar(tr("File"));
+    //auto fileToolBar = addToolBar(tr("File"));
+    //m_toolbar = addToolBar(tr("dmstoolbar"));
+    connect(centralDockArea, &ads::CDockAreaWidget::currentChanged, this, &MainWindow::updateToolbar);
     auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
     fileMenu->addAction(fileOpenAct);
-    fileToolBar->addAction(fileOpenAct);
+    //fileToolBar->addAction(fileOpenAct);
 
     auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
     fileMenu->addAction(reOpenAct);
-    fileToolBar->addAction(reOpenAct);
+    //fileToolBar->addAction(reOpenAct);
 
     fileMenu->addSeparator();
     auto epdm = fileMenu->addMenu(tr("Export Primary Data"));
@@ -331,7 +407,7 @@ void MainWindow::createActions()
     quitAct->setStatusTip(tr("Quit the application"));
 
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
-    QToolBar *editToolBar = addToolBar(tr("Edit"));
+    //QToolBar *editToolBar = addToolBar(tr("Edit"));
 
 /*
     const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":res/images/undo.png"));

@@ -98,7 +98,7 @@ public:
 	virtual TokenID GetID() const override;
 
 	virtual void SelectPoint(CrdPoint /*worldPnt*/ , EventID) {};
-	virtual void SelectRect(CrdRect worldRect, EventID ) {};
+	virtual void SelectRect(CrdRect /*worldRect*/, EventID) {};
 	virtual void SelectCircle(CrdPoint /*worldPnt*/, CrdType /*worldRadius*/, EventID ) {};
 	virtual void SelectPolygon(const CrdPoint* /*first*/, const CrdPoint* /*last*/, EventID) {};
 	virtual void SelectDistrict(CrdPoint /*worldPnt*/, EventID );

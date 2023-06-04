@@ -400,6 +400,7 @@ auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
 			}
 		}
 	}
+	return result;
 }
 
 void DataView::UpdateTextCaret()
