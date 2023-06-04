@@ -150,7 +150,7 @@
   <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h" />
     <ClInclude Include="src\DmsEventLog.h" />
-    <ClInclude Include="src\DmsViewArea.h" />
+    <QtMoc Include="src\DmsViewArea.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />

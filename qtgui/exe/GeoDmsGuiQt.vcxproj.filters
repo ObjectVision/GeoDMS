@@ -167,6 +167,9 @@
     <QtMoc Include="src\DmsTreeView.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="src\DmsViewArea.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GeoDmsGuiQt.qrc">
@@ -188,9 +191,6 @@
     </ClInclude>
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
       <Filter>Qt Advanced Docking System</Filter>
-    </ClInclude>
-    <ClInclude Include="src\DmsViewArea.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
