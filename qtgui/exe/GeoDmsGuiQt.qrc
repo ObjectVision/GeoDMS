@@ -24,5 +24,31 @@
         <file>res/images/TV_vline.png</file>
         <file>res/images/TV_branch_closed.png</file>
         <file>res/images/TV_branch_open.png</file>
+        <file>res/images/TB_copy.bmp</file>
+        <file>res/images/TB_group_by.bmp</file>
+        <file>res/images/TB_save.bmp</file>
+        <file>res/images/TB_select_all.bmp</file>
+        <file>res/images/TB_select_circle.bmp</file>
+        <file>res/images/TB_select_district.bmp</file>
+        <file>res/images/TB_select_none.bmp</file>
+        <file>res/images/TB_select_object.bmp</file>
+        <file>res/images/TB_select_poly.bmp</file>
+        <file>res/images/TB_select_rect.bmp</file>
+        <file>res/images/TB_show_all_features.bmp</file>
+        <file>res/images/TB_show_selected_features.bmp</file>
+        <file>res/images/TB_table_select_row.bmp</file>
+        <file>res/images/TB_table_show_first_selected.bmp</file>
+        <file>res/images/TB_toggle_layout_1.bmp</file>
+        <file>res/images/TB_toggle_layout_2.bmp</file>
+        <file>res/images/TB_toggle_layout_3.bmp</file>
+        <file>res/images/TB_toggle_needle.bmp</file>
+        <file>res/images/TB_toggle_palette.bmp</file>
+        <file>res/images/TB_toggle_scalebar.bmp</file>
+        <file>res/images/TB_vcopy.bmp</file>
+        <file>res/images/TB_zoom_active_layer.bmp</file>
+        <file>res/images/TB_zoom_all_layers.bmp</file>
+        <file>res/images/TB_zoom_selected.bmp</file>
+        <file>res/images/TB_zoomin_button.bmp</file>
+        <file>res/images/TB_zoomout_button.bmp</file>
     </qresource>
 </RCC>
