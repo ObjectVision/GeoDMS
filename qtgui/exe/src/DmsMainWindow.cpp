@@ -212,9 +212,30 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 {
     switch (button_id)
     {
-    case TB_Export: return { ButtonType::SINGLE, "", {TB_Export}, {":/res/images/save.png"}};
-    }
+    case TB_Export: return { ButtonType::SINGLE, "", {TB_Export}, {":/res/images/TB_save.bmp"} };
+    case TB_TableCopy: return { ButtonType::SINGLE, "", {TB_TableCopy}, {":/res/images/TB_copy.bmp"} };
+    case TB_Copy: return { ButtonType::SINGLE, "", {TB_Copy}, {":/res/images/TB_copy.bmp"} };
+    case TB_CopyLC: return { ButtonType::SINGLE, "", {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"} };
 
+    case TB_ZoomSelectedObj: return { ButtonType::SINGLE, "", {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"} };
+    case TB_SelectRows: return { ButtonType::SINGLE, "", {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"} };
+    case TB_SelectAll: return { ButtonType::SINGLE, "", {TB_SelectAll}, {":/res/images/TB_select_all.bmp"} };
+    case TB_SelectNone: return { ButtonType::SINGLE, "", {TB_SelectNone}, {":/res/images/TB_select_none.bmp"} };
+    case TB_ShowSelOnlyOn: return { ButtonType::SINGLE, "", {TB_ShowSelOnlyOn}, {":/res/images/TB_show_selected_features.bmp"} };
+    case TB_TableGroupBy: return { ButtonType::SINGLE, "", {TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"} };
+    case TB_ZoomAllLayers: return { ButtonType::SINGLE, "", {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"} };
+    case TB_ZoomIn2: return { ButtonType::SINGLE, "", {TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"} };
+    case TB_ZoomOut2: return { ButtonType::SINGLE, "", {TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"} };
+    case TB_SelectObject: return { ButtonType::SINGLE, "", {TB_SelectObject}, {":/res/images/TB_select_object.bmp"} };
+    case TB_SelectRect: return { ButtonType::SINGLE, "", {TB_SelectRect}, {":/res/images/TB_select_rect.bmp"} };
+    case TB_SelectCircle: return { ButtonType::SINGLE, "", {TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"} };
+    case TB_SelectPolygon: return { ButtonType::SINGLE, "", {TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"} };
+    case TB_SelectDistrict: return { ButtonType::SINGLE, "", {TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"} };
+    case TB_Show_VP: return { ButtonType::SINGLE, "", {TB_Show_VP}, {":/res/images/TB_toggle_layout_3.bmp"} };
+    case TB_SP_All: return { ButtonType::SINGLE, "", {TB_SP_All}, {":/res/images/TB_toggle_palette.bmp"} };
+    case TB_NeedleOn: return { ButtonType::SINGLE, "", {TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"} };
+    case TB_ScaleBarOn: return { ButtonType::SINGLE, "", {TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"} };
+    }
 
     return {};
     /*m_TableViewButtons.emplace_back(TB_Export, GV_save, false, 0, ButtonType::MODAL, "Save to file as semicolon delimited text", false);                 // SHV_DataView_GetExportInfo(m_DataView, @nrRows, @nrCols, @nrDotRows, @nrDotCols, @fullFileNameBaseStr) then format as 569 dmscontrol.pas
@@ -250,15 +271,14 @@ void MainWindow::updateToolbar(int index)
         return;
 
     // create new actions
-    std::vector<int> test;
     auto* dv = dms_view_area->getDataView();// ->OnCommandEnable();
     auto view_style = dv->GetViewType();
 
-    std::vector<ToolButtonID> available_buttons = { TB_Export };//, TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
-                                                    //TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_TableGroupBy, TB_ZoomAllLayers,
-                                                    //TB_ZoomIn2, TB_ZoomOut2, TB_SelectObject, TB_SelectRect, TB_SelectCircle,
-                                                    //TB_SelectPolygon, TB_SelectDistrict, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn,
-                                                    //TB_Show_VP, TB_SP_All, TB_NeedleOn, TB_ScaleBarOn };
+    std::vector<ToolButtonID> available_buttons = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
+                                                    TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_TableGroupBy, TB_ZoomAllLayers,
+                                                    TB_ZoomIn2, TB_ZoomOut2, TB_SelectObject, TB_SelectRect, TB_SelectCircle,
+                                                    TB_SelectPolygon, TB_SelectDistrict, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn,
+                                                    TB_Show_VP, TB_SP_All, TB_NeedleOn, TB_ScaleBarOn };
 
     for (auto button_id : available_buttons)
     {
