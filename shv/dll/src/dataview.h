@@ -224,7 +224,7 @@ public:
 	void SetTextCaret(const GPoint& caretPos);
 	void ClearTextCaret();
 
-	auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
+	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
 	void InvalidateRect(const GRect&  rect);
 	void InvalidateRgn (const Region& rgn );
