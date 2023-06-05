@@ -253,13 +253,14 @@ bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
 
 auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 {
-
+	
 	auto root_node_index = rootIndex();
-	if (!root_node_index.isValid())
+
+	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
 		return {};
-
-
-
+	//auto row_count = model()->rowCount(root_node_index);
+	//if (!root_node_index.isValid())
+    //    return {};
 
 	auto parent_index = root_node_index;
 	while (true)
@@ -272,7 +273,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 			if (ti == new_current_item)
 			{
 				setCurrentIndex(child_index);
-				break;
+				return child_index;
 			}
 
 			if (isAncestor(ti, new_current_item))
@@ -295,9 +296,12 @@ void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 	if (root_ti == new_current_item)
 		return;
 
-	auto ti = GetTreeItem(current_node_index);
-	if (new_current_item == ti)
-		return;
+	if (current_node_index.isValid())
+	{
+		auto ti = GetTreeItem(current_node_index);
+		if (new_current_item == ti)
+			return;
+	}
 
 	expandToCurrentItem(new_current_item);
 }

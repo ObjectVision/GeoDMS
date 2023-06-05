@@ -6,7 +6,8 @@
 #include <QLineEdit>
 #include <QCompleter>
 #include <QToolBar>
-//#include <QPoint>
+#include <QTextEdit>
+
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
 #include "DockManager.h"
@@ -33,9 +34,14 @@ class DmsTreeView;
 
 class DmsCurrentItemBar : public QLineEdit
 {
+Q_OBJECT
 public:
     using QLineEdit::QLineEdit;
     void setDmsCompleter(TreeItem* root);
+
+public slots:
+    void onEditingFinished();
+
 };
 
 enum class ButtonType
@@ -79,6 +85,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
+    auto getRootTreeItem() -> TreeItem* { return m_root; };
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; } ;
     void setCurrentTreeItem(TreeItem* new_current_item);
 

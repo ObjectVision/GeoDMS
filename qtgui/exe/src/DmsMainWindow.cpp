@@ -1,6 +1,7 @@
 // dms
 #include "RtcInterface.h"
 #include "StxInterface.h"
+#include "TicInterface.h"
 #include "act/MainThread.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
@@ -13,6 +14,7 @@
 #include <QtWidgets>
 #include <QTextBrowser>
 #include <QCompleter>
+
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
@@ -103,12 +105,24 @@ MainWindow::~MainWindow()
 
 void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
 {
-    TreeModelCompleter* completer = new TreeModelCompleter(this);
-    completer->setModel(new DmsModel(root));
-    completer->setSeparator("/");
+    //TreeModelCompleter* completer = new TreeModelCompleter(this);
+    //completer->setModel(new DmsModel(root));
+    //completer->setSeparator("/");
     //completer->setCompletionPrefix("/");
-    completer->setCaseSensitivity(Qt::CaseInsensitive);
-    setCompleter(completer);
+    //completer->setCaseSensitivity(Qt::CaseInsensitive);
+    //setCompleter(completer);
+}
+
+void  DmsCurrentItemBar::onEditingFinished()
+{
+    auto root = MainWindow::TheOne()->getRootTreeItem();
+    if (!root)
+        return;
+
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
+    auto found_treeitem = best_item_ref.first;
+    if (found_treeitem)
+        MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
 }
 
 MainWindow* MainWindow::TheOne()
@@ -348,13 +362,13 @@ void MainWindow::LoadConfig(CharPtr fileName)
     if (newRoot)
     {
         m_root = newRoot;
-        setCurrentTreeItem(m_root);
+        
         m_treeview->setItemDelegate(new TreeItemDelegate());
         m_treeview->setRootIsDecorated(true);
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
-        m_treeview->setRootIndex({});// m_treeview->model()->index(0, 0));
+        m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
@@ -387,6 +401,8 @@ void MainWindow::LoadConfig(CharPtr fileName)
             "           image: url(:/res/images/down_arrow_hover.png);"
             "}");
     }
+
+    //setCurrentTreeItem(m_root);
     m_currConfigFileName = fileName;
 }
 
@@ -399,13 +415,16 @@ void MainWindow::setupDmsCallbacks()
     //SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
 }
 
+
+
 void MainWindow::createActions()
 {
     auto fileMenu = menuBar()->addMenu(tr("&File"));
     auto current_item_bar_container = addToolBar(tr("test"));
     m_current_item_bar = new DmsCurrentItemBar(this);
-
     current_item_bar_container->addWidget(m_current_item_bar);
+
+    connect(m_current_item_bar, &DmsCurrentItemBar::editingFinished, m_current_item_bar, &DmsCurrentItemBar::onEditingFinished);
 
     addToolBarBreak();
 
