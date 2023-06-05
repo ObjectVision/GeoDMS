@@ -55,9 +55,6 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\imageformats
   File ..\bin\Release\${GeoDmsPlatform}\imageformats\*.*
   
-  SetOutPath $INSTDIR\misc\icons
-  File ..\bin\Release\${GeoDmsPlatform}\misc\icons\*.*
-  
   SetOutPath $INSTDIR\misc\fonts
   File ..\bin\Release\${GeoDmsPlatform}\misc\fonts\*.*
   
@@ -95,7 +92,6 @@ SectionEnd ; end the section
 Section uninstall
 
   Delete $INSTDIR\GeoDmsGui.exe
-  Delete $INSTDIR\GeoDmsImGui.exe
   Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\GeoDmsCaller.exe
@@ -108,7 +104,6 @@ Section uninstall
   Delete $INSTDIR\generic\*.*
   Delete $INSTDIR\iconengines\*.*
   Delete $INSTDIR\imageformats\*.*
-  Delete $INSTDIR\misc\icons\*.*
   Delete $INSTDIR\misc\fonts\*.*
   Delete $INSTDIR\networkinformation\*.*
   Delete $INSTDIR\platforms\*.*
@@ -125,10 +120,17 @@ Section uninstall
   RMDIR $SMPROGRAMS\GeoDMS\version${GeoDmsVersion}
   RMDIR $SMPROGRAMS\GeoDMS
   RMDIR $INSTDIR\gdaldata
-  RMDIR $INSTDIR\proj4data
-  RMDIR $INSTDIR\misc\icons
+  RMDIR $INSTDIR\generic
+  RMDIR $INSTDIR\iconengines
+  RMDIR $INSTDIR\imageformats
   RMDIR $INSTDIR\misc\fonts
   RMDIR $INSTDIR\misc
+  RMDIR $INSTDIR\networkinformation
+  RMDIR $INSTDIR\platforms
+  RMDIR $INSTDIR\proj4data
+  RMDIR $INSTDIR\styles
+  RMDIR $INSTDIR\tls
+;  RMDIR $INSTDIR\translations
   RMDIR $INSTDIR
   
 SectionEnd ; end the section

@@ -62,9 +62,6 @@
 //#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
 
-#define MG_DEBUG_ALLOC true
-#define MG_DEBUG_ALLOC_SMALL false
-
 // =========================================  implementation
 
 // =========================================  types and constants section

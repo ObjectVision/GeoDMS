@@ -26,7 +26,6 @@
       <PrecompiledHeader></PrecompiledHeader>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <WarningLevel>Level3</WarningLevel>
