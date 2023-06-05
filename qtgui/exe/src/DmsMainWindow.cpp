@@ -143,7 +143,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
-void MainWindow::setCurrentTreeItem(const TreeItem* new_current_item)
+void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
     m_current_item = new_current_item;
     if (m_current_item_bar)
@@ -383,7 +383,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
 {
-    MainWindow::TheOne()->m_detail_pages->DoViewAction(tiContext, sAction);
+    MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
 void MainWindow::setupDmsCallbacks()

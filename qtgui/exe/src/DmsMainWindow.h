@@ -79,8 +79,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
-    auto getCurrentTreeItem() -> const TreeItem* { return m_current_item; } ;
-    void setCurrentTreeItem(const TreeItem* new_current_item);
+    auto getCurrentTreeItem() const -> TreeItem* { return m_current_item; }
+    void setCurrentTreeItem(TreeItem* new_current_item);
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -110,7 +110,7 @@ private:
 
     SharedStr m_currConfigFileName;
     SharedPtr<TreeItem> m_root;
-    SharedPtr<const TreeItem> m_current_item;
+    SharedPtr<TreeItem> m_current_item;
 
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock;

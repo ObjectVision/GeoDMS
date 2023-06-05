@@ -209,7 +209,7 @@ void PopupTable(SizeT /*recNo*/)
 */
 }
 
-void EditPropValue(const TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/)
+void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/)
 {
 
 }
@@ -228,7 +228,7 @@ auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
 }
 
 
-void DmsDetailPages::DoViewAction(const TreeItem* tiContext, CharPtrRange sAction)
+void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
     assert(tiContext);
 
@@ -274,7 +274,7 @@ void DmsDetailPages::DoViewAction(const TreeItem* tiContext, CharPtrRange sActio
     {
         sMenu.first += 3;
         m_active_detail_page = dp_FromName(sMenu);
-        tiContext = tiContext->FindBestItem(sPath).first;
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first); // TODO: make result FindBestItem non-const
         if (m_active_detail_page == ActiveDetailPage::VALUE_INFO)
         {
             m_RecNo = recNo;

@@ -32,7 +32,7 @@ public slots:
 
 	void newCurrentItem();
 
-	void DoViewAction(const TreeItem* tiContext, CharPtrRange sAction);
+	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 
 private slots:
 	void onAnchorClicked(const QUrl& link);
