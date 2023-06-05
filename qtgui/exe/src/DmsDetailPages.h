@@ -1,7 +1,9 @@
 #include <QPointer>
+#include <QTimer>
 #include <qtextbrowser>
 
 #include "ptr/SharedStr.h"
+#include "ptr/InterestHolders.h"
 #include "Ticbase.h"
 
 enum class ActiveDetailPage
@@ -21,7 +23,7 @@ class DmsDetailPages : public QTextBrowser
 {
 public:
 	using QTextBrowser::QTextBrowser;
-//	void setDummyText();
+
 	void connectDetailPagesAnchorClicked();
 
 public slots:
@@ -42,8 +44,11 @@ private:
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void drawPage();
 
+	QTimer m_Repeater;
+
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
-	SharedTreeItem m_tiContext;
+	SharedTreeItemInterestPtr m_tiValueInfoContext;
 	SizeT m_RecNo;
+
 };
 

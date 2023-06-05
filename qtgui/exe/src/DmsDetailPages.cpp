@@ -18,6 +18,7 @@
 
 #include "FilePtrHandle.h"
 
+#include "AbstrDataItem.h"
 #include "Explain.h"
 #include "DataStoreManagerCaller.h"
 #include "TicInterface.h"
@@ -98,6 +99,7 @@ void DmsDetailPages::drawPage()
     if (!current_item)
         return;
 
+    bool ready = true;
     // stream general info for current_item to htm
     VectorOutStreamBuff buffer;
     auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, OutStreamBase::ST_HTM, "", nullptr));
@@ -142,7 +144,10 @@ void DmsDetailPages::drawPage()
     }
     case ActiveDetailPage::VALUE_INFO:
     {
-        bool ready = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(current_item), xmlOut.get(), m_RecNo, nullptr, true);
+        assert(m_tiValueInfoContext);
+        assert(IsDataItem(m_tiValueInfoContext.get_ptr()));
+        SuspendTrigger::Resume();
+        ready = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(m_tiValueInfoContext.get_ptr()), xmlOut.get(), m_RecNo, nullptr, true);
         break;
     }
     }
@@ -152,6 +157,8 @@ void DmsDetailPages::drawPage()
         // set buff to detail page:
         setHtml(buffer.GetData());
     }
+    if (!ready)
+        m_Repeater.start(0);
 }
 
 bool IsPostRequest(const QUrl& /*link*/)
@@ -278,7 +285,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
         if (m_active_detail_page == ActiveDetailPage::VALUE_INFO)
         {
             m_RecNo = recNo;
-            m_tiContext = tiContext;
+            m_tiValueInfoContext = tiContext;
             drawPage(); // Update
         }
         if (tiContext)
@@ -330,4 +337,6 @@ void DmsDetailPages::connectDetailPagesAnchorClicked()
     setOpenLinks(false);
     setOpenExternalLinks(false);
     connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
+    m_Repeater.callOnTimeout(this, &DmsDetailPages::drawPage);
+    m_Repeater.setSingleShot(true);
 }

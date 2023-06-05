@@ -1208,9 +1208,9 @@ TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* s
 		try {
 			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainAttrValue");
 
-			dms_assert(!SuspendTrigger::DidSuspend());
+			assert(!SuspendTrigger::DidSuspend());
 
-			dms_assert(IsMainThread());
+			assert(IsMainThread());
 
 			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden);
 

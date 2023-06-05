@@ -145,9 +145,17 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
+    if (m_current_item == new_current_item)
+        return;
+
     m_current_item = new_current_item;
     if (m_current_item_bar)
-        m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+    {
+        if (m_current_item)
+            m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+        else
+            m_current_item_bar->setText("");
+    }
     emit currentItemChanged();
 }
 
@@ -254,6 +262,9 @@ void MainWindow::updateToolbar(int index)
 
     // create new actions
     auto* dv = dms_view_area->getDataView();// ->OnCommandEnable();
+    if (!dv)
+        return;
+
     auto view_style = dv->GetViewType();
 
     std::vector<ToolButtonID> available_buttons = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
