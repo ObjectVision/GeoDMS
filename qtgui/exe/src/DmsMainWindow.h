@@ -126,7 +126,7 @@ private:
     // helper windows
     QPointer<DmsDetailPages> m_detail_pages;
     QPointer<QListWidget> m_eventlog;
-    QPointer<QTreeView> m_treeview;
+    QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
 
     // (context) menus

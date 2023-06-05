@@ -45,6 +45,7 @@ public:
 	int columnCount(const QModelIndex& parent = QModelIndex()) const override;
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
+	
 
 private:
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
@@ -65,7 +66,8 @@ class DmsTreeView : public QTreeView
 public:
 	using QTreeView::QTreeView;
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
-
+	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
+	void setNewCurrentItem(TreeItem* new_current_item);
 };
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;
