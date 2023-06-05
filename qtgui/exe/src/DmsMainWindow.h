@@ -6,6 +6,7 @@
 #include <QLineEdit>
 #include <QCompleter>
 #include <QToolBar>
+//#include <QPoint>
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
 #include "DockManager.h"
@@ -92,7 +93,10 @@ private slots:
     void reOpen();
     void aboutGeoDms();
     void defaultView();
+    //void tableView();
+    //void mapView();
     void updateToolbar(int index);
+    void showTreeviewContextMenu(const QPoint& pos);
 
 private:
     void LoadConfig(CharPtr filename);
@@ -125,6 +129,10 @@ private:
     QPointer<QListWidget> m_eventlog;
     QPointer<QTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
+
+    // (context) menus
+    QPointer<QMenu> m_treeview_context_menu;
+
 };
 
 #endif
