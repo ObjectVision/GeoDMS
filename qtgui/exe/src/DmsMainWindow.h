@@ -93,6 +93,8 @@ private slots:
     void reOpen();
     void aboutGeoDms();
     void defaultView();
+    //void tableView();
+    //void mapView();
     void updateToolbar(int index);
     void showTreeviewContextMenu(const QPoint& pos);
 

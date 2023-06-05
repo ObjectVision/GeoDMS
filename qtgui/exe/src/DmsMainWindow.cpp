@@ -318,10 +318,20 @@ void MainWindow::showTreeviewContextMenu(const QPoint& pos)
         m_treeview_context_menu = new QMenu(this); // TODO: does this get properly destroyed if parent gets destroyed?
 
     m_treeview_context_menu->clear();
+
+    // default view
     auto default_view_action = new QAction(tr("&Default View"), this);
     default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    default_view_action->setDisabled(true);
     m_treeview_context_menu->addAction(default_view_action);
     connect(default_view_action, &QAction::triggered, this, &MainWindow::defaultView);
+
+    // table view
+
+    // map view
+
+
+
     
     m_treeview_context_menu->exec(m_treeview->viewport()->mapToGlobal(pos));
     //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
