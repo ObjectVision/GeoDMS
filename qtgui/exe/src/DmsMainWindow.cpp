@@ -321,7 +321,8 @@ void MainWindow::showTreeviewContextMenu(const QPoint& pos)
     auto default_view_action = new QAction(tr("&Default View"), this);
     default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     m_treeview_context_menu->addAction(default_view_action);
-
+    connect(default_view_action, &QAction::triggered, this, &MainWindow::defaultView);
+    
     m_treeview_context_menu->exec(m_treeview->viewport()->mapToGlobal(pos));
     //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
 
