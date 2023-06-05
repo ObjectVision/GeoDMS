@@ -33,7 +33,6 @@ Section "" ;No components page, name is not important
   CreateDirectory $INSTDIR
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGui.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
-  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsImGui.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsCaller.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
@@ -82,7 +81,7 @@ Section "" ;No components page, name is not important
 
   CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
   CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Gui ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGui.exe"   "" "$INSTDIR\GeoDmsGui.exe"   0 SW_SHOWMAXIMIZED "" "Start the GeoDMS GUI"
-  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms imGui ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsImGui.exe"   "" "$INSTDIR\GeoDmsImGui.exe"   0 SW_SHOWMAXIMIZED "" "Preview the new GeoDMS GUI"
+  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms GuiQt ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGuiQt.exe"   "" "$INSTDIR\GeoDmsGuiQt.exe"   0 SW_SHOWMAXIMIZED "" "Preview the new GeoDMS GuiQt"
   CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
  
   

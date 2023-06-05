@@ -94,6 +94,8 @@ MainWindow::~MainWindow()
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
+    DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
 
     m_current_item.reset();
