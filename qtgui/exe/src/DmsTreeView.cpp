@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QPainter>
 #include <QPixmap>
+#include <QBoxLayout>
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -17,9 +18,9 @@
 #include "dataview.h"
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> const TreeItem*
+	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
 	{
-		return reinterpret_cast<const TreeItem*>(mi.internalPointer());
+		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
 
 	int GetRow(const TreeItem* ti)
@@ -228,19 +229,92 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
 {
+	if (current == previous)
+		return;
+
 	auto ti = GetTreeItem(current);
-	auto* main_window = static_cast<MainWindow*>(parent()->parent());
-	main_window->setCurrentTreeItem(const_cast<TreeItem*>(ti));
-	int i = 0;
+	auto* main_window = MainWindow::TheOne();
+	main_window->setCurrentTreeItem(ti);
+}
+
+bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
+{
+	if (!descendant)
+		return false;
+	auto ancestorCandidate = descendant->GetParent();
+	while (ancestorCandidate)
+	{
+		if (ancestorCandidate == ancestorTarget)
+			return true;
+		ancestorCandidate = ancestorCandidate->GetParent();
+	}
+	return false;
+}
+
+auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
+{
+
+	auto root_node_index = rootIndex();
+	if (!root_node_index.isValid())
+		return {};
+
+
+
+
+	auto parent_index = root_node_index;
+	while (true)
+	{
+		auto child_count = model()->rowCount(parent_index);
+		for (int i = 0; i < child_count; i++)
+		{
+			auto child_index = model()->index(i, 0, parent_index);
+			auto ti = GetTreeItem(child_index);
+			if (ti == new_current_item)
+			{
+				setCurrentIndex(child_index);
+				break;
+			}
+
+			if (isAncestor(ti, new_current_item))
+			{
+				if (!isExpanded(child_index))
+					expand(child_index);
+				parent_index = child_index;
+			}
+
+		}
+		
+	}
+}
+
+void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
+{
+	auto current_node_index = currentIndex();
+	auto root_node_index = rootIndex();
+	auto root_ti = GetTreeItem(root_node_index);
+	if (root_ti == new_current_item)
+		return;
+
+	auto ti = GetTreeItem(current_node_index);
+	if (new_current_item == ti)
+		return;
+
+	expandToCurrentItem(new_current_item);
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
+
+
+
     auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
     QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
     dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+
+	//auto box_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom);
+
     dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
 
     //viewMenu->addAction(dock->toggleViewAction());

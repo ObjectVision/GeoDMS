@@ -158,6 +158,9 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
         else
             m_current_item_bar->setText("");
     }
+
+    m_treeview->setNewCurrentItem(new_current_item);
+
     emit currentItemChanged();
 }
 
@@ -369,7 +372,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);
         m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
-        m_treeview->setRootIndex(m_treeview->model()->index(0,0));
+        m_treeview->setRootIndex({});// m_treeview->model()->index(0, 0));
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
