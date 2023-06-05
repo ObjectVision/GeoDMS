@@ -11,6 +11,7 @@
 #include "DmsTreeView.h"
 #include "TreeItem.h"
 #include <QMainWindow>
+#include <QApplication>
 
 #include "ShvDllInterface.h"
 #include "dataview.h"
@@ -183,6 +184,14 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	case  Qt::DecorationRole: return getTreeItemIcon(index);
 	case  Qt::EditRole: return QString(ti->GetFullName().c_str());
 	case  Qt::DisplayRole: return  QString(ti->GetName().c_str());
+	case Qt::SizeHintRole:
+	{
+		auto font = QApplication::font();
+		auto font_metrics = QFontMetrics(font);
+		int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str());
+		int pixels_high = font_metrics.height();
+		return QSize(pixels_wide, pixels_high);
+	}
 	default: return QVariant();
 	}
 }
