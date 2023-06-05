@@ -354,8 +354,8 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setRootIndex(m_treeview->model()->index(0,0));
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
-        m_treeview->scrollTo({});
-        /*m_treeview->setStyleSheet(
+        m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
+        m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
             "    border-image: url(:/res/images/TV_vline.png) 0;\n"
             "}\n"
@@ -368,13 +368,21 @@ void MainWindow::LoadConfig(CharPtr fileName)
             "QTreeView::branch:has-children:!has-siblings:closed,"
             "QTreeView::branch:closed:has-children:has-siblings {"
             "        border-image: none;"
-            "        image: url(:/res/images/TV_branch_closed.png);"
+            "        image: url(:/res/images/right_arrow.png);"
+            "}"
+            "QTreeView::branch:closed:hover:has-children {"
+            "        border-image: none;"
+            "        image: url(:/res/images/right_arrow_hover.png);"
             "}"
             "QTreeView::branch:open:has-children:!has-siblings,"
             "QTreeView::branch:open:has-children:has-siblings {"
             "           border-image: none;"
-            "           image: url(:/res/images/TV_branch_open.png);"
-            "}");*/
+            "           image: url(:/res/images/down_arrow.png);"
+            "}"
+            "QTreeView::branch:open:hover:has-children {"
+            "           border-image: none;"
+            "           image: url(:/res/images/down_arrow_hover.png);"
+            "}");
     }
     m_currConfigFileName = fileName;
 }
