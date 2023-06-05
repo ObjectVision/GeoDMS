@@ -16,9 +16,9 @@
 #include "dataview.h"
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
+	auto GetTreeItem(const QModelIndex& mi) -> const TreeItem*
 	{
-		return reinterpret_cast<TreeItem*>(mi.internalPointer());
+		return reinterpret_cast<const TreeItem*>(mi.internalPointer());
 	}
 
 	int GetRow(const TreeItem* ti)
@@ -83,7 +83,7 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	return dataList.join(sep);
 }
 
-TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
+const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
 {
 	auto ti = GetTreeItem(index);
 	if (!ti)

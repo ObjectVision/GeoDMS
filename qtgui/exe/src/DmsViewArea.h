@@ -11,7 +11,7 @@ class QDmsViewArea : public QWidget
 {
     Q_OBJECT
 public:
-    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, TreeItem* currItem);
+    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem);
     ~QDmsViewArea();
     auto getDataView()->DataView* { return dv;}
 

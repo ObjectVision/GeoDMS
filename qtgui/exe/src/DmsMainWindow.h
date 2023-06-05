@@ -34,7 +34,7 @@ class DmsCurrentItemBar : public QLineEdit
 {
 public:
     using QLineEdit::QLineEdit;
-    void setDmsCompleter(TreeItem* root);
+    void setDmsCompleter(const TreeItem* root);
 };
 
 enum class ButtonType
@@ -78,8 +78,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
-    auto getCurrentTreeItem() -> TreeItem* { return m_current_item; } ;
-    void setCurrentTreeItem(TreeItem* new_current_item);
+    auto getCurrentTreeItem() -> const TreeItem* { return m_current_item; } ;
+    void setCurrentTreeItem(const TreeItem* new_current_item);
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -102,10 +102,11 @@ private:
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
+    static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;
     SharedPtr<TreeItem> m_root;
-    SharedPtr<TreeItem> m_current_item;
+    SharedPtr<const TreeItem> m_current_item;
 
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock;

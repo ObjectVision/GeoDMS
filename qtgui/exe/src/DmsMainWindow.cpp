@@ -9,6 +9,7 @@
 #include "utl/mySPrintF.h"
 #include "TreeItem.h"
 #include "DataView.h"
+#include "ShvDllInterface.h"
 
 #include <QtWidgets>
 #include <QTextBrowser>
@@ -21,7 +22,6 @@
 #include "DmsDetailPages.h"
 
 #include "dataview.h"
-//#include <string>
 
 static MainWindow* s_CurrMainWindow = nullptr;
 
@@ -94,6 +94,8 @@ MainWindow::~MainWindow()
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
+    SHV_SetCreateViewActionFunc(nullptr);
+
     m_current_item.reset();
     if (m_root.has_ptr())
         m_root->EnableAutoDelete();
@@ -101,7 +103,7 @@ MainWindow::~MainWindow()
     m_root.reset();
 }
 
-void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
+void DmsCurrentItemBar::setDmsCompleter(const TreeItem* root)
 {
     TreeModelCompleter* completer = new TreeModelCompleter(this);
     completer->setModel(new DmsModel(root));
@@ -141,7 +143,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
-void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
+void MainWindow::setCurrentTreeItem(const TreeItem* new_current_item)
 {
     m_current_item = new_current_item;
     if (m_current_item_bar)
@@ -346,13 +348,18 @@ void MainWindow::LoadConfig(CharPtr fileName)
     m_currConfigFileName = fileName;
 }
 
+void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
+{
+    MainWindow::TheOne()->m_detail_pages->DoViewAction(tiContext, sAction);
+}
+
 void MainWindow::setupDmsCallbacks()
 {
     //DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
-    //SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
+    SHV_SetCreateViewActionFunc(&OnViewAction);
 }
 
 void MainWindow::createActions()
