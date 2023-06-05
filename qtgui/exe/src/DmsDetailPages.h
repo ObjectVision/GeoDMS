@@ -35,13 +35,13 @@ public slots:
 	void newCurrentItem();
 
 	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
+	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 
 private slots:
 	void onAnchorClicked(const QUrl& link);
 
 private:
 	void toggle(ActiveDetailPage new_active_detail_page);
-	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void drawPage();
 
 	QTimer m_Repeater;

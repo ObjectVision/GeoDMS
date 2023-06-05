@@ -29,6 +29,11 @@
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
     m_active_detail_page = new_active_detail_page;
+    if (m_active_detail_page != ActiveDetailPage::VALUE_INFO)
+    {
+        m_tiValueInfoContext = nullptr;
+        DMS_ExplainValue_Clear();
+    }
 }
 
 auto Realm(const auto& x) -> CharPtrRange

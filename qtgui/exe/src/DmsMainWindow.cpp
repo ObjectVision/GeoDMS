@@ -165,7 +165,10 @@ void MainWindow::fileOpen()
 {
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
     if (m_root)
+    {
+        m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
         m_root->EnableAutoDelete();
+    }
     LoadConfig(configFileName.toUtf8().data());
 }
 
