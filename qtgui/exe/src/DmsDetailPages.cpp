@@ -107,7 +107,8 @@ void DmsDetailPages::drawPage()
     bool ready = true;
     // stream general info for current_item to htm
     VectorOutStreamBuff buffer;
-    auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, OutStreamBase::ST_HTM, "", nullptr));
+    auto streamType = m_active_detail_page == ActiveDetailPage::CONFIGURATION ? OutStreamBase::ST_DMS : OutStreamBase::ST_HTM;
+    auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
     bool result = true;
     bool showAll = true;
     switch (m_active_detail_page)
@@ -122,8 +123,12 @@ void DmsDetailPages::drawPage()
         DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);
         break;
     case ActiveDetailPage::CONFIGURATION:
+    {
+        *xmlOut << "<BODY><PRE>";
         DMS_TreeItem_XML_Dump(current_item, xmlOut.get());
+        *xmlOut << "</BODY></PRE>";
         break;
+    }
     case ActiveDetailPage::METADATA:
     {
         auto url = TreeItemPropertyValue(current_item, urlPropDefPtr);
