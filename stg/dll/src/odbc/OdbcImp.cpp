@@ -27,6 +27,7 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 
+#include "StoragePch.h"
 #include "ImplMain.h"
 #pragma hdrstop
 

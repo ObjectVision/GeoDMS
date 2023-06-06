@@ -26,6 +26,8 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
+
+#include "StoragePch.h"
 #include "ImplMain.h"
 #pragma hdrstop
 

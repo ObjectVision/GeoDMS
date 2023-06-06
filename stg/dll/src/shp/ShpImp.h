@@ -62,13 +62,13 @@ enum ShapeTypes {
 	ST_MultiPoint = 8
 };
 
-bool IsNone           (ShapeTypes st) { return st== ST_None; }
-bool IsComposite      (ShapeTypes st) { return (st== ST_Polygon) || (st== ST_Polyline) || (st== ST_MultiPoint); }
-bool IsCompositeOrNone(ShapeTypes st) { return IsComposite(st) || IsNone(st); }
-bool IsPoint          (ShapeTypes st) { return st== ST_Point; }
-bool IsPointOrNone    (ShapeTypes st) { return IsPoint(st) || IsNone(st); }
-bool IsKnown          (ShapeTypes st) { return IsPoint(st) || IsComposite(st); }
-bool IsKnownOrNone    (ShapeTypes st) { return IsKnown(st) || IsNone(st); }
+inline bool IsNone           (ShapeTypes st) { return st== ST_None; }
+inline bool IsComposite      (ShapeTypes st) { return (st== ST_Polygon) || (st== ST_Polyline) || (st== ST_MultiPoint); }
+inline bool IsCompositeOrNone(ShapeTypes st) { return IsComposite(st) || IsNone(st); }
+inline bool IsPoint          (ShapeTypes st) { return st== ST_Point; }
+inline bool IsPointOrNone    (ShapeTypes st) { return IsPoint(st) || IsNone(st); }
+inline bool IsKnown          (ShapeTypes st) { return IsPoint(st) || IsComposite(st); }
+inline bool IsKnownOrNone    (ShapeTypes st) { return IsKnown(st) || IsNone(st); }
 
 // ESRI type struct for fileheader
 #pragma pack(push, 4)
@@ -261,12 +261,12 @@ public:
 	std::vector<ShpPoint>::const_iterator PointSet_GetPointsEnd()   const { return m_Points.end(); }
 
 	// Memory to client: ST_Polyline, ST_Polygon 
-	STGIMPL_CALL UInt32 ShapeSet_NrPoints() const;                // Total number of ShpPoints in shapefile
-	STGIMPL_CALL UInt32 ShapeSet_NrParts() const;						// Total number of rings in shapefile
-	STGIMPL_CALL UInt32 ShapeSet_NrPoints(UInt32 recnr) const;      // Number of ShpPoints in record
-	STGIMPL_CALL UInt32 ShapeSet_NrParts(UInt32 recnr) const;			// Number of rings in record
+	STGIMPL_CALL UInt32 ShapeSet_NrPoints() const;                           // Total number of ShpPoints in shapefile
+	STGIMPL_CALL UInt32 ShapeSet_NrParts() const;                            // Total number of rings in shapefile
+	STGIMPL_CALL UInt32 ShapeSet_NrPoints(UInt32 recnr) const;               // Number of ShpPoints in record
+	STGIMPL_CALL UInt32 ShapeSet_NrParts(UInt32 recnr) const;                // Number of rings in record
 	STGIMPL_CALL UInt32 ShapeSet_NrPoints(UInt32 recnr, UInt32 partnr) const;// Number of ShpPoints in ring
-	STGIMPL_CALL ConstPointIterRange ShapeSet_GetPoints(UInt32 recnr) const;	// Gets all rings
+	STGIMPL_CALL ConstPointIterRange ShapeSet_GetPoints(UInt32 recnr) const; // Gets all rings
 	STGIMPL_CALL ConstPointIterRange ShapeSet_GetPoints(UInt32 recnr, UInt32 partnr) const;	// Gets a specific ring
 	STGIMPL_CALL const ShpPoint& ShapeSet_GetPoint(UInt32 recnr, UInt32 partnr, UInt32 pointnr); // Gets a point from a ring
 
@@ -348,8 +348,6 @@ void ShpImp::PointSet_AddPoints(InIter first, InIter last)
 
 	fast_copy(first, last, m_Points.begin() + nrOrgPoints);
 }
-
-
 
 
 #endif // _ShpImp_H_
