@@ -2,6 +2,8 @@
 #include "DmsViewArea.h"
 #include <windows.h>
 
+#include "dbg/SeverityType.h"
+
 #include "DataView.h"
 #include "ShvDllInterface.h"
 #include "QEvent.h"
@@ -27,6 +29,17 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance)
     return className;
 }
 
+void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
+{
+    auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
+    assert(dva);
+    if (st == SeverityTypeID::ST_MajorTrace)
+        dva->setWindowTitle(msg);
+//    else
+//        dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
+}
+
+
 QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QWidget(parent)
 {
@@ -35,54 +48,60 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 
     
 
-    dv = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
+    m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
        
     auto vs = WS_CHILD; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
-    wnd = CreateWindowEx(
+    m_HWnd = CreateWindowEx(
         0L,                            // no extended styles
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
         vs,                            // styles
         CW_USEDEFAULT,                 // horizontal position 
         CW_USEDEFAULT,                 // vertical position
-        size.width(), size.height(),   // width, height, to be reset by parent Widget
+        m_Size.width(), m_Size.height(),   // width, height, to be reset by parent Widget
         (HWND)hWndMain,                // handle to parent (MainWindow)
         nullptr,                       // no menu
         instance,                      // instance owning this window 
-        dv                             // dataView
+        m_DataView                     // dataView
     );
 
-    SHV_DataView_AddItem(dv, currItem, false);
+    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText);
+
+    SHV_DataView_AddItem(m_DataView, currItem, false);
 }
 
 QDmsViewArea::~QDmsViewArea()
 {
-    SHV_DataView_Destroy(dv);
+    SHV_DataView_Destroy(m_DataView);
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)
 {
     QWidget::moveEvent(event);
-    pos = event->pos();
+    m_Pos = event->pos();
     QWidget* w = this->parentWidget();
     while (w)
     {
-        pos += w->pos();
+        m_Pos += w->pos();
         w = w->parentWidget();
     }
-    pos.ry() += 32; // TODO: ???
+    m_Pos.ry() += 32; // TODO: ???
     UpdatePos();
 }
 
 void QDmsViewArea::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    size = event->size();
+    m_Size = event->size();
     UpdatePos();
 }
 
 void QDmsViewArea::UpdatePos()
 {
-    SetWindowPos((HWND)wnd, HWND_TOP, pos.x(), pos.y(), size.width(), size.height(), SWP_SHOWWINDOW|SWP_ASYNCWINDOWPOS);
+    SetWindowPos((HWND)m_HWnd, HWND_TOP
+        , m_Pos.x(), m_Pos.y()
+        , m_Size.width(), m_Size.height()
+        , SWP_SHOWWINDOW|SWP_ASYNCWINDOWPOS
+    );
 }
 
