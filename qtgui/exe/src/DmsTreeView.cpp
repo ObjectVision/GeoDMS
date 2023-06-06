@@ -68,20 +68,6 @@ QString TreeModelCompleter::separator() const
 QStringList TreeModelCompleter::splitPath(const QString& path) const
 {
 	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
-	//for (int i = 0; i < split_path.size(); i++)
-	//	split_path[i] = "/" + split_path.at(i);
-
-	if (split_path.size() == 2)
-	{
-		split_path[1] = "/" + split_path.at(1);
-
-	}
-	else if (split_path.size() ==3)
-	{
-		split_path[1] = "/" + split_path.at(1);
-		split_path[2] = split_path.at(1) + "/" + split_path.at(2);
-	}
-
 	split_path.remove(0);
 	return split_path;
 }
@@ -91,14 +77,13 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	if (sep.isNull())
 		return QCompleter::pathFromIndex(index);
 
-	return GetTreeItem(index)->GetFullName().c_str();
-
-	// navigate up and accumulate data
-	QStringList dataList;
+	QStringList data_list;
 	for (QModelIndex i = index; i.isValid(); i = i.parent())
-		dataList.prepend(model()->data(i, Qt::DisplayRole).toString()); // completionRole()
-
-	auto rval = dataList.join(sep);
+		data_list.prepend(model()->data(i, completionRole()).toString());
+	data_list.remove(0);
+	if (!data_list.isEmpty())
+		data_list[0] = "/" + data_list[0];
+	auto rval = data_list.join(sep);
 
 	return rval;
 }
@@ -228,7 +213,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	switch (role)
 	{
 	case Qt::DecorationRole: return getTreeItemIcon(index);
-	case Qt::EditRole: return QString(ti->GetFullName().c_str());
+	case Qt::EditRole: return QString(ti->GetName().c_str());
 	case Qt::DisplayRole: return  QString(ti->GetName().c_str());
 	case Qt::ForegroundRole: 
 	{
