@@ -151,6 +151,9 @@ public:
 	template <typename V> V LockAndGetValue(SizeT index) const;
 	template <typename V> SizeT LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const;
 
+	TokenID DomainUnitToken() const { return m_tDomainUnit; }
+	TokenID ValuesUnitToken() const { return m_tValuesUnit; }
+
 protected:
 	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 

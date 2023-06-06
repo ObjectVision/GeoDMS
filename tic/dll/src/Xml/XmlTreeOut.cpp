@@ -472,7 +472,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStr);
+		assert(xmlOutStr);
 
 		self->XML_Dump(xmlOutStr);
 

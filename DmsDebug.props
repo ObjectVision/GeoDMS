@@ -15,15 +15,16 @@
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
   <ItemDefinitionGroup>
-    <Midl>
-      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </Midl>
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
 	  <EnablePREfast>true</EnablePREfast>
     </ClCompile>
+    <Midl>
+      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </Midl>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>

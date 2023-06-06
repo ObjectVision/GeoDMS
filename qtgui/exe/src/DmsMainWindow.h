@@ -85,8 +85,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
-    auto getRootTreeItem() -> TreeItem* { return m_root; };
-    auto getCurrentTreeItem() -> TreeItem* { return m_current_item; } ;
+    auto getRootTreeItem() -> TreeItem* { return m_root; }
+    auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
 
     static MainWindow* TheOne();
@@ -113,6 +113,7 @@ private:
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
+    static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;
     SharedPtr<TreeItem> m_root;

@@ -10,6 +10,7 @@
 #include "utl/mySPrintF.h"
 #include "TreeItem.h"
 #include "DataView.h"
+#include "ShvDllInterface.h"
 
 #include <QtWidgets>
 #include <QTextBrowser>
@@ -23,7 +24,6 @@
 #include "DmsDetailPages.h"
 
 #include "dataview.h"
-//#include <string>
 
 static MainWindow* s_CurrMainWindow = nullptr;
 
@@ -96,6 +96,10 @@ MainWindow::~MainWindow()
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
+    DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_SetContextNotification(nullptr, nullptr);
+    SHV_SetCreateViewActionFunc(nullptr);
+
     m_current_item.reset();
     if (m_root.has_ptr())
         m_root->EnableAutoDelete();
@@ -157,9 +161,17 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
+    if (m_current_item == new_current_item)
+        return;
+
     m_current_item = new_current_item;
     if (m_current_item_bar)
-        m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+    {
+        if (m_current_item)
+            m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+        else
+            m_current_item_bar->setText("");
+    }
 
     m_treeview->setNewCurrentItem(new_current_item);
 
@@ -172,7 +184,10 @@ void MainWindow::fileOpen()
 {
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
     if (m_root)
+    {
+        m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
         m_root->EnableAutoDelete();
+    }
     LoadConfig(configFileName.toUtf8().data());
 }
 
@@ -269,6 +284,9 @@ void MainWindow::updateToolbar(int index)
 
     // create new actions
     auto* dv = dms_view_area->getDataView();// ->OnCommandEnable();
+    if (!dv)
+        return;
+
     auto view_style = dv->GetViewType();
 
     std::vector<ToolButtonID> available_buttons = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
@@ -406,13 +424,18 @@ void MainWindow::LoadConfig(CharPtr fileName)
     m_currConfigFileName = fileName;
 }
 
+void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
+{
+    MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
+}
+
 void MainWindow::setupDmsCallbacks()
 {
     //DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
     DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
-    //SHV_SetCreateViewActionFunc(&m_DetailPages.OnViewAction);
+    SHV_SetCreateViewActionFunc(&OnViewAction);
 }
 
 

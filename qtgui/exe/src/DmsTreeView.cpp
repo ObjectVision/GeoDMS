@@ -89,7 +89,7 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	return dataList.join(sep);
 }
 
-TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
+const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
 {
 	auto ti = GetTreeItem(index);
 	if (!ti)
@@ -237,7 +237,7 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 		return;
 
 	auto ti = GetTreeItem(current);
-	auto* main_window = static_cast<MainWindow*>(parent()->parent());
+	auto* main_window = MainWindow::TheOne();
 	main_window->setCurrentTreeItem(ti);
 }
 
