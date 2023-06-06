@@ -77,10 +77,14 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	if (sep.isNull())
 		return QCompleter::pathFromIndex(index);
 
+	return GetTreeItem(index)->GetFullName().c_str();
+
 	// navigate up and accumulate data
 	QStringList dataList;
 	for (QModelIndex i = index; i.isValid(); i = i.parent())
-		dataList.prepend(model()->data(i, completionRole()).toString());
+		dataList.prepend(model()->data(i, Qt::DisplayRole).toString()); // completionRole()
+
+	dataList.replace(0, "");
 
 	return dataList.join(sep);
 }

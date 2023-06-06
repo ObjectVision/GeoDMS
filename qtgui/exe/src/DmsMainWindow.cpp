@@ -105,12 +105,12 @@ MainWindow::~MainWindow()
 
 void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
 {
-    //TreeModelCompleter* completer = new TreeModelCompleter(this);
-    //completer->setModel(new DmsModel(root));
-    //completer->setSeparator("/");
+    TreeModelCompleter* completer = new TreeModelCompleter(this);
+    completer->setModel(new DmsModel(root));
+    completer->setSeparator("/");
     //completer->setCompletionPrefix("/");
-    //completer->setCaseSensitivity(Qt::CaseInsensitive);
-    //setCompleter(completer);
+    completer->setCaseSensitivity(Qt::CaseInsensitive);
+    setCompleter(completer);
 }
 
 void  DmsCurrentItemBar::onEditingFinished()
