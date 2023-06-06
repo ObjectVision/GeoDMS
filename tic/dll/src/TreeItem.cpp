@@ -3042,7 +3042,10 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
+		SuspendTrigger::SilentBlocker xx;
 		auto dc2 = dc->CalcResult();
+		assert(!SuspendTrigger::DidSuspend());
+
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
 		if (dc->WasFailed()) //  && !WasFailed())
 		{
