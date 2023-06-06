@@ -67,10 +67,21 @@ QString TreeModelCompleter::separator() const
 
 QStringList TreeModelCompleter::splitPath(const QString& path) const
 {
-	//if (path == "/")
-	//	return QStringList("/");
-
 	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
+	//for (int i = 0; i < split_path.size(); i++)
+	//	split_path[i] = "/" + split_path.at(i);
+
+	if (split_path.size() == 2)
+	{
+		split_path[1] = "/" + split_path.at(1);
+
+	}
+	else if (split_path.size() ==3)
+	{
+		split_path[1] = "/" + split_path.at(1);
+		split_path[2] = split_path.at(1) + "/" + split_path.at(2);
+	}
+
 	split_path.remove(0);
 	return split_path;
 }
@@ -87,9 +98,9 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	for (QModelIndex i = index; i.isValid(); i = i.parent())
 		dataList.prepend(model()->data(i, Qt::DisplayRole).toString()); // completionRole()
 
-	dataList.replace(0, "");
+	auto rval = dataList.join(sep);
 
-	return dataList.join(sep);
+	return rval;
 }
 
 const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
