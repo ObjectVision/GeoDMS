@@ -278,7 +278,7 @@ inline void Insert(std::vector<Float64>& faLimits, UInt32 pos, Float64 value)
 	faLimits.insert(faLimits.begin()+pos, value);
 }
 
-CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc)
+CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc)
 {
 	MakeMax(k, 1);
 	faLimits.reserve(k);

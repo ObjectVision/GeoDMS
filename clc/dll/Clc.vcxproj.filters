@@ -1,0 +1,314 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\AnyAll.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostBlas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoostXML.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CalcClassBreaks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CalcFactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ClassBreak.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Classify.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ClcInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Cumulate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ExprCalculator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Loop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Modus.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccBin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FileOper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ForEach.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GetStatistics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ID.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Index.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IndexGetterCreator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Invert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JoinEqualValues.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lookup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccCount.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccFirstLast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccMinMax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccUniStatistics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAccUniStr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrBin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrTer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrUni.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperAttrVar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperConv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperExec.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperLinInterpol.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperPropValue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperUnit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Overlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PCount.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Ramp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\random.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ReadData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\regex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ReportFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RLookup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sort.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SubItem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Subset.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Union.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Unique.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\UnitCreators.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\AggrBinStructNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AggrFunc.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AggrFuncNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AggrUniStruct.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AggrUniStructNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AggrUniStructString.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AttrBinStruct.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AttrTerStruct.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AttrUniStruct.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AttrUniStructNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AttrUniStructStr.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\BoostBlas.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CalcClassBreaks.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CalcFactory.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CastedUnaryAttrOper.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ClcBase.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ClcInterface.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ClcPch.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\composition.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ConstOper.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dms_transform.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ExprCalculator.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\funclist.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\IndexAssigner.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\IndexGetterCreator.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\makeCululative.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAcc.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Invert.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\InvertedRel.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lookup.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAccBin.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAccUni.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAccUniNum.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAttrBin.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAttrTer.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperAttrUni.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperRelUni.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OperUnit.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ValueGetter.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\UnitGroup.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\UnitCreators.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\rlookup.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RLookup.ipp">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Prototypes.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pCount.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PartitionTypes.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RemoveAdjacentsAndSpikes.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{bedffb78-ae4a-4b28-9e99-2f02ce686ccc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Clc Header Files">
+      <UniqueIdentifier>{ea1dcd75-feb7-4703-92db-010df4ca89f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{39501db0-659c-4d42-b602-137977a60dd1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\res\RewriteExpr.lsp">
+      <Filter>Resources</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

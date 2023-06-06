@@ -74,8 +74,7 @@ std::vector<MsgStruct> g_MsgQueue;
 
 SHV_CALL void DMS_CONV DMS_Shv_Load() 
 {
-	DMS_Clc1_Load();
-	DMS_Clc2_Load();
+	DMS_Clc_Load();
 	DMS_Stg_Load();
 	DMS_Geo_Load();
 }

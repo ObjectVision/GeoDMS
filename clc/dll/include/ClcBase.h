@@ -37,16 +37,10 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicBase.h"
 
-#if defined(DMCLC1_EXPORTS)
-#	define CLC1_CALL __declspec(dllexport)
+#if defined(DMCLC_EXPORTS)
+#	define CLC_CALL __declspec(dllexport)
 #else
-#	define CLC1_CALL __declspec(dllimport)
-#endif
-
-#if defined(DMCLC2_EXPORTS)
-#	define CLC2_CALL __declspec(dllexport)
-#else
-#	define CLC2_CALL __declspec(dllimport)
+#	define CLC_CALL __declspec(dllimport)
 #endif
 
 #include "OperGroups.h"
@@ -56,15 +50,15 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 
 // defined in UnitCreators.cpp
-extern CLC1_CALL CommonOperGroup cog_mul;
-extern CLC1_CALL CommonOperGroup cog_div;
-extern CLC1_CALL CommonOperGroup cog_add;
-extern CLC1_CALL CommonOperGroup cog_sub;
-extern CLC1_CALL CommonOperGroup cog_bitand;
-extern CLC1_CALL CommonOperGroup cog_bitor;
-extern CLC1_CALL CommonOperGroup cog_pow;
-extern CLC1_CALL CommonOperGroup cog_eq;
-extern CLC1_CALL CommonOperGroup cog_ne;
-extern CLC1_CALL CommonOperGroup cog_substr;
+extern CLC_CALL CommonOperGroup cog_mul;
+extern CLC_CALL CommonOperGroup cog_div;
+extern CLC_CALL CommonOperGroup cog_add;
+extern CLC_CALL CommonOperGroup cog_sub;
+extern CLC_CALL CommonOperGroup cog_bitand;
+extern CLC_CALL CommonOperGroup cog_bitor;
+extern CLC_CALL CommonOperGroup cog_pow;
+extern CLC_CALL CommonOperGroup cog_eq;
+extern CLC_CALL CommonOperGroup cog_ne;
+extern CLC_CALL CommonOperGroup cog_substr;
 
 #endif

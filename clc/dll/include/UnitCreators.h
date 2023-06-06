@@ -86,7 +86,7 @@ inline ConstUnitRef div_unit_creator(const AbstrOperGroup* gr, const ArgSeqType&
 	return operated_unit_creator(&cog_div, args);
 }
 
-CLC1_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
+CLC_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
 
 
 inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
@@ -111,7 +111,7 @@ inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType&
 	return arg1_values_unit(args);
 }
 
-CLC1_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
+CLC_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
 
 inline ConstUnitRef compatible_values_or_categories_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
@@ -140,7 +140,7 @@ inline ConstUnitRef domain_unit_creator(const AbstrOperGroup* gr, const ArgSeqTy
 	return AsDataItem(args[0])->GetAbstrDomainUnit();
 }
 
-CLC1_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
+CLC_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
 
 inline ConstUnitRef count_unit_creator(const ArgSeqType& args)
 {
@@ -149,8 +149,8 @@ inline ConstUnitRef count_unit_creator(const ArgSeqType& args)
 }
 
 
-CLC1_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
-CLC1_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
+CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
+CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
 
 template <typename Field>
 inline ConstUnitRef cast_unit_creator(const ArgSeqType& args)

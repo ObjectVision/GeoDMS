@@ -20,7 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}</ProjectGuid>
-    <RootNamespace>clc1</RootNamespace>
+    <RootNamespace>clc</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -48,46 +48,62 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../stgimpl/dll/src;../../clc/dll/include;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>DMCLC1_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DMCLC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src1\AnyAll.cpp" />
-    <ClCompile Include="src1\CalcClassBreaks.cpp" />
-    <ClCompile Include="src1\CalcFactory.cpp" />
-    <ClCompile Include="src1\ClassBreak.cpp" />
-    <ClCompile Include="src1\Classify.cpp" />
-    <ClCompile Include="src1\Clc1Interface.cpp" />
-    <ClCompile Include="src1\Cumulate.cpp" />
-    <ClCompile Include="src1\ExprCalculator.cpp" />
-    <ClCompile Include="src1\FileOper.cpp" />
-    <ClCompile Include="src1\ForEach.cpp" />
-    <ClCompile Include="src1\GetStatistics.cpp" />
-    <ClCompile Include="src1\ID.cpp" />
-    <ClCompile Include="src1\Index.cpp" />
-    <ClCompile Include="src1\IndexGetterCreator.cpp" />
-    <ClCompile Include="src1\Invert.cpp" />
-    <ClCompile Include="src1\JoinEqualValues.cpp" />
-    <ClCompile Include="src1\lookup.cpp" />
-    <ClCompile Include="src1\Loop.cpp" />
-    <ClCompile Include="src1\Modus.cpp" />
-    <ClCompile Include="src1\Overlay.cpp" />
-    <ClCompile Include="src1\PCount.cpp" />
-    <ClCompile Include="src1\Ramp.cpp" />
-    <ClCompile Include="src1\random.cpp" />
-    <ClCompile Include="src1\ReadData.cpp" />
-    <ClCompile Include="src1\RLookup.cpp">
-      <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">None</DebugInformationFormat>
-    </ClCompile>
-    <ClCompile Include="src1\Sort.cpp" />
-    <ClCompile Include="src1\SubItem.cpp" />
-    <ClCompile Include="src1\Subset.cpp" />
-    <ClCompile Include="src1\Union.cpp" />
-    <ClCompile Include="src1\Unique.cpp" />
-    <ClCompile Include="src1\UnitCreators.cpp" />
-    <ClCompile Include="src2\OperAttrVar.cpp" />
+    <ClCompile Include="src\AnyAll.cpp" />
+    <ClCompile Include="src\CalcClassBreaks.cpp" />
+    <ClCompile Include="src\CalcFactory.cpp" />
+    <ClCompile Include="src\ClassBreak.cpp" />
+    <ClCompile Include="src\Classify.cpp" />
+    <ClCompile Include="src\ClcInterface.cpp" />
+    <ClCompile Include="src\Cumulate.cpp" />
+    <ClCompile Include="src\ExprCalculator.cpp" />
+    <ClCompile Include="src\FileOper.cpp" />
+    <ClCompile Include="src\ForEach.cpp" />
+    <ClCompile Include="src\GetStatistics.cpp" />
+    <ClCompile Include="src\ID.cpp" />
+    <ClCompile Include="src\Index.cpp" />
+    <ClCompile Include="src\IndexGetterCreator.cpp" />
+    <ClCompile Include="src\Invert.cpp" />
+    <ClCompile Include="src\JoinEqualValues.cpp" />
+    <ClCompile Include="src\lookup.cpp" />
+    <ClCompile Include="src\Loop.cpp" />
+    <ClCompile Include="src\Modus.cpp" />
+    <ClCompile Include="src\Overlay.cpp" />
+    <ClCompile Include="src\PCount.cpp" />
+    <ClCompile Include="src\Ramp.cpp" />
+    <ClCompile Include="src\random.cpp" />
+    <ClCompile Include="src\ReadData.cpp" />
+    <ClCompile Include="src\RLookup.cpp" />
+    <ClCompile Include="src\Sort.cpp" />
+    <ClCompile Include="src\SubItem.cpp" />
+    <ClCompile Include="src\Subset.cpp" />
+    <ClCompile Include="src\Union.cpp" />
+    <ClCompile Include="src\Unique.cpp" />
+    <ClCompile Include="src\UnitCreators.cpp" />
+    <ClCompile Include="src\OperAttrVar.cpp" />
+    <ClCompile Include="src\BoostBlas.cpp" />
+    <ClCompile Include="src\BoostXML.cpp" />
+    <ClCompile Include="src\OperAccBin.cpp" />
+    <ClCompile Include="src\OperAccCount.cpp" />
+    <ClCompile Include="src\OperAccFirstLast.cpp" />
+    <ClCompile Include="src\OperAccMinMax.cpp" />
+    <ClCompile Include="src\OperAccUniStatistics.cpp" />
+    <ClCompile Include="src\OperAccUniStr.cpp" />
+    <ClCompile Include="src\OperAttrBin.cpp" />
+    <ClCompile Include="src\OperAttrTer.cpp" />
+    <ClCompile Include="src\OperAttrUni.cpp" />
+    <ClCompile Include="src\OperConv.cpp" />
+    <ClCompile Include="src\OperExec.cpp" />
+    <ClCompile Include="src\OperLinInterpol.cpp" />
+    <ClCompile Include="src\OperPropValue.cpp" />
+    <ClCompile Include="src\OperUnit.cpp" />
+    <ClCompile Include="src\regex.cpp" />
+    <ClCompile Include="src\ReportFunctions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\res\RewriteExpr.lsp">
@@ -106,6 +122,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\stg\dll\StgDll.vcxproj">
+      <Project>{f77fad2b-615a-47d7-ae87-a6f996d63c12}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
       <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>
@@ -158,7 +177,7 @@
     <ClInclude Include="include\UnitGroup.h" />
     <ClInclude Include="include\CalcClassBreaks.h" />
     <ClInclude Include="include\ValueGetter.h" />
-    <ClInclude Include="src1\RLookup.ipp" />
+    <ClInclude Include="src\RLookup.ipp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

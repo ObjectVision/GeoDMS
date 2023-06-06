@@ -106,7 +106,7 @@ void ExprCalculator::WriteHtmlExpr(OutStreamBase& outStream) const
 #include "StxInterface.h"
 #include "ptr/AutoDeletePtr.h"
 
-CLC1_CALL bool ExprCalculatorTest()
+CLC_CALL bool ExprCalculatorTest()
 {
 	DBG_START("ExprCalculator", "TEST", true);
 

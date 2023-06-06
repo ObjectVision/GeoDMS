@@ -46,7 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "SessionData.h"
 
 
-CLC1_CALL void DMS_CONV DMS_Clc1_Load() 
+CLC_CALL void DMS_CONV DMS_Clc_Load() 
 {
 	DMS_Stx_Load();
 }
@@ -55,7 +55,7 @@ CLC1_CALL void DMS_CONV DMS_Clc1_Load()
 // Section:     OperatorSet
 // *****************************************************************************
 
-CLC1_CALL UInt32 DMS_CONV DMS_OperatorSet_GetNrOperatorGroups()
+CLC_CALL UInt32 DMS_CONV DMS_OperatorSet_GetNrOperatorGroups()
 {
 	DMS_CALL_BEGIN
 
@@ -65,7 +65,7 @@ CLC1_CALL UInt32 DMS_CONV DMS_OperatorSet_GetNrOperatorGroups()
 	return 0;
 }
 
-CLC1_CALL const AbstrOperGroup* DMS_CONV DMS_OperatorSet_GetOperatorGroup(UInt32 i)
+CLC_CALL const AbstrOperGroup* DMS_CONV DMS_OperatorSet_GetOperatorGroup(UInt32 i)
 {
 	DMS_CALL_BEGIN
 
@@ -75,7 +75,7 @@ CLC1_CALL const AbstrOperGroup* DMS_CONV DMS_OperatorSet_GetOperatorGroup(UInt32
 	return 0;
 }
 
-CLC1_CALL const Operator* DMS_CONV DMS_OperatorGroup_GetFirstMember(const AbstrOperGroup* self)
+CLC_CALL const Operator* DMS_CONV DMS_OperatorGroup_GetFirstMember(const AbstrOperGroup* self)
 {
 	DMS_CALL_BEGIN
 
@@ -86,7 +86,7 @@ CLC1_CALL const Operator* DMS_CONV DMS_OperatorGroup_GetFirstMember(const AbstrO
 	return 0;
 }
 
-CLC1_CALL const Operator* DMS_CONV DMS_Operator_GetNextGroupMember(const Operator* self)
+CLC_CALL const Operator* DMS_CONV DMS_Operator_GetNextGroupMember(const Operator* self)
 {
 	DMS_CALL_BEGIN
 
@@ -97,7 +97,7 @@ CLC1_CALL const Operator* DMS_CONV DMS_Operator_GetNextGroupMember(const Operato
 	return 0;
 }
 
-CLC1_CALL CharPtr  DMS_CONV DMS_OperatorGroup_GetName(const AbstrOperGroup* self)
+CLC_CALL CharPtr  DMS_CONV DMS_OperatorGroup_GetName(const AbstrOperGroup* self)
 {
 	DMS_CALL_BEGIN
 
@@ -109,7 +109,7 @@ CLC1_CALL CharPtr  DMS_CONV DMS_OperatorGroup_GetName(const AbstrOperGroup* self
 }
 
 
-CLC1_CALL UInt32  DMS_CONV DMS_Operator_GetNrArguments(const Operator* self)
+CLC_CALL UInt32  DMS_CONV DMS_Operator_GetNrArguments(const Operator* self)
 {
 	DMS_CALL_BEGIN
 
@@ -120,7 +120,7 @@ CLC1_CALL UInt32  DMS_CONV DMS_Operator_GetNrArguments(const Operator* self)
 	return 0;
 }
 
-CLC1_CALL const Class*  DMS_CONV DMS_Operator_GetArgumentClass (const Operator* self, UInt32 argnr)
+CLC_CALL const Class*  DMS_CONV DMS_Operator_GetArgumentClass (const Operator* self, UInt32 argnr)
 {
 	DMS_CALL_BEGIN
 
@@ -132,7 +132,7 @@ CLC1_CALL const Class*  DMS_CONV DMS_Operator_GetArgumentClass (const Operator* 
 }
 
 
-CLC1_CALL const Class*  DMS_CONV DMS_Operator_GetResultingClass(const Operator* self)
+CLC_CALL const Class*  DMS_CONV DMS_Operator_GetResultingClass(const Operator* self)
 {
 	DMS_CALL_BEGIN
 
@@ -190,7 +190,7 @@ struct ClientDefinedOperator : public VariadicOperator
 	AbstrOperGroup*    m_OperGroup;
 };
 
-CLC1_CALL ClientDefinedOperator* DMS_CONV DMS_ClientDefinedOperator_Create(
+CLC_CALL ClientDefinedOperator* DMS_CONV DMS_ClientDefinedOperator_Create(
 	CharPtr name, ClassCPtr resultCls, 
 	UInt32 nrArgs, const ClassCPtr* argClsList,
 	OperatorCreateFunc createFunc, 
@@ -210,7 +210,7 @@ CLC1_CALL ClientDefinedOperator* DMS_CONV DMS_ClientDefinedOperator_Create(
 	return nullptr;
 }
 
-CLC1_CALL void DMS_CONV DMS_ClientDefinedOperator_Release(ClientDefinedOperator* self)
+CLC_CALL void DMS_CONV DMS_ClientDefinedOperator_Release(ClientDefinedOperator* self)
 {
 	DMS_CALL_BEGIN
 
