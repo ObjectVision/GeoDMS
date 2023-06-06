@@ -110,7 +110,7 @@ MainWindow::~MainWindow()
 void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
 {
     TreeModelCompleter* completer = new TreeModelCompleter(this);
-    completer->setModel(new DmsModel(root));
+    completer->setModel(MainWindow::TheOne()->getDmsTreeViewPtr()->model()); // new DmsModel(root)
     completer->setSeparator("/");
     //completer->setCompletionPrefix("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
