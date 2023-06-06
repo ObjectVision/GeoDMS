@@ -67,9 +67,6 @@ QString TreeModelCompleter::separator() const
 
 QStringList TreeModelCompleter::splitPath(const QString& path) const
 {
-	//if (path == "/")
-	//	return QStringList("/");
-
 	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
 	split_path.remove(0);
 	return split_path;
@@ -80,16 +77,15 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	if (sep.isNull())
 		return QCompleter::pathFromIndex(index);
 
-	return GetTreeItem(index)->GetFullName().c_str();
-
-	// navigate up and accumulate data
-	QStringList dataList;
+	QStringList data_list;
 	for (QModelIndex i = index; i.isValid(); i = i.parent())
-		dataList.prepend(model()->data(i, Qt::DisplayRole).toString()); // completionRole()
+		data_list.prepend(model()->data(i, completionRole()).toString());
+	data_list.remove(0);
+	if (!data_list.isEmpty())
+		data_list[0] = "/" + data_list[0];
+	auto rval = data_list.join(sep);
 
-	dataList.replace(0, "");
-
-	return dataList.join(sep);
+	return rval;
 }
 
 const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
@@ -217,7 +213,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	switch (role)
 	{
 	case Qt::DecorationRole: return getTreeItemIcon(index);
-	case Qt::EditRole: return QString(ti->GetFullName().c_str());
+	case Qt::EditRole: return QString(ti->GetName().c_str());
 	case Qt::DisplayRole: return  QString(ti->GetName().c_str());
 	case Qt::ForegroundRole: 
 	{

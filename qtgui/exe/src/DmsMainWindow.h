@@ -90,6 +90,7 @@ public:
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
+    auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
