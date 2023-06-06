@@ -98,6 +98,21 @@ void DmsDetailPages::toggleConfiguration()
     toggle(ActiveDetailPage::CONFIGURATION);
 }
 
+
+auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
+{
+    VectorOutStreamBuff outBuff;
+    outBuff.OutStreamBuff::WriteBytes("<HTML><BODY><PRE>");
+
+    auto xmlOut = XML_OutStream_Create(&outBuff, OutStreamBase::SyntaxType::ST_HTM, "", nullptr);
+
+    XML_OutStream_WriteText(xmlOut, str);
+
+    outBuff.OutStreamBuff::WriteBytes("</PRE></BODY></HTML>");
+    return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
+}
+
+
 void DmsDetailPages::drawPage()
 {
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
@@ -124,9 +139,7 @@ void DmsDetailPages::drawPage()
         break;
     case ActiveDetailPage::CONFIGURATION:
     {
-        *xmlOut << "<BODY><PRE>";
         DMS_TreeItem_XML_Dump(current_item, xmlOut.get());
-        *xmlOut << "</BODY></PRE>";
         break;
     }
     case ActiveDetailPage::METADATA:
@@ -165,7 +178,11 @@ void DmsDetailPages::drawPage()
     {
         buffer.WriteByte(0); // std::ends
         // set buff to detail page:
-        setHtml(buffer.GetData());
+        CharPtr contents = buffer.GetData();
+        if (m_active_detail_page != ActiveDetailPage::CONFIGURATION)
+            setHtml(contents);
+        else
+            setHtml( htmlEncodeTextDoc(contents).c_str() );
     }
     if (!ready)
         m_Repeater.start(0);

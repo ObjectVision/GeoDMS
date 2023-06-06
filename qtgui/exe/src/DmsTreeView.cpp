@@ -15,6 +15,8 @@
 #include <QApplication>
 
 #include "ShvDllInterface.h"
+#include "TicInterface.h"
+#include "StateChangeNotification.h"
 #include "dataview.h"
 
 namespace {
@@ -29,7 +31,8 @@ namespace {
 		auto p = ti->GetTreeParent();
 		if (!p)
 			return 0;
-		auto si = p->GetFirstSubItem();
+
+		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
 		while (si != ti)
 		{
@@ -177,6 +180,33 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	else { return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp")); } 
 }
 
+QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
+{
+	auto ti = GetTreeItemOrRoot(index);
+	if (!ti)
+		return QVariant();
+
+	if (ti->IsFailed())
+		return QColor(0, 0, 0, 255);
+
+	auto salmon = QColor(255, 0, 102, 255);
+	auto cool_blue = QColor(82, 136, 219, 255);
+	auto cool_green = QColor(0, 153, 51, 255);
+	auto ti_state = static_cast<NotificationCode>(DMS_TreeItem_GetProgressState(ti));
+	switch (ti_state)
+	{
+	case NotificationCode::NC2_FailedFlag: return QColor(0, 0, 0, 255);
+	case NotificationCode::NC2_DataReady: return cool_blue;
+	case NotificationCode::NC2_Validated: return cool_green;
+	case NotificationCode::NC2_Committed: return cool_green;
+	case NotificationCode::NC2_Invalidated:
+	case NotificationCode::NC2_MetaReady: return salmon;
+	default: return salmon;
+	}
+
+	return {};
+}
+
 QVariant DmsModel::data(const QModelIndex& index, int role) const
 {
 	if (!index.isValid())
@@ -186,9 +216,13 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	switch (role)
 	{
-	case  Qt::DecorationRole: return getTreeItemIcon(index);
-	case  Qt::EditRole: return QString(ti->GetFullName().c_str());
-	case  Qt::DisplayRole: return  QString(ti->GetName().c_str());
+	case Qt::DecorationRole: return getTreeItemIcon(index);
+	case Qt::EditRole: return QString(ti->GetFullName().c_str());
+	case Qt::DisplayRole: return  QString(ti->GetName().c_str());
+	case Qt::ForegroundRole: 
+	{
+		return QColor(Qt::red);
+	}
 	case Qt::SizeHintRole:
 	{
 		auto font = QApplication::font();
@@ -257,14 +291,9 @@ bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
 
 auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 {
-	
 	auto root_node_index = rootIndex();
-
 	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
 		return {};
-	//auto row_count = model()->rowCount(root_node_index);
-	//if (!root_node_index.isValid())
-    //    return {};
 
 	auto parent_index = root_node_index;
 	while (true)
@@ -286,9 +315,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 					expand(child_index);
 				parent_index = child_index;
 			}
-
 		}
-		
 	}
 }
 
@@ -303,7 +330,7 @@ void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 	if (current_node_index.isValid())
 	{
 		auto ti = GetTreeItem(current_node_index);
-		if (new_current_item == ti)
+		if (new_current_item == ti) // treeview already has current item
 			return;
 	}
 
@@ -312,9 +339,6 @@ void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
-
-
-
     auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
     QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
     dock->setWidget(dms_eventlog_widget_pointer);

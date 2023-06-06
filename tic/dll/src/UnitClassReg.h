@@ -66,14 +66,18 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 	{
 		SharedUnitInterestPtr holder(u);
 		if (u->GetTSF(TSF_Categorical) == m_IsCategorical)
-			if (IsDataReady(u->GetCurrRangeItem()))
+			if (IsDataReady(u->GetCurrRangeItem()) || u->GetTSF(USF_HasConfigRange))
+			{
+				u->PrepareDataUsage(DrlType::Suspendible);
 				return u->GetRange();
+			}
 		return ApiType{};
 	}
 	void SetValue(unit_t* u, ParamType val) override
 	{
 		u->SetRange(val);
 		u->SetTSF(USF_HasConfigRange);
+		u->SetTSF(TSF_Categorical, m_IsCategorical);
 	}
 	bool HasNonDefaultValue(const Object* self) const
 	{

@@ -27,13 +27,13 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance)
     return className;
 }
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem)
+QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QWidget(parent)
 {
     HINSTANCE instance = GetInstance((HWND)hWndMain);//m_Views.at(m_ViewIndex).m_HWNDParent);
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only wonce
 
-    ViewStyle viewStyle = SHV_GetDefaultViewStyle(currItem);
+    
 
     dv = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
        

@@ -10,6 +10,8 @@
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
+#include "dataview.h"
+
 #include "DockManager.h"
 #include "DockAreaWidget.h"
 #include "DockWidget.h"
@@ -100,8 +102,10 @@ private slots:
     void reOpen();
     void aboutGeoDms();
     void defaultView();
-    //void tableView();
-    //void mapView();
+    void tableView();
+    void mapView();
+    void createView(ViewStyle viewStyle);
+
     void updateToolbar(int index);
     void showTreeviewContextMenu(const QPoint& pos);
 

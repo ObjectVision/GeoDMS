@@ -473,8 +473,13 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 	DMS_CALL_BEGIN
 
 		assert(xmlOutStr);
-
-		self->XML_Dump(xmlOutStr);
+		try {
+			self->XML_Dump(xmlOutStr);
+		}
+		catch (...)
+		{
+			*xmlOutStr << catchException(false)->Why().c_str();
+		}
 
 	DMS_CALL_END
 }
