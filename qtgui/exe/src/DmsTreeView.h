@@ -49,6 +49,7 @@ public:
 
 private:
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
+	QVariant getTreeItemColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 	const TreeItem* m_root = nullptr;
 };
