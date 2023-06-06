@@ -167,10 +167,10 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
     m_current_item = new_current_item;
     if (m_current_item_bar)
     {
-        /*if (m_current_item)
+        if (m_current_item)
             m_current_item_bar->setText(m_current_item->GetFullName().c_str());
         else
-            m_current_item_bar->setText("");*/
+            m_current_item_bar->setText("");
     }
 
     m_treeview->setNewCurrentItem(new_current_item);
