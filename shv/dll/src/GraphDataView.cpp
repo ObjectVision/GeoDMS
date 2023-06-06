@@ -237,6 +237,11 @@ public:
 					SuspendTrigger::SilentBlocker xx;
 					paletteDomain->PrepareData();
 				}
+#if defined(MG_DEBUG)
+				auto* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem());
+				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
+				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FR_Data));
+#endif
 				std::weak_ptr<GraphicLayer> wResLayer = m_Result;
 				std::weak_ptr<LayerSet> wLayerSet = ls->weak_from_base<LayerSet>();
 				std::weak_ptr<DataView> wDv = ls->GetDataView();
