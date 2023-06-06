@@ -187,6 +187,8 @@ void MainWindow::fileOpen()
     {
         m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
         m_root->EnableAutoDelete();
+        m_root = nullptr;
+        m_treeview->setModel(nullptr); // does this destroy the 
     }
     LoadConfig(configFileName.toUtf8().data());
 }

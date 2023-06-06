@@ -34,7 +34,7 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace)
-        dva->setWindowTitle(msg);
+        dva->parentWidget()->setWindowTitle(msg);
 //    else
 //        dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
 }
@@ -73,6 +73,7 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 QDmsViewArea::~QDmsViewArea()
 {
     SHV_DataView_Destroy(m_DataView);
+    CloseWindow((HWND)m_HWnd);
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)
@@ -85,7 +86,7 @@ void QDmsViewArea::moveEvent(QMoveEvent* event)
         m_Pos += w->pos();
         w = w->parentWidget();
     }
-    m_Pos.ry() += 32; // TODO: ???
+    m_Pos.ry() += 64; // TODO: ???
     UpdatePos();
 }
 
@@ -100,7 +101,7 @@ void QDmsViewArea::UpdatePos()
 {
     SetWindowPos((HWND)m_HWnd, HWND_TOP
         , m_Pos.x(), m_Pos.y()
-        , m_Size.width(), m_Size.height()
+        , m_Size.width(), m_Size.height()-64
         , SWP_SHOWWINDOW|SWP_ASYNCWINDOWPOS
     );
 }
