@@ -33,13 +33,14 @@ QT_END_NAMESPACE
 struct TreeItem;
 class DmsDetailPages;
 class DmsTreeView;
+class DmsModel;
 
 class DmsCurrentItemBar : public QLineEdit
 {
 Q_OBJECT
 public:
     using QLineEdit::QLineEdit;
-    void setDmsCompleter(TreeItem* root);
+    void setDmsCompleter();
 
 public slots:
     void onEditingFinished();
@@ -87,6 +88,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
     ~MainWindow();
+    auto getDmsModel() -> DmsModel* { return m_dms_model.get(); }
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
@@ -128,16 +130,15 @@ private:
     QPointer<QDockWidget> m_detailpages_dock;
 
     // advanced central widget dock
-    ads::CDockManager* m_DockManager;
+    /*ads::CDockManager* m_DockManager;
     ads::CDockAreaWidget* StatusDockArea;
     ads::CDockWidget* TimelineDockWidget;
-    ads::CDockAreaWidget* centralDockArea;
+    ads::CDockAreaWidget* centralDockArea;*/
 
-    // mdi area
-    QPointer<QMdiArea> m_mdi_area;
-
-    //toolbars
-    QPointer<DmsCurrentItemBar> m_current_item_bar;
+    // unique application objects
+    std::unique_ptr<QMdiArea> m_mdi_area;
+    std::unique_ptr<DmsModel> m_dms_model;
+    std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
 
     // helper windows
     QPointer<DmsDetailPages> m_detail_pages;

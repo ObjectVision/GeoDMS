@@ -35,7 +35,7 @@ MainWindow::MainWindow()
     //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //setStyle(fusion_style);
 
-    m_mdi_area = new QMdiArea(this);
+    m_mdi_area = std::make_unique<QMdiArea>(this);
 
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
@@ -55,7 +55,7 @@ MainWindow::MainWindow()
     //ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
     m_DockManager = new ads::CDockManager(this);
     */
-
+    
 
     QLabel* label = new QLabel();
     label->setText("dms client area");
@@ -65,7 +65,8 @@ MainWindow::MainWindow()
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
     centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);*/
 
-    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
+    //centralDockArea = //m_DockManager->setCentralWidget(CentralDockWidget);
+    setCentralWidget(m_mdi_area.get());
 
     createStatusBar();
     createDmsHelperWindowDocks();
@@ -92,7 +93,7 @@ MainWindow::MainWindow()
     }
 
     createActions();
-    m_current_item_bar->setDmsCompleter(m_root);
+    m_current_item_bar->setDmsCompleter();
 
 
     setWindowTitle(tr("GeoDMS"));
@@ -113,14 +114,16 @@ MainWindow::~MainWindow()
         m_root->EnableAutoDelete();
 
     m_root.reset();
+    m_mdi_area.release();
+    m_dms_model.release();
+    m_current_item_bar.release();
 }
 
-void DmsCurrentItemBar::setDmsCompleter(TreeItem* root)
+void DmsCurrentItemBar::setDmsCompleter()
 {
     TreeModelCompleter* completer = new TreeModelCompleter(this);
-    completer->setModel(MainWindow::TheOne()->getDmsTreeViewPtr()->model()); // new DmsModel(root)
+    completer->setModel(MainWindow::TheOne()->getDmsModel());
     completer->setSeparator("/");
-    //completer->setCompletionPrefix("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     setCompleter(completer);
 }
@@ -196,6 +199,7 @@ void MainWindow::fileOpen()
         m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
         m_root->EnableAutoDelete();
         m_root = nullptr;
+        
         m_treeview->setModel(nullptr); // does this destroy the 
     }
     LoadConfig(configFileName.toUtf8().data());
@@ -283,7 +287,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 
 void MainWindow::updateToolbar(int index)
 {
-    auto active_dock_widget = centralDockArea->dockWidget(index);
+    /*auto active_dock_widget = centralDockArea->dockWidget(index);
     auto dms_view_area = dynamic_cast<QDmsViewArea*>(active_dock_widget->widget());
     if (m_toolbar)
         removeToolBar(m_toolbar);
@@ -317,7 +321,7 @@ void MainWindow::updateToolbar(int index)
         m_toolbar->addAction(action);
 
         // TODO: add connections
-    }
+    }*/
 }
 
 void MainWindow::createView(ViewStyle viewStyle)
@@ -333,17 +337,22 @@ void MainWindow::createView(ViewStyle viewStyle)
 
     HWND hWndMain = (HWND)winId();
 
-    auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
-    auto dmsControl = new QDmsViewArea(dataViewDockWidget, hWndMain, viewContextItem, currItem, viewStyle);
+    //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
+    auto dmsControl = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
+    m_mdi_area->addSubWindow(dmsControl);
+    
+
     //    m_dms_views.emplace_back(name, vs, dv);
     //    m_dms_view_it = --m_dms_views.end();
     //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
 
-    dataViewDockWidget->setWidget(dmsControl);
+    //m_mdi_area->
+
+    /*dataViewDockWidget->setWidget(dmsControl);
     dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
     dataViewDockWidget->resize(250, 150);
     dataViewDockWidget->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);
+    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);*/
 }
 
 void MainWindow::defaultView()
@@ -412,12 +421,17 @@ void MainWindow::LoadConfig(CharPtr fileName)
     if (newRoot)
     {
         m_root = newRoot;
-        
+
+        m_dms_model.release();
+        m_dms_model = std::make_unique<DmsModel>(m_root);
+        if (m_current_item_bar)
+            m_current_item_bar->setDmsCompleter();
+
         m_treeview->setItemDelegate(new TreeItemDelegate());
         m_treeview->setRootIsDecorated(true);
         m_treeview->setUniformRowHeights(true);
         m_treeview->setItemsExpandable(true);
-        m_treeview->setModel(new DmsModel(m_root)); // TODO: check Ownership ?
+        m_treeview->setModel(m_dms_model.get());
         m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
@@ -476,23 +490,21 @@ void MainWindow::createActions()
 {
     auto fileMenu = menuBar()->addMenu(tr("&File"));
     auto current_item_bar_container = addToolBar(tr("test"));
-    m_current_item_bar = new DmsCurrentItemBar(this);
-    current_item_bar_container->addWidget(m_current_item_bar);
+    m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
+    
+    current_item_bar_container->addWidget(m_current_item_bar.get());
 
-    connect(m_current_item_bar, &DmsCurrentItemBar::editingFinished, m_current_item_bar, &DmsCurrentItemBar::onEditingFinished);
+    connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
 
     addToolBarBreak();
 
-    //auto fileToolBar = addToolBar(tr("File"));
-    //m_toolbar = addToolBar(tr("dmstoolbar"));
-    connect(centralDockArea, &ads::CDockAreaWidget::currentChanged, this, &MainWindow::updateToolbar);
+    //connect(centralDockArea, &ads::CDockAreaWidget::currentChanged, this, &MainWindow::updateToolbar);
     auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
     fileMenu->addAction(fileOpenAct);
-    //fileToolBar->addAction(fileOpenAct);
 
     auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
