@@ -50,10 +50,20 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
-        throwErrorF("CreateView", "Cannot create view with style %d for %s"
+        throwErrorF("CreateView", "Cannot create view with style %d with context '%s'"
             , viewStyle
-            , currItem->GetFullName().c_str()
+            , viewContext->GetFullName().c_str()
         );
+    bool result = SHV_DataView_AddItem(m_DataView, currItem, false);
+    if (!result)
+    {
+        SHV_DataView_Destroy(m_DataView);
+        throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
+            , currItem->GetFullName().c_str()
+            , viewStyle
+        );
+
+    }
 
     auto vs = WS_CHILD| WS_CLIPSIBLINGS; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_HWnd = CreateWindowEx(
@@ -70,9 +80,8 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
         m_DataView                     // dataView
     );
 
-    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText);
+    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
 
-    SHV_DataView_AddItem(m_DataView, currItem, false);
 }
 
 QDmsViewArea::~QDmsViewArea()
