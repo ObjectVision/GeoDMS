@@ -35,6 +35,8 @@ MainWindow::MainWindow()
     //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //setStyle(fusion_style);
 
+    m_mdi_area = new QMdiArea(this);
+
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
 
@@ -46,21 +48,24 @@ MainWindow::MainWindow()
     auto tv2 = new QTreeView;
 
     // Qt Advanced Docking System test
-    
+    /*
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
     ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
     ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
     //ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
     m_DockManager = new ads::CDockManager(this);
+    */
+
 
     QLabel* label = new QLabel();
     label->setText("dms client area");
     label->setAlignment(Qt::AlignCenter);
-    ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
+    /*ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
     CentralDockWidget->setWidget(label);
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
-    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
+    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);*/
 
+    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);
 
     createStatusBar();
     createDmsHelperWindowDocks();

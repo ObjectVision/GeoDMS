@@ -129,6 +129,9 @@ private:
     ads::CDockWidget* TimelineDockWidget;
     ads::CDockAreaWidget* centralDockArea;
 
+    // mdi area
+    QPointer<QMdiArea> m_mdi_area;
+
     //toolbars
     QPointer<DmsCurrentItemBar> m_current_item_bar;
 
