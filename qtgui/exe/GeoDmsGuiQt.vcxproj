@@ -201,8 +201,8 @@
     <ProjectReference Include="..\..\shv\dll\ShvDLL.vcxproj">
       <Project>{ba9fd377-1ee3-45aa-8a7b-2ac7be68e989}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\stgimpl\dll\StgImpl.vcxproj">
-      <Project>{c2602d25-f606-49e3-a167-68a495a46dfa}</Project>
+    <ProjectReference Include="..\..\stg\dll\StgDll.vcxproj">
+      <Project>{f77fad2b-615a-47d7-ae87-a6f996d63c12}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
       <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>

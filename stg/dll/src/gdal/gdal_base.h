@@ -194,7 +194,9 @@ struct GDALDatasetHandle
 	struct deleter {
 		void operator ()(GDALDataset* dsh) {
 			gdalThread cleanupProjAfterItDidItsPjThings; // see https://github.com/ObjectVision/GeoDMS/issues/11
+			GDAL_ErrorFrame catchAllIssues;
 			GDALClose(GDALDataset::ToHandle(dsh)); 
+			catchAllIssues.ReleaseError();
 		};
 	};
 

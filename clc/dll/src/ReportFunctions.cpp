@@ -391,7 +391,7 @@ namespace {
 
 #include "ClcInterface.h"
 
-CLC2_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator* oper)
+CLC_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator* oper)
 {
 	XML_OutElement xml_oper(*xmlStr, "Function", GetTokenStr(oper->GetGroup()->GetNameID()).c_str());
 	{
@@ -407,7 +407,7 @@ CLC2_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator
 	}
 }
 
-CLC2_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOperGroup* gr)
+CLC_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOperGroup* gr)
 {
 	XML_OutElement xml_oper(*xmlStr, "OperatorGroup", GetTokenStr(gr->GetNameID()).c_str());
 	const Operator* oper = gr->GetFirstMember();
@@ -420,7 +420,7 @@ CLC2_CALL void DMS_CONV XML_ReportOperGroup(OutStreamBase* xmlStr, const AbstrOp
 
 
 
-CLC2_CALL void DMS_CONV XML_ReportAllOperGroups(OutStreamBase* xmlStr)
+CLC_CALL void DMS_CONV XML_ReportAllOperGroups(OutStreamBase* xmlStr)
 {
 	XML_OutElement xml_funcs(*xmlStr, "FunctionList", "");
 	UInt32 nrFuncs = GetNrOperators();

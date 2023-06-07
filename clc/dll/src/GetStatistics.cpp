@@ -190,7 +190,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 	}
 }
 
-CLC1_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
+CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
 {
 	DMS_CALL_BEGIN
 

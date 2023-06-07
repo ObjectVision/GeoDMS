@@ -11,9 +11,9 @@ class QDmsViewArea : public QWidget
 {
     Q_OBJECT
 public:
-    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem);
+    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
     ~QDmsViewArea();
-    auto getDataView()->DataView* { return dv;}
+    auto getDataView()->DataView* { return m_DataView;}
 
 private slots:
 
@@ -22,10 +22,10 @@ private:
     void resizeEvent(QResizeEvent* event) override;
     void UpdatePos();
 
-    void*   wnd = nullptr;
-    DataView* dv = nullptr;
-    QPoint pos = QPoint(100, 100);
-    QSize size = QSize(300, 200);
+    void*   m_HWnd = nullptr;
+    DataView* m_DataView = nullptr;
+    QPoint m_Pos = QPoint(100, 100);
+    QSize m_Size = QSize(300, 200);
 };
 
 #endif // DMSVIEWAREA_H

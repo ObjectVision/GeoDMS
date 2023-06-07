@@ -74,8 +74,7 @@ std::vector<MsgStruct> g_MsgQueue;
 
 SHV_CALL void DMS_CONV DMS_Shv_Load() 
 {
-	DMS_Clc1_Load();
-	DMS_Clc2_Load();
+	DMS_Clc_Load();
 	DMS_Stg_Load();
 	DMS_Geo_Load();
 }
@@ -352,6 +351,8 @@ void DMS_CONV SHV_DataView_Destroy(DataView* self)
 void DMS_CONV SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle clientHandle, StatusTextFunc stf)
 {
 	DMS_CALL_BEGIN
+
+		assert(self); // Precondition
 
 		CheckPtr(self, DataView::GetStaticClass(), "SHV_DataView_SetStatusTextFunc");
 

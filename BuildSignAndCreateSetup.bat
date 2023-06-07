@@ -3,7 +3,7 @@ cls
 
 set DMS_VERSION_MAJOR=10
 set DMS_VERSION_MINOR=0
-set DMS_VERSION_PATCH=1
+set DMS_VERSION_PATCH=2
 
 set geodms_rootdir=%cd%
 
@@ -72,7 +72,7 @@ if ErrorLevel 2 exit /B
 set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe
 "%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
 CHOICE /M  "Signing OK? Ready to run installation?"
-if ErrorLevel 2 exit /B
+if ErrorLevel 2 goto afterNSIS
 
 del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\gdaldata"
 del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\proj4data"

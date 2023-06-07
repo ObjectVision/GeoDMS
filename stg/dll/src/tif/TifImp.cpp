@@ -26,6 +26,8 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
+
+#include "StoragePch.h"
 #include "ImplMain.h"
 #pragma hdrstop
 
@@ -58,9 +60,16 @@ granted by an additional written contract for support, assistance and/or develop
 
 VersionComponent s_TiffVC(TIFFGetVersion() );
 
+thread_local TifErrorFrame* sl_CurrTifErrorFrame = nullptr;
+
 void TiffError2DmsException(CharPtr errType, CharPtr errFormat, va_list lst)
 {
-	throwErrorD(errType, myVSSPrintF(errFormat, lst).c_str());
+	auto cef = sl_CurrTifErrorFrame;
+	if (cef && cef->m_ErrType == nullptr)
+	{
+		cef->m_ErrType = errType;
+		cef->m_Msg = myVSSPrintF(errFormat, lst);
+	}
 }
 
 void TiffWarning2Report(CharPtr errType, CharPtr errFormat, va_list lst)
@@ -70,6 +79,36 @@ void TiffWarning2Report(CharPtr errType, CharPtr errFormat, va_list lst)
 		reportD(SeverityTypeID::ST_Warning, errType, myVSSPrintF(errFormat, lst).c_str());
 	#endif
 }
+
+TifErrorFrame::TifErrorFrame()
+	: m_PrevFrame( sl_CurrTifErrorFrame )
+{
+	TIFFSetErrorHandler(TiffError2DmsException);
+	TIFFSetWarningHandler(TiffWarning2Report);
+
+	sl_CurrTifErrorFrame = this;
+}
+
+TifErrorFrame::~TifErrorFrame()
+{
+	sl_CurrTifErrorFrame = m_PrevFrame;
+}
+
+void TifErrorFrame::ThrowUpWhateverCameUp()
+{
+	auto errType = m_ErrType;
+	ReleaseError();
+	if (errType)
+		throwErrorD(errType, m_Msg.c_str());
+}
+
+void TifErrorFrame::ReleaseError()
+{
+	m_ErrType = nullptr;
+}
+
+
+
 
 TifImp::TifImp()
 {
@@ -84,17 +123,23 @@ TifImp::~TifImp()
 
 bool TifImp::Open(WeakStr name, TifFileMode mode, SafeFileWriterArray* sfwa)
 {
+	TifErrorFrame errFrame;
+
 	if (IsOpen() && m_Mode != mode )
 		Close();
 	if (!IsOpen())
 	{
 		if ((mode == TifFileMode::READ)
-				?	!OpenForRead       (name, sfwa)
-				:	!OpenForWriteDirect(name, sfwa)
+			? !OpenForRead(name, sfwa)
+			: !OpenForWriteDirect(name, sfwa)
 			)
+		{
+			errFrame.ThrowUpWhateverCameUp();
 			return false;
+		}
 		m_Mode = mode;
 	}
+	errFrame.ReleaseError();
 	return true;
 };
 
@@ -106,7 +151,13 @@ bool TifImp::IsOpen()
 bool TifImp::Close()
 {
 	if (m_TiffHandle != nullptr)
+	{
+		TifErrorFrame errFrame;
+	
 		TIFFClose(m_TiffHandle);
+
+		errFrame.ReleaseError();
+	}
 	m_TiffHandle = nullptr;
 	return true;
 };

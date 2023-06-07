@@ -39,10 +39,10 @@ using IndexGetter = AbstrValueGetter<SizeT> ;
 struct IndexGetterCreatorBase : UnitProcessor
 {
 	template <typename E>
-	CLC1_CALL void VisitImpl(const Unit<E>* inviter) const;
+	CLC_CALL void VisitImpl(const Unit<E>* inviter) const;
 
 	template <int N>
-	CLC1_CALL void VisitImpl(const Unit<bit_value<N>>* inviter) const;
+	CLC_CALL void VisitImpl(const Unit<bit_value<N>>* inviter) const;
 
 	WeakPtr<const AbstrDataItem> m_Adi;
 	tile_id                      m_TileID = no_tile;
@@ -52,8 +52,8 @@ struct IndexGetterCreatorBase : UnitProcessor
 
 struct IndexGetterCreator :  boost::mpl::fold<typelists::domain_elements, IndexGetterCreatorBase, VisitorImpl<Unit<_2>, _1> >::type
 {
-	static CLC1_CALL IndexGetter* Create(const AbstrDataItem* adi, tile_id t);
-	static CLC1_CALL IndexGetter* Create(const AbstrDataItem* adi, abstr_future_tile* aft);
+	static CLC_CALL IndexGetter* Create(const AbstrDataItem* adi, tile_id t);
+	static CLC_CALL IndexGetter* Create(const AbstrDataItem* adi, abstr_future_tile* aft);
 
 private:
 	IndexGetterCreator(const AbstrDataItem* adi, tile_id t);

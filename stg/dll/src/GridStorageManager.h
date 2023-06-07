@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/grid.h"
 #include "mem/RectCopy.h"
 #include "mem/tiledata.h"
+#include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -378,7 +379,8 @@ namespace Grid {
 		case 32: ReadData<UInt32>(imp, vpi, Undef32(streamTypeID), reinterpret_cast<UInt32*>(dataPtr)); return;
 		case 64: ReadData<Float64>(imp, vpi, Undef64(streamTypeID), reinterpret_cast<Float64*>(dataPtr)); return;
 		}
-		throwErrorF("GRID::ReadGridData", "Cannot read cells into elements of type %s", streamType->GetName());
+		auto streamTypeName = SharedStr(streamType->GetName());
+		throwErrorF("GRID::ReadGridData", "Cannot read raster data as elements of type %s", streamTypeName);
 	}
 
 	template <typename CountType, typename ColorType, typename Imp>
@@ -467,12 +469,13 @@ namespace Grid {
 		case 16: CountData<UInt16>(imp, vpi, reinterpret_cast<UInt16*>(ado->GetDataWriteBegin(t).get_ptr())); return;
 		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t).get_ptr())); return;
 		}
-		throwErrorF("GRID::ReadGridCounts", "Cannot count rastercells into elements of type %s", GetStreamType(ado)->GetName());
+		auto streamTypeName = SharedStr(GetStreamType(ado)->GetName());
+		throwErrorF("GRID::ReadGridCounts", "Cannot count raster data into elements of type %s", streamTypeName);
 	}
 
 
 	template <typename T, typename Imp>
-	void WriteTiles(Imp& imp, const Range<IPoint>& entireRect, tile_id nrTiles, const Range<IPoint>* segmInfo, T defValue, const TileFunctor<T>* tilesArray)
+	void WriteTiles(Imp& imp, const Range<IPoint>& entireRect, tile_id nrTiles, const Range<IPoint>* segmInfo, const TileFunctor<T>* tilesArray)
 	{
 		UInt32 w = imp.GetWidth();
 		UInt32 h = imp.GetHeight();
@@ -578,22 +581,25 @@ namespace Grid {
 		const AbstrDataObject* ado = adi->GetRefObj();
 		switch (streamType->GetValueClassID())
 		{
-		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, Bool(0), const_array_cast< Bool  >(ado)); return;
-		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt2(0), const_array_cast< UInt2 >(ado)); return;
-		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt4(0), const_array_cast< UInt4 >(ado)); return;
+		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado)); return;
+		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado)); return;
+		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado)); return;
 
-		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt8(0), const_array_cast< UInt8 >(ado)); return;
-		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt8(0), reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado))); return;
+		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado)); return;
+		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado))); return;
 
-		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt16(0), const_array_cast< UInt16>(ado)); return;
-		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt16(0), reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado))); return;
+		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado)); return;
+		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado))); return;
 
-		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado))); return;
-		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), const_array_cast< UInt32>(ado)); return;
-		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado))); return;
-		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, Float64(0), const_array_cast<Float64>(ado)); return;
+		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado))); return;
+		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado)); return;
+		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado))); return;
+		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado)); return;
+		case VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado))); return;
+		case VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado))); return;
 		}
-		adi->throwItemError("TiffSM cannot store this as GridData");
+		auto streamTypeName = SharedStr(streamType->GetName());
+		throwErrorF("GRID::WriteGridData", "cannot store %s elements as raster data ", streamTypeName);
 	}
 
 } // namespace Grid

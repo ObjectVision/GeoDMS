@@ -1260,7 +1260,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	if (resultHolder.WasFailed(FR_Data))
 	{
 		m_Result->Fail(resultHolder);
-		dms_assert(m_Status >= task_status::running);
+		assert(m_Status >= task_status::running);
 		OnException();
 		resultStatus = task_status::exception;
 	}

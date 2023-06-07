@@ -3,7 +3,7 @@
 			<ProjectGuid>{6C970A99-641C-4E6E-8D23-1E74FD094BE6}</ProjectGuid>
 			<MainSource>GeoDmsGui.dpr</MainSource>
 			<Base>True</Base>
-			<Config Condition="'$(Config)'==''">Debug</Config>
+			<Config Condition="'$(Config)'==''">Release</Config>
 			<TargetedPlatforms>3</TargetedPlatforms>
 			<AppType>Application</AppType>
 			<FrameworkType>VCL</FrameworkType>
@@ -248,7 +248,7 @@
 						<VersionInfo Name="MajorVer">5</VersionInfo>
 						<VersionInfo Name="MinorVer">95</VersionInfo>
 						<VersionInfo Name="Release">1</VersionInfo>
-						<VersionInfo Name="Build">103</VersionInfo>
+						<VersionInfo Name="Build">105</VersionInfo>
 						<VersionInfo Name="Debug">False</VersionInfo>
 						<VersionInfo Name="PreRelease">False</VersionInfo>
 						<VersionInfo Name="Special">False</VersionInfo>
@@ -260,7 +260,7 @@
 					<VersionInfoKeys>
 						<VersionInfoKeys Name="CompanyName">Object Vision BV</VersionInfoKeys>
 						<VersionInfoKeys Name="FileDescription"/>
-						<VersionInfoKeys Name="FileVersion">5.95.1.103</VersionInfoKeys>
+						<VersionInfoKeys Name="FileVersion">5.95.1.105</VersionInfoKeys>
 						<VersionInfoKeys Name="InternalName"/>
 						<VersionInfoKeys Name="LegalCopyright"/>
 						<VersionInfoKeys Name="LegalTrademarks"/>
@@ -308,18 +308,18 @@
 					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.exe">
 						<Platform Name="Win64"/>
 					</DeployFile>
-					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
-						<Platform Name="Win32">
-							<RemoteName>GeoDmsGui.rsm</RemoteName>
-						</Platform>
+					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
+						<Platform Name="Win32"/>
 					</DeployFile>
 					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.rsm">
 						<Platform Name="Win64">
 							<RemoteName>GeoDmsGui.rsm</RemoteName>
 						</Platform>
 					</DeployFile>
-					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
-						<Platform Name="Win32"/>
+					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
+						<Platform Name="Win32">
+							<RemoteName>GeoDmsGui.rsm</RemoteName>
+						</Platform>
 					</DeployFile>
 					<DeployClass Name="ProjectOutput" Required="true">
 						<Platform Name="OSX32">

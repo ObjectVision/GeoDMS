@@ -14,6 +14,7 @@
 #include <QMainWindow>
 #include <QApplication>
 
+#include "dbg/SeverityType.h"
 #include "ShvDllInterface.h"
 #include "TicInterface.h"
 #include "StateChangeNotification.h"
@@ -86,6 +87,11 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	auto rval = data_list.join(sep);
 
 	return rval;
+}
+
+DmsModel::~DmsModel()
+{
+	MainWindow::EventLog(SeverityTypeID::ST_MajorTrace, "bye bye DmsModel");
 }
 
 const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const

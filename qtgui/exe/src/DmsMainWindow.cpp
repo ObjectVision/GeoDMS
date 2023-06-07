@@ -195,6 +195,8 @@ void MainWindow::fileOpen()
     {
         m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
         m_root->EnableAutoDelete();
+        m_root = nullptr;
+        m_treeview->setModel(nullptr); // does this destroy the 
     }
     LoadConfig(configFileName.toUtf8().data());
 }
@@ -318,7 +320,7 @@ void MainWindow::updateToolbar(int index)
     }
 }
 
-void MainWindow::defaultView()
+void MainWindow::createView(ViewStyle viewStyle)
 {
     static UInt32 s_ViewCounter = 0;
 
@@ -332,7 +334,7 @@ void MainWindow::defaultView()
     HWND hWndMain = (HWND)winId();
 
     auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
-    auto dmsControl = new QDmsViewArea(dataViewDockWidget, hWndMain, viewContextItem, currItem);
+    auto dmsControl = new QDmsViewArea(dataViewDockWidget, hWndMain, viewContextItem, currItem, viewStyle);
     //    m_dms_views.emplace_back(name, vs, dv);
     //    m_dms_view_it = --m_dms_views.end();
     //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
@@ -342,6 +344,21 @@ void MainWindow::defaultView()
     dataViewDockWidget->resize(250, 150);
     dataViewDockWidget->setMinimumSize(200, 150);
     m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);
+}
+
+void MainWindow::defaultView()
+{
+    createView(SHV_GetDefaultViewStyle(getCurrentTreeItem()));
+}
+
+void MainWindow::mapView()
+{
+    createView(ViewStyle::tvsMapView);
+}
+
+void MainWindow::tableView()
+{
+    createView(ViewStyle::tvsTableView);
 }
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
@@ -370,11 +387,18 @@ void MainWindow::showTreeviewContextMenu(const QPoint& pos)
     connect(default_view_action, &QAction::triggered, this, &MainWindow::defaultView);
 
     // table view
+    auto table_view_action = new QAction(tr("&Table View"), this);
+    table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    table_view_action->setDisabled(true);
+    m_treeview_context_menu->addAction(table_view_action);
+    connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
 
     // map view
-
-
-
+    auto map_view_action = new QAction(tr("&Map View"), this);
+    map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    map_view_action->setDisabled(true);
+    m_treeview_context_menu->addAction(map_view_action);
+    connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
     
     m_treeview_context_menu->exec(m_treeview->viewport()->mapToGlobal(pos));
     //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
@@ -516,6 +540,18 @@ void MainWindow::createActions()
     auto viewDefaultAct = new QAction("Default View");
     connect(viewDefaultAct, &QAction::triggered, this, &MainWindow::defaultView);
     viewMenu->addAction(viewDefaultAct);
+
+    // table view
+    auto table_view_action = new QAction(tr("&Table View"), this);
+    table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    viewMenu->addAction(table_view_action);
+    connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
+
+    // map view
+    auto map_view_action = new QAction(tr("&Map View"), this);
+    map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    viewMenu->addAction(map_view_action);
+    connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
 
     menuBar()->addSeparator();
 

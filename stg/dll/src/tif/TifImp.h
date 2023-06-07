@@ -65,6 +65,21 @@ typedef	struct tiff TIFF;
 
 //  --CLASSES------------------------------------------------------------------
 
+struct TifErrorFrame
+{
+	STGIMPL_CALL TifErrorFrame();
+	STGIMPL_CALL ~TifErrorFrame();
+
+	void ThrowUpWhateverCameUp();
+	void ReleaseError();
+
+	TifErrorFrame* m_PrevFrame;
+	CharPtr m_ErrType = nullptr;
+	SharedStr m_Msg;
+};
+
+//  --CLASSES------------------------------------------------------------------
+
 class TifImp
 {
 private:

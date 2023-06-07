@@ -28,51 +28,46 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 #pragma once
 
-#if !defined(__STGIMPL_IMPLMAIN_H)
-#define __STGIMPL_IMPLMAIN_H
+#if !defined(__STGIMPL_FILEHANDLE_H)
+#define __STGIMPL_FILEHANDLE_H
 
-#include "RtcBase.h"
-#include "ptr/SharedStr.h"
+#include "ImplMain.h"
 
-#ifdef DMSTGIMPL_EXPORTS
-#	define STGIMPL_CALL __declspec(dllexport)
-#else
-#	ifdef DMSTGIMPL_STATIC
-#		define STGIMPL_CALL
-#	else
-#		define STGIMPL_CALL __declspec(dllimport)
-#	endif
-#endif
+#include "ptr/WeakPtr.h"
+#include "ser/FileCreationMode.h"
+struct SafeFileWriterArray;
 
-//	define coulore locale
-typedef bool           Boolean;
+// ============================= FilePtrHandle (non-polymorphic base class for specific handles
 
-typedef UInt8          UByte;
-typedef short          Short;
-typedef unsigned short UShort;
-typedef long           Long;
-typedef double         Double;
-typedef float          Float;
+typedef struct _iobuf FILE; // defined in stdio.h
 
-//	define common OS dependent structures
-typedef struct tagRGBQUAD RGBQUAD;
+#define NR_PAGES_DATFILE 16
+#define NR_PAGES_HDRFILE  1
+#define NR_PAGES_DIRECTIO 0
 
-
-struct SAMPLEFORMAT
+class FilePtrHandle
 {
-	enum ENUM {
-		SF_UINT = 1, /* !unsigned integer data */
-		SF_INT = 2, /* !signed integer data */
-		SF_IEEEFP = 3, /* !IEEE floating point data */
-		SF_VOID = 4, /* !untyped data */
-		SF_COMPLEXINT = 5, /* !complex signed int */
-		SF_COMPLEXIEEEFP = 6  /* !complex ieee floating */
-	} m_Value;
+public:
+	STGDLL_CALL FilePtrHandle ();
+	STGDLL_CALL ~FilePtrHandle();
 
-	STGIMPL_CALL SAMPLEFORMAT(bool isSigned, bool isFloat, bool isComplex);
-	STGIMPL_CALL SAMPLEFORMAT(const ValueClass* vc);
-	//	operator ENUM () const { return m_Value; }
+	STGDLL_CALL bool OpenFH  (WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode fm, bool translate, UInt32 nrPagesInBuffer);
+	STGIMPL_CALL void CloseFH ();
+
+	STGDLL_CALL SizeT GetFileSize() const;
+
+	bool IsOpen() const { return m_FP; }
+
+	// Don't use the following results to close a file yourself, let FilePtrHandle manage the resource
+	FILE* GetFP()     const { return m_FP; }    
+	operator FILE* () const { return GetFP(); }
+
+private:
+	void SetBufferSize(UInt32 nrPagesInBuffer);
+
+	FILE* m_FP = nullptr;
+	bool  m_TranslateText :1 = false, m_CanRead : 1 = false, m_CanWrite : 1 = false;
 };
 
 
-#endif // __STGIMPL_IMPLMAIN_H
+#endif // __STGIMPL_FILEHANDLE_H

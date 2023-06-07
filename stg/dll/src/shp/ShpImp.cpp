@@ -34,6 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 
 
+#include "StoragePch.h"
 #include "ImplMain.h"
 #pragma hdrstop
 
@@ -104,13 +105,12 @@ SharedStr CalcPrjName(CharPtr name)
 	return getFileNameBase(name) + ".prj";
 }
 
+
 // ---------------------------------------------------
 //
 // Implementations for class ShpImp and helper classes
 //
 // ---------------------------------------------------
-
-
 
 // Initialise privates
 ShpImp::ShpImp()
@@ -144,7 +144,7 @@ void ShpImp::Close()
 
 bool ShpImp::Open(WeakStr name,	SafeFileWriterArray* sfwa, bool alsoWrite, bool writePrj)
 {
-	dms_assert(!m_FH.IsOpen());
+	assert(!m_FH.IsOpen());
 	Close();
 
 	FileCreationMode fcm = alsoWrite ? FCM_CreateAlways : FCM_OpenReadOnly;
@@ -164,11 +164,11 @@ bool ShpImp::Open(WeakStr name,	SafeFileWriterArray* sfwa, bool alsoWrite, bool 
 			Close();
 			return false;
 		}
-		dms_assert(m_PRJ.IsOpen());
+		assert(m_PRJ.IsOpen());
 	}
 
-	dms_assert(m_FH.IsOpen());
-	dms_assert(m_FHX.IsOpen());
+	assert(m_FH.IsOpen());
+	assert(m_FHX.IsOpen());
 
 	return true;
 }
@@ -178,7 +178,7 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
 {
 	DBG_START("ShpImp", "ReadHeader", false);
 
-	dms_assert(!m_FH.IsOpen());
+	assert(!m_FH.IsOpen());
 
 	// Try to open
 	Close();
@@ -203,14 +203,14 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
 //	m_BoundingBox.first.second  = head.m_Ymin;
 //	m_BoundingBox.second.first  = head.m_Max;
 //	m_BoundingBox.second.second = head.m_Ymax;
-	dms_assert(head.m_FileLength >= 0);
+	assert(head.m_FileLength >= 0);
 	m_FileLength = head.m_FileLength * 2;
 
 	// Read SHX header to derive nrRecs
 	if (m_FHX)
 	{
 		head.Read(m_FHX);
-		dms_assert(head.m_FileLength >= 50);
+		assert(head.m_FileLength >= 50);
 		m_NrRecs = (head.m_FileLength - 50) / 4;
 	}
 	else
@@ -289,9 +289,9 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 		}
 		if (!m_NrRecs)
 			m_NrRecs = m_Polygons.size();
-		dms_assert(m_Polygons .size() == m_NrRecs);
-		dms_assert(m_SeqPoints.size() == m_NrRecs);
-		dms_assert(m_SeqParts .size() == m_NrRecs);
+		assert(m_Polygons .size() == m_NrRecs);
+		assert(m_SeqPoints.size() == m_NrRecs);
+		assert(m_SeqParts .size() == m_NrRecs);
 	}
 	// Done
 	DBG_TRACE(("pos = %d (expected %d)", pos, m_FileLength));
@@ -340,7 +340,7 @@ bool ShpImp::Write(WeakStr name, SafeFileWriterArray* sfwa, SharedStr wktPrjStr)
 	if (IsPoint(m_ShapeType))
 	{
 		rhead.ContentLength = (sizeof(ShpPoint) + sizeof(UInt32) ) / 2; // length is the same for each point
-		dms_assert(rhead.ContentLength == 10);
+		assert(rhead.ContentLength == 10);
 
 		for (auto point = m_Points.begin(), pointEnd = m_Points.end(); point != pointEnd; ++point)
 		{
@@ -491,8 +491,8 @@ void ShpImp::CheckShapeType() const
 void ShpImp::CheckShapeType(ShapeTypes st) const
 {
 	CheckShapeType();
-	dms_assert(!IsNone(st));
-	dms_assert(IsPoint(st)==IsPoint(m_ShapeType));
+	assert(!IsNone(st));
+	assert(IsPoint(st)==IsPoint(m_ShapeType));
 }
 #endif
 
@@ -796,7 +796,7 @@ void ShpPolygon::Assign(const ShpPolygon& src)
 	m_Header = src.m_Header;
 	m_Parts.Assign(src.m_Parts);
 	m_Points.Assign(src.m_Points);
-	dms_assert(Check());
+	assert(Check());
 }
 
 
@@ -815,7 +815,7 @@ std::size_t ShpPolygon::Read(FILE* fp)
 	}
 	pos += m_Points.Read(fp, m_Header.m_NumPoints);
 
-	dms_assert(Check());
+	assert(Check());
 
 	return pos;
 }
@@ -828,7 +828,7 @@ std::size_t ShpPolygon::Write(FILE * fp) const
 	
 	std::size_t pos = m_Header.Write(fp);
 
-	dms_assert(Check());
+	assert(Check());
 
 	if (m_Header.HasParts())
 		pos += m_Parts.Write(fp);
@@ -839,16 +839,16 @@ std::size_t ShpPolygon::Write(FILE * fp) const
 
 bool ShpPolygon::Check() const
 {
-	dms_assert(((*m_Points).size() > 0) == ((*m_Parts ).size() > 0));
-	dms_assert(((*m_Parts ).size() == 0) || (*m_Parts)[0] == 0);
-	dms_assert(m_Header.m_NumParts  == (*m_Parts ).size());
-	dms_assert(m_Header.m_NumPoints == (*m_Points).size());
-	dms_assert(m_Parts.m_Index == m_Points.m_Index);
+	assert(((*m_Points).size() > 0) == ((*m_Parts ).size() > 0));
+	assert(((*m_Parts ).size() == 0) || (*m_Parts)[0] == 0);
+	assert(m_Header.m_NumParts  == (*m_Parts ).size());
+	assert(m_Header.m_NumPoints == (*m_Points).size());
+	assert(m_Parts.m_Index == m_Points.m_Index);
 	for (UInt32 i = 1, n = (*m_Parts).size(); i < n; ++i)
 	{
-		dms_assert((*m_Parts)[i] > (*m_Parts)[i-1]);
+		assert((*m_Parts)[i] > (*m_Parts)[i-1]);
 	}
-	dms_assert(((*m_Parts ).size() == 0) || (*m_Parts).back() < ShpPointIndex((*m_Points).size()));
+	assert(((*m_Parts ).size() == 0) || (*m_Parts).back() < ShpPointIndex((*m_Points).size()));
 	return true;
 }
 // Record size in 16bit words (as in ESRI recordheader)
@@ -871,16 +871,16 @@ bool ShpPolygon::CalcBox()
 	m_Header.m_NumParts  = (*m_Parts ).size();
 	if (!m_Header.m_NumParts)
 	{
-		dms_assert(!m_Header.m_NumPoints);
+		assert(!m_Header.m_NumPoints);
 		DBG_TRACE(("empty polygon"));
 		return false;
 	}
-	dms_assert(m_Header.m_NumPoints);
+	assert(m_Header.m_NumPoints);
 
 	ConstPointIter
 		point    = (*m_Points).begin(),
 		pointEnd = (*m_Points).end();
-	dms_assert(point != pointEnd); 
+	assert(point != pointEnd); 
 	
 	m_Header.m_Box = RangeFromSequence(point, pointEnd); // Loop through the points
 	return true;
@@ -913,9 +913,9 @@ UInt32 ShpImp::ShapeSet_NrParts() const
 }
 
 // The total nr of points in a polygonrecord
-inline UInt32 ShpImp::ShapeSet_NrPoints(UInt32 recNr) const
+UInt32 ShpImp::ShapeSet_NrPoints(UInt32 recNr) const
 {
-	dms_assert(recNr < NrRecs() );
+	assert(recNr < NrRecs() );
 
 	// How many points in polygon?
 	return m_Polygons[recNr].NrPoints();
@@ -923,10 +923,10 @@ inline UInt32 ShpImp::ShapeSet_NrPoints(UInt32 recNr) const
 
 
 // The nr of rings in a polygon
-inline UInt32 ShpImp::ShapeSet_NrParts(UInt32 recNr) const
+UInt32 ShpImp::ShapeSet_NrParts(UInt32 recNr) const
 {
-	dms_assert(recNr < NrRecs() );
-	dms_assert(recNr < m_Polygons.size()); // is this a polygon shapefile?
+	assert(recNr < NrRecs() );
+	assert(recNr < m_Polygons.size()); // is this a polygon shapefile?
 
 	// How many parts in polygon?
 	return (*m_Polygons[recNr].m_Parts).size();
@@ -938,8 +938,8 @@ UInt32 ShpImp::ShapeSet_NrPoints(UInt32 recNr, UInt32 partNr) const
 {
 	DBG_START("ShpImp", "NrPoints(recnr, partnr)", false);
 
-	dms_assert(recNr < NrRecs() );
-	dms_assert(recNr < m_Polygons.size()); // is this a polygon shapefile?
+	assert(recNr < NrRecs() );
+	assert(recNr < m_Polygons.size()); // is this a polygon shapefile?
 
 	return m_Polygons[recNr].NrPoints(partNr);
 }
@@ -949,7 +949,7 @@ ConstPointIterRange ShpImp::ShapeSet_GetPoints(UInt32 recNr) const // Gets all r
 {
 	DBG_START("ShpImp", "GetPoints", false);
 
-	dms_assert(recNr < m_Polygons.size());
+	assert(recNr < m_Polygons.size());
 	const ShpPolygon& polygon = m_Polygons[recNr];
 
 	sequence_array<ShpPoint>::const_reference r = *polygon.m_Points;
@@ -961,11 +961,11 @@ ConstPointIterRange ShpImp::ShapeSet_GetPoints(UInt32 recNr, UInt32 partNr) cons
 {
 	DBG_START("ShpImp", "GetPoints", false);
 
-	dms_assert(recNr < m_Polygons.size());
+	assert(recNr < m_Polygons.size());
 	const ShpPolygon& polygon = m_Polygons[recNr];
 
 	// How many parts in polygon?
-	dms_assert(partNr < polygon.m_Parts.get_ptr()->size());
+	assert(partNr < polygon.m_Parts.get_ptr()->size());
 	UInt32 cnt = polygon.NrPoints(partNr);
 
 	UInt32 partStart = (*polygon.m_Parts)[partNr];
@@ -983,7 +983,7 @@ const ShpPoint& ShpImp::ShapeSet_GetPoint(UInt32 recNr, UInt32 partNr, UInt32 po
 
 void ShpImp::SetShapeType(ShapeTypes shapeType)
 {
-	dms_assert((m_ShapeType == 0 && !m_Polygons.size()) || m_ShapeType == shapeType);
+	assert((m_ShapeType == 0 && !m_Polygons.size()) || m_ShapeType == shapeType);
 
 	m_ShapeType = shapeType;
 
@@ -994,8 +994,8 @@ ShpPolygon& ShpImp::ShapeSet_PushBackPolygon(ShapeTypes shapeType)
 {
 	m_Polygons.push_back(ShpPolygon(shapeType));
 	
-//	dms_assert(m_SeqPoints.size() < m_SeqPoints.capacity()); // => m_SeqPoints.end() != NULL
-//	dms_assert(m_SeqParts.size()  < m_SeqParts .capacity()); // => m_SeqParts.end()  != NULL
+//	assert(m_SeqPoints.size() < m_SeqPoints.capacity()); // => m_SeqPoints.end() != NULL
+//	assert(m_SeqParts.size()  < m_SeqParts .capacity()); // => m_SeqParts.end()  != NULL
 
 //	static_cast<sequence_array<ShpPoint>::iterator&>(m_Polygons.back().m_Points) = m_SeqPoints.end(); m_SeqPoints.push_back(Undefined());
 //	static_cast<sequence_array<long>    ::iterator&>(m_Polygons.back().m_Parts ) = m_SeqParts.end();  m_SeqParts .push_back(Undefined());

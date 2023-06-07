@@ -96,7 +96,6 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp">
       <Filter>Qt Advanced Docking System</Filter>
     </ClCompile>
-    <ClCompile Include="src\mymodel.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -192,9 +191,6 @@
     </ClInclude>
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
       <Filter>Qt Advanced Docking System</Filter>
-    </ClInclude>
-    <ClInclude Include="src\DmsViewArea.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
