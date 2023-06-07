@@ -54,5 +54,6 @@
         <file>res/images/right_arrow.png</file>
         <file>res/images/right_arrow_hover.png</file>
         <file>res/images/down_arrow_hover.png</file>
+        <file>res/fonts/dmstext.ttf</file>
     </qresource>
 </RCC>

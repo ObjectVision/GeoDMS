@@ -215,7 +215,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	case Qt::DecorationRole: return getTreeItemIcon(index);
 	case Qt::EditRole: return QString(ti->GetName().c_str());
 	case Qt::DisplayRole: return  QString(ti->GetName().c_str());
-	case Qt::ForegroundRole: 
+	case Qt::ForegroundRole:
 	{
 		return QColor(Qt::red);
 	}
@@ -227,6 +227,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		int pixels_high = font_metrics.height();
 		return QSize(pixels_wide, pixels_high);
 	}
+	case Qt::FontRole: {return QApplication::font(); };
 	default: return QVariant();
 	}
 }

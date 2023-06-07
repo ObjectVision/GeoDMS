@@ -35,6 +35,9 @@ MainWindow::MainWindow()
     //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //setStyle(fusion_style);
 
+    QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
+    QApplication::setFont(dms_text_font);
+
     // test widget for ads and mdi
     QTableWidget* propertiesTable_1 = new QTableWidget();
     propertiesTable_1->setColumnCount(3);
