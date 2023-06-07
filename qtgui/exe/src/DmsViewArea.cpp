@@ -43,16 +43,21 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QWidget(parent)
 {
-    HINSTANCE instance = GetInstance((HWND)hWndMain);//m_Views.at(m_ViewIndex).m_HWNDParent);
-    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only wonce
+    assert(currItem); // Precondition
 
-    
+    HINSTANCE instance = GetInstance((HWND)hWndMain);//m_Views.at(m_ViewIndex).m_HWNDParent);
+    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only wonce    
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
-       
-    auto vs = WS_CHILD; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    if (!m_DataView)
+        throwErrorF("CreateView", "Cannot create view with style %d for %s"
+            , viewStyle
+            , currItem->GetFullName().c_str()
+        );
+
+    auto vs = WS_CHILD| WS_CLIPSIBLINGS; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_HWnd = CreateWindowEx(
-        0L,                            // no extended styles
+        WS_EX_OVERLAPPEDWINDOW,                            // no extended styles
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
         vs,                            // styles

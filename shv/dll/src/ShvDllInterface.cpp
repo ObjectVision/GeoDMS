@@ -352,6 +352,8 @@ void DMS_CONV SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle client
 {
 	DMS_CALL_BEGIN
 
+		assert(self); // Precondition
+
 		CheckPtr(self, DataView::GetStaticClass(), "SHV_DataView_SetStatusTextFunc");
 
 		self->SetStatusTextFunc(clientHandle, stf);
