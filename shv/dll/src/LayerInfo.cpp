@@ -436,10 +436,10 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 
 	const TreeItem* mappingItem = GetMappingItem(adi);
 	if (mappingItem)
-		infoTxt = mySSPrintF("the selected %s", mappingItem->GetFullName().c_str());
+		infoTxt = mySSPrintF("the selected '%s'", mappingItem->GetFullName().c_str());
 	else
 	{
-		infoTxt = mySSPrintF("the DomainUnit %s", adu->GetFullName().c_str());
+		infoTxt = mySSPrintF("the DomainUnit '%s'", adu->GetFullName().c_str());
 		mappingItem = GetMappingItem(adu);
 	}
 	if (!mappingItem)

@@ -110,6 +110,7 @@ MainWindow::~MainWindow()
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
+    DMS_SetGlobalCppExceptionTranslator(nullptr);
     DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
@@ -492,9 +493,14 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
+void CppExceptionTranslator(CharPtr msg)
+{
+    MainWindow::EventLog(SeverityTypeID::ST_Error, msg);
+}
+
 void MainWindow::setupDmsCallbacks()
 {
-    //DMS_SetGlobalCppExceptionTranslator(&m_EventLog.GeoDMSExceptionMessage);
+    DMS_SetGlobalCppExceptionTranslator(CppExceptionTranslator);
     DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
