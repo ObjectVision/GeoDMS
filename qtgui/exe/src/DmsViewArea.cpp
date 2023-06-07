@@ -86,12 +86,15 @@ void QDmsViewArea::moveEvent(QMoveEvent* event)
     QWidget::moveEvent(event);
     m_Pos = event->pos();
     QWidget* w = this->parentWidget();
-    while (w)
+    if (w)
     {
-        m_Pos += w->pos();
-        w = w->parentWidget();
+        auto p = w->parentWidget();
+        while (p)
+        {
+            m_Pos += w->pos();
+            w = p; p = p->parentWidget();
+        }
     }
-    m_Pos.ry() += 64; // TODO: ???
     UpdatePos();
 }
 
@@ -106,7 +109,7 @@ void QDmsViewArea::UpdatePos()
 {
     SetWindowPos((HWND)m_HWnd, HWND_TOP
         , m_Pos.x(), m_Pos.y()
-        , m_Size.width(), m_Size.height()-64
+        , m_Size.width(), m_Size.height()
         , SWP_SHOWWINDOW|SWP_ASYNCWINDOWPOS
     );
 }

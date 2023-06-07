@@ -346,9 +346,11 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
         auto dmsControl = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
-        m_mdi_area->addSubWindow(dmsControl);
-        m_mdi_area->show();
-        dmsControl->show();
+        auto mdiSubWindow = m_mdi_area->addSubWindow(dmsControl);
+//        m_mdi_area->show();
+
+        mdiSubWindow->setMinimumSize(200, 150);
+        mdiSubWindow->show();
 
         //    m_dms_views.emplace_back(name, vs, dv);
         //    m_dms_view_it = --m_dms_views.end();
