@@ -1402,7 +1402,7 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 
 	if (m_ViewSize == point)
 		return;
-	if (point.x < 0 || point.y < 0)
+	if (point.x <= 0 || point.y <= 0)
 	{
 		GetContents()->InvalidateDraw();
 		return;

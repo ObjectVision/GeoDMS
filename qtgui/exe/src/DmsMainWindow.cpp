@@ -5,9 +5,12 @@
 #include "act/MainThread.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
+#include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
+
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
+
 #include "TreeItem.h"
 #include "DataView.h"
 #include "ShvDllInterface.h"
@@ -67,6 +70,8 @@ MainWindow::MainWindow()
 
     //centralDockArea = //m_DockManager->setCentralWidget(CentralDockWidget);
     setCentralWidget(m_mdi_area.get());
+
+    m_mdi_area->show();
 
     createStatusBar();
     createDmsHelperWindowDocks();
@@ -326,33 +331,43 @@ void MainWindow::updateToolbar(int index)
 
 void MainWindow::createView(ViewStyle viewStyle)
 {
-    static UInt32 s_ViewCounter = 0;
+    try
+    {
+        static UInt32 s_ViewCounter = 0;
 
-    auto currItem = getCurrentTreeItem();
-    if (!currItem)
-        return;
+        auto currItem = getCurrentTreeItem();
+        if (!currItem)
+            return;
 
-    auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
-    auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
+        auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
+        auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-    HWND hWndMain = (HWND)winId();
+        HWND hWndMain = (HWND)winId();
 
-    //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
-    auto dmsControl = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
-    m_mdi_area->addSubWindow(dmsControl);
-    
+        //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
+        auto dmsControl = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
+        m_mdi_area->addSubWindow(dmsControl);
+        m_mdi_area->show();
+        dmsControl->show();
 
-    //    m_dms_views.emplace_back(name, vs, dv);
-    //    m_dms_view_it = --m_dms_views.end();
-    //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
+        //    m_dms_views.emplace_back(name, vs, dv);
+        //    m_dms_view_it = --m_dms_views.end();
+        //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
 
-    //m_mdi_area->
+        //m_mdi_area->
 
-    /*dataViewDockWidget->setWidget(dmsControl);
-    dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-    dataViewDockWidget->resize(250, 150);
-    dataViewDockWidget->setMinimumSize(200, 150);
-    m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);*/
+        /*dataViewDockWidget->setWidget(dmsControl);
+        dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
+        dataViewDockWidget->resize(250, 150);
+        dataViewDockWidget->setMinimumSize(200, 150);
+        m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);*/
+    }
+     
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::EventLog(SeverityTypeID::ST_Error, errMsg->Why().c_str());
+    }
 }
 
 void MainWindow::defaultView()

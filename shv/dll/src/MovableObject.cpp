@@ -237,7 +237,8 @@ void MovableObject::SetFullRelRect(TRect r)
 {
 	if (HasBorder())
 		r.Shrink(BORDERSIZE);
-	SetClientRect(r);
+	if (!r.empty())
+		SetClientRect(r);
 }
 
 void MovableObject::InvalidateClientRect(TRect rect) const
