@@ -69,16 +69,11 @@ class DmsToolbuttonAction : public QAction
 public:
     DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {});
 
-signals:
-
-
-private slots:
-
+public slots:
+    void onToolbuttonPressed();
 
 private:
-    
     ToolbarButtonData m_data;
-        
 };
 
 class MainWindow : public QMainWindow
@@ -93,6 +88,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
+    auto getDmsMdiAreaPtr() -> QMdiArea* { return m_mdi_area.get(); }
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -112,7 +108,7 @@ private slots:
     void aboutGeoDms();
     void createView(ViewStyle viewStyle);
 
-    void updateToolbar(int index);
+    void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
 
 private:

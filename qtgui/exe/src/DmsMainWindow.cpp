@@ -261,6 +261,24 @@ DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text,
     m_data = std::move(button_data);
 }
 
+void DmsToolbuttonAction::onToolbuttonPressed()
+{
+    auto mdi_area = MainWindow::TheOne()->getDmsMdiAreaPtr();
+    if (!mdi_area)
+        return;
+
+    auto subwindow_list = MainWindow::TheOne()->getDmsMdiAreaPtr()->subWindowList(QMdiArea::WindowOrder::StackingOrder);
+    auto subwindow_highest_in_z_order = subwindow_list.back();
+    if (!subwindow_highest_in_z_order)
+        return;
+
+    auto dms_view_area = dynamic_cast<QDmsViewArea*>(subwindow_highest_in_z_order->widget());
+    if (!dms_view_area)
+        return;
+
+    SendMessage((HWND)dms_view_area->getHwnd(), WM_COMMAND, m_data.ids[0], 0);
+}
+
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 {
     switch (button_id)
@@ -292,19 +310,30 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     return {};
 }
 
-void MainWindow::updateToolbar(int index)
+void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
 {
-    /*auto active_dock_widget = centralDockArea->dockWidget(index);
-    auto dms_view_area = dynamic_cast<QDmsViewArea*>(active_dock_widget->widget());
     if (m_toolbar)
         removeToolBar(m_toolbar);
 
+    if (!active_mdi_subwindow)
+        return;
+
+    auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow->widget());
+
+    addToolBarBreak();
     m_toolbar = addToolBar(tr("dmstoolbar"));
-    if (!dms_view_area)
+    m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
+                             /*"QToolBar { spacing: 0px;   }\n"
+                             "QToolButton{margin: 0px 0px;}\n"
+                             "QToolButton{spacing: 0px;}\n");*/
+    auto default_icon_size = m_toolbar->iconSize();
+    m_toolbar->setIconSize(QSize(32, 32));
+    
+    if (!active_dms_view_area)
         return;
 
     // create new actions
-    auto* dv = dms_view_area->getDataView();// ->OnCommandEnable();
+    auto* dv = active_dms_view_area->getDataView();// ->OnCommandEnable();
     if (!dv)
         return;
 
@@ -327,8 +356,9 @@ void MainWindow::updateToolbar(int index)
         auto action = new  DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
         m_toolbar->addAction(action);
 
-        // TODO: add connections
-    }*/
+        // connections
+        connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
+    }
 }
 
 std::string fillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
@@ -353,7 +383,6 @@ std::string fillOpenConfigSourceCommand(const std::string_view command, const st
 
 void MainWindow::openConfigSource()
 {
-    
     //QString file = QDir::homepath + "file.exe";
     //process.start(file);
     std::string command = GetGeoDmsRegKey("DmsEditor").c_str(); // TODO: replace with Qt application persistent data 
@@ -575,7 +604,7 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    //connect(centralDockArea, &ads::CDockAreaWidget::currentChanged, this, &MainWindow::updateToolbar);
+    connect(m_mdi_area.get(), &QMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
     auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);

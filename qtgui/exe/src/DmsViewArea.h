@@ -14,8 +14,7 @@ public:
     QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
     ~QDmsViewArea();
     auto getDataView()->DataView* { return m_DataView;}
-
-private slots:
+    auto getHwnd() -> void* { return m_HWnd; }
 
 private:
     void moveEvent(QMoveEvent* event) override;
