@@ -655,24 +655,25 @@ void MainWindow::createActions()
     editToolBar->addAction(undoAct);
 */
     auto viewMenu = menuBar()->addMenu(tr("&View"));
-    auto viewDefaultAct = new QAction("Default View");
-    viewDefaultAct->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
-    connect(viewDefaultAct, &QAction::triggered, this, &MainWindow::defaultView);
-    viewMenu->addAction(viewDefaultAct);
+    m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
+    m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
+    viewMenu->addAction(m_defaultview_action.get());
 
     // table view
-    auto table_view_action = new QAction(tr("&Table View"), this);
-    //table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
-    table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    viewMenu->addAction(table_view_action);
-    connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
+    m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
+    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
+    m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
+    viewMenu->addAction(m_tableview_action.get());
 
     // map view
-    auto map_view_action = new QAction(tr("&Map View"), this);
-    //map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
-    map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
-    viewMenu->addAction(map_view_action);
-    connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
+    m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
+    m_mapview_action->setShortcut(QKeySequence(tr("Ctrl+M")));
+    m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
+    viewMenu->addAction(m_mapview_action.get());
 
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));

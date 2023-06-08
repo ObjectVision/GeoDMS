@@ -327,14 +327,14 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {
 	// treeview shortcuts
-	auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D", "Table View")), this);
-	connect(tableview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::tableView);
+	//auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D", "Table View")), this);
+	//connect(tableview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::tableView);
 
-	auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M", "Map View")), this);
-	connect(mapview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::mapView);
+	//auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M", "Map View")), this);
+	//connect(mapview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::mapView);
 
-	auto open_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E", "Open Config Source")), this);
-	connect(open_config_source_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::openConfigSource);
+	//auto open_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E", "Open Config Source")), this);
+	//connect(open_config_source_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::openConfigSource);
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
@@ -352,32 +352,20 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
 
 	// default view
-	auto default_view_action = new QAction(tr("&Default View"), this);
-	default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+	auto default_view_action = MainWindow::TheOne()->getDefaultviewAction();
 	default_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)) ? false : true); // TODO: vsfDefault appears to never be set
 	m_context_menu->addAction(default_view_action);
-	connect(default_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::defaultView);
 
 	// table view
-	auto table_view_action = new QAction(tr("&Table View"), this);
-	table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+	auto table_view_action = MainWindow::TheOne()->getTableviewAction();
 	table_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer)) ? false : true);
-	table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
 	m_context_menu->addAction(table_view_action);
-	connect(table_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::tableView);
 
 	// map view
-	auto map_view_action = new QAction(tr("&Map View"), this);
-	map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+	auto map_view_action = MainWindow::TheOne()->getMapviewAction();
 	map_view_action->setDisabled((viewstyle_flags & ViewStyleFlags::vsfMapView) ? false : true);
-    map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
 	m_context_menu->addAction(map_view_action);
-	connect(map_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::mapView);
-
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
-	//connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
-
-	//contextMenu->exec(ui->treeView->viewport()->mapToGlobal(point));
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
