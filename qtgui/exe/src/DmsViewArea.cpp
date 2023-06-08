@@ -34,9 +34,23 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace)
-        dva->parentWidget()->setWindowTitle(msg);
-//    else
-//        dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
+    {
+
+        dva->setWindowTitle(msg);
+        // keep window in sync with widget
+        auto hWnd = (HWND)dva->getHwnd();
+/* support utf16 required ? 
+        QString uft16String(msg);
+        if (hWnd)
+            SetWindowTextW(hWnd, reinterpret_cast<const wchar_t*>(uft16String.unicode())); 
+*/
+        msg = "xyz ABC";
+        SetWindowTextA(hWnd, msg);
+    }
+    else
+    {
+        // dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
+    }
 }
 
 
@@ -66,13 +80,14 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
     }
 
     auto windowStyle = WS_CHILD | WS_CLIPSIBLINGS
-        | WS_BORDER | WS_DLGFRAME | WS_THICKFRAME
+        | WS_CAPTION   // enables TitleBar
+        | WS_THICKFRAME // enables sizing
         | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU;
 
-    auto exStyle = WS_EX_MDICHILD | WS_EX_OVERLAPPEDWINDOW;
+    auto exStyle = WS_EX_OVERLAPPEDWINDOW; // | WS_EX_MDICHILD;
 
     m_HWnd = CreateWindowEx(
-        WS_EX_OVERLAPPEDWINDOW,        // no extended styles
+        exStyle,                       // extended styles
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
         windowStyle,                   // styles
