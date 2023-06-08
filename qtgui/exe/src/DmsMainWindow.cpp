@@ -662,15 +662,14 @@ void MainWindow::createActions()
 
     // table view
     auto table_view_action = new QAction(tr("&Table View"), this);
-    table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
+    //table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
     table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    table_view_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     viewMenu->addAction(table_view_action);
     connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
 
     // map view
     auto map_view_action = new QAction(tr("&Map View"), this);
-    map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
+    //map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
     map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     viewMenu->addAction(map_view_action);
     connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);

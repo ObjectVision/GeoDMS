@@ -370,7 +370,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto map_view_action = new QAction(tr("&Map View"), this);
 	map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
 	map_view_action->setDisabled((viewstyle_flags & ViewStyleFlags::vsfMapView) ? false : true);
-	map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
+    map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
 	m_context_menu->addAction(map_view_action);
 	connect(map_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::mapView);
 
