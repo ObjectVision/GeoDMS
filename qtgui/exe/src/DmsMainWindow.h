@@ -144,9 +144,6 @@ private:
     QPointer<QListWidget> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
-
-
-
 };
 
 #endif

@@ -656,23 +656,55 @@ void MainWindow::createActions()
 */
     auto viewMenu = menuBar()->addMenu(tr("&View"));
     auto viewDefaultAct = new QAction("Default View");
+    viewDefaultAct->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
     connect(viewDefaultAct, &QAction::triggered, this, &MainWindow::defaultView);
     viewMenu->addAction(viewDefaultAct);
 
     // table view
     auto table_view_action = new QAction(tr("&Table View"), this);
+    table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
     table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    table_view_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     viewMenu->addAction(table_view_action);
     connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
 
     // map view
     auto map_view_action = new QAction(tr("&Map View"), this);
+    map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
     map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     viewMenu->addAction(map_view_action);
     connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
 
-    menuBar()->addSeparator();
+    // tools menu
+    auto tools_menu = menuBar()->addMenu(tr("&Tools"));
 
+    // window menu
+    auto window_menu = menuBar()->addMenu(tr("&Window"));
+    auto win1_action = new QAction(tr("&Tile Windows"), this);
+    win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
+    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
+
+    //auto win2_action = new QAction(tr("&Tile Vertical"), this);
+    //win2_action->setShortcut(QKeySequence(tr("Ctrl+Alt+V")));
+    auto win3_action = new QAction(tr("&Cascade"), this);
+    win3_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
+
+    auto win4_action = new QAction(tr("&Close"), this);
+    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
+
+    auto win5_action = new QAction(tr("&Close All"), this);
+    win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
+    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
+
+    /*vauto win6_action = new QAction(tr("&Close All But This"), this);
+    win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
+    connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);*/
+    window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
+
+
+    // help menu
     auto helpMenu = menuBar()->addMenu(tr("&Help"));
     QAction *aboutAct = helpMenu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
     aboutAct->setStatusTip(tr("Show the application's About box"));
