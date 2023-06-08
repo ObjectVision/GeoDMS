@@ -1,15 +1,19 @@
 #ifndef DMSVIEWAREA_H
 #define DMSVIEWAREA_H
 
-#include <QMainWindow.h>
 #include "ShvUtils.h"
+
+#include <QMdiSubWindow.h>
 
 struct TreeItem;
 class DataView;
 
-class QDmsViewArea : public QWidget
+class QDmsViewArea : public QMdiSubWindow
 {
     Q_OBJECT
+
+    using base_class = QMdiSubWindow;
+
 public:
     QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
     ~QDmsViewArea();

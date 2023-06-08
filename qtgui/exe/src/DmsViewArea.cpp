@@ -41,7 +41,7 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 
 
 QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
-    : QWidget(parent)
+    : QMdiSubWindow(parent)
 {
     assert(currItem); // Precondition
 
@@ -65,12 +65,17 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 
     }
 
-    auto vs = WS_CHILD| WS_CLIPSIBLINGS; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    auto windowStyle = WS_CHILD | WS_CLIPSIBLINGS
+        | WS_BORDER | WS_DLGFRAME | WS_THICKFRAME
+        | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU;
+
+    auto exStyle = WS_EX_MDICHILD | WS_EX_OVERLAPPEDWINDOW;
+
     m_HWnd = CreateWindowEx(
-        WS_EX_OVERLAPPEDWINDOW,                            // no extended styles
+        WS_EX_OVERLAPPEDWINDOW,        // no extended styles
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
-        vs,                            // styles
+        windowStyle,                   // styles
         CW_USEDEFAULT,                 // horizontal position 
         CW_USEDEFAULT,                 // vertical position
         m_Size.width(), m_Size.height(),   // width, height, to be reset by parent Widget
@@ -92,7 +97,8 @@ QDmsViewArea::~QDmsViewArea()
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)
 {
-    QWidget::moveEvent(event);
+    base_class::moveEvent(event);
+
     m_Pos = event->pos();
     QWidget* w = this->parentWidget();
     if (w)
@@ -109,7 +115,7 @@ void QDmsViewArea::moveEvent(QMoveEvent* event)
 
 void QDmsViewArea::resizeEvent(QResizeEvent* event)
 {
-    QWidget::resizeEvent(event);
+    base_class::resizeEvent(event);
     m_Size = event->size();
     UpdatePos();
 }
