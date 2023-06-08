@@ -325,17 +325,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
-{
-	// treeview shortcuts
-	//auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D", "Table View")), this);
-	//connect(tableview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::tableView);
-
-	//auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M", "Map View")), this);
-	//connect(mapview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::mapView);
-
-	//auto open_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E", "Open Config Source")), this);
-	//connect(open_config_source_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::openConfigSource);
-}
+{}
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 {
