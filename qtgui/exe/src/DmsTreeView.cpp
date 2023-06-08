@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QBoxLayout>
+#include <QShortcut>
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -326,6 +327,11 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {
 	// treeview shortcuts
+	auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D", "Table View")), this);
+	connect(tableview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::tableView);
+
+	auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M", "Map View")), this);
+	connect(mapview_shortcut, &QShortcut::activated, MainWindow::TheOne(), &MainWindow::mapView);
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
