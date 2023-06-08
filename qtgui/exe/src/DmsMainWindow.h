@@ -104,6 +104,7 @@ public slots:
     void defaultView();
     void tableView();
     void mapView();
+    void openConfigSource();
 
 private slots:
     void fileOpen();

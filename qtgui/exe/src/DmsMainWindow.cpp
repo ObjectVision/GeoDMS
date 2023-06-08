@@ -331,6 +331,56 @@ void MainWindow::updateToolbar(int index)
     }*/
 }
 
+std::string fillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
+{
+    //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
+    std::string result = command.data();
+    auto fn_part = result.find("%F");
+    auto tmp_str = result.substr(fn_part + 2);
+    if (fn_part != std::string::npos)
+    {
+        result.replace(fn_part, fn_part + 2, filename);
+        result += tmp_str;
+    }
+
+    auto ln_part = result.find("%L");
+
+    if (ln_part != std::string::npos)
+        result.replace(ln_part, ln_part + 2, line);
+
+    return result;
+}
+
+void MainWindow::openConfigSource()
+{
+    
+    //QString file = QDir::homepath + "file.exe";
+    //process.start(file);
+    std::string command = GetGeoDmsRegKey("DmsEditor").c_str(); // TODO: replace with Qt application persistent data 
+    std::string filename = getCurrentTreeItem()->GetConfigFileName().c_str();
+    std::string line = std::to_string(getCurrentTreeItem()->GetConfigFileLineNr());
+    std::string open_config_source_command = "";
+    if (!filename.empty() && !line.empty() && !command.empty())
+    {
+        auto unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, filename, line);
+        const TreeItem* ti = getCurrentTreeItem();
+
+        if (!ti)
+            ti = getRootTreeItem();
+
+        //std::string open_config_source_command = "";
+        if (!ti)
+            open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str(); \
+        else
+            open_config_source_command = AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
+
+        assert(!open_config_source_command.empty());
+        reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
+        QProcess process;
+        process.startDetached(open_config_source_command.c_str());
+    }
+}
+
 void MainWindow::createView(ViewStyle viewStyle)
 {
     try
