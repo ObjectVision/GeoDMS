@@ -35,17 +35,21 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace)
     {
-
         dva->setWindowTitle(msg);
-        // keep window in sync with widget
+
+        // keep caption of window in sync with widget, TODO: simplify or factor out the usage of MultiByteToWideChar everywhere
         auto hWnd = (HWND)dva->getHwnd();
-/* support utf16 required ? 
-        QString uft16String(msg);
-        if (hWnd)
-            SetWindowTextW(hWnd, reinterpret_cast<const wchar_t*>(uft16String.unicode())); 
-*/
-        msg = "xyz ABC";
-        SetWindowTextA(hWnd, msg);
+        const UInt32 MAX_TEXTOUT_SIZE = 400;
+        wchar_t uft16Buff[MAX_TEXTOUT_SIZE+1];
+        SizeT textLen = Min<SizeT>(StrLen(msg), MAX_TEXTOUT_SIZE);
+        textLen = MultiByteToWideChar(utf8CP, 0, msg, textLen, uft16Buff, MAX_TEXTOUT_SIZE);
+        assert(textLen <= MAX_TEXTOUT_SIZE);
+        if (textLen > 0 && textLen <= MAX_TEXTOUT_SIZE)
+        {
+            uft16Buff[textLen] = wchar_t(0);
+            if (hWnd)
+                SetWindowTextW(hWnd, uft16Buff);
+        }
     }
     else
     {
