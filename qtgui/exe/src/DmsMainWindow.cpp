@@ -39,6 +39,7 @@ MainWindow::MainWindow()
     //setStyle(fusion_style);
 
     m_mdi_area = std::make_unique<QMdiArea>(this);
+    //m_mdi_area->setViewMode(QMdiArea::ViewMode::TabbedView);
 
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
@@ -351,7 +352,7 @@ void MainWindow::createView(ViewStyle viewStyle)
 //        m_mdi_area->show();
 
         mdiSubWindow->setMinimumSize(200, 150);
-        mdiSubWindow->show();
+        mdiSubWindow->showMaximized();
 
         //    m_dms_views.emplace_back(name, vs, dv);
         //    m_dms_view_it = --m_dms_views.end();
