@@ -64,12 +64,15 @@ public:
 
 class DmsTreeView : public QTreeView
 {
-
 public:
-	using QTreeView::QTreeView;
+	DmsTreeView(QWidget* parent);
+	void showTreeviewContextMenu(const QPoint& pos);
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
 	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
+
+private:
+	QPointer<QMenu> m_context_menu;
 };
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;

@@ -396,7 +396,7 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     return;
 }
 
-void MainWindow::showTreeviewContextMenu(const QPoint& pos)
+/*void MainWindow::showTreeviewContextMenu(const QPoint& pos)
 {
     QModelIndex index = m_treeview->indexAt(pos);
     if (!index.isValid())
@@ -406,6 +406,9 @@ void MainWindow::showTreeviewContextMenu(const QPoint& pos)
         m_treeview_context_menu = new QMenu(this); // TODO: does this get properly destroyed if parent gets destroyed?
 
     m_treeview_context_menu->clear();
+
+    auto ti = getItem(index);
+    vsflags = SHV_GetViewStyleFlags(state.GetCurrentItem());
 
     // default view
     auto default_view_action = new QAction(tr("&Default View"), this);
@@ -432,7 +435,7 @@ void MainWindow::showTreeviewContextMenu(const QPoint& pos)
     //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
 
     //contextMenu->exec(ui->treeView->viewport()->mapToGlobal(point));
-}
+}*/
 
 void MainWindow::LoadConfig(CharPtr fileName)
 {
@@ -453,7 +456,7 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setModel(m_dms_model.get());
         m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(m_treeview, &DmsTreeView::customContextMenuRequested, this, &MainWindow::showTreeviewContextMenu);
+        connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
         m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"

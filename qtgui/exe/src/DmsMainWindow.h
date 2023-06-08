@@ -100,17 +100,19 @@ public:
 signals:
     void currentItemChanged();
 
+public slots:
+    void defaultView();
+    void tableView();
+    void mapView();
+
 private slots:
     void fileOpen();
     void reOpen();
     void aboutGeoDms();
-    void defaultView();
-    void tableView();
-    void mapView();
     void createView(ViewStyle viewStyle);
 
     void updateToolbar(int index);
-    void showTreeviewContextMenu(const QPoint& pos);
+    //void showTreeviewContextMenu(const QPoint& pos);
 
 private:
     void LoadConfig(CharPtr filename);
@@ -146,8 +148,7 @@ private:
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
 
-    // (context) menus
-    QPointer<QMenu> m_treeview_context_menu;
+
 
 };
 

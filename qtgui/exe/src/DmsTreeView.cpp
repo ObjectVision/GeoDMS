@@ -322,6 +322,55 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 	}
 }
 
+DmsTreeView::DmsTreeView(QWidget* parent)
+	: QTreeView(parent)
+{
+	// treeview shortcuts
+}
+
+void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
+{
+	QModelIndex index = indexAt(pos);
+	if (!index.isValid())
+		return;
+
+	if (!m_context_menu)
+		m_context_menu = new QMenu(MainWindow::TheOne()); // TODO: does this get properly destroyed if parent gets destroyed?
+
+	m_context_menu->clear();
+
+	auto ti = GetTreeItem(index);
+	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
+
+	// default view
+	auto default_view_action = new QAction(tr("&Default View"), this);
+	default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+	default_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)) ? false : true); // TODO: vsfDefault appears to never be set
+	m_context_menu->addAction(default_view_action);
+	connect(default_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::defaultView);
+
+	// table view
+	auto table_view_action = new QAction(tr("&Table View"), this);
+	table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+	table_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer)) ? false : true);
+	table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
+	m_context_menu->addAction(table_view_action);
+	connect(table_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::tableView);
+
+	// map view
+	auto map_view_action = new QAction(tr("&Map View"), this);
+	map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+	map_view_action->setDisabled((viewstyle_flags & ViewStyleFlags::vsfMapView) ? false : true);
+	table_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
+	m_context_menu->addAction(map_view_action);
+	connect(map_view_action, &QAction::triggered, MainWindow::TheOne(), &MainWindow::mapView);
+
+	m_context_menu->exec(viewport()->mapToGlobal(pos));
+	//connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
+
+	//contextMenu->exec(ui->treeView->viewport()->mapToGlobal(point));
+}
+
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 {
 	auto current_node_index = currentIndex();
