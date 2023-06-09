@@ -323,9 +323,6 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
     addToolBarBreak();
     m_toolbar = addToolBar(tr("dmstoolbar"));
     m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
-                             /*"QToolBar { spacing: 0px;   }\n"
-                             "QToolButton{margin: 0px 0px;}\n"
-                             "QToolButton{spacing: 0px;}\n");*/
     auto default_icon_size = m_toolbar->iconSize();
     m_toolbar->setIconSize(QSize(32, 32));
     
@@ -383,8 +380,6 @@ std::string fillOpenConfigSourceCommand(const std::string_view command, const st
 
 void MainWindow::openConfigSource()
 {
-    //QString file = QDir::homepath + "file.exe";
-    //process.start(file);
     std::string command = GetGeoDmsRegKey("DmsEditor").c_str(); // TODO: replace with Qt application persistent data 
     std::string filename = getCurrentTreeItem()->GetConfigFileName().c_str();
     std::string line = std::to_string(getCurrentTreeItem()->GetConfigFileLineNr());
@@ -397,9 +392,8 @@ void MainWindow::openConfigSource()
         if (!ti)
             ti = getRootTreeItem();
 
-        //std::string open_config_source_command = "";
         if (!ti)
-            open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str(); \
+            open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();
         else
             open_config_source_command = AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
@@ -474,47 +468,6 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     dms_main_window->statusBar()->showMessage(msg);
     return;
 }
-
-/*void MainWindow::showTreeviewContextMenu(const QPoint& pos)
-{
-    QModelIndex index = m_treeview->indexAt(pos);
-    if (!index.isValid())
-        return;
-
-    if (!m_treeview_context_menu)
-        m_treeview_context_menu = new QMenu(this); // TODO: does this get properly destroyed if parent gets destroyed?
-
-    m_treeview_context_menu->clear();
-
-    auto ti = getItem(index);
-    vsflags = SHV_GetViewStyleFlags(state.GetCurrentItem());
-
-    // default view
-    auto default_view_action = new QAction(tr("&Default View"), this);
-    default_view_action->setStatusTip(tr("Open current selected TreeItem's default view."));
-    default_view_action->setDisabled(true);
-    m_treeview_context_menu->addAction(default_view_action);
-    connect(default_view_action, &QAction::triggered, this, &MainWindow::defaultView);
-
-    // table view
-    auto table_view_action = new QAction(tr("&Table View"), this);
-    table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    table_view_action->setDisabled(true);
-    m_treeview_context_menu->addAction(table_view_action);
-    connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
-
-    // map view
-    auto map_view_action = new QAction(tr("&Map View"), this);
-    map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
-    map_view_action->setDisabled(true);
-    m_treeview_context_menu->addAction(map_view_action);
-    connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
-    
-    m_treeview_context_menu->exec(m_treeview->viewport()->mapToGlobal(pos));
-    //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
-
-    //contextMenu->exec(ui->treeView->viewport()->mapToGlobal(point));
-}*/
 
 void MainWindow::LoadConfig(CharPtr fileName)
 {
@@ -655,24 +608,25 @@ void MainWindow::createActions()
     editToolBar->addAction(undoAct);
 */
     auto viewMenu = menuBar()->addMenu(tr("&View"));
-    auto viewDefaultAct = new QAction("Default View");
-    viewDefaultAct->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
-    connect(viewDefaultAct, &QAction::triggered, this, &MainWindow::defaultView);
-    viewMenu->addAction(viewDefaultAct);
+    m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
+    m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
+    viewMenu->addAction(m_defaultview_action.get());
 
     // table view
-    auto table_view_action = new QAction(tr("&Table View"), this);
-    //table_view_action->setShortcut(QKeySequence(tr("Ctrl+D")));
-    table_view_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    viewMenu->addAction(table_view_action);
-    connect(table_view_action, &QAction::triggered, this, &MainWindow::tableView);
+    m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
+    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
+    m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
+    viewMenu->addAction(m_tableview_action.get());
 
     // map view
-    auto map_view_action = new QAction(tr("&Map View"), this);
-    //map_view_action->setShortcut(QKeySequence(tr("Ctrl+M")));
-    map_view_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
-    viewMenu->addAction(map_view_action);
-    connect(map_view_action, &QAction::triggered, this, &MainWindow::mapView);
+    m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
+    m_mapview_action->setShortcut(QKeySequence(tr("Ctrl+M")));
+    m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
+    viewMenu->addAction(m_mapview_action.get());
 
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));

@@ -89,6 +89,10 @@ public:
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
     auto getDmsMdiAreaPtr() -> QMdiArea* { return m_mdi_area.get(); }
+    auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
+    auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
+    auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
+
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -128,11 +132,10 @@ private:
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock;
 
-    // advanced central widget dock
-    /*ads::CDockManager* m_DockManager;
-    ads::CDockAreaWidget* StatusDockArea;
-    ads::CDockWidget* TimelineDockWidget;
-    ads::CDockAreaWidget* centralDockArea;*/
+    // shared actions
+    std::unique_ptr<QAction> m_defaultview_action;
+    std::unique_ptr<QAction> m_tableview_action;
+    std::unique_ptr<QAction> m_mapview_action;
 
     // unique application objects
     std::unique_ptr<QMdiArea> m_mdi_area;
