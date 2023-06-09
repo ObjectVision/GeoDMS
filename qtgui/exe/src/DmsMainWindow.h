@@ -76,12 +76,18 @@ private:
     ToolbarButtonData m_data;
 };
 
+struct CmdLineSetttings {
+    bool m_NoConfig = false;
+    SharedStr m_ConfigFileName;
+    std::vector<SharedStr> m_CurrItemFullNames;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    MainWindow();
+    MainWindow(CmdLineSetttings& cmdLineSettings);
     ~MainWindow();
     auto getDmsModel() -> DmsModel* { return m_dms_model.get(); }
     auto getRootTreeItem() -> TreeItem* { return m_root; }

@@ -30,7 +30,7 @@
 
 static MainWindow* s_CurrMainWindow = nullptr;
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 { 
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
@@ -84,10 +84,13 @@ MainWindow::MainWindow()
     setupDmsCallbacks();
 
     // read initial last config file
-    std::string geodms_last_config_file = GetGeoDmsRegKey("LastConfigFile").c_str();
-    if (!geodms_last_config_file.empty())
-        LoadConfig(geodms_last_config_file.c_str());
- 
+    if (!cmdLineSettings.m_NoConfig)
+    {
+        if (cmdLineSettings.m_ConfigFileName.empty())
+            cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
+        if (!cmdLineSettings.m_ConfigFileName.empty())
+            LoadConfig(cmdLineSettings.m_ConfigFileName.c_str());
+    }
     if (m_root)
     {
         setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
@@ -104,6 +107,9 @@ MainWindow::MainWindow()
 
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
+    if (!cmdLineSettings.m_CurrItemFullNames.empty())
+        m_current_item_bar->setText(cmdLineSettings.m_CurrItemFullNames.back().c_str());
+    // TODO: set currentItem according to cmdLineSettings.m_CurrItemFullNames en doe daar iets mee
 }
 
 MainWindow::~MainWindow()
