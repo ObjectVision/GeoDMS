@@ -35,12 +35,12 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance)
 
 void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 {
-    /*auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
+    auto* dva = reinterpret_cast<DmsViewWidget*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace)
     {
         dva->setWindowTitle(msg);
-
+/*
         // keep caption of window in sync with widget, TODO: simplify or factor out the usage of MultiByteToWideChar everywhere
         auto hWnd = (HWND)dva->getHwnd();
         const UInt32 MAX_TEXTOUT_SIZE = 400;
@@ -54,11 +54,12 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
             if (hWnd)
                 SetWindowTextW(hWnd, uft16Buff);
         }
+*/
     }
     else
     {
         // dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
-    }*/
+    }
 }
 
 
