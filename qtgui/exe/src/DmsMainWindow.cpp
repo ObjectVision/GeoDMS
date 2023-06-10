@@ -278,11 +278,11 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     if (!subwindow_highest_in_z_order)
         return;
 
-    auto dms_view_area = dynamic_cast<QDmsViewArea*>(subwindow_highest_in_z_order->widget());
-    if (!dms_view_area)
+    auto dms_view_widget = dynamic_cast<DmsViewWidget*>(subwindow_highest_in_z_order->widget());
+    if (!dms_view_widget)
         return;
 
-    SendMessage((HWND)dms_view_area->getHwnd(), WM_COMMAND, m_data.ids[0], 0);
+    SendMessage((HWND)dms_view_widget->getHwnd(), WM_COMMAND, m_data.ids[0], 0);
 }
 
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
@@ -324,7 +324,7 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
     if (!active_mdi_subwindow)
         return;
 
-    auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow->widget());
+    auto active_dms_view_area = dynamic_cast<DmsViewWidget*>(active_mdi_subwindow->widget());
 
     addToolBarBreak();
     m_toolbar = addToolBar(tr("dmstoolbar"));
@@ -426,12 +426,15 @@ void MainWindow::createView(ViewStyle viewStyle)
         HWND hWndMain = (HWND)winId();
 
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
-        auto dmsControl = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
-        auto mdiSubWindow = m_mdi_area->addSubWindow(dmsControl);
+        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get());// , hWndMain, viewContextItem, currItem, viewStyle);
+        auto dms_view_widget = new DmsViewWidget(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
+        dms_mdi_subwindow->setWidget(dms_view_widget);
+        m_mdi_area->addSubWindow(dms_mdi_subwindow);
+        dms_mdi_subwindow->showMaximized();
 //        m_mdi_area->show();
 
-        mdiSubWindow->setMinimumSize(200, 150);
-        mdiSubWindow->showMaximized();
+        //mdiSubWindow->setMinimumSize(200, 150);
+        //mdiSubWindow->showMaximized();
 
         //    m_dms_views.emplace_back(name, vs, dv);
         //    m_dms_view_it = --m_dms_views.end();

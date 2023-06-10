@@ -31,7 +31,7 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance)
 
 void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 {
-    auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
+    /*auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace)
     {
@@ -54,17 +54,22 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     else
     {
         // dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
-    }
+    }*/
 }
 
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
-    : QMdiSubWindow(parent)
+QDmsViewArea::QDmsViewArea(QWidget* parent)
+    : QMdiSubWindow(parent) {}
+
+DmsViewWidget::DmsViewWidget(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
+    : QWidget(parent)
 {
     assert(currItem); // Precondition
 
-    HINSTANCE instance = GetInstance((HWND)hWndMain);//m_Views.at(m_ViewIndex).m_HWNDParent);
-    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only wonce    
+    HINSTANCE instance = GetInstance((HWND)hWndMain);
+    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
+
+    auto parent_hwnd = (HWND)winId();
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
@@ -83,22 +88,16 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 
     }
 
-    auto windowStyle = WS_CHILD | WS_CLIPSIBLINGS
-        | WS_CAPTION   // enables TitleBar
-        | WS_THICKFRAME // enables sizing
-        | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU;
-
-    auto exStyle = WS_EX_OVERLAPPEDWINDOW; // | WS_EX_MDICHILD;
-
+    auto vs = WS_CHILD | WS_CLIPSIBLINGS; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_HWnd = CreateWindowEx(
-        exStyle,                       // extended styles
+        WS_EX_OVERLAPPEDWINDOW,                            // no extended styles
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
-        windowStyle,                   // styles
+        vs,                            // styles
         CW_USEDEFAULT,                 // horizontal position 
         CW_USEDEFAULT,                 // vertical position
         m_Size.width(), m_Size.height(),   // width, height, to be reset by parent Widget
-        (HWND)hWndMain,                // handle to parent (MainWindow)
+        parent_hwnd,//(HWND)hWndMain,                // handle to parent (MainWindow)
         nullptr,                       // no menu
         instance,                      // instance owning this window 
         m_DataView                     // dataView
@@ -108,16 +107,15 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
 
 }
 
-QDmsViewArea::~QDmsViewArea()
+DmsViewWidget::~DmsViewWidget()
 {
     SHV_DataView_Destroy(m_DataView);
     CloseWindow((HWND)m_HWnd);
 }
 
-void QDmsViewArea::moveEvent(QMoveEvent* event)
+void DmsViewWidget::moveEvent(QMoveEvent* event)
 {
-    base_class::moveEvent(event);
-
+    QWidget::moveEvent(event);
     m_Pos = event->pos();
     QWidget* w = this->parentWidget();
     if (w)
@@ -132,19 +130,18 @@ void QDmsViewArea::moveEvent(QMoveEvent* event)
     UpdatePos();
 }
 
-void QDmsViewArea::resizeEvent(QResizeEvent* event)
+void DmsViewWidget::resizeEvent(QResizeEvent* event)
 {
-    base_class::resizeEvent(event);
+    QWidget::resizeEvent(event);
     m_Size = event->size();
     UpdatePos();
 }
 
-void QDmsViewArea::UpdatePos()
+void DmsViewWidget::UpdatePos()
 {
     SetWindowPos((HWND)m_HWnd, HWND_TOP
         , m_Pos.x(), m_Pos.y()
         , m_Size.width(), m_Size.height()
-        , SWP_SHOWWINDOW|SWP_ASYNCWINDOWPOS
+        , SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS
     );
 }
-
