@@ -431,6 +431,7 @@ void MainWindow::createView(ViewStyle viewStyle)
         dms_mdi_subwindow->setWidget(dms_view_widget);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
         dms_mdi_subwindow->showMaximized();
+        dms_mdi_subwindow->setMinimumSize(200, 150);
 //        m_mdi_area->show();
 
         //mdiSubWindow->setMinimumSize(200, 150);
