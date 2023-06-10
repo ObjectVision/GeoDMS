@@ -42,7 +42,7 @@ public:
 private:
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
-    void UpdatePos();
+    void UpdatePosAndSize();
 
     void* m_HWnd = nullptr;
     DataView* m_DataView = nullptr;

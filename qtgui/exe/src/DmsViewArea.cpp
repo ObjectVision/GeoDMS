@@ -1,5 +1,9 @@
 #include "RtcBase.h"
 #include "DmsViewArea.h"
+#include "DmsMainWindow.h"
+
+#include <QMdiArea>
+
 #include <windows.h>
 
 #include "dbg/SeverityType.h"
@@ -115,29 +119,21 @@ DmsViewWidget::~DmsViewWidget()
 
 void DmsViewWidget::moveEvent(QMoveEvent* event)
 {
-    QWidget::moveEvent(event);
-    m_Pos = event->pos();
-    QWidget* w = this->parentWidget();
-    if (w)
-    {
-        auto p = w->parentWidget();
-        while (p)
-        {
-            m_Pos += w->pos();
-            w = p; p = p->parentWidget();
-        }
-    }
-    UpdatePos();
+    m_Pos = pos();
+    UpdatePosAndSize();
+    return;
+
 }
 
 void DmsViewWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    m_Size = event->size();
-    UpdatePos();
+    //m_Pos = mapToGlobal(pos());
+    m_Size = size();// event->size();
+    UpdatePosAndSize();
 }
 
-void DmsViewWidget::UpdatePos()
+void DmsViewWidget::UpdatePosAndSize()
 {
     SetWindowPos((HWND)m_HWnd, HWND_TOP
         , m_Pos.x(), m_Pos.y()
