@@ -1083,15 +1083,15 @@ void OperationContext::safe_run_with_catch() noexcept
 	}
 	catch (const concurrency::task_canceled&)
 	{
-		dms_assert(getStatus() == task_status::cancelled); // clean-up was done ?
+		assert(getStatus() == task_status::cancelled); // clean-up was done ?
 	}
 	catch (...) {
 		GetResult()->CatchFail(FR_Data);
 	}
 	m_TaskFunc = {};
 	auto localWriteLock = std::move(m_WriteLock);
-	dms_assert(!m_WriteLock);
-	dms_assert(!localWriteLock || localWriteLock.GetItem() == GetResult());
+	assert(!m_WriteLock);
+	assert(!localWriteLock || localWriteLock.GetItem() == GetResult());
 	// writeLock release here before OnEnd allows Waiters to start
 }
 

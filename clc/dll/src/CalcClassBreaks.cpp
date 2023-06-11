@@ -844,7 +844,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 
 break_array ClassifyJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData, bool separateZero)
 {
-	dms_assert(breakAttr);
+	assert(breakAttr);
 
 	auto ba = ClassifyJenksFisher(vcpc, breakAttr->GetAbstrDomainUnit()->GetCount(), separateZero);
 	FillBreakAttrFromArray(breakAttr, ba, abstrValuesRangeData);

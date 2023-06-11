@@ -1693,7 +1693,7 @@ void DataView::AddGuiOper(std::function<void()>&& func)
 
 void DataView::ProcessGuiOpers()
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	while (true) {
 		std::function<void()> nextOperation;
 		{

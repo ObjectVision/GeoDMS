@@ -97,20 +97,10 @@ DmsViewWidget::DmsViewWidget(QWidget* parent, void* hWndMain, TreeItem* viewCont
             , viewStyle
             , viewContext->GetFullName().c_str()
         );
-    bool result = SHV_DataView_AddItem(m_DataView, currItem, false);
-    if (!result)
-    {
-        SHV_DataView_Destroy(m_DataView);
-        throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
-            , currItem->GetFullName().c_str()
-            , viewStyle
-        );
-
-    }
 
     auto vs = WS_CHILD | WS_CLIPSIBLINGS; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     m_HWnd = CreateWindowEx(
-        WS_EX_OVERLAPPEDWINDOW,                            // no extended styles
+        WS_EX_OVERLAPPEDWINDOW,        // extended style
         dmsViewAreaClassName,          // DmsDataView control class 
         nullptr,                       // text for window title bar 
         vs,                            // styles
@@ -122,9 +112,21 @@ DmsViewWidget::DmsViewWidget(QWidget* parent, void* hWndMain, TreeItem* viewCont
         instance,                      // instance owning this window 
         m_DataView                     // dataView
     );
-
     SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
 
+    // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
+    // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
+    bool result = SHV_DataView_AddItem(m_DataView, currItem, false); 
+    if (!result)
+    {
+        SHV_DataView_Destroy(m_DataView); // TODO: Check that this also cleans-up the m_HWnd
+        m_DataView == nullptr;
+        throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
+            , currItem->GetFullName().c_str()
+            , viewStyle
+        );
+
+    }
 }
 
 DmsViewWidget::~DmsViewWidget()

@@ -230,6 +230,7 @@ public:
 				{
 					SuspendTrigger::DoSuspend();
 					paletteDomain->PrepareData(); // wants to know GetCount();
+					assert(IsCalculatingOrReady(paletteDomain->GetCurrRangeItem()));
 					SuspendTrigger::Resume();
 				}
 				else
