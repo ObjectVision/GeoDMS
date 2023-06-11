@@ -500,6 +500,8 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
+        m_treeview->setDragEnabled(true);
+        m_treeview->setDragDropMode(QAbstractItemView::DragOnly);
         m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
             "    border-image: url(:/res/images/TV_vline.png) 0;\n"

@@ -46,7 +46,7 @@ public:
 	int columnCount(const QModelIndex& parent = QModelIndex()) const override;
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
-	
+	auto flags(const QModelIndex& index) const -> Qt::ItemFlags override;
 
 private:
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
