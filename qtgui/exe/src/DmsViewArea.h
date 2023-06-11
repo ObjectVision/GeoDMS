@@ -3,10 +3,19 @@
 
 #include "ShvUtils.h"
 
+#include <QMdiArea.h>
 #include <QMdiSubWindow.h>
 
 struct TreeItem;
 class DataView;
+
+class QDmsMdiArea : public QMdiArea
+{
+public:
+    QDmsMdiArea(QWidget* parent);
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+};
 
 class QDmsViewArea : public QMdiSubWindow
 {

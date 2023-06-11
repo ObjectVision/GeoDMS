@@ -38,7 +38,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
     //setStyle(fusion_style);
 
-    m_mdi_area = std::make_unique<QMdiArea>(this);
+    m_mdi_area = std::make_unique<QDmsMdiArea>(this);
     //m_mdi_area->setViewMode(QMdiArea::ViewMode::TabbedView);
 
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
@@ -507,6 +507,8 @@ void MainWindow::LoadConfig(CharPtr fileName)
         m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
+        m_treeview->setDragEnabled(true);
+        m_treeview->setDragDropMode(QAbstractItemView::DragOnly);
         m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
             "    border-image: url(:/res/images/TV_vline.png) 0;\n"
@@ -574,7 +576,7 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    connect(m_mdi_area.get(), &QMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
+    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
     auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);

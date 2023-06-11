@@ -245,6 +245,14 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 	return ti && ti->HasSubItems();
 }
 
+auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
+{
+	if (!index.isValid())
+		return Qt::NoItemFlags;
+
+	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
+}
+
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
 	QStyledItemDelegate::paint(painter, option, index);
