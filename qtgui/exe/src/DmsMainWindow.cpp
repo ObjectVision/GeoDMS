@@ -108,8 +108,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
+    {
         m_current_item_bar->setText(cmdLineSettings.m_CurrItemFullNames.back().c_str());
-    // TODO: set currentItem according to cmdLineSettings.m_CurrItemFullNames en doe daar iets mee
+        m_current_item_bar->onEditingFinished();
+    }
 }
 
 MainWindow::~MainWindow()
@@ -141,7 +143,7 @@ void DmsCurrentItemBar::setDmsCompleter()
     setCompleter(completer);
 }
 
-void  DmsCurrentItemBar::onEditingFinished()
+void DmsCurrentItemBar::onEditingFinished()
 {
     auto root = MainWindow::TheOne()->getRootTreeItem();
     if (!root)
@@ -150,7 +152,11 @@ void  DmsCurrentItemBar::onEditingFinished()
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
     if (found_treeitem)
+    {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
+        auto treeView = MainWindow::TheOne()->getDmsTreeViewPtr();
+        treeView->scrollTo(treeView->currentIndex(), QAbstractItemView::ScrollHint::PositionAtBottom);
+    }
 }
 
 MainWindow* MainWindow::TheOne()
@@ -198,7 +204,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
     }
 
     m_treeview->setNewCurrentItem(new_current_item);
-
+    m_treeview->scrollTo(m_treeview->currentIndex()); // , QAbstractItemView::ScrollHint::PositionAtCenter);
     emit currentItemChanged();
 }
 
@@ -426,6 +432,7 @@ void MainWindow::createView(ViewStyle viewStyle)
         HWND hWndMain = (HWND)winId();
 
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
+        SuspendTrigger::Resume();
         auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get());// , hWndMain, viewContextItem, currItem, viewStyle);
         auto dms_view_widget = new DmsViewWidget(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
         dms_mdi_subwindow->setWidget(dms_view_widget);
