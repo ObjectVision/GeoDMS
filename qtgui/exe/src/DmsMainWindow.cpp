@@ -176,6 +176,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 
     auto eventLogWidget = TheOne()->m_eventlog;
     eventLogWidget->addItem(msg);
+    eventLogWidget->scrollToBottom();
 
     // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
 
