@@ -62,6 +62,21 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     }
 }
 
+QDmsMdiArea::QDmsMdiArea(QWidget* parent)
+    : QMdiArea(parent) 
+{
+    setAcceptDrops(true);
+}
+
+void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event)
+{
+    event->acceptProposedAction(); // TODO: further specify that only treenodes dragged from treeview can be dropped here.
+}
+
+void QDmsMdiArea::dropEvent(QDropEvent* event)
+{
+    MainWindow::TheOne()->defaultView();
+}
 
 QDmsViewArea::QDmsViewArea(QWidget* parent)
     : QMdiSubWindow(parent) {}

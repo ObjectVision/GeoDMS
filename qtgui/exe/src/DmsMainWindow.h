@@ -26,11 +26,12 @@ class QTextBrowser;
 class QTreeView;
 class QTableView;
 
-class QMdiArea;
+
 class QMdiSubWindow;
 QT_END_NAMESPACE
 
 struct TreeItem;
+class QDmsMdiArea;
 class DmsDetailPages;
 class DmsTreeView;
 class DmsModel;
@@ -94,7 +95,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
-    auto getDmsMdiAreaPtr() -> QMdiArea* { return m_mdi_area.get(); }
+    auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
     auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
     auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
     auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
@@ -144,7 +145,7 @@ private:
     std::unique_ptr<QAction> m_mapview_action;
 
     // unique application objects
-    std::unique_ptr<QMdiArea> m_mdi_area;
+    std::unique_ptr<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
 
