@@ -96,10 +96,20 @@ public:
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
+    
+    auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
+    auto getStepToFailreasonAction() -> QAction* { return m_step_to_failreason_action.get(); };
+    auto getGoToCausaPrimaAction() -> QAction* { return m_go_to_causa_prima_action.get(); };
+    auto getEditConfigSourceAction() -> QAction* { return m_edit_config_source_action.get(); };
+    auto getUpdateTreeItemAction() -> QAction* { return m_update_treeitem_action.get(); };
+    auto getUpdateSubtreeAction() -> QAction* { return m_update_subtree_action.get(); };
+    auto getInvalidateAction() -> QAction* { return m_invalidate_action.get(); };
     auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
     auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
     auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
-
+    auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
+    auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
+    auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -140,9 +150,19 @@ private:
     QPointer<QDockWidget> m_detailpages_dock;
 
     // shared actions
+    std::unique_ptr<QAction> m_export_primary_data_action;
+    std::unique_ptr<QAction> m_step_to_failreason_action;
+    std::unique_ptr<QAction> m_go_to_causa_prima_action;
+    std::unique_ptr<QAction> m_edit_config_source_action;
+    std::unique_ptr<QAction> m_update_treeitem_action;
+    std::unique_ptr<QAction> m_update_subtree_action;
+    std::unique_ptr<QAction> m_invalidate_action;
     std::unique_ptr<QAction> m_defaultview_action;
     std::unique_ptr<QAction> m_tableview_action;
     std::unique_ptr<QAction> m_mapview_action;
+    std::unique_ptr<QAction> m_histogramview_action;
+    std::unique_ptr<QAction> m_process_schemes_action;
+    std::unique_ptr<QAction> m_code_analysis_action;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;

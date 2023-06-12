@@ -328,7 +328,10 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
-{}
+{
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_ForceUpdatesDisabled);
+}
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 {
@@ -343,6 +346,41 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	auto ti = GetTreeItem(index);
 	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
+
+	// export primary data
+	auto export_primary_data_action = MainWindow::TheOne()->getExportPrimaryDataAction();
+	export_primary_data_action->setDisabled(true);
+	m_context_menu->addAction(export_primary_data_action);
+
+	// step to failreason
+	auto step_to_failreason = MainWindow::TheOne()->getStepToFailreasonAction();
+	step_to_failreason->setDisabled(true);
+	m_context_menu->addAction(step_to_failreason);
+
+	// go to causa prima
+	auto go_to_causa_prima = MainWindow::TheOne()->getGoToCausaPrimaAction();
+	go_to_causa_prima->setDisabled(true);
+	m_context_menu->addAction(go_to_causa_prima);
+
+	// edit config source
+	auto edit_config_source = MainWindow::TheOne()->getEditConfigSourceAction();
+	edit_config_source->setDisabled(false);
+	m_context_menu->addAction(edit_config_source);
+
+	// update treeitem
+	auto update_treeitem = MainWindow::TheOne()->getUpdateTreeItemAction();
+	update_treeitem->setDisabled(true);
+	m_context_menu->addAction(update_treeitem);
+
+	// update subtree
+	auto update_subtree = MainWindow::TheOne()->getUpdateSubtreeAction();
+	update_subtree->setDisabled(true);
+	m_context_menu->addAction(update_subtree);
+
+	// invalidate 
+	auto invalidate = MainWindow::TheOne()->getInvalidateAction();
+	invalidate->setDisabled(true);
+	m_context_menu->addAction(invalidate);
 
 	// default view
 	auto default_view_action = MainWindow::TheOne()->getDefaultviewAction();
@@ -359,6 +397,21 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	map_view_action->setDisabled((viewstyle_flags & ViewStyleFlags::vsfMapView) ? false : true);
 	m_context_menu->addAction(map_view_action);
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
+
+	// histogram view
+	auto histogramview = MainWindow::TheOne()->getHistogramAction();
+	histogramview->setDisabled(true);
+	m_context_menu->addAction(histogramview);
+
+	// process scheme
+	auto process_scheme = MainWindow::TheOne()->getProcessSchemeAction();
+	process_scheme->setDisabled(true);
+	m_context_menu->addAction(process_scheme);
+
+	// code analysis
+	auto coda_analysis = MainWindow::TheOne()->getCodeAnalysisAction();
+	coda_analysis->setDisabled(true);
+	m_context_menu->addAction(coda_analysis);
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
