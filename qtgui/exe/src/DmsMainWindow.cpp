@@ -432,9 +432,42 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     return available_drivers;
 }
 
+void MainWindow::options()
+{
+    QWidget* options_window = new QDialog(this);
+    options_window->setWindowTitle(QString("Options"));
+    auto grid_layout_box = new QGridLayout(options_window);
+    auto format_label = new QLabel("Format", this);
+
+    auto format_driver_selection_box = new QComboBox(this);
+    QStringList driver_namesnames;
+    auto available_drivers = getAvailableDrivers();
+    for (auto& driver : available_drivers)
+        format_driver_selection_box->addItem(driver.Caption());
+
+
+    format_driver_selection_box->addItems(driver_namesnames);
+    auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
+    grid_layout_box->addWidget(format_label, 0, 0);
+    grid_layout_box->addWidget(format_driver_selection_box, 0, 1);
+    grid_layout_box->addWidget(format_native_driver_checkbox, 0, 2);
+
+    auto export_button = new QPushButton("Export");
+    connect(export_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
+    grid_layout_box->addWidget(export_button, 3, 0);
+
+    auto cancel_button = new QPushButton("Cancel");
+    connect(cancel_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
+    grid_layout_box->addWidget(cancel_button, 3, 1);
+
+    options_window->setWindowModality(Qt::ApplicationModal);
+    options_window->show();
+}
+
 void MainWindow::exportPrimaryData()
 {
     QWidget* export_primary_data_window = new QDialog(this);
+    export_primary_data_window->setWindowTitle(QString("Export ") + getCurrentTreeItem()->GetFullName().c_str());
     auto grid_layout_box = new QGridLayout(export_primary_data_window);
     auto format_label = new QLabel("Format", this);
 
@@ -728,6 +761,9 @@ void MainWindow::createActions()
 
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));
+    m_options_action = std::make_unique<QAction>(tr("&Options"));
+    connect(m_options_action.get(), &QAction::triggered, this, &MainWindow::options);
+    tools_menu->addAction(m_options_action.get());
 
     // window menu
     auto window_menu = menuBar()->addMenu(tr("&Window"));
