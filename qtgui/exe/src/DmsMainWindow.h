@@ -159,6 +159,7 @@ public slots:
     void mapView();
     void openConfigSource();
     void exportPrimaryData();
+    void options();
     void exportOkButton();
 
 private slots:
@@ -202,6 +203,7 @@ private:
     std::unique_ptr<QAction> m_histogramview_action;
     std::unique_ptr<QAction> m_process_schemes_action;
     std::unique_ptr<QAction> m_code_analysis_action;
+    std::unique_ptr<QAction> m_options_action;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
