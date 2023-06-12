@@ -172,7 +172,7 @@ private slots:
     //void showTreeviewContextMenu(const QPoint& pos);
 
 private:
-    void LoadConfig(CharPtr filename);
+    void LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
@@ -180,6 +180,8 @@ private:
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
     void updateWindowMenu();
+    void updateCaption();
+
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;

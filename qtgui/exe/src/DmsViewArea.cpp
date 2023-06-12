@@ -117,13 +117,11 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
   
     if (!result)
     {
-//        SHV_DataView_Destroy(m_DataView); // TODO: Check that this also cleans-up the m_HWnd
         CloseWindow((HWND)m_HWnd); // calls SHV_DataView_Destroy
         throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
             , currItem->GetFullName().c_str()
             , viewStyle
         );
-
     }
     SetWindowPos((HWND)m_HWnd, HWND_TOP, rect.x(), rect.y(), rect.width(), rect.height(), SWP_SHOWWINDOW);
 }

@@ -209,7 +209,7 @@ SharedStr GetCurrentDir()
 	return ConvertDosFileName(SharedStr(begin_ptr(buffer), end_ptr(buffer)-1));
 }
 
-void   SetCurrentDir(CharPtr dir)
+void SetCurrentDir(CharPtr dir)
 {
 	SetCurrentDirectory(dir);
 }

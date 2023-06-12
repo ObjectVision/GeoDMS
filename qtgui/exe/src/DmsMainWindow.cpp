@@ -71,13 +71,14 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     createActions();
     m_current_item_bar->setDmsCompleter();
 
-    setWindowTitle(tr("GeoDMS"));
+    updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
     {
         m_current_item_bar->setText(cmdLineSettings.m_CurrItemFullNames.back().c_str());
         m_current_item_bar->onEditingFinished();
     }
+
 }
 
 MainWindow::~MainWindow()
@@ -551,9 +552,22 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     return;
 }
 
-void MainWindow::LoadConfig(CharPtr fileName)
+void MainWindow::LoadConfig(CharPtr configFilePath)
 {
-    auto newRoot = DMS_CreateTreeFromConfiguration(fileName);
+    auto fileNameCharPtr = configFilePath + StrLen(configFilePath);
+    while (fileNameCharPtr != configFilePath)
+    {
+        char delimCandidate = *--fileNameCharPtr;
+        if (delimCandidate == '\\' || delimCandidate == '/')
+        {
+            auto dirName = SharedStr(configFilePath, fileNameCharPtr);
+            SetCurrentDir(dirName.c_str());
+            ++fileNameCharPtr;
+            break;
+        }
+    }
+    m_currConfigFileName = fileNameCharPtr;
+    auto newRoot = DMS_CreateTreeFromConfiguration(fileNameCharPtr);
     if (newRoot)
     {
         m_root = newRoot;
@@ -605,7 +619,6 @@ void MainWindow::LoadConfig(CharPtr fileName)
     }
 
     //setCurrentTreeItem(m_root);
-    m_currConfigFileName = fileName;
 }
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
@@ -811,6 +824,31 @@ void MainWindow::updateWindowMenu()
     }
     m_window_menu->addActions(m_CurrWindowActions);
 }
+
+void MainWindow::updateCaption()
+{
+    VectorOutStreamBuff buff;
+    FormattedOutStream out(&buff, FormattingFlags());
+    if (!m_currConfigFileName.empty())
+        out << m_currConfigFileName << " in ";
+    out << GetCurrentDir();
+
+    if (!GetRegStatusFlags() & RSF_AdminMode) out << "[Hiding]";
+    if (!GetRegStatusFlags() & RSF_ShowStateColors) out << "[HSC]";
+    if (GetRegStatusFlags() & RSF_TraceLogFile) out << "[TL]";
+    if (!IsMultiThreaded0()) out << "[C0]";
+    if (!IsMultiThreaded1()) out << "[C1]";
+    if (!IsMultiThreaded2()) out << "[C2]";
+    if (!IsMultiThreaded3()) out << "[C3]";
+    if (ShowThousandSeparator()) out << "[,]";
+
+    out << " - ";
+    out << DMS_GetVersion();
+    out << char(0);
+
+    setWindowTitle(buff.GetData());
+}
+
 
 void MainWindow::createStatusBar()
 {
