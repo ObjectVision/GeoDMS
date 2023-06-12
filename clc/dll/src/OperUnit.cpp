@@ -192,6 +192,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 							}
 						}
 					}
+					MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := combine()")
 				);
 				resSub->m_DataObject = lazyTileFunctor.release();
 			}

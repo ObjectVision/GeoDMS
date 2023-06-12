@@ -35,30 +35,11 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
 
-    //auto fusion_style = QStyleFactory::create("Fusion"); // TODO: does this change appearance of widgets?
-    //setStyle(fusion_style);
-
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
-    //m_mdi_area->setViewMode(QMdiArea::ViewMode::TabbedView);
 
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
 
-    // Qt Advanced Docking System test
-    /*
-    ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::XmlCompressionEnabled, false);
-    ads::CDockManager::setConfigFlag(ads::CDockManager::FocusHighlighting, true);
-    //ads::CDockManager::setConfigFlag(ads::CDockManager::FloatingContainerHasWidgetIcon, false);
-    m_DockManager = new ads::CDockManager(this);
-    */
-    
-    /*ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
-    CentralDockWidget->setWidget(label);
-    CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
-    centralDockArea = m_DockManager->setCentralWidget(CentralDockWidget);*/
-
-    //centralDockArea = //m_DockManager->setCentralWidget(CentralDockWidget);
     setCentralWidget(m_mdi_area.get());
 
     m_mdi_area->show();
@@ -85,14 +66,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
         m_treeview->setModel(new DmsModel(m_root));
         auto test = m_treeview->rootIsDecorated();
-
-        //m_treeview->expandAll();
-        //tv2->setModel(new DmsModel(m_root));
     }
 
     createActions();
     m_current_item_bar->setDmsCompleter();
-
 
     setWindowTitle(tr("GeoDMS"));
     setUnifiedTitleAndToolBarOnMac(true);
@@ -652,18 +629,6 @@ void MainWindow::createActions()
 
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
 
-
-
-
-
-    auto viewMenu = menuBar()->addMenu(tr("&View"));
-    m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
-    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
-    m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
-    connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
-    viewMenu->addAction(m_defaultview_action.get());
-
-
     // export primary data
     m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));
     connect(m_export_primary_data_action.get(), &QAction::triggered, this, &MainWindow::exportPrimaryData);
@@ -690,7 +655,7 @@ void MainWindow::createActions()
     //connect(m_update_treeitem_action.get(), &QAction::triggered, this, & #TODO);
 
     // update subtree
-    m_update_subtree_action = std::make_unique<QAction>(tr("&Update Suntree"));
+    m_update_subtree_action = std::make_unique<QAction>(tr("&Update Subtree"));
     m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
     //connect(m_update_subtree_action.get(), &QAction::triggered, this, & #TODO);
     
@@ -698,6 +663,15 @@ void MainWindow::createActions()
     m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));
     m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
     //connect(m_invalidate_action.get(), &QAction::triggered, this, & #TODO);
+
+
+    auto viewMenu = menuBar()->addMenu(tr("&View"));
+
+    m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
+    m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
+    viewMenu->addAction(m_defaultview_action.get());
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
@@ -726,11 +700,13 @@ void MainWindow::createActions()
     m_code_analysis_action = std::make_unique<QAction>(tr("&Code analysis.."));
     //connect(m_code_analysis_action.get(), &QAction::triggered, this, & #TODO);
 
+
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));
 
+
     // window menu
-    auto window_menu = menuBar()->addMenu(tr("&Window"));
+    m_window_menu = menuBar()->addMenu(tr("&Window"));
     auto win1_action = new QAction(tr("&Tile Windows"), this);
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
@@ -752,8 +728,9 @@ void MainWindow::createActions()
     /*vauto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
     connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);*/
-    window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
-
+    m_window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
+    m_window_menu->addSeparator();
+    connect(m_window_menu, &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
 
     // help menu
     auto helpMenu = menuBar()->addMenu(tr("&Help"));
@@ -761,6 +738,32 @@ void MainWindow::createActions()
     aboutAct->setStatusTip(tr("Show the application's About box"));
     QAction *aboutQtAct = helpMenu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
+}
+
+void MainWindow::updateWindowMenu() 
+{
+    static QList<QAction*> m_CurrWindowActions;
+    for (auto* swPtr : m_CurrWindowActions)
+    {
+        m_window_menu->removeAction(swPtr);
+        delete swPtr;
+    }
+    m_CurrWindowActions.clear(); // delete old actions;
+
+    auto asw = m_mdi_area->currentSubWindow();
+    for (auto* sw : m_mdi_area->subWindowList())
+    {
+        auto qa = new QAction(sw->windowTitle(), this);
+        connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
+        if (sw == asw)
+        {
+            qa->setCheckable(true);
+            qa->setChecked(true);
+        }
+        m_window_menu->addAction(qa);
+        m_CurrWindowActions.append(qa);
+    }
+    m_window_menu->addActions(m_CurrWindowActions);
 }
 
 void MainWindow::createStatusBar()

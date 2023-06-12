@@ -178,6 +178,7 @@ private:
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
+    void updateWindowMenu();
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
     SharedStr m_currConfigFileName;
@@ -212,6 +213,7 @@ private:
     QPointer<QListWidget> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
+    QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
 };
 
