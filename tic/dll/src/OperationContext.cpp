@@ -784,10 +784,9 @@ garbage_t OperationContext::separateResources(task_status status)
 		releaseBin |= std::move(resultItem->m_ReadAssets);
 	if (m_ResKeeper)
 		releaseBin |= std::move(m_ResKeeper); // may release interest of FuncDC, probably not a big thing, but it may release ownership of this, which therefore should have been called by a shared_ptr copy.
-	dms_assert(!m_ResKeeper);
+	assert(!m_ResKeeper);
 
-
-	dms_assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run_caller, which alwayws release the writeLock on completion
+	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through safe_run_caller, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
@@ -795,7 +794,7 @@ garbage_t OperationContext::separateResources(task_status status)
 		MG_DEBUGCODE(if (m_FuncDC) md_FuncDC = m_FuncDC);
 		releaseBin |= m_FuncDC->ResetOperContextImplAndStopSupplInterest();
 	}
-	dms_assert(!m_FuncDC);
+	assert(!m_FuncDC);
 
 	releaseBin |= disconnect();
 //	releaseBin |= runOperationContexts();
