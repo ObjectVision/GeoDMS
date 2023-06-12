@@ -412,6 +412,57 @@ void MainWindow::openConfigSource()
     }
 }
 
+void MainWindow::exportOkButton()
+{
+    int i = 0;
+}
+
+auto getAvailableDrivers() -> std::vector<gdal_driver_id>
+{
+    std::vector<gdal_driver_id> available_drivers;
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr);
+    available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr);
+    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr);
+    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, driver_characteristics::is_raster);
+    available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    return available_drivers;
+}
+
+void MainWindow::exportPrimaryData()
+{
+    QWidget* export_primary_data_window = new QDialog(this);
+    auto grid_layout_box = new QGridLayout(export_primary_data_window);
+    auto format_label = new QLabel("Format", this);
+
+    auto format_driver_selection_box = new QComboBox(this);
+    QStringList driver_namesnames;
+    auto available_drivers = getAvailableDrivers();
+    for (auto& driver : available_drivers)
+        format_driver_selection_box->addItem(driver.Caption());
+
+
+    format_driver_selection_box->addItems(driver_namesnames);
+    auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
+    grid_layout_box->addWidget(format_label, 0, 0);
+    grid_layout_box->addWidget(format_driver_selection_box, 0, 1);
+    grid_layout_box->addWidget(format_native_driver_checkbox, 0, 2);
+
+    auto export_button = new QPushButton("Export");
+    connect(export_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
+    grid_layout_box->addWidget(export_button, 3, 0);
+
+    auto cancel_button = new QPushButton("Cancel");
+    connect(cancel_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
+    grid_layout_box->addWidget(cancel_button, 3, 1);
+
+    export_primary_data_window->setWindowModality(Qt::ApplicationModal);
+    export_primary_data_window->show();
+}
+
 void MainWindow::createView(ViewStyle viewStyle)
 {
     try
@@ -586,46 +637,67 @@ void MainWindow::createActions()
     //fileToolBar->addAction(reOpenAct);
 
     fileMenu->addSeparator();
-    auto epdm = fileMenu->addMenu(tr("Export Primary Data"));
-    auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)"));
+    auto epdm = fileMenu->addMenu(tr("Export Primary Data")); 
+    auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)")); // TODO: memory leak, QAction will not transfer ownership from addAction
     auto epdmDbf = new QAction(tr("Table (*.dbf with a *.shp and *.shx if Feature data can be related)"));
     auto epdmCsv = new QAction(tr("Text Table (*.csv with semiColon Separated Values"));
     epdm->addAction(epdmBmp);
     epdm->addAction(epdmDbf);
     epdm->addAction(epdmCsv);
 
-/*
-    const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":res/images/save.png"));
-    QAction *saveAct = new QAction(saveIcon, tr("&Save..."), this);
-    saveAct->setShortcuts(QKeySequence::Save);
-    saveAct->setStatusTip(tr("Save the current form letter"));
-    connect(saveAct, &QAction::triggered, this, &MainWindow::save);
-    fileMenu->addAction(saveAct);
-    fileToolBar->addAction(saveAct);
-*/
     fileMenu->addSeparator();
     QAction *quitAct = fileMenu->addAction(tr("&Quit"), qApp, &QCoreApplication::quit);
     quitAct->setShortcuts(QKeySequence::Quit);
     quitAct->setStatusTip(tr("Quit the application"));
 
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
-    //QToolBar *editToolBar = addToolBar(tr("Edit"));
 
-/*
-    const QIcon undoIcon = QIcon::fromTheme("edit-undo", QIcon(":res/images/undo.png"));
-    QAction *undoAct = new QAction(undoIcon, tr("&Undo"), this);
-    undoAct->setShortcuts(QKeySequence::Undo);
-    undoAct->setStatusTip(tr("Undo the last editing action"));
-    connect(undoAct, &QAction::triggered, this, &MainWindow::undo);
-    editMenu->addAction(undoAct);
-    editToolBar->addAction(undoAct);
-*/
+
+
+
+
     auto viewMenu = menuBar()->addMenu(tr("&View"));
     m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
     m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
     viewMenu->addAction(m_defaultview_action.get());
+
+
+    // export primary data
+    m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));
+    connect(m_export_primary_data_action.get(), &QAction::triggered, this, &MainWindow::exportPrimaryData);
+
+    // step to failreason
+    m_step_to_failreason_action = std::make_unique<QAction>(tr("&Step up to FailReason"));
+    m_step_to_failreason_action->setShortcut(QKeySequence(tr("F2")));
+    //connect(m_step_to_failreason_action.get(), &QAction::triggered, this, & #TODO);
+
+    // go to causa prima
+    m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima"));
+    m_go_to_causa_prima_action->setShortcut(QKeySequence(tr("Shift+F2")));
+    //connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, & #TODO);
+    
+    // open config source
+    m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));
+    m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
+    connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
+    editMenu->addAction(m_edit_config_source_action.get());
+
+    // update treeitem
+    m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
+    m_update_treeitem_action->setShortcut(QKeySequence(tr("Ctrl+U")));
+    //connect(m_update_treeitem_action.get(), &QAction::triggered, this, & #TODO);
+
+    // update subtree
+    m_update_subtree_action = std::make_unique<QAction>(tr("&Update Suntree"));
+    m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
+    //connect(m_update_subtree_action.get(), &QAction::triggered, this, & #TODO);
+    
+    // invalidate action
+    m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));
+    m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
+    //connect(m_invalidate_action.get(), &QAction::triggered, this, & #TODO);
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
@@ -640,6 +712,19 @@ void MainWindow::createActions()
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     viewMenu->addAction(m_mapview_action.get());
+
+    // histogram view
+    m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
+    m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+    //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
+    
+    // provess schemes
+    m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
+    //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
+
+    // code analysis
+    m_code_analysis_action = std::make_unique<QAction>(tr("&Code analysis.."));
+    //connect(m_code_analysis_action.get(), &QAction::triggered, this, & #TODO);
 
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));
