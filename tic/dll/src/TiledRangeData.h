@@ -369,8 +369,8 @@ template <typename T>
 struct FixedRangeConverter {
 	FixedRangeConverter(const range_data_ptr_or_void<T>& src) {}
 
-	template <typename I> T GetValue(I i) { return Convert<T>(i); }
-	template <typename I> I GetScalar(T v) { return Convert<I>(v); }
+	template <typename I> T GetValue(I i) const { return Convert<T>(i); }
+	template <typename I> I GetScalar(T v) const { return Convert<I>(v); }
 };
 
 template <typename T>
@@ -378,8 +378,8 @@ struct CountableVarRangeConverter
 {
 	CountableVarRangeConverter(const range_data_ptr_or_void<T>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> T GetValue(I i) { return Range_GetValue_checked(m_Range, Convert<row_id>(i)); }
-	template <typename I> I GetScalar(const Point<T>& v) { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
+	template <typename I> T GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<row_id>(i)); }
+	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<T> m_Range;
 };
@@ -388,8 +388,8 @@ template <typename T>
 struct CountableVarRangeConverter<Point<T>> {
 	CountableVarRangeConverter(const range_data_ptr_or_void<Point<T>>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> Point<T> GetValue(I i) { return Range_GetValue_checked(m_Range, Convert<T>(i)); }
-	template <typename I> I GetScalar(const Point<T>& v) { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
+	template <typename I> Point<T> GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<T>(i)); }
+	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<Point<T> > m_Range;
 };

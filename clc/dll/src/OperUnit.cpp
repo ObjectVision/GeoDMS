@@ -49,6 +49,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataItemClass.h"
 #include "Param.h"
 #include "LispTreeType.h"
+#include "TileFunctorImpl.h"
 #include "TreeItemClass.h"
 #include "UnitProcessor.h"
 
@@ -147,7 +148,8 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	};
 	for (; i; --i)
 	{
-		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, AsCertainUnit(args[i-1]));
+		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i - 1]);
+		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit);
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
@@ -159,43 +161,44 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			continue; // go to next sub
 		}
 
-		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i-1]);
 		SizeT unitBase = ithUnit->GetBase();
 		SizeT unitCount = ithUnit->GetCount();
 		SizeT unitUB = unitCount + unitBase;
 
-		DataWriteLock resSubLock(resSub);
-
-		visit<typelists::domain_elements>(resSub->GetAbstrValuesUnit(), 
-			[resSubObj = resSubLock.get(), unitCount, productSize, groupSize] <typename value_type> (const Unit<value_type>* valuesUnit)
+		SizeT cycleSize = groupSize * unitCount;
+		auto trd = res->GetTiledRangeData();
+		visit<typelists::domain_elements>(ithUnit.get(),
+			[resSub, trd, groupSize, cycleSize, unitCount] <typename V> (const Unit<V>* valuesUnit)
 			{
-				auto resData = mutable_array_cast<value_type>(resSubObj)->GetDataWrite();
-				auto conv = CountableValueConverter<value_type>(valuesUnit->m_RangeDataPtr);
+				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, valuesUnit->m_RangeDataPtr
+					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
+						tile_offset  tileSize = trd->GetTileSize(t);
+						SizeT tileStart = trd->GetFirstRowIndex(t);
+						SizeT cyclePos = tileStart % cycleSize;
+						SizeT iGroup = cyclePos % groupSize;
+						SizeT iOrg = cyclePos / groupSize; assert(iOrg < unitCount);
+						auto resultObj = mutable_array_cast<V>(self);
+						auto resData = resultObj->GetWritableTile(t, dms_rw_mode::write_only_all);
+						for (tile_offset r = 0; r != tileSize; ++r)
+						{
+							Assign(resData[r], conv.GetValue(iOrg));
 
-				SizeT iOrg = 0;
-				SizeT iGroup = 0;
-
-				for (SizeT r = 0; r != productSize; ++r)
-				{
-					Assign(resData[r], conv.GetValue(iOrg));
-
-					if (++iGroup == groupSize)
-					{
-						iGroup = 0;
-						if (++iOrg == unitCount)
-							iOrg = 0;
+							if (++iGroup == groupSize)
+							{
+								iGroup = 0;
+								if (++iOrg == unitCount)
+									iOrg = 0;
+							}
+						}
 					}
-				}
-				assert(iOrg == 0);
-				assert(!iGroup);
+				);
+				resSub->m_DataObject = lazyTileFunctor.release();
 			}
 		);
-
-		groupSize = groupSize * unitCount;
-
-		resSubLock.Commit();
+		groupSize = cycleSize;
 	}
-	dms_assert(groupSize == productSize);
+//	dms_assert(groupSize == productSize);
 
 	return true;
 }

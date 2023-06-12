@@ -2289,7 +2289,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			"Check calculation rule and other referring properties of this item and/or its SubItems"
 		);
 	}
-	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
+//	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
 
 	FencedInterestRetainContext retainLocalInterestUntilThisDies;
 

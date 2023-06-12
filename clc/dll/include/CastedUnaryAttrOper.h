@@ -149,7 +149,7 @@ public:
 				visit<typelists::fields>(valuesUnit, [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
-					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, tileRangeData->GetNrTiles()
+					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}

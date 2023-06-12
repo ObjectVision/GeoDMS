@@ -171,10 +171,10 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 
 	using cache_t = std::unique_ptr<lazy_tile_record[]>;
 
-	LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+	LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ApplyFunc(std::move(aFunc))
-		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tn))
+		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tiledDomainRangeData->GetNrTiles()))
 	{}
 
 //	auto CreateFutureTile(tile_id t) const->TileRef override;
@@ -186,9 +186,9 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 };
 
 template <typename V, typename ApplyFunc>
-auto make_unique_LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, tn, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 

@@ -84,7 +84,7 @@ public:
 			const AbstrIDOperator* idOper = this;
 			auto trd = MakeShared(e1->GetTiledRangeData());
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, domainUnit->m_RangeDataPtr, domainUnit->GetNrTiles()
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, domainUnit->m_RangeDataPtr
 				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
 						idOper->Calculate(self, trd, t); // write into the same tile.
 					}
