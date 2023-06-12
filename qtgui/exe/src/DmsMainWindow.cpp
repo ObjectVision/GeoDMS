@@ -631,6 +631,7 @@ void MainWindow::createActions()
     m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));
     m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
     connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
+    editMenu->addAction(m_edit_config_source_action.get());
 
     // update treeitem
     m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
