@@ -83,6 +83,42 @@ struct CmdLineSetttings {
     std::vector<SharedStr> m_CurrItemFullNames;
 };
 
+// BEGIN EXPORT TODO: move to more appropriate location
+enum class driver_characteristics : UInt32
+{
+    none = 0,
+    is_raster = 0x01,
+    native_is_default = 0x02,
+    tableset_is_folder = 0x04,
+};
+inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
+inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
+
+struct gdal_driver_id
+{
+    CharPtr shortname = nullptr;
+    CharPtr name = nullptr;
+    CharPtr nativeName = nullptr;
+    driver_characteristics drChars = driver_characteristics::none;
+
+    CharPtr Caption()
+    {
+        if (name)
+            return name;
+        return shortname;
+    }
+
+    bool HasNativeVersion() { return nativeName; }
+
+    bool IsEmpty()
+    {
+        return shortname == nullptr;
+    }
+};
+
+
+// END EXPORT
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
