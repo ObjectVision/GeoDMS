@@ -122,6 +122,8 @@ public slots:
     void tableView();
     void mapView();
     void openConfigSource();
+    void exportPrimaryData();
+    void exportOkButton();
 
 private slots:
     void fileOpen();

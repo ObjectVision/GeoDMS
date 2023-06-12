@@ -412,6 +412,24 @@ void MainWindow::openConfigSource()
     }
 }
 
+void MainWindow::exportOkButton()
+{
+    int i = 0;
+}
+
+void MainWindow::exportPrimaryData()
+{
+    QWidget* export_primary_data_window = new QDialog(this);
+    QVBoxLayout* layout = new QVBoxLayout(export_primary_data_window);
+    QPushButton* button1 = new QPushButton("Ok");
+
+    connect(button1, &QPushButton::clicked, this, &MainWindow::exportOkButton);
+    layout->addWidget(button1);
+
+    export_primary_data_window->setWindowModality(Qt::ApplicationModal);
+    export_primary_data_window->show();
+}
+
 void MainWindow::createView(ViewStyle viewStyle)
 {
     try
@@ -615,7 +633,7 @@ void MainWindow::createActions()
 
     // export primary data
     m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));
-    //connect(m_export_primary_data_action.get(), &QAction::triggered, this, & #TODO );
+    connect(m_export_primary_data_action.get(), &QAction::triggered, this, &MainWindow::exportPrimaryData);
 
     // step to failreason
     m_step_to_failreason_action = std::make_unique<QAction>(tr("&Step up to FailReason"));

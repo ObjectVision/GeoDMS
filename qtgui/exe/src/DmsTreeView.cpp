@@ -349,7 +349,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->getExportPrimaryDataAction();
-	export_primary_data_action->setDisabled(true);
+	export_primary_data_action->setDisabled(false);
 	m_context_menu->addAction(export_primary_data_action);
 
 	// step to failreason
