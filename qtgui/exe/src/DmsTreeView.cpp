@@ -90,11 +90,6 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	return rval;
 }
 
-DmsModel::~DmsModel()
-{
-	MainWindow::EventLog(SeverityTypeID::ST_MajorTrace, "bye bye DmsModel");
-}
-
 const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
 {
 	auto ti = GetTreeItem(index);

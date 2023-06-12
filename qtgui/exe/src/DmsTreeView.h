@@ -37,7 +37,6 @@ class DmsModel : public QAbstractItemModel
 
 public:
 	DmsModel(const TreeItem* root) : m_root(root) {}
-	~DmsModel(); 
 
 	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 	QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;

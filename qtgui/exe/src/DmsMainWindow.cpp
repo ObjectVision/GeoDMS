@@ -44,13 +44,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
 
-    // test widget for ads and mdi
-    QTableWidget* propertiesTable_1 = new QTableWidget();
-    propertiesTable_1->setColumnCount(3);
-    propertiesTable_1->setRowCount(10);
-
-    auto tv2 = new QTreeView;
-
     // Qt Advanced Docking System test
     /*
     ads::CDockManager::setConfigFlag(ads::CDockManager::OpaqueSplitterResize, true);
@@ -60,10 +53,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_DockManager = new ads::CDockManager(this);
     */
     
-
-    QLabel* label = new QLabel();
-    label->setText("dms client area");
-    label->setAlignment(Qt::AlignCenter);
     /*ads::CDockWidget* CentralDockWidget = new ads::CDockWidget("CentralWidget");
     CentralDockWidget->setWidget(label);
     CentralDockWidget->setFeature(ads::CDockWidget::NoTab, true);
@@ -124,14 +113,8 @@ MainWindow::~MainWindow()
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
 
-    m_current_item.reset();
     if (m_root.has_ptr())
         m_root->EnableAutoDelete();
-
-    m_root.reset();
-    m_mdi_area.release();
-    m_dms_model.release();
-    m_current_item_bar.release();
 }
 
 void DmsCurrentItemBar::setDmsCompleter()
@@ -280,16 +263,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     if (!mdi_area)
         return;
 
-    auto subwindow_list = MainWindow::TheOne()->getDmsMdiAreaPtr()->subWindowList(QMdiArea::WindowOrder::StackingOrder);
+    auto subwindow_list = mdi_area->subWindowList(QMdiArea::WindowOrder::StackingOrder);
     auto subwindow_highest_in_z_order = subwindow_list.back();
     if (!subwindow_highest_in_z_order)
         return;
 
-    auto dms_view_widget = dynamic_cast<DmsViewWidget*>(subwindow_highest_in_z_order->widget());
-    if (!dms_view_widget)
+    auto dms_view_area = dynamic_cast<QDmsViewArea*>(subwindow_highest_in_z_order);
+    if (!dms_view_area)
         return;
-
-    SendMessage((HWND)dms_view_widget->getHwnd(), WM_COMMAND, m_data.ids[0], 0);
+    dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[0]);
 }
 
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
@@ -325,23 +307,26 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 
 void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
 {
-    if (m_toolbar)
-        removeToolBar(m_toolbar);
+    if (m_tooled_mdi_subwindow == active_mdi_subwindow)
+        return;
 
+    m_tooled_mdi_subwindow = active_mdi_subwindow;
     if (!active_mdi_subwindow)
         return;
 
-    auto active_dms_view_area = dynamic_cast<DmsViewWidget*>(active_mdi_subwindow->widget());
+    auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
 
     addToolBarBreak();
-    m_toolbar = addToolBar(tr("dmstoolbar"));
-    m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
-    auto default_icon_size = m_toolbar->iconSize();
-    m_toolbar->setIconSize(QSize(32, 32));
-    
+    if (!m_toolbar)
+    {
+        m_toolbar = addToolBar(tr("dmstoolbar"));
+        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
+        m_toolbar->setIconSize(QSize(32, 32));
+    }
+    m_toolbar->clear();
+
     if (!active_dms_view_area)
         return;
-
     // create new actions
     auto* dv = active_dms_view_area->getDataView();// ->OnCommandEnable();
     if (!dv)
@@ -349,14 +334,24 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
 
     auto view_style = dv->GetViewType();
 
-    std::vector<ToolButtonID> available_buttons = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
+
+    static ToolButtonID available_map_buttons[] = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows,
                                                     TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_TableGroupBy, TB_ZoomAllLayers,
                                                     TB_ZoomIn2, TB_ZoomOut2, TB_SelectObject, TB_SelectRect, TB_SelectCircle,
                                                     TB_SelectPolygon, TB_SelectDistrict, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn,
                                                     TB_Show_VP, TB_SP_All, TB_NeedleOn, TB_ScaleBarOn };
-
-    for (auto button_id : available_buttons)
+    static ToolButtonID available_table_buttons[] = { TB_Export , TB_TableCopy, TB_Copy };
+    ToolButtonID* button_id_ptr = available_map_buttons;
+    SizeT button_id_count = sizeof(available_map_buttons) / sizeof(ToolButtonID);
+    if (view_style == ViewStyle::tvsTableView)
     {
+        button_id_ptr = available_table_buttons;
+        button_id_count = sizeof(available_table_buttons) / sizeof(ToolButtonID);
+    }
+
+    while (button_id_count--)
+    {
+        auto button_id = *button_id_ptr++;
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
         if (!is_command_enabled)
             continue;
@@ -434,9 +429,7 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
         SuspendTrigger::Resume();
-        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get());// , hWndMain, viewContextItem, currItem, viewStyle);
-        auto dms_view_widget = new DmsViewWidget(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
-        dms_mdi_subwindow->setWidget(dms_view_widget);
+        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
         dms_mdi_subwindow->showMaximized();
         dms_mdi_subwindow->setMinimumSize(200, 150);

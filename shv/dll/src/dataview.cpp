@@ -562,7 +562,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto defaultProcessing;
 		}
 		case WM_ERASEBKGND:
-			dms_assert(msg.m_ResultPtr);
+			assert(msg.m_ResultPtr);
 			goto completed;
 
 		case WM_SETFOCUS:
