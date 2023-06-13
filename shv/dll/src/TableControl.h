@@ -93,6 +93,7 @@ public:
 	bool OnKeyDown(UInt32 virtKey) override;
 	void ProcessCollectionChange() override;
 	bool OnCommand(ToolButtonID id) override;
+	auto OnCommandEnable(ToolButtonID id) const -> CommandStatus override;
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;
 	void DoUpdateView() override;
 

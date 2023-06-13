@@ -809,6 +809,16 @@ bool TableControl::OnCommand(ToolButtonID id)
 	return base_type::OnCommand(id);
 }
 
+auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
+{
+	switch (id)
+	{
+	case TB_TableGroupBy:
+		return NrRows() > 1 ? CommandStatus::ENABLED : CommandStatus::DISABLED;
+	}
+	return GraphicVarCols::OnCommandEnable(id);
+}
+
 void TableControl::RemoveEntry(MovableObject* g)
 {
 	SizeT i = GetEntryPos(g);
