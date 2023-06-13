@@ -516,6 +516,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_ShowSelOnlyOn: return { ButtonType::SINGLE, "", {TB_ShowSelOnlyOn}, {":/res/images/TB_show_selected_features.bmp"} };
     case TB_TableGroupBy: return { ButtonType::SINGLE, "", {TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"}, "Group by the selected column"};
     case TB_ZoomAllLayers: return { ButtonType::SINGLE, "", {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"} };
+    case TB_ZoomActiveLayer: return { ButtonType::SINGLE, "", {TB_ZoomActiveLayer}, {":/res/images/TB_zoom_active_layer.bmp"} };
     case TB_ZoomIn2: return { ButtonType::SINGLE, "", {TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"} };
     case TB_ZoomOut2: return { ButtonType::SINGLE, "", {TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"} };
     case TB_SelectObject: return { ButtonType::SINGLE, "", {TB_SelectObject}, {":/res/images/TB_select_object.bmp"}, "Select objects in the active layer by the mouse."};
@@ -562,16 +563,17 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
     auto view_style = dv->GetViewType();
 
 
-    static ToolButtonID available_map_buttons[] = { TB_Export , TB_TableCopy, TB_Copy, TB_CopyLC, TB_ZoomSelectedObj, TB_SelectRows, TB_ZoomAllLayers,
-                                                    TB_ZoomIn2, TB_ZoomOut2, TB_SelectObject, TB_SelectRect, TB_SelectCircle,
-                                                    TB_SelectPolygon, TB_SelectDistrict, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn,
-                                                    TB_Show_VP, TB_SP_All, TB_NeedleOn, TB_ScaleBarOn };
-    static ToolButtonID available_table_buttons[] = { 
-        TB_TableCopy, TB_Copy, TB_Export, TB_Undefined
-    ,   TB_ZoomSelectedObj, TB_SelectObject, TB_Undefined
-    ,   TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_TableGroupBy, 
-    };
 
+
+    static ToolButtonID available_table_buttons[] = { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined, 
+                                                      TB_ZoomSelectedObj, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
+                                                      TB_TableGroupBy };
+
+    static ToolButtonID available_map_buttons[] = { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
+                                                    TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
+                                                    TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
+                                                    TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
+        
 
     ToolButtonID* button_id_ptr = available_map_buttons;
     SizeT button_id_count = sizeof(available_map_buttons) / sizeof(ToolButtonID);
@@ -586,17 +588,17 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
         auto button_id = *button_id_ptr++;
         if (button_id == TB_Undefined)
         {
-            // TODO: add separator
             m_toolbar->addSeparator();
             continue;
         }
 
-        auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
-        if (!is_command_enabled)
-            continue;
         auto button_data = getToolbarButtonData(button_id);
         auto button_icon = QIcon(button_data.icons[0]);
         auto action = new  DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
+        auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
+        if (is_command_enabled)
+            action->setDisabled(true);
+
         m_toolbar->addAction(action);
 
         // connections
