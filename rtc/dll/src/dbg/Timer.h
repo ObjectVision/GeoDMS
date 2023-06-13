@@ -40,15 +40,15 @@ struct Timer
 	{
 		time_t t;
 		time(&t);
-		begin_time = t;
-		last_time = begin_time;
+//		begin_time = t;
+		last_time = t; // begin_time;
 	}
 	bool PassedSecs(time_t nrSecs)
 	{
 		time_t curr_time;
 		time(&curr_time);
-		time_t delta_time = curr_time - begin_time;
-		MakeMax(nrSecs, delta_time / 5);
+//		time_t delta_time = curr_time - begin_time;
+//		MakeMax(nrSecs, delta_time / 5);
 		MakeMin(nrSecs, 600);
 
 		if (curr_time < last_time + nrSecs)
@@ -61,7 +61,7 @@ struct Timer
 	}
 
 private:
-	time_t begin_time;
+//	time_t begin_time;
 	std::atomic<time_t> last_time;
 };
 

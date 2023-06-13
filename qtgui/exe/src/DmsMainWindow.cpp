@@ -7,6 +7,7 @@
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
+#include "dbg/Timer.h"
 
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
@@ -144,8 +145,14 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     // TODO: create fancy styling of eventlog items using view implementation of model/view
 
     auto eventLogWidget = TheOne()->m_eventlog;
+    while (eventLogWidget->count() > 1000)
+        delete eventLogWidget->takeItem(0);
+
     eventLogWidget->addItem(msg);
-    eventLogWidget->scrollToBottom();
+    
+    static Timer t;
+    if (t.PassedSecs(5))
+        eventLogWidget->scrollToBottom();
 
     // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
 

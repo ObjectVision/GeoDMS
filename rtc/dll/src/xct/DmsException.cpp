@@ -680,7 +680,6 @@ RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 #if defined(MG_DEBUG)
 	__debugbreak();
-	__debugbreak();
 #endif
 }
 
