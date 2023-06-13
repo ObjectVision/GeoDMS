@@ -29,29 +29,137 @@
 
 static MainWindow* s_CurrMainWindow = nullptr;
 
+void DmsOptionsWindow::setInitialLocalDataDirValue()
+{
+    auto ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
+    if (ld_reg_key.empty())
+    {
+        SetGeoDmsRegKeyString("LocalDataDir", "C:\\LocalData");
+        ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
+    }
+    m_ld_input->setText(ld_reg_key.c_str());
+}
+
+void DmsOptionsWindow::setInitialSourceDatDirValue()
+{
+    auto ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
+    if (ld_reg_key.empty())
+    {
+        SetGeoDmsRegKeyString("SourceDataDir", "C:\\SourceData");
+        ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
+    }
+    m_sd_input->setText(ld_reg_key.c_str());
+}
+
+void DmsOptionsWindow::setInitialEditorValue()
+{
+    auto ld_reg_key = GetGeoDmsRegKey("DmsEditor");
+    if (ld_reg_key.empty())
+    {
+        SetGeoDmsRegKeyString("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L");
+        ld_reg_key = GetGeoDmsRegKey("DmsEditor");
+    }
+    m_editor_input->setText(ld_reg_key.c_str());
+}
+
+void DmsOptionsWindow::setInitialMemoryFlushTresholdValue()
+{
+    auto flush_treshold = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
+    m_flush_treshold->setValue(flush_treshold);
+}
+
+void DmsOptionsWindow::restoreOptions()
+{
+    {
+        const QSignalBlocker blocker1(m_ld_input);
+        const QSignalBlocker blocker2(m_sd_input);
+        const QSignalBlocker blocker3(m_editor_input);
+        const QSignalBlocker blocker4(m_flush_treshold);
+        const QSignalBlocker blocker5(m_pp0);
+        const QSignalBlocker blocker6(m_pp1);
+        const QSignalBlocker blocker7(m_pp2);
+        const QSignalBlocker blocker8(m_pp3);
+        const QSignalBlocker blocker9(m_tracelog);
+
+        setInitialLocalDataDirValue();
+        setInitialSourceDatDirValue();
+        setInitialEditorValue();
+        setInitialMemoryFlushTresholdValue();
+        m_pp0->setChecked(IsMultiThreaded0());
+        m_pp1->setChecked(IsMultiThreaded1());
+        m_pp2->setChecked(IsMultiThreaded2());
+        m_pp3->setChecked(IsMultiThreaded3());
+        m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
+    }
+}
+
+void DmsOptionsWindow::apply()
+{
+    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input.data()->text().toStdString());
+    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input.data()->text().toStdString());
+    SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
+
+    auto dms_reg_status_flags = GetRegStatusFlags();
+    SetGeoDmsRegKeyDWord("StatusFlags", m_pp0->isChecked() ? dms_reg_status_flags |= RSF_SuspendForGUI : dms_reg_status_flags &= ~RSF_SuspendForGUI);
+    SetGeoDmsRegKeyDWord("StatusFlags", m_pp1->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading1 : dms_reg_status_flags &= ~RSF_MultiThreading1);
+    SetGeoDmsRegKeyDWord("StatusFlags", m_pp2->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading2 : dms_reg_status_flags &= ~RSF_MultiThreading2);
+    SetGeoDmsRegKeyDWord("StatusFlags", m_pp3->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading3 : dms_reg_status_flags &= ~RSF_MultiThreading3);
+    SetGeoDmsRegKeyDWord("StatusFlags", m_tracelog->isChecked() ? dms_reg_status_flags |= RSF_TraceLogFile : dms_reg_status_flags &= ~RSF_TraceLogFile);
+    SetGeoDmsRegKeyDWord("MemoryFlushThreshold", m_flush_treshold->value());
+    m_changed = false;
+    m_apply->setDisabled(true);
+}
+
+void DmsOptionsWindow::ok()
+{
+    if (m_changed)
+        apply();
+    m_changed = false;
+    done(QDialog::Accepted);
+}
+
+void DmsOptionsWindow::cancel()
+{
+    restoreOptions();
+    m_changed = false;
+    done(QDialog::Rejected);
+}
+
+void DmsOptionsWindow::onStateChange(int state)
+{
+    m_changed = true;
+    m_apply->setDisabled(false);
+}
+
+void DmsOptionsWindow::onTextChange(const QString& text)
+{
+    m_changed = true;
+    m_apply->setDisabled(false);
+}
 
 DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(QString("Options"));
+    setMinimumSize(800,400);
+    
     auto grid_layout = new QGridLayout(this);
 
     // path widgets
     auto path_ld = new QLabel("Local data:", this);
     auto path_sd = new QLabel("Source data:", this);
-    auto path_ld_input = new QLineEdit(this);
-    auto path_sd_input = new QLineEdit(this);
+    m_ld_input = new QLineEdit(this);
+    m_sd_input = new QLineEdit(this);
     auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
     path_ld_fldr->setFlat(true);
-    //path_ld_fldr->setStyleSheet(QString("QPushButton {outline: none;}"));
     auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
     path_sd_fldr->setFlat(true);
 
     grid_layout->addWidget(path_ld, 0, 0);
-    grid_layout->addWidget(path_ld_input, 0, 1);
+    grid_layout->addWidget(m_ld_input, 0, 1);
     grid_layout->addWidget(path_ld_fldr, 0, 2);
     grid_layout->addWidget(path_sd, 1, 0);
-    grid_layout->addWidget(path_sd_input, 1, 1);
+    grid_layout->addWidget(m_sd_input, 1, 1);
     grid_layout->addWidget(path_sd_fldr, 1, 2);
 
     auto path_line = new QFrame(this);
@@ -63,9 +171,9 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
 
     // editor widgets
     auto editor_text = new QLabel("Editor:", this);
-    auto editor_input = new QLineEdit(this);
-    grid_layout->addWidget(editor_text, 3, 0, 1, 3);
-    grid_layout->addWidget(editor_input, 3, 1, 1, 3);
+    m_editor_input = new QLineEdit(this);
+    grid_layout->addWidget(editor_text, 3, 0);
+    grid_layout->addWidget(m_editor_input, 3, 1);
 
     auto line_editor = new QFrame(this);
     line_editor->setFrameShape(QFrame::HLine);
@@ -76,24 +184,20 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
 
     // parallel processing widgets
     auto pp_text = new QLabel("Parallel processing:", this);
-    auto pp_checkbox_s0 = new QCheckBox(this);
-    auto pp_checkbox_s1 = new QCheckBox(this);
-    auto pp_checkbox_s2 = new QCheckBox(this);
-    auto pp_checkbox_s3 = new QCheckBox(this);
-    auto pp_text_s0 = new QLabel("0: Suspend view updates to favor gui", this);
-    auto pp_text_s1 = new QLabel("1: Tile/segment tasks", this);
-    auto pp_text_s2 = new QLabel("2: Multiple operations simultaneously", this);
-    auto pp_text_s3 = new QLabel("3: Pipelined tile operations:", this);
+    m_pp0 = new QCheckBox("0: Suspend view updates to favor gui", this);
+    m_pp0->setChecked(IsMultiThreaded0());
+    m_pp1 = new QCheckBox("1: Tile/segment tasks", this);
+    m_pp1->setChecked(IsMultiThreaded1());
+    m_pp2 = new QCheckBox("2: Multiple operations simultaneously", this);
+    m_pp2->setChecked(IsMultiThreaded2());
+    m_pp3 = new QCheckBox("3: Pipelined tile operations", this);
+    m_pp3->setChecked(IsMultiThreaded3());
 
-    grid_layout->addWidget(pp_text, 5, 0);
-    grid_layout->addWidget(pp_checkbox_s0, 6, 0);
-    grid_layout->addWidget(pp_text_s0, 6, 1);
-    grid_layout->addWidget(pp_checkbox_s1, 7, 0);
-    grid_layout->addWidget(pp_text_s1, 7, 1);
-    grid_layout->addWidget(pp_checkbox_s2, 8, 0);
-    grid_layout->addWidget(pp_text_s2, 8, 1);
-    grid_layout->addWidget(pp_checkbox_s3, 9, 0);
-    grid_layout->addWidget(pp_text_s3, 9, 1);
+    grid_layout->addWidget(pp_text, 5, 0, 1, 3);
+    grid_layout->addWidget(m_pp0, 6, 0, 1, 3);
+    grid_layout->addWidget(m_pp1, 7, 0, 1, 3);
+    grid_layout->addWidget(m_pp2, 8, 0, 1, 3);
+    grid_layout->addWidget(m_pp3, 9, 0, 1, 3);
 
     auto pp_line = new QFrame(this);
     pp_line->setFrameShape(QFrame::HLine);
@@ -104,18 +208,19 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
 
     // flush treshold
     auto ft_text = new QLabel("Flush treshold:", this);
-    auto ft_percentage = new QLabel("%", this);
-    auto ft_slider = new QSlider(Qt::Orientation::Horizontal, this);
-    ft_slider->setTickPosition(QSlider::TickPosition::TicksAbove);
-    ft_slider->setMinimum(50);
-    ft_slider->setMaximum(100);
-    auto ft_text_tracelog = new QLabel("Tracelog file:", this);
-    auto ft_tracelog = new QCheckBox(this);
+    m_flush_treshold_text = new QLabel("100%", this);
+    m_flush_treshold = new QSlider(Qt::Orientation::Horizontal, this);
+    m_flush_treshold->setMinimum(50);
+    m_flush_treshold->setMaximum(100);
+    m_flush_treshold->setValue(100);
+    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsOptionsWindow::onFlushTresholdValueChange);
+
+    m_tracelog = new QCheckBox("Tracelog file", this);
+    
     grid_layout->addWidget(ft_text, 11, 0);
-    grid_layout->addWidget(ft_slider, 11, 1);
-    grid_layout->addWidget(ft_percentage, 11, 2);
-    grid_layout->addWidget(ft_text_tracelog, 12, 0);
-    grid_layout->addWidget(ft_tracelog, 12, 1);
+    grid_layout->addWidget(m_flush_treshold, 11, 1);
+    grid_layout->addWidget(m_flush_treshold_text, 11, 2);
+    grid_layout->addWidget(m_tracelog, 12, 0);
 
     auto ft_line = new QFrame(this);
     ft_line->setFrameShape(QFrame::HLine);
@@ -124,14 +229,42 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     ft_line->setMidLineWidth(1);
     grid_layout->addWidget(ft_line, 13, 0, 1, 3);
 
-    auto ok_button = new QPushButton("Ok");
-    auto apply_button = new QPushButton("Apply");
-    auto cancel_button = new QPushButton("Cancel");
-    grid_layout->addWidget(ok_button, 14, 0);
-    grid_layout->addWidget(apply_button, 14, 1);
-    grid_layout->addWidget(cancel_button, 14, 2);
+    // change connections
+    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
+    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
+    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
+    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
+    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
+    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_ok = new QPushButton("Ok");
+    m_ok->setMaximumSize(75, 30);
+    m_apply = new QPushButton("Apply");
+    m_apply->setMaximumSize(75, 30);
+    m_apply->setDisabled(true);
+
+    m_cancel = new QPushButton("Cancel");
+    connect(m_ok, &QPushButton::released, this, &DmsOptionsWindow::ok);
+    connect(m_apply, &QPushButton::released, this, &DmsOptionsWindow::apply);
+    connect(m_cancel, &QPushButton::released, this, &DmsOptionsWindow::cancel);
+    m_cancel->setMaximumSize(75, 30);
+    box_layout->addWidget(m_ok);
+    box_layout->addWidget(m_apply);
+    box_layout->addWidget(m_cancel);
+    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
+
+    restoreOptions();
 
     setWindowModality(Qt::ApplicationModal);
+}
+
+void DmsOptionsWindow::onFlushTresholdValueChange(int value)
+{
+    m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
+    m_apply->setDisabled(false);
+    m_changed = true;
 }
 
 
