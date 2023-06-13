@@ -442,14 +442,14 @@ void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
     auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
-    QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
+	dock->setTitleBarWidget(new QWidget(dock));
+	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
     dock->setWidget(dms_eventlog_widget_pointer);
-    dock->setTitleBarWidget(new QWidget(dock));
-    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
+//	dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
 
 	//auto box_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom);
 
-    dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
 
     //viewMenu->addAction(dock->toggleViewAction());
     return dms_eventlog_widget_pointer;

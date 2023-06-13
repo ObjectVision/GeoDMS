@@ -22,7 +22,7 @@ auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListWidget>
     QPointer<QListWidget> dms_eventlog_widget_pointer = new QListWidget(dock);
     dock->setWidget(dms_eventlog_widget_pointer);
     dock->setTitleBarWidget(new QWidget(dock));
-    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+//    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, dock);
 
     dms_eventlog_widget_pointer->setUniformItemSizes(true);
