@@ -594,9 +594,9 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
 
         auto button_data = getToolbarButtonData(button_id);
         auto button_icon = QIcon(button_data.icons[0]);
-        auto action = new  DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
+        auto action = new DmsToolbuttonAction(button_icon, tr("&export"), m_toolbar, button_data);
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
-        if (is_command_enabled)
+        if (!is_command_enabled)
             action->setDisabled(true);
 
         m_toolbar->addAction(action);
