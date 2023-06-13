@@ -233,7 +233,6 @@ private:
     QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsOptionsWindow> m_options_window;
-    std::vector<std::any> m_garbage_bag;
 };
 
 #endif

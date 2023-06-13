@@ -971,8 +971,8 @@ void MainWindow::updateCaption()
         out << m_currConfigFileName << " in ";
     out << GetCurrentDir();
 
-    if (!GetRegStatusFlags() & RSF_AdminMode) out << "[Hiding]";
-    if (!GetRegStatusFlags() & RSF_ShowStateColors) out << "[HSC]";
+    if (!(GetRegStatusFlags() & RSF_AdminMode)) out << "[Hiding]";
+    if (!(GetRegStatusFlags() & RSF_ShowStateColors)) out << "[HSC]";
     if (GetRegStatusFlags() & RSF_TraceLogFile) out << "[TL]";
     if (!IsMultiThreaded0()) out << "[C0]";
     if (!IsMultiThreaded1()) out << "[C1]";
@@ -1014,12 +1014,10 @@ void MainWindow::createDetailPagesToolbar()
     connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
 
     const QIcon configuraion_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
-    auto configuration_page_act = std::make_unique<QAction>(properties_icon, tr("&Configuration"), this);
+    auto configuration_page_act = new QAction(properties_icon, tr("&Configuration"), this);
     configuration_page_act->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
-//    configuration_page_act->setWhatsThis("");
-    detail_pages_toolBar->addAction(configuration_page_act.get());
-    connect(configuration_page_act.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
-    m_garbage_bag |= std::move(configuration_page_act);
+    detail_pages_toolBar->addAction(configuration_page_act);
+    connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
     const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
     QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
