@@ -19,7 +19,6 @@
 #include <QTextBrowser>
 #include <QCompleter>
 
-
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
@@ -29,6 +28,112 @@
 #include "dataview.h"
 
 static MainWindow* s_CurrMainWindow = nullptr;
+
+
+DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
+    : QDialog(parent)
+{
+    setWindowTitle(QString("Options"));
+    auto grid_layout = new QGridLayout(this);
+
+    // path widgets
+    auto path_ld = new QLabel("Local data:", this);
+    auto path_sd = new QLabel("Source data:", this);
+    auto path_ld_input = new QLineEdit(this);
+    auto path_sd_input = new QLineEdit(this);
+    auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
+    path_ld_fldr->setFlat(true);
+    //path_ld_fldr->setStyleSheet(QString("QPushButton {outline: none;}"));
+    auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
+    path_sd_fldr->setFlat(true);
+
+    grid_layout->addWidget(path_ld, 0, 0);
+    grid_layout->addWidget(path_ld_input, 0, 1);
+    grid_layout->addWidget(path_ld_fldr, 0, 2);
+    grid_layout->addWidget(path_sd, 1, 0);
+    grid_layout->addWidget(path_sd_input, 1, 1);
+    grid_layout->addWidget(path_sd_fldr, 1, 2);
+
+    auto path_line = new QFrame(this);
+    path_line->setFrameShape(QFrame::HLine);
+    path_line->setFrameShadow(QFrame::Plain);
+    path_line->setLineWidth(1);
+    path_line->setMidLineWidth(1);
+    grid_layout->addWidget(path_line, 2, 0, 1, 3);
+
+    // editor widgets
+    auto editor_text = new QLabel("Editor:", this);
+    auto editor_input = new QLineEdit(this);
+    grid_layout->addWidget(editor_text, 3, 0, 1, 3);
+    grid_layout->addWidget(editor_input, 3, 1, 1, 3);
+
+    auto line_editor = new QFrame(this);
+    line_editor->setFrameShape(QFrame::HLine);
+    line_editor->setFrameShadow(QFrame::Plain);
+    line_editor->setLineWidth(1);
+    line_editor->setMidLineWidth(1);
+    grid_layout->addWidget(line_editor, 4, 0, 1, 3);
+
+    // parallel processing widgets
+    auto pp_text = new QLabel("Parallel processing:", this);
+    auto pp_checkbox_s0 = new QCheckBox(this);
+    auto pp_checkbox_s1 = new QCheckBox(this);
+    auto pp_checkbox_s2 = new QCheckBox(this);
+    auto pp_checkbox_s3 = new QCheckBox(this);
+    auto pp_text_s0 = new QLabel("0: Suspend view updates to favor gui", this);
+    auto pp_text_s1 = new QLabel("1: Tile/segment tasks", this);
+    auto pp_text_s2 = new QLabel("2: Multiple operations simultaneously", this);
+    auto pp_text_s3 = new QLabel("3: Pipelined tile operations:", this);
+
+    grid_layout->addWidget(pp_text, 5, 0);
+    grid_layout->addWidget(pp_checkbox_s0, 6, 0);
+    grid_layout->addWidget(pp_text_s0, 6, 1);
+    grid_layout->addWidget(pp_checkbox_s1, 7, 0);
+    grid_layout->addWidget(pp_text_s1, 7, 1);
+    grid_layout->addWidget(pp_checkbox_s2, 8, 0);
+    grid_layout->addWidget(pp_text_s2, 8, 1);
+    grid_layout->addWidget(pp_checkbox_s3, 9, 0);
+    grid_layout->addWidget(pp_text_s3, 9, 1);
+
+    auto pp_line = new QFrame(this);
+    pp_line->setFrameShape(QFrame::HLine);
+    pp_line->setFrameShadow(QFrame::Plain);
+    pp_line->setLineWidth(1);
+    pp_line->setMidLineWidth(1);
+    grid_layout->addWidget(pp_line, 10, 0, 1, 3);
+
+    // flush treshold
+    auto ft_text = new QLabel("Flush treshold:", this);
+    auto ft_percentage = new QLabel("%", this);
+    auto ft_slider = new QSlider(Qt::Orientation::Horizontal, this);
+    ft_slider->setTickPosition(QSlider::TickPosition::TicksAbove);
+    ft_slider->setMinimum(50);
+    ft_slider->setMaximum(100);
+    auto ft_text_tracelog = new QLabel("Tracelog file:", this);
+    auto ft_tracelog = new QCheckBox(this);
+    grid_layout->addWidget(ft_text, 11, 0);
+    grid_layout->addWidget(ft_slider, 11, 1);
+    grid_layout->addWidget(ft_percentage, 11, 2);
+    grid_layout->addWidget(ft_text_tracelog, 12, 0);
+    grid_layout->addWidget(ft_tracelog, 12, 1);
+
+    auto ft_line = new QFrame(this);
+    ft_line->setFrameShape(QFrame::HLine);
+    ft_line->setFrameShadow(QFrame::Plain);
+    ft_line->setLineWidth(1);
+    ft_line->setMidLineWidth(1);
+    grid_layout->addWidget(ft_line, 13, 0, 1, 3);
+
+    auto ok_button = new QPushButton("Ok");
+    auto apply_button = new QPushButton("Apply");
+    auto cancel_button = new QPushButton("Cancel");
+    grid_layout->addWidget(ok_button, 14, 0);
+    grid_layout->addWidget(apply_button, 14, 1);
+    grid_layout->addWidget(cancel_button, 14, 2);
+
+    setWindowModality(Qt::ApplicationModal);
+}
+
 
 MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 { 
@@ -412,44 +517,10 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 
 void MainWindow::options()
 {
-    QWidget* options_window = new QDialog(this);
-    options_window->setWindowTitle(QString("Options"));
+    if (!m_options_window)
+        m_options_window = new DmsOptionsWindow(this);
 
-
-    auto grid_layout = new QGridLayout(options_window);
-    //auto grid_layout_external_programs = new QGridLayout(options_window);
-    //auto grid_layout_multi_tasking = new QGridLayout(options_window);
-
-
-    auto format_label = new QLabel("<B>Paths</B>", this);
-    auto line = new QFrame(options_window);
-    line->setFrameShape(QFrame::HLine);
-    line->setFrameShadow(QFrame::Sunken);
-    line->setLineWidth(1);
-    line->setMidLineWidth(1);
-
-    auto format_driver_selection_box = new QComboBox(this);
-    QStringList driver_namesnames;
-    auto available_drivers = getAvailableDrivers();
-    for (auto& driver : available_drivers)
-        format_driver_selection_box->addItem(driver.Caption());
-
-    format_driver_selection_box->addItems(driver_namesnames);
-    auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
-    grid_layout->addWidget(format_label, 0, 0);
-    grid_layout->addWidget(format_driver_selection_box, 0, 1);
-    grid_layout->addWidget(format_native_driver_checkbox, 0, 2);
-    grid_layout->addWidget(format_native_driver_checkbox, 0, 2);
-    auto export_button = new QPushButton("Export");
-    connect(export_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout->addWidget(line, 2, 0, 1, 3);
-
-    auto cancel_button = new QPushButton("Cancel");
-    connect(cancel_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout->addWidget(cancel_button, 3, 1);
-
-    options_window->setWindowModality(Qt::ApplicationModal);
-    options_window->show();
+    m_options_window->show();
 }
 
 void MainWindow::exportPrimaryData()
