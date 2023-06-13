@@ -389,13 +389,13 @@ private:
 
 void GraphDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(IsDataItem(viewItem));
+	assert(!SuspendTrigger::DidSuspend());
+	MG_USERCHECK(IsDataItem(viewItem));
 
 	LayerInfo info = GetCompleteLayerInfoOrThrow(viewItem);
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
-	dms_assert(info.IsComplete());
+	MG_USERCHECK(info.IsComplete());
 	AddLayerCmd(AsDynamicDataItem(viewItem), info, isDropped).Visit(GetContents().get());
 }
 

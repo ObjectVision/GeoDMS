@@ -168,9 +168,9 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
     if (m_current_item_bar)
     {
         if (m_current_item)
-            m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+            m_current_item_bar->setPath(m_current_item->GetFullName().c_str());
         else
-            m_current_item_bar->setText("");
+            m_current_item_bar->setPath("");
     }
 
     m_treeview->setNewCurrentItem(new_current_item);
@@ -392,6 +392,38 @@ void MainWindow::openConfigSource()
 void MainWindow::exportOkButton()
 {
     int i = 0;
+}
+
+TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
+
+void MainWindow::stepToFailReason()
+{
+    auto ti = getCurrentTreeItem();
+    if (!ti)
+        return;
+
+    BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
+    if (result.first)
+        setCurrentTreeItem(const_cast<TreeItem*>(result.first));
+
+    if (!result.second.empty())
+    {
+        auto textWithUnfoundPart = m_current_item_bar->text() + " " + result.second.c_str();
+        m_current_item_bar->setText(textWithUnfoundPart);
+    }
+}
+
+void MainWindow::runToFailReason()
+{
+    auto current_ti = getCurrentTreeItem();
+    while (current_ti->WasFailed())
+    {
+        stepToFailReason();
+        auto new_ti = getCurrentTreeItem();
+        if (current_ti == new_ti)
+            break;
+        current_ti = new_ti;
+    }   
 }
 
 auto getAvailableDrivers() -> std::vector<gdal_driver_id>
@@ -720,12 +752,12 @@ void MainWindow::createActions()
     // step to failreason
     m_step_to_failreason_action = std::make_unique<QAction>(tr("&Step up to FailReason"));
     m_step_to_failreason_action->setShortcut(QKeySequence(tr("F2")));
-    //connect(m_step_to_failreason_action.get(), &QAction::triggered, this, & #TODO);
+    connect(m_step_to_failreason_action.get(), &QAction::triggered, this, &MainWindow::stepToFailReason);
 
     // go to causa prima
-    m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima"));
+    m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima (i.e. repeated Step up)"));
     m_go_to_causa_prima_action->setShortcut(QKeySequence(tr("Shift+F2")));
-    //connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, & #TODO);
+    connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, &MainWindow::runToFailReason);
     
     // open config source
     m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));

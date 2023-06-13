@@ -161,6 +161,8 @@ public slots:
     void exportPrimaryData();
     void options();
     void exportOkButton();
+    void stepToFailReason();
+    void runToFailReason();
 
 private slots:
     void fileOpen();
