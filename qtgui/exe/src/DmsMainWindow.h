@@ -63,6 +63,7 @@ struct ToolbarButtonData
     QString text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
+    QString statusText;
 };
 
 class DmsToolbuttonAction : public QAction
