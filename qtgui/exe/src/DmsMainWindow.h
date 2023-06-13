@@ -7,6 +7,7 @@
 #include <QCompleter>
 #include <QToolBar>
 #include <QTextEdit>
+#include <QDialog>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -25,7 +26,7 @@ class QTextEdit;
 class QTextBrowser;
 class QTreeView;
 class QTableView;
-
+class QDialog;
 
 class QMdiSubWindow;
 QT_END_NAMESPACE
@@ -118,6 +119,15 @@ struct gdal_driver_id
 
 
 // END EXPORT
+
+class DmsOptionsWindow : public QDialog
+{
+    Q_OBJECT
+
+public:
+    DmsOptionsWindow(QWidget* parent = nullptr);
+private:
+};
 
 class MainWindow : public QMainWindow
 {
@@ -222,6 +232,7 @@ private:
     QPointer<QToolBar> m_toolbar;
     QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
+    QPointer<DmsOptionsWindow> m_options_window;
 };
 
 #endif
