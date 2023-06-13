@@ -130,7 +130,7 @@ public:
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
-    auto getDmsTreeViewPtr() -> QPointer<DmsTreeView> { return m_treeview; }
+    auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
     
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };

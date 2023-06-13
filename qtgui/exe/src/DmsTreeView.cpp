@@ -181,28 +181,18 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 {
 	auto ti = GetTreeItemOrRoot(index);
-	if (!ti)
-		return QVariant();
+	assert(ti);
 
-	if (ti->IsFailed())
-		return QColor(0, 0, 0, 255);
+	static auto salmon = QColor(255, 128, 114);
+	static auto cool_blue = QColor(82, 136, 219);
+	static auto cool_green = QColor(0, 153, 51);
 
-	auto salmon = QColor(255, 0, 102, 255);
-	auto cool_blue = QColor(82, 136, 219, 255);
-	auto cool_green = QColor(0, 153, 51, 255);
-	auto ti_state = static_cast<NotificationCode>(DMS_TreeItem_GetProgressState(ti));
-	switch (ti_state)
-	{
-	case NotificationCode::NC2_FailedFlag: return QColor(0, 0, 0, 255);
-	case NotificationCode::NC2_DataReady: return cool_blue;
-	case NotificationCode::NC2_Validated: return cool_green;
-	case NotificationCode::NC2_Committed: return cool_green;
-	case NotificationCode::NC2_Invalidated:
-	case NotificationCode::NC2_MetaReady: return salmon;
-	default: return salmon;
-	}
+	if (IsDataCurrReady(ti->GetCurrRangeItem()))
+		return cool_blue;
+	if (ti->m_State.GetProgress() >= PS_Validated)
+		return cool_green;
 
-	return {};
+	return salmon;
 }
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const
@@ -212,15 +202,29 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	auto ti = GetTreeItemOrRoot(index);
 
+	if (!ti)
+		return QVariant();
+	ti->UpdateMetaInfo();
+
 	switch (role)
 	{
-	case Qt::DecorationRole: return getTreeItemIcon(index);
-	case Qt::EditRole: return QString(ti->GetName().c_str());
-	case Qt::DisplayRole: return  QString(ti->GetName().c_str());
+	case Qt::DecorationRole: 
+		return getTreeItemIcon(index);
+
+	case Qt::EditRole: 
+		return QString(ti->GetName().c_str());
+
+	case Qt::DisplayRole: 
+		return  QString(ti->GetName().c_str());
+
 	case Qt::ForegroundRole:
-	{
-		return QColor(Qt::red);
-	}
+		return getTreeItemColor(index);
+
+	case Qt::BackgroundRole:
+		if (ti->WasFailed())
+			return QColor(192, 16, 16);
+		break; // default background color
+
 	case Qt::SizeHintRole:
 	{
 		auto font = QApplication::font();
@@ -229,9 +233,12 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		int pixels_high = font_metrics.height();
 		return QSize(pixels_wide, pixels_high);
 	}
-	case Qt::FontRole: {return QApplication::font(); };
-	default: return QVariant();
+
+	case Qt::FontRole: 
+		return QApplication::font();
+
 	}
+	return QVariant();
 }
 
 bool DmsModel::hasChildren(const QModelIndex& parent) const

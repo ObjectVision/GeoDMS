@@ -25,6 +25,7 @@
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "StateChangeNotification.h"
 
 #include "dataview.h"
 
@@ -89,6 +90,11 @@ MainWindow::~MainWindow()
     DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
+}
+
+auto MainWindow::getDmsTreeViewPtr() -> DmsTreeView*
+{ 
+    return m_treeview.get(); 
 }
 
 void DmsCurrentItemBar::setDmsCompleter()
@@ -637,12 +643,28 @@ void CppExceptionTranslator(CharPtr msg)
     MainWindow::EventLog(SeverityTypeID::ST_Error, msg);
 }
 
+void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
+{
+    auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
+    if (notificationCode == NC_Deleting)
+    {
+        // TODO: remove self from any representation to avoid accessing it's dangling pointer
+    }
+
+    // MainWindow could already be destroyed
+    if (s_CurrMainWindow)
+    {
+        assert(s_CurrMainWindow == mainWindow);
+        mainWindow->getDmsTreeViewPtr()->update(); // this actually only invalidates any drawn area and causes repaint later
+    }
+}
+
 void MainWindow::setupDmsCallbacks()
 {
     DMS_SetGlobalCppExceptionTranslator(CppExceptionTranslator);
     DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
-    //DMS_RegisterStateChangeNotification(&m_Views.OnOpenEditPaletteWindow, this);
+    DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
 }
 
