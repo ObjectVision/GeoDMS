@@ -8,6 +8,8 @@
 #include <QToolBar>
 #include <QTextEdit>
 #include <QDialog>
+#include <QCheckbox>
+#include <QSlider>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -27,6 +29,7 @@ class QTextBrowser;
 class QTreeView;
 class QTableView;
 class QDialog;
+class QLabel;
 
 class QMdiSubWindow;
 QT_END_NAMESPACE
@@ -125,9 +128,47 @@ class DmsOptionsWindow : public QDialog
 {
     Q_OBJECT
 
+private slots:
+    void onFlushTresholdValueChange(int value);
+    void restoreOptions();
+    void ok();
+    void apply();
+    void cancel();
+    void onStateChange(int state);
+    void onTextChange(const QString& text);
+
+    /*void onLocalDataDirChange();
+    void onSourceDataDirChange();
+    void onDmsEditorChange();
+    void onPP0Change();
+    void onPP1Change();
+    void onPP2Change();
+    void onPP3Change();
+    void onTracelogFileChange();*/
+
 public:
     DmsOptionsWindow(QWidget* parent = nullptr);
 private:
+    void setInitialLocalDataDirValue();
+    void setInitialSourceDatDirValue();
+    void setInitialEditorValue();
+    void setInitialMemoryFlushTresholdValue();
+
+    bool m_changed = false;
+
+    QPointer<QLabel> m_flush_treshold_text;
+    QPointer<QCheckBox> m_pp0;
+    QPointer<QCheckBox> m_pp1;
+    QPointer<QCheckBox> m_pp2;
+    QPointer<QCheckBox> m_pp3;
+    QPointer<QCheckBox> m_tracelog;
+    QPointer<QLineEdit> m_ld_input;
+    QPointer<QLineEdit> m_sd_input;
+    QPointer<QLineEdit> m_editor_input;
+    QPointer<QSlider>   m_flush_treshold;
+    QPointer<QPushButton> m_ok;
+    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_cancel;
 };
 
 class MainWindow : public QMainWindow
