@@ -62,24 +62,27 @@ enum class ButtonType
 
 struct ToolbarButtonData
 {
-    ButtonType type;
-    QString text;
+    std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
-    QString statusText;
+    bool is_global = false;
 };
 
 class DmsToolbuttonAction : public QAction
 {
     Q_OBJECT
 public:
-    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {});
+    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
 
 public slots:
     void onToolbuttonPressed();
 
 private:
+    auto getNumberOfStates() -> UInt8 { return m_data.ids.size(); } ;
+
+    ViewStyle m_view_style;
     ToolbarButtonData m_data;
+    UInt8 m_state = 0;
 };
 
 struct CmdLineSetttings {
