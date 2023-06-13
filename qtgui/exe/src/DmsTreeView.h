@@ -36,7 +36,9 @@ class DmsModel : public QAbstractItemModel
 	Q_OBJECT
 
 public:
-	DmsModel(const TreeItem* root) : m_root(root) {}
+	DmsModel() = default;
+
+	void setRoot(const TreeItem* root) { m_root = root; }
 
 	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 	QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
@@ -51,6 +53,7 @@ private:
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
 	QVariant getTreeItemColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
+
 	const TreeItem* m_root = nullptr;
 };
 

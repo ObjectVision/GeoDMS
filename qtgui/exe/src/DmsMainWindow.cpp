@@ -53,6 +53,9 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     setupDmsCallbacks();
 
+    m_dms_model = std::make_unique<DmsModel>();
+    m_treeview->setModel(m_dms_model.get());
+
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig)
     {
@@ -63,8 +66,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     }
     if (m_root)
     {
-        setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
-        m_treeview->setModel(new DmsModel(m_root));
         auto test = m_treeview->rootIsDecorated();
     }
 
@@ -74,15 +75,13 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
-    {
-        m_current_item_bar->setText(cmdLineSettings.m_CurrItemFullNames.back().c_str());
-        m_current_item_bar->onEditingFinished();
-    }
-
+        m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
 }
 
 MainWindow::~MainWindow()
 {
+    CloseConfig();
+
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
@@ -90,9 +89,6 @@ MainWindow::~MainWindow()
     DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
-
-    if (m_root.has_ptr())
-        m_root->EnableAutoDelete();
 }
 
 void DmsCurrentItemBar::setDmsCompleter()
@@ -102,6 +98,12 @@ void DmsCurrentItemBar::setDmsCompleter()
     completer->setSeparator("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     setCompleter(completer);
+}
+
+void DmsCurrentItemBar::setPath(CharPtr itemPath)
+{
+    setText(itemPath);
+    onEditingFinished();
 }
 
 void DmsCurrentItemBar::onEditingFinished()
@@ -175,24 +177,15 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 void MainWindow::fileOpen() 
 {
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
-    if (m_root)
-    {
-        m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
-        m_root->EnableAutoDelete();
-        m_root = nullptr;
-        
-        m_treeview->setModel(nullptr); // does this destroy the 
-    }
     LoadConfig(configFileName.toUtf8().data());
 }
 
 void MainWindow::reOpen()
 {
-    // TODO: auto current_item_path = addressBar.GetString();
-    if (m_root)
-        m_root->EnableAutoDelete();
+    auto cip = m_current_item_bar->text();
+
     LoadConfig(m_currConfigFileName.c_str());
-    // TODO: addressBar.Goto(current_item_path);
+    m_current_item_bar->setPath(cip.toUtf8());
 }
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
@@ -552,8 +545,26 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     return;
 }
 
+void MainWindow::CloseConfig()
+{
+    if (m_mdi_area)
+        for (auto* sw : m_mdi_area->subWindowList())
+            sw->close();
+
+    if (m_root)
+    {
+        m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
+        m_treeview->reset();
+        m_dms_model->setRoot(nullptr);
+        m_root->EnableAutoDelete();
+        m_root = nullptr;
+    }
+}
+
 void MainWindow::LoadConfig(CharPtr configFilePath)
 {
+    CloseConfig();
+
     auto fileNameCharPtr = configFilePath + StrLen(configFilePath);
     while (fileNameCharPtr != configFilePath)
     {
@@ -567,15 +578,10 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
         }
     }
     m_currConfigFileName = fileNameCharPtr;
-    auto newRoot = DMS_CreateTreeFromConfiguration(fileNameCharPtr);
+    auto newRoot = DMS_CreateTreeFromConfiguration(m_currConfigFileName.c_str());
     if (newRoot)
     {
         m_root = newRoot;
-
-        m_dms_model.release();
-        m_dms_model = std::make_unique<DmsModel>(m_root);
-        if (m_current_item_bar)
-            m_current_item_bar->setDmsCompleter();
 
         m_treeview->setItemDelegate(new TreeItemDelegate());
         m_treeview->setRootIsDecorated(true);
@@ -617,8 +623,8 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
             "           image: url(:/res/images/down_arrow_hover.png);"
             "}");
     }
-
-    //setCurrentTreeItem(m_root);
+    m_dms_model->setRoot(m_root);
+    setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
 }
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)

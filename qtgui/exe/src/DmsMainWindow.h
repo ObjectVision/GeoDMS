@@ -42,10 +42,10 @@ Q_OBJECT
 public:
     using QLineEdit::QLineEdit;
     void setDmsCompleter();
+    void setPath(CharPtr itemPath);
 
 public slots:
     void onEditingFinished();
-
 };
 
 enum class ButtonType
@@ -172,6 +172,7 @@ private slots:
     //void showTreeviewContextMenu(const QPoint& pos);
 
 private:
+    void CloseConfig();
     void LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
