@@ -483,6 +483,9 @@ DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text,
     else
         setStatusTip(button_data.text[1]);
 
+    if (button_data.ids.size() == 2) // toggle button
+        setCheckable(true);
+
     m_data = std::move(button_data);
 }
 
