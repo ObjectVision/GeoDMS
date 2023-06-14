@@ -25,6 +25,8 @@ class QDmsViewArea : public QMdiSubWindow
 public:
     QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
     ~QDmsViewArea();
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
     auto getDataView() -> DataView* { return m_DataView; }
     auto getHwnd() -> void* { return m_HWnd; } // QEvent::WinIdChange
 

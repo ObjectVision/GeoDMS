@@ -93,6 +93,8 @@ void DmsOptionsWindow::restoreOptions()
         m_pp3->setChecked(IsMultiThreaded3());
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
+    m_apply->setDisabled(true);
+    m_undo->setDisabled(true);
 }
 
 void DmsOptionsWindow::apply()
@@ -120,23 +122,41 @@ void DmsOptionsWindow::ok()
     done(QDialog::Accepted);
 }
 
-void DmsOptionsWindow::cancel()
+void DmsOptionsWindow::undo()
 {
     restoreOptions();
     m_changed = false;
-    done(QDialog::Rejected);
 }
 
 void DmsOptionsWindow::onStateChange(int state)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
 }
 
 void DmsOptionsWindow::onTextChange(const QString& text)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
+}
+
+void DmsOptionsWindow::setLocalDataDirThroughDialog()
+{
+    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalDataDir Directory"), m_ld_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+    if (!new_local_data_dir_folder.isEmpty())
+        m_ld_input->setText(new_local_data_dir_folder);
+}
+
+void DmsOptionsWindow::setSourceDataDirThroughDialog()
+{
+    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceDataDir Directory"), m_sd_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!new_source_data_dir_folder.isEmpty())
+        m_sd_input->setText(new_source_data_dir_folder);
 }
 
 DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
@@ -145,17 +165,21 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     setWindowTitle(QString("Options"));
     setMinimumSize(800,400);
     
-    auto grid_layout = new QGridLayout(this);
+    m_folder_dialog = new QFileDialog(this);
+    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
+    
 
+    auto grid_layout = new QGridLayout(this);
     // path widgets
     auto path_ld = new QLabel("Local data:", this);
     auto path_sd = new QLabel("Source data:", this);
     m_ld_input = new QLineEdit(this);
     m_sd_input = new QLineEdit(this);
     auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_ld_fldr->setFlat(true);
     auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_sd_fldr->setFlat(true);
+
+    connect(path_ld_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setLocalDataDirThroughDialog);
+    connect(path_sd_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setSourceDataDirThroughDialog);
 
     grid_layout->addWidget(path_ld, 0, 0);
     grid_layout->addWidget(m_ld_input, 0, 1);
@@ -238,23 +262,27 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     connect(m_pp3, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_ld_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok");
     m_ok->setMaximumSize(75, 30);
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
     m_apply = new QPushButton("Apply");
     m_apply->setMaximumSize(75, 30);
     m_apply->setDisabled(true);
 
-    m_cancel = new QPushButton("Cancel");
+    m_undo = new QPushButton("Undo");
+    m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsOptionsWindow::apply);
-    connect(m_cancel, &QPushButton::released, this, &DmsOptionsWindow::cancel);
-    m_cancel->setMaximumSize(75, 30);
+    connect(m_undo, &QPushButton::released, this, &DmsOptionsWindow::undo);
+    m_undo->setMaximumSize(75, 30);
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
-    box_layout->addWidget(m_cancel);
+    box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
     restoreOptions();
@@ -569,7 +597,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_SelectCircle: return { {"","Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"}, true};
     case TB_SelectPolygon: return { {"","Select elements in the active layer by drawing a polygon(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"}, true};
     case TB_SelectDistrict: return { {"","Select contiguous regions in the active layer by clicking on them (use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"}, true};
-    case TB_Show_VP: return { {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
+    case TB_Show_VP: return { {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList}"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
     case TB_SP_All: return { {"","Toggle Palette Visibiliy between{All, Active Layer Only, None}"}, {TB_SP_All, TB_SP_Active, TB_SP_None}, {":/res/images/TB_toggle_palette.bmp"}};
     case TB_NeedleOn: return { {"","Show / Hide NeedleController"}, {TB_NeedleOff, TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"}};
     case TB_ScaleBarOn: return { {"","Show / Hide ScaleBar"}, {TB_ScaleBarOff, TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"}};
