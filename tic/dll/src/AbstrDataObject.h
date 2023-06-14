@@ -147,6 +147,7 @@ public:
 	TIC_CALL virtual void    SetValueAsUInt32(SizeT index, UInt32 val);
 	TIC_CALL virtual SizeT   GetValueAsSizeT (SizeT index) const;
 	TIC_CALL virtual void    SetValueAsSizeT (SizeT index, SizeT val);
+	TIC_CALL virtual void    SetValueAsDiffT(SizeT index, DiffT val);
 	TIC_CALL virtual void    SetValueAsSizeT(SizeT index, SizeT val, tile_id t);
 	TIC_CALL virtual UInt8   GetValueAsUInt8 (SizeT index) const;
 	TIC_CALL virtual SizeT   FindPosOfSizeT(SizeT val, SizeT startPos = 0) const;

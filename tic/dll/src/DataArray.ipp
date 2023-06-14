@@ -258,6 +258,13 @@ void NumericArray<V>::SetValueAsSizeT(SizeT index, SizeT val)
 }
 
 template <class V>
+void NumericArray<V>::SetValueAsDiffT(SizeT index, DiffT val)
+{
+	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	this->SetIndexedValue(index, conv.GetValue(val));
+}
+
+template <class V>
 void NumericArray<V>::SetValueAsSizeT(SizeT index, SizeT val, tile_id t)
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);

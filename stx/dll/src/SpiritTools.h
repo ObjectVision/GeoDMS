@@ -192,6 +192,12 @@ SYNTAX_CALL SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd,
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+extern const boost::spirit::uint_parser<UInt64>  uint64_p;
+extern const boost::spirit::uint_parser<UInt64, 16> hex64_p;
+
+//auto const uint64_p = boost::spirit::uint_parser<UInt64>();
+//auto const hex64_p = boost::spirit::uint_parser<UInt64, 16>();
+
 void CheckInfo(const parse_info_t& info);
 
 

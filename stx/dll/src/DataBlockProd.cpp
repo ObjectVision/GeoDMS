@@ -124,6 +124,12 @@ void DataBlockProd::DoArrayAssignment()
 		case VT_Float64:
 			m_Lock->SetValueAsFloat64(i, m_FloatVal ); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
+		case VT_UInt64:
+			m_Lock->SetValueAsSizeT(i, m_IntValAsInt64); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
+			break;
+		case VT_Int64:
+			m_Lock->SetValueAsDiffT(i, m_IntValAsUInt64); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
+			break;
 		case VT_Unknown:
 			m_Lock->SetNull(i); //  OPTIMIZE: Avoid GetLockedDataWrite(GetTileID(index))
 			break;

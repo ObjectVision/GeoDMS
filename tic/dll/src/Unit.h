@@ -149,6 +149,7 @@ struct VarNumRangeUnitAdapter : NumRangeUnitAdapterBase<U> // all numeric object
 	static_assert(has_var_range_field_v<U>);
 	// Support for Numerics
 	TIC_CALL void SetRangeAsFloat64(Float64 begin, Float64 end) override;
+	TIC_CALL void SetRangeAsUInt64 (UInt64 begin, UInt64 end) override;
 };
 
 template <typename U> 

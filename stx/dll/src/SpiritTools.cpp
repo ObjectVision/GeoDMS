@@ -169,6 +169,10 @@ UInt32 nrLineBreaks(CharPtr first, CharPtr last)
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+const boost::spirit::uint_parser<UInt64>  uint64_p;
+const boost::spirit::uint_parser<UInt64, 16> hex64_p;
+
+
 void CheckInfo(const parse_info_t& info)
 {
 	if (! info.full)
