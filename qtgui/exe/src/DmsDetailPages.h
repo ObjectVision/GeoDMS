@@ -5,6 +5,7 @@
 #include "ptr/SharedStr.h"
 #include "ptr/InterestHolders.h"
 #include "Ticbase.h"
+#include "TreeItemProps.h"
 
 enum class ActiveDetailPage
 {
@@ -31,6 +32,8 @@ public slots:
 	void toggleExplorer();
 	void toggleProperties();
 	void toggleConfiguration();
+	void toggleSourceDescr();
+	void toggleMetaInfo();
 
 	void newCurrentItem();
 
@@ -49,6 +52,6 @@ private:
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	SharedTreeItemInterestPtr m_tiValueInfoContext;
 	SizeT m_RecNo;
-
+	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 };
 
