@@ -80,7 +80,6 @@ public slots:
 private:
     auto getNumberOfStates() -> UInt8 { return m_data.ids.size(); } ;
 
-    ViewStyle m_view_style;
     ToolbarButtonData m_data;
     UInt8 m_state = 0;
 };

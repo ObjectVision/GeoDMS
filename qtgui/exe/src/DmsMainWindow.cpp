@@ -506,7 +506,7 @@ void DmsToolbuttonAction::onToolbuttonPressed()
 
     auto number_of_button_states = getNumberOfStates();
 
-    if (number_of_button_states - 1 == m_state) // roll over
+    if (number_of_button_states - 1 == m_state) // state roll over
         m_state = 0;
     else
         m_state++;
@@ -531,8 +531,18 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         }
     }
 
+    if (m_data.ids[0] == ToolButtonID::TB_Export)
+    {
+        auto dv = dms_view_area->getDataView();
+        auto export_info = dv->GetExportInfo();
+        if (dv->GetViewType() == tvsMapView)
+            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase);
+        else
+            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
+    }
     dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
-    if (m_data.icons.size()-1==m_state)
+    
+    if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
 }
 
