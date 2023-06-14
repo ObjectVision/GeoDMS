@@ -1222,7 +1222,10 @@ void TableControl::CreateTableGroupBy(bool activate)
 				);
 			}
 		}
-		SharedPtr<AbstrUnit> groupByEntity = Unit<UInt32>::GetStaticClass()->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
+		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
+		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
+
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
 		groupByEntity->DisableStorage();
 		groupByEntity->SetExpr(mgFormat2SharedStr("unique(%s)", expr));
 		m_GroupByEntity = groupByEntity.get_ptr();

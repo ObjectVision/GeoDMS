@@ -256,9 +256,10 @@ void DataItemColumn::UpdateTheme()
 		auto aggrMethod = IsDefined(m_GroupByIndex) ? AggrMethod::first : m_AggrMethod;
 		while (!Allowed(GetSrcAttr(), aggrMethod))
 		{
-			dms_assert(aggrMethod != AggrMethod::first); // must always be allowed.
+			assert(aggrMethod != AggrMethod::first); // must always be allowed.
 			aggrMethod = AggrMethod(int(aggrMethod) + 1);
-			dms_assert(aggrMethod < AggrMethod::nr_methods); // there will be an allowed method.
+			if (aggrMethod == AggrMethod::nr_methods)
+				aggrMethod = AggrMethod::sum;
 			m_AggrMethod = aggrMethod;
 		}
 
