@@ -93,6 +93,8 @@ void DmsOptionsWindow::restoreOptions()
         m_pp3->setChecked(IsMultiThreaded3());
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
+    m_apply->setDisabled(true);
+    m_undo->setDisabled(true);
 }
 
 void DmsOptionsWindow::apply()
@@ -120,23 +122,24 @@ void DmsOptionsWindow::ok()
     done(QDialog::Accepted);
 }
 
-void DmsOptionsWindow::cancel()
+void DmsOptionsWindow::undo()
 {
     restoreOptions();
     m_changed = false;
-    done(QDialog::Rejected);
 }
 
 void DmsOptionsWindow::onStateChange(int state)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
 }
 
 void DmsOptionsWindow::onTextChange(const QString& text)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
 }
 
 DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
@@ -153,9 +156,7 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     m_ld_input = new QLineEdit(this);
     m_sd_input = new QLineEdit(this);
     auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_ld_fldr->setFlat(true);
     auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_sd_fldr->setFlat(true);
 
     grid_layout->addWidget(path_ld, 0, 0);
     grid_layout->addWidget(m_ld_input, 0, 1);
@@ -243,18 +244,21 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok");
     m_ok->setMaximumSize(75, 30);
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
     m_apply = new QPushButton("Apply");
     m_apply->setMaximumSize(75, 30);
     m_apply->setDisabled(true);
 
-    m_cancel = new QPushButton("Cancel");
+    m_undo = new QPushButton("Undo");
+    m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsOptionsWindow::apply);
-    connect(m_cancel, &QPushButton::released, this, &DmsOptionsWindow::cancel);
-    m_cancel->setMaximumSize(75, 30);
+    connect(m_undo, &QPushButton::released, this, &DmsOptionsWindow::undo);
+    m_undo->setMaximumSize(75, 30);
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
-    box_layout->addWidget(m_cancel);
+    box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
     restoreOptions();

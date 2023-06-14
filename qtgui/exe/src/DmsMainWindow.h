@@ -135,7 +135,7 @@ private slots:
     void restoreOptions();
     void ok();
     void apply();
-    void cancel();
+    void undo();
     void onStateChange(int state);
     void onTextChange(const QString& text);
 
@@ -170,7 +170,7 @@ private:
     QPointer<QSlider>   m_flush_treshold;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_cancel;
+    QPointer<QPushButton> m_undo;
 };
 
 class MainWindow : public QMainWindow
