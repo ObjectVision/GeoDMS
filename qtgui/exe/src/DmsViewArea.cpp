@@ -82,7 +82,7 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
     : QMdiSubWindow(parent)
 {
     assert(currItem); // Precondition
-
+    setAcceptDrops(true);
     HINSTANCE instance = GetInstance((HWND)hWndMain);
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
 
@@ -130,6 +130,16 @@ QDmsViewArea::~QDmsViewArea()
 {
 //    SHV_DataView_Destroy(m_DataView);
     CloseWindow((HWND)m_HWnd); // calls SHV_DataView_Destroy
+}
+
+void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event)
+{
+    event->acceptProposedAction(); // TODO: further specify that only treenodes dragged from treeview can be dropped here.
+}
+
+void QDmsViewArea::dropEvent(QDropEvent* event)
+{
+    SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)
