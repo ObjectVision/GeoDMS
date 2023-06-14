@@ -982,7 +982,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
     }
 
-    // MainWindow could already be destroyed
+    // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {
         assert(s_CurrMainWindow == mainWindow);
