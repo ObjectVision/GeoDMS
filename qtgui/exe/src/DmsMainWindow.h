@@ -10,6 +10,7 @@
 #include <QDialog>
 #include <QCheckbox>
 #include <QSlider>
+#include <QFileDialog>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -138,6 +139,8 @@ private slots:
     void undo();
     void onStateChange(int state);
     void onTextChange(const QString& text);
+    void setLocalDataDirThroughDialog();
+    void setSourceDataDirThroughDialog();
 
     /*void onLocalDataDirChange();
     void onSourceDataDirChange();
@@ -158,6 +161,7 @@ private:
 
     bool m_changed = false;
 
+    QPointer<QFileDialog> m_folder_dialog;
     QPointer<QLabel> m_flush_treshold_text;
     QPointer<QCheckBox> m_pp0;
     QPointer<QCheckBox> m_pp1;

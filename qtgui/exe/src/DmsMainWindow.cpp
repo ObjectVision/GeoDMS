@@ -142,14 +142,34 @@ void DmsOptionsWindow::onTextChange(const QString& text)
     m_undo->setDisabled(false);
 }
 
+void DmsOptionsWindow::setLocalDataDirThroughDialog()
+{
+    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalDataDir Directory"), m_ld_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+    if (!new_local_data_dir_folder.isEmpty())
+        m_ld_input->setText(new_local_data_dir_folder);
+}
+
+void DmsOptionsWindow::setSourceDataDirThroughDialog()
+{
+    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceDataDir Directory"), m_sd_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!new_source_data_dir_folder.isEmpty())
+        m_sd_input->setText(new_source_data_dir_folder);
+}
+
 DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(QString("Options"));
     setMinimumSize(800,400);
     
-    auto grid_layout = new QGridLayout(this);
+    m_folder_dialog = new QFileDialog(this);
+    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
+    
 
+    auto grid_layout = new QGridLayout(this);
     // path widgets
     auto path_ld = new QLabel("Local data:", this);
     auto path_sd = new QLabel("Source data:", this);
@@ -157,6 +177,9 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     m_sd_input = new QLineEdit(this);
     auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
     auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
+
+    connect(path_ld_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setLocalDataDirThroughDialog);
+    connect(path_sd_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setSourceDataDirThroughDialog);
 
     grid_layout->addWidget(path_ld, 0, 0);
     grid_layout->addWidget(m_ld_input, 0, 1);
@@ -239,6 +262,7 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     connect(m_pp3, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_ld_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
