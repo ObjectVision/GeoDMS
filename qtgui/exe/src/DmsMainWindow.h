@@ -10,6 +10,8 @@
 #include <QDialog>
 #include <QCheckbox>
 #include <QSlider>
+#include <QFileDialog>
+#include <QTextBrowser>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -80,7 +82,6 @@ public slots:
 private:
     auto getNumberOfStates() -> UInt8 { return m_data.ids.size(); } ;
 
-    ViewStyle m_view_style;
     ToolbarButtonData m_data;
     UInt8 m_state = 0;
 };
@@ -136,9 +137,11 @@ private slots:
     void restoreOptions();
     void ok();
     void apply();
-    void cancel();
+    void undo();
     void onStateChange(int state);
     void onTextChange(const QString& text);
+    void setLocalDataDirThroughDialog();
+    void setSourceDataDirThroughDialog();
 
     /*void onLocalDataDirChange();
     void onSourceDataDirChange();
@@ -159,6 +162,7 @@ private:
 
     bool m_changed = false;
 
+    QPointer<QFileDialog> m_folder_dialog;
     QPointer<QLabel> m_flush_treshold_text;
     QPointer<QCheckBox> m_pp0;
     QPointer<QCheckBox> m_pp1;
@@ -171,7 +175,26 @@ private:
     QPointer<QSlider>   m_flush_treshold;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_undo;
+};
+
+class DmsErrorWindow : public QDialog
+{
+    Q_OBJECT
+
+private slots:
+    void cancel();
+    void abort();
+    void reopen();
+
+public:
+    DmsErrorWindow(QWidget* parent);
+    void setErrorMessage(QString message) { m_message->setText(message); };
+private:
     QPointer<QPushButton> m_cancel;
+    QPointer<QPushButton> m_abort;
+    QPointer<QPushButton> m_reopen;
+    QPointer<QTextBrowser> m_message;
 };
 
 class MainWindow : public QMainWindow
@@ -187,7 +210,7 @@ public:
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
-    
+    auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
     auto getStepToFailreasonAction() -> QAction* { return m_step_to_failreason_action.get(); };
     auto getGoToCausaPrimaAction() -> QAction* { return m_go_to_causa_prima_action.get(); };
@@ -215,11 +238,12 @@ public slots:
     void openConfigSource();
     void exportPrimaryData();
     void options();
+    static void error(QString error_message);
     void exportOkButton();
     void stepToFailReason();
     void runToFailReason();
 
-private slots:
+public slots:
     void fileOpen();
     void reOpen();
     void aboutGeoDms();
@@ -277,6 +301,7 @@ private:
     QPointer<QToolBar> m_toolbar;
     QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
+    QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
 };
 

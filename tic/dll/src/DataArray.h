@@ -200,7 +200,8 @@ struct NumericArray : DataArrayBase<V>
 	TIC_CALL void    SetValueAsUInt32 (SizeT index, UInt32 val)                 override;
 	TIC_CALL SizeT   GetValueAsSizeT  (SizeT index)                       const override;
 	TIC_CALL void    SetValueAsSizeT  (SizeT index, SizeT val)                  override;
-	TIC_CALL void    SetValueAsSizeT(SizeT index, SizeT val, tile_id t)         override;
+	TIC_CALL void    SetValueAsDiffT  (SizeT index, DiffT val)                  override;
+	TIC_CALL void    SetValueAsSizeT  (SizeT index, SizeT val, tile_id t)       override;
 	TIC_CALL UInt8   GetValueAsUInt8  (SizeT index)                       const override;
 	TIC_CALL SizeT   FindPosOfSizeT   (SizeT val, SizeT startPos)         const override;
 

@@ -318,7 +318,7 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 	{
 		if (!m_pImp->HasColorTable())
 			return false; // cannot return Range of ValuesUnit if Tiff has no palette (assumed when more bits per pixel)
-		smi.CurrWU()->SetRangeAsFloat64(0, m_pImp->GetClrImportant());
+		smi.CurrWU()->SetRangeAsUInt64(0, m_pImp->GetClrImportant());
 	}
 	return true;
 }

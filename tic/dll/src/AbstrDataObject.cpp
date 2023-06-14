@@ -177,6 +177,7 @@ void    AbstrDataObject::SetValueAsInt32(SizeT index, Int32 val)              { 
 UInt32  AbstrDataObject::GetValueAsUInt32(SizeT index) const                  { illegalNumericOperation(); }
 SizeT   AbstrDataObject::GetValueAsSizeT(SizeT index) const                   { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsSizeT(SizeT index, SizeT val)              { illegalNumericOperation(); }
+void    AbstrDataObject::SetValueAsDiffT(SizeT index, DiffT val)              { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsSizeT(SizeT index, SizeT val, tile_id t)   { illegalNumericOperation(); }
 UInt8   AbstrDataObject::GetValueAsUInt8 (SizeT index) const                  { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsUInt32(SizeT index, UInt32 val)            { illegalNumericOperation(); }

@@ -98,6 +98,25 @@ void DmsDetailPages::toggleConfiguration()
     toggle(ActiveDetailPage::CONFIGURATION);
 }
 
+void DmsDetailPages::toggleSourceDescr()
+{
+    if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
+    {
+        m_SDM = SourceDescrMode::Configured;
+        toggle(ActiveDetailPage::SOURCEDESCR);
+    }
+    else
+    {
+        reinterpret_cast<int&>(m_SDM)++;
+        drawPage();
+    }
+}
+
+void DmsDetailPages::toggleMetaInfo()
+{
+    toggle(ActiveDetailPage::METADATA);
+}
+
 
 auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 {
@@ -140,6 +159,11 @@ void DmsDetailPages::drawPage()
     case ActiveDetailPage::CONFIGURATION:
     {
         DMS_TreeItem_XML_Dump(current_item, xmlOut.get());
+        break;
+    }
+    case ActiveDetailPage::SOURCEDESCR:
+    {
+        (*xmlOut) << TreeItem_GetSourceDescr(current_item, m_SDM, true).c_str();
         break;
     }
     case ActiveDetailPage::METADATA:

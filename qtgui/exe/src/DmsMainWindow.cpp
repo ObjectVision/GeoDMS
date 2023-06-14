@@ -17,7 +17,6 @@
 #include "ShvDllInterface.h"
 
 #include <QtWidgets>
-#include <QTextBrowser>
 #include <QCompleter>
 
 #include "DmsMainWindow.h"
@@ -93,6 +92,8 @@ void DmsOptionsWindow::restoreOptions()
         m_pp3->setChecked(IsMultiThreaded3());
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
+    m_apply->setDisabled(true);
+    m_undo->setDisabled(true);
 }
 
 void DmsOptionsWindow::apply()
@@ -120,23 +121,41 @@ void DmsOptionsWindow::ok()
     done(QDialog::Accepted);
 }
 
-void DmsOptionsWindow::cancel()
+void DmsOptionsWindow::undo()
 {
     restoreOptions();
     m_changed = false;
-    done(QDialog::Rejected);
 }
 
 void DmsOptionsWindow::onStateChange(int state)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
 }
 
 void DmsOptionsWindow::onTextChange(const QString& text)
 {
     m_changed = true;
     m_apply->setDisabled(false);
+    m_undo->setDisabled(false);
+}
+
+void DmsOptionsWindow::setLocalDataDirThroughDialog()
+{
+    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalDataDir Directory"), m_ld_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+    if (!new_local_data_dir_folder.isEmpty())
+        m_ld_input->setText(new_local_data_dir_folder);
+}
+
+void DmsOptionsWindow::setSourceDataDirThroughDialog()
+{
+    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceDataDir Directory"), m_sd_input->text(),
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!new_source_data_dir_folder.isEmpty())
+        m_sd_input->setText(new_source_data_dir_folder);
 }
 
 DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
@@ -145,17 +164,21 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     setWindowTitle(QString("Options"));
     setMinimumSize(800,400);
     
-    auto grid_layout = new QGridLayout(this);
+    m_folder_dialog = new QFileDialog(this);
+    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
+    
 
+    auto grid_layout = new QGridLayout(this);
     // path widgets
     auto path_ld = new QLabel("Local data:", this);
     auto path_sd = new QLabel("Source data:", this);
     m_ld_input = new QLineEdit(this);
     m_sd_input = new QLineEdit(this);
     auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_ld_fldr->setFlat(true);
     auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    path_sd_fldr->setFlat(true);
+
+    connect(path_ld_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setLocalDataDirThroughDialog);
+    connect(path_sd_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setSourceDataDirThroughDialog);
 
     grid_layout->addWidget(path_ld, 0, 0);
     grid_layout->addWidget(m_ld_input, 0, 1);
@@ -238,23 +261,27 @@ DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
     connect(m_pp3, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
     connect(m_ld_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok");
     m_ok->setMaximumSize(75, 30);
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
     m_apply = new QPushButton("Apply");
     m_apply->setMaximumSize(75, 30);
     m_apply->setDisabled(true);
 
-    m_cancel = new QPushButton("Cancel");
+    m_undo = new QPushButton("Undo");
+    m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsOptionsWindow::apply);
-    connect(m_cancel, &QPushButton::released, this, &DmsOptionsWindow::cancel);
-    m_cancel->setMaximumSize(75, 30);
+    connect(m_undo, &QPushButton::released, this, &DmsOptionsWindow::undo);
+    m_undo->setMaximumSize(75, 30);
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
-    box_layout->addWidget(m_cancel);
+    box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
     restoreOptions();
@@ -269,11 +296,60 @@ void DmsOptionsWindow::onFlushTresholdValueChange(int value)
     m_changed = true;
 }
 
+void DmsErrorWindow::cancel()
+{
+    done(QDialog::Rejected);
+}
+void DmsErrorWindow::abort()
+{
+    
+    QCoreApplication::exit(EXIT_FAILURE);
+    done(QDialog::Rejected);
+}
+
+void DmsErrorWindow::reopen()
+{
+    MainWindow::TheOne()->reOpen();
+    done(QDialog::Accepted);
+}
+
+DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
+{
+    setWindowTitle(QString("Error"));
+    setMinimumSize(800, 400);
+
+    auto grid_layout = new QGridLayout(this);
+    m_message = new QTextBrowser(this);
+    grid_layout->addWidget(m_message, 0, 0, 1, 3);
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_cancel = new QPushButton("Cancel");
+    m_cancel->setMaximumSize(75, 30);
+    m_cancel->setAutoDefault(true);
+    m_cancel->setDefault(true);
+    m_abort = new QPushButton("Abort");
+    m_abort->setMaximumSize(75, 30);
+
+    m_reopen = new QPushButton("Reopen");
+    connect(m_cancel, &QPushButton::released, this, &DmsErrorWindow::cancel);
+    connect(m_abort, &QPushButton::released, this, &DmsErrorWindow::abort);
+    connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
+    m_reopen->setMaximumSize(75, 30);
+    box_layout->addWidget(m_cancel);
+    box_layout->addWidget(m_abort);
+    box_layout->addWidget(m_reopen);
+    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
+
+    setWindowModality(Qt::ApplicationModal);
+}
 
 MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 { 
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
+
+    m_error_window = new DmsErrorWindow(this);
 
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
 
@@ -296,6 +372,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_dms_model = std::make_unique<DmsModel>();
     m_treeview->setModel(m_dms_model.get());
 
+    createActions();
+
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig)
     {
@@ -304,13 +382,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (!cmdLineSettings.m_ConfigFileName.empty())
             LoadConfig(cmdLineSettings.m_ConfigFileName.c_str());
     }
-    if (m_root)
-    {
-        auto test = m_treeview->rootIsDecorated();
-    }
-
-    createActions();
-    m_current_item_bar->setDmsCompleter();
 
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
@@ -338,8 +409,9 @@ auto MainWindow::getDmsTreeViewPtr() -> DmsTreeView*
 
 void DmsCurrentItemBar::setDmsCompleter()
 {
+    auto dms_model = MainWindow::TheOne()->getDmsModel();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
-    completer->setModel(MainWindow::TheOne()->getDmsModel());
+    completer->setModel(dms_model);
     completer->setSeparator("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     setCompleter(completer);
@@ -386,6 +458,12 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     while (eventLogWidget->count() > 1000)
         delete eventLogWidget->takeItem(0);
 
+    if (st == SeverityTypeID::ST_Error)
+    {
+        error(msg);
+        return;
+    }
+
     eventLogWidget->addItem(msg);
     
     static Timer t;
@@ -396,7 +474,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 
     Qt::GlobalColor clr;
     switch (st) {
-    case SeverityTypeID::ST_Error: clr = Qt::red; break;
+    //case SeverityTypeID::ST_Error: clr = Qt::red; break;
     case SeverityTypeID::ST_Warning: clr = Qt::darkYellow; break;
     case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
     default: return;
@@ -473,16 +551,18 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
-DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, ViewStyle vs)
+DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
 {
     assert(button_data.text.size()==2);
 
-    m_view_style = vs;
-    if (m_view_style == ViewStyle::tvsTableView)
+    if (vs == ViewStyle::tvsTableView)
         setStatusTip(button_data.text[0]);
     else
         setStatusTip(button_data.text[1]);
+
+    if (button_data.ids.size() == 2) // toggle button
+        setCheckable(true);
 
     m_data = std::move(button_data);
 }
@@ -504,13 +584,43 @@ void DmsToolbuttonAction::onToolbuttonPressed()
 
     auto number_of_button_states = getNumberOfStates();
 
-    if (number_of_button_states - 1 == m_state) // roll over
+    if (number_of_button_states - 1 == m_state) // state roll over
         m_state = 0;
     else
         m_state++;
 
+    if (m_data.is_global) // ie. zoom-in or zoom-out can be active at a single time
+    {
+        dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
+        for (auto action : MainWindow::TheOne()->getDmsToolbarPtr()->actions())
+        {
+            auto dms_toolbar_action = dynamic_cast<DmsToolbuttonAction*>(action);
+            if (!dms_toolbar_action)
+                continue;
+
+            if (dms_toolbar_action == this)
+                continue;
+
+            if (!dms_toolbar_action->m_data.is_global)
+                continue;
+
+            dms_toolbar_action->setChecked(false);
+            dms_toolbar_action->m_state = 0;
+        }
+    }
+
+    if (m_data.ids[0] == ToolButtonID::TB_Export)
+    {
+        auto dv = dms_view_area->getDataView();
+        auto export_info = dv->GetExportInfo();
+        if (dv->GetViewType() == tvsMapView)
+            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase);
+        else
+            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
+    }
     dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
-    if (m_data.icons.size()-1==m_state)
+    
+    if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
 }
 
@@ -537,7 +647,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_SelectCircle: return { {"","Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"}, true};
     case TB_SelectPolygon: return { {"","Select elements in the active layer by drawing a polygon(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"}, true};
     case TB_SelectDistrict: return { {"","Select contiguous regions in the active layer by clicking on them (use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"}, true};
-    case TB_Show_VP: return { {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
+    case TB_Show_VP: return { {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList}"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
     case TB_SP_All: return { {"","Toggle Palette Visibiliy between{All, Active Layer Only, None}"}, {TB_SP_All, TB_SP_Active, TB_SP_None}, {":/res/images/TB_toggle_palette.bmp"}};
     case TB_NeedleOn: return { {"","Show / Hide NeedleController"}, {TB_NeedleOff, TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"}};
     case TB_ScaleBarOn: return { {"","Show / Hide ScaleBar"}, {TB_ScaleBarOff, TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"}};
@@ -574,9 +684,6 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
         return;
 
     auto view_style = dv->GetViewType();
-
-
-
 
     static ToolButtonID available_table_buttons[] = { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined, 
                                                       TB_ZoomSelectedObj, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
@@ -725,6 +832,12 @@ void MainWindow::options()
     m_options_window->show();
 }
 
+void MainWindow::error(QString error_message)
+{
+    TheOne()->m_error_window->setErrorMessage(error_message);
+    TheOne()->m_error_window->show();
+}
+
 void MainWindow::exportPrimaryData()
 {
     QWidget* export_primary_data_window = new QDialog(this);
@@ -859,21 +972,17 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
     }
     m_currConfigFileName = fileNameCharPtr;
     auto newRoot = DMS_CreateTreeFromConfiguration(m_currConfigFileName.c_str());
+    m_root = newRoot;
     if (newRoot)
     {
-        m_root = newRoot;
-
         m_treeview->setItemDelegate(new TreeItemDelegate());
-        m_treeview->setRootIsDecorated(true);
-        m_treeview->setUniformRowHeights(true);
-        m_treeview->setItemsExpandable(true);
+
         m_treeview->setModel(m_dms_model.get());
         m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
-        m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
+
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
-        m_treeview->setDragEnabled(true);
-        m_treeview->setDragDropMode(QAbstractItemView::DragOnly);
+        
         m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
             "    border-image: url(:/res/images/TV_vline.png) 0;\n"
@@ -902,9 +1011,11 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
             "           border-image: none;"
             "           image: url(:/res/images/down_arrow_hover.png);"
             "}");
+        
     }
     m_dms_model->setRoot(m_root);
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
+    m_current_item_bar->setDmsCompleter();
 }
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
@@ -925,7 +1036,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
     }
 
-    // MainWindow could already be destroyed
+    // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {
         assert(s_CurrMainWindow == mainWindow);
@@ -1177,15 +1288,26 @@ void MainWindow::createDetailPagesToolbar()
     detail_pages_toolBar->addAction(properties_page_act);
     connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
 
-    const QIcon configuraion_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
-    auto configuration_page_act = new QAction(properties_icon, tr("&Configuration"), this);
+    const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
+    auto configuration_page_act = new QAction(configuration_icon, tr("&Configuration"), this);
     configuration_page_act->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
     detail_pages_toolBar->addAction(configuration_page_act);
     connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
-    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
-    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
-    detail_pages_toolBar->addAction(value_info_page_act);
+    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_properties.bmp"));
+    QAction* sourcedescr_page_act = new QAction(sourcedescr_icon, tr("&Source description"), this);
+    detail_pages_toolBar->addAction(sourcedescr_page_act);
+    connect(sourcedescr_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
+
+    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":res/images/DP_properties.bmp"));
+    QAction* metainfo_page_act = new QAction(metainfo_icon, tr("&Meta information"), this);
+    detail_pages_toolBar->addAction(metainfo_page_act);
+    connect(metainfo_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
+
+// value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
+//    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
+//    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
+//    detail_pages_toolBar->addAction(value_info_page_act);
 }
 
 void MainWindow::createDetailPagesDock()

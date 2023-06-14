@@ -336,8 +336,15 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {
+	setRootIsDecorated(true);
+	setUniformRowHeights(true);
+	setItemsExpandable(true);
+	setDragEnabled(true);
+	setDragDropMode(QAbstractItemView::DragOnly);
+	setContextMenuPolicy(Qt::CustomContextMenu);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
+	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
@@ -437,6 +444,17 @@ void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
 	}
 
 	expandToCurrentItem(new_current_item);
+}
+
+void DmsTreeView::onDoubleClick(const QModelIndex& index)
+{
+	if (!index.isValid())
+		return;
+
+	auto ti = GetTreeItem(index);
+	assert(ti);
+
+	MainWindow::TheOne()->defaultView();
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
