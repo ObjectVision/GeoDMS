@@ -62,24 +62,26 @@ enum class ButtonType
 
 struct ToolbarButtonData
 {
-    ButtonType type;
-    QString text;
+    std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
-    QString statusText;
+    bool is_global = false;
 };
 
 class DmsToolbuttonAction : public QAction
 {
     Q_OBJECT
 public:
-    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {});
+    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
 
 public slots:
     void onToolbuttonPressed();
 
 private:
+    auto getNumberOfStates() -> UInt8 { return m_data.ids.size(); } ;
+
     ToolbarButtonData m_data;
+    UInt8 m_state = 0;
 };
 
 struct CmdLineSetttings {
@@ -184,7 +186,7 @@ public:
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
-    
+    auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
     auto getStepToFailreasonAction() -> QAction* { return m_step_to_failreason_action.get(); };
     auto getGoToCausaPrimaAction() -> QAction* { return m_go_to_causa_prima_action.get(); };
