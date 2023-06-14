@@ -186,10 +186,11 @@ private slots:
     void cancel();
     void abort();
     void reopen();
+    void onAnchorClicked(const QUrl& link);
 
 public:
     DmsErrorWindow(QWidget* parent);
-    void setErrorMessage(QString message) { m_message->setText(message); };
+    void setErrorMessage(QString message) { m_message->setMarkdown(message); };
 private:
     QPointer<QPushButton> m_cancel;
     QPointer<QPushButton> m_abort;
@@ -224,6 +225,7 @@ public:
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
+    void openConfigSourceDirectly(std::string_view filename, std::string_view line);
 
     static MainWindow* TheOne();
     static void EventLog(SeverityTypeID st, CharPtr msg);
@@ -238,7 +240,7 @@ public slots:
     void openConfigSource();
     void exportPrimaryData();
     void options();
-    static void error(QString error_message);
+    static void error(ErrMsgPtr error_message_ptr);
     void exportOkButton();
     void stepToFailReason();
     void runToFailReason();
@@ -254,7 +256,7 @@ public slots:
 
 private:
     void CloseConfig();
-    void LoadConfig(CharPtr configFilePath);
+    bool LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
