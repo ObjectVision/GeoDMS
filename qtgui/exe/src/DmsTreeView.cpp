@@ -336,6 +336,12 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {
+	setRootIsDecorated(true);
+	setUniformRowHeights(true);
+	setItemsExpandable(true);
+	setDragEnabled(true);
+	setDragDropMode(QAbstractItemView::DragOnly);
+	setContextMenuPolicy(Qt::CustomContextMenu);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
