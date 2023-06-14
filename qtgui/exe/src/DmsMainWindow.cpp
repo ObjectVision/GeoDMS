@@ -372,6 +372,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_dms_model = std::make_unique<DmsModel>();
     m_treeview->setModel(m_dms_model.get());
 
+    createActions();
+
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig)
     {
@@ -381,8 +383,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
             LoadConfig(cmdLineSettings.m_ConfigFileName.c_str());
     }
 
-    createActions();
-    
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
@@ -411,7 +411,7 @@ void DmsCurrentItemBar::setDmsCompleter()
 {
     auto dms_model = MainWindow::TheOne()->getDmsModel();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
-    completer->setModel(MainWindow::TheOne()->getDmsModel());
+    completer->setModel(dms_model);
     completer->setSeparator("/");
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     setCompleter(completer);
@@ -1011,11 +1011,11 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
             "           border-image: none;"
             "           image: url(:/res/images/down_arrow_hover.png);"
             "}");
-        m_dms_model->setRoot(m_root);
-        m_current_item_bar->setDmsCompleter();
+        
     }
-
+    m_dms_model->setRoot(m_root);
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
+    m_current_item_bar->setDmsCompleter();
 }
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
