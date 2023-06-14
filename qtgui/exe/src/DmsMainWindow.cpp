@@ -473,13 +473,12 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
-DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, ViewStyle vs)
+DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
 {
     assert(button_data.text.size()==2);
 
-    m_view_style = vs;
-    if (m_view_style == ViewStyle::tvsTableView)
+    if (vs == ViewStyle::tvsTableView)
         setStatusTip(button_data.text[0]);
     else
         setStatusTip(button_data.text[1]);
@@ -508,6 +507,9 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         m_state = 0;
     else
         m_state++;
+
+    if (m_data.is_global) // ie. zoom-in or zoom-out can be active at a single time
+        dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
 
     dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
     if (m_data.icons.size()-1==m_state)
