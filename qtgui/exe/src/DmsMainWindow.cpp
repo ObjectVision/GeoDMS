@@ -527,6 +527,7 @@ void DmsToolbuttonAction::onToolbuttonPressed()
                 continue;
 
             dms_toolbar_action->setChecked(false);
+            dms_toolbar_action->m_state = 0;
         }
     }
 
