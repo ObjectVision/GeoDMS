@@ -187,7 +187,7 @@ public:
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
-    
+    auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
     auto getStepToFailreasonAction() -> QAction* { return m_step_to_failreason_action.get(); };
     auto getGoToCausaPrimaAction() -> QAction* { return m_go_to_causa_prima_action.get(); };

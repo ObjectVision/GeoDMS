@@ -512,7 +512,23 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         m_state++;
 
     if (m_data.is_global) // ie. zoom-in or zoom-out can be active at a single time
+    {
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
+        for (auto action : MainWindow::TheOne()->getDmsToolbarPtr()->actions())
+        {
+            auto dms_toolbar_action = dynamic_cast<DmsToolbuttonAction*>(action);
+            if (!dms_toolbar_action)
+                continue;
+
+            if (dms_toolbar_action == this)
+                continue;
+
+            if (!dms_toolbar_action->m_data.is_global)
+                continue;
+
+            dms_toolbar_action->setChecked(false);
+        }
+    }
 
     dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
     if (m_data.icons.size()-1==m_state)
@@ -579,9 +595,6 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
         return;
 
     auto view_style = dv->GetViewType();
-
-
-
 
     static ToolButtonID available_table_buttons[] = { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined, 
                                                       TB_ZoomSelectedObj, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
