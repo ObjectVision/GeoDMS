@@ -17,7 +17,6 @@
 #include "ShvDllInterface.h"
 
 #include <QtWidgets>
-#include <QTextBrowser>
 #include <QCompleter>
 
 #include "DmsMainWindow.h"
@@ -297,11 +296,60 @@ void DmsOptionsWindow::onFlushTresholdValueChange(int value)
     m_changed = true;
 }
 
+void DmsErrorWindow::cancel()
+{
+    done(QDialog::Rejected);
+}
+void DmsErrorWindow::abort()
+{
+    
+    QCoreApplication::exit(EXIT_FAILURE);
+    done(QDialog::Rejected);
+}
+
+void DmsErrorWindow::reopen()
+{
+    MainWindow::TheOne()->reOpen();
+    done(QDialog::Accepted);
+}
+
+DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
+{
+    setWindowTitle(QString("Error"));
+    setMinimumSize(800, 400);
+
+    auto grid_layout = new QGridLayout(this);
+    m_message = new QTextBrowser(this);
+    grid_layout->addWidget(m_message, 0, 0, 1, 3);
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_cancel = new QPushButton("Cancel");
+    m_cancel->setMaximumSize(75, 30);
+    m_cancel->setAutoDefault(true);
+    m_cancel->setDefault(true);
+    m_abort = new QPushButton("Abort");
+    m_abort->setMaximumSize(75, 30);
+
+    m_reopen = new QPushButton("Reopen");
+    connect(m_cancel, &QPushButton::released, this, &DmsErrorWindow::cancel);
+    connect(m_abort, &QPushButton::released, this, &DmsErrorWindow::abort);
+    connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
+    m_reopen->setMaximumSize(75, 30);
+    box_layout->addWidget(m_cancel);
+    box_layout->addWidget(m_abort);
+    box_layout->addWidget(m_reopen);
+    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
+
+    setWindowModality(Qt::ApplicationModal);
+}
 
 MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 { 
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
+
+    m_error_window = new DmsErrorWindow(this);
 
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
 
@@ -332,14 +380,9 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (!cmdLineSettings.m_ConfigFileName.empty())
             LoadConfig(cmdLineSettings.m_ConfigFileName.c_str());
     }
-    if (m_root)
-    {
-        auto test = m_treeview->rootIsDecorated();
-    }
 
     createActions();
-    m_current_item_bar->setDmsCompleter();
-
+    
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
@@ -366,6 +409,7 @@ auto MainWindow::getDmsTreeViewPtr() -> DmsTreeView*
 
 void DmsCurrentItemBar::setDmsCompleter()
 {
+    auto dms_model = MainWindow::TheOne()->getDmsModel();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
     completer->setModel(MainWindow::TheOne()->getDmsModel());
     completer->setSeparator("/");
@@ -414,6 +458,12 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
     while (eventLogWidget->count() > 1000)
         delete eventLogWidget->takeItem(0);
 
+    if (st == SeverityTypeID::ST_Error)
+    {
+        error(msg);
+        return;
+    }
+
     eventLogWidget->addItem(msg);
     
     static Timer t;
@@ -424,7 +474,7 @@ void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
 
     Qt::GlobalColor clr;
     switch (st) {
-    case SeverityTypeID::ST_Error: clr = Qt::red; break;
+    //case SeverityTypeID::ST_Error: clr = Qt::red; break;
     case SeverityTypeID::ST_Warning: clr = Qt::darkYellow; break;
     case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
     default: return;
@@ -782,6 +832,12 @@ void MainWindow::options()
     m_options_window->show();
 }
 
+void MainWindow::error(QString error_message)
+{
+    TheOne()->m_error_window->setErrorMessage(error_message);
+    TheOne()->m_error_window->show();
+}
+
 void MainWindow::exportPrimaryData()
 {
     QWidget* export_primary_data_window = new QDialog(this);
@@ -916,21 +972,17 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
     }
     m_currConfigFileName = fileNameCharPtr;
     auto newRoot = DMS_CreateTreeFromConfiguration(m_currConfigFileName.c_str());
+    m_root = newRoot;
     if (newRoot)
     {
-        m_root = newRoot;
-
         m_treeview->setItemDelegate(new TreeItemDelegate());
-        m_treeview->setRootIsDecorated(true);
-        m_treeview->setUniformRowHeights(true);
-        m_treeview->setItemsExpandable(true);
+
         m_treeview->setModel(m_dms_model.get());
         m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
-        m_treeview->setContextMenuPolicy(Qt::CustomContextMenu);
+
         connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
         m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
-        m_treeview->setDragEnabled(true);
-        m_treeview->setDragDropMode(QAbstractItemView::DragOnly);
+        
         m_treeview->setStyleSheet(
             "QTreeView::branch:has-siblings:!adjoins-item {\n"
             "    border-image: url(:/res/images/TV_vline.png) 0;\n"
@@ -959,8 +1011,10 @@ void MainWindow::LoadConfig(CharPtr configFilePath)
             "           border-image: none;"
             "           image: url(:/res/images/down_arrow_hover.png);"
             "}");
+        m_dms_model->setRoot(m_root);
+        m_current_item_bar->setDmsCompleter();
     }
-    m_dms_model->setRoot(m_root);
+
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
 }
 

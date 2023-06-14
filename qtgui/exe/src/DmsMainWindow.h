@@ -11,6 +11,7 @@
 #include <QCheckbox>
 #include <QSlider>
 #include <QFileDialog>
+#include <QTextBrowser>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -177,6 +178,25 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
+class DmsErrorWindow : public QDialog
+{
+    Q_OBJECT
+
+private slots:
+    void cancel();
+    void abort();
+    void reopen();
+
+public:
+    DmsErrorWindow(QWidget* parent);
+    void setErrorMessage(QString message) { m_message->setText(message); };
+private:
+    QPointer<QPushButton> m_cancel;
+    QPointer<QPushButton> m_abort;
+    QPointer<QPushButton> m_reopen;
+    QPointer<QTextBrowser> m_message;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -218,11 +238,12 @@ public slots:
     void openConfigSource();
     void exportPrimaryData();
     void options();
+    static void error(QString error_message);
     void exportOkButton();
     void stepToFailReason();
     void runToFailReason();
 
-private slots:
+public slots:
     void fileOpen();
     void reOpen();
     void aboutGeoDms();
@@ -280,6 +301,7 @@ private:
     QPointer<QToolBar> m_toolbar;
     QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
+    QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
 };
 
