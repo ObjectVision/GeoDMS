@@ -409,13 +409,24 @@ SharedStr GraphDataView::GetCaption() const
 	auto mapContents = GetContents();
 	if (mapContents)
 	{
+		SharedStr spatialRefStr;
+		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
+		if (wcu)
+			spatialRefStr = wcu->GetSpatialReference();
+		if (spatialRefStr.empty())
+			spatialRefStr = "MapView";
+		else
+			spatialRefStr = "MapView with " + spatialRefStr;
 		auto ls = mapContents->GetLayerSet();
 		if (ls)
 		{
 			auto al = ls->GetActiveLayer();
 			if (al)
-				return al->GetCaption();
+			{
+				return spatialRefStr + ", " + al->GetCaption();
+			}
 		}
+		return spatialRefStr;
 	}
 	return SharedStr("MapView");
 }

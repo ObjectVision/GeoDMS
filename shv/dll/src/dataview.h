@@ -200,7 +200,7 @@ public:
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND  GetHWnd()        const { return m_hWnd; }
 
-	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor = 1.0) const;
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);

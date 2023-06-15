@@ -173,7 +173,11 @@ SharedStr GraphicLayer::GetCaption() const
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("%s recs in MapView %s %s", AsString(nrRecs, FormattingFlags::ThousandSeparator), GetThemeDisplayName(this), domainName);
+	return mgFormat2SharedStr("active layer: %s with %s %s rows"
+		, GetThemeDisplayName(this)
+		, AsString(nrRecs, FormattingFlags::ThousandSeparator)
+		, domainName
+	);
 }
 
 struct ActivateClassificationCmd : AbstrCmd

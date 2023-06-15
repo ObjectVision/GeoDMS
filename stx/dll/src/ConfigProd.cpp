@@ -588,7 +588,7 @@ void ConfigProd::DoItemName()
 
 void ConfigProd::DoNrOfRowsProp()
 {
-	assert(m_eValueType == VT_UInt32);
+	assert(m_eValueType == VT_UInt64);
 	assert(m_pCurrent);
 
 	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
@@ -600,7 +600,7 @@ void ConfigProd::DoNrOfRowsProp()
 		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType %s of this unit", vc->GetName()).c_str());
 
 	unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
-	unit->SetRangeAsFloat64(0, m_IntValAsUInt32);
+	unit->SetRangeAsUInt64(0, m_IntValAsUInt64);
 }
 
 void ConfigProd::throwSemanticError(CharPtr msg)

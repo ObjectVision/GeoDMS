@@ -37,9 +37,9 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 #define MG_DEBUG_FLAGSET_CONTENTION
 
-typedef std::shared_mutex FlagSetCriticalSection;
-typedef std::scoped_lock<FlagSetCriticalSection> ScopedFlagSetLock;
-typedef std::shared_lock<FlagSetCriticalSection> SharedFlagSetLock;
+using FlagSetCriticalSection = std::shared_mutex;
+using ScopedFlagSetLock = std::scoped_lock<FlagSetCriticalSection>;
+using SharedFlagSetLock = std::shared_lock<FlagSetCriticalSection>;
 
 #if defined(MG_DEBUG_FLAGSET_CONTENTION)
 

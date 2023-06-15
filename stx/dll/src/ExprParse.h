@@ -63,10 +63,6 @@ auto const itemNameFirstChar_p = itennameFirstChar_parser();
 auto const itemNameNextChar_p = itemNameFirstChar_p | boost::spirit::digit_p;
 auto const itemName_p = itemNameFirstChar_p >> *itemNameNextChar_p;
 
-
-auto const uint64_p = boost::spirit::uint_parser<UInt64>();
-auto const hex64_p = boost::spirit::uint_parser<UInt64, 16>();
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  Our expr grammar

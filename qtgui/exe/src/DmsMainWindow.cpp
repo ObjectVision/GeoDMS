@@ -1207,7 +1207,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
     }
 
-    // MainWindow could already be destroyed
+    // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {
         assert(s_CurrMainWindow == mainWindow);
@@ -1412,7 +1412,21 @@ void MainWindow::updateCaption()
     VectorOutStreamBuff buff;
     FormattedOutStream out(&buff, FormattingFlags());
     if (!m_currConfigFileName.empty())
-        out << m_currConfigFileName << " in ";
+    {
+        out << m_currConfigFileName;
+        if (m_root)
+        {
+            auto name = m_root->GetName();
+            CharPtr nameCStr = name.c_str();
+            if (*nameCStr)
+            {
+                auto configNameLen = m_currConfigFileName.ssize(); // assume ending on ".dms"
+                if ((configNameLen <= 4) || (StrLen(nameCStr) > configNameLen  - 4) || (strnicmp(nameCStr, m_currConfigFileName.c_str(), configNameLen - 4)))
+                    out << "(" << nameCStr << ")";
+            }
+        }
+        out << " in ";
+    }
     out << GetCurrentDir();
 
     if (!(GetRegStatusFlags() & RSF_AdminMode)) out << "[Hiding]";
@@ -1457,15 +1471,26 @@ void MainWindow::createDetailPagesToolbar()
     detail_pages_toolBar->addAction(properties_page_act);
     connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
 
-    const QIcon configuraion_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
-    auto configuration_page_act = new QAction(properties_icon, tr("&Configuration"), this);
+    const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
+    auto configuration_page_act = new QAction(configuration_icon, tr("&Configuration"), this);
     configuration_page_act->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
     detail_pages_toolBar->addAction(configuration_page_act);
     connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
-    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
-    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
-    detail_pages_toolBar->addAction(value_info_page_act);
+    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_properties.bmp"));
+    QAction* sourcedescr_page_act = new QAction(sourcedescr_icon, tr("&Source description"), this);
+    detail_pages_toolBar->addAction(sourcedescr_page_act);
+    connect(sourcedescr_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
+
+    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":res/images/DP_properties.bmp"));
+    QAction* metainfo_page_act = new QAction(metainfo_icon, tr("&Meta information"), this);
+    detail_pages_toolBar->addAction(metainfo_page_act);
+    connect(metainfo_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
+
+// value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
+//    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
+//    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
+//    detail_pages_toolBar->addAction(value_info_page_act);
 }
 
 void MainWindow::createDetailPagesDock()

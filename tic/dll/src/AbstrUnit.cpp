@@ -815,7 +815,12 @@ void AbstrUnit::SetRangeAsFloat64(Float64 begin, Float64 end)
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsFloat64"); 
 }
 
-Range<Float64> AbstrUnit::GetRangeAsFloat64() const 
+void AbstrUnit::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	throwIllegalAbstract(MG_POS, this, "SetRangeAsUInt64");
+}
+
+Range<Float64> AbstrUnit::GetRangeAsFloat64() const
 { 
 	throwIllegalAbstract(MG_POS, this, "GetRangeAsFloat64");
 }

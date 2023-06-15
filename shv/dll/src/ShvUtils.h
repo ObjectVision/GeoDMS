@@ -261,7 +261,9 @@ UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent 
 
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 
-Float64 GetDesktopDIP2pixFactor();
+SHV_CALL Float64 GetDesktopDIP2pixFactorX();
+SHV_CALL Float64 GetDesktopDIP2pixFactorY();
+SHV_CALL Float64 GetDesktopDIP2pixFactor();
 
 //----------------------------------------------------------------------
 // desktop data section

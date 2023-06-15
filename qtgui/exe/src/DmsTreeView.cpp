@@ -368,12 +368,12 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// step to failreason
 	auto step_to_failreason = MainWindow::TheOne()->getStepToFailreasonAction();
-	step_to_failreason->setDisabled(true);
+	step_to_failreason->setDisabled(!ti || !ti->WasFailed());
 	m_context_menu->addAction(step_to_failreason);
 
 	// go to causa prima
 	auto go_to_causa_prima = MainWindow::TheOne()->getGoToCausaPrimaAction();
-	go_to_causa_prima->setDisabled(true);
+	go_to_causa_prima->setDisabled(!ti || !ti->WasFailed());
 	m_context_menu->addAction(go_to_causa_prima);
 
 	// edit config source

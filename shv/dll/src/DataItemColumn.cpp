@@ -95,11 +95,11 @@ DataItemColumn::DataItemColumn(
 )	:	MovableObject(owner)
 	,	ThemeSet(possibleAspects, activeTheme)
 	,	m_FutureSrcAttr(adi)
-	,	m_ElemSize(GetDefaultColumnWidth(adi), DEF_TEXT_PIX_HEIGHT)
+	,	m_ElemSize(GetDefaultColumnWidth(adi) * GetDesktopDIP2pixFactorX(), DEF_TEXT_PIX_HEIGHT* GetDesktopDIP2pixFactorY())
 	,	m_ColumnNr(UNDEFINED_VALUE(UInt32))	
 	,	m_ActiveRow(0)
 {
-	dms_assert(!GetActiveTheme());
+	assert(!GetActiveTheme());
 }
 
 DataItemColumn::DataItemColumn(const DataItemColumn& src)
@@ -256,9 +256,10 @@ void DataItemColumn::UpdateTheme()
 		auto aggrMethod = IsDefined(m_GroupByIndex) ? AggrMethod::first : m_AggrMethod;
 		while (!Allowed(GetSrcAttr(), aggrMethod))
 		{
-			dms_assert(aggrMethod != AggrMethod::first); // must always be allowed.
+			assert(aggrMethod != AggrMethod::first); // must always be allowed.
 			aggrMethod = AggrMethod(int(aggrMethod) + 1);
-			dms_assert(aggrMethod < AggrMethod::nr_methods); // there will be an allowed method.
+			if (aggrMethod == AggrMethod::nr_methods)
+				aggrMethod = AggrMethod::sum;
 			m_AggrMethod = aggrMethod;
 		}
 

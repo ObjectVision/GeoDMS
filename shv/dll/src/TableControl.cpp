@@ -186,7 +186,9 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 TableControl::TableControl(MovableObject* owner)
 	:	base_type(owner)
 	,	m_TableView(0)
-{}
+{
+	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()) * GetDesktopDIP2pixFactorY());
+}
 
 TableControl::~TableControl()
 {
@@ -809,6 +811,16 @@ bool TableControl::OnCommand(ToolButtonID id)
 	return base_type::OnCommand(id);
 }
 
+auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
+{
+	switch (id)
+	{
+	case TB_TableGroupBy:
+		return NrRows() > 1 ? CommandStatus::ENABLED : CommandStatus::DISABLED;
+	}
+	return GraphicVarCols::OnCommandEnable(id);
+}
+
 void TableControl::RemoveEntry(MovableObject* g)
 {
 	SizeT i = GetEntryPos(g);
@@ -1212,7 +1224,10 @@ void TableControl::CreateTableGroupBy(bool activate)
 				);
 			}
 		}
-		SharedPtr<AbstrUnit> groupByEntity = Unit<UInt32>::GetStaticClass()->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
+		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
+		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
+
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
 		groupByEntity->DisableStorage();
 		groupByEntity->SetExpr(mgFormat2SharedStr("unique(%s)", expr));
 		m_GroupByEntity = groupByEntity.get_ptr();

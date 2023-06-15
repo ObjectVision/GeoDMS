@@ -831,6 +831,17 @@ void VarNumRangeUnitAdapter<U>::SetRangeAsFloat64(Float64 begin, Float64 end)
 	);
 }
 
+template <class U>
+void VarNumRangeUnitAdapter<U>::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	this->SetRange(
+		typename U::range_t(
+			Convert<typename U::value_t>(begin)
+			, Convert<typename U::value_t>(end)
+		)
+	);
+}
+
 //----------------------------------------------------------------------
 // GeoUnitAdapter member funcs implementations
 //----------------------------------------------------------------------

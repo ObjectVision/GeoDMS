@@ -186,6 +186,7 @@ public:
 
 // Support for Numerics
 	virtual void SetRangeAsFloat64(Float64 begin, Float64 end);
+	virtual void SetRangeAsUInt64(UInt64 begin, UInt64 end);
 	virtual Range<Float64> GetRangeAsFloat64() const;
 	virtual Range<Float64> GetTileRangeAsFloat64(tile_id t) const;
 
