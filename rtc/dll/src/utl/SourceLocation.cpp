@@ -77,7 +77,7 @@ FileDescr::~FileDescr()
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
 
-IStringHandle DMS_ReportChangedFiles(bool updateFileTimes)
+IStringHandle DMS_ReportChangedFiles(bool updateFileTimes) //TODO: remove IStringHandle
 {
 	DMS_CALL_BEGIN
 
