@@ -1477,7 +1477,7 @@ void MainWindow::createDetailPagesToolbar()
     detail_pages_toolBar->addAction(configuration_page_act);
     connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
-    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.bmp"));
     QAction* sourcedescr_page_act = new QAction(sourcedescr_icon, tr("&Source description"), this);
     detail_pages_toolBar->addAction(sourcedescr_page_act);
     connect(sourcedescr_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
