@@ -397,7 +397,7 @@ MainWindow::~MainWindow()
     s_CurrMainWindow = nullptr;
 
     DMS_SetGlobalCppExceptionTranslator(nullptr);
-    DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_ReleaseMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
 }
@@ -439,47 +439,16 @@ void DmsCurrentItemBar::onEditingFinished()
     }
 }
 
+bool MainWindow::IsExisting()
+{
+    return s_CurrMainWindow;
+}
+
 MainWindow* MainWindow::TheOne()
 {
     assert(IsMainThread()); // or use a mutex to guard access to TheOne.
     assert(s_CurrMainWindow);
     return s_CurrMainWindow;
-}
-
-void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
-{
-    if (!s_CurrMainWindow)
-        return;
-
-    // TODO: make eventlog lazy using custom model
-    // TODO: create fancy styling of eventlog items using view implementation of model/view
-
-    auto eventLogWidget = TheOne()->m_eventlog;
-    while (eventLogWidget->count() > 1000)
-        delete eventLogWidget->takeItem(0);
-
-    if (st == SeverityTypeID::ST_Error)
-    {
-        error(msg);
-        return;
-    }
-
-    eventLogWidget->addItem(msg);
-    
-    static Timer t;
-    if (t.PassedSecs(5))
-        eventLogWidget->scrollToBottom();
-
-    // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
-
-    Qt::GlobalColor clr;
-    switch (st) {
-    //case SeverityTypeID::ST_Error: clr = Qt::red; break;
-    case SeverityTypeID::ST_Warning: clr = Qt::darkYellow; break;
-    case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
-    default: return;
-    }
-    eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
@@ -912,7 +881,7 @@ void MainWindow::createView(ViewStyle viewStyle)
     catch (...)
     {
         auto errMsg = catchException(false);
-        MainWindow::EventLog(SeverityTypeID::ST_Error, errMsg->Why().c_str());
+        EventLog_AddText(SeverityTypeID::ST_Error, errMsg->Why().c_str());
     }
 }
 
@@ -1025,7 +994,7 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
 
 void CppExceptionTranslator(CharPtr msg)
 {
-    MainWindow::EventLog(SeverityTypeID::ST_Error, msg);
+    EventLog_AddText(SeverityTypeID::ST_Error, msg);
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -1047,7 +1016,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 void MainWindow::setupDmsCallbacks()
 {
     DMS_SetGlobalCppExceptionTranslator(CppExceptionTranslator);
-    DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_RegisterMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);

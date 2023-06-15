@@ -119,7 +119,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\DmsDetailPages.cpp" />
-    <ClCompile Include="src\DmsEventLog.cpp" />
+    <ClCompile Include="src\DmsEventLog.cpp">
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
+    </ClCompile>
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
@@ -149,7 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h" />
-    <ClInclude Include="src\DmsEventLog.h" />
+    <QtMoc Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsViewArea.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />

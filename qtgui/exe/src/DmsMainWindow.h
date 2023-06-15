@@ -12,6 +12,7 @@
 #include <QSlider>
 #include <QFileDialog>
 #include <QTextBrowser>
+#include <QListView>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -23,16 +24,12 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QListWidget;
-class QTreeWidget;
 class QMenu;
 class QTextEdit;
 class QTextBrowser;
 class QTreeView;
-class QTableView;
 class QDialog;
 class QLabel;
-
 class QMdiSubWindow;
 QT_END_NAMESPACE
 
@@ -41,6 +38,7 @@ class QDmsMdiArea;
 class DmsDetailPages;
 class DmsTreeView;
 class DmsModel;
+class EventLogModel;
 
 class DmsCurrentItemBar : public QLineEdit
 {
@@ -209,6 +207,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> DmsTreeView*;
+    auto getEventLogViewPtr() -> QListView* { return m_eventlog;  }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
     auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
@@ -225,8 +224,8 @@ public:
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
 
-    static MainWindow* TheOne();
-    static void EventLog(SeverityTypeID st, CharPtr msg);
+    static auto TheOne() -> MainWindow*;
+    static bool IsExisting();
 
 signals:
     void currentItemChanged();
@@ -289,14 +288,16 @@ private:
     std::unique_ptr<QAction> m_code_analysis_action;
     std::unique_ptr<QAction> m_options_action;
 
+public:
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
+    std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
 
-    // helper windows
+    // helper windows; TODO: destroy these before the above model objects
     QPointer<DmsDetailPages> m_detail_pages;
-    QPointer<QListWidget> m_eventlog;
+    QPointer<QListView> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
     QPointer<QMenu> m_window_menu;

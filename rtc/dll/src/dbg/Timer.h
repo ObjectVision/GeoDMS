@@ -34,6 +34,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include <time.h>
 #include <atomic>
 
+#include "geo/MinMax.h"
+
 struct Timer
 {
 	Timer()

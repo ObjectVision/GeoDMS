@@ -6,6 +6,7 @@
 
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
+#include "DmsEventLog.h"
 #include <QMainWindow>
 
 #include "dbg/SeverityType.h"
@@ -352,7 +353,7 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
 
     // log link action
 #if defined(_DEBUG)
-    MainWindow::EventLog(SeverityTypeID::ST_MajorTrace, linkStr.data());
+    EventLog_AddText(SeverityTypeID::ST_MajorTrace, linkStr.data());
 #endif
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (IsPostRequest(link))
