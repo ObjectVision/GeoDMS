@@ -158,5 +158,11 @@ void QDmsViewArea::UpdatePosAndSize()
 {
     auto rect= contentsRect();
 
-    MoveWindow((HWND)m_HWnd, rect.x(), rect.y(), rect.width(), rect.height(), true);
+    MoveWindow((HWND)m_HWnd
+        , rect.x()
+        , rect.y()
+        , rect.width () * GetDesktopDIP2pixFactorX()
+        , rect.height() * GetDesktopDIP2pixFactorY()
+        , true
+    );
 }
