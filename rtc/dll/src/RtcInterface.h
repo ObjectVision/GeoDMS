@@ -93,6 +93,8 @@ RTC_CALL bool DMS_CONV DMS_RTC_Test();
 
 } // end extern "C"
 
+RTC_CALL auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff;
+
 RTC_CALL extern bool g_IsTerminating;
 
 #endif // __RTC_INTERFACE_H
