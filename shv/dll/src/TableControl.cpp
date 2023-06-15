@@ -186,7 +186,9 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 TableControl::TableControl(MovableObject* owner)
 	:	base_type(owner)
 	,	m_TableView(0)
-{}
+{
+	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()) * GetDesktopDIP2pixFactorY());
+}
 
 TableControl::~TableControl()
 {

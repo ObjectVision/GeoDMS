@@ -95,11 +95,11 @@ DataItemColumn::DataItemColumn(
 )	:	MovableObject(owner)
 	,	ThemeSet(possibleAspects, activeTheme)
 	,	m_FutureSrcAttr(adi)
-	,	m_ElemSize(GetDefaultColumnWidth(adi), DEF_TEXT_PIX_HEIGHT)
+	,	m_ElemSize(GetDefaultColumnWidth(adi) * GetDesktopDIP2pixFactorX(), DEF_TEXT_PIX_HEIGHT* GetDesktopDIP2pixFactorY())
 	,	m_ColumnNr(UNDEFINED_VALUE(UInt32))	
 	,	m_ActiveRow(0)
 {
-	dms_assert(!GetActiveTheme());
+	assert(!GetActiveTheme());
 }
 
 DataItemColumn::DataItemColumn(const DataItemColumn& src)
