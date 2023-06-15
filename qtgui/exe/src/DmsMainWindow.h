@@ -178,22 +178,43 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
+class DmsFileChangedWindow : public QDialog
+{
+    Q_OBJECT
+
+public: //auto changed_files = DMS_ReportChangedFiles(true);
+    DmsFileChangedWindow(QWidget* parent);
+    void setFileChangedMessage(std::string_view changed_files);
+
+private slots:
+    void ignore();
+    void reopen();
+    void onAnchorClicked(const QUrl& link);
+
+private:
+    QPointer<QPushButton> m_ignore;
+    QPointer<QPushButton> m_reopen;
+    QPointer<QTextBrowser> m_message;
+};
+
+
 class DmsErrorWindow : public QDialog
 {
     Q_OBJECT
 
-private slots:
-    void cancel();
-    void abort();
-    void reopen();
-    void onAnchorClicked(const QUrl& link);
-
 public:
     DmsErrorWindow(QWidget* parent);
     void setErrorMessage(QString message) { m_message->setMarkdown(message); };
+
+private slots:
+    void ignore();
+    void terminate();
+    void reopen();
+    void onAnchorClicked(const QUrl& link);
+
 private:
-    QPointer<QPushButton> m_cancel;
-    QPointer<QPushButton> m_abort;
+    QPointer<QPushButton> m_ignore;
+    QPointer<QPushButton> m_terminate;
     QPointer<QPushButton> m_reopen;
     QPointer<QTextBrowser> m_message;
 };
@@ -254,6 +275,9 @@ public slots:
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
 
+protected:
+    bool event(QEvent* event) override;
+
 private:
     void CloseConfig();
     bool LoadConfig(CharPtr configFilePath);
@@ -305,6 +329,7 @@ private:
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
+    QPointer<DmsFileChangedWindow> m_file_changed_window;
 };
 
 #endif

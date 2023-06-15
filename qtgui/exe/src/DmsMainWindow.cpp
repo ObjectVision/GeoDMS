@@ -144,7 +144,7 @@ void DmsOptionsWindow::onTextChange(const QString& text)
 
 void DmsOptionsWindow::setLocalDataDirThroughDialog()
 {
-    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalDataDir Directory"), m_ld_input->text(),
+    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalData Directory"), m_ld_input->text(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 
     if (!new_local_data_dir_folder.isEmpty())
@@ -153,7 +153,7 @@ void DmsOptionsWindow::setLocalDataDirThroughDialog()
 
 void DmsOptionsWindow::setSourceDataDirThroughDialog()
 {
-    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceDataDir Directory"), m_sd_input->text(),
+    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceData Directory"), m_sd_input->text(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (!new_source_data_dir_folder.isEmpty())
         m_sd_input->setText(new_source_data_dir_folder);
@@ -297,11 +297,75 @@ void DmsOptionsWindow::onFlushTresholdValueChange(int value)
     m_changed = true;
 }
 
-void DmsErrorWindow::cancel()
+void DmsFileChangedWindow::ignore()
 {
     done(QDialog::Rejected);
 }
-void DmsErrorWindow::abort()
+
+void DmsFileChangedWindow::reopen()
+{
+    MainWindow::TheOne()->reOpen();
+    done(QDialog::Accepted);
+}
+
+void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
+{
+    auto clicked_file_link = link.toString().toStdString();
+    MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
+}
+
+DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
+{
+    setWindowTitle(QString("Source changed.."));
+    setMinimumSize(600, 200);
+
+    auto grid_layout = new QGridLayout(this);
+    m_message = new QTextBrowser(this);
+    m_message->setOpenLinks(false);
+    m_message->setOpenExternalLinks(false);
+    connect(m_message, &QTextBrowser::anchorClicked, this, &DmsFileChangedWindow::onAnchorClicked);
+    grid_layout->addWidget(m_message, 0, 0, 1, 3);
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_ignore = new QPushButton("Ignore");
+    m_ignore->setMaximumSize(75, 30);
+    m_ignore->setAutoDefault(true);
+    m_ignore->setDefault(true);
+
+
+    m_reopen = new QPushButton("Reopen");
+    connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
+    connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
+    m_reopen->setMaximumSize(75, 30);
+    box_layout->addWidget(m_ignore);
+    box_layout->addWidget(m_reopen);
+    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
+
+
+    setWindowModality(Qt::ApplicationModal);
+}
+
+void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files)
+{
+    std::string file_changed_message_markdown = "The following files have been changed:\n\n";
+    size_t curr_pos = 0;
+    while (curr_pos < changed_files.size())
+    {
+        auto curr_line_end = changed_files.find_first_of('\n', curr_pos);
+        auto link = std::string(changed_files.substr(curr_pos, curr_line_end - curr_pos));
+        file_changed_message_markdown += "[" + link + "](" + link + ")\n";
+        curr_pos = curr_line_end + 1;
+    }
+    file_changed_message_markdown += "\n\nDo you want to reopen the configuration?";
+    m_message->setMarkdown(file_changed_message_markdown.c_str());
+}
+
+void DmsErrorWindow::ignore()
+{
+    done(QDialog::Rejected);
+}
+void DmsErrorWindow::terminate()
 {
     
     QCoreApplication::exit(EXIT_FAILURE);
@@ -381,20 +445,20 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
-    m_cancel = new QPushButton("Cancel");
-    m_cancel->setMaximumSize(75, 30);
-    m_cancel->setAutoDefault(true);
-    m_cancel->setDefault(true);
-    m_abort = new QPushButton("Abort");
-    m_abort->setMaximumSize(75, 30);
+    m_ignore = new QPushButton("Ignore");
+    m_ignore->setMaximumSize(75, 30);
+    m_ignore->setAutoDefault(true);
+    m_ignore->setDefault(true);
+    m_terminate = new QPushButton("Terminate");
+    m_terminate->setMaximumSize(75, 30);
 
     m_reopen = new QPushButton("Reopen");
-    connect(m_cancel, &QPushButton::released, this, &DmsErrorWindow::cancel);
-    connect(m_abort, &QPushButton::released, this, &DmsErrorWindow::abort);
+    connect(m_ignore, &QPushButton::released, this, &DmsErrorWindow::ignore);
+    connect(m_terminate, &QPushButton::released, this, &DmsErrorWindow::terminate);
     connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
     m_reopen->setMaximumSize(75, 30);
-    box_layout->addWidget(m_cancel);
-    box_layout->addWidget(m_abort);
+    box_layout->addWidget(m_ignore);
+    box_layout->addWidget(m_terminate);
     box_layout->addWidget(m_reopen);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
@@ -407,6 +471,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
 
+    m_file_changed_window = new DmsFileChangedWindow(this);
     m_error_window = new DmsErrorWindow(this);
 
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
@@ -784,6 +849,24 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
     }
 }
 
+bool MainWindow::event(QEvent* event)
+{
+    if (event->type() == QEvent::WindowActivate)
+    {
+        auto changed_files = DMS_ReportChangedFiles(true);
+        if (changed_files)
+        { 
+            std::string changed_files_result = (*changed_files).c_str();
+            changed_files->Release(changed_files);
+
+            m_file_changed_window->setFileChangedMessage(changed_files_result);
+            m_file_changed_window->show();
+        }
+    }
+
+    return QMainWindow::event(event);
+}
+
 std::string fillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
 {
     //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
@@ -912,17 +995,7 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
     }
     error_message_markdown += error_message.substr(curr_pos+1);
 
-    /*if (!link.is_valid)
-        TheOne()->m_error_window->setErrorMessage(error_message.c_str());
-    else
-    {
-        auto test = error_message.substr(link.stop+1);
-        std::string error_message_md = error_message.substr(0, link.start)  +
-            "[" + link.filename + "](" + link.filename + ") "
-            + test;*/
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
-    //}
-    
     TheOne()->m_error_window->show();
 }
 
@@ -962,6 +1035,7 @@ void MainWindow::createView(ViewStyle viewStyle)
 {
     try
     {
+        //auto test = QScreen::devicePixelRatio();
         static UInt32 s_ViewCounter = 0;
 
         auto currItem = getCurrentTreeItem();
@@ -1055,7 +1129,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             if (delimCandidate == '\\' || delimCandidate == '/')
             {
                 auto dirName = SharedStr(configFilePath, fileNameCharPtr);
-                SetCurrentDir(dirName.c_str());
+                SetCurrentDir(dirName.c_str()); 
                 ++fileNameCharPtr;
                 break;
             }
@@ -1106,6 +1180,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     }
     catch (...)
     {
+        m_dms_model->setRoot(nullptr);
+        setCurrentTreeItem(nullptr);
         error(catchException(false));
         return false;
     }
