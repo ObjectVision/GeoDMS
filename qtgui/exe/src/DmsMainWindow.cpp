@@ -853,13 +853,11 @@ bool MainWindow::event(QEvent* event)
 {
     if (event->type() == QEvent::WindowActivate)
     {
-        auto changed_files = DMS_ReportChangedFiles(true);
-        if (changed_files)
-        { 
-            std::string changed_files_result = (*changed_files).c_str();
-            changed_files->Release(changed_files);
-
-            m_file_changed_window->setFileChangedMessage(changed_files_result);
+        auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
+        if (vos.CurrPos())
+        {
+            auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
+            m_file_changed_window->setFileChangedMessage(changed_files);
             m_file_changed_window->show();
         }
     }
