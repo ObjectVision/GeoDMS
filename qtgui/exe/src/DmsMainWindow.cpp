@@ -1243,7 +1243,21 @@ void MainWindow::updateCaption()
     VectorOutStreamBuff buff;
     FormattedOutStream out(&buff, FormattingFlags());
     if (!m_currConfigFileName.empty())
-        out << m_currConfigFileName << " in ";
+    {
+        out << m_currConfigFileName;
+        if (m_root)
+        {
+            auto name = m_root->GetName();
+            CharPtr nameCStr = name.c_str();
+            if (*nameCStr)
+            {
+                auto configNameLen = m_currConfigFileName.ssize(); // assume ending on ".dms"
+                if ((configNameLen <= 4) || (StrLen(nameCStr) > configNameLen  - 4) || (strnicmp(nameCStr, m_currConfigFileName.c_str(), configNameLen - 4)))
+                    out << "(" << nameCStr << ")";
+            }
+        }
+        out << " in ";
+    }
     out << GetCurrentDir();
 
     if (!(GetRegStatusFlags() & RSF_AdminMode)) out << "[Hiding]";
