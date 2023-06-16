@@ -1156,6 +1156,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     m_dms_model->setRoot(m_root);
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     m_current_item_bar->setDmsCompleter();
+    updateCaption();
     return true;
 }
 
