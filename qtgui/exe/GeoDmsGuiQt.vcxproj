@@ -153,6 +153,7 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
     <QtMoc Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsViewArea.h" />
@@ -215,5 +216,11 @@
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GeoDmsGuiQt.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\icons\GeoDmsGui.ico" />
   </ItemGroup>
 </Project>

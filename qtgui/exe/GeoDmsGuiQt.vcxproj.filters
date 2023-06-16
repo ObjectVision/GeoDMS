@@ -192,5 +192,12 @@
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
       <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GeoDmsGuiQt.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\icons\GeoDmsGui.ico" />
   </ItemGroup>
 </Project>
