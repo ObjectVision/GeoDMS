@@ -1,6 +1,7 @@
 #include <QListWidget>
 
 #include <QApplication>
+#include <QColor>
 #include <QObject>
 #include <QDockWidget>
 #include <QMenubar>
@@ -26,7 +27,18 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		return m_Items[row].second;
 
 	case Qt::ForegroundRole:
-		return m_Items[row].first;
+	{
+		switch (m_Items[row].first) {
+		case SeverityTypeID::ST_FatalError:
+		case SeverityTypeID::ST_Error:
+			return QColor(Qt::red);
+		case SeverityTypeID::ST_Warning:
+			return QColor(Qt::darkYellow);
+		case SeverityTypeID::ST_MajorTrace:
+			return QColor(Qt::darkBlue);
+		}
+		break;
+	}
 
 	case Qt::SizeHintRole:
 	{
@@ -37,39 +49,17 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
-bool EventLogModel::setData(const QModelIndex& index, const QVariant& value, int role)
+void EventLogModel::AddText(SeverityTypeID st, CharPtr msg)
 {
-	if (index.isValid())
-		switch (role) 
-		{
-			case Qt::EditRole:
-			{
-				m_Items[index.row()].second = value.toString();
-				emit dataChanged(index, index);
-				return true;
-			}
+	auto rowCount_ = rowCount();
+	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
 
-			case Qt::ForegroundRole:
-			{
-				m_Items[index.row()].first = value.value<QColor>();
-				emit dataChanged(index, index);
-				return true;
-			}
-		}
-
-	return false;
-}
-
-bool EventLogModel::insertRows(int row, int count, const QModelIndex& parent)
-{
-	beginInsertRows(QModelIndex(), row, row + count - 1);
-
-	for (int i= 0; i< count; ++i)
-		m_Items.insert(m_Items.begin() + row + i, item_t());
+	m_Items.insert(m_Items.end(), item_t(st, msg));
 
 	endInsertRows();
-	return true;
 
+	auto index = this->index(rowCount_, 0, QModelIndex());
+	emit dataChanged(index, index);
 }
 
 void EventLog_AddText(SeverityTypeID st, CharPtr msg)
@@ -78,23 +68,7 @@ void EventLog_AddText(SeverityTypeID st, CharPtr msg)
 		return;
 
 	auto* theModel = MainWindow::TheOne()->m_eventlog_model.get(); assert(theModel);
-	auto rowCount = theModel->rowCount();
-	theModel->insertRow(rowCount);
-	auto index = theModel->index(rowCount, 0, QModelIndex());
-	theModel->setData(index, QString(msg), Qt::EditRole);
-
-	switch (st) {
-	case SeverityTypeID::ST_FatalError:
-	case SeverityTypeID::ST_Error:
-		theModel->setData(index, QColor(Qt::red), Qt::ForegroundRole);
-		break;
-	case SeverityTypeID::ST_Warning:
-		theModel->setData(index, QColor(Qt::darkYellow), Qt::ForegroundRole);
-		break;
-	case SeverityTypeID::ST_MajorTrace:
-		theModel->setData(index, QColor(Qt::darkBlue), Qt::ForegroundRole);
-		break;
-	}
+	theModel->AddText(st, msg);
 
 	static Timer t;
 	if (t.PassedSecs(5))

@@ -1,6 +1,5 @@
 #include "RtcBase.h"
 
-#include <QColor>
 #include <QPointer>
 #include <QAbstractListModel>
 
@@ -14,7 +13,7 @@ class EventLogModel : public QAbstractListModel
 	Q_OBJECT
 
 public:
-	using item_t = std::pair<QColor, QString>;
+	using item_t = std::pair<SeverityTypeID, QString>;
 
 	int rowCount(const QModelIndex& parent = QModelIndex()) const override
 	{
@@ -23,8 +22,7 @@ public:
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	bool insertRows(int position, int rows, const QModelIndex& index = QModelIndex());
-	bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole);
+	void AddText(SeverityTypeID st, CharPtr msg);
 
 private:
 	std::vector<item_t> m_Items;
