@@ -159,7 +159,7 @@ private:
 class ExternalVectorOutStreamBuff : public OutStreamBuff
 {
 public:
-	typedef std::vector<Byte> VectorType;
+	using VectorType = vos_buffer_type;
 
 	RTC_CALL ExternalVectorOutStreamBuff(VectorType& data);
 
@@ -179,7 +179,7 @@ private:
 class VectorOutStreamBuff : public OutStreamBuff
 {
 public:
-	using VectorType = std::vector<Byte>;
+	using VectorType = vos_buffer_type;
 
 	RTC_CALL VectorOutStreamBuff();
 

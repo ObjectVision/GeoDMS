@@ -8,6 +8,7 @@
 
 struct TreeItem;
 class DataView;
+struct MdiCreateStruct;
 
 class QDmsMdiArea : public QMdiArea
 {
@@ -23,14 +24,17 @@ class QDmsViewArea : public QMdiSubWindow
         using base_class = QMdiSubWindow;
 
 public:
-    QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
+    QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
+    QDmsViewArea(QWidget* parent, MdiCreateStruct* createStruct);
     ~QDmsViewArea();
+
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     auto getDataView() -> DataView* { return m_DataView; }
     auto getHwnd() -> void* { return m_HWnd; } // QEvent::WinIdChange
 
 private:
+    void CreateDmsView();
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void UpdatePosAndSize();

@@ -408,8 +408,8 @@ auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 		if (valuesUnitPtr)
 		{
 			dbg_assert(valuesUnitPtr->CheckMetaInfoReadyOrPassor());
-			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
-			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
+//			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
+//			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
 
 			valuesUnitPtr = const_unit_cast<E>(valuesUnitPtr->GetCurrRangeItem()); // Or fix it here
 			if (!valuesUnitPtr->m_RangeDataPtr)

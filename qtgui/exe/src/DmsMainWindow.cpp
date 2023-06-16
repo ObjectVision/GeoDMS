@@ -14,16 +14,19 @@
 
 #include "TreeItem.h"
 #include "DataView.h"
+#include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
 #include <QtWidgets>
 #include <QCompleter>
+#include <QMdiArea>
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "DataView.h"
 #include "StateChangeNotification.h"
 #include <regex>
 
@@ -1012,11 +1015,9 @@ void MainWindow::createView(ViewStyle viewStyle)
         auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
         auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-        HWND hWndMain = (HWND)winId();
-
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
         SuspendTrigger::Resume();
-        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
+        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
         dms_mdi_subwindow->showMaximized();
         dms_mdi_subwindow->setMinimumSize(200, 150);
@@ -1166,11 +1167,35 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
-    if (notificationCode == NC_Deleting)
-    {
+    switch (notificationCode) {
+    case NC_Deleting:
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
+        break;
+    case CC_CreateMdiChild:
+    {
+        auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
+        assert(createStruct);
+        auto va = new QDmsViewArea(mainWindow->getDmsMdiAreaPtr(), createStruct);
+        return;
     }
+    case CC_Activate:
+        mainWindow->setCurrentTreeItem(const_cast<TreeItem*>(self));
+        return;
 
+    case CC_ShowStatistics:
+        while (true)
+        {
+            bool done = false;
+            vos_buffer_type textBuffer;
+            NumericDataItem_GetStatistics(self, &done, textBuffer);
+            auto result = MessageBoxA((HWND)mainWindow->winId()
+                , begin_ptr(textBuffer)
+                , done ? "Statistics" : "Incomplete Statistics, Retry ?"
+                , done ? MB_OK : MB_YESNO);
+            if (done || result != IDYES)
+                return;
+        }
+    }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {

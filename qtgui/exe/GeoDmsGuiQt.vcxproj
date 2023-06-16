@@ -192,11 +192,8 @@
   </ImportGroup>
   <ImportGroup Label="ExtensionTargets" />
   <ItemGroup>
-    <ProjectReference Include="..\..\clc\dll\Clc1.vcxproj">
+    <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
       <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\Clc2.vcxproj">
-      <Project>{604fd9aa-6df6-46d7-a1b9-e66b413dc21b}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\geo\dll\GeoDLL.vcxproj">
       <Project>{c0c75a4b-dd01-4272-8fb5-3a242da125ba}</Project>
