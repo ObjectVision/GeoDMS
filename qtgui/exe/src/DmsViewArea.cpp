@@ -105,7 +105,7 @@ void QDmsViewArea::CreateDmsView()
 
     HINSTANCE instance = GetInstance(hWndMain);
     auto parent_hwnd = (HWND)winId();
-    auto rect = contentsRect();
+    auto rect = contentsRectInPixelUnits();
 
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
     auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
@@ -124,7 +124,11 @@ void QDmsViewArea::CreateDmsView()
     m_HWnd = hWnd;
 
     SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
-    SetWindowPos(hWnd, HWND_TOP, rect.x(), rect.y(), rect.width(), rect.height(), SWP_SHOWWINDOW| SWP_NOMOVE| SWP_NOSIZE);
+    SetWindowPos(hWnd, HWND_TOP
+        , rect.x(), rect.y()
+        , rect.width(), rect.height()
+        , SWP_SHOWWINDOW
+    );
 }
 
 QDmsViewArea::~QDmsViewArea()
@@ -155,15 +159,24 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event)
     UpdatePosAndSize();
 }
 
+auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
+{
+    auto rect = contentsRect();
+    return QRect(
+          rect.x() * GetDesktopDIP2pixFactorX()
+        , rect.y() * GetDesktopDIP2pixFactorY()
+        , rect.width() * GetDesktopDIP2pixFactorX()
+        , rect.height() * GetDesktopDIP2pixFactorY()
+    );
+}
+
 void QDmsViewArea::UpdatePosAndSize()
 {
-    auto rect= contentsRect();
+    auto rect= contentsRectInPixelUnits();
 
     MoveWindow((HWND)m_HWnd
-        , rect.x() * GetDesktopDIP2pixFactorX()
-        , rect.y() * GetDesktopDIP2pixFactorY()
-        , rect.width () * GetDesktopDIP2pixFactorX()
-        , rect.height() * GetDesktopDIP2pixFactorY()
+        , rect.x(), rect.y()
+        , rect.width (), rect.height()
         , true
     );
 }

@@ -34,6 +34,7 @@ public:
     auto getHwnd() -> void* { return m_HWnd; } // QEvent::WinIdChange
 
 private:
+    auto contentsRectInPixelUnits() -> QRect;
     void CreateDmsView();
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;

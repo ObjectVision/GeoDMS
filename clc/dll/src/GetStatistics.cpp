@@ -190,7 +190,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 	}
 }
 
-CLC_CALL void NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr, vos_buffer_type& statisticsBuffer)
+CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer)
 {
 	assert(!SuspendTrigger::DidSuspend()); // Precondition?
 	assert(item->HasInterest()); // PRECONDITION
@@ -201,6 +201,7 @@ CLC_CALL void NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr,
 	ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
 	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
 
+	bool isReady = true;
 	try {
 
 		os << "Statistics for " << item->GetFullName() << ":\n";
@@ -224,7 +225,7 @@ CLC_CALL void NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr,
 		SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
 		dms_assert(vu);
 		dms_assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
-		bool isReady = vu->PrepareData(); // GetRange needed later
+		isReady = vu->PrepareData(); // GetRange needed later
 		auto vt = di->GetAbstrValuesUnit()->GetValueType();
 
 		SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
@@ -233,35 +234,26 @@ CLC_CALL void NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr,
 		os << "\nValuesType   :" << vt->GetID();
 
 		dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
-		if (isReady) isReady = di->PrepareData();
-		if (!isReady && !donePtr && !di->IsFailed(FR_Data))
-		{
-			SuspendTrigger::Resume();
-			vu->PrepareDataUsage(DrlType::Certain);
-			di->PrepareDataUsage(DrlType::Certain);
-			auto oc = GetOperationContext(di->GetCurrUltimateItem());
-			if (oc)
-				oc->Join();
-			isReady = true;
-		}
+		if (isReady) 
+			isReady = di->PrepareData();
+
 		if (di->IsFailed(FR_Data))
 		{
 			auto fr = di->GetFailReason();
 			if (fr)
 				os << "\nProcessing statistics failed because:\n\n" << *fr;
+			isReady = true;
 			goto finally;
 		}
-		dms_assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
+		assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
 		if (!isReady || !(AsDataItem(di->GetCurrUltimateItem())->m_DataObject))
 		{
-			dms_assert(donePtr); // !donePtr implies lock or failure
-			dms_assert(SuspendTrigger::DidSuspend());
+			assert(SuspendTrigger::DidSuspend());
 			os << "\nProcessing ...";
-			*donePtr = false;
 			goto finally;
 		}
 
-		dms_assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
+		assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
 
 		SizeT n = di->GetAbstrDomainUnit()->GetCount();;
 		const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
@@ -320,6 +312,7 @@ CLC_CALL void NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr,
 	}
 	finally:
 	os << "\n" << char(0);
+	return isReady;
 }
 
 CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
@@ -344,7 +337,7 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 		{
 			s_LastItem = 0; // invalidate cache contents during processing	
 
-			NumericDataItem_GetStatistics(item, donePtr, statisticsBuffer);
+			*donePtr = NumericDataItem_GetStatistics(item, statisticsBuffer);
 		}
 
 		if (*donePtr)

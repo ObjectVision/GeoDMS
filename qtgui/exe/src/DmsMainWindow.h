@@ -242,6 +242,7 @@ public:
     auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
     auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
     auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
+    auto getStatisticAction() -> QAction* { return m_statistics_action.get(); };
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
@@ -273,6 +274,9 @@ public slots:
 
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
+    void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
+
+    void ShowStatistics(const TreeItem* tiContext);
 
 protected:
     bool event(QEvent* event) override;
@@ -309,6 +313,7 @@ private:
     std::unique_ptr<QAction> m_defaultview_action;
     std::unique_ptr<QAction> m_tableview_action;
     std::unique_ptr<QAction> m_mapview_action;
+    std::unique_ptr<QAction> m_statistics_action;
     std::unique_ptr<QAction> m_histogramview_action;
     std::unique_ptr<QAction> m_process_schemes_action;
     std::unique_ptr<QAction> m_code_analysis_action;

@@ -359,6 +359,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	m_context_menu->clear();
 
 	auto ti = GetTreeItem(index);
+	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
+
 	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
 
 	// export primary data
@@ -398,19 +400,25 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// default view
 	auto default_view_action = MainWindow::TheOne()->getDefaultviewAction();
-	default_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)) ? false : true); // TODO: vsfDefault appears to never be set
+	default_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
 	m_context_menu->addAction(default_view_action);
 
 	// table view
 	auto table_view_action = MainWindow::TheOne()->getTableviewAction();
-	table_view_action->setDisabled((viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer)) ? false : true);
+	table_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer));
 	m_context_menu->addAction(table_view_action);
 
 	// map view
 	auto map_view_action = MainWindow::TheOne()->getMapviewAction();
-	map_view_action->setDisabled((viewstyle_flags & ViewStyleFlags::vsfMapView) ? false : true);
+	map_view_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
 	m_context_menu->addAction(map_view_action);
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
+
+	// statistics view
+	auto statistics_view_action = MainWindow::TheOne()->getStatisticAction();
+	statistics_view_action->setEnabled(IsDataItem(ti));
+	m_context_menu->addAction(statistics_view_action);
+//	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
 	// histogram view
 	auto histogramview = MainWindow::TheOne()->getHistogramAction();

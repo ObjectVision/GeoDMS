@@ -1165,6 +1165,28 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
+void MainWindow::ShowStatistics(const TreeItem* tiContext)
+{
+    auto* mdiSubWindow = new QMdiSubWindow(getDmsMdiAreaPtr()); // not a DmsViewArea
+    auto* textWidget = new QTextBrowser(mdiSubWindow);
+
+    vos_buffer_type textBuffer;
+    while (true)
+    {
+        bool done = NumericDataItem_GetStatistics(tiContext, textBuffer);
+        textWidget->setText(begin_ptr(textBuffer));
+        if (done)
+            return;
+        auto result = MessageBoxA((HWND)winId()
+            , "Processing didn't complete yet; retry request?"
+            , "Statistics"
+            , MB_YESNO
+        );
+        if (result != IDYES)
+            return;
+    }
+}
+
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
@@ -1184,18 +1206,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         return;
 
     case CC_ShowStatistics:
-        while (true)
-        {
-            bool done = false;
-            vos_buffer_type textBuffer;
-            NumericDataItem_GetStatistics(self, &done, textBuffer);
-            auto result = MessageBoxA((HWND)mainWindow->winId()
-                , begin_ptr(textBuffer)
-                , done ? "Statistics" : "Incomplete Statistics, Retry ?"
-                , done ? MB_OK : MB_YESNO);
-            if (done || result != IDYES)
-                return;
-        }
+        mainWindow->ShowStatistics(self);
     }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)
@@ -1314,12 +1325,18 @@ void MainWindow::createActions()
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     viewMenu->addAction(m_mapview_action.get());
 
+    // statistics view
+    m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
+//    m_statistics_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+    connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
+    viewMenu->addAction(m_statistics_action.get());
+
     // histogram view
     m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
     m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
     //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
     
-    // provess schemes
+    // process schemes
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
 
