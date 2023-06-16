@@ -190,6 +190,131 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 	}
 }
 
+CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer)
+{
+	assert(!SuspendTrigger::DidSuspend()); // Precondition?
+	assert(item->HasInterest()); // PRECONDITION
+	assert(donePtr);
+
+	vector_clear(statisticsBuffer);
+
+	ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
+	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
+
+	bool isReady = true;
+	try {
+
+		os << "Statistics for " << item->GetFullName() << ":\n";
+
+		if (item->InTemplate())
+		{
+			os <<
+				"\nNot available since the DataItem is part of a calculation scheme template."
+				"\nGo to its instantiations to see actual data";
+
+			goto finally;
+		}
+
+		SharedDataItemInterestPtr di = AsDynamicDataItem(item);
+		if (!di)
+		{
+			os << "Not available since this is not a DataItem";
+			goto finally;
+		}
+		dms_assert(di->Was(PS_MetaInfo)); // PRECONDITION
+		SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
+		dms_assert(vu);
+		dms_assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
+		isReady = vu->PrepareData(); // GetRange needed later
+		auto vt = di->GetAbstrValuesUnit()->GetValueType();
+
+		SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
+		if (!metricStr.empty())
+			os << "\nValuesMetric :" << metricStr;
+		os << "\nValuesType   :" << vt->GetID();
+
+		dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
+		if (isReady) 
+			isReady = di->PrepareData();
+
+		if (di->IsFailed(FR_Data))
+		{
+			auto fr = di->GetFailReason();
+			if (fr)
+				os << "\nProcessing statistics failed because:\n\n" << *fr;
+			isReady = true;
+			goto finally;
+		}
+		assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
+		if (!isReady || !(AsDataItem(di->GetCurrUltimateItem())->m_DataObject))
+		{
+			assert(SuspendTrigger::DidSuspend());
+			os << "\nProcessing ...";
+			goto finally;
+		}
+
+		assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
+
+		SizeT n = di->GetAbstrDomainUnit()->GetCount();;
+		const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
+		os << "\n\nCount    : " << n;
+		if (tn != 1)
+			os << "\n#Tiles   : " << tn;
+
+		if (!n)
+			goto finally;
+
+		bin_count_type binCounts;
+
+		SizeT d = 0;
+		DataReadLock lock(di);
+		if (!vt->IsNumeric() && vt->GetValueClassID() != VT_Bool)
+		{
+			d = n - di->GetRefObj()->GetNrNulls();
+		}
+		else
+		{
+			f64_accumulator accu;
+			AccumulateData(os, accu, binCounts, di);
+			WriteAccuData(os, accu, di);
+			d = accu.d;
+		}
+		os << "\nNr Nulls : " << (n - d);
+		os << "\nNr Values: " << d;
+
+		if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String)
+		{
+			auto da = const_array_cast<SharedStr>(di)->GetDataRead();
+			os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
+			os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
+		}
+		if (di->GetValueComposition() != ValueComposition::Single)
+		{
+			visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
+				[di, &os] <typename V> (const Unit<V>*)
+			{
+				using a_seq = sequence_traits<V>::container_type;
+
+				auto da = const_array_cast<a_seq>(di)->GetDataRead();
+				os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
+				os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
+			}
+			);
+		}
+		if (d)
+			WriteBinData(os, binCounts, di);
+	}
+	catch (...)
+	{
+		auto err = catchException(true);
+		if (err)
+			os << *err;
+	}
+	finally:
+	os << "\n" << char(0);
+	return isReady;
+}
+
 CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)
 {
 	DMS_CALL_BEGIN
@@ -201,150 +326,26 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 		static const TreeItem*  s_LastItem = 0;
 		static TimeStamp        s_LastChangeTS=0;
 
-		dms_assert(!SuspendTrigger::DidSuspend()); // Precondition?
-
-		bool      itemIsValid      = DMS_TreeItem_GetProgressState(item) >= PS_Validated;
+		bool      itemIsValid = DMS_TreeItem_GetProgressState(item) >= PS_Validated;
 		TimeStamp itemLastChangeTS = item->GetLastChangeTS();
 
-		dms_assert(item->HasInterest()); // PRECONDITION
+		assert(item->HasInterest()); // PRECONDITION
 
+		assert(donePtr);
+		assert(*donePtr);
 		if (item != s_LastItem || (itemIsValid ? itemLastChangeTS : TimeStamp(0)) != s_LastChangeTS)
 		{
-			bool bSuspended = false;
 			s_LastItem = 0; // invalidate cache contents during processing	
-			vector_clear(statisticsBuffer);
 
-			ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
-			FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
-
-			try {
-
-				os << "Statistics for " << item->GetFullName() << ":\n";
-
-				if (item->InTemplate())
-				{
-					os << 
-						"\nNot available since the DataItem is part of a calculation scheme template."
-						"\nGo to its instantiations to see actual data";
-
-					goto finally;
-				}
-
-				SharedDataItemInterestPtr di = AsDynamicDataItem(item);
-				if (!di)
-				{
-					os << "Not available since this is not a DataItem";
-					goto finally;
-				}
-				dms_assert(di->Was(PS_MetaInfo)); // PRECONDITION
-				SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
-				dms_assert(vu);
-				dms_assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
-				bool isReady = vu->PrepareData(); // GetRange needed later
-				auto vt = di->GetAbstrValuesUnit()->GetValueType();
-				
-				SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
-				if (!metricStr.empty())
-				os << "\nValuesMetric :" << metricStr;
-				os << "\nValuesType   :" << vt->GetID();
-
-				dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
-				if (isReady) isReady = di->PrepareData();
-				if (!isReady && !donePtr && !di->IsFailed(FR_Data))
-				{
-					SuspendTrigger::Resume();
-					vu->PrepareDataUsage(DrlType::Certain);
-					di->PrepareDataUsage(DrlType::Certain);
-					auto oc = GetOperationContext(di->GetCurrUltimateItem());
-					if (oc)
-						oc->Join();
-					isReady = true;
-				}
-				if (di->IsFailed(FR_Data))
-				{
-					auto fr = di->GetFailReason();
-					if (fr)
-						os << "\nProcessing statistics failed because:\n\n" << *fr;
-					goto finally;
-				}
-				dms_assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
-				if (!isReady || !(AsDataItem(di->GetCurrUltimateItem())->m_DataObject))
-				{
-					dms_assert(donePtr); // !donePtr implies lock or failure
-					dms_assert(SuspendTrigger::DidSuspend());
-					os << "\nProcessing ...";
-					bSuspended = true;  // keep cache contents invalidated
-					if(donePtr)         // should always be the case
-						*donePtr = false;
-					goto finally;
-				}
-
-				dms_assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
-
-				SizeT n = di->GetAbstrDomainUnit()->GetCount();;
-				const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
-				os << "\n\nCount    : " << n;
-				if (tn != 1)
-					os << "\n#Tiles   : " << tn;
-
-				if (!n)
-					goto finally;
-
-				bin_count_type binCounts;
-
-				SizeT d=0;
-				DataReadLock lock(di);
-				if (!vt->IsNumeric() && vt->GetValueClassID() != VT_Bool)
-				{
-					d = n - di->GetRefObj()->GetNrNulls();
-				}
-				else
-				{	
-					f64_accumulator accu;
-					AccumulateData(os, accu, binCounts, di);
-					WriteAccuData(os, accu, di);
-					d = accu.d;
-				}
-				os << "\nNr Nulls : " << (n - d);
-				os << "\nNr Values: " << d;
-
-				if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String)
-				{
-					auto da = const_array_cast<SharedStr>(di)->GetDataRead();
-					os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
-					os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
-				}
-				if (di->GetValueComposition() != ValueComposition::Single)
-				{
-					visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
-						[di, &os] <typename V> (const Unit<V>*) 
-						{
-							using a_seq = sequence_traits<V>::container_type;
-
-							auto da = const_array_cast<a_seq>(di)->GetDataRead();
-							os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
-							os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
-						}
-					);
-				}
-				if (d)
-					WriteBinData(os, binCounts, di);
-			}
-			catch (...)
-			{
-				auto err = catchException(true);
-				if (err)
-					os << *err;
-			}
-		finally:
-			os << "\n" << char(0);
-
-			if (!bSuspended)
-			{
-				s_LastItem     = item;
-				s_LastChangeTS = itemLastChangeTS;
-			}
+			*donePtr = NumericDataItem_GetStatistics(item, statisticsBuffer);
 		}
+
+		if (*donePtr)
+		{
+			s_LastItem = item;
+			s_LastChangeTS = itemLastChangeTS;
+		}
+
 		return &*statisticsBuffer.begin();
 
 	DMS_CALL_END

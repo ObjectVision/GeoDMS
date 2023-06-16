@@ -639,9 +639,21 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 }
 
 
-Float64 GetDesktopDIP2pixFactor()
+Float64 GetDesktopDIP2pixFactorX()
+{
+	static Float64 dip2PixFactor = GetDeviceCaps(DcHandleBase(NULL), LOGPIXELSX) / 96.0;
+	return dip2PixFactor;
+}
+
+Float64 GetDesktopDIP2pixFactorY()
 {
 	static Float64 dip2PixFactor = GetDeviceCaps(DcHandleBase(NULL), LOGPIXELSY) / 96.0;
+	return dip2PixFactor;
+}
+
+Float64 GetDesktopDIP2pixFactor()
+{
+	static Float64 dip2PixFactor = (GetDesktopDIP2pixFactorX() + GetDesktopDIP2pixFactorY()) / 2;
 	return dip2PixFactor;
 }
 

@@ -36,6 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ClcBase.h"
 class  Operator;
 struct AbstrOperGroup;
+struct ClientDefinedOperator;
 
 // *****************************************************************************
 
@@ -82,6 +83,7 @@ CLC_CALL ClientDefinedOperator* DMS_CONV DMS_ClientDefinedOperator_Create(
 );
 
 CLC_CALL void DMS_CONV DMS_ClientDefinedOperator_Release(ClientDefinedOperator* self);
+CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer);
 
 CLC_CALL void DMS_CONV XML_ReportOperator     (OutStreamBase* xmlStr, const Operator* oper);
 CLC_CALL void DMS_CONV XML_ReportOperGroup    (OutStreamBase* xmlStr, const AbstrOperGroup* gr);

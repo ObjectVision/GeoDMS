@@ -18,9 +18,6 @@
     <ClCompile Include="src\main_qt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\DmsEventLog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\DmsMainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -99,6 +96,9 @@
     <ClCompile Include="src\DmsViewArea.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsEventLog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -170,6 +170,9 @@
     <QtMoc Include="src\DmsViewArea.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="src\DmsEventLog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GeoDmsGuiQt.qrc">
@@ -177,9 +180,6 @@
     </QtRcc>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\DmsEventLog.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\DmsDetailPages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -192,5 +192,12 @@
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
       <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GeoDmsGuiQt.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\icons\GeoDmsGui.ico" />
   </ItemGroup>
 </Project>

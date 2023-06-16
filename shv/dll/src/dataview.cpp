@@ -330,7 +330,7 @@ void DataView::InsertCaret(AbstrCaret* c)
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
 		dms_assert(m_hWnd);
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()));
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
 		c->Reverse(dc, true);
 	}
 }
@@ -341,7 +341,7 @@ void DataView::RemoveCaret(AbstrCaret* c)
 
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()));
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
 		c->Reverse(dc, false);
 	}
 	vector_erase(m_CaretVector, c);
@@ -366,7 +366,7 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 	if (m_State.Get(DVF_CaretsVisible))
 		caret->Move(
 			caretOperator, 
-			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor()))
+			CaretDcHandle(m_hWnd, GetDefaultFont(FontSizeCategory::CARET))
 		);
 	else
 		caretOperator(caret);
@@ -466,7 +466,7 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 	}
 	else
 	{
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET, GetDesktopDIP2pixFactor())); // activates xorMode in its constructor
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET)); // activates xorMode in its constructor
 		ReverseCaretsImpl(dc, newVisibleState);
 	}
 }
@@ -853,7 +853,7 @@ GraphVisitState DataView::UpdateView()
 		dbg_assert(md_IsDrawingCount == 0);
 		MG_DEBUGCODE( DynamicIncrementalLock<decltype(md_IsDrawingCount)> lock(md_IsDrawingCount); )
 
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()));
+		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
 
 		MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
@@ -994,7 +994,7 @@ void DataView::Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, 
 
 	dms_assert(src);
 	{
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor())); // we could clip on the rcScroll|rcClip region
+		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL)); // we could clip on the rcScroll|rcClip region
 		Region   rgnClip(rcClip);
 		SelectClipRgn(dc, rgnClip.GetHandle());
 
@@ -1320,7 +1320,7 @@ void DataView::OnPaint()
 
 //	======================
 
-	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()));
+	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
 	if (!paintDC.GetHDC())
 		throwLastSystemError("DataView::OnPaint");
 
@@ -1655,7 +1655,7 @@ void DataView::CreateViewWindow(DataView* parent, CharPtr caption)
 
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
-	dms_assert(m_ParentView == 0);
+	assert(m_ParentView == 0);
 
 	MdiCreateStruct createStruct{
 		.ct = ct,

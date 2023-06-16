@@ -206,6 +206,7 @@ class OutStreamBuff;
 		typedef void (DMS_CONV *CallbackStreamFuncType)(ClientHandle clientHandle, const Byte* data, streamsize_t size);
 
 const int utf8CP = 65001;
+using vos_buffer_type = std::vector<Byte>;
 
 //----------------------------------------------------------------------
 // Common typedefs

@@ -12,6 +12,7 @@
 #include <QSlider>
 #include <QFileDialog>
 #include <QTextBrowser>
+#include <QListView>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -23,16 +24,12 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QListWidget;
-class QTreeWidget;
 class QMenu;
 class QTextEdit;
 class QTextBrowser;
 class QTreeView;
-class QTableView;
 class QDialog;
 class QLabel;
-
 class QMdiSubWindow;
 QT_END_NAMESPACE
 
@@ -41,6 +38,7 @@ class QDmsMdiArea;
 class DmsDetailPages;
 class DmsTreeView;
 class DmsModel;
+class EventLogModel;
 
 class DmsCurrentItemBar : public QLineEdit
 {
@@ -178,21 +176,43 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
+class DmsFileChangedWindow : public QDialog
+{
+    Q_OBJECT
+
+public: //auto changed_files = DMS_ReportChangedFiles(true);
+    DmsFileChangedWindow(QWidget* parent);
+    void setFileChangedMessage(std::string_view changed_files);
+
+private slots:
+    void ignore();
+    void reopen();
+    void onAnchorClicked(const QUrl& link);
+
+private:
+    QPointer<QPushButton> m_ignore;
+    QPointer<QPushButton> m_reopen;
+    QPointer<QTextBrowser> m_message;
+};
+
+
 class DmsErrorWindow : public QDialog
 {
     Q_OBJECT
 
-private slots:
-    void cancel();
-    void abort();
-    void reopen();
-
 public:
     DmsErrorWindow(QWidget* parent);
-    void setErrorMessage(QString message) { m_message->setText(message); };
+    void setErrorMessage(QString message) { m_message->setMarkdown(message); };
+
+private slots:
+    void ignore();
+    void terminate();
+    void reopen();
+    void onAnchorClicked(const QUrl& link);
+
 private:
-    QPointer<QPushButton> m_cancel;
-    QPointer<QPushButton> m_abort;
+    QPointer<QPushButton> m_ignore;
+    QPointer<QPushButton> m_terminate;
     QPointer<QPushButton> m_reopen;
     QPointer<QTextBrowser> m_message;
 };
@@ -209,6 +229,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
     auto getDmsTreeViewPtr() -> DmsTreeView*;
+    auto getEventLogViewPtr() -> QListView* { return m_eventlog;  }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
     auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
@@ -221,12 +242,14 @@ public:
     auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
     auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
     auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
+    auto getStatisticAction() -> QAction* { return m_statistics_action.get(); };
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
+    void openConfigSourceDirectly(std::string_view filename, std::string_view line);
 
-    static MainWindow* TheOne();
-    static void EventLog(SeverityTypeID st, CharPtr msg);
+    static auto TheOne() -> MainWindow*;
+    static bool IsExisting();
 
 signals:
     void currentItemChanged();
@@ -238,7 +261,7 @@ public slots:
     void openConfigSource();
     void exportPrimaryData();
     void options();
-    static void error(QString error_message);
+    static void error(ErrMsgPtr error_message_ptr);
     void exportOkButton();
     void stepToFailReason();
     void runToFailReason();
@@ -251,10 +274,16 @@ public slots:
 
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
+    void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
+
+    void ShowStatistics(const TreeItem* tiContext);
+
+protected:
+    bool event(QEvent* event) override;
 
 private:
     void CloseConfig();
-    void LoadConfig(CharPtr configFilePath);
+    bool LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
@@ -284,25 +313,29 @@ private:
     std::unique_ptr<QAction> m_defaultview_action;
     std::unique_ptr<QAction> m_tableview_action;
     std::unique_ptr<QAction> m_mapview_action;
+    std::unique_ptr<QAction> m_statistics_action;
     std::unique_ptr<QAction> m_histogramview_action;
     std::unique_ptr<QAction> m_process_schemes_action;
     std::unique_ptr<QAction> m_code_analysis_action;
     std::unique_ptr<QAction> m_options_action;
 
+public:
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
+    std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
 
-    // helper windows
+    // helper windows; TODO: destroy these before the above model objects
     QPointer<DmsDetailPages> m_detail_pages;
-    QPointer<QListWidget> m_eventlog;
+    QPointer<QListView> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
     QPointer<QMenu> m_window_menu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
+    QPointer<DmsFileChangedWindow> m_file_changed_window;
 };
 
 #endif

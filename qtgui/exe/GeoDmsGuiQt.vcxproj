@@ -119,7 +119,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\DmsDetailPages.cpp" />
-    <ClCompile Include="src\DmsEventLog.cpp" />
+    <ClCompile Include="src\DmsEventLog.cpp">
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
+    </ClCompile>
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
@@ -148,8 +153,9 @@
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
-    <ClInclude Include="src\DmsEventLog.h" />
+    <QtMoc Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsViewArea.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
@@ -186,11 +192,8 @@
   </ImportGroup>
   <ImportGroup Label="ExtensionTargets" />
   <ItemGroup>
-    <ProjectReference Include="..\..\clc\dll\Clc1.vcxproj">
+    <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
       <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\Clc2.vcxproj">
-      <Project>{604fd9aa-6df6-46d7-a1b9-e66b413dc21b}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\geo\dll\GeoDLL.vcxproj">
       <Project>{c0c75a4b-dd01-4272-8fb5-3a242da125ba}</Project>
@@ -210,5 +213,11 @@
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="GeoDmsGuiQt.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\icons\GeoDmsGui.ico" />
   </ItemGroup>
 </Project>
