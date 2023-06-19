@@ -63,7 +63,7 @@ void QDmsMdiArea::dropEvent(QDropEvent* event)
     MainWindow::TheOne()->defaultView();
 }
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
+QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QMdiSubWindow(parent)
 {
     assert(currItem); // Precondition
@@ -76,7 +76,7 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeIte
             , viewContext->GetFullName().c_str()
         );
 
-    CreateDmsView();
+    CreateDmsView(parent);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
     // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     bool result = SHV_DataView_AddItem(m_DataView, currItem, false); 
@@ -91,16 +91,16 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeIte
     }
 }
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, MdiCreateStruct* createStruct)
+QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
     :   QMdiSubWindow(parent)
     ,   m_DataView(createStruct->dataView)
 {
-    CreateDmsView();
-    createStruct->hWnd = (HWND)m_HWnd;
     setWindowTitle(createStruct->caption);
+    CreateDmsView(parent);
+    createStruct->hWnd = (HWND)m_HWnd;
 }
 
-void QDmsViewArea::CreateDmsView()
+void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 {
     HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
 
@@ -132,6 +132,12 @@ void QDmsViewArea::CreateDmsView()
         , rect.width(), rect.height()
         , SWP_SHOWWINDOW
     );
+    parent->addSubWindow(this);
+    if (parent->subWindowList().size() == 1)
+        showMaximized();
+
+    setMinimumSize(200, 150);
+    show();
 }
 
 QDmsViewArea::~QDmsViewArea()

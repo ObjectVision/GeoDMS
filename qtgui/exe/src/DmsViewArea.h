@@ -24,8 +24,8 @@ class QDmsViewArea : public QMdiSubWindow
         using base_class = QMdiSubWindow;
 
 public:
-    QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
-    QDmsViewArea(QWidget* parent, MdiCreateStruct* createStruct);
+    QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle);
+    QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct);
     ~QDmsViewArea();
 
     void dragEnterEvent(QDragEnterEvent* event) override;
@@ -35,7 +35,7 @@ public:
 
 private:
     auto contentsRectInPixelUnits() -> QRect;
-    void CreateDmsView();
+    void CreateDmsView(QMdiArea* parent);
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void UpdatePosAndSize();

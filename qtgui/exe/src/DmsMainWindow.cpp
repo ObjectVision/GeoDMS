@@ -1019,8 +1019,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
-        dms_mdi_subwindow->showMaximized();
-        dms_mdi_subwindow->setMinimumSize(200, 150);
 //        m_mdi_area->show();
 
         //mdiSubWindow->setMinimumSize(200, 150);
@@ -1169,10 +1167,14 @@ void MainWindow::ShowStatistics(const TreeItem* tiContext)
 {
     auto* mdiSubWindow = new QMdiSubWindow(getDmsMdiAreaPtr()); // not a DmsViewArea
     auto* textWidget = new QTextBrowser(mdiSubWindow);
-    SharedStr title = "Statsitcs of " + tiContext->GetFullName();
+    mdiSubWindow->setWidget(textWidget);
+    SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
+    getDmsMdiAreaPtr()->addSubWindow(mdiSubWindow);
+    mdiSubWindow->show();
 
     InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
+    tiHolder->PrepareData();
 
     vos_buffer_type textBuffer;
     while (true)
