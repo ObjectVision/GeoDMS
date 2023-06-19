@@ -1169,6 +1169,10 @@ void MainWindow::ShowStatistics(const TreeItem* tiContext)
 {
     auto* mdiSubWindow = new QMdiSubWindow(getDmsMdiAreaPtr()); // not a DmsViewArea
     auto* textWidget = new QTextBrowser(mdiSubWindow);
+    SharedStr title = "Statsitcs of " + tiContext->GetFullName();
+    mdiSubWindow->setWindowTitle(title.c_str());
+
+    InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
 
     vos_buffer_type textBuffer;
     while (true)

@@ -97,6 +97,7 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, MdiCreateStruct* createStruct)
 {
     CreateDmsView();
     createStruct->hWnd = (HWND)m_HWnd;
+    setWindowTitle(createStruct->caption);
 }
 
 void QDmsViewArea::CreateDmsView()
@@ -106,6 +107,8 @@ void QDmsViewArea::CreateDmsView()
     HINSTANCE instance = GetInstance(hWndMain);
     auto parent_hwnd = (HWND)winId();
     auto rect = contentsRectInPixelUnits();
+    if (rect.width() < 200) rect.setWidth(200);
+    if (rect.height() < 100) rect.setHeight(100);
 
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
     auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
