@@ -10,6 +10,11 @@ QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
 
+struct InvisibleRootTreeItem
+{
+	TreeItem* m_dms_root;
+};
+
 class TreeModelCompleter : public QCompleter
 {
 	Q_OBJECT
@@ -39,7 +44,7 @@ public:
 	DmsModel() = default;
 
 	void setRoot(const TreeItem* root) { m_root = root; }
-
+	void reset();
 	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 	QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
 	QModelIndex parent(const QModelIndex& child) const override;

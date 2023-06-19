@@ -741,13 +741,14 @@ CommandStatus GraphicObject::OnCommandEnable(ToolButtonID id) const
 		case TB_ShowSelOnlyOn:
 		case TB_ShowSelOnlyOff:
 		{
-			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
+			return CommandStatus::ENABLED;
+			/*if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
 			bool showSelectedOnly = ShowSelectedOnly();
 			return (ShowSelectedOnlyEnabled() || showSelectedOnly)
 					?	showSelectedOnly
 						? CommandStatus::DOWN
 						: CommandStatus::UP
-					: CommandStatus::DISABLED;
+					: CommandStatus::DISABLED;*/
 		}
 	}
 	return CommandStatus::ENABLED;

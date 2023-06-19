@@ -185,6 +185,7 @@ enum ToolButtonID {
 
 	TB_ZoomAllLayers,               // Button Command
 	TB_ZoomActiveLayer,             // Button Command
+	TB_ShowFirstSelectedRow,        // 
 	TB_ZoomSelectedObj,             // Button Command
 
 	TB_ZoomIn1,                     // Key Command to zoom from center (triggered by '+' key)

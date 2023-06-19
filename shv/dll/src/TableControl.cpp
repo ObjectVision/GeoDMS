@@ -780,7 +780,7 @@ bool TableControl::OnCommand(ToolButtonID id)
 		case TB_SelectAll :      SelectAllRows( true); return true;
 		case TB_SelectNone:      SelectAllRows(false); return true;
 		case TB_SelectRows:      SelectRows();         return true;
-		case TB_ZoomSelectedObj: GoToFirstSelected();  return true;
+		case TB_ShowFirstSelectedRow: GoToFirstSelected();  return true;
 		case TB_Export:          Export();             return true;
 		case TB_TableCopy:       TableCopy();          return true;
 

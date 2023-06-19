@@ -648,6 +648,16 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+DmsRecentFileButtonAction::DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent)
+    : QAction(dms_file_full_path.data())
+{}
+
+void DmsRecentFileButtonAction::onToolbuttonPressed()
+{
+    auto main_window = MainWindow::TheOne();
+    main_window->LoadConfig(iconText().toUtf8());
+}
+
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
 {
@@ -729,6 +739,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_TableCopy: return { {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
     case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_copy.bmp"}};
     case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_ShowFirstSelectedRow: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ShowFirstSelectedRow}, {":/res/images/TB_table_show_first_selected.bmp"} };
     case TB_ZoomSelectedObj: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"}};
     case TB_SelectRows: return { {"Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)",""}, {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"}};
     case TB_SelectAll: return { {"Select all rows","Select all elements in the active layer"}, {TB_SelectAll}, {":/res/images/TB_select_all.bmp"}};
@@ -783,14 +794,13 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
     auto view_style = dv->GetViewType();
 
     static ToolButtonID available_table_buttons[] = { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined, 
-                                                      TB_ZoomSelectedObj, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
+                                                      TB_ShowFirstSelectedRow, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
                                                       TB_TableGroupBy };
 
     static ToolButtonID available_map_buttons[] = { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
                                                     TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
                                                     TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
                                                     TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
-        
 
     ToolButtonID* button_id_ptr = available_map_buttons;
     SizeT button_id_count = sizeof(available_map_buttons) / sizeof(ToolButtonID);
@@ -1006,7 +1016,7 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
     error_message_markdown += error_message.substr(curr_pos+1);
 
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
-    TheOne()->m_error_window->show();
+    TheOne()->m_error_window->exec();
 }
 
 void MainWindow::exportPrimaryData()
@@ -1195,6 +1205,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     m_current_item_bar->setDmsCompleter();
     updateCaption();
+    m_dms_model->reset();
     return true;
 }
 
@@ -1272,8 +1283,9 @@ void MainWindow::setupDmsCallbacks()
 
 void MainWindow::createActions()
 {
-    auto fileMenu = menuBar()->addMenu(tr("&File"));
-    auto current_item_bar_container = addToolBar(tr("test"));
+    m_file_menu = std::make_unique<QMenu>(tr("&File"));
+    menuBar()->addMenu(m_file_menu.get());
+    auto current_item_bar_container = addToolBar(tr("Current item bar"));
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
     current_item_bar_container->addWidget(m_current_item_bar.get());
@@ -1283,22 +1295,22 @@ void MainWindow::createActions()
     addToolBarBreak();
 
     connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
-    auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
-    auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
+    //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
+    auto fileOpenAct = new QAction(tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
-    fileMenu->addAction(fileOpenAct);
+    m_file_menu->addAction(fileOpenAct);
 
-    auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
+    auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
-    fileMenu->addAction(reOpenAct);
+    m_file_menu->addAction(reOpenAct);
     //fileToolBar->addAction(reOpenAct);
 
-    fileMenu->addSeparator();
-    auto epdm = fileMenu->addMenu(tr("Export Primary Data")); 
+    m_file_menu->addSeparator();
+    auto epdm = m_file_menu->addMenu(tr("Export Primary Data"));
     auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)")); // TODO: memory leak, QAction will not transfer ownership from addAction
     auto epdmDbf = new QAction(tr("Table (*.dbf with a *.shp and *.shx if Feature data can be related)"));
     auto epdmCsv = new QAction(tr("Text Table (*.csv with semiColon Separated Values"));
@@ -1306,12 +1318,17 @@ void MainWindow::createActions()
     epdm->addAction(epdmDbf);
     epdm->addAction(epdmCsv);
 
-    fileMenu->addSeparator();
-    QAction *quitAct = fileMenu->addAction(tr("&Quit"), qApp, &QCoreApplication::quit);
-    quitAct->setShortcuts(QKeySequence::Quit);
-    quitAct->setStatusTip(tr("Quit the application"));
+    m_file_menu->addSeparator();
+    m_quit_action = std::make_unique<QAction>(tr("&Quit"));
+    connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
+    m_file_menu->addAction(m_quit_action.get());
+    m_quit_action->setShortcuts(QKeySequence::Quit);
+    m_quit_action->setStatusTip(tr("Quit the application"));
 
-    QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
+    connect(m_file_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
+
+    m_edit_menu = std::make_unique<QMenu>(tr("&Edit"));
+    menuBar()->addMenu(m_edit_menu.get());
 
     // export primary data
     m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));
@@ -1331,7 +1348,7 @@ void MainWindow::createActions()
     m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));
     m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
     connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
-    editMenu->addAction(m_edit_config_source_action.get());
+    m_edit_menu->addAction(m_edit_config_source_action.get());
 
     // update treeitem
     m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
@@ -1348,34 +1365,34 @@ void MainWindow::createActions()
     m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
     //connect(m_invalidate_action.get(), &QAction::triggered, this, & #TODO);
 
-
-    auto viewMenu = menuBar()->addMenu(tr("&View"));
+    m_view_menu = std::make_unique<QMenu>(tr("&View"));
+    menuBar()->addMenu(m_view_menu.get());
 
     m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
     m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
-    viewMenu->addAction(m_defaultview_action.get());
+    m_view_menu->addAction(m_defaultview_action.get());
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
     m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
-    viewMenu->addAction(m_tableview_action.get());
+    m_view_menu->addAction(m_tableview_action.get());
 
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
     m_mapview_action->setShortcut(QKeySequence(tr("Ctrl+M")));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
-    viewMenu->addAction(m_mapview_action.get());
+    m_view_menu->addAction(m_mapview_action.get());
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
 //    m_statistics_action->setShortcut(QKeySequence(tr("Ctrl+H")));
     connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
-    viewMenu->addAction(m_statistics_action.get());
+    m_view_menu->addAction(m_statistics_action.get());
 
     // histogram view
     m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
@@ -1387,39 +1404,42 @@ void MainWindow::createActions()
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
 
     // tools menu
-    auto tools_menu = menuBar()->addMenu(tr("&Tools"));
+    m_tools_menu = std::make_unique<QMenu>("&Tools");
+    menuBar()->addMenu(m_tools_menu.get());
     m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
-    tools_menu->addAction(m_gui_options_action.get());
+    m_tools_menu->addAction(m_gui_options_action.get());
 
     m_advanced_options_action = std::make_unique<QAction>(tr("&Advanced Options"));
     connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options);
-    tools_menu->addAction(m_advanced_options_action.get());
+    m_tools_menu->addAction(m_advanced_options_action.get());
 
     m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
     connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
-    tools_menu->addAction(m_config_options_action.get());
+    m_tools_menu->addAction(m_config_options_action.get());
 
-    auto code_analysis_submenu = tools_menu->addMenu("&Code analysis ...");
+    m_code_analysis_submenu = std::make_unique<QMenu>("&Code analysis ...");
+    m_tools_menu->addMenu(m_code_analysis_submenu.get());
 
     m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
     connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
-    code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
+    m_code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
 
     m_code_analysis_set_target_action = std::make_unique<QAction>(tr("set target"));
     connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
-    code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
+    m_code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
 
     m_code_analysis_add_target_action = std::make_unique<QAction>(tr("add target"));
     connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
-    code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
+    m_code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
 
     m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target"));
     connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
-    code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
+    m_code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
 
     // window menu
-    m_window_menu = menuBar()->addMenu(tr("&Window"));
+    m_window_menu = std::make_unique<QMenu>(tr("&Window"));
+    menuBar()->addMenu(m_window_menu.get());
     auto win1_action = new QAction(tr("&Tile Windows"), this);
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
@@ -1443,14 +1463,65 @@ void MainWindow::createActions()
     connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);*/
     m_window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
     m_window_menu->addSeparator();
-    connect(m_window_menu, &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
+    connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
 
     // help menu
-    auto helpMenu = menuBar()->addMenu(tr("&Help"));
-    QAction *aboutAct = helpMenu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
+    m_help_menu = std::make_unique<QMenu>(tr("&Help"));
+    menuBar()->addMenu(m_help_menu.get());
+    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
     aboutAct->setStatusTip(tr("Show the application's About box"));
-    QAction *aboutQtAct = helpMenu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
+    QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
+}
+
+//auto getKey-> QKeySequence
+//{
+
+///}
+
+void MainWindow::updateFileMenu()
+{
+    for (auto* recent_file_action : m_recent_files_actions)
+    {
+        m_window_menu->removeAction(recent_file_action);
+        delete recent_file_action;
+    }
+    m_recent_files_actions.clear(); // delete old actions;
+
+    // temporarily remove quit action
+    removeAction(m_quit_action.get());
+
+    // rebuild latest recent files from registry
+    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
+    size_t recent_file_index = 1;
+    for (std::string_view recent_file : recent_files_from_registry)
+    {
+        auto qa = new DmsRecentFileButtonAction(recent_file, this);
+        qa->setShortcutVisibleInContextMenu(true);
+        qa->setShortcutContext(Qt::WidgetShortcut);
+        qa->setShortcut(recent_file_index < 10 ? QKeySequence(recent_file_index + 48) : QKeySequence());
+        connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
+        m_file_menu->addAction(qa);
+        m_recent_files_actions.append(qa);
+        recent_file_index++;
+    }
+
+    /*auto asw = m_mdi_area->currentSubWindow();
+    for (auto* sw : m_mdi_area->subWindowList())
+    {
+        auto qa = new QAction(sw->windowTitle(), this);
+        connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
+        if (sw == asw)
+        {
+            qa->setCheckable(true);
+            qa->setChecked(true);
+        }
+        m_window_menu->addAction(qa);
+        m_CurrWindowActions.append(qa);
+    }*/
+
+    //m_file_menu->addActions(m_recent_files_actions);
+    m_file_menu->addAction(m_quit_action.get());
 }
 
 void MainWindow::updateWindowMenu() 

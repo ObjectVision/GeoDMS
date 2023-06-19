@@ -8,6 +8,8 @@
 #include <QPixmap>
 #include <QBoxLayout>
 #include <QShortcut>
+#include <QHeaderView>
+#include <variant>
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -23,7 +25,7 @@
 #include "dataview.h"
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
+	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
 	{
 		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
@@ -97,6 +99,12 @@ const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
 	if (!ti)
 		return m_root;
 	return ti;
+}
+
+void DmsModel::reset()
+{
+	beginResetModel();
+	endResetModel();
 }
 
 QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -352,6 +360,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setContextMenuPolicy(Qt::CustomContextMenu);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
+	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 }
 

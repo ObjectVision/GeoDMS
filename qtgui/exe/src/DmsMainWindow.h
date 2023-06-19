@@ -84,6 +84,16 @@ private:
     UInt8 m_state = 0;
 };
 
+class DmsRecentFileButtonAction : public QAction
+{
+    Q_OBJECT
+public:
+    DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent = nullptr);
+
+public slots:
+    void onToolbuttonPressed();
+};
+
 struct CmdLineSetttings {
     bool m_NoConfig = false;
     SharedStr m_ConfigFileName;
@@ -229,6 +239,8 @@ public:
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
+    bool LoadConfig(CharPtr configFilePath);
+    
     auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getEventLogViewPtr() -> QListView* { return m_eventlog;  }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
@@ -284,7 +296,6 @@ public slots:
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
-
     void ShowStatistics(const TreeItem* tiContext);
 
 protected:
@@ -292,13 +303,13 @@ protected:
 
 private:
     void CloseConfig();
-    bool LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
+    void updateFileMenu();
     void updateWindowMenu();
     void updateCaption();
 
@@ -333,6 +344,7 @@ public:
     std::unique_ptr<QAction> m_code_analysis_set_target_action;
     std::unique_ptr<QAction> m_code_analysis_add_target_action;
     std::unique_ptr<QAction> m_code_analysis_clr_targets_action;
+    std::unique_ptr<QAction> m_quit_action;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
@@ -345,7 +357,13 @@ public:
     QPointer<QListView> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
-    QPointer<QMenu> m_window_menu;
+    std::unique_ptr<QMenu> m_file_menu;
+    std::unique_ptr<QMenu> m_edit_menu;
+    std::unique_ptr<QMenu> m_view_menu;
+    std::unique_ptr<QMenu> m_tools_menu;
+    std::unique_ptr<QMenu> m_window_menu;
+    std::unique_ptr<QMenu> m_help_menu;
+    std::unique_ptr<QMenu> m_code_analysis_submenu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
@@ -353,6 +371,7 @@ public:
 
 private:
     QList<QAction*> m_CurrWindowActions;
+    QList<DmsRecentFileButtonAction*> m_recent_files_actions;
 };
 
 #endif
