@@ -100,6 +100,12 @@ const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
 	return ti;
 }
 
+void DmsModel::reset()
+{
+	beginResetModel();
+	endResetModel();
+}
+
 QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
 	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
