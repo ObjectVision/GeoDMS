@@ -84,6 +84,19 @@ private:
     UInt8 m_state = 0;
 };
 
+class DmsRecentFileButtonAction : public QAction
+{
+    Q_OBJECT
+public:
+    DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
+
+public slots:
+    void onToolbuttonPressed();
+
+private:
+    std::string m_dms_file_full_path;
+};
+
 struct CmdLineSetttings {
     bool m_NoConfig = false;
     SharedStr m_ConfigFileName;
@@ -229,6 +242,8 @@ public:
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
+    bool LoadConfig(CharPtr configFilePath);
+    
     auto getDmsTreeViewPtr() -> DmsTreeView*;
     auto getEventLogViewPtr() -> QListView* { return m_eventlog;  }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
@@ -284,7 +299,6 @@ public slots:
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
-
     void ShowStatistics(const TreeItem* tiContext);
 
 protected:
@@ -292,7 +306,6 @@ protected:
 
 private:
     void CloseConfig();
-    bool LoadConfig(CharPtr configFilePath);
     void setupDmsCallbacks();
     void createActions();
     void createStatusBar();
@@ -361,7 +374,7 @@ public:
 
 private:
     QList<QAction*> m_CurrWindowActions;
-    QList<QAction*> m_recent_files_actions;
+    QList<DmsRecentFileButtonAction*> m_recent_files_actions;
 };
 
 #endif

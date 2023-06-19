@@ -646,6 +646,18 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
+    : QAction(QString::number(index) + (index<10 ? ".  " : ". ") + dms_file_full_path.data())
+{
+    m_dms_file_full_path = dms_file_full_path;
+}
+
+void DmsRecentFileButtonAction::onToolbuttonPressed()
+{
+    auto main_window = MainWindow::TheOne();
+    main_window->LoadConfig(m_dms_file_full_path.c_str());
+}
+
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
 {
@@ -1471,10 +1483,11 @@ void MainWindow::updateFileMenu()
     size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        //auto qa = new QAction(QString(QString::number(recent_file_index) + " " + recent_file.data()), this);
-        //m_file_menu->addAction(qa);
-        //m_recent_files_actions.append(qa);
-        //recent_file_index++;
+        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, this);
+        connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
+        m_file_menu->addAction(qa);
+        m_recent_files_actions.append(qa);
+        recent_file_index++;
     }
 
     /*auto asw = m_mdi_area->currentSubWindow();
@@ -1491,7 +1504,7 @@ void MainWindow::updateFileMenu()
         m_CurrWindowActions.append(qa);
     }*/
 
-    m_file_menu->addActions(m_recent_files_actions);
+    //m_file_menu->addActions(m_recent_files_actions);
     m_file_menu->addAction(m_quit_action.get());
 }
 
