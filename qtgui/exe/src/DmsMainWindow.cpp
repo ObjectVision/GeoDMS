@@ -12,8 +12,10 @@
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
-#include "TreeItem.h"
 #include "DataView.h"
+#include "TreeItem.h"
+#include "SessionData.h"
+
 #include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
@@ -965,16 +967,25 @@ void MainWindow::config_options()
 }
 
 void MainWindow::code_analysis_set_source()
-{}
+{
+   TreeItem_SetAnalysisSource(getCurrentTreeItem());
+}
 
 void MainWindow::code_analysis_set_target()
-{}
+{
+    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), true);
+}
 
 void MainWindow::code_analysis_add_target()
-{}
+{
+    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), false);
+}
 
 void MainWindow::code_analysis_clr_targets()
-{}
+{
+    TreeItem_SetAnalysisSource(nullptr);
+//    TreeItem_SetAnalysisTarget(nullptr, true);  // REMOVE, al gedaan door SetAnalysisSource
+}
 
 
 void MainWindow::error(ErrMsgPtr error_message_ptr)
