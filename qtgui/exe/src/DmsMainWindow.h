@@ -334,6 +334,7 @@ public:
     std::unique_ptr<QAction> m_code_analysis_set_target_action;
     std::unique_ptr<QAction> m_code_analysis_add_target_action;
     std::unique_ptr<QAction> m_code_analysis_clr_targets_action;
+    std::unique_ptr<QAction> m_quit_action;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;

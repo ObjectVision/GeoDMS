@@ -1299,9 +1299,10 @@ void MainWindow::createActions()
     epdm->addAction(epdmCsv);
 
     m_file_menu->addSeparator();
-    QAction *quitAct = m_file_menu->addAction(tr("&Quit"), qApp, &QCoreApplication::quit);
-    quitAct->setShortcuts(QKeySequence::Quit);
-    quitAct->setStatusTip(tr("Quit the application"));
+    m_quit_action = std::make_unique<QAction>(tr("&Quit"), qApp, &QCoreApplication::quit);
+    m_file_menu->addAction(m_quit_action.get());
+    m_quit_action->setShortcuts(QKeySequence::Quit);
+    m_quit_action->setStatusTip(tr("Quit the application"));
 
     connect(m_file_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
 
