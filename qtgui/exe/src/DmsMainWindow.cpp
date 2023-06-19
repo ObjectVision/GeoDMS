@@ -1271,6 +1271,8 @@ void MainWindow::createActions()
     quitAct->setShortcuts(QKeySequence::Quit);
     quitAct->setStatusTip(tr("Quit the application"));
 
+    //connect(fileMenu, &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
+
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
 
     // export primary data
@@ -1356,7 +1358,6 @@ void MainWindow::createActions()
     m_options_action = std::make_unique<QAction>(tr("&Options"));
     connect(m_options_action.get(), &QAction::triggered, this, &MainWindow::options);
     tools_menu->addAction(m_options_action.get());
-
 
     // window menu
     m_window_menu = menuBar()->addMenu(tr("&Window"));
