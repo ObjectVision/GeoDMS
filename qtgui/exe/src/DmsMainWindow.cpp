@@ -646,16 +646,14 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
-DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
-    : QAction(QString::number(index) + (index<10 ? ".  " : ". ") + dms_file_full_path.data())
-{
-    m_dms_file_full_path = dms_file_full_path;
-}
+DmsRecentFileButtonAction::DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent)
+    : QAction(dms_file_full_path.data())
+{}
 
 void DmsRecentFileButtonAction::onToolbuttonPressed()
 {
     auto main_window = MainWindow::TheOne();
-    main_window->LoadConfig(m_dms_file_full_path.c_str());
+    main_window->LoadConfig(iconText().toUtf8());
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
@@ -801,7 +799,6 @@ void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
                                                     TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
                                                     TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
                                                     TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
-        
 
     ToolButtonID* button_id_ptr = available_map_buttons;
     SizeT button_id_count = sizeof(available_map_buttons) / sizeof(ToolButtonID);
@@ -1277,7 +1274,7 @@ void MainWindow::createActions()
 {
     m_file_menu = std::make_unique<QMenu>(tr("&File"));
     menuBar()->addMenu(m_file_menu.get());
-    auto current_item_bar_container = addToolBar(tr("test"));
+    auto current_item_bar_container = addToolBar(tr("Current item bar"));
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
     current_item_bar_container->addWidget(m_current_item_bar.get());
@@ -1287,14 +1284,14 @@ void MainWindow::createActions()
     addToolBarBreak();
 
     connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
-    auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
-    auto fileOpenAct = new QAction(openIcon, tr("&Open Configuration File"), this);
+    //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
+    auto fileOpenAct = new QAction(tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
     m_file_menu->addAction(fileOpenAct);
 
-    auto reOpenAct = new QAction(openIcon, tr("&Reopen current Configuration"), this);
+    auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcuts(QKeySequence::Refresh);
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
@@ -1466,6 +1463,11 @@ void MainWindow::createActions()
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
 }
 
+//auto getKey-> QKeySequence
+//{
+
+///}
+
 void MainWindow::updateFileMenu()
 {
     for (auto* recent_file_action : m_recent_files_actions)
@@ -1483,7 +1485,10 @@ void MainWindow::updateFileMenu()
     size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, this);
+        auto qa = new DmsRecentFileButtonAction(recent_file, this);
+        qa->setShortcutVisibleInContextMenu(true);
+        qa->setShortcutContext(Qt::WidgetShortcut);
+        qa->setShortcut(recent_file_index < 10 ? QKeySequence(recent_file_index + 48) : QKeySequence());
         connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(qa);
         m_recent_files_actions.append(qa);

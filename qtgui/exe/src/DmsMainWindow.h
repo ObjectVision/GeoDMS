@@ -88,13 +88,10 @@ class DmsRecentFileButtonAction : public QAction
 {
     Q_OBJECT
 public:
-    DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
+    DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent = nullptr);
 
 public slots:
     void onToolbuttonPressed();
-
-private:
-    std::string m_dms_file_full_path;
 };
 
 struct CmdLineSetttings {
