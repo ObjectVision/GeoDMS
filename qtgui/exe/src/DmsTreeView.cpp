@@ -439,10 +439,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	process_scheme->setDisabled(true);
 	m_context_menu->addAction(process_scheme);
 
-	// code analysis
-	auto coda_analysis = MainWindow::TheOne()->getCodeAnalysisAction();
-	coda_analysis->setDisabled(true);
-	m_context_menu->addAction(coda_analysis);
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
