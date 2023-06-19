@@ -299,6 +299,7 @@ private:
     void createDetailPagesDock();
     void createDetailPagesToolbar();
     void createDmsHelperWindowDocks();
+    void updateFileMenu();
     void updateWindowMenu();
     void updateCaption();
 
@@ -345,7 +346,13 @@ public:
     QPointer<QListView> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
-    QPointer<QMenu> m_window_menu;
+    std::unique_ptr<QMenu> m_file_menu;
+    std::unique_ptr<QMenu> m_edit_menu;
+    std::unique_ptr<QMenu> m_view_menu;
+    std::unique_ptr<QMenu> m_tools_menu;
+    std::unique_ptr<QMenu> m_window_menu;
+    std::unique_ptr<QMenu> m_help_menu;
+    std::unique_ptr<QMenu> m_code_analysis_submenu;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
@@ -353,6 +360,7 @@ public:
 
 private:
     QList<QAction*> m_CurrWindowActions;
+    QList<QAction*> m_recent_files_actions;
 };
 
 #endif
