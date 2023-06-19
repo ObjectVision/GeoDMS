@@ -10,6 +10,11 @@ QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
 
+struct InvisibleRootTreeItem
+{
+	TreeItem* m_dms_root;
+};
+
 class TreeModelCompleter : public QCompleter
 {
 	Q_OBJECT

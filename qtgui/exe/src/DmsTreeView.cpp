@@ -8,6 +8,7 @@
 #include <QPixmap>
 #include <QBoxLayout>
 #include <QShortcut>
+#include <variant>
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
@@ -22,7 +23,7 @@
 #include "dataview.h"
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> TreeItem*
+	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
 	{
 		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
