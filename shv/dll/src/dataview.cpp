@@ -1655,7 +1655,7 @@ void DataView::CreateViewWindow(DataView* parent, CharPtr caption)
 
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
-	dms_assert(m_ParentView == 0);
+	assert(m_ParentView == 0);
 
 	MdiCreateStruct createStruct{
 		.ct = ct,

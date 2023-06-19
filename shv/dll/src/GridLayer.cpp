@@ -176,13 +176,14 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 	{
 		DataWriteLock lock(selAttr, CompoundWriteType(eventID));
+		{
+			auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
 
-		auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
-
-		auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
-		UInt32 gridWidth = _Width(gridRect);
-		for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
-			rowProcessor(r, _Left(selectRect),  _Right (selectRect), i, tr);
+			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
+			UInt32 gridWidth = _Width(gridRect);
+			for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
+				rowProcessor(r, _Left(selectRect), _Right(selectRect), i, tr);
+		}
 		lock.Commit();
 	}
 	if (!IsCreateNewEvent(eventID) && !HasEntityIndex())

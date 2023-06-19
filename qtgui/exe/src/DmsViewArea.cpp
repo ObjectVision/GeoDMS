@@ -40,21 +40,6 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     if (st == SeverityTypeID::ST_MajorTrace)
     {
         dva->setWindowTitle(msg);
-/*
-        // keep caption of window in sync with widget, TODO: simplify or factor out the usage of MultiByteToWideChar everywhere
-        auto hWnd = (HWND)dva->getHwnd();
-        const UInt32 MAX_TEXTOUT_SIZE = 400;
-        wchar_t uft16Buff[MAX_TEXTOUT_SIZE+1];
-        SizeT textLen = Min<SizeT>(StrLen(msg), MAX_TEXTOUT_SIZE);
-        textLen = MultiByteToWideChar(utf8CP, 0, msg, textLen, uft16Buff, MAX_TEXTOUT_SIZE);
-        assert(textLen <= MAX_TEXTOUT_SIZE);
-        if (textLen > 0 && textLen <= MAX_TEXTOUT_SIZE)
-        {
-            uft16Buff[textLen] = wchar_t(0);
-            if (hWnd)
-                SetWindowTextW(hWnd, uft16Buff);
-        }
-*/
     }
     else
     {
@@ -78,16 +63,11 @@ void QDmsMdiArea::dropEvent(QDropEvent* event)
     MainWindow::TheOne()->defaultView();
 }
 
-QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
+QDmsViewArea::QDmsViewArea(QWidget* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QMdiSubWindow(parent)
 {
     assert(currItem); // Precondition
     setAcceptDrops(true);
-    HINSTANCE instance = GetInstance((HWND)hWndMain);
-    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
-
-    auto parent_hwnd = (HWND)winId();
-    auto rect = contentsRect();
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
@@ -96,21 +76,7 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
             , viewContext->GetFullName().c_str()
         );
 
-    auto vs = WS_CHILD | WS_CLIPSIBLINGS|WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
-    m_HWnd = CreateWindowEx(
-        WS_EX_OVERLAPPEDWINDOW,          // extended style
-        dmsViewAreaClassName,            // DmsDataView control class 
-        nullptr,                         // text for window title bar 
-        vs,                              // styles
-        rect.x(), rect.y(),              // position
-        rect.width(), rect.height(),     // size
-        parent_hwnd,                     // handle to parent (MainWindow)
-        nullptr,                         // no menu
-        instance,                        // instance owning this window 
-        m_DataView
-    );
-    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
-
+    CreateDmsView();
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
     // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     bool result = SHV_DataView_AddItem(m_DataView, currItem, false); 
@@ -123,7 +89,49 @@ QDmsViewArea::QDmsViewArea(QWidget* parent, void* hWndMain, TreeItem* viewContex
             , viewStyle
         );
     }
-    SetWindowPos((HWND)m_HWnd, HWND_TOP, rect.x(), rect.y(), rect.width(), rect.height(), SWP_SHOWWINDOW);
+}
+
+QDmsViewArea::QDmsViewArea(QWidget* parent, MdiCreateStruct* createStruct)
+    :   QMdiSubWindow(parent)
+    ,   m_DataView(createStruct->dataView)
+{
+    CreateDmsView();
+    createStruct->hWnd = (HWND)m_HWnd;
+    setWindowTitle(createStruct->caption);
+}
+
+void QDmsViewArea::CreateDmsView()
+{
+    HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
+
+    HINSTANCE instance = GetInstance(hWndMain);
+    auto parent_hwnd = (HWND)winId();
+    auto rect = contentsRectInPixelUnits();
+    if (rect.width() < 200) rect.setWidth(200);
+    if (rect.height() < 100) rect.setHeight(100);
+
+    static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
+    auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
+    auto hWnd = CreateWindowEx(
+        WS_EX_OVERLAPPEDWINDOW,          // extended style
+        dmsViewAreaClassName,            // DmsDataView control class 
+        nullptr,                         // text for window title bar 
+        vs,                              // styles
+        rect.x(), rect.y(),              // position
+        rect.width(), rect.height(),     // size
+        parent_hwnd,                     // handle to parent (MainWindow)
+        nullptr,                         // no menu
+        instance,                        // instance owning this window 
+        m_DataView
+    );
+    m_HWnd = hWnd;
+
+    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
+    SetWindowPos(hWnd, HWND_TOP
+        , rect.x(), rect.y()
+        , rect.width(), rect.height()
+        , SWP_SHOWWINDOW
+    );
 }
 
 QDmsViewArea::~QDmsViewArea()
@@ -154,15 +162,24 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event)
     UpdatePosAndSize();
 }
 
+auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
+{
+    auto rect = contentsRect();
+    return QRect(
+          rect.x() * GetDesktopDIP2pixFactorX()
+        , rect.y() * GetDesktopDIP2pixFactorY()
+        , rect.width() * GetDesktopDIP2pixFactorX()
+        , rect.height() * GetDesktopDIP2pixFactorY()
+    );
+}
+
 void QDmsViewArea::UpdatePosAndSize()
 {
-    auto rect= contentsRect();
+    auto rect= contentsRectInPixelUnits();
 
     MoveWindow((HWND)m_HWnd
-        , rect.x()
-        , rect.y()
-        , rect.width () * GetDesktopDIP2pixFactorX()
-        , rect.height() * GetDesktopDIP2pixFactorY()
+        , rect.x(), rect.y()
+        , rect.width (), rect.height()
         , true
     );
 }

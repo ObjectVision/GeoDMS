@@ -38,6 +38,7 @@
 class AbstrCaretOperator;
 class AbstrCmd;
 class FocusCaret;
+class DataView;
 
 //----------------------------------------------------------------------
 // struct : MsgStruct

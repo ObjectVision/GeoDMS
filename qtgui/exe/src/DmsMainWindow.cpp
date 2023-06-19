@@ -14,16 +14,19 @@
 
 #include "TreeItem.h"
 #include "DataView.h"
+#include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
 #include <QtWidgets>
 #include <QCompleter>
+#include <QMdiArea>
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "DataView.h"
 #include "StateChangeNotification.h"
 #include <regex>
 
@@ -520,7 +523,7 @@ MainWindow::~MainWindow()
     s_CurrMainWindow = nullptr;
 
     DMS_SetGlobalCppExceptionTranslator(nullptr);
-    DMS_ReleaseMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_ReleaseMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
 }
@@ -562,47 +565,16 @@ void DmsCurrentItemBar::onEditingFinished()
     }
 }
 
+bool MainWindow::IsExisting()
+{
+    return s_CurrMainWindow;
+}
+
 MainWindow* MainWindow::TheOne()
 {
     assert(IsMainThread()); // or use a mutex to guard access to TheOne.
     assert(s_CurrMainWindow);
     return s_CurrMainWindow;
-}
-
-void MainWindow::EventLog(SeverityTypeID st, CharPtr msg)
-{
-    if (!s_CurrMainWindow)
-        return;
-
-    // TODO: make eventlog lazy using custom model
-    // TODO: create fancy styling of eventlog items using view implementation of model/view
-
-    auto eventLogWidget = TheOne()->m_eventlog;
-    while (eventLogWidget->count() > 1000)
-        delete eventLogWidget->takeItem(0);
-
-    /*if (st == SeverityTypeID::ST_Error)
-    {
-        error(msg); // TODO: needs filtering per error message if it followed directly from user action.
-        return;
-    }*/
-
-    eventLogWidget->addItem(msg);
-    
-    static Timer t;
-    if (t.PassedSecs(5))
-        eventLogWidget->scrollToBottom();
-
-    // https://stackoverflow.com/questions/2210402/how-to-change-the-text-color-of-items-in-a-qlistwidget
-
-    Qt::GlobalColor clr;
-    switch (st) {
-    //case SeverityTypeID::ST_Error: clr = Qt::red; break;
-    case SeverityTypeID::ST_Warning: clr = Qt::darkYellow; break;
-    case SeverityTypeID::ST_MajorTrace: clr = Qt::darkBlue; break;
-    default: return;
-    }
-    eventLogWidget->item(eventLogWidget->count() - 1)->setForeground(clr);
 }
 
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
@@ -1043,11 +1015,9 @@ void MainWindow::createView(ViewStyle viewStyle)
         auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
         auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-        HWND hWndMain = (HWND)winId();
-
         //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
         SuspendTrigger::Resume();
-        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), hWndMain, viewContextItem, currItem, viewStyle);
+        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
         dms_mdi_subwindow->showMaximized();
         dms_mdi_subwindow->setMinimumSize(200, 150);
@@ -1186,6 +1156,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     m_dms_model->setRoot(m_root);
     setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     m_current_item_bar->setDmsCompleter();
+    updateCaption();
     return true;
 }
 
@@ -1194,19 +1165,53 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
-void CppExceptionTranslator(CharPtr msg)
+void MainWindow::ShowStatistics(const TreeItem* tiContext)
 {
-    MainWindow::EventLog(SeverityTypeID::ST_Error, msg);
+    auto* mdiSubWindow = new QMdiSubWindow(getDmsMdiAreaPtr()); // not a DmsViewArea
+    auto* textWidget = new QTextBrowser(mdiSubWindow);
+    SharedStr title = "Statsitcs of " + tiContext->GetFullName();
+    mdiSubWindow->setWindowTitle(title.c_str());
+
+    InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
+
+    vos_buffer_type textBuffer;
+    while (true)
+    {
+        bool done = NumericDataItem_GetStatistics(tiContext, textBuffer);
+        textWidget->setText(begin_ptr(textBuffer));
+        if (done)
+            return;
+        auto result = MessageBoxA((HWND)winId()
+            , "Processing didn't complete yet; retry request?"
+            , "Statistics"
+            , MB_YESNO
+        );
+        if (result != IDYES)
+            return;
+    }
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
-    if (notificationCode == NC_Deleting)
-    {
+    switch (notificationCode) {
+    case NC_Deleting:
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
+        break;
+    case CC_CreateMdiChild:
+    {
+        auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
+        assert(createStruct);
+        auto va = new QDmsViewArea(mainWindow->getDmsMdiAreaPtr(), createStruct);
+        return;
     }
+    case CC_Activate:
+        mainWindow->setCurrentTreeItem(const_cast<TreeItem*>(self));
+        return;
 
+    case CC_ShowStatistics:
+        mainWindow->ShowStatistics(self);
+    }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {
@@ -1217,8 +1222,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 void MainWindow::setupDmsCallbacks()
 {
-    //DMS_SetGlobalCppExceptionTranslator(CppExceptionTranslator);
-    DMS_RegisterMsgCallback(&geoDMSMessage, m_eventlog);
+    DMS_RegisterMsgCallback(&geoDMSMessage, this);
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
@@ -1325,12 +1329,18 @@ void MainWindow::createActions()
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     viewMenu->addAction(m_mapview_action.get());
 
+    // statistics view
+    m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
+//    m_statistics_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+    connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
+    viewMenu->addAction(m_statistics_action.get());
+
     // histogram view
     m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
     m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
     //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
     
-    // provess schemes
+    // process schemes
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
 
