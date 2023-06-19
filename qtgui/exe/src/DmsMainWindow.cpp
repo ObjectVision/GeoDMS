@@ -1299,7 +1299,8 @@ void MainWindow::createActions()
     epdm->addAction(epdmCsv);
 
     m_file_menu->addSeparator();
-    m_quit_action = std::make_unique<QAction>(tr("&Quit"), qApp, &QCoreApplication::quit);
+    m_quit_action = std::make_unique<QAction>(tr("&Quit"));
+    connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
     m_file_menu->addAction(m_quit_action.get());
     m_quit_action->setShortcuts(QKeySequence::Quit);
     m_quit_action->setStatusTip(tr("Quit the application"));
@@ -1463,13 +1464,17 @@ void MainWindow::updateFileMenu()
     m_recent_files_actions.clear(); // delete old actions;
 
     // temporarily remove quit action
-    //removeAction(&action_I_Want_to_manage);
+    removeAction(m_quit_action.get());
 
     // rebuild latest recent files from registry
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
+    size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
-
+        //auto qa = new QAction(QString(QString::number(recent_file_index) + " " + recent_file.data()), this);
+        //m_file_menu->addAction(qa);
+        //m_recent_files_actions.append(qa);
+        //recent_file_index++;
     }
 
     /*auto asw = m_mdi_area->currentSubWindow();
@@ -1486,7 +1491,8 @@ void MainWindow::updateFileMenu()
         m_CurrWindowActions.append(qa);
     }*/
 
-    m_window_menu->addActions(m_recent_files_actions);
+    m_file_menu->addActions(m_recent_files_actions);
+    m_file_menu->addAction(m_quit_action.get());
 }
 
 void MainWindow::updateWindowMenu() 
