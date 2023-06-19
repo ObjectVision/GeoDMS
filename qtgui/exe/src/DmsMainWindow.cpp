@@ -646,8 +646,8 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
-DmsRecentFileButtonAction::DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent)
-    : QAction(dms_file_full_path.data())
+DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
+    : QAction(QString("&") + QString::number(index) + (index<10?".  " : ". ") + dms_file_full_path.data())
 {}
 
 void DmsRecentFileButtonAction::onToolbuttonPressed()
@@ -865,6 +865,22 @@ std::string fillOpenConfigSourceCommand(const std::string_view command, const st
         result.replace(ln_part, ln_part + 2, line);
 
     return result;
+}
+
+void MainWindow::cleanRecentFiles()
+{
+
+}
+
+void MainWindow::setRecentFiles()
+{
+    //std::filesystem::exists(
+    std::vector<std::string> recent_files_as_std_strings;
+    for (auto* recent_file_action : m_recent_files_actions)
+    {
+        recent_files_as_std_strings.push_back(recent_file_action->iconText().toStdString());
+    }
+    SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
 
 void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line)
@@ -1480,10 +1496,10 @@ void MainWindow::updateFileMenu()
     size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        auto qa = new DmsRecentFileButtonAction(recent_file, this);
-        qa->setShortcutVisibleInContextMenu(true);
-        qa->setShortcutContext(Qt::WidgetShortcut);
-        qa->setShortcut(recent_file_index < 10 ? QKeySequence(recent_file_index + 48) : QKeySequence());
+        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, this);
+        //qa->setShortcutVisibleInContextMenu(true);
+        //qa->setShortcutContext(Qt::WidgetShortcut);
+        //qa->setShortcut(recent_file_index < 10 ? QKeySequence(recent_file_index + 48) : QKeySequence());
         connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(qa);
         m_recent_files_actions.append(qa);
@@ -1565,38 +1581,38 @@ void MainWindow::createStatusBar()
 
 void MainWindow::createDetailPagesToolbar()
 {
-    QToolBar* detail_pages_toolBar = new QToolBar(tr("DetailPagesActions"), this);
-    addToolBar(Qt::ToolBarArea::RightToolBarArea, detail_pages_toolBar);
+    QToolBar* m_detail_pages_toolBar = new QToolBar(tr("DetailPagesActions"), this);
+    addToolBar(Qt::ToolBarArea::RightToolBarArea, m_detail_pages_toolBar);
 
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
     QAction* general_page_act = new QAction(general_icon, tr("&General"), this);
-    detail_pages_toolBar->addAction(general_page_act);
+    m_detail_pages_toolBar->addAction(general_page_act);
     connect(general_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleGeneral);
 
     const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
     QAction* explore_page_act = new QAction(explore_icon, tr("&Explore"), this);
-    detail_pages_toolBar->addAction(explore_page_act);
+    m_detail_pages_toolBar->addAction(explore_page_act);
     connect(explore_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
     const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
     QAction* properties_page_act = new QAction(properties_icon, tr("&Properties"), this);
-    detail_pages_toolBar->addAction(properties_page_act);
+    m_detail_pages_toolBar->addAction(properties_page_act);
     connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
 
     const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
     auto configuration_page_act = new QAction(configuration_icon, tr("&Configuration"), this);
     configuration_page_act->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
-    detail_pages_toolBar->addAction(configuration_page_act);
+    m_detail_pages_toolBar->addAction(configuration_page_act);
     connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
     const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.png"));
     QAction* sourcedescr_page_act = new QAction(sourcedescr_icon, tr("&Source description"), this);
-    detail_pages_toolBar->addAction(sourcedescr_page_act);
+    m_detail_pages_toolBar->addAction(sourcedescr_page_act);
     connect(sourcedescr_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
 
-    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
     QAction* metainfo_page_act = new QAction(metainfo_icon, tr("&Meta information"), this);
-    detail_pages_toolBar->addAction(metainfo_page_act);
+    m_detail_pages_toolBar->addAction(metainfo_page_act);
     connect(metainfo_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 
 // value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions

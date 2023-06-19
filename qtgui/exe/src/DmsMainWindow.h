@@ -88,7 +88,7 @@ class DmsRecentFileButtonAction : public QAction
 {
     Q_OBJECT
 public:
-    DmsRecentFileButtonAction(std::string_view dms_file_full_path, QObject* parent = nullptr);
+    DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
 
 public slots:
     void onToolbuttonPressed();
@@ -259,6 +259,8 @@ public:
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
+    void cleanRecentFiles();
+    void setRecentFiles();
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
@@ -364,6 +366,7 @@ public:
     std::unique_ptr<QMenu> m_window_menu;
     std::unique_ptr<QMenu> m_help_menu;
     std::unique_ptr<QMenu> m_code_analysis_submenu;
+    QPointer<QToolBar> m_detail_pages_toolBar;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
