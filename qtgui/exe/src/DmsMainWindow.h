@@ -224,6 +224,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(CmdLineSetttings& cmdLineSettings);
     ~MainWindow();
+
     auto getDmsModel() -> DmsModel* { return m_dms_model.get(); }
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
@@ -245,7 +246,6 @@ public:
     auto getStatisticAction() -> QAction* { return m_statistics_action.get(); };
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
-    auto getCodeAnalysisAction() -> QAction* { return m_code_analysis_action.get(); };
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
 
     static auto TheOne() -> MainWindow*;
@@ -260,7 +260,16 @@ public slots:
     void mapView();
     void openConfigSource();
     void exportPrimaryData();
-    void options();
+
+    void gui_options();
+    void advanced_options();
+    void config_options();
+
+    void code_analysis_set_source();
+    void code_analysis_set_target();
+    void code_analysis_add_target();
+    void code_analysis_clr_targets();
+
     static void error(ErrMsgPtr error_message_ptr);
     void exportOkButton();
     void stepToFailReason();
@@ -302,6 +311,7 @@ private:
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock;
 
+public:
     // shared actions
     std::unique_ptr<QAction> m_export_primary_data_action;
     std::unique_ptr<QAction> m_step_to_failreason_action;
@@ -316,10 +326,14 @@ private:
     std::unique_ptr<QAction> m_statistics_action;
     std::unique_ptr<QAction> m_histogramview_action;
     std::unique_ptr<QAction> m_process_schemes_action;
-    std::unique_ptr<QAction> m_code_analysis_action;
-    std::unique_ptr<QAction> m_options_action;
+    std::unique_ptr<QAction> m_gui_options_action;
+    std::unique_ptr<QAction> m_advanced_options_action;
+    std::unique_ptr<QAction> m_config_options_action;
+    std::unique_ptr<QAction> m_code_analysis_set_source_action;
+    std::unique_ptr<QAction> m_code_analysis_set_target_action;
+    std::unique_ptr<QAction> m_code_analysis_add_target_action;
+    std::unique_ptr<QAction> m_code_analysis_clr_targets_action;
 
-public:
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
@@ -336,6 +350,9 @@ public:
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
+
+private:
+    QList<QAction*> m_CurrWindowActions;
 };
 
 #endif

@@ -940,13 +940,42 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     return available_drivers;
 }
 
-void MainWindow::options()
+void MainWindow::gui_options()
 {
     if (!m_options_window)
         m_options_window = new DmsOptionsWindow(this);
 
     m_options_window->show();
 }
+
+void MainWindow::advanced_options()
+{
+    if (!m_options_window)
+        m_options_window = new DmsOptionsWindow(this);
+
+    m_options_window->show();
+}
+
+void MainWindow::config_options()
+{
+    if (!m_options_window)
+        m_options_window = new DmsOptionsWindow(this);
+
+    m_options_window->show();
+}
+
+void MainWindow::code_analysis_set_source()
+{}
+
+void MainWindow::code_analysis_set_target()
+{}
+
+void MainWindow::code_analysis_add_target()
+{}
+
+void MainWindow::code_analysis_clr_targets()
+{}
+
 
 void MainWindow::error(ErrMsgPtr error_message_ptr)
 {
@@ -1346,17 +1375,37 @@ void MainWindow::createActions()
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
 
-    // code analysis
-    m_code_analysis_action = std::make_unique<QAction>(tr("&Code analysis.."));
-    //connect(m_code_analysis_action.get(), &QAction::triggered, this, & #TODO);
-
-
     // tools menu
     auto tools_menu = menuBar()->addMenu(tr("&Tools"));
-    m_options_action = std::make_unique<QAction>(tr("&Options"));
-    connect(m_options_action.get(), &QAction::triggered, this, &MainWindow::options);
-    tools_menu->addAction(m_options_action.get());
+    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
+    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
+    tools_menu->addAction(m_gui_options_action.get());
 
+    m_advanced_options_action = std::make_unique<QAction>(tr("&Advanced Options"));
+    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options);
+    tools_menu->addAction(m_advanced_options_action.get());
+
+    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
+    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
+    tools_menu->addAction(m_config_options_action.get());
+
+    auto code_analysis_submenu = tools_menu->addMenu("&Code analysis ...");
+
+    m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
+    connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
+    code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
+
+    m_code_analysis_set_target_action = std::make_unique<QAction>(tr("set target"));
+    connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
+    code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
+
+    m_code_analysis_add_target_action = std::make_unique<QAction>(tr("add target"));
+    connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
+    code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
+
+    m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target"));
+    connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
+    code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
 
     // window menu
     m_window_menu = menuBar()->addMenu(tr("&Window"));
@@ -1395,7 +1444,6 @@ void MainWindow::createActions()
 
 void MainWindow::updateWindowMenu() 
 {
-    static QList<QAction*> m_CurrWindowActions;
     for (auto* swPtr : m_CurrWindowActions)
     {
         m_window_menu->removeAction(swPtr);
