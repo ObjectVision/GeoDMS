@@ -8,6 +8,7 @@
 #include <QPixmap>
 #include <QBoxLayout>
 #include <QShortcut>
+#include <QHeaderView>
 #include <variant>
 
 #include "DmsMainWindow.h"
@@ -345,6 +346,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setContextMenuPolicy(Qt::CustomContextMenu);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
+	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 }
 
