@@ -994,7 +994,7 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
     error_message_markdown += error_message.substr(curr_pos+1);
 
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
-    TheOne()->m_error_window->show();
+    TheOne()->m_error_window->exec();
 }
 
 void MainWindow::exportPrimaryData()
