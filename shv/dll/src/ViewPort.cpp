@@ -862,7 +862,7 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_ZoomAllLayers:    ZoomAll();   return true;
 		case TB_ZoomActiveLayer:  AL_ZoomAll(); return true;
 		case TB_ZoomSelectedObj:  AL_ZoomSel(); return true;
-
+		case TB_ShowFirstSelectedRow: AL_ZoomSel(); return true;
 		case TB_Neutral:
 			SetViewPortCursor( LoadCursor(NULL, IDC_ARROW) );
 			goto setControllerID;
