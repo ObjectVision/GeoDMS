@@ -1383,7 +1383,7 @@ void MainWindow::createActions()
 
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
-    auto tools_menu = menuBar()->addMenu(m_tools_menu.get());
+    menuBar()->addMenu(m_tools_menu.get());
     m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
     m_tools_menu->addAction(m_gui_options_action.get());
