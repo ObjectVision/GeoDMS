@@ -1463,11 +1463,6 @@ void MainWindow::createActions()
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
 }
 
-//auto getKey-> QKeySequence
-//{
-
-///}
-
 void MainWindow::updateFileMenu()
 {
     for (auto* recent_file_action : m_recent_files_actions)
@@ -1495,21 +1490,7 @@ void MainWindow::updateFileMenu()
         recent_file_index++;
     }
 
-    /*auto asw = m_mdi_area->currentSubWindow();
-    for (auto* sw : m_mdi_area->subWindowList())
-    {
-        auto qa = new QAction(sw->windowTitle(), this);
-        connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
-        if (sw == asw)
-        {
-            qa->setCheckable(true);
-            qa->setChecked(true);
-        }
-        m_window_menu->addAction(qa);
-        m_CurrWindowActions.append(qa);
-    }*/
-
-    //m_file_menu->addActions(m_recent_files_actions);
+    // reinsert quit action
     m_file_menu->addAction(m_quit_action.get());
 }
 
