@@ -2,10 +2,8 @@
 
 #include <QPointer>
 #include <QAbstractListModel>
+#include <QListView>
 
-QT_BEGIN_NAMESPACE
-class QListView;
-QT_END_NAMESPACE
 class MainWindow;
 
 class EventLogModel : public QAbstractListModel
@@ -22,13 +20,21 @@ public:
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	void AddText(SeverityTypeID st, CharPtr msg);
+	void addText(SeverityTypeID st, CharPtr msg);
 
 private:
 	std::vector<item_t> m_Items;
 };
 
+class DmsEventLog : public QListView
+{
+	Q_OBJECT
+public:
+	DmsEventLog(QWidget* parent);
+	void scrollToBottomThrottled();
+
+};
 
 void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
-auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListView>;
+auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;
 void EventLog_AddText(SeverityTypeID st, CharPtr msg);

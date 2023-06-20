@@ -1697,6 +1697,6 @@ void MainWindow::createDmsHelperWindowDocks()
     createDetailPagesDock();
 //    m_detail_pages->setDummyText();
 
-    m_treeview = createTreeview(this);    
+    m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
 }

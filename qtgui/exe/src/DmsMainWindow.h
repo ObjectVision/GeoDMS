@@ -37,6 +37,7 @@ struct TreeItem;
 class QDmsMdiArea;
 class DmsDetailPages;
 class DmsTreeView;
+class DmsEventLog;
 class DmsModel;
 class EventLogModel;
 
@@ -242,7 +243,7 @@ public:
     bool LoadConfig(CharPtr configFilePath);
     
     auto getDmsTreeViewPtr() -> DmsTreeView*;
-    auto getEventLogViewPtr() -> QListView* { return m_eventlog;  }
+    auto getEventLogViewPtr() -> DmsEventLog* { return m_eventlog.get();  }
     auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
     auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
     auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
@@ -357,7 +358,7 @@ public:
 
     // helper windows; TODO: destroy these before the above model objects
     QPointer<DmsDetailPages> m_detail_pages;
-    QPointer<QListView> m_eventlog;
+    std::unique_ptr<DmsEventLog> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
     std::unique_ptr<QMenu> m_file_menu;

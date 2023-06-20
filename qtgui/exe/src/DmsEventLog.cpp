@@ -1,4 +1,4 @@
-#include <QListWidget>
+
 
 #include <QApplication>
 #include <QColor>
@@ -49,7 +49,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
-void EventLogModel::AddText(SeverityTypeID st, CharPtr msg)
+void EventLogModel::addText(SeverityTypeID st, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
@@ -62,13 +62,24 @@ void EventLogModel::AddText(SeverityTypeID st, CharPtr msg)
 	emit dataChanged(index, index);
 }
 
+DmsEventLog::DmsEventLog(QWidget* parent)
+	: QListView(parent)
+{
+
+}
+
+void DmsEventLog::scrollToBottomThrottled()
+{
+	scrollToBottom();
+}
+
 void EventLog_AddText(SeverityTypeID st, CharPtr msg)
 {
 	if (!MainWindow::IsExisting())
 		return;
 
 	auto* theModel = MainWindow::TheOne()->m_eventlog_model.get(); assert(theModel);
-	theModel->AddText(st, msg);
+	theModel->addText(st, msg);
 
 	static Timer t;
 	if (t.PassedSecs(5))
@@ -77,14 +88,17 @@ void EventLog_AddText(SeverityTypeID st, CharPtr msg)
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)
 {
-	EventLog_AddText(st, msg);
+	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
+	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
+	eventlog_model->addText(st, msg);
+	eventlog_view->scrollToBottomThrottled();
 }
 
-auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListView>
+auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 {
     auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
-    QPointer<QListView> dms_eventlog_pointer = new QListView(dock);
-    dock->setWidget(dms_eventlog_pointer);
+	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(dock);
+    dock->setWidget(dms_eventlog_pointer.get());
     dock->setTitleBarWidget(new QWidget(dock));
 //    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, dock);
@@ -92,7 +106,7 @@ auto createEventLog(MainWindow* dms_main_window) -> QPointer<QListView>
     dms_eventlog_pointer->setUniformItemSizes(true);
 
     //viewMenu->addAction(dock->toggleViewAction());
-	dms_main_window->m_eventlog_model = std::make_unique< EventLogModel>();
+	dms_main_window->m_eventlog_model = std::make_unique<EventLogModel>();
 	dms_eventlog_pointer->setModel(dms_main_window->m_eventlog_model.get());
 
 	return dms_eventlog_pointer;
