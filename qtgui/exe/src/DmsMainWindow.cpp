@@ -1649,32 +1649,38 @@ void MainWindow::createDetailPagesToolbar()
 
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
     QAction* general_page_act = new QAction(general_icon, tr("&General"), this);
+    general_page_act->setCheckable(true);
     m_detail_pages_toolBar->addAction(general_page_act);
     connect(general_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleGeneral);
 
     const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
     QAction* explore_page_act = new QAction(explore_icon, tr("&Explore"), this);
+    explore_page_act->setCheckable(true);
     m_detail_pages_toolBar->addAction(explore_page_act);
     connect(explore_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
     const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
     QAction* properties_page_act = new QAction(properties_icon, tr("&Properties"), this);
+    properties_page_act->setCheckable(true);
     m_detail_pages_toolBar->addAction(properties_page_act);
     connect(properties_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
 
     const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
     auto configuration_page_act = new QAction(configuration_icon, tr("&Configuration"), this);
+    configuration_page_act->setCheckable(true);
     configuration_page_act->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
     m_detail_pages_toolBar->addAction(configuration_page_act);
     connect(configuration_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
 
     const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.png"));
     QAction* sourcedescr_page_act = new QAction(sourcedescr_icon, tr("&Source description"), this);
+    sourcedescr_page_act->setCheckable(true);
     m_detail_pages_toolBar->addAction(sourcedescr_page_act);
     connect(sourcedescr_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
 
     const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
     QAction* metainfo_page_act = new QAction(metainfo_icon, tr("&Meta information"), this);
+    metainfo_page_act->setCheckable(true);
     m_detail_pages_toolBar->addAction(metainfo_page_act);
     connect(metainfo_page_act, &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 
