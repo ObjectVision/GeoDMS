@@ -7,7 +7,7 @@
 #include "Ticbase.h"
 #include "TreeItemProps.h"
 
-enum class ActiveDetailPage
+enum ActiveDetailPage
 {
 	GENERAL,
 	EXPLORE,
@@ -23,7 +23,7 @@ enum class ActiveDetailPage
 class DmsDetailPages : public QTextBrowser
 {
 public:
-	using QTextBrowser::QTextBrowser;
+	DmsDetailPages(QWidget* parent = nullptr);
 
 	void connectDetailPagesAnchorClicked();
 
@@ -44,6 +44,7 @@ private slots:
 	void onAnchorClicked(const QUrl& link);
 
 private:
+	void toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle);
 	void toggle(ActiveDetailPage new_active_detail_page);
 	void drawPage();
 

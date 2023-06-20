@@ -62,17 +62,50 @@ void DmsDetailPages::newCurrentItem()
         drawPage();
 }
 
+auto getDetailPagesActionFromActiveDetailPage(ActiveDetailPage new_active_detail_page) -> QAction*
+{
+    auto main_window = MainWindow::TheOne();
+    switch (new_active_detail_page)
+    {
+    case ActiveDetailPage::GENERAL: { return main_window->m_general_page_action.get(); }
+    case ActiveDetailPage::EXPLORE: { return main_window->m_explore_page_action.get(); }
+    case ActiveDetailPage::PROPERTIES: { return main_window->m_properties_page_action.get(); }
+    case ActiveDetailPage::METADATA: { return main_window->m_metainfo_page_action.get(); }
+    case ActiveDetailPage::CONFIGURATION: { return main_window->m_configuration_page_action.get(); }
+    case ActiveDetailPage::SOURCEDESCR: { return main_window->m_sourcedescr_page_action.get(); }
+    case ActiveDetailPage::NONE:
+    default: { return nullptr; };
+    }
+}
+
+void DmsDetailPages::toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle)
+{
+    for (int page = ActiveDetailPage::GENERAL; page != ActiveDetailPage::NONE; page++)
+    {
+        auto page_action = getDetailPagesActionFromActiveDetailPage((ActiveDetailPage)page);
+        if (!page_action)
+            continue;
+
+        if (page != new_active_detail_page)
+            page_action->setChecked(false);
+        else
+            page_action->setChecked(toggle);
+    }
+}
+
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
     auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
     if (detail_pages_dock->isHidden() || m_active_detail_page != new_active_detail_page)
     {
         detail_pages_dock->show();
+        toggleVisualState(new_active_detail_page, true);
         setActiveDetailPage(new_active_detail_page);
     }
     else
     {
         detail_pages_dock->hide();
+        toggleVisualState(new_active_detail_page, false);
         setActiveDetailPage(ActiveDetailPage::NONE);
     }
 
@@ -286,6 +319,9 @@ auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
     return ActiveDetailPage::NONE;
 }
 
+DmsDetailPages::DmsDetailPages(QWidget* parent)
+    : QTextBrowser(parent)
+{}
 
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
@@ -353,7 +389,7 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
 
     // log link action
 #if defined(_DEBUG)
-    EventLog_AddText(SeverityTypeID::ST_MajorTrace, linkStr.data());
+    MainWindow::TheOne()->m_eventlog_model->addText(SeverityTypeID::ST_MajorTrace, linkStr.data());
 #endif
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (IsPostRequest(link))

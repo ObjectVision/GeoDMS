@@ -369,6 +369,12 @@ public:
     std::unique_ptr<QMenu> m_help_menu;
     std::unique_ptr<QMenu> m_code_analysis_submenu;
     QPointer<QToolBar> m_detail_pages_toolBar;
+    std::unique_ptr<QAction> m_general_page_action;
+    std::unique_ptr<QAction> m_explore_page_action;
+    std::unique_ptr<QAction> m_properties_page_action;
+    std::unique_ptr<QAction> m_configuration_page_action;
+    std::unique_ptr<QAction> m_sourcedescr_page_action;
+    std::unique_ptr<QAction> m_metainfo_page_action;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;

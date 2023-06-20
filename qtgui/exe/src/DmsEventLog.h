@@ -42,4 +42,3 @@ private:
 
 void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;
-void EventLog_AddText(SeverityTypeID st, CharPtr msg);
