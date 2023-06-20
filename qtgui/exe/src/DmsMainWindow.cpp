@@ -1217,8 +1217,13 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_currConfigFileName = fileNameCharPtr;
         auto newRoot = DMS_CreateTreeFromConfiguration(m_currConfigFileName.c_str());
         m_root = newRoot;
-        if (newRoot)
+        if (m_root)
         {
+            std::string last_config_file_dos = configFilePath;
+            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
+            insertCurrentConfigInRecentFiles(last_config_file_dos);
+            SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
+
             m_treeview->setItemDelegate(new TreeItemDelegate());
 
             m_treeview->setModel(m_dms_model.get());
@@ -1270,10 +1275,6 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     m_current_item_bar->setDmsCompleter();
     updateCaption();
     m_dms_model->reset();
-    std::string last_config_file_dos = configFilePath;
-    std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
-    insertCurrentConfigInRecentFiles(last_config_file_dos);
-    SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
     return true;
 }
 
@@ -1643,6 +1644,7 @@ void MainWindow::createStatusBar()
 void MainWindow::createDetailPagesToolbar()
 {
     QToolBar* m_detail_pages_toolBar = new QToolBar(tr("DetailPagesActions"), this);
+    m_detail_pages_toolBar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_detail_pages_toolBar);
 
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
