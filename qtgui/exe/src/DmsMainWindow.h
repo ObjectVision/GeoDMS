@@ -89,7 +89,7 @@ class DmsRecentFileButtonAction : public QAction
     Q_OBJECT
 public:
     DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
-
+    std::string m_cfg_file_path;
 public slots:
     void onToolbuttonPressed();
 };
@@ -259,7 +259,8 @@ public:
     auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
     auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
-    void cleanRecentFiles();
+    void cleanRecentFilesThatDoNotExist();
+    void insertCurrentConfigInRecentFiles(std::string_view cfg);
     void setRecentFiles();
 
     static auto TheOne() -> MainWindow*;

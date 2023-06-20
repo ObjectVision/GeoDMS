@@ -506,7 +506,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         if (!cmdLineSettings.m_ConfigFileName.empty())
-            LoadConfig(cmdLineSettings.m_ConfigFileName.c_str());
+            LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); // TODO: return value unhandled
     }
 
     updateCaption();
@@ -647,13 +647,15 @@ void MainWindow::aboutGeoDms()
 }
 
 DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
-    : QAction(QString("&") + QString::number(index) + (index<10?".  " : ". ") + dms_file_full_path.data())
-{}
+    :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str())
+{
+    m_cfg_file_path = dms_file_full_path;
+}
 
 void DmsRecentFileButtonAction::onToolbuttonPressed()
 {
     auto main_window = MainWindow::TheOne();
-    main_window->LoadConfig(iconText().toUtf8());
+    main_window->LoadConfig(m_cfg_file_path.c_str());
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
@@ -865,22 +867,6 @@ std::string fillOpenConfigSourceCommand(const std::string_view command, const st
         result.replace(ln_part, ln_part + 2, line);
 
     return result;
-}
-
-void MainWindow::cleanRecentFiles()
-{
-
-}
-
-void MainWindow::setRecentFiles()
-{
-    //std::filesystem::exists(
-    std::vector<std::string> recent_files_as_std_strings;
-    for (auto* recent_file_action : m_recent_files_actions)
-    {
-        recent_files_as_std_strings.push_back(recent_file_action->iconText().toStdString());
-    }
-    SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
 
 void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line)
@@ -1137,6 +1123,68 @@ void MainWindow::CloseConfig()
     }
 }
 
+auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
+{
+    std::string dos_cfg_name = cfg.data();
+    std::replace(dos_cfg_name.begin(), dos_cfg_name.end(), '/', '\\');
+    auto it = std::find(files.begin(), files.end(), dos_cfg_name);
+    if (it == files.end())
+        return -1;
+    return it - files.begin();
+}
+
+auto removeDuplicateStringsFromVector(std::vector<std::string>& strings)
+{
+    std::sort(strings.begin(), strings.end());
+    strings.erase(std::unique(strings.begin(), strings.end()), strings.end());
+}
+
+void MainWindow::cleanRecentFilesThatDoNotExist()
+{
+    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
+    auto it_rf = recent_files_from_registry.begin();
+
+    for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
+    {
+        if (!std::filesystem::exists(*it_rf) || it_rf->empty())
+            it_rf = recent_files_from_registry.erase(it_rf);
+        else
+            ++it_rf;
+    }
+    removeDuplicateStringsFromVector(recent_files_from_registry);
+    SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
+}
+
+void MainWindow::setRecentFiles()
+{
+    std::vector<std::string> recent_files_as_std_strings;
+    for (auto* recent_file_action : m_recent_files_actions)
+    {
+        auto dos_string = recent_file_action->m_cfg_file_path;
+        std::replace(dos_string.begin(), dos_string.end(), '/', '\\');
+        recent_files_as_std_strings.push_back(dos_string); // TODO: string juggling
+    }
+    SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
+}
+
+void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
+{
+    auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
+    if (cfg_index_in_recent_files == -1)
+    {
+        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this);
+        connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
+        m_file_menu->addAction(new_recent_file_action);
+        m_recent_files_actions.prepend(new_recent_file_action);
+
+    }
+    else
+        m_recent_files_actions.move(cfg_index_in_recent_files, 0);
+
+    setRecentFiles();
+    updateFileMenu();
+}
+
 bool MainWindow::LoadConfig(CharPtr configFilePath)
 {
     try
@@ -1211,6 +1259,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     m_current_item_bar->setDmsCompleter();
     updateCaption();
     m_dms_model->reset();
+    std::string last_config_file_dos = configFilePath;
+    std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
+    insertCurrentConfigInRecentFiles(last_config_file_dos);
+    SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
     return true;
 }
 
@@ -1329,8 +1381,8 @@ void MainWindow::createActions()
     m_file_menu->addAction(m_quit_action.get());
     m_quit_action->setShortcuts(QKeySequence::Quit);
     m_quit_action->setStatusTip(tr("Quit the application"));
-
     connect(m_file_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
+    updateFileMenu();
 
     m_edit_menu = std::make_unique<QMenu>(tr("&Edit"));
     menuBar()->addMenu(m_edit_menu.get());
@@ -1492,14 +1544,12 @@ void MainWindow::updateFileMenu()
     removeAction(m_quit_action.get());
 
     // rebuild latest recent files from registry
+    cleanRecentFilesThatDoNotExist();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
     size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
         auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, this);
-        //qa->setShortcutVisibleInContextMenu(true);
-        //qa->setShortcutContext(Qt::WidgetShortcut);
-        //qa->setShortcut(recent_file_index < 10 ? QKeySequence(recent_file_index + 48) : QKeySequence());
         connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(qa);
         m_recent_files_actions.append(qa);
