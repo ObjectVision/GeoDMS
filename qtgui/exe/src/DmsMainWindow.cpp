@@ -1151,7 +1151,7 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
         else
             ++it_rf;
     }
-    removeDuplicateStringsFromVector(recent_files_from_registry);
+    //removeDuplicateStringsFromVector(recent_files_from_registry); TODO: causes reordering, remember correct order.
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
 
