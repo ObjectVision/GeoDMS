@@ -79,20 +79,9 @@ void DmsEventLog::scrollToBottomThrottled()
 	if (m_throttle_timer->isActive())
 		return;
 
+	// TODO: only start throttle timer when user is not looking at different parts of the eventlog.
+
 	m_throttle_timer->start(1000);
-}
-
-void EventLog_AddText(SeverityTypeID st, CharPtr msg)
-{
-	if (!MainWindow::IsExisting())
-		return;
-
-	auto* theModel = MainWindow::TheOne()->m_eventlog_model.get(); assert(theModel);
-	theModel->addText(st, msg);
-
-	static Timer t;
-	if (t.PassedSecs(5))
-		MainWindow::TheOne()->getEventLogViewPtr()->scrollToBottom();
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)
