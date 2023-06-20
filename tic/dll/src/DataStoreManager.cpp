@@ -70,20 +70,20 @@ void DSM::CancelIfOutOfInterest(const TreeItem* item)
 #include "act/ActorVisitor.h"
 #include "StateChangeNotification.h"
 
-const UInt32 SL_USAGE_MASK  = 0x03;
-const UInt32 SL_USES_SOURCE = 0x04;
+supplier_level operator & (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) & UInt32(rhs)); }
+supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supplier_level(UInt32(lhs) | UInt32(rhs)); }
 
-bool MarkSources(SessionData* dsm, const Actor* a, UInt32 level)
+bool MarkSources(SessionData* dsm, const Actor* a, supplier_level level)
 {
 	dms_assert(a);
 	if (a->IsPassorOrChecked())
 		return false;
 
-	UInt32& currLevel = dsm->m_SupplierLevels[a];
+	supplier_level& currLevel = dsm->m_SupplierLevels[a];
 
 	bool hasSource = (a == dsm->m_SourceItem);
 
-	if ((currLevel & SL_USAGE_MASK) < level) // Source bit is also already determined and irrelevant for the decision to search for next level.
+	if ((currLevel & supplier_level::usage_flags) < level) // Source bit is also already determined and irrelevant for the decision to search for next level.
 	{
 		currLevel = level; // if Source bit was set, it will be set again.
 
@@ -91,37 +91,57 @@ bool MarkSources(SessionData* dsm, const Actor* a, UInt32 level)
 		if (ti)
 			NotifyStateChange(ti, NC2_InterestChange);
 
-		if (level == 1)
+		if (level == supplier_level::calc)
 		{
-			a->VisitSuppliers(SupplierVisitFlag::CalcAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, 1); }));
-			a->VisitSuppliers(SupplierVisitFlag::MetaAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, 2); }));
+			a->VisitSuppliers(SupplierVisitFlag::CalcAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::calc); }));
+			a->VisitSuppliers(SupplierVisitFlag::MetaAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
 		}
 		else
 		{
-			dms_assert(currLevel == 2);
-			a->VisitSuppliers(SupplierVisitFlag::All, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, 2); }));
+			assert(currLevel == supplier_level::meta);
+			a->VisitSuppliers(SupplierVisitFlag::All, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
 		}
 		if (hasSource)
-			currLevel |= SL_USES_SOURCE;
+			currLevel = currLevel | supplier_level::uses_source_flag;
 	}
-	else
-		hasSource |= ((currLevel & SL_USES_SOURCE) != 0);
+	else if ((currLevel & supplier_level::uses_source_flag) == supplier_level::uses_source_flag)
+		hasSource = true;
 	return hasSource;
+}
+
+TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem * ti, bool mustClean)
+{
+	auto dsm = DSM::Curr();
+	if (!dsm)
+		return;
+
+	if (mustClean)
+	{
+		dsm->m_SupplierLevels.clear();
+		NotifyStateChange(ti, NC2_InterestChange);
+	}
+	if (!ti)
+		return;
+	MarkSources(dsm.get(), ti, supplier_level::calc);
 }
 
 extern "C" TIC_CALL void DMS_TreeItem_SetAnalysisTarget(const TreeItem* ti, bool mustClean)
 {
 	DMS_CALL_BEGIN
 
+		TreeItem_SetAnalysisTarget(ti, mustClean);
+
+	DMS_CALL_END
+}
+
+TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem * ti)
+{
+	DMS_CALL_BEGIN
+
 		auto dsm = DSM::Curr();
-		if (mustClean)
-		{
-			dsm->m_SupplierLevels.clear();
-			NotifyStateChange(ti, NC2_InterestChange);
-		}
-		if (!ti)
-			return;
-		MarkSources(dsm.get(), ti, 1);
+		if (dsm)
+			dsm->m_SourceItem = ti;
+		TreeItem_SetAnalysisTarget(ti, true); // sends a refresh at cleaning
 
 	DMS_CALL_END
 }
@@ -130,23 +150,27 @@ extern "C" TIC_CALL void DMS_TreeItem_SetAnalysisSource(const TreeItem* ti)
 {
 	DMS_CALL_BEGIN
 
-		auto dsm = DSM::Curr();
-		dsm->m_SourceItem = ti;
-		DMS_TreeItem_SetAnalysisTarget(ti, true); // sends a refresh at cleaning
+		TreeItem_SetAnalysisSource(ti);
 
 	DMS_CALL_END
 }
 
-extern "C" TIC_CALL UInt32 DMS_TreeItem_GetSupplierLevel(const TreeItem* ti)
+TIC_CALL supplier_level TreeItem_GetSupplierLevel(const TreeItem * ti)
 {
-	DMS_CALL_BEGIN
-
 	auto dsm = DSM::Curr();
 	if (dsm) {
 		auto iter = dsm->m_SupplierLevels.find(ti);
 		if (iter != dsm->m_SupplierLevels.end())
 			return iter->second;
 	}
+	return supplier_level::none;
+}
+
+extern "C" TIC_CALL UInt32 DMS_TreeItem_GetSupplierLevel(const TreeItem* ti)
+{
+	DMS_CALL_BEGIN
+
+		return (UInt32)TreeItem_GetSupplierLevel(ti);
 
 	DMS_CALL_END
 	return 0;

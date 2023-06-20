@@ -12,8 +12,10 @@
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
-#include "TreeItem.h"
 #include "DataView.h"
+#include "TreeItem.h"
+#include "SessionData.h"
+
 #include "ClcInterface.h"
 #include "ShvDllInterface.h"
 
@@ -977,16 +979,25 @@ void MainWindow::config_options()
 }
 
 void MainWindow::code_analysis_set_source()
-{}
+{
+   TreeItem_SetAnalysisSource(getCurrentTreeItem());
+}
 
 void MainWindow::code_analysis_set_target()
-{}
+{
+    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), true);
+}
 
 void MainWindow::code_analysis_add_target()
-{}
+{
+    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), false);
+}
 
 void MainWindow::code_analysis_clr_targets()
-{}
+{
+    TreeItem_SetAnalysisSource(nullptr);
+//    TreeItem_SetAnalysisTarget(nullptr, true);  // REMOVE, al gedaan door SetAnalysisSource
+}
 
 
 void MainWindow::error(ErrMsgPtr error_message_ptr)
@@ -1002,9 +1013,9 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
             break;
         auto full_link = link.filename + "(" + link.line + "," + link.col + ")";
         error_message_markdown += (error_message.substr(curr_pos, link.start) + "["+ full_link +"]("+ full_link +")");
-        curr_pos = curr_pos + link.stop;
+        curr_pos = curr_pos + link.stop + 1;
     }
-    error_message_markdown += error_message.substr(curr_pos+1);
+    error_message_markdown += error_message.substr(curr_pos);
 
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
     TheOne()->m_error_window->exec();

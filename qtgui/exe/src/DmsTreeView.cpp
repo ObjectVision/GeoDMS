@@ -13,6 +13,7 @@
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
+#include "SessionData.h"
 #include "TreeItem.h"
 #include <QMainWindow>
 #include <QApplication>
@@ -155,6 +156,8 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const
 int DmsModel::rowCount(const QModelIndex& parent) const
 {
 	auto ti = GetTreeItemOrRoot(parent);
+	if (!ti)
+		return 0;
 
 	ti = ti->_GetFirstSubItem();
 	int row = 0;
@@ -231,6 +234,13 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	case Qt::BackgroundRole:
 		if (ti->WasFailed())
 			return QColor(192, 16, 16);
+		switch (TreeItem_GetSupplierLevel(ti))
+		{
+		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
+		case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
+		case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
+		case supplier_level::meta_source: return QColor(000, 255, 000); // clGreen;
+		}
 		break; // default background color
 
 	case Qt::SizeHintRole:

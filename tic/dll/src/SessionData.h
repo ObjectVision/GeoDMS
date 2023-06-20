@@ -36,6 +36,23 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataController.h"
 struct TreeItem;
 
+enum class supplier_level
+{
+	none = 0,
+	calc = 1,
+	meta = 2,
+
+	usage_flags = calc+meta,
+
+	uses_source_flag = 4, // flagged if the dedicated source is a supplier
+	calc_source = calc + uses_source_flag,
+	meta_source = meta + uses_source_flag,
+};
+
+TIC_CALL supplier_level TreeItem_GetSupplierLevel(const TreeItem* ti);
+TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem* ti, bool mustClean);
+TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem* ti);
+
 //----------------------------------------------------------------------
 // struct SessionData
 //----------------------------------------------------------------------
@@ -89,7 +106,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 
 
 public: // ==== code analysis support: DMS_TreeItem_SetAnalysisSource
-	std::map<const Actor*, UInt32> m_SupplierLevels;
+	std::map<const Actor*, supplier_level> m_SupplierLevels;
 	SharedPtr<const TreeItem>      m_SourceItem;
 
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
