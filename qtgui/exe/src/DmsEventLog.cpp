@@ -35,7 +35,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		case SeverityTypeID::ST_Warning:
 			return QColor(Qt::darkYellow);
 		case SeverityTypeID::ST_MajorTrace:
-			return QColor(Qt::darkBlue);
+			return QColor(Qt::black);
 		}
 		break;
 	}
