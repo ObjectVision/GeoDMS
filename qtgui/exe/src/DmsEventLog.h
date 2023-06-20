@@ -31,8 +31,13 @@ class DmsEventLog : public QListView
 	Q_OBJECT
 public:
 	DmsEventLog(QWidget* parent);
+
+public slots:
+	void scrollToBottomOnTimeout();
 	void scrollToBottomThrottled();
 
+private:
+	QPointer<QTimer> m_throttle_timer;
 };
 
 void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);

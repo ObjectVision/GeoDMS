@@ -1,10 +1,9 @@
-
-
 #include <QApplication>
 #include <QColor>
 #include <QObject>
 #include <QDockWidget>
 #include <QMenubar>
+#include <QTimer>
 
 #include "dbg/Timer.h"
 
@@ -65,12 +64,22 @@ void EventLogModel::addText(SeverityTypeID st, CharPtr msg)
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QListView(parent)
 {
+	m_throttle_timer = new QTimer(this);
+	m_throttle_timer->setSingleShot(true);
+	connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
+}
 
+void DmsEventLog::scrollToBottomOnTimeout()
+{
+	scrollToBottom();
 }
 
 void DmsEventLog::scrollToBottomThrottled()
 {
-	scrollToBottom();
+	if (m_throttle_timer->isActive())
+		return;
+
+	m_throttle_timer->start(1000);
 }
 
 void EventLog_AddText(SeverityTypeID st, CharPtr msg)
