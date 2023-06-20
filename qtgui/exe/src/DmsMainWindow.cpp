@@ -1011,9 +1011,9 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
             break;
         auto full_link = link.filename + "(" + link.line + "," + link.col + ")";
         error_message_markdown += (error_message.substr(curr_pos, link.start) + "["+ full_link +"]("+ full_link +")");
-        curr_pos = curr_pos + link.stop;
+        curr_pos = curr_pos + link.stop + 1;
     }
-    error_message_markdown += error_message.substr(curr_pos+1);
+    error_message_markdown += error_message.substr(curr_pos);
 
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
     TheOne()->m_error_window->exec();

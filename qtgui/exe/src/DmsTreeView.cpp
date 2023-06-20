@@ -156,6 +156,8 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const
 int DmsModel::rowCount(const QModelIndex& parent) const
 {
 	auto ti = GetTreeItemOrRoot(parent);
+	if (!ti)
+		return 0;
 
 	ti = ti->_GetFirstSubItem();
 	int row = 0;
