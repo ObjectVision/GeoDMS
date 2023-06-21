@@ -44,18 +44,18 @@ public:
 
 		const AbstrDataItem* arg1A= AsDataItem(args[0]);
 		const AbstrDataItem* arg2A= AsDataItem(args[1]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
 		const AbstrUnit* arg1_DomainUnit = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* arg2_DomainUnit = arg2A->GetAbstrDomainUnit();
-		dms_assert(arg1_DomainUnit);
-		dms_assert(arg2_DomainUnit);
+		assert(arg1_DomainUnit);
+		assert(arg2_DomainUnit);
 
-		compatible_values_unit_creator_func(0, GetGroup(), args, true);
 
 		if (!resultHolder)
 		{
+			compatible_values_unit_creator_func(0, GetGroup(), args, true);
 			resultHolder = CreateCacheDataItem(arg1_DomainUnit, arg2_DomainUnit);
 			resultHolder->SetTSF(TSF_Categorical);
 		}
