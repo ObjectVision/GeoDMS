@@ -89,6 +89,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	grid_layout->addWidget(m_error_filter.get(), 1, 3);
 	grid_layout->addWidget(m_log.get(), 2, 0, 1, 4);
 	setLayout(grid_layout);
+
+	toggleTextFilter(false);
+	toggleTypeFilter(false);
 }
 
 void DmsEventLog::scrollToBottomOnTimeout()
@@ -106,14 +109,17 @@ void DmsEventLog::scrollToBottomThrottled()
 	m_throttle_timer->start(1000);
 }
 
-void DmsEventLog::toggleTextFilter()
+void DmsEventLog::toggleTextFilter(bool toggled)
 {
-
+	toggled ? m_text_filter->show() : m_text_filter->hide();
 }
 
-void DmsEventLog::toggleTypeFilter()
+void DmsEventLog::toggleTypeFilter(bool toggled)
 {
-
+	toggled ? m_minor_trace_filter->show() : m_minor_trace_filter->hide();
+	toggled ? m_major_trace_filter->show() : m_major_trace_filter->hide();
+	toggled ? m_warning_filter->show() : m_warning_filter->hide();
+	toggled ? m_error_filter->show() : m_error_filter->hide();
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)

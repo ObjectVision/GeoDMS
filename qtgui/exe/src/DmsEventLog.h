@@ -43,8 +43,8 @@ public:
 public slots:
 	void scrollToBottomOnTimeout();
 	void scrollToBottomThrottled();
-	void toggleTextFilter();
-	void toggleTypeFilter();
+	void toggleTextFilter(bool toggled);
+	void toggleTypeFilter(bool toggled);
 
 private:
 	QPointer<QTimer> m_throttle_timer;

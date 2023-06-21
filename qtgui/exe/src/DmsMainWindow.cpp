@@ -1687,11 +1687,15 @@ void MainWindow::createRightSideToolbar()
 
     const QIcon eventlog_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
     m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(metainfo_icon, tr("&Eventlog text filter"));
+    m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
+    connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
 
     const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
     m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(metainfo_icon, tr("&Eventlog type filter"));
+    m_eventlog_event_type_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
+    connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
 
 // value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
 //    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
