@@ -236,29 +236,11 @@ public:
     MainWindow(CmdLineSetttings& cmdLineSettings);
     ~MainWindow();
 
-    auto getDmsModel() -> DmsModel* { return m_dms_model.get(); }
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item);
     bool LoadConfig(CharPtr configFilePath);
-    
-    auto getDmsTreeViewPtr() -> DmsTreeView*;
-    auto getEventLogViewPtr() -> DmsEventLog* { return m_eventlog.get();  }
-    auto getDmsMdiAreaPtr() -> QDmsMdiArea* { return m_mdi_area.get(); }
-    auto getDmsToolbarPtr() -> QToolBar* { return m_toolbar; }
-    auto getExportPrimaryDataAction() -> QAction* { return m_export_primary_data_action.get(); };
-    auto getStepToFailreasonAction() -> QAction* { return m_step_to_failreason_action.get(); };
-    auto getGoToCausaPrimaAction() -> QAction* { return m_go_to_causa_prima_action.get(); };
-    auto getEditConfigSourceAction() -> QAction* { return m_edit_config_source_action.get(); };
-    auto getUpdateTreeItemAction() -> QAction* { return m_update_treeitem_action.get(); };
-    auto getUpdateSubtreeAction() -> QAction* { return m_update_subtree_action.get(); };
-    auto getInvalidateAction() -> QAction* { return m_invalidate_action.get(); };
-    auto getDefaultviewAction() -> QAction* { return m_defaultview_action.get(); };
-    auto getTableviewAction() -> QAction* { return m_tableview_action.get(); };
-    auto getMapviewAction() -> QAction* { return m_mapview_action.get(); };
-    auto getStatisticAction() -> QAction* { return m_statistics_action.get(); };
-    auto getHistogramAction() -> QAction* { return m_histogramview_action.get(); };
-    auto getProcessSchemeAction() -> QAction* { return m_process_schemes_action.get(); };
+
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
