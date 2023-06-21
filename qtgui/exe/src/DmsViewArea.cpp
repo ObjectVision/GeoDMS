@@ -102,8 +102,10 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 
 void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 {
-    HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
+    setAttribute(Qt::WA_DeleteOnClose);
 
+    HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
+    
     HINSTANCE instance = GetInstance(hWndMain);
     auto parent_hwnd = (HWND)winId();
     auto rect = contentsRectInPixelUnits();

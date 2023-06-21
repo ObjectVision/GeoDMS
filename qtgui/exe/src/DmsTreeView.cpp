@@ -383,69 +383,69 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
 
 	// export primary data
-	auto export_primary_data_action = MainWindow::TheOne()->getExportPrimaryDataAction();
+	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
 	export_primary_data_action->setDisabled(false);
 	m_context_menu->addAction(export_primary_data_action);
 
 	// step to failreason
-	auto step_to_failreason = MainWindow::TheOne()->getStepToFailreasonAction();
+	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
 	step_to_failreason->setDisabled(!ti || !ti->WasFailed());
 	m_context_menu->addAction(step_to_failreason);
 
 	// go to causa prima
-	auto go_to_causa_prima = MainWindow::TheOne()->getGoToCausaPrimaAction();
+	auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
 	go_to_causa_prima->setDisabled(!ti || !ti->WasFailed());
 	m_context_menu->addAction(go_to_causa_prima);
 
 	// edit config source
-	auto edit_config_source = MainWindow::TheOne()->getEditConfigSourceAction();
+	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
 	edit_config_source->setDisabled(false);
 	m_context_menu->addAction(edit_config_source);
 
 	// update treeitem
-	auto update_treeitem = MainWindow::TheOne()->getUpdateTreeItemAction();
+	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
 	update_treeitem->setDisabled(true);
 	m_context_menu->addAction(update_treeitem);
 
 	// update subtree
-	auto update_subtree = MainWindow::TheOne()->getUpdateSubtreeAction();
+	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
 	update_subtree->setDisabled(true);
 	m_context_menu->addAction(update_subtree);
 
 	// invalidate 
-	auto invalidate = MainWindow::TheOne()->getInvalidateAction();
+	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
 	invalidate->setDisabled(true);
 	m_context_menu->addAction(invalidate);
 
 	// default view
-	auto default_view_action = MainWindow::TheOne()->getDefaultviewAction();
+	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
 	default_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
 	m_context_menu->addAction(default_view_action);
 
 	// table view
-	auto table_view_action = MainWindow::TheOne()->getTableviewAction();
+	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
 	table_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer));
 	m_context_menu->addAction(table_view_action);
 
 	// map view
-	auto map_view_action = MainWindow::TheOne()->getMapviewAction();
+	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
 	map_view_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
 	m_context_menu->addAction(map_view_action);
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
 	// statistics view
-	auto statistics_view_action = MainWindow::TheOne()->getStatisticAction();
+	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
 	statistics_view_action->setEnabled(IsDataItem(ti));
 	m_context_menu->addAction(statistics_view_action);
 //	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
 	// histogram view
-	auto histogramview = MainWindow::TheOne()->getHistogramAction();
+	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
 	histogramview->setDisabled(true);
 	m_context_menu->addAction(histogramview);
 
 	// process scheme
-	auto process_scheme = MainWindow::TheOne()->getProcessSchemeAction();
+	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
 	process_scheme->setDisabled(true);
 	m_context_menu->addAction(process_scheme);
 

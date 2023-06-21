@@ -530,14 +530,9 @@ MainWindow::~MainWindow()
     SHV_SetCreateViewActionFunc(nullptr);
 }
 
-auto MainWindow::getDmsTreeViewPtr() -> DmsTreeView*
-{ 
-    return m_treeview.get(); 
-}
-
 void DmsCurrentItemBar::setDmsCompleter()
 {
-    auto dms_model = MainWindow::TheOne()->getDmsModel();
+    auto dms_model = MainWindow::TheOne()->m_dms_model.get();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
     completer->setModel(dms_model);
     completer->setSeparator("/");
@@ -562,7 +557,7 @@ void DmsCurrentItemBar::onEditingFinished()
     if (found_treeitem)
     {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
-        auto treeView = MainWindow::TheOne()->getDmsTreeViewPtr();
+        auto treeView = MainWindow::TheOne()->m_treeview.get();
         treeView->scrollTo(treeView->currentIndex(), QAbstractItemView::ScrollHint::PositionAtBottom);
     }
 }
@@ -678,7 +673,7 @@ DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text,
 
 void DmsToolbuttonAction::onToolbuttonPressed()
 {
-    auto mdi_area = MainWindow::TheOne()->getDmsMdiAreaPtr();
+    auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
     if (!mdi_area)
         return;
 
@@ -701,7 +696,7 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     if (m_data.is_global) // ie. zoom-in or zoom-out can be active at a single time
     {
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
-        for (auto action : MainWindow::TheOne()->getDmsToolbarPtr()->actions())
+        for (auto action : MainWindow::TheOne()->m_toolbar->actions())
         {
             auto dms_toolbar_action = dynamic_cast<DmsToolbuttonAction*>(action);
             if (!dms_toolbar_action)
@@ -1285,12 +1280,13 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
 
 void MainWindow::ShowStatistics(const TreeItem* tiContext)
 {
-    auto* mdiSubWindow = new QMdiSubWindow(getDmsMdiAreaPtr()); // not a DmsViewArea
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
-    getDmsMdiAreaPtr()->addSubWindow(mdiSubWindow);
+    m_mdi_area->addSubWindow(mdiSubWindow);
+    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
     InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
@@ -1324,7 +1320,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     {
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
-        auto va = new QDmsViewArea(mainWindow->getDmsMdiAreaPtr(), createStruct);
+        auto va = new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
         return;
     }
     case CC_Activate:
@@ -1338,7 +1334,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     if (s_CurrMainWindow)
     {
         assert(s_CurrMainWindow == mainWindow);
-        mainWindow->getDmsTreeViewPtr()->update(); // this actually only invalidates any drawn area and causes repaint later
+        mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
     }
 }
 
