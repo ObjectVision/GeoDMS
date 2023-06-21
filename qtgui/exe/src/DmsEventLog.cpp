@@ -4,6 +4,7 @@
 #include <QDockWidget>
 #include <QMenubar>
 #include <QTimer>
+#include <QGridLayout>
 
 #include "dbg/Timer.h"
 
@@ -62,16 +63,37 @@ void EventLogModel::addText(SeverityTypeID st, CharPtr msg)
 }
 
 DmsEventLog::DmsEventLog(QWidget* parent)
-	: QListView(parent)
+	: QWidget(parent)
 {
+	// throttle
 	m_throttle_timer = new QTimer(this);
 	m_throttle_timer->setSingleShot(true);
 	connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
+
+	// filters
+	m_text_filter = std::make_unique<QLineEdit>();
+	m_minor_trace_filter = std::make_unique<QCheckBox>("Show minor traces");
+	m_major_trace_filter = std::make_unique<QCheckBox>("Show major traces");
+	m_warning_filter = std::make_unique<QCheckBox>("Show warnings");
+	m_error_filter = std::make_unique<QCheckBox>("Show errors");
+
+	// eventlog
+	m_log = std::make_unique<QListView>();
+	m_log->setUniformItemSizes(true);
+
+	auto grid_layout = new QGridLayout(MainWindow::TheOne());
+	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 4);
+	grid_layout->addWidget(m_minor_trace_filter.get(), 1, 0);
+	grid_layout->addWidget(m_major_trace_filter.get(), 1, 1);
+	grid_layout->addWidget(m_warning_filter.get(), 1, 2);
+	grid_layout->addWidget(m_error_filter.get(), 1, 3);
+	grid_layout->addWidget(m_log.get(), 2, 0, 1, 4);
+	setLayout(grid_layout);
 }
 
 void DmsEventLog::scrollToBottomOnTimeout()
 {
-	scrollToBottom();
+	m_log->scrollToBottom();
 }
 
 void DmsEventLog::scrollToBottomThrottled()
@@ -82,6 +104,16 @@ void DmsEventLog::scrollToBottomThrottled()
 	// TODO: only start throttle timer when user is not looking at different parts of the eventlog.
 
 	m_throttle_timer->start(1000);
+}
+
+void DmsEventLog::toggleTextFilter()
+{
+
+}
+
+void DmsEventLog::toggleTypeFilter()
+{
+
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)
@@ -96,16 +128,15 @@ auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 {
     auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
 	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(dock);
+	
     dock->setWidget(dms_eventlog_pointer.get());
     dock->setTitleBarWidget(new QWidget(dock));
 //    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, dock);
 
-    dms_eventlog_pointer->setUniformItemSizes(true);
-
     //viewMenu->addAction(dock->toggleViewAction());
 	dms_main_window->m_eventlog_model = std::make_unique<EventLogModel>();
-	dms_eventlog_pointer->setModel(dms_main_window->m_eventlog_model.get());
-
+	dms_eventlog_pointer->m_log->setModel(dms_main_window->m_eventlog_model.get());
+	//dock->show();
 	return dms_eventlog_pointer;
 }

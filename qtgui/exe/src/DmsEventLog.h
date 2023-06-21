@@ -3,6 +3,8 @@
 #include <QPointer>
 #include <QAbstractListModel>
 #include <QListView>
+#include <QCheckBox>
+#include <QLineEdit>
 
 class MainWindow;
 
@@ -26,15 +28,23 @@ private:
 	std::vector<item_t> m_Items;
 };
 
-class DmsEventLog : public QListView
+class DmsEventLog : public QWidget
 {
 	Q_OBJECT
 public:
 	DmsEventLog(QWidget* parent);
+	std::unique_ptr<QLineEdit> m_text_filter;
+	std::unique_ptr<QCheckBox> m_minor_trace_filter;
+	std::unique_ptr<QCheckBox> m_major_trace_filter;
+	std::unique_ptr<QCheckBox> m_warning_filter;
+	std::unique_ptr<QCheckBox> m_error_filter;
+	std::unique_ptr<QListView> m_log;
 
 public slots:
 	void scrollToBottomOnTimeout();
 	void scrollToBottomThrottled();
+	void toggleTextFilter();
+	void toggleTypeFilter();
 
 private:
 	QPointer<QTimer> m_throttle_timer;
