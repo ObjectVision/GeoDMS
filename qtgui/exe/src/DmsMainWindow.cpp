@@ -1525,7 +1525,7 @@ void MainWindow::createActions()
 
     auto win5_action = new QAction(tr("&Close All"), this);
     win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
-    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
+    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeAllSubWindows);
 
     /*vauto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
