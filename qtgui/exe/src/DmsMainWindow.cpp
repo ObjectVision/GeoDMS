@@ -1291,6 +1291,7 @@ void MainWindow::ShowStatistics(const TreeItem* tiContext)
     SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
     getDmsMdiAreaPtr()->addSubWindow(mdiSubWindow);
+    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
     InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
