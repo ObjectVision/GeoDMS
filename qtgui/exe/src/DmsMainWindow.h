@@ -311,7 +311,7 @@ private:
     void createActions();
     void createStatusBar();
     void createDetailPagesDock();
-    void createDetailPagesToolbar();
+    void createRightSideToolbar();
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateWindowMenu();
@@ -368,13 +368,15 @@ public:
     std::unique_ptr<QMenu> m_window_menu;
     std::unique_ptr<QMenu> m_help_menu;
     std::unique_ptr<QMenu> m_code_analysis_submenu;
-    QPointer<QToolBar> m_detail_pages_toolBar;
+    QPointer<QToolBar> m_right_side_toolbar;
     std::unique_ptr<QAction> m_general_page_action;
     std::unique_ptr<QAction> m_explore_page_action;
     std::unique_ptr<QAction> m_properties_page_action;
     std::unique_ptr<QAction> m_configuration_page_action;
     std::unique_ptr<QAction> m_sourcedescr_page_action;
     std::unique_ptr<QAction> m_metainfo_page_action;
+    std::unique_ptr<QAction> m_eventlog_event_text_filter_toggle;
+    std::unique_ptr<QAction> m_eventlog_event_type_filter_toggle;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
