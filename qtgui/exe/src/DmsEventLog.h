@@ -18,15 +18,26 @@ public:
 
 	int rowCount(const QModelIndex& parent = QModelIndex()) const override
 	{
-		return m_Items.size();
+		return m_filtered_indices.empty() ? m_Items.size() : m_filtered_indices.size();
 	}
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
 	void addText(SeverityTypeID st, CharPtr msg);
 
+public slots:
+	void refilter();
+	void refilterOnToggle(bool checked);
+
 private:
+	auto dataFiltered(int row) const -> std::pair<SeverityTypeID, QString>;
+	bool itemPassesTypeFilter(item_t& item);
+	bool itemPassesTextFilter(item_t& item);
+	bool itemPassesFilter(item_t& item);
+
+	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
+	bool m_filter_active = false;
 };
 
 class DmsEventLog : public QWidget

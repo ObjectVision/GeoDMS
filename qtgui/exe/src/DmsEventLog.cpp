@@ -14,22 +14,30 @@
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 
+auto EventLogModel::dataFiltered(int row) const -> std::pair<SeverityTypeID, QString>
+{
+	return m_Items.at(m_filtered_indices.at(row));
+}
+
 QVariant EventLogModel::data(const QModelIndex& index, int role) const
 {
 	if (!index.isValid())
 		return QVariant();
 
+	if (m_filter_active && m_filtered_indices.empty()) // filter active, but no item passed filter
+		return QVariant();
+
 	auto row = index.row();
-	assert(row < m_Items.size());
+	auto item_data = m_filter_active ? dataFiltered(row) : m_Items[row];
 
 	switch (role)
 	{
 	case Qt::DisplayRole:
-		return m_Items[row].second;
+		return item_data.second;
 
 	case Qt::ForegroundRole:
 	{
-		switch (m_Items[row].first) {
+		switch (item_data.first) {
 		case SeverityTypeID::ST_FatalError:
 		case SeverityTypeID::ST_Error:
 			return QColor(Qt::red);
@@ -50,16 +58,84 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
+bool EventLogModel::itemPassesTypeFilter(item_t& item)
+{
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	switch (item.first)
+	{
+	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_minor_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_major_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_Warning: {return eventlog->m_warning_filter->isChecked(); };
+	case SeverityTypeID::ST_Error: {return eventlog->m_error_filter->isChecked(); };
+	default: return true;
+	}
+}
+
+bool EventLogModel::itemPassesTextFilter(item_t& item)
+{
+	auto text_filter_string = MainWindow::TheOne()->m_eventlog.get()->m_text_filter->text();
+	if (text_filter_string.isEmpty())
+		return true;
+
+	return item.second.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
+}
+
+bool EventLogModel::itemPassesFilter(item_t& item)
+{
+	return itemPassesTypeFilter(item) && itemPassesTextFilter(item);
+}
+
+void EventLogModel::refilter()
+{
+	beginResetModel();
+	m_filter_active = true;
+	m_filtered_indices.clear();
+
+	UInt64 index = 0;
+	for (auto& item : m_Items)
+	{
+		if (itemPassesFilter(item))
+			m_filtered_indices.push_back(index);
+
+		index++;
+	}
+	endResetModel();
+
+	if (m_filtered_indices.size() == m_Items.size())
+	{
+		m_filtered_indices.clear();
+		m_filter_active = false;
+	}
+
+	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
+}
+
+void EventLogModel::refilterOnToggle(bool checked)
+{
+	refilter();
+}
+
 void EventLogModel::addText(SeverityTypeID st, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
-	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
+	auto new_eventlog_item = item_t(st, msg);
 
 	m_Items.insert(m_Items.end(), item_t(st, msg));
+	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
+	if (!new_item_passes_filter)
+		return;
+
+	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
+
+
+
+
+	m_filtered_indices.push_back(m_Items.size()-1);
 
 	endInsertRows();
+	QModelIndex index;
+	index = this->index(rowCount_, 0, QModelIndex());
 
-	auto index = this->index(rowCount_, 0, QModelIndex());
 	emit dataChanged(index, index);
 }
 
@@ -74,9 +150,17 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	// filters
 	m_text_filter = std::make_unique<QLineEdit>();
 	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor trace");
+	m_minor_trace_filter->setCheckable(true);
+	m_minor_trace_filter->setChecked(true);
 	m_major_trace_filter = std::make_unique<QCheckBox>("Major trace");
+	m_major_trace_filter->setCheckable(true);
+	m_major_trace_filter->setChecked(true);
 	m_warning_filter = std::make_unique<QCheckBox>("Warning");
+	m_warning_filter->setCheckable(true);
+	m_warning_filter->setChecked(true);
 	m_error_filter = std::make_unique<QCheckBox>("Error");
+	m_error_filter->setCheckable(true);
+	m_error_filter->setChecked(true);
 
 	// eventlog
 	m_log = std::make_unique<QListView>();
