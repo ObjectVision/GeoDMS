@@ -357,6 +357,7 @@ public:
     std::unique_ptr<QAction> m_configuration_page_action;
     std::unique_ptr<QAction> m_sourcedescr_page_action;
     std::unique_ptr<QAction> m_metainfo_page_action;
+    std::unique_ptr<QAction> m_eventlog_scroll_to_bottom_toggle;
     std::unique_ptr<QAction> m_eventlog_event_text_filter_toggle;
     std::unique_ptr<QAction> m_eventlog_event_type_filter_toggle;
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;

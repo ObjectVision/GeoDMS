@@ -5,6 +5,7 @@
 #include <QMenubar>
 #include <QTimer>
 #include <QGridLayout>
+#include <QScrollBar>
 
 #include "dbg/Timer.h"
 
@@ -80,6 +81,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	// eventlog
 	m_log = std::make_unique<QListView>();
 	m_log->setUniformItemSizes(true);
+	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
 	auto grid_layout = new QGridLayout(MainWindow::TheOne());
 	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 4);
@@ -94,17 +96,58 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	toggleTypeFilter(false);
 }
 
+void DmsEventLog::onVerticalScrollbarValueChanged(int value)
+{
+	auto vertical_scroll_bar = m_log->verticalScrollBar();
+	auto maximum = vertical_scroll_bar->maximum();
+	if ((m_scroll_to_bottom && value < maximum))
+		toggleScrollToBottom();
+
+	if (value == maximum)
+		toggleScrollToBottomDirectly();
+}
+
+bool DmsEventLog::isScrolledToBottom()
+{
+	auto vertical_scroll_bar = m_log->verticalScrollBar();
+	auto current = vertical_scroll_bar->sliderPosition();
+	auto maximum = vertical_scroll_bar->maximum();
+	if (current == maximum || maximum == 0)
+		return true;
+	return false;
+}
+
 void DmsEventLog::scrollToBottomOnTimeout()
 {
+	auto new_current_index = m_log->model()->index(m_log->model()->rowCount()-1, 0);
+	m_log->setCurrentIndex(new_current_index);
+	m_log->scrollToBottom();
+}
+
+void DmsEventLog::toggleScrollToBottom()
+{
+	m_scroll_to_bottom = !m_scroll_to_bottom;
+	m_scroll_to_bottom ? MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setDisabled(true) : MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setEnabled(true);
+	if (m_scroll_to_bottom)
+		scrollToBottomThrottled();
+}
+
+void DmsEventLog::toggleScrollToBottomDirectly()
+{
+	m_scroll_to_bottom = true;
+	MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
+	auto new_current_index = m_log->model()->index(m_log->model()->rowCount() - 1, 0);
+	m_log->setCurrentIndex(new_current_index);
 	m_log->scrollToBottom();
 }
 
 void DmsEventLog::scrollToBottomThrottled()
 {
-	if (m_throttle_timer->isActive())
+	if (!m_scroll_to_bottom)
 		return;
 
-	// TODO: only start throttle timer when user is not looking at different parts of the eventlog.
+	if (m_throttle_timer->isActive())
+		return;
 
 	m_throttle_timer->start(1000);
 }

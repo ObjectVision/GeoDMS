@@ -5,6 +5,7 @@
 #include <QListView>
 #include <QCheckBox>
 #include <QLineEdit>
+#include <QModelIndexList>
 
 class MainWindow;
 
@@ -39,14 +40,19 @@ public:
 	std::unique_ptr<QCheckBox> m_warning_filter;
 	std::unique_ptr<QCheckBox> m_error_filter;
 	std::unique_ptr<QListView> m_log;
+	bool m_scroll_to_bottom = true;
 
 public slots:
+	void onVerticalScrollbarValueChanged(int value);
 	void scrollToBottomOnTimeout();
 	void scrollToBottomThrottled();
+	void toggleScrollToBottom();
+	void toggleScrollToBottomDirectly();
 	void toggleTextFilter(bool toggled);
 	void toggleTypeFilter(bool toggled);
 
 private:
+	bool isScrolledToBottom();
 	QPointer<QTimer> m_throttle_timer;
 };
 

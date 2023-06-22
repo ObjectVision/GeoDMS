@@ -1217,7 +1217,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             std::string last_config_file_dos = configFilePath;
             std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
             insertCurrentConfigInRecentFiles(last_config_file_dos);
-            SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
+            if (std::filesystem::exists(last_config_file_dos))
+                SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
 
@@ -1270,6 +1271,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     m_current_item_bar->setDmsCompleter();
     updateCaption();
     m_dms_model->reset();
+    m_eventlog->scrollToBottomThrottled();
     return true;
 }
 
@@ -1685,17 +1687,23 @@ void MainWindow::createRightSideToolbar()
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_right_side_toolbar->addWidget(spacer);
 
-    const QIcon eventlog_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
-    m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(metainfo_icon, tr("&Eventlog text filter"));
+    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_properties.bmp"));
+    m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
     m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
     connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
 
-    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
-    m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(metainfo_icon, tr("&Eventlog type filter"));
+    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/TB_select_object.bmp"));
+    m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(eventlog_type_filter_icon, tr("&Eventlog: type filter"));
     m_eventlog_event_type_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
     connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
+
+    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/undo.png"));
+    m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
+    m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
+    m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());
+    connect(m_eventlog_scroll_to_bottom_toggle.get(), &QAction::triggered, m_eventlog.get(), &DmsEventLog::toggleScrollToBottomDirectly);
 
 // value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
 //    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
