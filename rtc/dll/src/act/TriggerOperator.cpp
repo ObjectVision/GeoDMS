@@ -438,7 +438,7 @@ namespace SuspendTrigger {
 
 	void Resume() noexcept
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 //		dms_assert(!s_SuspendLevel); // receipe for trouble later on
 		s_bLastResult  = false;
 		s_ProgressMade = false;

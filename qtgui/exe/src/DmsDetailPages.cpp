@@ -173,6 +173,8 @@ void DmsDetailPages::drawPage()
         return;
 
     bool ready = true;
+    SuspendTrigger::Resume();
+
     // stream general info for current_item to htm
     VectorOutStreamBuff buffer;
     auto streamType = m_active_detail_page == ActiveDetailPage::CONFIGURATION ? OutStreamBase::ST_DMS : OutStreamBase::ST_HTM;

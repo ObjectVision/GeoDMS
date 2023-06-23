@@ -803,7 +803,8 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStrPtr);
+		assert(xmlOutStrPtr);
+		assert(!SuspendTrigger::DidSuspend());
 
 		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);

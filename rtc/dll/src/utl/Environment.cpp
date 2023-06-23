@@ -40,6 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/IndexedStrings.h"
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
+#include "utl/Environment.h"
 #include "LockLevels.h"
 
 #include <concrt.h>
@@ -212,6 +213,18 @@ SharedStr GetCurrentDir()
 void SetCurrentDir(CharPtr dir)
 {
 	SetCurrentDirectory(dir);
+}
+
+static exe_type s_ExeType = exe_type::unknown_run_or_dephi;
+
+void DMS_Appl_SetExeType(exe_type t)
+{
+	s_ExeType = t;
+}
+
+exe_type DMS_Appl_GetExeType()
+{
+	return s_ExeType;
 }
 
 void DMS_Appl_SetExeDir(CharPtr exeDir)
