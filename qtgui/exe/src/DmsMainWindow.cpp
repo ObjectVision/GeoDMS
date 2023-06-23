@@ -936,30 +936,37 @@ void MainWindow::runToFailReason()
 
 void MainWindow::toggle_treeview()
 {
-
+    bool isVisible = m_treeview->isVisible();
+    m_treeview->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_detailpages()
 {
-
+    bool isVisible = m_right_side_toolbar->isVisible();
+    m_detail_pages->setVisible(!isVisible);
+    m_right_side_toolbar->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_eventlog()
 {
-
+    bool isVisible = m_eventlog->isVisible();
+    m_eventlog->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_toolbar()
 {
+    if (!m_toolbar)
+        return; // when there is no DataView opened, there is also no (in)visible toolbar
 
+    bool isVisible = m_toolbar->isVisible();
+    m_toolbar->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_currentitembar()
 {
-
+    bool isVisible = m_current_item_bar_container->isVisible();
+    m_current_item_bar_container->setVisible(!isVisible);
 }
-
-
 
 auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
@@ -1379,10 +1386,10 @@ void MainWindow::createActions()
 {
     m_file_menu = std::make_unique<QMenu>(tr("&File"));
     menuBar()->addMenu(m_file_menu.get());
-    auto current_item_bar_container = addToolBar(tr("Current item bar"));
+    m_current_item_bar_container = addToolBar(tr("Current item bar"));
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
-    current_item_bar_container->addWidget(m_current_item_bar.get());
+    m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
 
@@ -1514,11 +1521,11 @@ void MainWindow::createActions()
     connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
     connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
     connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
-    m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt-0")));
-    m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt-1")));
-    m_toggle_eventlog_action->setShortcut(QKeySequence(tr("Alt-2")));
-    m_toggle_toolbar_action->setShortcut(QKeySequence(tr("Alt-3")));
-    m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt-4")));
+    m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
+    m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
+    m_toggle_eventlog_action->setShortcut(QKeySequence(tr("Alt+2")));
+    m_toggle_toolbar_action->setShortcut(QKeySequence(tr("Alt+3")));
+    m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
     m_view_menu->addAction(m_toggle_treeview_action.get());
     m_view_menu->addAction(m_toggle_detailpage_action.get());
     m_view_menu->addAction(m_toggle_eventlog_action.get());
@@ -1629,11 +1636,14 @@ void MainWindow::updateFileMenu()
 
 void MainWindow::updateViewMenu()
 {
-    m_toggle_treeview_action->setChecked(true);
-    m_toggle_detailpage_action->setChecked(true);
-    m_toggle_eventlog_action->setChecked(true);
-    m_toggle_toolbar_action->setChecked(true);
-    m_toggle_currentitembar_action->setChecked(true);
+    m_toggle_treeview_action->setChecked(m_treeview->isVisible());
+    m_toggle_detailpage_action->setChecked(m_right_side_toolbar->isVisible()); // 
+    m_toggle_eventlog_action->setChecked(m_eventlog->isVisible());
+    bool hasToolbar = !m_toolbar.isNull();
+    m_toggle_toolbar_action->setEnabled(hasToolbar);
+    if (hasToolbar)
+        m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
+    m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
 }
 
 void MainWindow::updateWindowMenu() 
