@@ -934,6 +934,33 @@ void MainWindow::runToFailReason()
     }   
 }
 
+void MainWindow::toggle_treeview()
+{
+
+}
+
+void MainWindow::toggle_detailpages()
+{
+
+}
+
+void MainWindow::toggle_eventlog()
+{
+
+}
+
+void MainWindow::toggle_toolbar()
+{
+
+}
+
+void MainWindow::toggle_currentitembar()
+{
+
+}
+
+
+
 auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
@@ -1469,6 +1496,36 @@ void MainWindow::createActions()
     // process schemes
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
+    m_view_menu->addSeparator();
+    m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
+    m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
+    m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
+    m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
+
+    m_toggle_treeview_action->setCheckable(true);
+    m_toggle_detailpage_action->setCheckable(true);
+    m_toggle_eventlog_action->setCheckable(true);
+    m_toggle_toolbar_action->setCheckable(true);
+    m_toggle_currentitembar_action->setCheckable(true);
+
+    connect(m_toggle_treeview_action.get(), &QAction::triggered, this, &MainWindow::toggle_treeview);
+    connect(m_toggle_detailpage_action.get(), &QAction::triggered, this, &MainWindow::toggle_detailpages);
+    connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
+    connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
+    connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
+    m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt-0")));
+    m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt-1")));
+    m_toggle_eventlog_action->setShortcut(QKeySequence(tr("Alt-2")));
+    m_toggle_toolbar_action->setShortcut(QKeySequence(tr("Alt-3")));
+    m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt-4")));
+    m_view_menu->addAction(m_toggle_treeview_action.get());
+    m_view_menu->addAction(m_toggle_detailpage_action.get());
+    m_view_menu->addAction(m_toggle_eventlog_action.get());
+    m_view_menu->addAction(m_toggle_toolbar_action.get());
+    m_view_menu->addAction(m_toggle_currentitembar_action.get());
+    connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
+
 
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
@@ -1568,6 +1625,15 @@ void MainWindow::updateFileMenu()
 
     // reinsert quit action
     m_file_menu->addAction(m_quit_action.get());
+}
+
+void MainWindow::updateViewMenu()
+{
+    m_toggle_treeview_action->setChecked(true);
+    m_toggle_detailpage_action->setChecked(true);
+    m_toggle_eventlog_action->setChecked(true);
+    m_toggle_toolbar_action->setChecked(true);
+    m_toggle_currentitembar_action->setChecked(true);
 }
 
 void MainWindow::updateWindowMenu() 

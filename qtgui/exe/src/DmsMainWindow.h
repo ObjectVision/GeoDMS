@@ -273,6 +273,12 @@ public slots:
     void stepToFailReason();
     void runToFailReason();
 
+    void toggle_treeview();
+    void toggle_detailpages();
+    void toggle_eventlog();
+    void toggle_toolbar();
+    void toggle_currentitembar();
+
 public slots:
     void fileOpen();
     void reOpen();
@@ -296,6 +302,7 @@ private:
     void createRightSideToolbar();
     void createDmsHelperWindowDocks();
     void updateFileMenu();
+    void updateViewMenu();
     void updateWindowMenu();
     void updateCaption();
 
@@ -309,28 +316,20 @@ private:
     QPointer<QDockWidget> m_detailpages_dock;
 
 public:
+    std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_help_menu
+        , m_code_analysis_submenu;
+
     // shared actions
-    std::unique_ptr<QAction> m_export_primary_data_action;
-    std::unique_ptr<QAction> m_step_to_failreason_action;
-    std::unique_ptr<QAction> m_go_to_causa_prima_action;
-    std::unique_ptr<QAction> m_edit_config_source_action;
-    std::unique_ptr<QAction> m_update_treeitem_action;
-    std::unique_ptr<QAction> m_update_subtree_action;
-    std::unique_ptr<QAction> m_invalidate_action;
-    std::unique_ptr<QAction> m_defaultview_action;
-    std::unique_ptr<QAction> m_tableview_action;
-    std::unique_ptr<QAction> m_mapview_action;
-    std::unique_ptr<QAction> m_statistics_action;
-    std::unique_ptr<QAction> m_histogramview_action;
-    std::unique_ptr<QAction> m_process_schemes_action;
-    std::unique_ptr<QAction> m_gui_options_action;
-    std::unique_ptr<QAction> m_advanced_options_action;
-    std::unique_ptr<QAction> m_config_options_action;
-    std::unique_ptr<QAction> m_code_analysis_set_source_action;
-    std::unique_ptr<QAction> m_code_analysis_set_target_action;
-    std::unique_ptr<QAction> m_code_analysis_add_target_action;
-    std::unique_ptr<QAction> m_code_analysis_clr_targets_action;
-    std::unique_ptr<QAction> m_quit_action;
+    std::unique_ptr<QAction> m_export_primary_data_action
+    , m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action
+    , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
+    , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action, m_histogramview_action, m_process_schemes_action
+    , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
+    , m_gui_options_action, m_advanced_options_action, m_config_options_action
+    , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
+    , m_quit_action
+    , m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
+    , m_eventlog_scroll_to_bottom_toggle, m_eventlog_event_text_filter_toggle, m_eventlog_event_type_filter_toggle;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
@@ -343,23 +342,8 @@ public:
     std::unique_ptr<DmsEventLog> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar;
-    std::unique_ptr<QMenu> m_file_menu;
-    std::unique_ptr<QMenu> m_edit_menu;
-    std::unique_ptr<QMenu> m_view_menu;
-    std::unique_ptr<QMenu> m_tools_menu;
-    std::unique_ptr<QMenu> m_window_menu;
-    std::unique_ptr<QMenu> m_help_menu;
-    std::unique_ptr<QMenu> m_code_analysis_submenu;
     QPointer<QToolBar> m_right_side_toolbar;
-    std::unique_ptr<QAction> m_general_page_action;
-    std::unique_ptr<QAction> m_explore_page_action;
-    std::unique_ptr<QAction> m_properties_page_action;
-    std::unique_ptr<QAction> m_configuration_page_action;
-    std::unique_ptr<QAction> m_sourcedescr_page_action;
-    std::unique_ptr<QAction> m_metainfo_page_action;
-    std::unique_ptr<QAction> m_eventlog_scroll_to_bottom_toggle;
-    std::unique_ptr<QAction> m_eventlog_event_text_filter_toggle;
-    std::unique_ptr<QAction> m_eventlog_event_type_filter_toggle;
+
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsOptionsWindow> m_options_window;
