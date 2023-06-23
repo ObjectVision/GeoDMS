@@ -391,7 +391,7 @@ void Actor::TriggerEvaluation() const
 TimeStamp Actor::GetLastChangeTS () const
 {
 	DetermineState();
-	dms_assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
+	assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
 	return m_LastChangeTS;
 }
 

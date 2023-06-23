@@ -11,6 +11,7 @@
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
+#include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "mci/SingleLinkedList.inc"
@@ -2306,7 +2307,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 	try {
 		DetermineState();
-
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
@@ -2317,11 +2317,12 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 		TreeItemContextHandle tdc(this, "UpdateMetaInfo");
 
-		dms_assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress, guaranteed by IsDeterminingState() || IsPassor() || DetermineState()
+		assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress, guaranteed by IsDeterminingState() || IsPassor() || DetermineState()
 
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
+		UpdateMarker::ChangeSourceLock lock(this, "TreeItem::UpdateMetaInfoImpl");
 
-		dms_assert(!WasFailed(FR_MetaInfo));
+		assert(!WasFailed(FR_MetaInfo));
 		UpdateMetaInfoImpl(); // recursion protected part of UpdateMetaInfo
 
 		SetMetaInfoReady();
@@ -2342,11 +2343,11 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	catch (...)
 	{
 		// don't try again
-		dms_assert(m_State.GetProgress() <= PS_MetaInfo);
+		assert(m_State.GetProgress() <= PS_MetaInfo);
 		m_State.SetProgress(PS_MetaInfo);
 		CatchFail(FR_MetaInfo);
 	}
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
 void TreeItem::UpdateMetaInfo() const

@@ -170,14 +170,13 @@ namespace UpdateMarker {
 ChangeSourceLock::ChangeSourceLock(TimeStamp ts, CharPtr)
 	:	m_OldTimeStamp(impl::tsActive)
 {	
-	impl::tsActive = ts; 
+	MakeMax(ts, tsBereshit);
+	impl::tsActive = ts;
 }
 
-ChangeSourceLock::ChangeSourceLock(const Actor* actor, CharPtr)
-	:	m_OldTimeStamp(impl::tsActive)
-{	
-	impl::tsActive = GetLastChangeTS(actor); 
-}
+ChangeSourceLock::ChangeSourceLock(const Actor* actor, CharPtr x)
+	:	ChangeSourceLock(GetLastChangeTS(actor), x)
+{}
 
 ChangeSourceLock::~ChangeSourceLock()
 { 
