@@ -14,7 +14,7 @@
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 
-auto EventLogModel::dataFiltered(int row) const -> std::pair<SeverityTypeID, QString>
+auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
 {
 	return m_Items.at(m_filtered_indices.at(row));
 }
@@ -28,16 +28,16 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		return QVariant();
 
 	auto row = index.row();
-	auto item_data = m_filter_active ? dataFiltered(row) : m_Items[row];
+	const item_t& item_data = m_filter_active ? dataFiltered(row) : m_Items[row];
 
 	switch (role)
 	{
 	case Qt::DisplayRole:
-		return item_data.second;
+		return item_data.m_Msg;
 
 	case Qt::ForegroundRole:
 	{
-		switch (item_data.first) {
+		switch (item_data.GetSeverityType()) {
 		case SeverityTypeID::ST_FatalError:
 		case SeverityTypeID::ST_Error:
 			return QColor(Qt::red);
@@ -61,7 +61,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 bool EventLogModel::itemPassesTypeFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.first)
+	switch (item.GetSeverityType())
 	{
 	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_minor_trace_filter->isChecked(); };
 	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_major_trace_filter->isChecked(); };
@@ -77,7 +77,7 @@ bool EventLogModel::itemPassesTextFilter(item_t& item)
 	if (text_filter_string.isEmpty())
 		return true;
 
-	return item.second.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
+	return item.m_Msg.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
 }
 
 bool EventLogModel::itemPassesFilter(item_t& item)
@@ -115,20 +115,17 @@ void EventLogModel::refilterOnToggle(bool checked)
 	refilter();
 }
 
-void EventLogModel::addText(SeverityTypeID st, CharPtr msg)
+void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
-	auto new_eventlog_item = item_t(st, msg);
+	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
 
-	m_Items.insert(m_Items.end(), item_t(st, msg));
+	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
 	if (!new_item_passes_filter)
 		return;
 
 	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
-
-
-
 
 	m_filtered_indices.push_back(m_Items.size()-1);
 
@@ -253,7 +250,7 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory
 {
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
-	eventlog_model->addText(st, msg);
+	eventlog_model->addText(st, msgCat, msg);
 	eventlog_view->scrollToBottomThrottled();
 }
 

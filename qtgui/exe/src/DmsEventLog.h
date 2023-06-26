@@ -9,13 +9,21 @@
 #include <QModelIndexList>
 
 class MainWindow;
+using BYTE = unsigned char;
 
 class EventLogModel : public QAbstractListModel
 {
 	Q_OBJECT
 
 public:
-	using item_t = std::pair<SeverityTypeID, QString>;
+	struct item_t {
+		BYTE m_SeverityCode = 0;
+		BYTE m_MsgCode = 0;
+		QString m_Msg;
+
+		SeverityTypeID GetSeverityType() const { return SeverityTypeID(m_SeverityCode); }
+		MsgCategory GetMsgCategory() const { return MsgCategory(m_MsgCode); }
+	};
 
 	int rowCount(const QModelIndex& parent = QModelIndex()) const override
 	{
@@ -24,14 +32,14 @@ public:
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	void addText(SeverityTypeID st, CharPtr msg);
+	void addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
 
 public slots:
 	void refilter();
 	void refilterOnToggle(bool checked);
 
 private:
-	auto dataFiltered(int row) const -> std::pair<SeverityTypeID, QString>;
+	auto dataFiltered(int row) const -> const EventLogModel::item_t&;
 	bool itemPassesTypeFilter(item_t& item);
 	bool itemPassesTextFilter(item_t& item);
 	bool itemPassesFilter(item_t& item);
