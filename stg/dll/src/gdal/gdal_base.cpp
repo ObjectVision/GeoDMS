@@ -633,6 +633,8 @@ GDALDataType gdalRasterDataType(ValueClassID tid)
 
 	case VT_UInt32:  return GDT_UInt32;
 	case VT_Int32:   return GDT_Int32;
+	case VT_UInt64:  return GDT_UInt64;
+	case VT_Int64:   return GDT_Int64;
 	case VT_Float32: return GDT_Float32;
 	case VT_Float64: return GDT_Float64;
 
