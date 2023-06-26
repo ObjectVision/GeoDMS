@@ -160,12 +160,13 @@ public:
 
 // *****************************************************************************
 
-GDALDataType gdalDataType(ValueClassID tid);
+GDALDataType gdalRasterDataType(ValueClassID tid);
 
 // *****************************************************************************
 
-auto DmsType2OGRFieldType(ValueClassID id, ValueComposition vc) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
-auto DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc) -> OGRwkbGeometryType;
+auto DmsType2OGRFieldType(ValueClassID id) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
+auto DmsType2OGRSubFieldType(ValueClassID id) -> OGRFieldSubType;
+auto DmsType2OGRGeometryType(ValueComposition vc) -> OGRwkbGeometryType;
 auto GetWktProjectionFromValuesUnit(const AbstrDataItem* adi) -> SharedStr;
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;

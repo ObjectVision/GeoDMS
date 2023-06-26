@@ -219,7 +219,7 @@ UPoint GDalGridImp::GetTileSize() const {
 	poBand->GetBlockSize(&x, &y);
 	return shp2dms_order(x, y);
 }
-UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalDataType(m_ValueClassID)); }
+UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalRasterDataType(m_ValueClassID)); }
 UInt32 GDalGridImp::GetTileByteWidth() const {
 	return (GetTileSize().X() * GetNrBitsPerPixel() + 7) / 8;
 }
@@ -262,7 +262,7 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
@@ -334,7 +334,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID),
 		0, //nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
@@ -639,7 +639,7 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 		width, height, // roi size
 		&buffer[0],
 		width, height, // buffer size
-		gdalDataType(VT_UInt8),
+		gdalRasterDataType(VT_UInt8),
 		0, //nPixelSpace,
 		0 //nLineSpace
 	);
