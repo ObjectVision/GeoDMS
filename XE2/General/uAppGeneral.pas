@@ -51,7 +51,7 @@ uses Windows, Messages, ComCtrls, StdCtrls, uDMSInterfaceTypes,
    function    TreeNode_GetTreeItem(const tn: TTreeNode): TTreeItem;
    function    TreeView_OnDrawTreeNode(tv: TTreeView; treeNodeUpdateSet: TTreeNodeUpdateSet; var Message: TWMNotify): Boolean;
 
-   procedure   LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; longMsg: PMsgChar);  cdecl;
+   procedure   LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; longMsg: PMsgChar);  cdecl;
    function    CoalesceHeap(size: SizeT; longMsg: PMsgChar): Boolean;  cdecl;
 
 var g_HeapProblemCount: Cardinal = 0;
@@ -405,7 +405,7 @@ begin
 end;
 
 
-procedure LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; longMsg: PMsgChar); cdecl;
+procedure LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; longMsg: PMsgChar); cdecl;
 begin
   if (s in [ST_Error, ST_Fatal]) and Assigned(g_frmMain) then
     INC(frmMain.m_nErrorCount);

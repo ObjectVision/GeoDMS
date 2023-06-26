@@ -53,9 +53,6 @@ int main(int argc, char** argv)
 		}
 	return 0;
 
-	DBG_INIT_COUT;
-
-
 	CDebugLog tracelog(SharedStr("c:/LocalData/Trace.log"));
 
 /*

@@ -68,6 +68,18 @@ void ProgressMsg(CharPtr msg)
 		(*s_clientFunc)(s_cientHandle, msg);
 }
 
+/********** MsgCategory **********/
+
+CharPtr AsString(MsgCategory msgCat)
+{
+	switch (msgCat) {
+	case MsgCategory::system: return "[system]";
+	case MsgCategory::wms: return "[wms]";
+	case MsgCategory::disposable: return "[disposable]";
+	case MsgCategory::progress: return "[progress]";
+	}
+	return "";
+}
 /********** AbstrContextHandle **********/
 
 THREAD_LOCAL static AbstrContextHandle* s_LastAbstrContextHandle = nullptr;
@@ -207,29 +219,9 @@ void ObjectIdContextHandle::GenerateDescription()
 	ObjectContextHandle::GenerateDescription();
 }
 
-/********** CDebugCOutHandle  **********/
-#include <iostream>
-
-static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
-{
-	std::cerr << '\n' << msg;
-}
-
-CDebugCOutHandle::CDebugCOutHandle()
-{
-	DMS_RegisterMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
-CDebugCOutHandle::~CDebugCOutHandle()
-{
-	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
 /********** CDebugContextHandle  **********/
 
 #include <concrt.h>
-//#include "Parallel.h"
-//#include "ptr/SharedBase.h"
 
 namespace { // local defs
 

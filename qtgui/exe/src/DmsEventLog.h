@@ -1,4 +1,5 @@
 #include "RtcBase.h"
+#include "dbg/SeverityType.h"
 
 #include <QPointer>
 #include <QAbstractListModel>
@@ -67,5 +68,6 @@ private:
 	QPointer<QTimer> m_throttle_timer;
 };
 
-void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
+
+void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;

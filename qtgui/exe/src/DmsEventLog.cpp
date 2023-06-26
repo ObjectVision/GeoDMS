@@ -249,7 +249,7 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 	toggled ? m_error_filter->show() : m_error_filter->hide();
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, CharPtr msg)
+void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
