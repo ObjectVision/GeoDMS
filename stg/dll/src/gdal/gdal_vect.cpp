@@ -1235,7 +1235,7 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 	return count;
 }
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldType DmsType2OGRFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Int32:
@@ -1267,11 +1267,11 @@ OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
 	case VT_SharedStr:
 		return OFTString;
 	default:
-		return OGRFieldType::OFTBinary;
+		return OGRFieldType::OFTMaxType;
 	}
 }
 
-OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Bool:
@@ -1287,7 +1287,7 @@ OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
 	}
 }
 
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc)
+OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 {
 	switch (vc) {
 	case ValueComposition::Single:
@@ -1323,8 +1323,8 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			SharedStr       fieldName = SharedStr(fieldCandidate->GetID());
 			int             bApproxOK = TRUE;
 
-			OGRFieldType    type    = DmsType2OGRFieldType(vci, vc);
-			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci, vc);
+			OGRFieldType    type    = DmsType2OGRFieldType(vci);
+			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
 			OGRFieldDefn    fieldDefn(fieldName.c_str(), type);         error_frame.ThrowUpWhateverCameUp();
 			fieldDefn.SetSubType(subtype);                   error_frame.ThrowUpWhateverCameUp();
 			layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();

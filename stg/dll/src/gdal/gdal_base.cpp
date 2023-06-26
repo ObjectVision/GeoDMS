@@ -374,12 +374,12 @@ void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* from
 	assert(fromConfig);
 	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
 	{
-		reportF(SeverityTypeID::ST_Warning, "GDAL: SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
+		/*reportF(SeverityTypeID::ST_Warning, "GDAL: SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
 			"\nDataset's SpatialReference:\n%s"
 			"\nbaseProjectionUnit's SpatialReference:\n%s"
 		, GetAsWkt(fromGDAL).c_str()
 		, GetAsWkt(fromConfig).c_str()
-		);
+		);*/ // TODO: make this message more specific and user readable, for instance refer to dataset and epsg code it encompasses.
 	}
 }
 
@@ -620,7 +620,7 @@ gdalVersionComponent s_gdalComponent;
 
 // *****************************************************************************
 
-GDALDataType gdalDataType(ValueClassID tid)
+GDALDataType gdalRasterDataType(ValueClassID tid)
 {
 	switch (tid) {
 		//		case Int8: 
@@ -968,11 +968,11 @@ OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
 		auto id    = subDataItem->GetID();
 
 		if (id == token::geometry)
-			return DmsType2OGRGeometryType(vci, vc);
+			return DmsType2OGRGeometryType(vc);
 
 		if (vc >= vcprev && vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		{
-			geot = DmsType2OGRGeometryType(vci, vc);
+			geot = DmsType2OGRGeometryType(vc);
 			vcprev = vc;
 		}
 	}
@@ -1157,6 +1157,49 @@ bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDA
 	return true;
 }
 
+bool dmsAndDriverTypeAreCompatible(std::string_view target_type, std::string_view supported_types_sequence)
+{
+	int word_begin = 0;
+	int word_end = 0;
+	for (char const& c : supported_types_sequence)
+	{
+		if (c == ' ')
+		{
+			auto supported_type = supported_types_sequence.substr(word_begin, word_end-word_begin);
+			if (supported_type.compare(target_type) == 0) // driver supports this value type!
+				return true;
+
+			word_begin = word_end + 1;
+		}
+
+		word_end++;
+
+		if (c == '\n')
+			break;
+	}
+	return false;
+}
+
+bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_value_class_id, ValueComposition dms_value_composition, GDALDriver* driver)
+{
+	if (gdalOpenFlags & GDAL_OF_RASTER)
+	{
+		auto raster_driver_supported_value_types = std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONDATATYPES));
+		auto target_gdal_raster_type = gdalRasterDataType(dms_value_class_id);
+		return dmsAndDriverTypeAreCompatible(GDALGetDataTypeName(target_gdal_raster_type), raster_driver_supported_value_types);
+	}
+	else if (gdalOpenFlags & GDAL_OF_VECTOR)
+	{
+		auto vector_driver_supported_field_data_types = std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATATYPES));// DmsType2OGRFieldType(dms_value_class_id);
+		auto vector_driver_supported_field_data_subtypes = driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATASUBTYPES) ? std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATASUBTYPES)) : ""; //DmsType2OGRSubFieldType(dms_value_class_id);
+		auto target_gdal_vector_type = DmsType2OGRFieldType(dms_value_class_id);
+		auto target_gdal_vector_subtype = DmsType2OGRSubFieldType(dms_value_class_id);
+		return dmsAndDriverTypeAreCompatible(OGR_GetFieldSubTypeName(target_gdal_vector_subtype), vector_driver_supported_field_data_subtypes) || dmsAndDriverTypeAreCompatible(OGR_GetFieldTypeName(target_gdal_vector_type), vector_driver_supported_field_data_types);
+	}
+
+	return true;
+}
+
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
 	dms_assert(rwMode != dms_rw_mode::unspecified);
@@ -1193,6 +1236,13 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	//if (pszConfigurationOptionsArray)
 	//	CPLSetConfigOptions(pszConfigurationOptionsArray);
 
+	auto valuesTypeID = VT_Unknown;
+	auto value_composition = ValueComposition::Unknown;
+	if (IsDataItem(smi.CurrRI()))
+	{
+		valuesTypeID = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		value_composition = smi.CurrRD()->GetValueComposition();
+	}
 	if (rwMode != dms_rw_mode::read_only && (gdalOpenFlags & GDAL_OF_RASTER) && IsDataItem(smi.CurrRI())) // not a container without a domain
 	{
 
@@ -1213,8 +1263,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nXSize = size.Col();
 			nYSize = size.Row();
 			nBands = 1;
-			auto valuesTypeID = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
-			eType = gdalDataType(valuesTypeID);
+			
+			eType = gdalRasterDataType(valuesTypeID);
 			if (valuesTypeID == VT_Bool) optionArray.AddString("NBITS=1");
 			if (valuesTypeID == VT_UInt2) optionArray.AddString("NBITS=2");
 			if (valuesTypeID == VT_UInt4) optionArray.AddString("NBITS=3");
@@ -1285,18 +1335,10 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) &&	!std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	//if (driverArray.empty()) // need one driver, and one driver only
-	//{
-	//std::string driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
+	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
+	if (!driverShortName.empty())
+		driverArray.AddString(driverShortName.c_str());
 
-
-
-		auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
-		if (!driverShortName.empty())
-			driverArray.AddString(driverShortName.c_str());
-	//}
-
-	//MG_CHECK(driverArray.size() == 1);
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());//driverArray[0]);
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", driverArray[0]);
@@ -1306,6 +1348,18 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
  	if (not continueWrite || not GDALDriverSupportsUpdating(datasourceName))
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+		
+		// check for values unit support in driver
+		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
+		{
+			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
+			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driverShortName.c_str(), dms_value_type_token_str.c_str());
+		}
+
+		//osgeo.ogr.GetFieldSubTypeName(OGRFieldSubType type) -> char const*
+		//osgeo.ogr.GetFieldTypeName(OGRFieldType type) -> char const*
+		//poDriver->GetMetadataItem(GDAL_DMD_CREATIONDATATYPES);
+
 		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);		
 		
 		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
