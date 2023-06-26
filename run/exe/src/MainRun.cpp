@@ -143,12 +143,14 @@ int main2(int argc, char** argv)
 }
 
 
-void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
+void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	dms_assert(clientHandle == nullptr);
 	if (st < SeverityTypeID::ST_MajorTrace)
 		return;
 
+	if (msgCat != MsgCategory::nonspecific)
+		std::cout << AsString(msgCat);
 	std::cout << msg << std::endl;
 }
 
@@ -167,9 +169,6 @@ int main(int argc, char** argv)
 		DMS_RegisterMsgCallback(logMsg, nullptr);
 
 		auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
-
-	//	CDebugCOutHandle debugCout; //Produce debug output always
-		DBG_INIT_COUT; 
 
 		if (argc > 0)
 			DMS_Appl_SetExeDir( splitFullPath( ConvertDosFileName(SharedStr( argv[0] )) .c_str()).c_str() );

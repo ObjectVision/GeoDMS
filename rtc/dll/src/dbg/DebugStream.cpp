@@ -66,7 +66,7 @@ namespace { // local defs
 	UInt32  s_nrRtcReportLocks = 0;
 	//	RtcReportLock s_RtcLock; Don't init from DLLMAIN
 
-	using TMsgCallbackSink = std::pair<TMsgCallbackFunc, ClientHandle>;
+	using TMsgCallbackSink = std::pair<MsgCallbackFunc, ClientHandle>;
 	using TMsgCallbackSinkContainer = std::vector<TMsgCallbackSink>;
 
 	static_ptr<TMsgCallbackSinkContainer>       g_MsgCallbacks;
@@ -87,7 +87,7 @@ RTC_CALL void DMS_CONV DMS_ASyncContinueCheck()
 }
 
 
-RTC_CALL void DMS_CONV DMS_RegisterMsgCallback(TMsgCallbackFunc fcb, ClientHandle clientHandle)
+RTC_CALL void DMS_CONV DMS_RegisterMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle)
 {
 	DMS_CALL_BEGIN
 
@@ -101,7 +101,7 @@ RTC_CALL void DMS_CONV DMS_RegisterMsgCallback(TMsgCallbackFunc fcb, ClientHandl
 	DMS_CALL_END
 }
 
-RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(TMsgCallbackFunc fcb, ClientHandle clientHandle)
+RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle)
 {
 	DMS_CALL_BEGIN
 
@@ -115,7 +115,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(TMsgCallbackFunc fcb, ClientHandle
 	DMS_CALL_END
 }
 
-void MsgDispatch(SeverityTypeID st, CharPtr msg)
+void MsgDispatch(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	dms_assert(IsMainThread());
 	if (!g_MsgCallbacks)
@@ -127,11 +127,11 @@ void MsgDispatch(SeverityTypeID st, CharPtr msg)
 
 	for (; b!=e; ++b)
 	{
-		TMsgCallbackFunc callBackFunc = b->first;
+		MsgCallbackFunc callBackFunc = b->first;
 		if (callBackFunc) // not blocked?
 		{
-			tmp_swapper<TMsgCallbackFunc> blockDefectiveReentrance(b->first, nullptr);
-			callBackFunc(b->second, st, msg);
+			tmp_swapper<MsgCallbackFunc> blockDefectiveReentrance(b->first, nullptr);
+			callBackFunc(b->second, st, msgCat, msg);
 		}
 	}
 }
@@ -143,8 +143,6 @@ namespace { // DebugOutStreamBuff is local
 
 	struct DebugOutStreamBuff : VectorOutStreamBuff
 	{
-		DebugOutStreamBuff() : m_Severity(SeverityTypeID::ST_MinorTrace) {}
-
 		bool LineEmpty() const
 		{
 			return m_Data.empty() || m_Data.back() == char(0);
@@ -163,16 +161,22 @@ namespace { // DebugOutStreamBuff is local
 			NewLine();
 			m_Severity = st; 
 		}
+		void SetMsgCategory(MsgCategory msgCat)
+		{
+			m_MsgCat = msgCat;
+		}
 		void WriteBytes(const Byte* data, streamsize_t size) override
 		{
 			if (!s_nrRtcStreamLocks)
 				return;
 
-			dms_assert(m_Severity != SeverityTypeID::ST_Nothing); // tests precondition that DebugOutStream::scoped_lock was obtained
+			assert(m_Severity != SeverityTypeID::ST_Nothing); // tests precondition that DebugOutStream::scoped_lock was obtained
 			if (LineEmpty())
 			{
 				Byte severityCode = Byte(m_Severity)+1;
+				Byte msgCode = Byte(m_MsgCat) + 1;
 				VectorOutStreamBuff::WriteBytes(&severityCode, 1);
+				VectorOutStreamBuff::WriteBytes(&msgCode, 1);
 			}
 			VectorOutStreamBuff::WriteBytes(data, size);
 			if (!size || *(data + size - 1))
@@ -202,6 +206,7 @@ namespace { // DebugOutStreamBuff is local
 			{
 				dms_assert(e[-1]==0); // guaranteed by caller to have a completed Line.
 				SeverityTypeID st = SeverityTypeID((*i++)-1);
+				MsgCategory msgCat = MsgCategory((*i++)-1);
 				dms_assert(st <= SeverityTypeID::ST_DispError);
 				if (e - i >= 1024000 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
 					if (st <= SeverityTypeID::ST_MinorTrace)
@@ -211,17 +216,18 @@ namespace { // DebugOutStreamBuff is local
 				else
 				{
 					if (minorSkipCount || majorSkipCount) {
-						MsgDispatch(majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace, mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount)).c_str());
+						MsgDispatch(majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace, msgCat, mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount)).c_str());
 						minorSkipCount = majorSkipCount = 0;
 					}
-					MsgDispatch(st, &(i[0]));
+					MsgDispatch(st, msgCat, &(i[0]));
 					++printedLines;
 				}
 				i = ++std::find(i, e, char(0));
 			}
 		}
 	protected:
-		SeverityTypeID m_Severity;
+		SeverityTypeID m_Severity = SeverityTypeID::ST_MinorTrace;
+		MsgCategory m_MsgCat = MsgCategory::nonspecific;
 	};
 
 	static_ptr<DebugOutStreamBuff>  g_DebugStreamBuff;
@@ -238,10 +244,18 @@ DebugOutStream::DebugOutStream()
 
 void DebugOutStream::SetSeverity(SeverityTypeID st)
 {
-	dms_assert(this); // go in a recursive loop if DebugStream is already destructed
+	assert(this); // go in a recursive loop if DebugStream is already destructed
 	if (!this) 
 		abort();
 	g_DebugStreamBuff->SetSeverity(st);
+}
+
+void DebugOutStream::SetMsgCategory(MsgCategory msgCat)
+{
+	assert(this); // go in a recursive loop if DebugStream is already destructed
+	if (!this)
+		abort();
+	g_DebugStreamBuff->SetMsgCategory(msgCat);
 }
 
 void DebugOutStream::NewLine()
@@ -275,11 +289,12 @@ DebugOutStream::flush_first::flush_first()
 		ProcessMainThreadOpers();
 }
 
-DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st )
+DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st, MsgCategory msgCat)
 	: leveled_critical_section::scoped_lock(*str)
 	,	m_Str(str)
 {
 	m_Str->SetSeverity( st );
+	m_Str->SetMsgCategory(msgCat);
 	m_Str->PrintSpaces();
 }
 
@@ -546,7 +561,7 @@ CDebugLog::~CDebugLog()
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }
 
-void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
+void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	CDebugLog* dl = reinterpret_cast<CDebugLog*>(clientHandle);
 	dl->m_Stream << '\n' << msg;

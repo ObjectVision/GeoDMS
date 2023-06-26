@@ -66,7 +66,6 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
 std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // TODO: move this logic to GeoDmsEngine class, ie separate gui logic from geodms engine logic.
 {
     DMS_Shv_Load();
-    DBG_INIT_COUT;
     SHV_SetAdminMode(true);
     auto exe_path = dms_app.applicationDirPath().toUtf8();
     DMS_Appl_SetExeType(exe_type::geodms_qt_gui);

@@ -174,14 +174,6 @@ LambdaContextHandle<Func> MakeLCH(Func&& func)
 	return LambdaContextHandle<Func>(std::forward<Func>(func));
 }
 
-/********** CDebugCOutHandle  **********/
-
-struct CDebugCOutHandle
-{
-	RTC_CALL CDebugCOutHandle();
-	RTC_CALL ~CDebugCOutHandle();
-};
-
 /********** CDebugContextHandle  **********/
 
 struct CDebugContextHandle : ContextHandle 
