@@ -72,44 +72,44 @@
     <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\LICENSE.TXT" Condition="'$(Platform)'=='x64'">
       <FileType>Document</FileType>
       <Command>
-			ROBOCOPY C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal $(TargetDir)gdaldata /v /fft /E /njh /njs
+			ROBOCOPY "C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal" "$(TargetDir)gdaldata" /v /fft /E /njh /njs
 			IF %ErrorLevel%==1 EXIT 0
 			IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 	  </Command>
-      <Message>RoboCopying %(Identity) into $(TargetDir)gdaldata</Message>
+      <Message>RoboCopying %(Identity) into "$(TargetDir)gdaldata"</Message>
       <Outputs>$(TargetDir)gdaldata\LICENSE.TXT</Outputs>
     </CustomBuild>
     <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\proj.db" Condition="'$(Platform)'=='x64'">
       <FileType>Document</FileType>
       <Command>
-			ROBOCOPY C:\dev\vcpkg\installed\$(Platform)-windows\share\proj $(TargetDir)proj4data /v /fft /E /njh /njs /xf *.cmake
+			ROBOCOPY "C:\dev\vcpkg\installed\$(Platform)-windows\share\proj" "$(TargetDir)proj4data" /v /fft /E /njh /njs /xf *.cmake
 			IF %ErrorLevel%==2 EXIT 0
 			IF %ErrorLevel%==1 EXIT 0
 			IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 	  </Command>
-      <Message>Copying %(Filename)%(Extension) into $(TargetDir)proj4data</Message>
+      <Message>Copying %(Filename)%(Extension) into "$(TargetDir)proj4data"</Message>
       <Outputs>$(TargetDir)proj4data\proj.db</Outputs>
     </CustomBuild>
     <CustomBuild Include="C:\dev\vcpkg\installed\x86-windows\share\gdal\LICENSE.TXT" Condition="'$(Platform)'=='Win32'">
       <FileType>Document</FileType>
       <Command>
-			ROBOCOPY C:\dev\vcpkg\installed\x86-windows\share\gdal $(TargetDir)gdaldata /v /fft /E /njh /njs
+			ROBOCOPY "C:\dev\vcpkg\installed\x86-windows\share\gdal" "$(TargetDir)gdaldata" /v /fft /E /njh /njs
 			IF %ErrorLevel%==1 EXIT 0
 			IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 	  </Command>
-      <Message>RoboCopying %(Identity) into $(TargetDir)gdaldata</Message>
+      <Message>RoboCopying %(Identity) into "$(TargetDir)gdaldata"</Message>
       <Outputs>$(TargetDir)gdaldata\LICENSE.TXT</Outputs>
     </CustomBuild>
     <CustomBuild Include="C:\dev\vcpkg\installed\x86-windows\share\proj\proj.db" Condition="'$(Platform)'=='Win32'">
       <FileType>Document</FileType>
       <Command>
-			ROBOCOPY C:\dev\vcpkg\installed\x86-windows\share\proj $(TargetDir)proj4data /v /fft /E /njh /njs /xf *.cmake
+			ROBOCOPY "C:\dev\vcpkg\installed\x86-windows\share\proj" "$(TargetDir)proj4data" /v /fft /E /njh /njs /xf *.cmake
 			IF %ErrorLevel%==2 EXIT 0
 			IF %ErrorLevel%==1 EXIT 0
 			IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
 	  </Command>
-      <Message>Copying %(Filename)%(Extension) into $(TargetDir)proj4data</Message>
-      <Outputs>$(TargetDir)proj4data\proj.db</Outputs>
+      <Message>Copying %(Filename)%(Extension) into "$(TargetDir)proj4data"</Message>
+      <Outputs>"$(TargetDir)proj4data\proj.db"</Outputs>
     </CustomBuild>
     <ClCompile Include="src\GridStoragemanager.cpp" />
     <ClCompile Include="src\odbc\OdbcStorageManager.cpp" />

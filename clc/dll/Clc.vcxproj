@@ -108,7 +108,7 @@
   <ItemGroup>
     <CustomBuild Include="..\..\res\RewriteExpr.lsp">
       <FileType>Document</FileType>
-      <Command>COPY %(Identity) $(TargetDir)</Command>
+      <Command>COPY %(Identity) "$(TargetDir)"</Command>
       <Message>Copying RewriteExpr.lsp into Target Folder</Message>
       <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
     </CustomBuild>
