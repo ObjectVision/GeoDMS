@@ -330,13 +330,15 @@ DebugOutStream::scoped_lock::~scoped_lock()
 			}
 
 		private:
-			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
+			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 			{
 				if (st >= SeverityTypeID::ST_MinorTrace) // ST_MinorTrace, ST_MajorTrace, ST_Warning, ST_Error, ST_FatalError
 				{
 					//	level usd to be _CRT_ERROR, but Delphi is already taking care of MsgBox
 					if (st >= SeverityTypeID::ST_Error) // ST_Error, ST_FatalError
 						_RPT0(_CRT_WARN, (st== SeverityTypeID::ST_FatalError)?"\nFatalError":"Error");
+					if (msgCat > MsgCategory::nonspecific)
+						_RPT0(_CRT_WARN,AsString(msgCat));
 
 					_RPT0(_CRT_WARN, "\n");
 					SizeT n = StrLen(msg);
