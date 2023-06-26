@@ -147,7 +147,6 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	return true;
 }
 
-// Unclear in this context, but obligatory
 void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
@@ -238,7 +237,6 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
 }
 
-// Unclear in this context, but obligatory
 void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	if (!m_SaveColInfo)

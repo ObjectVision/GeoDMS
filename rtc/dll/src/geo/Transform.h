@@ -58,8 +58,8 @@ enum class OrientationType
 	NegateY    = 2,
 };
 
-inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & int(OrientationType::RightLeft); }
-inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & int(OrientationType::BottomTop); }
+inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
+inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & 2; }
 inline bool MustNegateX(OrientationType orientation) { return IsRightLeft(orientation); }
 inline bool MustNegateY(OrientationType orientation) { return IsBottomTop(orientation); }
 

@@ -150,8 +150,6 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	return true;
 }
 
-
-// Unclear in this context, but obligatory
 void StrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
