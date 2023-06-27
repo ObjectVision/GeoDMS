@@ -50,7 +50,7 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 // Section:     Annotated Object register for CheckPtr
 // *****************************************************************************
-#if defined(MG_DEBUG) && 1
+#if defined(MG_DEBUG) && 0
 #include <crtdbg.h>
 #	define MG_CHECKPTR
 #endif
@@ -144,14 +144,10 @@ granted by an additional written contract for support, assistance and/or develop
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
 		if (!item) 
-			throwErrorF("CheckPtr", 
-				"Invalid Null Pointer in %s" ,
-				dmsFunc
-			);
+			throwErrorF("CheckPtr", "Invalid Null Pointer in %s", dmsFunc);
+
 		if (cls && !item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
-			item->throwItemErrorF("Invalid Item in %s; %s expected" ,
-				dmsFunc, cls->GetName().c_str()
-			);
+			throwErrorF("CheckPtr", "Invalid Item in %s; %s expected" , dmsFunc, cls->GetName().c_str());
 	}
 	static UInt32 g_NrPersistentObjects = 0;
 	
@@ -168,19 +164,12 @@ granted by an additional written contract for support, assistance and/or develop
 		}
 	}
 
-	Object::Objectr()
+	Object::Object()
 	{
 		++g_NrPersistentObjects;
 	}
-	/*
-	Object::Object(const Object& )
-		: Base((const Base&)rhs)
-	{
-		++g_NrPersistentObjects;
-	}
-	*/
 	
-	Object::~Object
+	Object::~Object()
 	{
 		--g_NrPersistentObjects;
 	}

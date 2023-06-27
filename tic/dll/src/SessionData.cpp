@@ -197,7 +197,10 @@ const TreeItem* SessionData::GetActiveDesktop() const
 
 std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr configSubDir)
 {
-	assert(! s_CurrSD);
+	if (s_CurrSD)
+		Curr()->DeactivateThis();
+
+	assert(!s_CurrSD);
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
 	g_cfgColFirst = s_CurrSD->m_cfgColFirst;
 	assert(s_CurrSD->m_ConfigRoot == nullptr); // POSTCONDITION of Created but not opend SessionData
