@@ -99,6 +99,9 @@
     <ClCompile Include="src\DmsEventLog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsOptions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -171,6 +174,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="src\DmsEventLog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\DmsOptions.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
