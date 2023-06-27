@@ -1028,6 +1028,7 @@ void MainWindow::ShowStatistics(const TreeItem* tiContext)
     vos_buffer_type textBuffer;
     while (true)
     {
+        SuspendTrigger::Resume();
         bool done = NumericDataItem_GetStatistics(tiContext, textBuffer);
         textWidget->setText(begin_ptr(textBuffer));
         if (done)
