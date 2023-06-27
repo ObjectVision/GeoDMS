@@ -10,6 +10,7 @@
 #include "dbg/Timer.h"
 
 #include "utl/mySPrintF.h"
+#include "utl/splitPath.h"
 
 #include "DataView.h"
 #include "TreeItem.h"
@@ -984,11 +985,12 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_root = newRoot;
         if (m_root)
         {
-            std::string last_config_file_dos = configFilePath;
-            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
-            insertCurrentConfigInRecentFiles(last_config_file_dos);
-            if (std::filesystem::exists(last_config_file_dos))
-                SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
+            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(SharedStr(configFilePath)));
+
+//            std::string last_config_file_dos = configFilePathStr.c_str();
+//            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
+            insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
+            SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
 
