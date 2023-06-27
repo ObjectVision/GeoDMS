@@ -42,7 +42,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		case SeverityTypeID::ST_Error:
 			return QColor(Qt::red);
 		case SeverityTypeID::ST_Warning:
-			return QColor(Qt::darkYellow);
+			return QColor(255, 127, 80);
 		case SeverityTypeID::ST_MajorTrace:
 			return QColor(Qt::black);
 		}
