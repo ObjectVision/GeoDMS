@@ -29,6 +29,7 @@
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
 #include "DmsOptions.h"
+#include "DmsExport.h"
 #include "DataView.h"
 #include "StateChangeNotification.h"
 #include <regex>
@@ -213,6 +214,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     m_file_changed_window = new DmsFileChangedWindow(this);
     m_error_window = new DmsErrorWindow(this);
+    m_export_window = new DmsExportWindow(this);
 
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
 
@@ -632,11 +634,6 @@ void MainWindow::openConfigSource()
     openConfigSourceDirectly(filename, line);
 }
 
-void MainWindow::exportOkButton()
-{
-    int i = 0;
-}
-
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
 void MainWindow::stepToFailReason()
@@ -701,21 +698,6 @@ void MainWindow::toggle_currentitembar()
 {
     bool isVisible = m_current_item_bar_container->isVisible();
     m_current_item_bar_container->setVisible(!isVisible);
-}
-
-auto getAvailableDrivers() -> std::vector<gdal_driver_id>
-{
-    std::vector<gdal_driver_id> available_drivers;
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr);
-    available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr);
-    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr);
-    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, driver_characteristics::is_raster);
-    available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    return available_drivers;
 }
 
 void MainWindow::gui_options()
@@ -787,34 +769,11 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
 
 void MainWindow::exportPrimaryData()
 {
-    QWidget* export_primary_data_window = new QDialog(this);
-    export_primary_data_window->setWindowTitle(QString("Export ") + getCurrentTreeItem()->GetFullName().c_str());
-    auto grid_layout_box = new QGridLayout(export_primary_data_window);
-    auto format_label = new QLabel("Format", this);
+    if (!m_export_window)
+        m_export_window = new DmsExportWindow(this);
 
-    auto format_driver_selection_box = new QComboBox(this);
-    QStringList driver_namesnames;
-    auto available_drivers = getAvailableDrivers();
-    for (auto& driver : available_drivers)
-        format_driver_selection_box->addItem(driver.Caption());
-
-
-    format_driver_selection_box->addItems(driver_namesnames);
-    auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
-    grid_layout_box->addWidget(format_label, 0, 0);
-    grid_layout_box->addWidget(format_driver_selection_box, 0, 1);
-    grid_layout_box->addWidget(format_native_driver_checkbox, 0, 2);
-
-    auto export_button = new QPushButton("Export");
-    connect(export_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout_box->addWidget(export_button, 3, 0);
-
-    auto cancel_button = new QPushButton("Cancel");
-    connect(cancel_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout_box->addWidget(cancel_button, 3, 1);
-
-    export_primary_data_window->setWindowModality(Qt::ApplicationModal);
-    export_primary_data_window->show();
+    m_export_window->prepare();
+    m_export_window->show();
 }
 
 void MainWindow::createView(ViewStyle viewStyle)
