@@ -15,6 +15,12 @@ public:
     DmsGuiOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
+    void changeValidTreeItemColor();
+    void changeNotCalculatedTreeItemColor();
+    void changeFailedTreeItemColor();
+    void changeMapviewBackgroundColor();
+    void changeClassificationStartColor();
+    void changeClassificationEndColor();
     void ok();
     void apply();
     void undo();
@@ -24,6 +30,13 @@ private:
     QPointer<QCheckBox> m_show_hidden_items;
     QPointer<QCheckBox> m_show_thousand_separator;
     QPointer<QCheckBox> m_show_state_colors_in_treeview;
+
+    QPointer<QPushButton> m_valid_color_ti_button;
+    QPointer<QPushButton> m_not_calculated_color_ti_button;
+    QPointer<QPushButton> m_failed_color_ti_button;
+    QPointer<QPushButton> m_background_color_button;
+    QPointer<QPushButton> m_start_color_button;
+    QPointer<QPushButton> m_end_color_button;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
     QPointer<QPushButton> m_undo;

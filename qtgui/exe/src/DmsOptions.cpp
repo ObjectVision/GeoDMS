@@ -13,6 +13,42 @@
 #include <QColorDialog>;
 
 //======== BEGIN GUI OPTIONS WINDOW ========
+void DmsGuiOptionsWindow::changeValidTreeItemColor()
+{
+    auto new_valid_treeitem_color = QColorDialog::getColor(m_valid_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem valid status color");
+    m_valid_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_valid_treeitem_color.rgba())) + "," + QString::number(qGreen(new_valid_treeitem_color.rgba())) + "," + QString::number(qBlue(new_valid_treeitem_color.rgba()))+ ") }");
+}
+
+void DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor()
+{
+    auto new_not_calculated_treeitem_color = QColorDialog::getColor(m_not_calculated_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem metainfo ready status color");
+    m_not_calculated_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_not_calculated_treeitem_color.rgba())) + "," + QString::number(qGreen(new_not_calculated_treeitem_color.rgba())) + "," + QString::number(qBlue(new_not_calculated_treeitem_color.rgba())) + ") }");
+}
+
+void DmsGuiOptionsWindow::changeFailedTreeItemColor()
+{
+    auto new_failed_treeitem_color = QColorDialog::getColor(m_failed_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem failed status color");
+    m_failed_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+}
+
+void DmsGuiOptionsWindow::changeMapviewBackgroundColor()
+{
+    auto new_mapview_background_color = QColorDialog::getColor(m_background_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the Mapview background color");
+    m_background_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_mapview_background_color.rgba())) + "," + QString::number(qGreen(new_mapview_background_color.rgba())) + "," + QString::number(qBlue(new_mapview_background_color.rgba())) + ") }");
+}
+
+void DmsGuiOptionsWindow::changeClassificationStartColor()
+{
+    auto new_failed_treeitem_color = QColorDialog::getColor(m_start_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the classification ramp start color");
+    m_start_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+}
+
+void DmsGuiOptionsWindow::changeClassificationEndColor()
+{
+    auto new_failed_treeitem_color = QColorDialog::getColor(m_end_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the classification ramp start color");
+    m_end_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+}
+
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
@@ -32,34 +68,39 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     auto valid_color_text_ti = new QLabel("    Valid:", this);
     auto not_calculated_color_text_ti = new QLabel("    NotCalculated:", this);
     auto failed_color_text_ti = new QLabel("    Failed:", this);
-    auto valid_color_ti_button = new QPushButton(this);
-    auto not_calculated_color_ti_button = new QPushButton(this);
-    auto failed_color_ti_button = new QPushButton(this);
+    m_valid_color_ti_button = new QPushButton(this);
+    m_not_calculated_color_ti_button = new QPushButton(this);
+    m_failed_color_ti_button = new QPushButton(this);
     grid_layout->addWidget(valid_color_text_ti, 3, 0);
-    grid_layout->addWidget(valid_color_ti_button, 3, 1);
+    grid_layout->addWidget(m_valid_color_ti_button, 3, 1);
     grid_layout->addWidget(not_calculated_color_text_ti, 4, 0);
-    grid_layout->addWidget(not_calculated_color_ti_button, 4, 1);
+    grid_layout->addWidget(m_not_calculated_color_ti_button, 4, 1);
     grid_layout->addWidget(failed_color_text_ti, 5, 0);
-    grid_layout->addWidget(failed_color_ti_button, 5, 1);
+    grid_layout->addWidget(m_failed_color_ti_button, 5, 1);
+    connect(m_valid_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeValidTreeItemColor);
+    connect(m_not_calculated_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor);
+    connect(m_failed_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeFailedTreeItemColor);
 
     auto map_view_color_settings = new QLabel("Mapview color settings", this);
     auto background_color_text = new QLabel("    Background:", this);
-    auto background_color_button = new QPushButton(this);
+    m_background_color_button = new QPushButton(this);
     grid_layout->addWidget(map_view_color_settings, 6, 0, 1, 3);
     grid_layout->addWidget(background_color_text, 7, 0);
-    grid_layout->addWidget(background_color_button, 7, 1);
-
+    grid_layout->addWidget(m_background_color_button, 7, 1);
+    connect(m_background_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeMapviewBackgroundColor);
 
     auto default_classification_text = new QLabel("Default classification ramp colors", this);
     auto start_color_text = new QLabel("    Start:", this);
-    auto start_color_button = new QPushButton(this);
+    m_start_color_button = new QPushButton(this);
     auto end_color_text = new QLabel("    End:", this);
-    auto end_color_button = new QPushButton(this);
+    m_end_color_button = new QPushButton(this);
     grid_layout->addWidget(default_classification_text, 8, 0, 1, 3);
     grid_layout->addWidget(start_color_text, 9, 0);
-    grid_layout->addWidget(start_color_button, 9, 1);
+    grid_layout->addWidget(m_start_color_button, 9, 1);
     grid_layout->addWidget(end_color_text, 10, 0);
-    grid_layout->addWidget(end_color_button, 10, 1);
+    grid_layout->addWidget(m_end_color_button, 10, 1);
+    connect(m_start_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationStartColor);
+    connect(m_end_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationEndColor);
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
