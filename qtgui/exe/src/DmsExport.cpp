@@ -188,6 +188,19 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     return available_drivers;
 }
 
+void ExportTab::repopulateDriverSelection()
+{
+    QStringList driver_namesnames;
+    auto available_drivers = getAvailableDrivers();
+    for (auto& driver : available_drivers)
+    {
+        if (m_is_raster && (driver.driver_characteristics & driver_characteristics::is_raster)) // raster driver
+            m_driver_selection->addItem(driver.Caption());
+        if (!m_is_raster && !(driver.driver_characteristics & driver_characteristics::is_raster)) // vector driver
+            m_driver_selection->addItem(driver.Caption());
+    }
+}
+
 ExportTab::ExportTab(bool is_raster, QWidget * parent)
 	: QWidget(parent)
 {
@@ -198,14 +211,7 @@ ExportTab::ExportTab(bool is_raster, QWidget * parent)
     auto format_label = new QLabel("Format", this);
 
     m_driver_selection = new QComboBox(this);
-    QStringList driver_namesnames;
-    auto available_drivers = getAvailableDrivers();
-    for (auto& driver : available_drivers)
-        m_driver_selection->addItem(driver.Caption());
-
-    // TODO: use combobox native driver
-
-    //m_driver_selection->addItems(driver_namesnames);
+    repopulateDriverSelection();
 
     auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
     grid_layout_box->addWidget(format_label, 0, 0);
@@ -223,6 +229,11 @@ ExportTab::ExportTab(bool is_raster, QWidget * parent)
     auto cancel_button = new QPushButton("Cancel");
     connect(cancel_button, &QPushButton::clicked, MainWindow::TheOne()->m_export_window, &DmsExportWindow::reject);
     grid_layout_box->addWidget(cancel_button, 4, 1);
+}
+
+void ExportTab::showEvent(QShowEvent* event)
+{
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
 }
 
 void DmsExportWindow::prepare()

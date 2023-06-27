@@ -26,7 +26,7 @@ struct gdal_driver_id
     CharPtr shortname = nullptr;
     CharPtr name = nullptr;
     CharPtr nativeName = nullptr;
-    driver_characteristics drChars = driver_characteristics::none;
+    driver_characteristics driver_characteristics = driver_characteristics::none;
 
     CharPtr Caption()
     {
@@ -43,6 +43,8 @@ struct gdal_driver_id
     }
 };
 
+Q_DECLARE_METATYPE(gdal_driver_id);
+
 class ExportTab : public QWidget
 {
     Q_OBJECT
@@ -50,7 +52,11 @@ class ExportTab : public QWidget
 public:
     ExportTab(bool is_raster = false, QWidget* parent = nullptr);
 
+protected:
+    void showEvent(QShowEvent* event) override;
+
 private:
+    void repopulateDriverSelection();
     bool m_is_raster = false;
     QPointer<QComboBox> m_driver_selection;
 };
