@@ -39,8 +39,8 @@ void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page
 
 void DmsDetailPages::leaveThisConfig() // reset ValueInfo cached results
 {
-    if (m_active_detail_page != ActiveDetailPage::VALUE_INFO)
-        setActiveDetailPage(ActiveDetailPage::NONE);
+    if (m_active_detail_page == ActiveDetailPage::VALUE_INFO)
+        toggle(ActiveDetailPage::VALUE_INFO);
 }
 
 auto Realm(const auto& x) -> CharPtrRange

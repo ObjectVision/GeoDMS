@@ -890,7 +890,9 @@ void MainWindow::CloseConfig()
     if (m_root)
     {
         m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
+        m_dms_model->reset();
         m_treeview->reset();
+
         m_dms_model->setRoot(nullptr);
         m_root->EnableAutoDelete();
         m_root = nullptr;
