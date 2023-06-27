@@ -39,7 +39,9 @@ class DmsDetailPages;
 class DmsTreeView;
 class DmsEventLog;
 class DmsModel;
-class DmsOptionsWindow;
+class DmsGuiOptionsWindow;
+class DmsAdvancedOptionsWindow;
+class DmsConfigOptionsWindow;
 class EventLogModel;
 
 class DmsCurrentItemBar : public QLineEdit
@@ -299,7 +301,9 @@ public:
 
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsErrorWindow> m_error_window;
-    QPointer<DmsOptionsWindow> m_options_window;
+    QPointer<DmsGuiOptionsWindow> m_gui_options_window;
+    QPointer<DmsAdvancedOptionsWindow> m_advanced_options_window;
+    QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
 private:

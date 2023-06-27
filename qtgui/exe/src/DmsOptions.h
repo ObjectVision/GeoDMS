@@ -8,10 +8,32 @@ class QLabel;
 class QFileDialog;
 class QLineEdit;
 
-
-class DmsOptionsWindow : public QDialog
+class DmsGuiOptionsWindow : public QDialog
 {
     Q_OBJECT
+public:
+    DmsGuiOptionsWindow(QWidget* parent = nullptr);
+
+private slots:
+    void ok();
+    void apply();
+    void undo();
+
+private:
+    bool m_changed = false;
+    QPointer<QCheckBox> m_show_hidden_items;
+    QPointer<QCheckBox> m_show_thousand_separator;
+    QPointer<QCheckBox> m_show_state_colors_in_treeview;
+    QPointer<QPushButton> m_ok;
+    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_undo;
+};
+
+class DmsAdvancedOptionsWindow : public QDialog
+{
+    Q_OBJECT
+public:
+    DmsAdvancedOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
     void onFlushTresholdValueChange(int value);
@@ -24,8 +46,6 @@ private slots:
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
 
-public:
-    DmsOptionsWindow(QWidget* parent = nullptr);
 private:
     void setInitialLocalDataDirValue();
     void setInitialSourceDatDirValue();
@@ -48,4 +68,11 @@ private:
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
     QPointer<QPushButton> m_undo;
+};
+
+class DmsConfigOptionsWindow : public QDialog
+{
+    Q_OBJECT
+public:
+    DmsConfigOptionsWindow(QWidget* parent = nullptr);
 };

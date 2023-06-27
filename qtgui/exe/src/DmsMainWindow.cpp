@@ -719,26 +719,26 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 
 void MainWindow::gui_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_gui_options_window)
+        m_gui_options_window = new DmsGuiOptionsWindow(this);
 
-    m_options_window->show();
+    m_gui_options_window->show();
 }
 
 void MainWindow::advanced_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_advanced_options_window)
+        m_advanced_options_window = new DmsAdvancedOptionsWindow(this);
 
-    m_options_window->show();
+    m_advanced_options_window->show();
 }
 
 void MainWindow::config_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_config_options_window)
+        m_config_options_window = new DmsConfigOptionsWindow(this);
 
-    m_options_window->show();
+    m_config_options_window->show();
 }
 
 void MainWindow::code_analysis_set_source()
