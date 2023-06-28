@@ -194,7 +194,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 	assert(!SuspendTrigger::DidSuspend()); // Precondition?
 	assert(item->HasInterest()); // PRECONDITION
 
-	vector_clear(statisticsBuffer);
+	statisticsBuffer.clear();
 
 	ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
 	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);

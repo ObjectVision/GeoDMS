@@ -13,10 +13,10 @@ enum ActiveDetailPage
 	EXPLORE,
 	PROPERTIES,
 	METADATA,
-	VALUE_INFO,
 	CONFIGURATION,
 	SOURCEDESCR,
 	STATISTICS,
+	VALUE_INFO,
 	NONE
 };
 
@@ -41,7 +41,7 @@ public slots:
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void leaveThisConfig();
 
-private slots:
+public slots:
 	void onAnchorClicked(const QUrl& link);
 
 private:
@@ -52,8 +52,6 @@ private:
 	QTimer m_Repeater;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
-	SharedTreeItemInterestPtr m_tiValueInfoContext;
-	SizeT m_RecNo;
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 };
 

@@ -99,7 +99,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 			SizeT n = adu->GetCount();
 			MakeMin(n, Explain::MaxNrEntries);
 			for (SizeT i=0; i!=n; ++i)
-				DMS_CalcExpl_AddQueueEntry(context->m_CalcExpl, adu, i);
+				Explain::AddQueueEntry(context->m_CalcExpl, adu, i);
 		}
 		return true;
 	}
@@ -208,7 +208,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 				i = ado->FindPosOfSizeT(f, i);
 				if (!IsDefined(i))
 					break;
-				DMS_CalcExpl_AddQueueEntry(context->m_CalcExpl, e2, i);
+				Explain::AddQueueEntry(context->m_CalcExpl, e2, i);
 				if (++k >= Explain::MaxNrEntries)
 					break;
 				++i;

@@ -1011,36 +1011,129 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
+// TODO: BEGIN move to separate file UpdatableTextBrowser.h
+
+struct QUpdatableTextBrowser : QTextBrowser
+{
+    using QTextBrowser::QTextBrowser;
+
+    void restart_updating()
+    {
+        QTimer::singleShot(0, [this]()
+            {
+                if (!this->update())
+                    this->restart_updating();
+            }
+        );
+    }
+
+protected:
+    virtual bool update() = 0;
+};
+
+// TODO: move to separate file StatisticsBrowser.h
+
+struct StatisticsBrowser : QUpdatableTextBrowser
+{
+    using QUpdatableTextBrowser::QUpdatableTextBrowser;
+
+    bool update() override
+    {
+        vos_buffer_type textBuffer;
+        SuspendTrigger::Resume();
+        bool done = NumericDataItem_GetStatistics(m_Context, textBuffer);
+        setText(begin_ptr(textBuffer));
+        return done;
+    }
+    SharedTreeItemInterestPtr m_Context;
+};
+// TODO: END move to separate file
+
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 {
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
-    auto* textWidget = new QTextBrowser(mdiSubWindow);
+    auto* textWidget = new StatisticsBrowser(mdiSubWindow);
+    textWidget->m_Context = tiContext;
+    tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);
+
     SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
-    InterestPtr<SharedPtr<const TreeItem>> tiHolder = tiContext;
-    tiHolder->PrepareData();
+    textWidget->restart_updating();
+}
 
-    vos_buffer_type textBuffer;
-    while (true)
+
+// TODO: BEGIN move to separate file ValueInfoBrowser.h
+
+#include "TicBase.h"
+#include "Explain.h"
+
+struct ValueInfoBrowser : QUpdatableTextBrowser
+{
+    ValueInfoBrowser(auto parent)
+        : QUpdatableTextBrowser(parent)
+        , m_Context(Explain::CreateContext())
     {
-        SuspendTrigger::Resume();
-        bool done = NumericDataItem_GetStatistics(tiContext, textBuffer);
-        textWidget->setText(begin_ptr(textBuffer));
-        if (done)
-            return;
-        auto result = MessageBoxA((HWND)winId()
-            , "Processing didn't complete yet; retry request?"
-            , "Statistics"
-            , MB_YESNO
-        );
-        if (result != IDYES)
-            return;
+        setOpenLinks(false);
+        setOpenExternalLinks(false);
+        connect(this, &QTextBrowser::anchorClicked, MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
     }
+
+    bool update() override;
+
+    Explain::context_handle m_Context;
+    SharedDataItemInterestPtr m_StudyObject;
+    SizeT m_Index;
+
+    vos_buffer_type m_VOS_buffer;
+};
+
+// TODO: move to separate file ValueInfoBrowser.cpp
+
+bool ValueInfoBrowser::update()
+{
+    m_VOS_buffer.clear();
+    ExternalVectorOutStreamBuff outStreamBuff(m_VOS_buffer);
+
+    auto xmlOut = OutStream_HTM(&outStreamBuff, "html", nullptr);
+    SuspendTrigger::Resume();
+
+
+    bool done = Explain::AttrValueToXML(m_Context.get(), m_StudyObject, &xmlOut, m_Index, "", true);
+    outStreamBuff.WriteByte(char(0));
+
+    setText(outStreamBuff.GetData());
+
+    // clean-up;
+    if (done)
+        m_VOS_buffer = vos_buffer_type();
+    return done;
+}
+
+// TODO: END move to separate file
+
+void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
+{
+    assert(studyObject);
+ 
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
+    auto* textWidget = new ValueInfoBrowser(mdiSubWindow);
+    textWidget->m_Context = Explain::CreateContext();
+    textWidget->m_StudyObject = studyObject;
+    textWidget->m_Index = index;
+
+    mdiSubWindow->setWidget(textWidget);
+    auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
+    mdiSubWindow->setWindowTitle(title.c_str());
+    m_mdi_area->addSubWindow(mdiSubWindow);
+    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
+    mdiSubWindow->show();
+
+    textWidget->restart_updating();
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)

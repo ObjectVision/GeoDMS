@@ -205,6 +205,7 @@ public slots:
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
+    void showValueInfo(const AbstrDataItem* studyObject, SizeT index);
     void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
 
 protected:
