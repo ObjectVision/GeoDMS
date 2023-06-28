@@ -38,11 +38,14 @@ namespace
 	CommonOperGroup cogSum_u08("sum_uint8");
 	CommonOperGroup cogSum_u16("sum_uint16");
 	CommonOperGroup cogSum_u32("sum_uint32");
+	CommonOperGroup cogSum_u64("sum_uint64");
+
 	CommonOperGroup cogSum_i08("sum_int8");
 	CommonOperGroup cogSum_i16("sum_int16");
 	CommonOperGroup cogSum_i32("sum_int32");
-	CommonOperGroup cogSum_u64("sum_uint64");
 	CommonOperGroup cogSum_i64("sum_int64");
+
+	CommonOperGroup cogSum_f32("sum_float32");
 	CommonOperGroup cogSum_f64("sum_float64");
 	CommonOperGroup cogSum_up("sum_upoint");
 	CommonOperGroup cogSum_ip("sum_ipoint");
@@ -62,7 +65,8 @@ namespace
 	OperAccUniNum::AggrOperators<specified_sum_func_generator<  Int16>::total, specified_sum_func_generator<  Int16>::partial, typelists::sints>        s_SumOpersI16(&cogSum_i16);
 	OperAccUniNum::AggrOperators<specified_sum_func_generator<  Int32>::total, specified_sum_func_generator<  Int32>::partial, typelists::sints>        s_SumOpersI32(&cogSum_i32);
 	OperAccUniNum::AggrOperators<specified_sum_func_generator<  Int64>::total, specified_sum_func_generator<  Int64>::partial, typelists::sints>        s_SumOpersI64(&cogSum_i64);
-	OperAccUniNum::AggrOperators<specified_sum_func_generator<Float64>::total, specified_sum_func_generator<Float64>::partial, typelists::floats>       s_SumOpersF64(&cogSum_f64);
+	OperAccUniNum::AggrOperators<specified_sum_func_generator<Float32>::total, specified_sum_func_generator<Float32>::partial, typelists::num_objects>  s_SumOpersF32(&cogSum_f32);
+	OperAccUniNum::AggrOperators<specified_sum_func_generator<Float64>::total, specified_sum_func_generator<Float64>::partial, typelists::num_objects>  s_SumOpersF64(&cogSum_f64);
 	OperAccUniNum::AggrOperators<specified_sum_func_generator< UPoint>::total, specified_sum_func_generator< UPoint>::partial, typelists::int_points>   s_SumOpersUP (&cogSum_up);
 	OperAccUniNum::AggrOperators<specified_sum_func_generator< IPoint>::total, specified_sum_func_generator< IPoint>::partial, typelists::int_points>   s_SumOpersIP (&cogSum_ip);
 	OperAccUniNum::AggrOperators<specified_sum_func_generator< DPoint>::total, specified_sum_func_generator< DPoint>::partial, typelists::float_points> s_SumOpersDP (&cogSum_dp);

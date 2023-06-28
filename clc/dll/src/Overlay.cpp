@@ -441,9 +441,11 @@ namespace
 
 	SpecialOperGroup overlay16Group("overlay", 3, overlay_oap);
 	SpecialOperGroup overlay32Group("overlay32", 3, overlay_oap);
-//	OverlayOperator<UInt16,  UInt8>  overlay8 (overlayGroup);
+	SpecialOperGroup overlay64Group("overlay64", 3, overlay_oap);
+	//	OverlayOperator<UInt16,  UInt8>  overlay8 (overlayGroup);
 	OverlayOperator<UInt16> overlay16(&overlay16Group);
 	OverlayOperator<UInt32> overlay32(&overlay32Group);
+	OverlayOperator<UInt64> overlay64(&overlay64Group);
 }
 
 /******************************************************************************/

@@ -131,11 +131,13 @@ namespace token {
 	TIC_CALL TokenID select_uint8 = GetTokenID_st("select_uint8");
 	TIC_CALL TokenID select_uint16 = GetTokenID_st("select_uint16");
 	TIC_CALL TokenID select_uint32 = GetTokenID_st("select_uint32");
+	TIC_CALL TokenID select_uint64 = GetTokenID_st("select_uint64");
 
 	TIC_CALL TokenID select_with_org_rel = GetTokenID_st("select_with_org_rel");
 	TIC_CALL TokenID select_uint8_with_org_rel = GetTokenID_st("select_uint8_with_org_rel");
 	TIC_CALL TokenID select_uint16_with_org_rel = GetTokenID_st("select_uint16_with_org_rel");
 	TIC_CALL TokenID select_uint32_with_org_rel = GetTokenID_st("select_uint32_with_org_rel");
+	TIC_CALL TokenID select_uint64_with_org_rel = GetTokenID_st("select_uint64_with_org_rel");
 
 	// DEPRECIATED BEGIN
 	TIC_CALL TokenID select_unit = GetTokenID_st("select_unit");
@@ -154,16 +156,19 @@ namespace token {
 	TIC_CALL TokenID select_uint8_with_attr_by_cond= GetTokenID_st("select_uint8_with_attr_by_cond");
 	TIC_CALL TokenID select_uint16_with_attr_by_cond= GetTokenID_st("select_uint16_with_attr_by_cond");
 	TIC_CALL TokenID select_uint32_with_attr_by_cond= GetTokenID_st("select_uint32_with_attr_by_cond");
+	TIC_CALL TokenID select_uint64_with_attr_by_cond = GetTokenID_st("select_uint64_with_attr_by_cond");
 
 	TIC_CALL TokenID select_with_org_rel_with_attr_by_cond= GetTokenID_st("select_with_org_rel_with_attr_by_cond");
 	TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond  = GetTokenID_st("select_uint8_with_org_rel_with_attr_by_cond");
 	TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint16_with_org_rel_with_attr_by_cond");
 	TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint32_with_org_rel_with_attr_by_cond");
+	TIC_CALL TokenID select_uint64_with_org_rel_with_attr_by_cond = GetTokenID_st("select_uint64_with_org_rel_with_attr_by_cond");
 
 	TIC_CALL TokenID select_with_attr_by_org_rel = GetTokenID_st("select_with_attr_by_org_rel");
 	TIC_CALL TokenID select_uint8_with_attr_by_org_rel = GetTokenID_st("select_uint8_with_attr_by_org_rel");
 	TIC_CALL TokenID select_uint16_with_attr_by_org_rel = GetTokenID_st("select_uint16_with_attr_by_org_rel");
 	TIC_CALL TokenID select_uint32_with_attr_by_org_rel = GetTokenID_st("select_uint32_with_attr_by_org_rel");
+	TIC_CALL TokenID select_uint64_with_attr_by_org_rel = GetTokenID_st("select_uint64_with_attr_by_org_rel");
 
 	// DEPRECIATED BEGIN
 	TIC_CALL TokenID select_many = GetTokenID_st("select_many");
