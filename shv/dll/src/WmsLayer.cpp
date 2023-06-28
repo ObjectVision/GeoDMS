@@ -186,7 +186,7 @@ namespace wms {
 			m_SslSocket.set_verify_mode(ssl::verify_none);
 			m_SslSocket.set_verify_callback(ssl::host_name_verification(host.m_Name));
 
-			report("ctor", false);
+			MG_DEBUGCODE(report("ctor", false));
 			++s_InstanceCount;
 		}
 
@@ -194,28 +194,29 @@ namespace wms {
  
 		void SetTimer()
 		{
-			report("SetTimer", true);
+			MG_DEBUGCODE(report("SetTimer", true));
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
-				self->report(("TimerExpired: " + ec.message()).c_str(), true);
+				MG_DEBUGCODE(self->report(("TimerExpired: " + ec.message()).c_str(), true));
 			});
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
 		{
-			report("Run", true);
+			MG_DEBUGCODE(report("Run", true));
 
 			m_Request.set(http::field::host, host.Name());
 			m_Request.set(http::field::connection, "keep-alive");
 			m_Request.set(http::field::user_agent, "GeoDMS");
 
 			// Look up the domain name
+			report(SeverityTypeID::ST_MajorTrace, ("connect to" + host.m_Name).c_str(), "OK", true);
 			host.async_connect(m_SslSocket.lowest_layer(), [self = shared_from_this()](boost::system::error_code ec, auto iter)
 				{ 
-				auto owner = self->m_Owner.lock();
-				if (owner) self->on_connect(ec);  
-			//	if (owner) self->on_handshake(ec);
-			}
+					auto owner = self->m_Owner.lock();
+					if (owner) self->on_connect(ec);  
+				//	if (owner) self->on_handshake(ec);
+				}
 			);
 
 			SetTimer();
@@ -229,7 +230,7 @@ namespace wms {
 		bool report_status(const boost::system::error_code& ec, CharPtr what);
 		void report(CharPtr what, bool alive)
 		{
-			report(SeverityTypeID::ST_MajorTrace, what, "OK", alive);
+			report(SeverityTypeID::ST_MinorTrace, what, "OK", alive);
 		}
 
 		void on_connect(const boost::system::error_code& ec) {
@@ -251,6 +252,7 @@ namespace wms {
 			m_Request.prepare_payload();
 
 			// Send the HTTP request to the remote host
+			report(SeverityTypeID::ST_MajorTrace, m_Target.c_str(), "OK", true);
 			http::async_write(m_SslSocket, m_Request, [self = shared_from_this()](const boost::system::error_code& ec, std::size_t bytes_transferred) 
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -294,15 +296,15 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STARTED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "SUSPENDED: GetIOC()"); )
+			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STOPPED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
@@ -427,7 +429,7 @@ namespace wms {
 
 	TileLoader::~TileLoader()
 	{
-		report("dtor", false);
+		MG_DEBUGCODE(report("dtor", false));
 		--s_InstanceCount;
 		auto owner = m_Owner.lock();
 		if (owner)
