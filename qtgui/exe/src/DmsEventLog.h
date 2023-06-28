@@ -46,7 +46,7 @@ private:
 
 	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
-	bool m_filter_active = false;
+	bool m_filter_active = true;
 };
 
 class DmsEventLog : public QWidget
