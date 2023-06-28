@@ -95,7 +95,7 @@ void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files)
     {
         auto curr_line_end = changed_files.find_first_of('\n', curr_pos);
         auto link = std::string(changed_files.substr(curr_pos, curr_line_end - curr_pos));
-        file_changed_message_markdown += "[" + link + "](" + link + ")\n";
+        file_changed_message_markdown += "[" + link + "](" + link + ")\n\n";
         curr_pos = curr_line_end + 1;
     }
     file_changed_message_markdown += "\n\nDo you want to reopen the configuration?";
