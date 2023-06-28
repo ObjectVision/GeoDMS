@@ -204,8 +204,8 @@ public slots:
 
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
-    void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
-    void ShowStatistics(const TreeItem* tiContext);
+    void showStatisticsDirectly(const TreeItem* tiContext);
+    void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
 
 protected:
     bool event(QEvent* event) override;
