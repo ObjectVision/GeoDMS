@@ -12,6 +12,7 @@
 #include <variant>
 
 #include "DmsMainWindow.h"
+#include "DmsExport.h"
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"
@@ -384,7 +385,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	export_primary_data_action->setDisabled(false);
+	auto item_can_be_exported = currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti);
+	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
 	// step to failreason
