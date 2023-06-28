@@ -39,6 +39,7 @@ public slots:
 
 	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
+	void leaveThisConfig();
 
 private slots:
 	void onAnchorClicked(const QUrl& link);

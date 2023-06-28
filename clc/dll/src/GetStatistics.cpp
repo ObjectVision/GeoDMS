@@ -1,4 +1,4 @@
-//<HEADER> 
+﻿//<HEADER> 
 /*
 Data & Model Server (DMS) is a server written in C++ for DSS applications. 
 Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
@@ -180,13 +180,12 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 		for (Int32 i = 0; i != binCounts.size(); ++i)
 		{
 			if (binCounts[i])
-
 				os << "\n" << DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << ": " << binCounts[i];
 		}
 	}
 	else
 	{
-		os << "\n\nTo see all unique values and their frequency, you can open this attribute in a TableView and press the GroupBy button in the toolbar.";
+		os << CharPtr(u8"\n\nTo see all unique values and their frequency, you can open this attribute in a TableView, select the column header, and press the ∑ (GroupBy) button in the toolbar.");
 	}
 }
 
