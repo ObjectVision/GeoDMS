@@ -198,9 +198,7 @@ namespace wms {
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
-#if defined(MG_DEBUG_WMS)
 				self->report(("TimerExpired: " + ec.message()).c_str(), true);
-#endif
 			});
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
@@ -231,9 +229,7 @@ namespace wms {
 		bool report_status(const boost::system::error_code& ec, CharPtr what);
 		void report(CharPtr what, bool alive)
 		{
-			#if defined(MG_DEBUG_WMS)
-				report(SeverityTypeID::ST_MajorTrace, what, "OK", alive);
-			#endif
+			report(SeverityTypeID::ST_MajorTrace, what, "OK", alive);
 		}
 
 		void on_connect(const boost::system::error_code& ec) {
@@ -446,7 +442,7 @@ namespace wms {
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
+		reportF(MsgCategory::wms, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
 			, what 
 			, msg 
 			, m_Request 
@@ -462,9 +458,7 @@ namespace wms {
 
 		if (!ec)
 		{
-			#if defined(MG_DEBUG_WMS)
-				report(SeverityTypeID::ST_MajorTrace, what, "OK", true);
-			#endif
+			report(SeverityTypeID::ST_MinorTrace, what, "OK", true);
 			return false;
 		}
 		report(SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
