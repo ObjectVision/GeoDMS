@@ -39,6 +39,10 @@ class DmsDetailPages;
 class DmsTreeView;
 class DmsEventLog;
 class DmsModel;
+class DmsGuiOptionsWindow;
+class DmsAdvancedOptionsWindow;
+class DmsConfigOptionsWindow;
+class DmsExportWindow;
 class EventLogModel;
 
 class DmsCurrentItemBar : public QLineEdit
@@ -99,92 +103,6 @@ struct CmdLineSetttings {
     bool m_NoConfig = false;
     SharedStr m_ConfigFileName;
     std::vector<SharedStr> m_CurrItemFullNames;
-};
-
-// BEGIN EXPORT TODO: move to more appropriate location
-enum class driver_characteristics : UInt32
-{
-    none = 0,
-    is_raster = 0x01,
-    native_is_default = 0x02,
-    tableset_is_folder = 0x04,
-};
-inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
-inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
-
-struct gdal_driver_id
-{
-    CharPtr shortname = nullptr;
-    CharPtr name = nullptr;
-    CharPtr nativeName = nullptr;
-    driver_characteristics drChars = driver_characteristics::none;
-
-    CharPtr Caption()
-    {
-        if (name)
-            return name;
-        return shortname;
-    }
-
-    bool HasNativeVersion() { return nativeName; }
-
-    bool IsEmpty()
-    {
-        return shortname == nullptr;
-    }
-};
-
-
-// END EXPORT
-
-class DmsOptionsWindow : public QDialog
-{
-    Q_OBJECT
-
-private slots:
-    void onFlushTresholdValueChange(int value);
-    void restoreOptions();
-    void ok();
-    void apply();
-    void undo();
-    void onStateChange(int state);
-    void onTextChange(const QString& text);
-    void setLocalDataDirThroughDialog();
-    void setSourceDataDirThroughDialog();
-
-    /*void onLocalDataDirChange();
-    void onSourceDataDirChange();
-    void onDmsEditorChange();
-    void onPP0Change();
-    void onPP1Change();
-    void onPP2Change();
-    void onPP3Change();
-    void onTracelogFileChange();*/
-
-public:
-    DmsOptionsWindow(QWidget* parent = nullptr);
-private:
-    void setInitialLocalDataDirValue();
-    void setInitialSourceDatDirValue();
-    void setInitialEditorValue();
-    void setInitialMemoryFlushTresholdValue();
-
-    bool m_changed = false;
-
-    QPointer<QFileDialog> m_folder_dialog;
-    QPointer<QLabel> m_flush_treshold_text;
-    QPointer<QCheckBox> m_pp0;
-    QPointer<QCheckBox> m_pp1;
-    QPointer<QCheckBox> m_pp2;
-    QPointer<QCheckBox> m_pp3;
-    QPointer<QCheckBox> m_tracelog;
-    QPointer<QLineEdit> m_ld_input;
-    QPointer<QLineEdit> m_sd_input;
-    QPointer<QLineEdit> m_editor_input;
-    QPointer<QSlider>   m_flush_treshold;
-    QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
 };
 
 class DmsFileChangedWindow : public QDialog
@@ -269,7 +187,6 @@ public slots:
     void code_analysis_clr_targets();
 
     static void error(ErrMsgPtr error_message_ptr);
-    void exportOkButton();
     void stepToFailReason();
     void runToFailReason();
 
@@ -287,8 +204,8 @@ public slots:
 
     void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
     //void showTreeviewContextMenu(const QPoint& pos);
-    void showStatistics() { ShowStatistics(getCurrentTreeItem()); }
-    void ShowStatistics(const TreeItem* tiContext);
+    void showStatisticsDirectly(const TreeItem* tiContext);
+    void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
 
 protected:
     bool event(QEvent* event) override;
@@ -345,8 +262,11 @@ public:
     QPointer<QToolBar> m_right_side_toolbar;
 
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
+    QPointer<DmsExportWindow> m_export_window;
     QPointer<DmsErrorWindow> m_error_window;
-    QPointer<DmsOptionsWindow> m_options_window;
+    QPointer<DmsGuiOptionsWindow> m_gui_options_window;
+    QPointer<DmsAdvancedOptionsWindow> m_advanced_options_window;
+    QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
 private:

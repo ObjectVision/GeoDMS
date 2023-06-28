@@ -16,7 +16,7 @@
 
 class ViewPort;
 const TreeItem* GetExportSettingsContext(const TreeItem* context);
-SharedStr GetFullFileNameBase(const TreeItem* context);
+SHV_CALL SharedStr GetFullFileNameBase(const TreeItem* context);
 
 //===================================== struct ExportInfo interface
 

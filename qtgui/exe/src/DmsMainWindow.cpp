@@ -9,8 +9,8 @@
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
 
-#include "utl/Environment.h"
 #include "utl/mySPrintF.h"
+#include "utl/splitPath.h"
 
 #include "DataView.h"
 #include "TreeItem.h"
@@ -28,6 +28,8 @@
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "DmsOptions.h"
+#include "DmsExport.h"
 #include "DataView.h"
 #include "StateChangeNotification.h"
 #include <regex>
@@ -35,272 +37,6 @@
 #include "dataview.h"
 
 static MainWindow* s_CurrMainWindow = nullptr;
-
-void DmsOptionsWindow::setInitialLocalDataDirValue()
-{
-    auto ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("LocalDataDir", "C:\\LocalData");
-        ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    }
-    m_ld_input->setText(ld_reg_key.c_str());
-}
-
-void DmsOptionsWindow::setInitialSourceDatDirValue()
-{
-    auto ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("SourceDataDir", "C:\\SourceData");
-        ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    }
-    m_sd_input->setText(ld_reg_key.c_str());
-}
-
-void DmsOptionsWindow::setInitialEditorValue()
-{
-    auto ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L");
-        ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    }
-    m_editor_input->setText(ld_reg_key.c_str());
-}
-
-void DmsOptionsWindow::setInitialMemoryFlushTresholdValue()
-{
-    auto flush_treshold = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
-    m_flush_treshold->setValue(flush_treshold);
-}
-
-void DmsOptionsWindow::restoreOptions()
-{
-    {
-        const QSignalBlocker blocker1(m_ld_input);
-        const QSignalBlocker blocker2(m_sd_input);
-        const QSignalBlocker blocker3(m_editor_input);
-        const QSignalBlocker blocker4(m_flush_treshold);
-        const QSignalBlocker blocker5(m_pp0);
-        const QSignalBlocker blocker6(m_pp1);
-        const QSignalBlocker blocker7(m_pp2);
-        const QSignalBlocker blocker8(m_pp3);
-        const QSignalBlocker blocker9(m_tracelog);
-
-        setInitialLocalDataDirValue();
-        setInitialSourceDatDirValue();
-        setInitialEditorValue();
-        setInitialMemoryFlushTresholdValue();
-        m_pp0->setChecked(IsMultiThreaded0());
-        m_pp1->setChecked(IsMultiThreaded1());
-        m_pp2->setChecked(IsMultiThreaded2());
-        m_pp3->setChecked(IsMultiThreaded3());
-        m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
-    }
-    m_apply->setDisabled(true);
-    m_undo->setDisabled(true);
-}
-
-void DmsOptionsWindow::apply()
-{
-    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
-
-    auto dms_reg_status_flags = GetRegStatusFlags();
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp0->isChecked() ? dms_reg_status_flags |= RSF_SuspendForGUI : dms_reg_status_flags &= ~RSF_SuspendForGUI);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp1->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading1 : dms_reg_status_flags &= ~RSF_MultiThreading1);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp2->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading2 : dms_reg_status_flags &= ~RSF_MultiThreading2);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp3->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading3 : dms_reg_status_flags &= ~RSF_MultiThreading3);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_tracelog->isChecked() ? dms_reg_status_flags |= RSF_TraceLogFile : dms_reg_status_flags &= ~RSF_TraceLogFile);
-    SetGeoDmsRegKeyDWord("MemoryFlushThreshold", m_flush_treshold->value());
-    m_changed = false;
-    m_apply->setDisabled(true);
-}
-
-void DmsOptionsWindow::ok()
-{
-    if (m_changed)
-        apply();
-    m_changed = false;
-    done(QDialog::Accepted);
-}
-
-void DmsOptionsWindow::undo()
-{
-    restoreOptions();
-    m_changed = false;
-}
-
-void DmsOptionsWindow::onStateChange(int state)
-{
-    m_changed = true;
-    m_apply->setDisabled(false);
-    m_undo->setDisabled(false);
-}
-
-void DmsOptionsWindow::onTextChange(const QString& text)
-{
-    m_changed = true;
-    m_apply->setDisabled(false);
-    m_undo->setDisabled(false);
-}
-
-void DmsOptionsWindow::setLocalDataDirThroughDialog()
-{
-    auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalData Directory"), m_ld_input->text(),
-        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-
-    if (!new_local_data_dir_folder.isEmpty())
-        m_ld_input->setText(new_local_data_dir_folder);
-}
-
-void DmsOptionsWindow::setSourceDataDirThroughDialog()
-{
-    auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceData Directory"), m_sd_input->text(),
-        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-    if (!new_source_data_dir_folder.isEmpty())
-        m_sd_input->setText(new_source_data_dir_folder);
-}
-
-DmsOptionsWindow::DmsOptionsWindow(QWidget* parent)
-    : QDialog(parent)
-{
-    setWindowTitle(QString("Options"));
-    setMinimumSize(800,400);
-    
-    m_folder_dialog = new QFileDialog(this);
-    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
-    
-
-    auto grid_layout = new QGridLayout(this);
-    // path widgets
-    auto path_ld = new QLabel("Local data:", this);
-    auto path_sd = new QLabel("Source data:", this);
-    m_ld_input = new QLineEdit(this);
-    m_sd_input = new QLineEdit(this);
-    auto path_ld_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    auto path_sd_fldr = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-
-    connect(path_ld_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setLocalDataDirThroughDialog);
-    connect(path_sd_fldr, &QPushButton::clicked, this, &DmsOptionsWindow::setSourceDataDirThroughDialog);
-
-    grid_layout->addWidget(path_ld, 0, 0);
-    grid_layout->addWidget(m_ld_input, 0, 1);
-    grid_layout->addWidget(path_ld_fldr, 0, 2);
-    grid_layout->addWidget(path_sd, 1, 0);
-    grid_layout->addWidget(m_sd_input, 1, 1);
-    grid_layout->addWidget(path_sd_fldr, 1, 2);
-
-    auto path_line = new QFrame(this);
-    path_line->setFrameShape(QFrame::HLine);
-    path_line->setFrameShadow(QFrame::Plain);
-    path_line->setLineWidth(1);
-    path_line->setMidLineWidth(1);
-    grid_layout->addWidget(path_line, 2, 0, 1, 3);
-
-    // editor widgets
-    auto editor_text = new QLabel("Editor:", this);
-    m_editor_input = new QLineEdit(this);
-    grid_layout->addWidget(editor_text, 3, 0);
-    grid_layout->addWidget(m_editor_input, 3, 1);
-
-    auto line_editor = new QFrame(this);
-    line_editor->setFrameShape(QFrame::HLine);
-    line_editor->setFrameShadow(QFrame::Plain);
-    line_editor->setLineWidth(1);
-    line_editor->setMidLineWidth(1);
-    grid_layout->addWidget(line_editor, 4, 0, 1, 3);
-
-    // parallel processing widgets
-    auto pp_text = new QLabel("Parallel processing:", this);
-    m_pp0 = new QCheckBox("0: Suspend view updates to favor gui", this);
-    m_pp0->setChecked(IsMultiThreaded0());
-    m_pp1 = new QCheckBox("1: Tile/segment tasks", this);
-    m_pp1->setChecked(IsMultiThreaded1());
-    m_pp2 = new QCheckBox("2: Multiple operations simultaneously", this);
-    m_pp2->setChecked(IsMultiThreaded2());
-    m_pp3 = new QCheckBox("3: Pipelined tile operations", this);
-    m_pp3->setChecked(IsMultiThreaded3());
-
-    grid_layout->addWidget(pp_text, 5, 0, 1, 3);
-    grid_layout->addWidget(m_pp0, 6, 0, 1, 3);
-    grid_layout->addWidget(m_pp1, 7, 0, 1, 3);
-    grid_layout->addWidget(m_pp2, 8, 0, 1, 3);
-    grid_layout->addWidget(m_pp3, 9, 0, 1, 3);
-
-    auto pp_line = new QFrame(this);
-    pp_line->setFrameShape(QFrame::HLine);
-    pp_line->setFrameShadow(QFrame::Plain);
-    pp_line->setLineWidth(1);
-    pp_line->setMidLineWidth(1);
-    grid_layout->addWidget(pp_line, 10, 0, 1, 3);
-
-    // flush treshold
-    auto ft_text = new QLabel("Flush treshold:", this);
-    m_flush_treshold_text = new QLabel("100%", this);
-    m_flush_treshold = new QSlider(Qt::Orientation::Horizontal, this);
-    m_flush_treshold->setMinimum(50);
-    m_flush_treshold->setMaximum(100);
-    m_flush_treshold->setValue(100);
-    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsOptionsWindow::onFlushTresholdValueChange);
-
-    m_tracelog = new QCheckBox("Tracelog file", this);
-    
-    grid_layout->addWidget(ft_text, 11, 0);
-    grid_layout->addWidget(m_flush_treshold, 11, 1);
-    grid_layout->addWidget(m_flush_treshold_text, 11, 2);
-    grid_layout->addWidget(m_tracelog, 12, 0);
-
-    auto ft_line = new QFrame(this);
-    ft_line->setFrameShape(QFrame::HLine);
-    ft_line->setFrameShadow(QFrame::Plain);
-    ft_line->setLineWidth(1);
-    ft_line->setMidLineWidth(1);
-    grid_layout->addWidget(ft_line, 13, 0, 1, 3);
-
-    // change connections
-    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
-    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
-    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
-    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
-    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsOptionsWindow::onStateChange);
-    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
-    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsOptionsWindow::onTextChange);
-
-    // ok/apply/cancel buttons
-    auto box_layout = new QHBoxLayout(this);
-    m_ok = new QPushButton("Ok");
-    m_ok->setMaximumSize(75, 30);
-    m_ok->setAutoDefault(true);
-    m_ok->setDefault(true);
-    m_apply = new QPushButton("Apply");
-    m_apply->setMaximumSize(75, 30);
-    m_apply->setDisabled(true);
-
-    m_undo = new QPushButton("Undo");
-    m_undo->setDisabled(true);
-    connect(m_ok, &QPushButton::released, this, &DmsOptionsWindow::ok);
-    connect(m_apply, &QPushButton::released, this, &DmsOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsOptionsWindow::undo);
-    m_undo->setMaximumSize(75, 30);
-    box_layout->addWidget(m_ok);
-    box_layout->addWidget(m_apply);
-    box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
-
-    restoreOptions();
-
-    setWindowModality(Qt::ApplicationModal);
-}
-
-void DmsOptionsWindow::onFlushTresholdValueChange(int value)
-{
-    m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
-    m_apply->setDisabled(false);
-    m_changed = true;
-}
 
 void DmsFileChangedWindow::ignore()
 {
@@ -478,6 +214,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     m_file_changed_window = new DmsFileChangedWindow(this);
     m_error_window = new DmsErrorWindow(this);
+    m_export_window = new DmsExportWindow(this);
 
     m_mdi_area = std::make_unique<QDmsMdiArea>(this);
 
@@ -897,11 +634,6 @@ void MainWindow::openConfigSource()
     openConfigSourceDirectly(filename, line);
 }
 
-void MainWindow::exportOkButton()
-{
-    int i = 0;
-}
-
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
 void MainWindow::stepToFailReason()
@@ -968,43 +700,28 @@ void MainWindow::toggle_currentitembar()
     m_current_item_bar_container->setVisible(!isVisible);
 }
 
-auto getAvailableDrivers() -> std::vector<gdal_driver_id>
-{
-    std::vector<gdal_driver_id> available_drivers;
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr);
-    available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr);
-    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr);
-    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, driver_characteristics::is_raster);
-    available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    return available_drivers;
-}
-
 void MainWindow::gui_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_gui_options_window)
+        m_gui_options_window = new DmsGuiOptionsWindow(this);
 
-    m_options_window->show();
+    m_gui_options_window->show();
 }
 
 void MainWindow::advanced_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_advanced_options_window)
+        m_advanced_options_window = new DmsAdvancedOptionsWindow(this);
 
-    m_options_window->show();
+    m_advanced_options_window->show();
 }
 
 void MainWindow::config_options()
 {
-    if (!m_options_window)
-        m_options_window = new DmsOptionsWindow(this);
+    if (!m_config_options_window)
+        m_config_options_window = new DmsConfigOptionsWindow(this);
 
-    m_options_window->show();
+    m_config_options_window->show();
 }
 
 void MainWindow::code_analysis_set_source()
@@ -1052,34 +769,11 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
 
 void MainWindow::exportPrimaryData()
 {
-    QWidget* export_primary_data_window = new QDialog(this);
-    export_primary_data_window->setWindowTitle(QString("Export ") + getCurrentTreeItem()->GetFullName().c_str());
-    auto grid_layout_box = new QGridLayout(export_primary_data_window);
-    auto format_label = new QLabel("Format", this);
+    if (!m_export_window)
+        m_export_window = new DmsExportWindow(this);
 
-    auto format_driver_selection_box = new QComboBox(this);
-    QStringList driver_namesnames;
-    auto available_drivers = getAvailableDrivers();
-    for (auto& driver : available_drivers)
-        format_driver_selection_box->addItem(driver.Caption());
-
-
-    format_driver_selection_box->addItems(driver_namesnames);
-    auto format_native_driver_checkbox = new QCheckBox("Use native driver", this);
-    grid_layout_box->addWidget(format_label, 0, 0);
-    grid_layout_box->addWidget(format_driver_selection_box, 0, 1);
-    grid_layout_box->addWidget(format_native_driver_checkbox, 0, 2);
-
-    auto export_button = new QPushButton("Export");
-    connect(export_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout_box->addWidget(export_button, 3, 0);
-
-    auto cancel_button = new QPushButton("Cancel");
-    connect(cancel_button, &QPushButton::clicked, this, &MainWindow::exportOkButton);
-    grid_layout_box->addWidget(cancel_button, 3, 1);
-
-    export_primary_data_window->setWindowModality(Qt::ApplicationModal);
-    export_primary_data_window->show();
+    m_export_window->prepare();
+    m_export_window->show();
 }
 
 void MainWindow::createView(ViewStyle viewStyle)
@@ -1155,8 +849,10 @@ void MainWindow::CloseConfig()
 
     if (m_root)
     {
-        m_detail_pages->setActiveDetailPage(ActiveDetailPage::NONE); // reset ValueInfo cached results
+        m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
+        m_dms_model->reset();
         m_treeview->reset();
+
         m_dms_model->setRoot(nullptr);
         m_root->EnableAutoDelete();
         m_root = nullptr;
@@ -1248,11 +944,12 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_root = newRoot;
         if (m_root)
         {
-            std::string last_config_file_dos = configFilePath;
-            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
-            insertCurrentConfigInRecentFiles(last_config_file_dos);
-            if (std::filesystem::exists(last_config_file_dos))
-                SetGeoDmsRegKeyString("LastConfigFile", last_config_file_dos);
+            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(SharedStr(configFilePath)));
+
+//            std::string last_config_file_dos = configFilePathStr.c_str();
+//            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
+            insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
+            SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
 
@@ -1314,7 +1011,7 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
-void MainWindow::ShowStatistics(const TreeItem* tiContext)
+void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 {
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
     auto* textWidget = new QTextBrowser(mdiSubWindow);
@@ -1331,6 +1028,7 @@ void MainWindow::ShowStatistics(const TreeItem* tiContext)
     vos_buffer_type textBuffer;
     while (true)
     {
+        SuspendTrigger::Resume();
         bool done = NumericDataItem_GetStatistics(tiContext, textBuffer);
         textWidget->setText(begin_ptr(textBuffer));
         if (done)
@@ -1364,7 +1062,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         return;
 
     case CC_ShowStatistics:
-        mainWindow->ShowStatistics(self);
+        mainWindow->showStatisticsDirectly(self);
     }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)
