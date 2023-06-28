@@ -465,7 +465,6 @@ void DmsExportWindow::exportActiveTabInfo()
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
 
-
     DMS_CALL_BEGIN
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
