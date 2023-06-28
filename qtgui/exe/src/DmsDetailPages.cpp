@@ -30,17 +30,10 @@
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
     m_active_detail_page = new_active_detail_page;
-    if (m_active_detail_page != ActiveDetailPage::VALUE_INFO)
-    {
-        m_tiValueInfoContext = nullptr;
-        DMS_ExplainValue_Clear();
-    }
 }
 
 void DmsDetailPages::leaveThisConfig() // reset ValueInfo cached results
 {
-    if (m_active_detail_page == ActiveDetailPage::VALUE_INFO)
-        toggle(ActiveDetailPage::VALUE_INFO);
 }
 
 auto Realm(const auto& x) -> CharPtrRange
@@ -231,14 +224,6 @@ void DmsDetailPages::drawPage()
         DMS_XML_MetaInfoRef(current_item, xmlOut.get(), url.c_str());
         break;
     }
-    case ActiveDetailPage::VALUE_INFO:
-    {
-        assert(m_tiValueInfoContext);
-        assert(IsDataItem(m_tiValueInfoContext.get_ptr()));
-        SuspendTrigger::Resume();
-        ready = DMS_DataItem_ExplainAttrValueToXML(AsDataItem(m_tiValueInfoContext.get_ptr()), xmlOut.get(), m_RecNo, nullptr, true);
-        break;
-    }
     }
     if (result)
     {
@@ -376,17 +361,24 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
     if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
     {
         sMenu.first += 3;
-        m_active_detail_page = dp_FromName(sMenu);
+        auto detail_page_type = dp_FromName(sMenu);
         tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first); // TODO: make result FindBestItem non-const
-        if (m_active_detail_page == ActiveDetailPage::VALUE_INFO)
+        switch (detail_page_type)
         {
-            m_RecNo = recNo;
-            m_tiValueInfoContext = tiContext;
+        case ActiveDetailPage::STATISTICS:
+            MainWindow::TheOne()->showStatisticsDirectly(tiContext);
+            return;
+        case ActiveDetailPage::VALUE_INFO:
+            if (IsDataItem(tiContext))
+                MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+            return;
+        default:
+            m_active_detail_page = detail_page_type;
+            if (tiContext)
+                MainWindow::TheOne()->setCurrentTreeItem(tiContext);
             drawPage(); // Update
+            return;
         }
-        if (tiContext)
-            MainWindow::TheOne()->setCurrentTreeItem(tiContext);
-        return;
     }
 }
 

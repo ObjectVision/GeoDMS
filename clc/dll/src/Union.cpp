@@ -352,7 +352,7 @@ public:
 					SizeT sz = argData.size();
 					if (coordOffset < sz)
 					{
-						DMS_CalcExpl_AddQueueEntry(context->m_CalcExpl, argDU, argDU->GetTileIndex(t, coordOffset));
+						Explain::AddQueueEntry(context->m_CalcExpl, argDU, argDU->GetTileIndex(t, coordOffset));
 						context = nullptr;
 					}
 					else
