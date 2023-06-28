@@ -12,6 +12,7 @@
 #include <variant>
 
 #include "DmsMainWindow.h"
+#include "DmsExport.h"
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"
@@ -384,7 +385,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	export_primary_data_action->setDisabled(false);
+	auto item_can_be_exported = currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti);
+	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
 	// step to failreason
@@ -431,7 +433,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
 	map_view_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
 	m_context_menu->addAction(map_view_action);
-	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
 	// statistics view
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
@@ -448,7 +449,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
 	process_scheme->setDisabled(true);
 	m_context_menu->addAction(process_scheme);
-
+	m_context_menu->exec(viewport()->mapToGlobal(pos));
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)

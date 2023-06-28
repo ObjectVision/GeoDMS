@@ -4,11 +4,15 @@
 #include "utl/Environment.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
+#include "TicInterface.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "Unit.h"
+
+#include "ItemUpdate.h"
+#include "dbg/DmsCatch.h"
 
 #include "mci/ValueClass.h"
 
@@ -22,6 +26,12 @@
 #include <QTabWidget>
 #include <QComboBox>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+
+#include "ser/FileStreamBuff.h"
+#include "stg/AbstrStoragemanager.h"
+#include "TicInterface.h"
+#include "utl/splitPath.h"
 
 const AbstrUnit* CommonDomain(const TreeItem* item)
 {
@@ -78,21 +88,137 @@ bool CurrentItemCanBeExportedAsTableOrDatabase(const TreeItem* item)
     return CurrentItemCanBeExportedAsDatabase(item);
 }
 
-bool CurrentItemCanBeExportedToVector(const TreeItem* item)
+void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
 {
-    if (!item)
-        return false;
+    std::vector<TableColumnSpec> columnSpecs;
+    auto domain = CommonDomain(tableItem);
+    assert(domain);
 
-    // category Table
-    if (CurrentItemCanBeExportedAsTableOrDatabase(item))
-        return true;
+    if (IsDataItem(tableItem))
+        columnSpecs.emplace_back().m_DataItem = AsDataItem(tableItem);
+    else for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem->GetNextItem())
+        if (IsDataItem(attrItem))
+        {
+            auto adi = AsDataItem(attrItem);
+            if (adi->GetAbstrDomainUnit()->UnifyDomain(domain)) // adi could also be a skippable parameter
+                columnSpecs.emplace_back().m_DataItem = adi;
+        }
 
-    // category Database: container with tables.
-    for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-        if (CurrentItemCanBeExportedAsTable(subItem))
-            return true;
+    auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), nullptr, true);
 
-    return false;
+    Table_Dump(fout.get(), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
+}
+
+void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr fullFileName)
+{
+    if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
+    {
+        DoExportTableToCSV(tableOrDatabaseItem, fullFileName);
+        return;
+    }
+    if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
+        return;
+
+    for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem->GetNextItem())
+        if (CurrentItemCanBeExportedAsTable(tableItem))
+        {
+            auto subFileName = DelimitedConcat(fullFileName.c_str(), tableItem->GetName().c_str());
+            DoExportTableToCSV(tableItem, subFileName);
+        }
+}
+
+#include <filesystem>
+
+void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
+{
+    // common domain for applicable TreeItems
+    auto auCommon = CommonDomain(ti); if (!auCommon) return;
+
+    const AbstrDataItem* adiGeometry = nullptr;
+    // find geometry, if any.
+    if (RefersToMappable(auCommon)) {
+        adiGeometry = GetMappedData(auCommon);
+        if (adiGeometry)
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
+                adiGeometry = nullptr;
+    }
+
+    if (!adiGeometry)
+        while (adiGeometry = DataContainer_NextItem(ti, adiGeometry, auCommon, false))
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+                break;
+    if (!adiGeometry && auCommon != ti)
+        while (adiGeometry = DataContainer_NextItem(auCommon, adiGeometry, auCommon, false))
+            if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+                break;
+
+    // install the storage manager(s) and run the export
+    AbstrDataItem* vdGeometry = nullptr;
+    if (adiGeometry) {
+        vdGeometry = DMS_CreateDataItem(vdc, "Geometry", auCommon, adiGeometry->GetAbstrValuesUnit(), adiGeometry->GetValueComposition());
+        vdGeometry->SetExpr(adiGeometry->GetFullName());
+    }
+
+    const AbstrDataItem* adi = nullptr;
+    while (adi = DataContainer_NextItem(ti, adi, auCommon, false))
+        if (adi != adiGeometry)
+        {
+            // TODO: reproduce multi-level structure of DataContainer
+            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+            vda->SetExpr(adi->GetFullName());
+        }
+
+    if (fn.empty())
+        return;
+
+    auto filePath = std::filesystem::path(fn.c_str());
+    if (vdGeometry)
+    {
+        auto shpPath = filePath; shpPath.replace_extension("shp");
+        vdGeometry->SetStorageManager(shpPath.generic_string().c_str(), "shp", false);
+    }
+    filePath.replace_extension("dbf");
+    vdc->SetStorageManager(filePath.generic_string().c_str(), "dbf", false);
+}
+
+static TokenID exportTableID = GetTokenID("ExportTable");
+static TokenID exportDbID = GetTokenID("ExportDatabase");
+static TokenID dbTableID = GetTokenID("DbTable");
+static TokenID rasterID = GetTokenID("Raster");
+
+auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+{
+    bool nativeShapeFile = nativeFlagged && !stricmp(storageTypeName, "ESRI Shapefile");
+    auto avd = GetExportsContainer(GetDefaultDesktopContainer(tableOrDatabaseItem));
+    TreeItem* vdc = nullptr;
+
+    if (CurrentItemCanBeExportedAsTable(tableOrDatabaseItem))
+    {
+        vdc = avd->CreateItem(UniqueName(avd, exportTableID));
+        DoExportTable(tableOrDatabaseItem, nativeShapeFile ? fn : SharedStr(), vdc);
+    }
+    else
+    {
+        if (!CurrentItemCanBeExportedAsDatabase(tableOrDatabaseItem))
+            return nullptr;
+
+        vdc = avd->CreateItem(UniqueName(avd, exportDbID));
+        for (auto tableItem = tableOrDatabaseItem->GetFirstSubItem(); tableItem; tableItem = tableItem->GetNextItem())
+            if (CurrentItemCanBeExportedAsTable(tableItem))
+            {
+                SharedStr subFileName;
+                if (nativeShapeFile)
+                    subFileName = DelimitedConcat(fn.c_str(), tableItem->GetName().c_str());
+                auto subContainer = vdc->CreateItem(UniqueName(vdc, dbTableID));
+
+                DoExportTable(tableItem, subFileName, subContainer);
+            }
+    }
+
+    if (!nativeShapeFile)
+        vdc->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+
+    return vdc;
 }
 
 bool CanBeRasterDomain(const AbstrUnit* domainCandidate)
@@ -113,7 +239,78 @@ bool CanBeRasterDomain(const AbstrUnit* domainCandidate)
     return false;
 }
 
-bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
+auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeFlagged, SharedStr fn, CharPtr storageTypeName, CharPtr driverName, CharPtr options) -> const TreeItem*
+{
+    if (!currentItemCanBeExportedToRaster(rasterItemOrDomain))
+        return nullptr;
+
+    if (nativeFlagged && !stricmp(storageTypeName, "GTiff"))
+        storageTypeName = "tif";
+
+    auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
+    auto subContainer = avd->CreateItem(UniqueName(avd, rasterID));
+
+    auto adu = IsUnit(rasterItemOrDomain) ? AsUnit(rasterItemOrDomain) : AsDataItem(rasterItemOrDomain)->GetAbstrDomainUnit();
+    assert(CanBeRasterDomain(adu));
+    const AbstrDataItem* baseGrid = nullptr;
+    if (adu->GetNrDimensions() != 2)
+    {
+        assert(RefersToMappable(adu));
+        baseGrid = GetMappedData(adu);
+    }
+    auto rasterDomain = baseGrid ? baseGrid->GetAbstrDomainUnit() : adu;
+
+    auto storeData = [=](const AbstrDataItem* adi)
+    {
+        assert(adi->GetValueComposition() == ValueComposition::Single);
+        auto vda = CreateDataItem(subContainer, UniqueName(subContainer, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        auto expr = adi->GetFullName();
+        if (baseGrid)
+            expr = mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
+        vda->SetExpr(expr);
+    };
+
+    if (IsDataItem(rasterItemOrDomain))
+        storeData(AsDataItem(rasterItemOrDomain));
+    else if (IsUnit(rasterItemOrDomain))
+    {
+        for (auto subItem = rasterItemOrDomain; subItem; subItem = rasterItemOrDomain->WalkConstSubTree(subItem))
+            if (IsDataItem(subItem))
+            {
+                auto adi = AsDataItem(subItem);
+                if (!adu->UnifyDomain(adi->GetAbstrDomainUnit()))
+                    continue;
+                if (adi->GetValueComposition() != ValueComposition::Single)
+                    continue;
+                if (!adi->GetAbstrValuesUnit()->GetValueType()->IsNumericOrBool())
+                    continue;
+                storeData(adi);
+            }
+    }
+
+    subContainer->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+
+    return subContainer;
+}
+
+bool currentItemCanBeExportedToVector(const TreeItem* item)
+{
+    if (!item)
+        return false;
+
+    // category Table
+    if (CurrentItemCanBeExportedAsTableOrDatabase(item))
+        return true;
+
+    // category Database: container with tables.
+    for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+        if (CurrentItemCanBeExportedAsTable(subItem))
+            return true;
+
+    return false;
+}
+
+bool currentItemCanBeExportedToRaster(const TreeItem* item)
 {
     if (!item)
         return false;
@@ -127,7 +324,7 @@ bool CurrentItemCanBeExportedToRaster(const TreeItem* item)
                 return false;
             for (auto subItem = item; subItem; subItem = item->WalkConstSubTree(subItem))
                 if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
-                    if (CurrentItemCanBeExportedToRaster(subItem))
+                    if (currentItemCanBeExportedToRaster(subItem))
                         return true;
         }
         return false;
@@ -229,21 +426,25 @@ ExportTab::ExportTab(bool is_raster, QWidget * parent)
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     grid_layout_box->addWidget(spacer, 2, 0, 1, 3);
-
-    auto export_button = new QPushButton("Export");
-    connect(export_button, &QPushButton::clicked, MainWindow::TheOne()->m_export_window, &DmsExportWindow::exportActiveTabInfo);
-    grid_layout_box->addWidget(export_button, 3, 0);
-
-    auto cancel_button = new QPushButton("Cancel");
-    connect(cancel_button, &QPushButton::clicked, MainWindow::TheOne()->m_export_window, &DmsExportWindow::reject);
-    grid_layout_box->addWidget(cancel_button, 3, 1);
 }
 
 void ExportTab::showEvent(QShowEvent* event)
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
+    if (driver.HasNativeVersion())
+    {
+        m_native_driver_checkbox->setEnabled(true);
+        m_native_driver_checkbox->setChecked(true);
+    }
+    else
+    {
+        m_native_driver_checkbox->setEnabled(false);
+        m_native_driver_checkbox->setChecked(false);
+    }
+
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto full_filename_base = GetFullFileNameBase(current_item);
+
     m_filename_entry->setText(QString(full_filename_base.c_str()) + driver.ext);
 }
 
@@ -251,14 +452,54 @@ void DmsExportWindow::prepare()
 {
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
-    m_tabs->setTabEnabled(m_vector_tab_index, CurrentItemCanBeExportedToVector(current_item));
-    m_tabs->setTabEnabled(m_raster_tab_index, CurrentItemCanBeExportedToRaster(current_item));
+    m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
+    m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
     m_tabs->widget(m_vector_tab_index);
 }
 
 void DmsExportWindow::exportActiveTabInfo()
 {
-    // TODO: implement
+    auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
+    auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
+    auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
+    bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
+    auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
+
+    DMS_CALL_BEGIN
+    CharPtr driverName = nullptr;
+    CharPtr storageTypeName = nullptr;
+
+    if (use_native_driver && driver.HasNativeVersion())
+    {
+        storageTypeName = driver.nativeName;
+        if (!stricmp(storageTypeName, "CSV"))
+        {
+            DoExportTableorDatabaseToCSV(current_export_item, filename);
+            return;
+        }
+    }
+    else
+    {
+        driverName = driver.shortname;
+        if (driver.driver_characteristics & driver_characteristics::is_raster)
+            storageTypeName = "gdalwrite.grid";
+        else
+            storageTypeName = "gdalwrite.vect";
+    }
+
+    const TreeItem* exportConfig = nullptr;
+    if (driver.driver_characteristics & driver_characteristics::is_raster)
+        exportConfig = DoExportRasterOrMatrixData(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
+    else
+        exportConfig = DoExportTableOrDatabase(current_export_item, use_native_driver, filename, storageTypeName, driverName, "");
+
+    if (exportConfig)
+    {
+        Tree_Update(exportConfig, "Export");
+        return;
+    }
+
+    DMS_CALL_END
 }
 
 DmsExportWindow::DmsExportWindow(QWidget* parent)
@@ -271,5 +512,20 @@ DmsExportWindow::DmsExportWindow(QWidget* parent)
 	m_raster_tab_index = m_tabs->addTab(new ExportTab(true), tr("Raster"));
     m_tabs->setCurrentIndex(m_vector_tab_index);
     tab_layout->addWidget(m_tabs);
+
+    QWidget* export_cancel_widgets = new QWidget(this);
+
+    auto h_layout = new QHBoxLayout(this);
+    auto export_button = new QPushButton("Export", this);
+    connect(export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
+    h_layout->addWidget(export_button);
+
+    auto cancel_button = new QPushButton("Cancel", this);
+    connect(cancel_button, &QPushButton::released, this, &DmsExportWindow::reject);
+    h_layout->addWidget(cancel_button);
+    export_cancel_widgets->setLayout(h_layout);
+
+    tab_layout->addWidget(export_cancel_widgets);
+
     setWindowModality(Qt::ApplicationModal);
 }

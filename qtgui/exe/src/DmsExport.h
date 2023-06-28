@@ -2,6 +2,7 @@
 #include <QDialog>;
 #include "ptr/SharedPtr.h"
 
+struct TreeItem;
 class QCheckBox;
 class QPushButton;
 class QSlider;
@@ -45,12 +46,20 @@ public:
     }
 };
 
+bool currentItemCanBeExportedToVector(const TreeItem* item);
+bool currentItemCanBeExportedToRaster(const TreeItem* item);
+
 class ExportTab : public QWidget
 {
     Q_OBJECT
 
 public:
     ExportTab(bool is_raster = false, QWidget* parent = nullptr);
+    bool m_is_raster = false;
+    std::vector<gdal_driver_id> m_available_drivers;
+    QPointer<QLineEdit> m_filename_entry;
+    QPointer<QCheckBox> m_native_driver_checkbox;
+    QPointer<QComboBox> m_driver_selection;
 
 private slots:
     void setFilenameUsingFileDialog();
@@ -60,13 +69,9 @@ protected:
     void showEvent(QShowEvent* event) override;
 
 private:
+
     void setNativeDriverCheckbox();
     void repopulateDriverSelection();
-    bool m_is_raster = false;
-    std::vector<gdal_driver_id> m_available_drivers;
-    QPointer<QLineEdit> m_filename_entry;
-    QPointer<QCheckBox> m_native_driver_checkbox;
-    QPointer<QComboBox> m_driver_selection;
 };
 
 class DmsExportWindow : public QDialog
