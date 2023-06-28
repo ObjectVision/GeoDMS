@@ -450,6 +450,8 @@ void ExportTab::showEvent(QShowEvent* event)
 
 void DmsExportWindow::prepare()
 {
+    SuspendTrigger::Resume();
+
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
     m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
@@ -465,7 +467,9 @@ void DmsExportWindow::exportActiveTabInfo()
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
 
+    SuspendTrigger::Resume();
     DMS_CALL_BEGIN
+
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
 

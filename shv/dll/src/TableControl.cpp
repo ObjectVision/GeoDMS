@@ -813,6 +813,7 @@ bool TableControl::OnCommand(ToolButtonID id)
 
 auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
 {
+	SuspendTrigger::Resume();
 	switch (id)
 	{
 	case TB_TableGroupBy:
