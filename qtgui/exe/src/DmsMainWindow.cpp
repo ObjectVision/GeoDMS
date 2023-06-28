@@ -1011,7 +1011,7 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
-void MainWindow::ShowStatistics(const TreeItem* tiContext)
+void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 {
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
     auto* textWidget = new QTextBrowser(mdiSubWindow);
@@ -1062,7 +1062,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         return;
 
     case CC_ShowStatistics:
-        mainWindow->ShowStatistics(self);
+        mainWindow->showStatisticsDirectly(self);
     }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)

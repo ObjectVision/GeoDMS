@@ -23,9 +23,11 @@ inline driver_characteristics operator |(driver_characteristics lhs, driver_char
 
 struct gdal_driver_id
 {
+public:
     CharPtr shortname = nullptr;
     CharPtr name = nullptr;
     CharPtr nativeName = nullptr;
+    CharPtr ext = nullptr;
     driver_characteristics driver_characteristics = driver_characteristics::none;
 
     CharPtr Caption()
@@ -43,8 +45,6 @@ struct gdal_driver_id
     }
 };
 
-Q_DECLARE_METATYPE(gdal_driver_id);
-
 class ExportTab : public QWidget
 {
     Q_OBJECT
@@ -52,12 +52,20 @@ class ExportTab : public QWidget
 public:
     ExportTab(bool is_raster = false, QWidget* parent = nullptr);
 
+private slots:
+    void setFilenameUsingFileDialog();
+    void onComboBoxItemActivate(int index);
+
 protected:
     void showEvent(QShowEvent* event) override;
 
 private:
+    void setNativeDriverCheckbox();
     void repopulateDriverSelection();
     bool m_is_raster = false;
+    std::vector<gdal_driver_id> m_available_drivers;
+    QPointer<QLineEdit> m_filename_entry;
+    QPointer<QCheckBox> m_native_driver_checkbox;
     QPointer<QComboBox> m_driver_selection;
 };
 
