@@ -202,7 +202,7 @@ public slots:
     void aboutGeoDms();
     void createView(ViewStyle viewStyle);
 
-    void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
+    void scheduleUpdateToolbar();
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index);
@@ -223,6 +223,7 @@ private:
     void updateViewMenu();
     void updateWindowMenu();
     void updateCaption();
+    void updateToolbar();
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
@@ -273,6 +274,7 @@ public:
 private:
     QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
+    bool m_UpdateToolbarResuestPending = false;
 };
 
 #endif
