@@ -109,12 +109,6 @@ void EventLogModel::refilter()
 	}
 	endResetModel();
 
-	if (m_filtered_indices.size() == m_Items.size())
-	{
-		m_filtered_indices.clear();
-		m_filter_active = false;
-	}
-
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
