@@ -58,7 +58,7 @@ bool ShowInDetailPage(auto x)
 void DmsDetailPages::newCurrentItem()
 {
     if (m_active_detail_page != ActiveDetailPage::NONE)
-        drawPage();
+        sheduleDrawPage();
 }
 
 auto getDetailPagesActionFromActiveDetailPage(ActiveDetailPage new_active_detail_page) -> QAction*
@@ -108,7 +108,7 @@ void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
         setActiveDetailPage(ActiveDetailPage::NONE);
     }
 
-    drawPage();
+    sheduleDrawPage();
 }
 
 void DmsDetailPages::toggleGeneral()
@@ -141,7 +141,7 @@ void DmsDetailPages::toggleSourceDescr()
     else
     {
         reinterpret_cast<int&>(m_SDM)++;
-        drawPage();
+        sheduleDrawPage();
     }
 }
 
@@ -164,6 +164,19 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
     return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
 }
 
+void DmsDetailPages::sheduleDrawPage()
+{
+    if (m_DrawPageRequestPending)
+        return;
+
+    m_DrawPageRequestPending = true;
+    QTimer::singleShot(0, [this]()
+        {
+            m_DrawPageRequestPending = false;
+            this->drawPage();
+        }
+    );
+}
 
 void DmsDetailPages::drawPage()
 {
@@ -236,7 +249,7 @@ void DmsDetailPages::drawPage()
             setHtml( htmlEncodeTextDoc(contents).c_str() );
     }
     if (!ready)
-        m_Repeater.start(0);
+        sheduleDrawPage();
 }
 
 bool IsPostRequest(const QUrl& /*link*/)
