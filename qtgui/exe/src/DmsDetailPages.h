@@ -40,6 +40,7 @@ public slots:
 	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void leaveThisConfig();
+	void sheduleDrawPage();
 
 public slots:
 	void onAnchorClicked(const QUrl& link);
@@ -50,6 +51,7 @@ private:
 	void drawPage();
 
 	QTimer m_Repeater;
+	bool m_DrawPageRequestPending = false;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;

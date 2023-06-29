@@ -252,6 +252,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
+
+    scheduleUpdateToolbar();
 }
 
 MainWindow::~MainWindow()
@@ -498,28 +500,45 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     return {};
 }
 
-void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
+void MainWindow::scheduleUpdateToolbar()
 {
+    if (m_UpdateToolbarResuestPending)
+        return;
+
+    QTimer::singleShot(0, [this]()
+        {
+           this->updateToolbar();
+        }
+    );
+
+}
+
+void MainWindow::updateToolbar()
+{
+    if (!m_toolbar)
+    {
+        addToolBarBreak();
+        m_toolbar = addToolBar(tr("dmstoolbar"));
+        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
+        m_toolbar->setIconSize(QSize(32, 32));
+        m_toolbar->setMinimumSize(QSize(0, 44));
+    }
+
+    QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+
     if (m_tooled_mdi_subwindow == active_mdi_subwindow)
         return;
 
     m_tooled_mdi_subwindow = active_mdi_subwindow;
+    m_toolbar->clear();
+
     if (!active_mdi_subwindow)
         return;
 
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
-
-    addToolBarBreak();
-    if (!m_toolbar)
-    {
-        m_toolbar = addToolBar(tr("dmstoolbar"));
-        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
-        m_toolbar->setIconSize(QSize(32, 32));
-    }
-    m_toolbar->clear();
-
     if (!active_dms_view_area)
         return;
+
     // create new actions
     auto* dv = active_dms_view_area->getDataView();// ->OnCommandEnable();
     if (!dv)
@@ -844,8 +863,11 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 void MainWindow::CloseConfig()
 {
     if (m_mdi_area)
+    {
         for (auto* sw : m_mdi_area->subWindowList())
             sw->close();
+        scheduleUpdateToolbar();
+    }
 
     if (m_root)
     {
@@ -944,10 +966,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_root = newRoot;
         if (m_root)
         {
-            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(SharedStr(configFilePath)));
+            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
 
-//            std::string last_config_file_dos = configFilePathStr.c_str();
-//            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
             insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
@@ -1162,6 +1182,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     {
         assert(s_CurrMainWindow == mainWindow);
         mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
+        mainWindow->m_detail_pages->sheduleDrawPage();
     }
 }
 
@@ -1186,7 +1207,7 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
+    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
     //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
