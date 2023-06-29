@@ -332,7 +332,7 @@ namespace DemandManagement {
 	{
 		if (!g_IncInterestDetectorCount)
 			return;
- 		reportD(SeverityTypeID::ST_MajorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
+ 		reportD(SeverityTypeID::ST_MinorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
 //		dms_assert(0);
 	}
 
