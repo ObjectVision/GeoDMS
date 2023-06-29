@@ -1592,6 +1592,12 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
     connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
 
+    const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
+    m_eventlog_clear = std::make_unique<QAction>(eventlog_type_clear_icon, tr("&Eventlog: clear"));
+    m_eventlog_clear->setDisabled(true);
+    m_right_side_toolbar->addAction(m_eventlog_clear.get());
+    connect(m_eventlog_clear.get(), &QAction::triggered, m_eventlog_model.get(), &EventLogModel::clear);
+
     const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
     m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
     m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
