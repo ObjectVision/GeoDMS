@@ -1533,7 +1533,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
 
-    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
     m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
     m_general_page_action->setCheckable(true);
     m_general_page_action->setChecked(true);
@@ -1548,7 +1548,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->addAction(m_explore_page_action.get());
     connect(m_explore_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
-    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
     m_properties_page_action = std::make_unique<QAction>(properties_icon, tr("&Properties"));
     m_properties_page_action->setCheckable(true);
     m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
@@ -1580,19 +1580,19 @@ void MainWindow::createRightSideToolbar()
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_right_side_toolbar->addWidget(spacer);
 
-    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_properties.bmp"));
+    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
     m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
     m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
     connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
 
-    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/TB_select_object.bmp"));
+    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
     m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(eventlog_type_filter_icon, tr("&Eventlog: type filter"));
     m_eventlog_event_type_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
     connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
 
-    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/undo.png"));
+    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
     m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
     m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
     m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());

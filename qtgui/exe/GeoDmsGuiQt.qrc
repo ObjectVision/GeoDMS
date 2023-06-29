@@ -56,5 +56,11 @@
         <file>res/images/down_arrow_hover.png</file>
         <file>res/fonts/dmstext.ttf</file>
         <file>res/images/DP_SourceData.png</file>
+        <file>res/images/DP_properties_general.bmp</file>
+        <file>res/images/DP_properties_properties.bmp</file>
+        <file>res/images/EL_clear.bmp</file>
+        <file>res/images/EL_scroll_down.bmp</file>
+        <file>res/images/EL_selection_text.bmp</file>
+        <file>res/images/EL_selection_type.bmp</file>
     </qresource>
 </RCC>
