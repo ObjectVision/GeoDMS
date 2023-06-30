@@ -21,6 +21,10 @@ static std::set<callback_record> s_WaitingCallbacks;
 void Waiter::start()
 {
 	assert(IsMainThread());
+	if (m_is_counted)
+		return;
+	m_is_counted = true;
+
 	if (s_WaiterCount++)
 		return;
 	for (const auto& we : s_WaitingCallbacks)
@@ -31,6 +35,10 @@ void Waiter::start()
 void Waiter::end()
 {
 	assert(IsMainThread());
+	if (!m_is_counted)
+		return;
+	m_is_counted = false;
+
 	if (--s_WaiterCount)
 		return;
 

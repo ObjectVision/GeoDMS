@@ -1209,6 +1209,8 @@ void MainWindow::end_timing()
     s_IsTiming = false;
     auto current_processing_record = processing_record(s_BeginTime, std::time(nullptr));
     auto passedTime = passed_time(current_processing_record);
+    if (passedTime < 2)
+        return;
 
     if (passedTime > 5)
         MessageBeep(MB_OK); // Beep after 5 sec of continuous work
@@ -1656,6 +1658,26 @@ void MainWindow::on_status_msg_changed(const QString& msg)
         updateStatusMessage();
 }
 
+CharPtrRange myAscTime(const struct tm* timeptr)
+{
+    static char wday_name[7][4] = {
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+    static char mon_name[12][4] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+
+    static char result[26];
+
+    return myFixedBufferAsCharPtrRange(result, 26, "%.3s %.3s%3d %.2d:%.2d:%.2d %d",
+        wday_name[timeptr->tm_wday],
+        mon_name[timeptr->tm_mon],
+        timeptr->tm_mday, timeptr->tm_hour,
+        timeptr->tm_min, timeptr->tm_sec,
+        1900 + timeptr->tm_year);
+}
+
 void MainWindow::view_calculation_times()
 {
     VectorOutStreamBuff vosb;
@@ -1664,8 +1686,8 @@ void MainWindow::view_calculation_times()
     for (const auto& pr : m_processing_records)
     {
         os << passed_time_str("", passed_time(pr)) << " processing ";
-        os << "from " << asctime(std::localtime(& std::get<0>(pr)));
-        os << " till " << asctime(std::localtime(& std::get<1>(pr)));
+        os << "from " << myAscTime(std::localtime(& std::get<0>(pr)));
+        os << " till " << myAscTime(std::localtime(& std::get<1>(pr)));
         os << "\n";
     }
     os << char(0); // ends
