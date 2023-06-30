@@ -254,6 +254,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
 
     scheduleUpdateToolbar();
+//    m_StatusWidget = new QLabel(statusBar());
+//    statusBar()->addWidget(m_StatusWidget);
 }
 
 MainWindow::~MainWindow()
@@ -1182,6 +1184,23 @@ std::time_t passed_time(const MainWindow::processing_record& pr)
     return std::get<1>(pr) - std::get<0>(pr);
 }
 
+SharedStr passed_time_str(CharPtr preFix, time_t passedTime)
+{
+    SharedStr result;
+    if (passedTime >= 24 * 3600)
+    {
+        result = AsString(passedTime / (24 * 3600)) + " days and ";
+        passedTime %= 24 * 3600;
+    }
+    assert(passedTime <= (24 * 3600));
+    result = mySSPrintF("%s%s%02d:%02d:%02d"
+        , preFix
+        , result.c_str()
+        , passedTime / 3600, (passedTime / 60) % 60, passedTime % 60
+    );
+    return result;
+}
+
 void MainWindow::end_timing()
 {
     if (!s_IsTiming)
@@ -1210,24 +1229,20 @@ void MainWindow::end_timing()
 //    SHV_SetBusyMode(false);
 //    ChangeCursor(g_OldCursor);
 
-    m_LongestProcessingRecordTxt = "";
-    if (passedTime >= 24 * 3600)
-    {
-        m_LongestProcessingRecordTxt = AsString(passedTime / (24 * 3600)) + " days and ";
-        passedTime %= 24 * 3600;
-    }
-    assert(passedTime <= (24 * 3600));
-    m_LongestProcessingRecordTxt = mySSPrintF(" - max processing time: %s%02d:%02d:%02d"
-        , m_LongestProcessingRecordTxt.c_str()
-        , passedTime / 3600, (passedTime / 60) % 60, passedTime % 60
-    );
+    m_LongestProcessingRecordTxt = passed_time_str(" - max processing time: ", passedTime);
 
     updateStatusMessage();
 }
 
+static UInt32 s_ReentrancyCount = 0;
 void MainWindow::updateStatusMessage()
 {
+    if (s_ReentrancyCount)
+        return;
+
     auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt;
+
+    DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     statusBar()->showMessage(fullMsg.c_str());
 }
 
@@ -1416,6 +1431,12 @@ void MainWindow::createActions()
     // process schemes
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
+    m_view_menu->addAction(m_process_schemes_action.get());
+
+    m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
+    connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
+    m_view_menu->addAction(m_view_calculation_times_action.get());
+
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
     m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
@@ -1626,7 +1647,40 @@ void MainWindow::updateCaption()
 void MainWindow::createStatusBar()
 {
     statusBar()->showMessage(tr("Ready"));
+    connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
 }
+
+void MainWindow::on_status_msg_changed(const QString& msg)
+{
+    if (msg.isEmpty())
+        updateStatusMessage();
+}
+
+void MainWindow::view_calculation_times()
+{
+    VectorOutStreamBuff vosb;
+    FormattedOutStream os(&vosb, FormattingFlags());
+    os << "Top " << m_processing_records.size() << " calculation times:\n";
+    for (const auto& pr : m_processing_records)
+    {
+        os << passed_time_str("", passed_time(pr)) << " processing ";
+        os << "from " << asctime(std::localtime(& std::get<0>(pr)));
+        os << " till " << asctime(std::localtime(& std::get<1>(pr)));
+        os << "\n";
+    }
+    os << char(0); // ends
+
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
+    auto* textWidget = new QTextBrowser(mdiSubWindow);
+    mdiSubWindow->setWidget(textWidget);
+    textWidget->setText(vosb.GetData());
+
+    mdiSubWindow->setWindowTitle("Calculation time overview");
+    m_mdi_area->addSubWindow(mdiSubWindow);
+    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
+    mdiSubWindow->show();
+}
+
 
 void MainWindow::createRightSideToolbar()
 {
@@ -1634,7 +1688,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
 
-    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
     m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
     m_general_page_action->setCheckable(true);
     m_general_page_action->setChecked(true);
@@ -1649,7 +1703,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->addAction(m_explore_page_action.get());
     connect(m_explore_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
-    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
     m_properties_page_action = std::make_unique<QAction>(properties_icon, tr("&Properties"));
     m_properties_page_action->setCheckable(true);
     m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
@@ -1681,19 +1735,25 @@ void MainWindow::createRightSideToolbar()
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_right_side_toolbar->addWidget(spacer);
 
-    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_properties.bmp"));
+    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
     m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
     m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
     connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
 
-    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/TB_select_object.bmp"));
+    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
     m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(eventlog_type_filter_icon, tr("&Eventlog: type filter"));
     m_eventlog_event_type_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
     connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
 
-    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/undo.png"));
+    const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
+    m_eventlog_clear = std::make_unique<QAction>(eventlog_type_clear_icon, tr("&Eventlog: clear"));
+    m_eventlog_clear->setDisabled(true);
+    m_right_side_toolbar->addAction(m_eventlog_clear.get());
+    connect(m_eventlog_clear.get(), &QAction::triggered, m_eventlog_model.get(), &EventLogModel::clear);
+
+    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
     m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
     m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
     m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());

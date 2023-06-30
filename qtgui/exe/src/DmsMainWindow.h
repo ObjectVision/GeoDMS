@@ -226,7 +226,9 @@ private:
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
+    void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
+    void view_calculation_times();
     void begin_timing(); friend void OnStartWaiting(void* clientHandle);
     void end_timing();   friend void OnEndWaiting  (void* clientHandle);
 
@@ -249,13 +251,13 @@ public:
     , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
     , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
 //    , m_histogramview_action
-    , m_process_schemes_action
+    , m_process_schemes_action, m_view_calculation_times_action
     , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
     , m_gui_options_action, m_advanced_options_action, m_config_options_action
     , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
     , m_quit_action
     , m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
-    , m_eventlog_scroll_to_bottom_toggle, m_eventlog_event_text_filter_toggle, m_eventlog_event_type_filter_toggle;
+    , m_eventlog_scroll_to_bottom_toggle, m_eventlog_event_text_filter_toggle, m_eventlog_event_type_filter_toggle, m_eventlog_clear;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
@@ -269,6 +271,7 @@ public:
     QPointer<DmsTreeView> m_treeview;
     QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
     QPointer<QToolBar> m_right_side_toolbar;
+//    QPointer<QLabel>   m_StatusWidget;
 
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsExportWindow> m_export_window;
