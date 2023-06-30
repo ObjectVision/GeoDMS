@@ -184,8 +184,8 @@ struct ItemSchemaControllerWriterBase : WeakPtr<ItemSchemaView>
 	ItemSchemaControllerWriterBase(ItemSchemaView* isv, UInt32 nrItems, UInt32 nrRoots)
 		:	WeakPtr(isv)
 	{
-		isv->m_SchemaNodes->SetCount(nrItems);
-		isv->m_SchemaLinks->SetCount(nrItems - nrRoots);
+		isv->m_SchemaNodes->SetCount(nrItems);           isv->m_SchemaNodes->SetTSF(USF_HasConfigRange);
+		isv->m_SchemaLinks->SetCount(nrItems - nrRoots); isv->m_SchemaLinks->SetTSF(USF_HasConfigRange);
 	}
 };
 
@@ -304,7 +304,7 @@ void ItemSchemaController::UpdateItems(ItemSchemaView* isv)
 		PlaceLabels<QueryType>(writer, m_RootItems[writer.rootIndex], &gs);
 		writer.NextRow();
 	}
-	dms_assert(m_AllItems.size() == nrItems);
+	assert(m_AllItems.size() == nrItems);
 	writer.Commit();
 };
 

@@ -209,6 +209,9 @@ public slots:
     void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
     void setStatusMessage(CharPtr msg);
 
+    void visual_update_treeitem();
+    void visual_update_subtree();
+
 protected:
     bool event(QEvent* event) override;
 

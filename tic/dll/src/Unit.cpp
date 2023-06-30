@@ -305,7 +305,8 @@ tile_loc RegularAdapter<Base>::GetTiledLocationForValue(value_type v) const
 template <typename Base>
 tile_loc RegularAdapter<Base>::GetTiledLocation(row_id index) const
 {
-	dms_assert(index < Cardinality(this->m_Range));
+	if (index >= Cardinality(this->m_Range))
+		return tile_loc{UNDEFINED_VALUE(tile_id), UNDEFINED_VALUE(tile_offset)};
 
 	auto v = Range_GetValue_naked(this->m_Range, index);
 	return GetTiledLocationForValue(v);

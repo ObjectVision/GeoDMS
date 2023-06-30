@@ -684,6 +684,16 @@ void MainWindow::runToFailReason()
     }   
 }
 
+void MainWindow::visual_update_treeitem()
+{
+    createView(ViewStyle::tvsUpdateItem);
+}
+
+void MainWindow::visual_update_subtree()
+{
+    createView(ViewStyle::tvsUpdateTree);
+}
+
 void MainWindow::toggle_treeview()
 {
     bool isVisible = m_treeview->isVisible();
@@ -1334,7 +1344,7 @@ void MainWindow::createActions()
     m_file_menu->addAction(fileOpenAct);
 
     auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
-    reOpenAct->setShortcuts(QKeySequence::Refresh);
+    reOpenAct->setShortcut(QKeySequence(tr("Alt+R")));
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
     m_file_menu->addAction(reOpenAct);
@@ -1384,12 +1394,12 @@ void MainWindow::createActions()
     // update treeitem
     m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
     m_update_treeitem_action->setShortcut(QKeySequence(tr("Ctrl+U")));
-    //connect(m_update_treeitem_action.get(), &QAction::triggered, this, & #TODO);
+    connect(m_update_treeitem_action.get(), &QAction::triggered, this, &MainWindow::visual_update_treeitem);
 
     // update subtree
     m_update_subtree_action = std::make_unique<QAction>(tr("&Update Subtree"));
     m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
-    //connect(m_update_subtree_action.get(), &QAction::triggered, this, & #TODO);
+    connect(m_update_subtree_action.get(), &QAction::triggered, this, &MainWindow::visual_update_subtree);
     
     // invalidate action
     m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));

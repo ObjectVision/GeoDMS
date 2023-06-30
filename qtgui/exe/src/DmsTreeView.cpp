@@ -391,32 +391,32 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// step to failreason
 	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
-	step_to_failreason->setDisabled(!ti || !ti->WasFailed());
+	step_to_failreason->setEnabled(ti && ti->WasFailed());
 	m_context_menu->addAction(step_to_failreason);
 
 	// go to causa prima
 	auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
-	go_to_causa_prima->setDisabled(!ti || !ti->WasFailed());
+	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
 	m_context_menu->addAction(go_to_causa_prima);
 
 	// edit config source
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
-	edit_config_source->setDisabled(false);
+	edit_config_source->setEnabled(true);
 	m_context_menu->addAction(edit_config_source);
 
 	// update treeitem
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
-	update_treeitem->setDisabled(true);
+	update_treeitem->setEnabled(true);
 	m_context_menu->addAction(update_treeitem);
 
 	// update subtree
 	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	update_subtree->setDisabled(true);
+	update_subtree->setEnabled(true);
 	m_context_menu->addAction(update_subtree);
 
 	// invalidate 
 	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
-	invalidate->setDisabled(true);
+	invalidate->setEnabled(true);
 	m_context_menu->addAction(invalidate);
 
 	// default view
