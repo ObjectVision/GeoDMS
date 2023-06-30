@@ -441,9 +441,9 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 //	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
 	// histogram view
-	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
-	histogramview->setDisabled(true);
-	m_context_menu->addAction(histogramview);
+//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
+//	histogramview->setDisabled(true);
+//	m_context_menu->addAction(histogramview);
 
 	// process scheme
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();

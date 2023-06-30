@@ -263,10 +263,7 @@ MainWindow::~MainWindow()
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
 
-    DMS_SetGlobalCppExceptionTranslator(nullptr);
-    DMS_ReleaseMsgCallback(&geoDMSMessage, this);
-    DMS_SetContextNotification(nullptr, nullptr);
-    SHV_SetCreateViewActionFunc(nullptr);
+    cleanupDmsCallbacks();
 }
 
 void DmsCurrentItemBar::setDmsCompleter()
@@ -856,7 +853,7 @@ void MainWindow::tableView()
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
-    dms_main_window->statusBar()->showMessage(msg);
+    dms_main_window->setStatusMessage(msg);
     return;
 }
 
@@ -1039,15 +1036,20 @@ struct QUpdatableTextBrowser : QTextBrowser
 
     void restart_updating()
     {
+        m_Waiter.start();
         QTimer::singleShot(0, [this]()
             {
                 if (!this->update())
                     this->restart_updating();
+                else
+                    m_Waiter.end();
             }
         );
     }
 
 protected:
+    Waiter m_Waiter;
+
     virtual bool update() = 0;
 };
 
@@ -1067,6 +1069,7 @@ struct StatisticsBrowser : QUpdatableTextBrowser
     }
     SharedTreeItemInterestPtr m_Context;
 };
+
 // TODO: END move to separate file
 
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
@@ -1156,6 +1159,78 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     textWidget->restart_updating();
 }
 
+void MainWindow::setStatusMessage(CharPtr msg)
+{
+    m_StatusMsg = msg;
+    updateStatusMessage();
+}
+
+static bool s_IsTiming = false;
+static std::time_t s_BeginTime = 0;
+
+void MainWindow::begin_timing()
+{
+    if (s_IsTiming)
+        return;
+
+    s_IsTiming = true;
+    s_BeginTime = std::time(nullptr);
+}
+
+std::time_t passed_time(const MainWindow::processing_record& pr)
+{
+    return std::get<1>(pr) - std::get<0>(pr);
+}
+
+void MainWindow::end_timing()
+{
+    if (!s_IsTiming)
+        return;
+
+    s_IsTiming = false;
+    auto current_processing_record = processing_record(s_BeginTime, std::time(nullptr));
+    auto passedTime = passed_time(current_processing_record);
+
+    if (passedTime > 5)
+        MessageBeep(MB_OK); // Beep after 5 sec of continuous work
+
+    if (m_processing_records.size() >= 10 && passedTime < passed_time(m_processing_records.front()))
+        return;
+    auto comparator = [](std::time_t passedTime, const processing_record& rhs) { return passedTime <= passed_time(rhs);  };
+    auto insertionPoint = std::upper_bound(m_processing_records.begin(), m_processing_records.end(), passedTime, comparator);
+    bool top_of_records_is_changing =( insertionPoint == m_processing_records.end());
+    m_processing_records.insert(insertionPoint, current_processing_record);
+    if (m_processing_records.size() > 10)
+        m_processing_records.erase(m_processing_records.begin());
+    if (!top_of_records_is_changing)
+        return;
+    assert(passedTime == passed_time(m_processing_records.back()));
+   
+
+//    SHV_SetBusyMode(false);
+//    ChangeCursor(g_OldCursor);
+
+    m_LongestProcessingRecordTxt = "";
+    if (passedTime >= 24 * 3600)
+    {
+        m_LongestProcessingRecordTxt = AsString(passedTime / (24 * 3600)) + " days and ";
+        passedTime %= 24 * 3600;
+    }
+    assert(passedTime <= (24 * 3600));
+    m_LongestProcessingRecordTxt = mySSPrintF(" - max processing time: %s%02d:%02d:%02d"
+        , m_LongestProcessingRecordTxt.c_str()
+        , passedTime / 3600, (passedTime / 60) % 60, passedTime % 60
+    );
+
+    updateStatusMessage();
+}
+
+void MainWindow::updateStatusMessage()
+{
+    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt;
+    statusBar()->showMessage(fullMsg.c_str());
+}
+
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
@@ -1186,12 +1261,38 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     }
 }
 
+#include "waiter.h"
+
+void OnStartWaiting(void* clientHandle)
+{
+    reinterpret_cast<MainWindow*>(clientHandle)->begin_timing();
+}
+
+void OnEndWaiting(void* clientHandle)
+{
+    reinterpret_cast<MainWindow*>(clientHandle)->end_timing();
+}
+
 void MainWindow::setupDmsCallbacks()
 {
     DMS_RegisterMsgCallback(&geoDMSMessage, this);
+
     DMS_SetContextNotification(&geoDMSContextMessage, this);
-    DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
+
+    DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
+    register_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
+}
+
+void MainWindow::cleanupDmsCallbacks()
+{
+    unregister_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
+    DMS_ReleaseStateChangeNotification(AnyTreeItemStateHasChanged, this);
+
+    DMS_SetContextNotification(nullptr, nullptr);
+    SHV_SetCreateViewActionFunc(nullptr);
+
+    DMS_ReleaseMsgCallback(&geoDMSMessage, this);
 }
 
 void MainWindow::createActions()
@@ -1308,8 +1409,8 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_statistics_action.get());
 
     // histogram view
-    m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
-    m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+//    m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
+//    m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
     //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
     
     // process schemes

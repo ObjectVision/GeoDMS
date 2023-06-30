@@ -207,6 +207,7 @@ public slots:
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index);
     void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
+    void setStatusMessage(CharPtr msg);
 
 protected:
     bool event(QEvent* event) override;
@@ -214,6 +215,7 @@ protected:
 private:
     void CloseConfig();
     void setupDmsCallbacks();
+    void cleanupDmsCallbacks();
     void createActions();
     void createStatusBar();
     void createDetailPagesDock();
@@ -224,6 +226,9 @@ private:
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
+    void updateStatusMessage();
+    void begin_timing(); friend void OnStartWaiting(void* clientHandle);
+    void end_timing();   friend void OnEndWaiting  (void* clientHandle);
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
@@ -242,7 +247,9 @@ public:
     std::unique_ptr<QAction> m_export_primary_data_action
     , m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action
     , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
-    , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action, m_histogramview_action, m_process_schemes_action
+    , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
+//    , m_histogramview_action
+    , m_process_schemes_action
     , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
     , m_gui_options_action, m_advanced_options_action, m_config_options_action
     , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
@@ -271,9 +278,13 @@ public:
     QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
+    using processing_record = std::tuple<std::time_t, std::time_t>;
 private:
+    std::vector<processing_record> m_processing_records;
+
     QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
+    SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarResuestPending = false;
 };
 

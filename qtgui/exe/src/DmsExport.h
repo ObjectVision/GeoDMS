@@ -1,5 +1,5 @@
 #include <QPointer>
-#include <QDialog>;
+#include <QDialog>
 #include "ptr/SharedPtr.h"
 
 struct TreeItem;
