@@ -135,7 +135,8 @@ struct UniqueSupplierQuery
 	template <typename Action>
 	void operator()(const Action& action)
 	{
-		dms_assert(m_Curr);
+		assert(m_Curr);
+		m_Curr->UpdateMetaInfo();
 		ActorVisitState res = m_Curr->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
 		dms_assert(res == AVS_Ready);
 	}

@@ -13,7 +13,6 @@
 
 #include "GraphDataView.h"
 class ItemSchemaController;
-using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
 //----------------------------------------------------------------------
 // class  : ItemSchemaView
@@ -39,14 +38,14 @@ private:
 
 	OwningPtr<ItemSchemaController> m_Controller;
 
-	TreeItemInterestPtr m_InterestHolder;
+	SharedTreeItemInterestPtr m_InterestHolder;
 	bool                m_ZoomAll;
 
 	DECL_RTTI(SHV_CALL, Class);
 
 public:
-	InterestPtr< SharedPtr<AbstrUnit    > > m_SchemaNodes, m_SchemaLinks;
-	InterestPtr< SharedPtr<AbstrDataItem> > m_SchemaLocation, m_SchemaLabelText, m_F1, m_F2;
+	SharedMutableUnitInterestPtr     m_SchemaNodes, m_SchemaLinks;
+	SharedMutableDataItemInterestPtr m_SchemaLocation, m_SchemaLabelText, m_F1, m_F2;
 };
 
 #endif // !defined(__SHV_ITEMSCHEMAVIEW_H)
