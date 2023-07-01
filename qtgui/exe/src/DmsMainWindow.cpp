@@ -1060,7 +1060,7 @@ struct QUpdatableTextBrowser : QTextBrowser
     }
 
 protected:
-    Waiter m_Waiter;
+    Waiter m_Waiter = Waiter(false);
 
     virtual bool update() = 0;
 };

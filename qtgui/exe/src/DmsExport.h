@@ -85,7 +85,10 @@ public slots:
     void exportActiveTabInfo();
 
 private:
+    void exportImpl();
+
     int m_vector_tab_index;
     int m_raster_tab_index;
     QPointer<QTabWidget> m_tabs;
+    QPointer<QPushButton> m_export_button;
 };

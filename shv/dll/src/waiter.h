@@ -16,6 +16,7 @@
 //----------------------------------------------------------------------
 
 struct Waiter {
+	Waiter(bool startNow) { if (startNow) start();  }
 	~Waiter() { end(); }
 
 	SHV_CALL void start();

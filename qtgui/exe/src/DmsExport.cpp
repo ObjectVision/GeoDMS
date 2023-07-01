@@ -457,18 +457,17 @@ void DmsExportWindow::prepare()
     m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
     m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
     m_tabs->widget(m_vector_tab_index);
+    m_export_button->setText("Export");
+    m_export_button->setStatusTip("");
 }
 
-void DmsExportWindow::exportActiveTabInfo()
+void DmsExportWindow::exportImpl()
 {
     auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
-
-    SuspendTrigger::Resume();
-    DMS_CALL_BEGIN
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
@@ -502,8 +501,25 @@ void DmsExportWindow::exportActiveTabInfo()
         Tree_Update(exportConfig, "Export");
         return;
     }
+}
 
-    DMS_CALL_END
+void DmsExportWindow::exportActiveTabInfo()
+{
+    SuspendTrigger::Resume();
+    m_export_button->setText("Exporting...");
+    m_export_button->repaint();
+    Waiter logWaitingtime(true);
+    try {
+        exportImpl();
+        m_export_button->setText("Ready");
+        m_export_button->setStatusTip("");
+    }
+    catch (...)
+    {
+        auto errMsgPtr = catchAndReportException();
+        m_export_button->setText(errMsgPtr->m_Why.c_str());
+        m_export_button->setStatusTip(errMsgPtr->m_Why.c_str());
+    }
 }
 
 DmsExportWindow::DmsExportWindow(QWidget* parent)
@@ -520,9 +536,9 @@ DmsExportWindow::DmsExportWindow(QWidget* parent)
     QWidget* export_cancel_widgets = new QWidget(this);
 
     auto h_layout = new QHBoxLayout(this);
-    auto export_button = new QPushButton("Export", this);
-    connect(export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
-    h_layout->addWidget(export_button);
+    m_export_button = new QPushButton("Export", this);
+    connect(m_export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
+    h_layout->addWidget(m_export_button);
 
     auto cancel_button = new QPushButton("Cancel", this);
     connect(cancel_button, &QPushButton::released, this, &DmsExportWindow::reject);
