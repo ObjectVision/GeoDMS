@@ -649,8 +649,11 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 		return;
 
 	InvalidationBlock lock(this);
+	auto selectionTheme = CreateSelectionsTheme();
+	MG_CHECK(selectionTheme);
+
 	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+		const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
 		CompoundWriteType(eventID)
 	);
 
