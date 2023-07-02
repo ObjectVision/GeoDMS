@@ -395,8 +395,8 @@ void ExportTab::setFilenameUsingFileDialog()
     m_filename_entry->setText(filename);
 }
 
-ExportTab::ExportTab(bool is_raster, QWidget * parent)
-	: QWidget(parent)
+ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
+	: QWidget(nullptr)
 {
 	m_is_raster = is_raster;
 
@@ -416,6 +416,7 @@ ExportTab::ExportTab(bool is_raster, QWidget * parent)
     m_driver_selection = new QComboBox(this);
     repopulateDriverSelection();
     connect(m_driver_selection, &QComboBox::activated, this, &ExportTab::onComboBoxItemActivate);
+    connect(m_driver_selection, &QComboBox::activated, exportWindow, &DmsExportWindow::resetExportButton);
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
     grid_layout_box->addWidget(format_label, 1, 0);
@@ -457,8 +458,14 @@ void DmsExportWindow::prepare()
     m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
     m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
     m_tabs->widget(m_vector_tab_index);
+    resetExportButton();
+}
+
+void DmsExportWindow::resetExportButton()
+{
     m_export_button->setText("Export");
     m_export_button->setStatusTip("");
+    m_export_ready = false;
 }
 
 void DmsExportWindow::exportImpl()
@@ -505,6 +512,11 @@ void DmsExportWindow::exportImpl()
 
 void DmsExportWindow::exportActiveTabInfo()
 {
+    if (m_export_ready)
+    {
+        reject();
+        return;
+    }
     SuspendTrigger::Resume();
     m_export_button->setText("Exporting...");
     m_export_button->repaint();
@@ -513,6 +525,7 @@ void DmsExportWindow::exportActiveTabInfo()
         exportImpl();
         m_export_button->setText("Ready");
         m_export_button->setStatusTip("");
+        m_export_ready = true;
     }
     catch (...)
     {
@@ -528,8 +541,8 @@ DmsExportWindow::DmsExportWindow(QWidget* parent)
     setMinimumSize(600, 400);
     auto tab_layout = new QVBoxLayout(this);
 	m_tabs = new QTabWidget(this);
-	m_vector_tab_index = m_tabs->addTab(new ExportTab(false), tr("Vector"));
-	m_raster_tab_index = m_tabs->addTab(new ExportTab(true), tr("Raster"));
+	m_vector_tab_index = m_tabs->addTab(new ExportTab(false, this), tr("Vector"));
+	m_raster_tab_index = m_tabs->addTab(new ExportTab(true, this), tr("Raster"));
     m_tabs->setCurrentIndex(m_vector_tab_index);
     tab_layout->addWidget(m_tabs);
 
