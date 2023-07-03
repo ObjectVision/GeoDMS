@@ -298,6 +298,9 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     if (!item)
         return false;
 
+    if (item->IsFailed())
+        return false;
+
     // category Table
     if (CurrentItemCanBeExportedAsTableOrDatabase(item))
         return true;
@@ -313,6 +316,9 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
 bool currentItemCanBeExportedToRaster(const TreeItem* item)
 {
     if (!item)
+        return false;
+
+    if (item->IsFailed())
         return false;
 
     if (!IsDataItem(item))
@@ -455,6 +461,7 @@ void DmsExportWindow::prepare()
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
+    
     m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
     m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
     m_tabs->widget(m_vector_tab_index);
