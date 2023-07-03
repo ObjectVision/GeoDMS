@@ -279,21 +279,23 @@ SharedStr GetStorageBaseName(const TreeItem* configStore)
 	return SharedStr();
 }
 
-//static SharedStr s_ProjDir;
 
 SharedStr GetProjDir(CharPtr configDir)
 {	
-	dms_assert(*configDir);
-	dms_assert(!HasDosDelimiters(configDir));
-	dms_assert(IsAbsolutePath(configDir));
+	assert(IsMainThread());
+	assert(*configDir);
+	assert(!HasDosDelimiters(configDir));
+	assert(IsAbsolutePath(configDir));
 
 	DBG_START("GetProjDir", configDir, true);
 
-	//static SharedStr prevConfigDir;
+	static SharedStr prevConfigDir;
+	static SharedStr proj_dir;
 
-	//if (prevConfigDir != configDir)
-	//{
-		auto proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
+	// memoization: only (re)calculate proj_dir when configDir is different than at last call
+	if (prevConfigDir != configDir)
+	{
+		proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
 		if (!proj_dir.empty() && proj_dir[0] == '.')
 		{
 			SharedStr configLoadDir = splitFullPath(configDir);
@@ -321,9 +323,9 @@ SharedStr GetProjDir(CharPtr configDir)
 			proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(proj_dir.cbegin()+p, proj_dir.csend()).c_str());
 			DBG_TRACE(("result after GoUp %s", proj_dir.c_str()));
 		}
-		//prevConfigDir = configDir;
-//	}
-	dms_assert(!HasDosDelimiters(proj_dir.c_str()));
+		prevConfigDir = configDir;
+	}
+	assert(!HasDosDelimiters(proj_dir.c_str()));
   	return proj_dir;
 }
 

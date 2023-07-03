@@ -126,14 +126,13 @@ bool SharedCharArrayPtr::operator < (CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	auto sz = ssize();
-	auto cmpRes = strnicmp(begin(), b, sz);
-	if (cmpRes < 0)
-		return true;
-	if (cmpRes > 0)
-		return false;
-	return b[sz];
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) < 0;
 }
+
 bool SharedCharArrayPtr::operator ==(CharPtr b) const
 { 
 	if (!IsDefined())
@@ -143,10 +142,11 @@ bool SharedCharArrayPtr::operator ==(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return !*b;
-	auto sz = ssize();
-	if (strnicmp(begin(), b, sz) != 0)
-		return false;
-	return b[sz] == char(0);
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) == 0;
 }
 
 bool SharedCharArrayPtr::operator !=(CharPtr b) const
@@ -158,10 +158,11 @@ bool SharedCharArrayPtr::operator !=(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	auto sz = ssize();
-	if (strnicmp(begin(), b, sz) != 0)
-		return true;
-	return b[sz] != char(0);
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) != 0;
 }
 
 //============================= SharedStr mfuncs
