@@ -168,7 +168,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 {
 	if (binCounts.size())
 	{
-		os << "\n\nValue counts:";
+		os << "\n\nValue; Count";
 		auto vu = di->GetAbstrValuesUnit();
 //		auto valuesRange = vu->GetRangeAsFloat64();
 //		int lb = valuesRange.first;
@@ -180,7 +180,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 		for (Int32 i = 0; i != binCounts.size(); ++i)
 		{
 			if (binCounts[i])
-				os << "\n" << DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << ": " << binCounts[i];
+				os << "\n" << DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << "; " << binCounts[i];
 		}
 	}
 	else

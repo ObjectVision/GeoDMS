@@ -252,6 +252,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
+
+    scheduleUpdateToolbar();
 }
 
 MainWindow::~MainWindow()
@@ -498,28 +500,45 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     return {};
 }
 
-void MainWindow::updateToolbar(QMdiSubWindow* active_mdi_subwindow)
+void MainWindow::scheduleUpdateToolbar()
 {
+    if (m_UpdateToolbarResuestPending)
+        return;
+
+    QTimer::singleShot(0, [this]()
+        {
+           this->updateToolbar();
+        }
+    );
+
+}
+
+void MainWindow::updateToolbar()
+{
+    if (!m_toolbar)
+    {
+        addToolBarBreak();
+        m_toolbar = addToolBar(tr("dmstoolbar"));
+        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
+        m_toolbar->setIconSize(QSize(32, 32));
+        m_toolbar->setMinimumSize(QSize(0, 44));
+    }
+
+    QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+
     if (m_tooled_mdi_subwindow == active_mdi_subwindow)
         return;
 
     m_tooled_mdi_subwindow = active_mdi_subwindow;
+    m_toolbar->clear();
+
     if (!active_mdi_subwindow)
         return;
 
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
-
-    addToolBarBreak();
-    if (!m_toolbar)
-    {
-        m_toolbar = addToolBar(tr("dmstoolbar"));
-        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
-        m_toolbar->setIconSize(QSize(32, 32));
-    }
-    m_toolbar->clear();
-
     if (!active_dms_view_area)
         return;
+
     // create new actions
     auto* dv = active_dms_view_area->getDataView();// ->OnCommandEnable();
     if (!dv)
@@ -844,8 +863,11 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 void MainWindow::CloseConfig()
 {
     if (m_mdi_area)
+    {
         for (auto* sw : m_mdi_area->subWindowList())
             sw->close();
+        scheduleUpdateToolbar();
+    }
 
     if (m_root)
     {
@@ -944,10 +966,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_root = newRoot;
         if (m_root)
         {
-            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(SharedStr(configFilePath)));
+            SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
 
-//            std::string last_config_file_dos = configFilePathStr.c_str();
-//            std::replace(last_config_file_dos.begin(), last_config_file_dos.end(), '/', '\\');
             insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
@@ -1162,6 +1182,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     {
         assert(s_CurrMainWindow == mainWindow);
         mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
+        mainWindow->m_detail_pages->sheduleDrawPage();
     }
 }
 
@@ -1186,7 +1207,7 @@ void MainWindow::createActions()
 
     addToolBarBreak();
 
-    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::updateToolbar);
+    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
     //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(tr("&Open Configuration File"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
@@ -1512,7 +1533,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
 
-    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
     m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
     m_general_page_action->setCheckable(true);
     m_general_page_action->setChecked(true);
@@ -1527,7 +1548,7 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar->addAction(m_explore_page_action.get());
     connect(m_explore_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
 
-    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":res/images/DP_properties.bmp"));
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
     m_properties_page_action = std::make_unique<QAction>(properties_icon, tr("&Properties"));
     m_properties_page_action->setCheckable(true);
     m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
@@ -1559,19 +1580,25 @@ void MainWindow::createRightSideToolbar()
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_right_side_toolbar->addWidget(spacer);
 
-    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_properties.bmp"));
+    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
     m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
     m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
     connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
 
-    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/TB_select_object.bmp"));
+    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
     m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(eventlog_type_filter_icon, tr("&Eventlog: type filter"));
     m_eventlog_event_type_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
     connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
 
-    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/undo.png"));
+    const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
+    m_eventlog_clear = std::make_unique<QAction>(eventlog_type_clear_icon, tr("&Eventlog: clear"));
+    m_eventlog_clear->setDisabled(true);
+    m_right_side_toolbar->addAction(m_eventlog_clear.get());
+    connect(m_eventlog_clear.get(), &QAction::triggered, m_eventlog_model.get(), &EventLogModel::clear);
+
+    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
     m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
     m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
     m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());

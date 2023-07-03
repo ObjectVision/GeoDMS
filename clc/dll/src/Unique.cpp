@@ -230,15 +230,21 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 //                         Unique
 // *****************************************************************************
 
-CommonOperGroup cog_unique ("unique", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique("unique", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique64("unique_uint64", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique32("unique_uint32", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique16("unique_uint16", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique08("unique_uint8", oper_policy::dynamic_result_class);
+
 static TokenID s_Values = GetTokenID_st("Values");
 
 class AbstrUniqueOperator : public UnaryOperator
 {
 public:
 	// Override Operator
-	AbstrUniqueOperator(ClassCPtr argCls)
-		: UnaryOperator(&cog_unique, AbstrUnit::GetStaticClass(), argCls) 
+	AbstrUniqueOperator(ClassCPtr argCls, AbstrOperGroup& og, const UnitClass* resDomainCls)
+		: UnaryOperator(&og, AbstrUnit::GetStaticClass(), argCls) 
+		, m_ResDomainClass(resDomainCls)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -248,9 +254,13 @@ public:
 		const AbstrDataItem*  arg1 = debug_cast<const AbstrDataItem*>(args[0]);
 
 		assert(arg1);
-		const AbstrUnit*  arg1Values   = arg1->GetAbstrValuesUnit();
-		const ValueClass* vc           = arg1->GetAbstrDomainUnit()->GetUnitClass()->GetValueType();
-		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
+		const AbstrUnit* arg1Values   = arg1->GetAbstrValuesUnit();
+		const UnitClass* resDomainCls = m_ResDomainClass;
+		if (!resDomainCls)
+		{
+			const ValueClass* vc = arg1->GetAbstrDomainUnit()->GetUnitClass()->GetValueType();
+			resDomainCls = UnitClass::Find(vc->GetCrdClass());
+		}
 
 		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder);
 		assert(res);
@@ -268,6 +278,8 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1) const =0;
+
+	const UnitClass* m_ResDomainClass = nullptr;
 };
 
 template <typename V>
@@ -279,8 +291,8 @@ class UniqueOperator : public AbstrUniqueOperator
 
 public:
 	// Override Operator
-	UniqueOperator()
-		:	AbstrUniqueOperator(ArgType::GetStaticClass())
+	UniqueOperator(AbstrOperGroup& og, const UnitClass* resDomainCls)
+		:	AbstrUniqueOperator(ArgType::GetStaticClass(), og, resDomainCls)
 	{}
 
 	void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1A) const override
@@ -295,7 +307,12 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::value_elements, UniqueOperator<_> > uniqueOperators;
+	tl_oper::inst_tuple<typelists::value_elements, UniqueOperator<_>, AbstrOperGroup&, const UnitClass*> 
+		uniqueOperatorsXX(cog_unique, nullptr)
+	, uniqueOperators64(cog_unique64, Unit<UInt64>::GetStaticClass())
+	, uniqueOperators32(cog_unique32, Unit<UInt32>::GetStaticClass())
+	, uniqueOperators16(cog_unique16, Unit<UInt16>::GetStaticClass())
+	, uniqueOperators08(cog_unique08, Unit<UInt8>::GetStaticClass());
 } // end anonymous namespace
 
 

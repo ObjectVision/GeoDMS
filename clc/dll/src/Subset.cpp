@@ -644,11 +644,13 @@ namespace {
 	CommonOperGroup cog_select_08(token::select_uint8);
 	CommonOperGroup cog_select_16(token::select_uint16);
 	CommonOperGroup cog_select_32(token::select_uint32);
+	CommonOperGroup cog_select_64(token::select_uint64);
 
 	CommonOperGroup cog_select_with_org_rel(token::select_with_org_rel, oper_policy::dynamic_result_class);
 	CommonOperGroup cog_select_08_with_org_rel(token::select_uint8_with_org_rel);
 	CommonOperGroup cog_select_16_with_org_rel(token::select_uint16_with_org_rel);
 	CommonOperGroup cog_select_32_with_org_rel(token::select_uint32_with_org_rel);
+	CommonOperGroup cog_select_64_with_org_rel(token::select_uint64_with_org_rel);
 
 	// Partly DEPRECIATED VARIANTS of select BEGIN
 	CommonOperGroup cog_subset_xx("subset", oper_policy::dynamic_result_class);
@@ -674,16 +676,19 @@ namespace {
 	SpecialOperGroup cog_select_08_with_attr_by_cond(token::select_uint8_with_attr_by_cond , 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_16_with_attr_by_cond(token::select_uint16_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_32_with_attr_by_cond(token::select_uint32_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_select_64_with_attr_by_cond(token::select_uint64_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 
 	SpecialOperGroup cog_select_with_org_rel_with_attr_by_cond   (token::select_with_org_rel_with_attr_by_cond       , 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_08_with_org_rel_with_attr_by_cond(token::select_uint8_with_org_rel_with_attr_by_cond , 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_16_with_org_rel_with_attr_by_cond(token::select_uint16_with_org_rel_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_32_with_org_rel_with_attr_by_cond(token::select_uint32_with_org_rel_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_select_64_with_org_rel_with_attr_by_cond(token::select_uint64_with_org_rel_with_attr_by_cond, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 
 	SpecialOperGroup cog_select_with_attr_by_org_rel   (token::select_with_attr_by_org_rel       , 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_08_with_attr_by_org_rel(token::select_uint8_with_attr_by_org_rel , 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_16_with_attr_by_org_rel(token::select_uint16_with_attr_by_org_rel, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 	SpecialOperGroup cog_select_32_with_attr_by_org_rel(token::select_uint32_with_attr_by_org_rel, 2, oap_select_with_attr, oper_policy::dont_cache_result);
+	SpecialOperGroup cog_select_64_with_attr_by_org_rel(token::select_uint64_with_attr_by_org_rel, 2, oap_select_with_attr, oper_policy::dont_cache_result);
 
 	// DEPRECIATED VARIANTS of select_attr BEGIN
 	Obsolete < SpecialOperGroup> cog_subset_m_xx("select_with_attr_by_cond", token::select_many, 2, oap_select_with_attr, oper_policy::dynamic_result_class | oper_policy::dont_cache_result | oper_policy::depreciated);
@@ -700,11 +705,13 @@ namespace {
 	SubsetOperator operS08(cog_select_08, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::none);
 	SubsetOperator operS16(cog_select_16, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::none);
 	SubsetOperator operS32(cog_select_32, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::none);
+	SubsetOperator operS64(cog_select_64, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::none);
 
 	SubsetOperator operSORXX(cog_select_with_org_rel, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel);
 	SubsetOperator operSOR08(cog_select_08_with_org_rel, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel);
 	SubsetOperator operSOR16(cog_select_16_with_org_rel, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel);
 	SubsetOperator operSOR32(cog_select_32_with_org_rel, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel);
+	SubsetOperator operSOR64(cog_select_64_with_org_rel, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::org_rel);
 
 	// old subset BEGIN
 	SubsetOperator operXX(cog_subset_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::nr_OrgEntity);
@@ -728,16 +735,19 @@ namespace {
 	SelectMetaOperator operMetaSM08(cog_select_08_with_attr_by_cond, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint8);
 	SelectMetaOperator operMetaSM16(cog_select_16_with_attr_by_cond, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint16);
 	SelectMetaOperator operMetaSM32(cog_select_32_with_attr_by_cond, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint32);
+	SelectMetaOperator operMetaSM64(cog_select_64_with_attr_by_cond, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::none, token::select_uint64);
 
 	SelectMetaOperator operMetaCAxx(cog_select_with_org_rel_with_attr_by_cond, AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_with_org_rel);
 	SelectMetaOperator operMetaCA08(cog_select_08_with_org_rel_with_attr_by_cond, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint8_with_org_rel);
 	SelectMetaOperator operMetaCA16(cog_select_16_with_org_rel_with_attr_by_cond, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint16_with_org_rel);
 	SelectMetaOperator operMetaCA32(cog_select_32_with_org_rel_with_attr_by_cond, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint32_with_org_rel);
+	SelectMetaOperator operMetaCA64(cog_select_64_with_org_rel_with_attr_by_cond, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::org_rel, token::select_uint64_with_org_rel);
 
 	SelectMetaOperator operMetaSAxx(cog_select_with_attr_by_org_rel   , AbstrUnit::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_with_org_rel);
 	SelectMetaOperator operMetaSA08(cog_select_08_with_attr_by_org_rel, Unit<UInt8>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint8_with_org_rel);
 	SelectMetaOperator operMetaSA16(cog_select_16_with_attr_by_org_rel, Unit<UInt16>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint16_with_org_rel);
 	SelectMetaOperator operMetaSA32(cog_select_32_with_attr_by_org_rel, Unit<UInt32>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint32_with_org_rel);
+	SelectMetaOperator operMetaSA64(cog_select_64_with_attr_by_org_rel, Unit<UInt64>::GetStaticClass(), OrgRelCreationMode::org_rel_and_use_it, token::select_uint64_with_org_rel);
 
 	// DEPRECIATED VARIANTS of select_attr BEGIN
 	SelectMetaOperator operMetaMxx(cog_subset_m_xx, AbstrUnit::GetStaticClass(), OrgRelCreationMode::none, token::select);

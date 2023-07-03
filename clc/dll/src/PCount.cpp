@@ -52,6 +52,7 @@ namespace {
 	CommonOperGroup cog_pcount_uint8("pcount_uint8");
 	CommonOperGroup cog_pcount_uint16("pcount_uint16");
 	CommonOperGroup cog_pcount_uint32("pcount_uint32");
+	CommonOperGroup cog_pcount_uint64("pcount_uint64");
 
 	template <typename EnumType, typename ResultCountType = Undefined>
 	class PartCountOperator : public UnaryOperator
@@ -244,6 +245,7 @@ namespace {
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator<_>, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator<_>, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
 	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator<_>, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
+	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator<_>, AbstrOperGroup& > partCountOpers64(cog_pcount_uint64);
 
 	tl_oper::inst_tuple<typelists::partition_elements, HasAnyOperatorGenerator::Operator<_>, AbstrOperGroup& > hasAnyOpers(cog_has_any);
 } // end anonymous namespace

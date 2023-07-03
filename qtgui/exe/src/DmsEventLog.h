@@ -35,6 +35,7 @@ public:
 	void addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
 
 public slots:
+	void clear();
 	void refilter();
 	void refilterOnToggle(bool checked);
 

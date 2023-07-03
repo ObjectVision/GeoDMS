@@ -101,11 +101,13 @@ namespace token {
 	extern TIC_CALL TokenID select_uint8;
 	extern TIC_CALL TokenID select_uint16;
 	extern TIC_CALL TokenID select_uint32;
+	extern TIC_CALL TokenID select_uint64;
 
 	extern TIC_CALL TokenID select_with_org_rel;
 	extern TIC_CALL TokenID select_uint8_with_org_rel;
 	extern TIC_CALL TokenID select_uint16_with_org_rel;
 	extern TIC_CALL TokenID select_uint32_with_org_rel;
+	extern TIC_CALL TokenID select_uint64_with_org_rel;
 
 	// DEPRECIATED BEGIN
 	extern TIC_CALL TokenID select_unit;
@@ -123,16 +125,19 @@ namespace token {
 	extern TIC_CALL TokenID select_uint8_with_attr_by_cond;
 	extern TIC_CALL TokenID select_uint16_with_attr_by_cond;
 	extern TIC_CALL TokenID select_uint32_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint64_with_attr_by_cond;
 
 	extern TIC_CALL TokenID select_with_org_rel_with_attr_by_cond;
 	extern TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond;
 	extern TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond;
 	extern TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint64_with_org_rel_with_attr_by_cond;
 
 	extern TIC_CALL TokenID select_with_attr_by_org_rel;
 	extern TIC_CALL TokenID select_uint8_with_attr_by_org_rel;
 	extern TIC_CALL TokenID select_uint16_with_attr_by_org_rel;
 	extern TIC_CALL TokenID select_uint32_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint64_with_attr_by_org_rel;
 
 	extern TIC_CALL TokenID select_data;
 

@@ -202,7 +202,7 @@ public slots:
     void aboutGeoDms();
     void createView(ViewStyle viewStyle);
 
-    void updateToolbar(QMdiSubWindow* active_mdi_subwindow);
+    void scheduleUpdateToolbar();
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index);
@@ -223,6 +223,7 @@ private:
     void updateViewMenu();
     void updateWindowMenu();
     void updateCaption();
+    void updateToolbar();
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
@@ -247,7 +248,7 @@ public:
     , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
     , m_quit_action
     , m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
-    , m_eventlog_scroll_to_bottom_toggle, m_eventlog_event_text_filter_toggle, m_eventlog_event_type_filter_toggle;
+    , m_eventlog_scroll_to_bottom_toggle, m_eventlog_event_text_filter_toggle, m_eventlog_event_type_filter_toggle, m_eventlog_clear;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
@@ -273,6 +274,7 @@ public:
 private:
     QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
+    bool m_UpdateToolbarResuestPending = false;
 };
 
 #endif
