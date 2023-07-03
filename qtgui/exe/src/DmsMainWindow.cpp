@@ -971,7 +971,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             }
         }
         m_currConfigFileName = fileNameCharPtr;
-        auto newRoot = DMS_CreateTreeFromConfiguration(m_currConfigFileName.c_str());
+        auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
+
         m_root = newRoot;
         if (m_root)
         {
