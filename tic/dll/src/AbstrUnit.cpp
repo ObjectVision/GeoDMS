@@ -237,7 +237,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	if (um & UM_Throw)
 		throwItemError(msg);
 
-	dms_assert(resultMsg);
+	assert(resultMsg);
 	*resultMsg = msg;
 }
 

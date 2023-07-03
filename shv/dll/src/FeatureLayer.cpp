@@ -185,7 +185,7 @@ Int32 FeatureLayer::GetMaxLabelStrLen() const
 
 			const DataArray<SharedStr>* labelArray = const_array_dynacast<SharedStr>(labelPalette);
 			if (labelArray) //use fast way
-				for (tile_id t=0, tn=labelPalette->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
+				for (tile_id t=0, tn= labelArray->m_TileRangeData->GetNrTiles(); t!=tn; ++t)
 				{
 					auto labelData = labelArray->GetTile(t);
 					auto
@@ -649,8 +649,11 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 		return;
 
 	InvalidationBlock lock(this);
+	auto selectionTheme = CreateSelectionsTheme();
+	MG_CHECK(selectionTheme);
+
 	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+		const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
 		CompoundWriteType(eventID)
 	);
 
@@ -1452,6 +1455,9 @@ bool GraphicNetworkLayer::DrawImpl(FeatureDrawer& fd) const
 			const PenIndexCache*  penIndices = GetPenIndexCache(GetDefaultOrThemeColor(AN_PenColor) );
 			if (!penIndices)
 				return false;
+
+			f1->GetThemeAttr()->GetAbstrDomainUnit()->GetPreparedCount();
+			f1->GetThemeAttr()->GetAbstrValuesUnit()->GetPreparedCount();
 
 			penIndices->UpdateForZoomLevel(fd.m_WorldZoomLevel, fd.m_Drawer.GetSubPixelFactor());
 			bool result = visit_and_return_result<typelists::points, bool>(valuesItem->GetAbstrValuesUnit(),

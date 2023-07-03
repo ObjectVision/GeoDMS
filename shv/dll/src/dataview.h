@@ -32,6 +32,7 @@
 #include "LayerInfo.h"
 #include "MovableObject.h"
 #include "TextEditController.h"
+#include "Waiter.h"
 
 #include "ShvUtils.h"
 
@@ -306,6 +307,7 @@ private:
 	ScrollPort*                   m_ScrollEventsReceiver;
 
 	std::list < std::function<void()>>  m_GuiOperQueue;
+	Waiter                        m_Waiter;
 
 public:
 	ToolButtonID                  m_ControllerID = TB_Neutral;

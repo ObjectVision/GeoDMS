@@ -651,7 +651,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self)
 	DMS_CALL_END
 }
 
-bool ItemUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	CheckPtr(self, TreeItem::GetStaticClass(), context);
 
@@ -670,13 +670,13 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 	DMS_CALL_BEGIN
 
 		SuspendTrigger::FencedBlocker lockSuspend;
-		TreeItemInterestPtr holder;
+		SharedTreeItemInterestPtr holder;
 		ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
 
 	DMS_CALL_END
 }
 
-bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
@@ -688,7 +688,7 @@ bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& 
 TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
 {
 	SuspendTrigger::FencedBlocker lockSuspend;
-	TreeItemInterestPtr holder;
+	SharedTreeItemInterestPtr holder;
 	TreeUpdateImpl(self, context, holder);
 }
 
