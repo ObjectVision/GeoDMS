@@ -126,7 +126,13 @@ bool SharedCharArrayPtr::operator < (CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	return  strnicmp(begin(), b, ssize())< 0; 
+	auto sz = ssize();
+	auto cmpRes = strnicmp(begin(), b, sz);
+	if (cmpRes < 0)
+		return true;
+	if (cmpRes > 0)
+		return false;
+	return b[sz];
 }
 bool SharedCharArrayPtr::operator ==(CharPtr b) const
 { 
@@ -137,7 +143,10 @@ bool SharedCharArrayPtr::operator ==(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return !*b;
-	return  strnicmp(begin(), b, ssize()) == 0; 
+	auto sz = ssize();
+	if (strnicmp(begin(), b, sz) != 0)
+		return false;
+	return b[sz] == char(0);
 }
 
 bool SharedCharArrayPtr::operator !=(CharPtr b) const
@@ -149,7 +158,10 @@ bool SharedCharArrayPtr::operator !=(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	return  strnicmp(begin(), b, ssize()) != 0; 
+	auto sz = ssize();
+	if (strnicmp(begin(), b, sz) != 0)
+		return true;
+	return b[sz] != char(0);
 }
 
 //============================= SharedStr mfuncs

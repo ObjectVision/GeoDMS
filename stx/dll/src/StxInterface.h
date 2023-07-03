@@ -36,6 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 SYNTAX_CALL SharedStr ProcessADMS(const TreeItem* context, CharPtr url);
 
 // External callable functions
+SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename);
 
 extern "C" {
 

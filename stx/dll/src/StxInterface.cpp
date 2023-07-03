@@ -72,50 +72,56 @@ SYNTAX_CALL void DMS_CONV DMS_Stx_Load()
 // Returns:           TreeItem*: root of the tree
 // *****************************************************************************
 
+SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
+{
+	//auto current_dir = GetCurrentDir();
+	TreeItem* res = nullptr;
+	try {
+		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
+
+		SharedStr sourceFileNameStr(sourceFilename);
+		sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
+
+		SharedStr configLoadDir = splitFullPath(sourceFileNameStr.begin());
+		CharPtr fileName = sourceFileNameStr.c_str();
+		if (configLoadDir.ssize()) fileName += (configLoadDir.ssize() + 1);
+
+		auto currSession = SessionData::Create(configLoadDir.c_str(), getFileNameBase(fileName).c_str());
+		currSession->SetConfigPointColFirst(GetConfigPointColFirst());
+
+		ConfigurationFilenameContainer filenameContainer(configLoadDir);
+		{
+			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
+			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
+
+			MG_LOCKER_NO_UPDATEMETAINFO
+
+				UpdateMarker::ChangeSourceLock changeAtZeroTime(UpdateMarker::tsBereshit, "CreateTreeFromConfigFile");
+
+#if defined(MG_DEBUG_INTERESTSOURCE)
+			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
+#endif // MG_DEBUG_INTERESTSOURCE
+			res = AppendTreeFromConfiguration(fileName, 0);
+		}
+		currSession->Open(res);
+		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
+		dms_assert(fts > UpdateMarker::tsBereshit);
+		return res;
+	}
+	catch (...)
+	{
+		if (res)
+			res->EnableAutoDelete();
+		throw;
+	}
+	return nullptr;
+}
+
 
 SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
 	DMS_CALL_BEGIN
-
-		TreeItem* res = nullptr;
-		try {
-			CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
-
-			SharedStr sourceFileNameStr( sourceFilename);
-			sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
-
-			SharedStr configLoadDir = splitFullPath(sourceFileNameStr.begin());
-			CharPtr fileName = sourceFileNameStr.c_str();
-			if (configLoadDir.ssize()) fileName += (configLoadDir.ssize()+1);
-
-			auto currSession = SessionData::Create( configLoadDir.c_str(), getFileNameBase(fileName).c_str() );
-			currSession->SetConfigPointColFirst( GetConfigPointColFirst() );
-
-			ConfigurationFilenameContainer filenameContainer(configLoadDir);
-			{
-				StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
-				StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
-
-				MG_LOCKER_NO_UPDATEMETAINFO
-
-				UpdateMarker::ChangeSourceLock changeAtZeroTime(UpdateMarker::tsBereshit, "CreateTreeFromConfigFile");
-
-				#if defined(MG_DEBUG_INTERESTSOURCE)
-					DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
-				#endif // MG_DEBUG_INTERESTSOURCE
-				res = AppendTreeFromConfiguration(fileName, 0);
-			}
-			currSession->Open(res);
-			auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
-			dms_assert(fts > UpdateMarker::tsBereshit);
-			return res;
-		}
-		catch (...)
-		{
-			if (res)
-				res->EnableAutoDelete();
-			throw;
-		}
+		return CreateTreeFromConfiguration(sourceFilename);
 	DMS_CALL_END
 	return nullptr;
 }
@@ -182,9 +188,14 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	SharedStr sourceFileNameStr(sourceFileName);
 	sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
 
-	SharedStr sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
-		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(), 
+ 	SharedStr sourcePathNameStr = AbstrStorageManager::Expand(
+		ConfigurationFilenameLock::GetConfigDir().c_str(),
 		sourceFileNameStr.c_str()
+	);
+
+	sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
+		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(),
+		sourcePathNameStr.c_str()
 	);
 
 	CharPtr sourcePathName = sourcePathNameStr.c_str();
