@@ -1292,11 +1292,13 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 void OnStartWaiting(void* clientHandle)
 {
+    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     reinterpret_cast<MainWindow*>(clientHandle)->begin_timing();
 }
 
 void OnEndWaiting(void* clientHandle)
 {
+    QGuiApplication::restoreOverrideCursor();
     reinterpret_cast<MainWindow*>(clientHandle)->end_timing();
 }
 
