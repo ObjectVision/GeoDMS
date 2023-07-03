@@ -32,6 +32,7 @@
 #include "DmsExport.h"
 #include "DataView.h"
 #include "StateChangeNotification.h"
+#include "stg/AbstrStorageManager.h"
 #include <regex>
 
 #include "dataview.h"
@@ -965,8 +966,14 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             if (delimCandidate == '\\' || delimCandidate == '/')
             {
                 auto dirName = SharedStr(configFilePath, fileNameCharPtr);
-                SetCurrentDir(dirName.c_str()); 
+                SetCurrentDir(ConvertDmsFileNameAlways(std::move(dirName)).c_str());
                 ++fileNameCharPtr;
+                
+                auto current_dir = GetCurrentDir() + "/stam";
+
+                auto config_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%configDir%"); 
+                auto proj_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%projDir%" );
+                
                 break;
             }
         }

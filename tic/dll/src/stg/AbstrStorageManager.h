@@ -193,8 +193,9 @@ public:
 	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, bool readOnly, bool throwOnFailure = true);
 	TIC_CALL static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
 	TIC_CALL static SharedStr            Expand(const TreeItem* configStore, SharedStr storageName);
-	TIC_CALL static SharedStr            GetFullStorageName(const TreeItem* configStore, SharedStr storageName);
-	TIC_CALL static SharedStr            GetFullStorageName(CharPtr subDir, CharPtr storageNameCStr);
+	TIC_CALL static SharedStr            Expand(CharPtr configDir, CharPtr storageName);
+	TIC_CALL static SharedStr            GetFullStorageName(const TreeItem* configStore, SharedStr storageName); // ForItem
+	TIC_CALL static SharedStr            GetFullStorageName(CharPtr subDir, CharPtr storageNameCStr); // ForFolder
 	TIC_CALL static SyncMode             GetSyncMode(const TreeItem* storageHolder);
 
 //	override / extent PerssistentRefObject interface

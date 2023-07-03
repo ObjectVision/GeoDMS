@@ -279,7 +279,7 @@ SharedStr GetStorageBaseName(const TreeItem* configStore)
 	return SharedStr();
 }
 
-static SharedStr s_ProjDir;
+//static SharedStr s_ProjDir;
 
 SharedStr GetProjDir(CharPtr configDir)
 {	
@@ -287,30 +287,30 @@ SharedStr GetProjDir(CharPtr configDir)
 	dms_assert(!HasDosDelimiters(configDir));
 	dms_assert(IsAbsolutePath(configDir));
 
-	DBG_START("GetProjDir", configDir, false);
+	DBG_START("GetProjDir", configDir, true);
 
-	static SharedStr prevConfigDir;
+	//static SharedStr prevConfigDir;
 
-	if (prevConfigDir != configDir)
-	{
-		s_ProjDir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
-		if (!s_ProjDir.empty() && s_ProjDir[0] == '.')
+	//if (prevConfigDir != configDir)
+	//{
+		auto proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
+		if (!proj_dir.empty() && proj_dir[0] == '.')
 		{
 			SharedStr configLoadDir = splitFullPath(configDir);
 			UInt32 c = 0;
 			UInt32 cc = 0;
 			UInt32 p = 1;
 			do {
-				while (s_ProjDir[p] == '.')
+				while (proj_dir[p] == '.')
 				{
 					++c, ++p;
 				}
-				switch (s_ProjDir[p])
+				switch (proj_dir[p])
 				{
 					case '/':     ++p; [[fallthrough]];
 					case char(0): cc += c; c = -1;
 				}
-			} while(s_ProjDir[p] == '.');
+			} while(proj_dir[p] == '.');
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
 			while (cc)
 			{
@@ -318,13 +318,13 @@ SharedStr GetProjDir(CharPtr configDir)
 				--cc;
 			}
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
-			s_ProjDir = DelimitedConcat(configLoadDir.c_str(), SharedStr(s_ProjDir.cbegin()+p, s_ProjDir.csend()).c_str());
-			DBG_TRACE(("result after GoUp %s", s_ProjDir.c_str()));
+			proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(proj_dir.cbegin()+p, proj_dir.csend()).c_str());
+			DBG_TRACE(("result after GoUp %s", proj_dir.c_str()));
 		}
-		prevConfigDir = configDir;
-	}
-	dms_assert(!HasDosDelimiters(s_ProjDir.c_str()));
-	return s_ProjDir;
+		//prevConfigDir = configDir;
+//	}
+	dms_assert(!HasDosDelimiters(proj_dir.c_str()));
+  	return proj_dir;
 }
 
 SharedStr GetLocalTime()
@@ -476,7 +476,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 	return storageName;
 }
 
-SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
+SharedStr AbstrStorageManager::Expand(CharPtr subDirName, CharPtr storageNameCStr)
 {
 	SharedStr storageName = SharedStr(storageNameCStr);
 	SharedStr subDirNameStr;
@@ -510,7 +510,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		CharPtr p1 = storageName.find('%');
 		if (p1 == storageName.csend())
 			break;
-		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
+		CharPtr p2 = std::find(p1 + 1, storageName.csend(), '%');
 		if (p2 == storageName.csend())
 			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): unbalanced placeholder delimiter (%%) at position %d."
 				"\nNumber of completed substitutions: %d"
@@ -531,12 +531,17 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 				, storageName.c_str()
 			);
 		++substCount;
-		storageName 
-				= SharedStr(storageName.cbegin(), p1) 
-				+ GetPlaceholderValue(subDirName,  SharedStr(p1+1, p2).c_str(), true)
-				+ SharedStr(p2+1, storageName.csend());
+		storageName
+			= SharedStr(storageName.cbegin(), p1)
+			+ GetPlaceholderValue(subDirName, SharedStr(p1 + 1, p2).c_str(), true)
+			+ SharedStr(p2 + 1, storageName.csend());
 	}
+	return storageName;
+}
 
+SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
+{
+	auto storageName = Expand(subDirName, storageNameCStr);
 	return IsAbsolutePath(storageName.c_str())
 		?	storageName
 		:	DelimitedConcat(subDirName, storageName.c_str());

@@ -74,7 +74,7 @@ SYNTAX_CALL void DMS_CONV DMS_Stx_Load()
 
 SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
-
+	//auto current_dir = GetCurrentDir();
 	TreeItem* res = nullptr;
 	try {
 		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
@@ -121,7 +121,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
 	DMS_CALL_BEGIN
-		CreateTreeFromConfiguration(sourceFilename);
+		return CreateTreeFromConfiguration(sourceFilename);
 	DMS_CALL_END
 	return nullptr;
 }
@@ -188,9 +188,14 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	SharedStr sourceFileNameStr(sourceFileName);
 	sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
 
-	SharedStr sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
-		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(), 
+ 	SharedStr sourcePathNameStr = AbstrStorageManager::Expand(
+		ConfigurationFilenameLock::GetConfigDir().c_str(),
 		sourceFileNameStr.c_str()
+	);
+
+	sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
+		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(),
+		sourcePathNameStr.c_str()
 	);
 
 	CharPtr sourcePathName = sourcePathNameStr.c_str();
