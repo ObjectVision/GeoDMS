@@ -166,7 +166,7 @@ struct MdiCreateStruct
 // class  : DataView
 //----------------------------------------------------------------------
 
-class DataView : public Actor, public DataViewList, public enable_shared_from_this_base<DataView>
+class DataView : public Actor, public DataViewList, public enable_shared_from_this_base<DataView>, private MsgGenerator
 {
 	typedef Actor base_type;
 public:
@@ -193,7 +193,7 @@ public:
 	bool DispatchMsg(const MsgStruct& msg);
 	bool OnKeyDown(UInt32 nVirtKey);
 
-	// Attributes
+//	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { dms_assert(m_Contents); return m_Contents; }
 	std::shared_ptr<const MovableObject> GetContents() const { dms_assert(m_Contents); return m_Contents; }
 	TreeItem*      GetViewContext   () const { dms_assert(m_ViewContext); return m_ViewContext; }
@@ -279,6 +279,10 @@ private:
 	void ProcessGuiOpers();
 	void OnCopyData(UINT cmd, const UInt32* first, const UInt32* last);
 
+	// ContextHandling
+	void GenerateDescription() override;
+
+	// rtti
 	MG_DEBUGCODE( bool IsShvObj() const override { return true; } )
 public:
 	void OnCaptionChanged() const;

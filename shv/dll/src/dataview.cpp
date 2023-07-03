@@ -174,7 +174,6 @@ DataView::DataView(TreeItem* viewContext)
 	,	m_FocusCaret(new FocusCaret)
 	,	m_ParentView(0)
 	,	m_ScrollEventsReceiver(0)
-	,	m_Waiter(false)
 #if defined(MG_DEBUG)
 	,	md_InvalidateDrawLock(0)
 	,	md_IsDrawingCount(0)
@@ -1265,6 +1264,7 @@ SharedStr DataView::GetCaption() const
 void DataView::OnCaptionChanged() const
 {
 	SendStatusText(SeverityTypeID::ST_MajorTrace, GetCaption().c_str());
+
 }
 
 // ============   Painting
@@ -1331,7 +1331,7 @@ void DataView::OnPaint()
 
 void DataView::SetUpdateTimer()
 {
-	m_Waiter.start();
+	m_Waiter.start(this);
 	SetTimer(m_hWnd, UPDATE_TIMER_ID, 0, nullptr);
 }
 // ============   Mouse Handling
@@ -1833,6 +1833,11 @@ void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 	);*/
 }
 
+// ContextHandling
+void DataView::GenerateDescription()
+{
+	SetText(GetCaption());
+}
 
 std::map<DataView*, std::shared_ptr<DataView>> g_DataViewMap;
 

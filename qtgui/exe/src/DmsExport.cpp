@@ -478,6 +478,10 @@ void DmsExportWindow::resetExportButton()
 void DmsExportWindow::exportImpl()
 {
     auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
+
+    ObjectMsgGenerator thisMsgGenerator(current_export_item, "Export");
+    Waiter logWaitingtime(&thisMsgGenerator);
+
     auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
@@ -527,7 +531,7 @@ void DmsExportWindow::exportActiveTabInfo()
     SuspendTrigger::Resume();
     m_export_button->setText("Exporting...");
     m_export_button->repaint();
-    Waiter logWaitingtime(true);
+
     try {
         exportImpl();
         m_export_button->setText("Ready");

@@ -1042,13 +1042,13 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
 
 // TODO: BEGIN move to separate file UpdatableTextBrowser.h
 
-struct QUpdatableTextBrowser : QTextBrowser
+struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
 {
     using QTextBrowser::QTextBrowser;
 
     void restart_updating()
     {
-        m_Waiter.start();
+        m_Waiter.start(this);
         QTimer::singleShot(0, [this]()
             {
                 if (!this->update())
@@ -1058,9 +1058,16 @@ struct QUpdatableTextBrowser : QTextBrowser
             }
         );
     }
+    void GenerateDescription() override
+    {
+        auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
+        if (!pw)
+            return;
+        SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
+    }
 
 protected:
-    Waiter m_Waiter = Waiter(false);
+    Waiter m_Waiter;
 
     virtual bool update() = 0;
 };
@@ -1180,7 +1187,7 @@ void MainWindow::setStatusMessage(CharPtr msg)
 static bool s_IsTiming = false;
 static std::time_t s_BeginTime = 0;
 
-void MainWindow::begin_timing()
+void MainWindow::begin_timing(AbstrMsgGenerator* ach)
 {
     if (s_IsTiming)
         return;
@@ -1211,13 +1218,13 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime)
     return result;
 }
 
-void MainWindow::end_timing()
+void MainWindow::end_timing(AbstrMsgGenerator* ach)
 {
     if (!s_IsTiming)
         return;
 
     s_IsTiming = false;
-    auto current_processing_record = processing_record(s_BeginTime, std::time(nullptr));
+    auto current_processing_record = processing_record(s_BeginTime, std::time(nullptr), SharedStr());
     auto passedTime = passed_time(current_processing_record);
     if (passedTime < 2)
         return;
@@ -1227,6 +1234,10 @@ void MainWindow::end_timing()
 
     if (m_processing_records.size() >= 10 && passedTime < passed_time(m_processing_records.front()))
         return;
+
+    if (ach)
+        std::get<SharedStr>(current_processing_record) = SharedStr(ach->GetDescription());
+
     auto comparator = [](std::time_t passedTime, const processing_record& rhs) { return passedTime <= passed_time(rhs);  };
     auto insertionPoint = std::upper_bound(m_processing_records.begin(), m_processing_records.end(), passedTime, comparator);
     bool top_of_records_is_changing =( insertionPoint == m_processing_records.end());
@@ -1290,16 +1301,16 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 #include "waiter.h"
 
-void OnStartWaiting(void* clientHandle)
+void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach)
 {
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    reinterpret_cast<MainWindow*>(clientHandle)->begin_timing();
+    reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
 }
 
-void OnEndWaiting(void* clientHandle)
+void OnEndWaiting(void* clientHandle, AbstrMsgGenerator* ach)
 {
     QGuiApplication::restoreOverrideCursor();
-    reinterpret_cast<MainWindow*>(clientHandle)->end_timing();
+    reinterpret_cast<MainWindow*>(clientHandle)->end_timing(ach);
 }
 
 void MainWindow::setupDmsCallbacks()
@@ -1682,7 +1693,7 @@ CharPtrRange myAscTime(const struct tm* timeptr)
 
     static char result[26];
 
-    return myFixedBufferAsCharPtrRange(result, 26, "%.3s %.3s%3d %.2d:%.2d:%.2d %d",
+    return myFixedBufferAsCharPtrRange(result, 26, "%.3s %.3s%3d %02d:%02d:%02d %d",
         wday_name[timeptr->tm_wday],
         mon_name[timeptr->tm_mon],
         timeptr->tm_mday, timeptr->tm_hour,
@@ -1697,10 +1708,10 @@ void MainWindow::view_calculation_times()
     os << "Top " << m_processing_records.size() << " calculation times:\n";
     for (const auto& pr : m_processing_records)
     {
-        os << passed_time_str("", passed_time(pr)) << " processing ";
-        os << "from " << myAscTime(std::localtime(& std::get<0>(pr)));
+        os << passed_time_str("", passed_time(pr));
+        os << " from " << myAscTime(std::localtime(& std::get<0>(pr)));
         os << " till " << myAscTime(std::localtime(& std::get<1>(pr)));
-        os << "\n";
+        os << ": " << std::get<SharedStr>(pr) << "\n";
     }
     os << char(0); // ends
 

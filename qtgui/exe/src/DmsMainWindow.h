@@ -232,8 +232,8 @@ private:
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
     void view_calculation_times();
-    void begin_timing(); friend void OnStartWaiting(void* clientHandle);
-    void end_timing();   friend void OnEndWaiting  (void* clientHandle);
+    void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach);
+    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (void* clientHandle, AbstrMsgGenerator* ach);
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
@@ -284,7 +284,7 @@ public:
     QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
-    using processing_record = std::tuple<std::time_t, std::time_t>;
+    using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
 private:
     std::vector<processing_record> m_processing_records;
 

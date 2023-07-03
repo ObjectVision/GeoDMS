@@ -16,16 +16,18 @@
 //----------------------------------------------------------------------
 
 struct Waiter {
-	Waiter(bool startNow) { if (startNow) start();  }
+	Waiter() {}
+	Waiter(AbstrMsgGenerator* ach) { start(ach); }
 	~Waiter() { end(); }
 
-	SHV_CALL void start();
+	SHV_CALL void start(AbstrMsgGenerator* ach);
 	SHV_CALL void end();
 
+	AbstrMsgGenerator* m_ContextGenerator = nullptr;
 	bool m_is_counted = false;
 };
 
-using wating_event_callback = void (*)(void* clientHandle);
+using wating_event_callback = void (*)(void* clientHandle, AbstrMsgGenerator* ach);
 
 SHV_CALL void register_overlapping_periods_callback(wating_event_callback starting, wating_event_callback ending, void* clientHandle);
 SHV_CALL void unregister_overlapping_periods_callback(wating_event_callback starting, wating_event_callback ending, void* clientHandle);

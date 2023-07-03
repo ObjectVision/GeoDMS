@@ -18,18 +18,19 @@ static std::atomic<UInt32> s_WaiterCount = 0;
 static std::set<callback_record> s_WaitingCallbacks;
 
 
-void Waiter::start()
+void Waiter::start(AbstrMsgGenerator* ach)
 {
 	assert(IsMainThread());
 	if (m_is_counted)
 		return;
 	m_is_counted = true;
+	m_ContextGenerator = ach;
 
 	if (s_WaiterCount++)
 		return;
 	for (const auto& we : s_WaitingCallbacks)
 		if (std::get<0>(we))
-			std::get<0>(we)(std::get<2>(we));
+			std::get<0>(we)(std::get<2>(we), m_ContextGenerator);
 }
 
 void Waiter::end()
@@ -44,7 +45,7 @@ void Waiter::end()
 
 	for (const auto& we : s_WaitingCallbacks)
 		if (std::get<1>(we))
-			std::get<1>(we)(std::get<2>(we));
+			std::get<1>(we)(std::get<2>(we), m_ContextGenerator);
 }
 
 
