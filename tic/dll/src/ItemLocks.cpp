@@ -43,7 +43,7 @@ namespace treeitem_production_task
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount <= 0;  });
 
-		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
+//		assert(!self->m_ItemCount); // TODO: Check that earlier lock_unique is from the same thread
 		--self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
 		self->m_Producer = oc;

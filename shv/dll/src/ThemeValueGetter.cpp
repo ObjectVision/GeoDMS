@@ -355,7 +355,6 @@ struct LazyGetter : public AbstrThemeValueGetter
 
 	SizeT GetCount() const override
 	{
-
 		return m_ThemeAttr->GetCurrRefObj()->GetTiledRangeData()->GetRangeSize();
 	}
 

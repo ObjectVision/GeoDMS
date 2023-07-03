@@ -19,6 +19,14 @@ auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
 	return m_Items.at(m_filtered_indices.at(row));
 }
 
+void EventLogModel::clear()
+{
+	m_filtered_indices.clear();
+	m_Items.clear();
+	refilter();
+	MainWindow::TheOne()->m_eventlog_clear->setDisabled(true);
+}
+
 QVariant EventLogModel::data(const QModelIndex& index, int role) const
 {
 	if (!index.isValid())
@@ -101,12 +109,6 @@ void EventLogModel::refilter()
 	}
 	endResetModel();
 
-	if (m_filtered_indices.size() == m_Items.size())
-	{
-		m_filtered_indices.clear();
-		m_filter_active = false;
-	}
-
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
@@ -119,7 +121,7 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-
+	MainWindow::TheOne()->m_eventlog_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
 	if (!new_item_passes_filter)

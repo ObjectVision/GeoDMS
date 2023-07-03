@@ -1,5 +1,5 @@
 #include <QPointer>
-#include <QDialog>;
+#include <QDialog>
 #include "ptr/SharedPtr.h"
 
 struct TreeItem;
@@ -11,6 +11,7 @@ class QFileDialog;
 class QLineEdit;
 class QTabWidget;
 class QComboBox;
+class DmsExportWindow;
 
 enum class driver_characteristics : UInt32
 {
@@ -54,7 +55,7 @@ class ExportTab : public QWidget
     Q_OBJECT
 
 public:
-    ExportTab(bool is_raster = false, QWidget* parent = nullptr);
+    ExportTab(bool is_raster, DmsExportWindow* exportWindow);
     bool m_is_raster = false;
     std::vector<gdal_driver_id> m_available_drivers;
     QPointer<QLineEdit> m_filename_entry;
@@ -83,9 +84,14 @@ public:
 
 public slots:
     void exportActiveTabInfo();
+    void resetExportButton();
 
 private:
+    void exportImpl();
+
     int m_vector_tab_index;
     int m_raster_tab_index;
     QPointer<QTabWidget> m_tabs;
+    QPointer<QPushButton> m_export_button;
+    bool                  m_export_ready = false;
 };

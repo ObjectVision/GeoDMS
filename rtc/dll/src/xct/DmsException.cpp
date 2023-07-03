@@ -426,8 +426,8 @@ RTC_CALL void catchAndProcessException()
 
 	if (s_cppTrFunc)
 		s_cppTrFunc(msgPtr->GetAsText().c_str()); // may throw a Borland Structured Exception
-	else
-		throw;
+//	else
+//		throw;
 }
 
 

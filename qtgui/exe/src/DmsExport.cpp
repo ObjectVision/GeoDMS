@@ -298,6 +298,9 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     if (!item)
         return false;
 
+    if (item->IsFailed())
+        return false;
+
     // category Table
     if (CurrentItemCanBeExportedAsTableOrDatabase(item))
         return true;
@@ -313,6 +316,9 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
 bool currentItemCanBeExportedToRaster(const TreeItem* item)
 {
     if (!item)
+        return false;
+
+    if (item->IsFailed())
         return false;
 
     if (!IsDataItem(item))
@@ -395,8 +401,8 @@ void ExportTab::setFilenameUsingFileDialog()
     m_filename_entry->setText(filename);
 }
 
-ExportTab::ExportTab(bool is_raster, QWidget * parent)
-	: QWidget(parent)
+ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
+	: QWidget(nullptr)
 {
 	m_is_raster = is_raster;
 
@@ -416,6 +422,7 @@ ExportTab::ExportTab(bool is_raster, QWidget * parent)
     m_driver_selection = new QComboBox(this);
     repopulateDriverSelection();
     connect(m_driver_selection, &QComboBox::activated, this, &ExportTab::onComboBoxItemActivate);
+    connect(m_driver_selection, &QComboBox::activated, exportWindow, &DmsExportWindow::resetExportButton);
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
     grid_layout_box->addWidget(format_label, 1, 0);
@@ -454,21 +461,27 @@ void DmsExportWindow::prepare()
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
+    
     m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
     m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
     m_tabs->widget(m_vector_tab_index);
+    resetExportButton();
 }
 
-void DmsExportWindow::exportActiveTabInfo()
+void DmsExportWindow::resetExportButton()
+{
+    m_export_button->setText("Export");
+    m_export_button->setStatusTip("");
+    m_export_ready = false;
+}
+
+void DmsExportWindow::exportImpl()
 {
     auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
     auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
-
-    SuspendTrigger::Resume();
-    DMS_CALL_BEGIN
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
@@ -502,8 +515,31 @@ void DmsExportWindow::exportActiveTabInfo()
         Tree_Update(exportConfig, "Export");
         return;
     }
+}
 
-    DMS_CALL_END
+void DmsExportWindow::exportActiveTabInfo()
+{
+    if (m_export_ready)
+    {
+        reject();
+        return;
+    }
+    SuspendTrigger::Resume();
+    m_export_button->setText("Exporting...");
+    m_export_button->repaint();
+    Waiter logWaitingtime(true);
+    try {
+        exportImpl();
+        m_export_button->setText("Ready");
+        m_export_button->setStatusTip("");
+        m_export_ready = true;
+    }
+    catch (...)
+    {
+        auto errMsgPtr = catchAndReportException();
+        m_export_button->setText(errMsgPtr->m_Why.c_str());
+        m_export_button->setStatusTip(errMsgPtr->m_Why.c_str());
+    }
 }
 
 DmsExportWindow::DmsExportWindow(QWidget* parent)
@@ -512,17 +548,17 @@ DmsExportWindow::DmsExportWindow(QWidget* parent)
     setMinimumSize(600, 400);
     auto tab_layout = new QVBoxLayout(this);
 	m_tabs = new QTabWidget(this);
-	m_vector_tab_index = m_tabs->addTab(new ExportTab(false), tr("Vector"));
-	m_raster_tab_index = m_tabs->addTab(new ExportTab(true), tr("Raster"));
+	m_vector_tab_index = m_tabs->addTab(new ExportTab(false, this), tr("Vector"));
+	m_raster_tab_index = m_tabs->addTab(new ExportTab(true, this), tr("Raster"));
     m_tabs->setCurrentIndex(m_vector_tab_index);
     tab_layout->addWidget(m_tabs);
 
     QWidget* export_cancel_widgets = new QWidget(this);
 
     auto h_layout = new QHBoxLayout(this);
-    auto export_button = new QPushButton("Export", this);
-    connect(export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
-    h_layout->addWidget(export_button);
+    m_export_button = new QPushButton("Export", this);
+    connect(m_export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
+    h_layout->addWidget(m_export_button);
 
     auto cancel_button = new QPushButton("Cancel", this);
     connect(cancel_button, &QPushButton::released, this, &DmsExportWindow::reject);
