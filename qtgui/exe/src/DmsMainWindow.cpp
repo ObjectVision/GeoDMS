@@ -562,8 +562,7 @@ void MainWindow::updateToolbar()
                                  "QToolButton:checked {selection-background-color: rgba(255, 255, 255, 150);}\n");
         
         m_toolbar->setIconSize(QSize(32, 32));
-        m_toolbar->setMinimumSize(QSize(38, 38)); // 38
-        //m_toolbar->setMaximumSize(QSize(9999, 32));
+        m_toolbar->setMinimumSize(QSize(38, 38));
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
@@ -610,7 +609,10 @@ void MainWindow::updateToolbar()
         auto button_id = *button_id_ptr++;
         if (button_id == TB_Undefined)
         {
-            m_toolbar->addSeparator();
+            QWidget* spacer = new QWidget(this);
+            spacer->setMinimumSize(30,0);
+            m_toolbar->addWidget(spacer);
+            //m_toolbar->addSeparator();
             continue;
         }
 
@@ -621,7 +623,7 @@ void MainWindow::updateToolbar()
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
         if (!is_command_enabled)
             action->setDisabled(true);
-
+        
         m_toolbar->addAction(action);
 
         // connections

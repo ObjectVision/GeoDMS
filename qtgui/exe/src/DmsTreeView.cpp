@@ -392,6 +392,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
+	m_context_menu->addSeparator();
+
 	// step to failreason
 	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
 	step_to_failreason->setEnabled(ti && ti->WasFailed());
@@ -402,10 +404,12 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
 	m_context_menu->addAction(go_to_causa_prima);
 
+	m_context_menu->addSeparator();
+
 	// edit config source
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
 	m_context_menu->addAction(edit_config_source);
-
+	m_context_menu->addSeparator();
 	// update treeitem
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
 	m_context_menu->addAction(update_treeitem);
@@ -417,7 +421,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	// invalidate 
 	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
 	m_context_menu->addAction(invalidate);
-
+	m_context_menu->addSeparator();
 	// default view
 	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
 	m_context_menu->addAction(default_view_action);
