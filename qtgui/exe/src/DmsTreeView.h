@@ -9,6 +9,7 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
+class Waiter;
 
 struct InvisibleRootTreeItem
 {
@@ -78,6 +79,8 @@ public:
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
 	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
+
+	//Waiter waiter;
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);

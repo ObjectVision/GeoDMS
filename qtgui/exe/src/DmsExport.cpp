@@ -358,8 +358,8 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, ".json");
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", ".tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, ".cdf", driver_characteristics::is_raster);
-    available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, ".jpg", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    //available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    //available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, ".jpg", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     return available_drivers;
 }
 

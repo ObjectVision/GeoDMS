@@ -610,14 +610,17 @@ std::string fillOpenConfigSourceCommand(const std::string_view command, const st
     auto tmp_str = result.substr(fn_part + 2);
     if (fn_part != std::string::npos)
     {
-        result.replace(fn_part, fn_part + 2, filename);
+        result.replace(fn_part, fn_part + 2, filename.data());
         result += tmp_str;
     }
 
     auto ln_part = result.find("%L");
-
+    tmp_str = result.substr(ln_part + 2);
     if (ln_part != std::string::npos)
+    {
         result.replace(ln_part, ln_part + 2, line);
+        result += tmp_str;
+    }
 
     return result;
 }
@@ -641,8 +644,10 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
 
         assert(!open_config_source_command.empty());
         reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
-        QProcess process;
-        process.startDetached(open_config_source_command.c_str());
+        WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative, resolve spaces properly.
+        //QProcess process;
+        //process.setProgram();
+        //process.startDetached(open_config_source_command.c_str());
     }
 }
 
@@ -969,10 +974,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
                 SetCurrentDir(ConvertDmsFileNameAlways(std::move(dirName)).c_str());
                 ++fileNameCharPtr;
                 
-                auto current_dir = GetCurrentDir() + "/stam";
+                //auto current_dir = GetCurrentDir() + "/stam";
 
-                auto config_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%configDir%"); 
-                auto proj_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%projDir%" );
+                //auto config_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%configDir%"); 
+                //auto proj_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%projDir%" );
                 
                 break;
             }

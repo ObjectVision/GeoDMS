@@ -85,7 +85,7 @@ RTC_CALL SharedStr ConvertDosFileName(WeakStr fileName);
 RTC_CALL SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
 RTC_CALL SharedStr ConvertDmsFileName(WeakStr path);
 RTC_CALL SharedStr ConvertDmsFileNameAlways(SharedStr&& path); // for updated WinAPI funcs
-
+RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter);
 
 enum RegStatusFlags
 {

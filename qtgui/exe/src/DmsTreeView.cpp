@@ -24,6 +24,7 @@
 #include "TicInterface.h"
 #include "StateChangeNotification.h"
 #include "dataview.h"
+#include "waiter.h"
 
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
@@ -37,6 +38,8 @@ namespace {
 		auto p = ti->GetTreeParent();
 		if (!p)
 			return 0;
+		//if (p->m_State.GetProgress() < PS_MetaInfo)
+		//	MainWindow::TheOne()->m_treeview->waiter.start();
 
 		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
@@ -353,7 +356,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)
+	: QTreeView(parent)//, waiter(false)
 {
 	setRootIsDecorated(true);
 	setUniformRowHeights(true);
