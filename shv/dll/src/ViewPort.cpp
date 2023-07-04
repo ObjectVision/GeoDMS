@@ -390,7 +390,7 @@ void ViewPort::ZoomWorldFullRect(const TRect& relClientRect)
 		const ScalableObject* go = gc->GetConstEntry(n);
 		if (!go->HasNoExtent())
 		{
-			auto cwfr= calcWorldFullRect(relClientRect, go, m_Orientation, m_SubPixelFactor);
+			auto cwfr= calcWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
 			roi |= cwfr;
 		}
 	}
@@ -414,7 +414,7 @@ CrdRect ViewPort::GetCurrWorldFullRect() const
 	{
 		const ScalableObject* go = gc->GetConstEntry(i);
 		if (!go->HasNoExtent())
-			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, m_SubPixelFactor);
+			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
 	}
 	return roi;
 }
@@ -441,6 +441,14 @@ CrdType ViewPort::GetCurrZoomLevel() const
 	return m_w2vTr.ZoomLevel();
 }
 
+CrdType ViewPort::GetSubPixelFactor() const
+{
+	auto dv = GetDataView().lock();
+	assert(dv);
+	auto scaleFactor = GetWindowDIP2pixFactor(dv->GetHWnd());
+	return scaleFactor * m_SubPixelFactor;
+}
+
 void ViewPort::ZoomAll()
 {
 	ScalableObject* gc = GetContents();
@@ -457,7 +465,7 @@ void ViewPort::AL_ZoomAll()
 
 	ScalableObject* go = GetActiveLayer();
 	if (go)
-		SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, m_SubPixelFactor));
+		SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, GetSubPixelFactor()));
 }
 
 void ViewPort::AL_ZoomSel()
@@ -465,7 +473,7 @@ void ViewPort::AL_ZoomSel()
 	GraphicLayer* al = GetActiveLayer();
 	if (al)
 	{
-		CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, m_SubPixelFactor);
+		CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, GetSubPixelFactor());
 		if (! selectRect.empty())
 			SetROI(selectRect);
 	}

@@ -817,7 +817,8 @@ GraphVisitState DataView::UpdateView()
 
 	InvalidateChangedGraphics();
 
-	if (GraphUpdater( ViewRect(), GetDesktopDIP2pixFactor()).Visit( GetContents().get() ) == GVS_Break)
+	auto scaleFactor = GetWindowDIP2pixFactor(GetHWnd());
+	if (GraphUpdater( ViewRect(), scaleFactor).Visit( GetContents().get() ) == GVS_Break)
 		return GVS_Break;
 
 	dms_assert(!SuspendTrigger::DidSuspend());
@@ -846,7 +847,7 @@ GraphVisitState DataView::UpdateView()
 				continue;
 			}
 
-			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), GetDesktopDIP2pixFactor());
+			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactor);
 			CaretHider caretHider(this, dc); // Only area as clipped by m_DoneGraphics.Curr().Region() is hidden
 
 			dms_assert(!SuspendTrigger::DidSuspend());
@@ -885,7 +886,7 @@ GraphVisitState DataView::UpdateView()
 	updateAllStack.AddDrawRegion(Region(m_ViewSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
-	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible|GD_UpdateData), GetDesktopDIP2pixFactor()).Visit( GetContents().get() );
+	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible|GD_UpdateData), scaleFactor).Visit( GetContents().get() );
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
@@ -1318,7 +1319,7 @@ void DataView::OnPaint()
 		::FillRect(paintDC, &rect, br1 );
 	}
 #endif
-	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetDesktopDIP2pixFactor() ).Visit( GetContents().get() );
+	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetDcDIP2pixFactor(paintDC) ).Visit( GetContents().get() );
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 

@@ -146,6 +146,7 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT

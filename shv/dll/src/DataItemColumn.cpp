@@ -95,7 +95,7 @@ DataItemColumn::DataItemColumn(
 )	:	MovableObject(owner)
 	,	ThemeSet(possibleAspects, activeTheme)
 	,	m_FutureSrcAttr(adi)
-	,	m_ElemSize(GetDefaultColumnWidth(adi) * GetDesktopDIP2pixFactorX(), DEF_TEXT_PIX_HEIGHT* GetDesktopDIP2pixFactorY())
+	,	m_ElemSize(GetDefaultColumnWidth(adi), DEF_TEXT_PIX_HEIGHT)
 	,	m_ColumnNr(UNDEFINED_VALUE(UInt32))	
 	,	m_ActiveRow(0)
 {
@@ -318,8 +318,8 @@ void DataItemColumn::SetElemWidth(GType width)
 	GrowHor(colWidth - currClientWidth, relPosX, 0);
 	MakeMax(m_ElemSize.x, width);
 
-	dms_assert(GetCurrClientSize().x() == colWidth);
-	dms_assert(m_ElemSize.x            == width);
+	assert(GetCurrClientSize().x() == colWidth);
+	assert(m_ElemSize.x            == width);
 }
 
 void DataItemColumn::SetActiveRow(SizeT row)
@@ -440,7 +440,8 @@ void DataItemColumn::DoUpdateView()
 		n = 8;
 		PrepareDataOrUpdateViewLater(tc->GetRowEntity());
 	}
-	TPoint size( m_ElemSize.x, m_ElemSize.y );
+
+	TPoint size( m_ElemSize.x, m_ElemSize.y);
 
 	if (HasElemBorder())
 	{
@@ -449,10 +450,16 @@ void DataItemColumn::DoUpdateView()
 	}
 	UInt32 rowSepHeight = RowSepHeight();
 	size.y() += rowSepHeight;
+
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto scaleFactor = GetWindowDIP2pixFactorXY(dv->GetHWnd());
+
+	size.first = size.first * scaleFactor.first;
+	size.second = size.second * scaleFactor.second;
 	MakeMin<SizeT>(n, MaxValue<TType>() / size.y());
 	size.y() *= n;
 	MakeMin<TType>(size.y(), MaxValue<TType>() - rowSepHeight);
-	size.y() += rowSepHeight;
+	size.y() += rowSepHeight * scaleFactor.second;
 
 	SetClientSize(size);
 
@@ -481,6 +488,8 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	GType  rowDelta    = ElemSize().y + rowSep;
 	if (HasElemBorder())
 		rowDelta += 2*BORDERSIZE;
+
+	rowDelta = rowDelta * GetDcDIP2pixFactorY(d.GetDC());
 
 	TType clientOffsetRow = d.GetClientOffset().y();
 	GType pageClipRectRow = d.GetAbsClipRect().Top();

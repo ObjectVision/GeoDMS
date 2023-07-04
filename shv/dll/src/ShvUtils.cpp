@@ -77,6 +77,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LayerClass.h"
 #include "Theme.h"
 
+#include "shellscalingapi.h"
+
 //----------------------------------------------------------------------
 // section : StatusText
 //----------------------------------------------------------------------
@@ -639,22 +641,64 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 }
 
 
-Float64 GetDesktopDIP2pixFactorX()
+Float64 GetDcDIP2pixFactorX(HDC dc)
 {
-	static Float64 dip2PixFactor = GetDeviceCaps(DcHandleBase(NULL), LOGPIXELSX) / 96.0;
+	return GetDeviceCaps(dc, LOGPIXELSX) / 96.0;
+}
+
+Float64 GetDcDIP2pixFactorY(HDC dc)
+{
+	return GetDeviceCaps(dc, LOGPIXELSY) / 96.0;
+}
+
+Point<Float64> GetDcDIP2pixFactorXY(HDC dc)
+{
+	return { GetDeviceCaps(dc, LOGPIXELSX) / 96.0 , GetDeviceCaps(dc, LOGPIXELSY) / 96.0 };
+}
+
+Float64 GetDcDIP2pixFactor(HDC dc)
+{
+	auto xyFactors = GetDcDIP2pixFactorXY(dc);
+	Float64 dip2PixFactor = (xyFactors.first + xyFactors.second) / 2;
 	return dip2PixFactor;
 }
 
-Float64 GetDesktopDIP2pixFactorY()
+Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 {
-	static Float64 dip2PixFactor = GetDeviceCaps(DcHandleBase(NULL), LOGPIXELSY) / 96.0;
-	return dip2PixFactor;
+	assert(hWnd);
+	HWND hTopWnd = GetAncestor(hWnd, GA_ROOT);
+	assert(hTopWnd);
+	HMONITOR hMonitor = MonitorFromWindow(hTopWnd, MONITOR_DEFAULTTONEAREST);
+	assert(hMonitor);
+	UINT dpiX, dpiY;
+
+	auto result = GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+	assert(result == S_OK);
+	return { dpiX, dpiY };
 }
 
-Float64 GetDesktopDIP2pixFactor()
+Float64 GetWindowDIP2pixFactorX(HWND hWnd)
 {
-	static Float64 dip2PixFactor = (GetDesktopDIP2pixFactorX() + GetDesktopDIP2pixFactorY()) / 2;
-	return dip2PixFactor;
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return dpi.first / 96.0;
+}
+
+Float64 GetWindowDIP2pixFactorY(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return dpi.second / 96.0;
+}
+
+Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return { dpi.first / 96.0, dpi.second / 96.0 };
+}
+
+Float64 GetWindowDIP2pixFactor(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return (dpi.first + dpi.second) / (2.0*96.0);
 }
 
 //----------------------------------------------------------------------

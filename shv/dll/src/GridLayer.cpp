@@ -56,6 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Cmds.h"
 #include "Clipboard.h"
 #include "CounterStacks.h"
+#include "dataview.h"
 #include "GraphVisitor.h"
 #include "GridCoord.h"
 #include "GridDrawer.h"
@@ -636,7 +637,11 @@ void GridLayer::InvalidateFeature(SizeT featureIndex)
 {
 	dms_assert(IsDefined(featureIndex));
 
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE1* GetDesktopDIP2pixFactor());
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE1* GetWindowDIP2pixFactor(dv->GetHWnd()));
 
 	GRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
 	InvalidateWorldRect(GetWorldExtents(featureIndex),	&borderExtents);

@@ -790,7 +790,7 @@ revisit:
 #include "MouseEventDispatcher.h"
 
 MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
-:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), GetDesktopDIP2pixFactor())
+:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), GetWindowDIP2pixFactor(owner->GetHWnd()))
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {

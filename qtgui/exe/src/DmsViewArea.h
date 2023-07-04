@@ -31,17 +31,21 @@ public:
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     auto getDataView() -> DataView* { return m_DataView; }
-    auto getHwnd() -> void* { return m_HWnd; } // QEvent::WinIdChange
+    auto getDataViewHwnd() -> void* { return m_DataViewHWnd; } // QEvent::WinIdChange
+    void UpdatePosAndSize();
+
+protected:
+    void paintEvent(QPaintEvent* event);
 
 private:
     auto contentsRectInPixelUnits() -> QRect;
     void CreateDmsView(QMdiArea* parent);
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
-    void UpdatePosAndSize();
 
-    void* m_HWnd = nullptr;
     DataView* m_DataView = nullptr;
+    void* m_DataViewHWnd = nullptr;
+    DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
 };
 
 #endif // DMSVIEWAREA_H

@@ -129,7 +129,8 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 	auto dv = GetOwner().lock(); if (!dv) return true;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	dms_assert(m_Caret);
-	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point, GetDesktopDIP2pixFactor())->shared_from_this();
+	auto scaleFactor = GetWindowDIP2pixFactor(dv->GetHWnd());
+	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point, scaleFactor)->shared_from_this();
 	while	(	hooverObj 
 			&&	(	!dynamic_cast<ColumnHeaderControl*>(hooverObj.get())
 				||	to->IsOwnerOf(hooverObj->GetOwner().lock().get())
@@ -251,8 +252,10 @@ TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* table
 	,	m_TableControl(tableControl)
 	, m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
 {
-	dms_assert(tableControl);
-	SetMaxRowHeight(DEF_TEXT_PIX_HEIGHT + 2* BORDERSIZE);
+	assert(tableControl);
+	assert(owner);
+	auto dv = owner->GetDataView().lock(); assert(dv);
+	SetMaxRowHeight((DEF_TEXT_PIX_HEIGHT  + 2* BORDERSIZE));
 }
 
 void TableHeaderControl::DoUpdateView()
@@ -293,7 +296,10 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		columnHeader->SetClientSize(TPoint(dic->CalcClientSize().x() + dic->GetBorderPixelExtents().Width() - columnHeader->GetBorderPixelExtents().Width(), DEF_TEXT_PIX_HEIGHT));
+		auto headerSize = TPoint(
+			dic->CalcClientSize().x() + dic->GetBorderPixelExtents().Width() - columnHeader->GetBorderPixelExtents().Width()
+			, DEF_TEXT_PIX_HEIGHT);
+		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
 			dv->Activate(columnHeader.get());

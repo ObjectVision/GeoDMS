@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QAbstractNativeEventFilter>
 #include <QResource>
 #include <QByteArray>
 #include <memory>
@@ -73,14 +74,52 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // 
     return interpret_command_line_parameters(settingsFrame);
 }
 
+#include "DmsMainWindow.h"
+#include "DmsViewArea.h"
+#include <qmdiarea.h>
+
+class CustomEventFilter : public QAbstractNativeEventFilter
+{
+    //    Q_OBJECT
+
+public:
+    bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
+};
+
+
+bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result)
+{
+    MSG* msg = static_cast<MSG*>(message);
+
+    if (msg->message == WM_APP + 2) {
+        auto mw = MainWindow::TheOne();
+        if (mw)
+        {
+            for (auto* sw : mw->m_mdi_area->subWindowList())
+            {
+                auto dms_sw = dynamic_cast<QDmsViewArea*>(sw);
+                if (dms_sw)
+                    dms_sw->UpdatePosAndSize();
+            }
+        }
+        return true; // Stop further processing of the message
+    }
+    return false;
+    //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
+}
+
 int main(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
         std::any geoDmsResources; // destruct resources after app completion
 
+        CustomEventFilter eventFilter;
+
         QApplication dms_app(argc, argv);
         geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
+
+        dms_app.installNativeEventFilter(&eventFilter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         MainWindow main_window(settingsFrame);

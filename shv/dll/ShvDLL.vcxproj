@@ -53,7 +53,7 @@
       <Command>"C:\Program Files (x86)\NSIS\makensisw.exe" "..\..\..\nsi\DmsSetupScriptW32.nsi"</Command>
     </CustomBuildStep>
     <Link>
-      <AdditionalDependencies>comctl32.lib;msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shcore.lib;comctl32.lib;msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

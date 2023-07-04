@@ -411,7 +411,11 @@ void PaletteControl::CreateColumnsImpl()
 
 void PaletteControl::DoUpdateView()
 {
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) * GetDesktopDIP2pixFactorY());
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) * GetWindowDIP2pixFactorY(dv->GetHWnd()));
 	base_type::DoUpdateView();
 }
 

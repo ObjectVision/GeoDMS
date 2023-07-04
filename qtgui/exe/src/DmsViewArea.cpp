@@ -5,6 +5,7 @@
 #include <QMdiArea>
 
 #include <windows.h>
+#include <ShellScalingApi.h>
 
 #include "dbg/SeverityType.h"
 
@@ -83,7 +84,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
   
     if (!result)
     {
-        CloseWindow((HWND)m_HWnd); // calls SHV_DataView_Destroy
+        CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
         throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
             , currItem->GetFullName().c_str()
             , viewStyle
@@ -97,7 +98,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 {
     setWindowTitle(createStruct->caption);
     CreateDmsView(parent);
-    createStruct->hWnd = (HWND)m_HWnd;
+    createStruct->hWnd = (HWND)m_DataViewHWnd;
 }
 
 void QDmsViewArea::CreateDmsView(QMdiArea* parent)
@@ -114,7 +115,7 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
     auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
-    auto hWnd = CreateWindowEx(
+    auto dv_hWnd = CreateWindowEx(
         WS_EX_OVERLAPPEDWINDOW,          // extended style
         dmsViewAreaClassName,            // DmsDataView control class 
         nullptr,                         // text for window title bar 
@@ -126,10 +127,10 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
         instance,                        // instance owning this window 
         m_DataView
     );
-    m_HWnd = hWnd;
+    m_DataViewHWnd = dv_hWnd;
 
     SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
-    SetWindowPos(hWnd, HWND_TOP
+    SetWindowPos(dv_hWnd, HWND_TOP
         , rect.x(), rect.y()
         , rect.width(), rect.height()
         , SWP_SHOWWINDOW
@@ -140,12 +141,14 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 
     setMinimumSize(200, 150);
     show();
+
+    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, WM_APP + 2, &m_cookie);
 }
 
 QDmsViewArea::~QDmsViewArea()
 {
-//    SHV_DataView_Destroy(m_DataView);
-    CloseWindow((HWND)m_HWnd); // calls SHV_DataView_Destroy
+    RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
+    CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
 }
 
 void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event)
@@ -161,7 +164,7 @@ void QDmsViewArea::dropEvent(QDropEvent* event)
 void QDmsViewArea::moveEvent(QMoveEvent* event)
 {
     base_class::moveEvent(event);
-//    UpdatePosAndSize();
+    UpdatePosAndSize();
 }
 
 void QDmsViewArea::resizeEvent(QResizeEvent* event)
@@ -172,12 +175,15 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event)
 
 auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
 {
+    auto wId = winId();
+    assert(wId);
+    auto xyFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
     auto rect = contentsRect();
     return QRect(
-          rect.x() * GetDesktopDIP2pixFactorX()
-        , rect.y() * GetDesktopDIP2pixFactorY()
-        , rect.width() * GetDesktopDIP2pixFactorX()
-        , rect.height() * GetDesktopDIP2pixFactorY()
+          rect.x() * xyFactors.first
+        , rect.y() * xyFactors.second
+        , rect.width() * xyFactors.first
+        , rect.height() * xyFactors.second
     );
 }
 
@@ -185,9 +191,15 @@ void QDmsViewArea::UpdatePosAndSize()
 {
     auto rect= contentsRectInPixelUnits();
 
-    MoveWindow((HWND)m_HWnd
+    MoveWindow((HWND)m_DataViewHWnd
         , rect.x(), rect.y()
         , rect.width (), rect.height()
         , true
     );
+}
+
+void QDmsViewArea::paintEvent(QPaintEvent* event)
+{
+    UpdatePosAndSize();
+    return QMdiSubWindow::paintEvent(event);
 }
