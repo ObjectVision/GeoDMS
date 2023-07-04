@@ -24,7 +24,7 @@ class DmsDetailPages : public QTextBrowser
 {
 public:
 	DmsDetailPages(QWidget* parent = nullptr);
-
+	QSize sizeHint() const override;
 	void connectDetailPagesAnchorClicked();
 
 public slots:

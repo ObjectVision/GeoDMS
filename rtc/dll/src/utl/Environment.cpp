@@ -621,6 +621,16 @@ bool IsDosDir(WeakStr dosFileName, CharPtr dmsFileName)
 	return (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
+void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter)
+{
+	while (range.first != range.second)
+	{
+		if (*range.first == delimiter)
+			*range.first = '\\';
+		++range.first;
+	}
+}
+
 void ReplaceDosDelimiters(MutableCharPtrRange range)
 {
 	while (range.first != range.second)

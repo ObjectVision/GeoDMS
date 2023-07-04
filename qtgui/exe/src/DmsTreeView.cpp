@@ -24,6 +24,7 @@
 #include "TicInterface.h"
 #include "StateChangeNotification.h"
 #include "dataview.h"
+#include "waiter.h"
 
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
@@ -37,6 +38,8 @@ namespace {
 		auto p = ti->GetTreeParent();
 		if (!p)
 			return 0;
+		//if (p->m_State.GetProgress() < PS_MetaInfo)
+		//	MainWindow::TheOne()->m_treeview->waiter.start();
 
 		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
@@ -353,7 +356,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)
+	: QTreeView(parent)//, waiter(false)
 {
 	setRootIsDecorated(true);
 	setUniformRowHeights(true);
@@ -389,6 +392,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
+	m_context_menu->addSeparator();
+
 	// step to failreason
 	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
 	step_to_failreason->setEnabled(ti && ti->WasFailed());
@@ -399,44 +404,38 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
 	m_context_menu->addAction(go_to_causa_prima);
 
+	m_context_menu->addSeparator();
+
 	// edit config source
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
-	edit_config_source->setEnabled(true);
 	m_context_menu->addAction(edit_config_source);
-
+	m_context_menu->addSeparator();
 	// update treeitem
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
-	update_treeitem->setEnabled(true);
 	m_context_menu->addAction(update_treeitem);
 
 	// update subtree
 	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	update_subtree->setEnabled(true);
 	m_context_menu->addAction(update_subtree);
 
 	// invalidate 
 	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
-	invalidate->setEnabled(true);
 	m_context_menu->addAction(invalidate);
-
+	m_context_menu->addSeparator();
 	// default view
 	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
-	default_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
 	m_context_menu->addAction(default_view_action);
 
 	// table view
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
-	table_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer));
 	m_context_menu->addAction(table_view_action);
 
 	// map view
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
-	map_view_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
 	m_context_menu->addAction(map_view_action);
 
 	// statistics view
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
-	statistics_view_action->setEnabled(IsDataItem(ti));
 	m_context_menu->addAction(statistics_view_action);
 //	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
@@ -447,7 +446,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// process scheme
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
-	process_scheme->setDisabled(true);
 	m_context_menu->addAction(process_scheme);
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
 }

@@ -51,6 +51,7 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 QDmsMdiArea::QDmsMdiArea(QWidget* parent)
     : QMdiArea(parent) 
 {
+    setViewMode(QMdiArea::ViewMode::TabbedView);
     setAcceptDrops(true);
 }
 

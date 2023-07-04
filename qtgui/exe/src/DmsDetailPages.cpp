@@ -59,6 +59,9 @@ void DmsDetailPages::newCurrentItem()
 {
     if (m_active_detail_page != ActiveDetailPage::NONE)
         sheduleDrawPage();
+
+    auto main_window = MainWindow::TheOne();
+    auto current_item = main_window->getCurrentTreeItem();
 }
 
 auto getDetailPagesActionFromActiveDetailPage(ActiveDetailPage new_active_detail_page) -> QAction*
@@ -329,6 +332,11 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
     : QTextBrowser(parent)
 {}
 
+QSize DmsDetailPages::sizeHint() const
+{
+    return QSize(500, 20);
+}
+
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
     assert(tiContext);
@@ -395,7 +403,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
     }
 }
 
-
+#include <QDesktopServices>
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
     auto linkStr = link.toString().toUtf8();
@@ -413,8 +421,11 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
     }
     if (!ShowInDetailPage(linkStr))
     {
-        auto linkCStr = SharedStr(linkStr.begin(), linkStr.end()); // obtain zero-termination and non-const access
-        StartChildProcess(nullptr, linkCStr.begin());
+        auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
+        ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
+        auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
+        QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
+        //StartChildProcess(nullptr, linkCStr.begin());
         return;
     }
 

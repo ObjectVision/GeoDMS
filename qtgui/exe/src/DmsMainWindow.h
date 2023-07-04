@@ -217,6 +217,8 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    void clearActionsForEmptyCurrentItem();
+    void updateActionsForNewCurrentItem();
     void CloseConfig();
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();

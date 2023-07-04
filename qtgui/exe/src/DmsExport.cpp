@@ -27,6 +27,7 @@
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QTextBrowser>
 
 #include "ser/FileStreamBuff.h"
 #include "stg/AbstrStoragemanager.h"
@@ -244,9 +245,6 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     if (!currentItemCanBeExportedToRaster(rasterItemOrDomain))
         return nullptr;
 
-    if (nativeFlagged && !stricmp(storageTypeName, "GTiff"))
-        storageTypeName = "tif";
-
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
     auto subContainer = avd->CreateItem(UniqueName(avd, rasterID));
 
@@ -351,22 +349,36 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
 auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile / DBF", "shp", ".shp", driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, ".gpkg");
-    available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", ".csv", driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, ".gml");
-    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, ".json");
-    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", ".tif", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, ".cdf", driver_characteristics::is_raster);
-    available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, ".jpg", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::supports_geometry |driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
+    available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
+    available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
+    available_drivers.emplace_back("DBF", "DBF", "dbf", std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder);
+
+    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
+    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, std::vector<CharPtr>{".cdf"}, driver_characteristics::is_raster);
+    //available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    //available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, ".jpg", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     return available_drivers;
+}
+
+void ExportTab::resetFilenameExtension()
+{
+    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
+    auto file_info = QFileInfo(m_filename_entry->text());
+    auto path = file_info.absolutePath();
+    auto base_filename = file_info.baseName();
+    m_filename_entry->setText(QString(path + "/" + base_filename));
 }
 
 void ExportTab::setNativeDriverCheckbox()
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
-    m_native_driver_checkbox->setChecked(driver.HasNativeVersion());
+    auto driver_has_native_version = driver.HasNativeVersion();
+    m_native_driver_checkbox->setChecked(driver_has_native_version);
+    m_native_driver_checkbox->setEnabled(driver_has_native_version);
 }
 
 void ExportTab::repopulateDriverSelection()
@@ -393,12 +405,33 @@ void ExportTab::onComboBoxItemActivate(int index)
 {
     auto driver = m_available_drivers.at(index);
     setNativeDriverCheckbox();
+    resetFilenameExtension();
+    onFilenameEntryTextChanged(QString());
 }
 
 void ExportTab::setFilenameUsingFileDialog()
 {
     QString filename = QFileDialog::getSaveFileName(this, tr("Set export filename"), m_filename_entry->text());
     m_filename_entry->setText(filename);
+}
+
+auto ExportTab::createFinalFileNameText() -> QString
+{
+    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
+    QString final_filename_text = "";
+    auto new_filename = m_filename_entry->text();
+    for (auto ext : driver.exts)
+    {
+        final_filename_text = final_filename_text + new_filename + ext + "\n\n";
+    }
+    return final_filename_text;
+}
+
+void ExportTab::onFilenameEntryTextChanged(const QString& new_filename)
+{
+    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
+    auto markdown_text = createFinalFileNameText();
+    m_final_filename->setMarkdown(markdown_text);
 }
 
 ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
@@ -411,8 +444,13 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     auto format_label = new QLabel("Format", this);
 
 
-    auto filename = new QLabel("Filename:", this);
+    auto filename = new QLabel("Filename (no extension):", this);
+
+
     m_filename_entry = new QLineEdit(this);
+
+    connect(m_filename_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
+
     auto filename_button = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
     connect(filename_button, &QPushButton::clicked, this, &ExportTab::setFilenameUsingFileDialog);
     grid_layout_box->addWidget(filename, 0, 0);
@@ -421,8 +459,8 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 
     m_driver_selection = new QComboBox(this);
     repopulateDriverSelection();
-    connect(m_driver_selection, &QComboBox::activated, this, &ExportTab::onComboBoxItemActivate);
-    connect(m_driver_selection, &QComboBox::activated, exportWindow, &DmsExportWindow::resetExportButton);
+    connect(m_driver_selection, &QComboBox::currentIndexChanged, this, &ExportTab::onComboBoxItemActivate);
+    connect(m_driver_selection, &QComboBox::currentIndexChanged, exportWindow, &DmsExportWindow::resetExportButton);
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
     grid_layout_box->addWidget(format_label, 1, 0);
@@ -430,11 +468,28 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     grid_layout_box->addWidget(m_native_driver_checkbox, 1, 2);
     setNativeDriverCheckbox();
 
+    auto line_editor = new QFrame(this);
+    line_editor->setFrameShape(QFrame::HLine);
+    line_editor->setFrameShadow(QFrame::Plain);
+    line_editor->setLineWidth(1);
+    line_editor->setMidLineWidth(1);
+    grid_layout_box->addWidget(line_editor, 2, 0, 1, 3);
+
+    auto final_filename = new QLabel("Resulting filename(s):", this);
+    m_final_filename = new QTextBrowser(this);
+    m_final_filename->setReadOnly(true);
+
+    grid_layout_box->addWidget(final_filename, 3, 0);
+    grid_layout_box->addWidget(m_final_filename, 3, 1);
+
+
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid_layout_box->addWidget(spacer, 2, 0, 1, 3);
+    grid_layout_box->addWidget(spacer, 4, 0, 1, 3);
 }
 
+#include <QStandardItemModel>
+#include "ShvDllInterface.h"
 void ExportTab::showEvent(QShowEvent* event)
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
@@ -449,10 +504,30 @@ void ExportTab::showEvent(QShowEvent* event)
         m_native_driver_checkbox->setChecked(false);
     }
 
+
+
+
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto full_filename_base = GetFullFileNameBase(current_item);
 
-    m_filename_entry->setText(QString(full_filename_base.c_str()) + driver.ext);
+    m_filename_entry->setText(QString(full_filename_base.c_str()));
+
+    // set disabled drivers in combobox
+    QStandardItemModel* model = qobject_cast<QStandardItemModel*>(m_driver_selection->model());
+
+    if (!model)
+        return;
+
+    auto vsflags = SHV_GetViewStyleFlags(current_item);
+    for (int i=0; i<model->rowCount(); i++)
+    {
+        auto* item = model->item(i);
+        auto& driver = m_available_drivers.at(i);
+        if (!(vsflags & ViewStyleFlags::vsfMapView) && (driver.driver_characteristics & driver_characteristics::supports_geometry))
+            item->setEnabled(false);
+        else
+            item->setEnabled(true);
+    }
 }
 
 void DmsExportWindow::prepare()
@@ -462,8 +537,12 @@ void DmsExportWindow::prepare()
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     setWindowTitle(QString("Export ") + current_item->GetFullName().c_str());
     
-    m_tabs->setTabEnabled(m_vector_tab_index, currentItemCanBeExportedToVector(current_item));
-    m_tabs->setTabEnabled(m_raster_tab_index, currentItemCanBeExportedToRaster(current_item));
+    bool can_be_exported_to_vector = currentItemCanBeExportedToVector(current_item);
+    bool can_be_exported_to_raster = currentItemCanBeExportedToRaster(current_item);
+    m_tabs->setTabEnabled(m_vector_tab_index, can_be_exported_to_vector);
+    m_tabs->setTabEnabled(m_raster_tab_index, can_be_exported_to_raster);
+    if (can_be_exported_to_raster)
+        m_tabs->setCurrentIndex(m_raster_tab_index);
     m_tabs->widget(m_vector_tab_index);
     resetExportButton();
 }
@@ -478,14 +557,13 @@ void DmsExportWindow::resetExportButton()
 void DmsExportWindow::exportImpl()
 {
     auto current_export_item = MainWindow::TheOne()->getCurrentTreeItem();
-
     ObjectMsgGenerator thisMsgGenerator(current_export_item, "Export");
     Waiter logWaitingtime(&thisMsgGenerator);
 
     auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
-    auto filename = SharedStr(active_tab->m_filename_entry->text().toStdString().c_str());
+    auto filename = SharedStr((active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
@@ -549,7 +627,7 @@ void DmsExportWindow::exportActiveTabInfo()
 DmsExportWindow::DmsExportWindow(QWidget* parent)
 	: QDialog(parent)
 {
-    setMinimumSize(600, 400);
+    setMinimumSize(800, 400);
     auto tab_layout = new QVBoxLayout(this);
 	m_tabs = new QTabWidget(this);
 	m_vector_tab_index = m_tabs->addTab(new ExportTab(false, this), tr("Vector"));

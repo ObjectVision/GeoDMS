@@ -1,6 +1,7 @@
 #include <QPointer>
 #include <QDialog>
 #include "ptr/SharedPtr.h"
+#include <vector>
 
 struct TreeItem;
 class QCheckBox;
@@ -12,6 +13,7 @@ class QLineEdit;
 class QTabWidget;
 class QComboBox;
 class DmsExportWindow;
+class QTextBrowser;
 
 enum class driver_characteristics : UInt32
 {
@@ -19,6 +21,7 @@ enum class driver_characteristics : UInt32
     is_raster = 0x01,
     native_is_default = 0x02,
     tableset_is_folder = 0x04,
+    supports_geometry = 0x08,
 };
 inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
 inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
@@ -29,7 +32,7 @@ public:
     CharPtr shortname = nullptr;
     CharPtr name = nullptr;
     CharPtr nativeName = nullptr;
-    CharPtr ext = nullptr;
+    std::vector<CharPtr> exts;
     driver_characteristics driver_characteristics = driver_characteristics::none;
 
     CharPtr Caption()
@@ -61,16 +64,19 @@ public:
     QPointer<QLineEdit> m_filename_entry;
     QPointer<QCheckBox> m_native_driver_checkbox;
     QPointer<QComboBox> m_driver_selection;
+    QPointer<QTextBrowser> m_final_filename;
 
 private slots:
     void setFilenameUsingFileDialog();
     void onComboBoxItemActivate(int index);
+    void onFilenameEntryTextChanged(const QString& new_filename);
 
 protected:
     void showEvent(QShowEvent* event) override;
 
 private:
-
+    auto createFinalFileNameText() -> QString;
+    void resetFilenameExtension();
     void setNativeDriverCheckbox();
     void repopulateDriverSelection();
 };
