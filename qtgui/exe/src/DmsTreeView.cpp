@@ -404,42 +404,34 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// edit config source
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
-	edit_config_source->setEnabled(true);
 	m_context_menu->addAction(edit_config_source);
 
 	// update treeitem
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
-	update_treeitem->setEnabled(true);
 	m_context_menu->addAction(update_treeitem);
 
 	// update subtree
 	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	update_subtree->setEnabled(true);
 	m_context_menu->addAction(update_subtree);
 
 	// invalidate 
 	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
-	invalidate->setEnabled(true);
 	m_context_menu->addAction(invalidate);
 
 	// default view
 	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
-	default_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault|ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer| ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
 	m_context_menu->addAction(default_view_action);
 
 	// table view
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
-	table_view_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView|ViewStyleFlags::vsfTableContainer));
 	m_context_menu->addAction(table_view_action);
 
 	// map view
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
-	map_view_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
 	m_context_menu->addAction(map_view_action);
 
 	// statistics view
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
-	statistics_view_action->setEnabled(IsDataItem(ti));
 	m_context_menu->addAction(statistics_view_action);
 //	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
@@ -450,7 +442,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// process scheme
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
-	process_scheme->setDisabled(true);
 	m_context_menu->addAction(process_scheme);
 	m_context_menu->exec(viewport()->mapToGlobal(pos));
 }

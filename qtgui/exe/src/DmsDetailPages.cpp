@@ -59,6 +59,9 @@ void DmsDetailPages::newCurrentItem()
 {
     if (m_active_detail_page != ActiveDetailPage::NONE)
         sheduleDrawPage();
+
+    auto main_window = MainWindow::TheOne();
+    auto current_item = main_window->getCurrentTreeItem();
 }
 
 auto getDetailPagesActionFromActiveDetailPage(ActiveDetailPage new_active_detail_page) -> QAction*
@@ -328,6 +331,11 @@ auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
 DmsDetailPages::DmsDetailPages(QWidget* parent)
     : QTextBrowser(parent)
 {}
+
+QSize DmsDetailPages::sizeHint() const
+{
+    return QSize(500, 20);
+}
 
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {

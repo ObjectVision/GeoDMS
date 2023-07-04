@@ -313,12 +313,48 @@ MainWindow* MainWindow::TheOne()
     return s_CurrMainWindow;
 }
 
+void MainWindow::clearActionsForEmptyCurrentItem()
+{
+    m_defaultview_action->setDisabled(true);
+    m_tableview_action->setDisabled(true);
+    m_mapview_action->setDisabled(true);
+    m_statistics_action->setDisabled(true);
+    m_process_schemes_action->setDisabled(true);
+    m_update_treeitem_action->setDisabled(true);
+    m_invalidate_action->setDisabled(true);
+    m_update_subtree_action->setDisabled(true);
+    m_edit_config_source_action->setDisabled(true);
+    m_metainfo_page_action->setDisabled(true);
+}
+
+void MainWindow::updateActionsForNewCurrentItem()
+{
+    auto viewstyle_flags = SHV_GetViewStyleFlags(m_current_item.get());
+    m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
+    m_tableview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer));
+    m_mapview_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
+    m_statistics_action->setEnabled(IsDataItem(m_current_item.get()));
+    m_process_schemes_action->setEnabled(true);
+    m_update_treeitem_action->setEnabled(true);
+    m_invalidate_action->setEnabled(true);
+    m_update_subtree_action->setEnabled(true);
+    m_edit_config_source_action->setEnabled(true);
+    if (!TreeItemPropertyValue(m_current_item.get(), urlPropDefPtr).empty())
+        m_metainfo_page_action->setEnabled(true);
+    else
+        m_metainfo_page_action->setDisabled(true);
+}
+
 void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
 {
     if (m_current_item == new_current_item)
         return;
 
     m_current_item = new_current_item;
+
+    // update actions based on new current item
+    updateActionsForNewCurrentItem();
+
     if (m_current_item_bar)
     {
         if (m_current_item)
@@ -519,9 +555,15 @@ void MainWindow::updateToolbar()
     {
         addToolBarBreak();
         m_toolbar = addToolBar(tr("dmstoolbar"));
-        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138); }\n");
+        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138);\n padding : 0px; }\n"
+                                 "QToolButton {padding: 0px;}\n"
+                                 "QToolButton:checked {background-color: rgba(255, 255, 255, 150);}\n"
+                                 "QToolButton:checked {selection-color: rgba(255, 255, 255, 150);}\n"
+                                 "QToolButton:checked {selection-background-color: rgba(255, 255, 255, 150);}\n");
+        
         m_toolbar->setIconSize(QSize(32, 32));
-        m_toolbar->setMinimumSize(QSize(0, 44));
+        m_toolbar->setMinimumSize(QSize(38, 38)); // 38
+        //m_toolbar->setMaximumSize(QSize(9999, 32));
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
@@ -575,6 +617,7 @@ void MainWindow::updateToolbar()
         auto button_data = getToolbarButtonData(button_id);
         auto button_icon = QIcon(button_data.icons[0]);
         auto action = new DmsToolbuttonAction(button_icon, view_style==ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], m_toolbar, button_data, view_style);
+
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
         if (!is_command_enabled)
             action->setDisabled(true);
@@ -893,6 +936,8 @@ void MainWindow::CloseConfig()
         m_dms_model->setRoot(nullptr);
         m_root->EnableAutoDelete();
         m_root = nullptr;
+        m_current_item.reset();
+        m_current_item = nullptr;
     }
 }
 
@@ -1040,7 +1085,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         return false;
     }
     m_dms_model->setRoot(m_root);
-    setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
+    clearActionsForEmptyCurrentItem();
+    //setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     m_current_item_bar->setDmsCompleter();
     updateCaption();
     m_dms_model->reset();
@@ -1609,13 +1655,16 @@ void MainWindow::updateFileMenu()
 void MainWindow::updateViewMenu()
 {
     m_toggle_treeview_action->setChecked(m_treeview->isVisible());
-    m_toggle_detailpage_action->setChecked(m_right_side_toolbar->isVisible()); // 
+    m_toggle_detailpage_action->setChecked(m_right_side_toolbar->isVisible());
     m_toggle_eventlog_action->setChecked(m_eventlog->isVisible());
     bool hasToolbar = !m_toolbar.isNull();
     m_toggle_toolbar_action->setEnabled(hasToolbar);
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
+
+    m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
+
 }
 
 void MainWindow::updateWindowMenu() 
@@ -1827,10 +1876,16 @@ void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
+
+
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detailpages_dock->setWidget(m_detail_pages);
+    m_detail_pages->minimumSizeHint() = QSize(20,20);
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
+
+
+
 }
 
 void MainWindow::createDmsHelperWindowDocks()
