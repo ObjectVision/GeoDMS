@@ -395,7 +395,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
     }
 }
 
-
+#include <QDesktopServices>
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
     auto linkStr = link.toString().toUtf8();
@@ -413,8 +413,11 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
     }
     if (!ShowInDetailPage(linkStr))
     {
-        auto linkCStr = SharedStr(linkStr.begin(), linkStr.end()); // obtain zero-termination and non-const access
-        StartChildProcess(nullptr, linkCStr.begin());
+        auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
+        ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
+        auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
+        QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
+        //StartChildProcess(nullptr, linkCStr.begin());
         return;
     }
 
