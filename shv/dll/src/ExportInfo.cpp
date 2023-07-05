@@ -85,7 +85,7 @@ UInt32 FindBest(UInt32 maxNrDotsPerTile, UInt32  nrDots)
 
 SharedStr GetFullFileNameBase(const TreeItem* context)
 {
-	const TreeItem* exportSettingsContext = GetExportSettingsContext(context);
+	/*const TreeItem* exportSettingsContext = GetExportSettingsContext(context);
 
 	SharedStr dirName = AbstrStorageManager::GetFullStorageName(
 		exportSettingsContext
@@ -97,7 +97,11 @@ SharedStr GetFullFileNameBase(const TreeItem* context)
 	return AbstrStorageManager::GetFullStorageName(
 		exportSettingsContext
 	,	LoadValue<SharedStr>(exportSettingsContext, GetTokenID_mt("FullFileNameBase"), DelimitedConcat(dirName.c_str(), fileNameBase.c_str()))
-	);
+	);*/
+
+	auto local_datadir_folder = AbstrStorageManager::GetFullStorageName("", "%localDataProjDir%");
+	auto filename = MakeFileName(context->GetFullName().c_str());
+	return local_datadir_folder + "/" + filename;
 }
 
 //===================================== struct ExportInfo impl
