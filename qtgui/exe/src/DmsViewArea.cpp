@@ -43,6 +43,7 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     }
     else
     {
+        MainWindow::TheOne()->m_statusbar_coordinates->setText(msg);
         // dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
     }
 }
@@ -129,7 +130,8 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
     );
     m_HWnd = hWnd;
 
-    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
+    m_DataView->SetStatusTextFunc(this, OnStatusText); // to communicate title etc.
+    //SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
     SetWindowPos(hWnd, HWND_TOP
         , rect.x(), rect.y()
         , rect.width(), rect.height()

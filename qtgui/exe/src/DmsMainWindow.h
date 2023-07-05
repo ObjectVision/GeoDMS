@@ -271,6 +271,7 @@ public:
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
 
     // helper windows; TODO: destroy these before the above model objects
+    QPointer<QLineEdit> m_statusbar_coordinates;
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
     QPointer<DmsTreeView> m_treeview;
