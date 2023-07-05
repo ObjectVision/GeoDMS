@@ -1742,6 +1742,7 @@ void MainWindow::createStatusBar()
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(300);
+    m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
     statusBar()->insertPermanentWidget(0, coordinate_label);
     statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
 }
