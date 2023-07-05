@@ -581,7 +581,7 @@ void MainWindow::updateToolbar()
         return;
 
     // create new actions
-    auto* dv = active_dms_view_area->getDataView();// ->OnCommandEnable();
+    auto* dv = active_dms_view_area->getDataView();
     if (!dv)
         return;
 
@@ -612,7 +612,6 @@ void MainWindow::updateToolbar()
             QWidget* spacer = new QWidget(this);
             spacer->setMinimumSize(30,0);
             m_toolbar->addWidget(spacer);
-            //m_toolbar->addSeparator();
             continue;
         }
 
