@@ -381,6 +381,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	m_context_menu->clear();
 
+	connect(m_context_menu, &QMenu::aboutToHide, m_context_menu, &QMenu::deleteLater);
+
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 
