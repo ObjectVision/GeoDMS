@@ -1014,7 +1014,7 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 
 auto GDALDriverSupportsUpdating(SharedStr datasourceName) -> bool
 {
-	if (std::string(CPLGetExtension(datasourceName.c_str())) == "gml")
+	if (std::string(CPLGetExtension(datasourceName.c_str())) == "gml") // TODO: replace logic and check for support of GDAL_OF_UPDATE open flag
 		return false;
 
 	return true;
@@ -1351,7 +1351,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	GDALDatasetHandle result = nullptr;
 
- 	if (not continueWrite || not GDALDriverSupportsUpdating(datasourceName))
+ 	if (not continueWrite && not GDALDriverSupportsUpdating(datasourceName) && !(gdalOpenFlags & GDAL_OF_RASTER))
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		
@@ -1403,8 +1403,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	}
 	else
-	{		
-		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GA_Update | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
+	{
+		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
 	}
 
 	if (gdal_error_frame.HasError())
