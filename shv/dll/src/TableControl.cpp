@@ -111,8 +111,13 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 		TRect newSelRect = GetSelRect();
 		if (m_OldSelRect != newSelRect)
 		{
-			Region selChange( TRect2GRect(m_OldSelRect) );
-			selChange ^= Region( TRect2GRect(newSelRect) );
+			auto scaleFactor = GetWindowDIP2pixFactorXY( dv->GetHWnd() );
+			auto gRect = TRect2GRect(m_OldSelRect);
+			gRect *= scaleFactor;
+			Region selChange( gRect );
+			gRect = TRect2GRect(newSelRect);
+			gRect *= scaleFactor;
+			selChange ^= Region( gRect );
 			dv->InvalidateRgn(selChange);
 		}
 	}

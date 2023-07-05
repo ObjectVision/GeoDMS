@@ -408,13 +408,13 @@ Float64 GraphVisitor::GetSubPixelFactor() const
 // class  : GraphObjLocator
 //----------------------------------------------------------------------
 
-GraphObjLocator::GraphObjLocator(GPoint pnt, CrdType subPixelFactor)
-	:	GraphVisitor(SelectPoint2Rect(pnt), subPixelFactor) 
+GraphObjLocator::GraphObjLocator(GPoint pnt)
+	:	GraphVisitor(SelectPoint2Rect(pnt)) 
 {}
 
-MovableObject* GraphObjLocator::Locate(DataView* view, GPoint pnt, CrdType subPixelFactor)
+MovableObject* GraphObjLocator::Locate(DataView* view, GPoint pnt)
 {
-	GraphObjLocator locator(pnt, subPixelFactor);
+	GraphObjLocator locator(pnt);
 	locator.Visit(view->GetContents().get());
 	return locator.m_TheOne.lock().get();
 }
@@ -789,8 +789,8 @@ revisit:
 #include "DataView.h"
 #include "MouseEventDispatcher.h"
 
-MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
-:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), GetWindowDIP2pixFactor(owner->GetHWnd()))
+x MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
+:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point))
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {

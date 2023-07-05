@@ -635,13 +635,13 @@ CrdRect GridLayer::GetWorldExtents(feature_id featureIndex) const
 
 void GridLayer::InvalidateFeature(SizeT featureIndex)
 {
-	dms_assert(IsDefined(featureIndex));
+	assert(IsDefined(featureIndex));
 
 	auto dv = GetDataView().lock();
 	if (!dv)
 		return;
 
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE1* GetWindowDIP2pixFactor(dv->GetHWnd()));
+	Int32 focusSize = FOCUS_BORDER_SIZE1;
 
 	GRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
 	InvalidateWorldRect(GetWorldExtents(featureIndex),	&borderExtents);

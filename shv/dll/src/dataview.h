@@ -228,13 +228,13 @@ public:
 
 	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
-	void InvalidateRect(const GRect&  rect);
+	void InvalidateRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
-	void ValidateRect  (const GRect&  rect);
-	void ValidateRgn   (const Region& rgn );
+	void ValidateRect  (GRect  rect);
+//	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();
-	void Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src);
+	void Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
 	void SetCursorPos(GPoint clientPoint);

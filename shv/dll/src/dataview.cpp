@@ -266,6 +266,7 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
 {
+	dip2pixFactor *= GetWindowDIP2pixFactor(m_hWnd);
 	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
@@ -817,11 +818,10 @@ GraphVisitState DataView::UpdateView()
 
 	InvalidateChangedGraphics();
 
-	auto scaleFactor = GetWindowDIP2pixFactor(GetHWnd());
-	if (GraphUpdater( ViewRect(), scaleFactor).Visit( GetContents().get() ) == GVS_Break)
+	if (GraphUpdater( ViewRect()).Visit( GetContents().get() ) == GVS_Break)
 		return GVS_Break;
 
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 	if (SuspendTrigger::MustSuspend())
 		return GVS_Break;
 
@@ -847,7 +847,7 @@ GraphVisitState DataView::UpdateView()
 				continue;
 			}
 
-			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactor);
+			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData));
 			CaretHider caretHider(this, dc); // Only area as clipped by m_DoneGraphics.Curr().Region() is hidden
 
 			dms_assert(!SuspendTrigger::DidSuspend());
@@ -886,7 +886,7 @@ GraphVisitState DataView::UpdateView()
 	updateAllStack.AddDrawRegion(Region(m_ViewSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
-	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible|GD_UpdateData), scaleFactor).Visit( GetContents().get() );
+	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible|GD_UpdateData)).Visit( GetContents().get() );
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
@@ -960,7 +960,7 @@ ActorVisitState DataView::UpdateViews()
 }
 */
 
-void DataView::Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src)
+void DataView::Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
 {
 	DBG_START("DataView", "Scroll", MG_DEBUG_SCROLL);
 	DBG_TRACE(("dx = %d, dy=%d", delta.x, delta.y));
@@ -968,7 +968,10 @@ void DataView::Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, 
 	DBG_TRACE(("clip = %s", AsString(rcClip  ).c_str()));
 
 	dbg_assert( md_InvalidateDrawLock == 0);
-
+	auto scaleFactor = GetWindowDIP2pixFactorXY(GetHWnd());
+	delta *= scaleFactor;
+	rcScroll *= scaleFactor;
+	rcClip *= scaleFactor;
 	dms_assert(src);
 	{
 		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL)); // we could clip on the rcScroll|rcClip region
@@ -1319,7 +1322,7 @@ void DataView::OnPaint()
 		::FillRect(paintDC, &rect, br1 );
 	}
 #endif
-	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetDcDIP2pixFactor(paintDC) ).Visit( GetContents().get() );
+	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground)).Visit( GetContents().get() );
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 
@@ -1452,11 +1455,12 @@ void DataView::SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf)
 	m_StatusTextCaller.m_Func   = stf;
 }
 
-void DataView::InvalidateRect(const GRect& rect)
+void DataView::InvalidateRect(GRect rect)
 {
 #if defined(MG_DEBUG)
 	CheckRgnLimits(rect);
 #endif
+	rect *= GetWindowDIP2pixFactorXY(GetHWnd());
 	::InvalidateRect(m_hWnd, &rect, true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
@@ -1482,8 +1486,9 @@ void DataView::InvalidateRgn (const Region& rgn)
 }
 
 
-void DataView::ValidateRect(const GRect& rect)
+void DataView::ValidateRect(GRect rect)
 {
+	rect *= GetWindowDIP2pixFactorXY(m_hWnd);
 	::ValidateRect(m_hWnd, &rect);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE && false)
@@ -1495,7 +1500,8 @@ void DataView::ValidateRect(const GRect& rect)
 #endif
 }
 
-void DataView::ValidateRgn   (const Region& rgn )
+/*
+void DataView::ValidateRgn(Region rgn )
 {
 	::ValidateRgn(m_hWnd, rgn.GetHandle());
 #if defined(MG_DEBUG)
@@ -1507,6 +1513,7 @@ void DataView::ValidateRgn   (const Region& rgn )
 	}
 #endif
 }
+*/
 
 DmsColor DataView::GetNextDmsColor() const
 {

@@ -55,6 +55,10 @@ struct GPoint : POINT
 
 	void operator -=(POINT rhs)       { x -= rhs.x; y-=rhs.y; }
 	void operator +=(POINT rhs)       { x += rhs.x; y+=rhs.y; }
+	void operator *=(DPoint scaleFactor) {
+		x = x * scaleFactor.first;
+		y = y * scaleFactor.second;
+	}
 
 	bool operator ==(POINT rhs) const { return x == rhs.x && y == rhs.y; }
 	bool operator !=(POINT rhs) const { return x != rhs.x || y != rhs.y; }
@@ -244,7 +248,13 @@ struct GRect : RECT
 		top   -= rhs.top;
 		bottom-= rhs.bottom;
 	}
-
+	void operator *= (Point<Float64> scaleFactor)
+	{
+		left  *= scaleFactor.first;
+		right *= scaleFactor.first;
+		top *= scaleFactor.second;
+		bottom *= scaleFactor.second;
+	}
 	void Expand(POINT delta) 
 	{
 		dms_assert(delta.x >= 0);

@@ -415,7 +415,7 @@ void PaletteControl::DoUpdateView()
 	if (!dv)
 		return;
 
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) * GetWindowDIP2pixFactorY(dv->GetHWnd()));
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ));
 	base_type::DoUpdateView();
 }
 

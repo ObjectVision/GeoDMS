@@ -451,15 +451,10 @@ void DataItemColumn::DoUpdateView()
 	UInt32 rowSepHeight = RowSepHeight();
 	size.y() += rowSepHeight;
 
-	auto dv = GetDataView().lock(); if (!dv) return;
-	auto scaleFactor = GetWindowDIP2pixFactorXY(dv->GetHWnd());
-
-	size.first = size.first * scaleFactor.first;
-	size.second = size.second * scaleFactor.second;
 	MakeMin<SizeT>(n, MaxValue<TType>() / size.y());
 	size.y() *= n;
 	MakeMin<TType>(size.y(), MaxValue<TType>() - rowSepHeight);
-	size.y() += rowSepHeight * scaleFactor.second;
+	size.y() += rowSepHeight;
 
 	SetClientSize(size);
 
@@ -468,10 +463,12 @@ void DataItemColumn::DoUpdateView()
 
 void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 {
-	dms_assert(d.DoDrawBackground()); // PRECONDITION
-	dms_assert(d.GetDC()); // implied by prev
-	dms_assert(IsMainThread());
+	assert(d.DoDrawBackground()); // PRECONDITION
+	assert(d.GetDC()); // implied by prev
+	assert(IsMainThread());
 	base_type::DrawBackground(d);
+
+	auto scaleFactor = GetDcDIP2pixFactorXY(d.GetDC());
 
 	GType rowSep = RowSepHeight();
 	if (!rowSep)
@@ -484,12 +481,12 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 
-	GRect  absFullRect = GetClippedCurrFullAbsRect(d);
+	GRect  absFullRect = GetClippedCurrFullAbsRect(d); 
+	absFullRect.left = absFullRect.left * scaleFactor.first;
+	absFullRect.right = absFullRect.right * scaleFactor.first;
 	GType  rowDelta    = ElemSize().y + rowSep;
 	if (HasElemBorder())
 		rowDelta += 2*BORDERSIZE;
-
-	rowDelta = rowDelta * GetDcDIP2pixFactorY(d.GetDC());
 
 	TType clientOffsetRow = d.GetClientOffset().y();
 	GType pageClipRectRow = d.GetAbsClipRect().Top();
@@ -516,19 +513,20 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	{
 		if (currRow >= clipEndRow)
 			return;
-		absFullRect.Top   () = currRow;
-		absFullRect.Bottom() = currRow+rowSep;
+		absFullRect.Top() = currRow * scaleFactor.second;
+		absFullRect.Bottom() = (currRow+rowSep) * scaleFactor.second;
+//		absFullRect *= GetDcDIP2pixFactorXY(d.GetDC());
 		FillRect(d.GetDC(), &absFullRect, br);
 
 		++recNo;
 		currRow += rowDelta;
 	}
-	dms_assert(recNo == n);
+	assert(recNo == n);
 
-	absFullRect.Top() = currRow;
-	if (absFullRect.Top() >= clipEndRow)
+	if (currRow >= clipEndRow)
 		return;
-	absFullRect.Bottom() = absFullRect.Top() + rowSep;
+	absFullRect.Top() = currRow * scaleFactor.second;
+	absFullRect.Bottom() = (currRow + rowSep) * scaleFactor.second;
 	FillRect(d.GetDC(), &absFullRect, br);
 }
 
@@ -558,7 +556,7 @@ void DataItemColumn::InvalidateRelRect(TRect rect)
 	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsPos () );
 	screenRect &= GetDrawnClientAbsRect();
 	if (!screenRect.empty())
-		dv->InvalidateRect( screenRect );
+		dv->InvalidateRect(screenRect);
 }
 
 void DataItemColumn::InvalidateDrawnActiveElement()

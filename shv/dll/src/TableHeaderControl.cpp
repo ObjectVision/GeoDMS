@@ -129,8 +129,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 	auto dv = GetOwner().lock(); if (!dv) return true;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	dms_assert(m_Caret);
-	auto scaleFactor = GetWindowDIP2pixFactor(dv->GetHWnd());
-	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point, scaleFactor)->shared_from_this();
+	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point)->shared_from_this();
 	while	(	hooverObj 
 			&&	(	!dynamic_cast<ColumnHeaderControl*>(hooverObj.get())
 				||	to->IsOwnerOf(hooverObj->GetOwner().lock().get())
