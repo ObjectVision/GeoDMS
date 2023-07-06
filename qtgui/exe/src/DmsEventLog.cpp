@@ -4,6 +4,8 @@
 #include <QDockWidget>
 #include <QMenubar>
 #include <QTimer>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
 
@@ -24,7 +26,7 @@ void EventLogModel::clear()
 	m_filtered_indices.clear();
 	m_Items.clear();
 	refilter();
-	MainWindow::TheOne()->m_eventlog_clear->setDisabled(true);
+	MainWindow::TheOne()->m_eventlog->m_clear->setDisabled(true);
 }
 
 QVariant EventLogModel::data(const QModelIndex& index, int role) const
@@ -121,7 +123,7 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-	MainWindow::TheOne()->m_eventlog_clear->setEnabled(true);
+	MainWindow::TheOne()->m_eventlog->m_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
 	if (!new_item_passes_filter)
@@ -141,6 +143,35 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
+	// actions
+	const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
+	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
+	m_event_text_filter_toggle->setToolTip(tr("&Eventlog: text filter"));
+	m_event_text_filter_toggle->setCheckable(true);
+	m_event_text_filter_toggle->setFixedSize(25,25);
+	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
+
+	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
+	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
+	m_event_type_filter_toggle->setToolTip(tr("&Eventlog: type filter"));
+	m_event_type_filter_toggle->setCheckable(true);
+	m_event_type_filter_toggle->setFixedSize(25, 25);
+	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
+
+	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
+	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
+	m_clear->setToolTip(tr("&Eventlog: clear"));
+	m_clear->setDisabled(true);
+	m_clear->setFixedSize(25, 25);
+	connect(m_clear.get(), &QPushButton::pressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::clear);
+
+	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
+	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
+	m_scroll_to_bottom_toggle->setToolTip(tr("&Eventlog: scroll to bottom"));
+	m_scroll_to_bottom_toggle->setDisabled(true);
+	m_scroll_to_bottom_toggle->setFixedSize(25, 25);
+	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
+
 	// throttle
 	m_throttle_timer = new QTimer(this);
 	m_throttle_timer->setSingleShot(true);
@@ -167,13 +198,36 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
-	auto grid_layout = new QGridLayout(MainWindow::TheOne());
-	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 4);
-	grid_layout->addWidget(m_minor_trace_filter.get(), 1, 0);
-	grid_layout->addWidget(m_major_trace_filter.get(), 1, 1);
-	grid_layout->addWidget(m_warning_filter.get(), 1, 2);
-	grid_layout->addWidget(m_error_filter.get(), 1, 3);
-	grid_layout->addWidget(m_log.get(), 2, 0, 1, 4);
+	auto grid_layout = new QGridLayout();
+	auto eventlog_toolbar = new QVBoxLayout();
+
+	auto type_filter_layout = new QHBoxLayout();
+
+	//eventlog_toolbar->setMovable(false);
+	//eventlog_toolbar->setOrientation(Qt::Vertical);
+	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
+	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
+	eventlog_toolbar->addWidget(m_clear.get());
+	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
+	
+	QWidget* spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+	eventlog_toolbar->addWidget(spacer);
+
+	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 5);
+	type_filter_layout->addWidget(m_minor_trace_filter.get());
+	type_filter_layout->addWidget(m_major_trace_filter.get());
+	type_filter_layout->addWidget(m_warning_filter.get());
+	type_filter_layout->addWidget(m_error_filter.get());
+	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 5);
+
+	//grid_layout->addWidget(m_minor_trace_filter.get(), 1, 0);
+	//grid_layout->addWidget(m_major_trace_filter.get(), 1, 1);
+	//grid_layout->addWidget(m_warning_filter.get(), 1, 2);
+	//grid_layout->addWidget(m_error_filter.get(), 1, 3);
+	grid_layout->addWidget(m_log.get(), 2, 0);
+	m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	grid_layout->addLayout(eventlog_toolbar, 2, 1); // , Qt::AlignmentFlag::AlignRight
 	setLayout(grid_layout);
 
 	toggleTextFilter(false);
@@ -211,7 +265,7 @@ void DmsEventLog::scrollToBottomOnTimeout()
 void DmsEventLog::toggleScrollToBottom()
 {
 	m_scroll_to_bottom = !m_scroll_to_bottom;
-	m_scroll_to_bottom ? MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setDisabled(true) : MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setEnabled(true);
+	m_scroll_to_bottom ? m_scroll_to_bottom_toggle->setDisabled(true) : m_scroll_to_bottom_toggle->setEnabled(true);
 	if (m_scroll_to_bottom)
 		scrollToBottomThrottled();
 }
@@ -219,7 +273,7 @@ void DmsEventLog::toggleScrollToBottom()
 void DmsEventLog::toggleScrollToBottomDirectly()
 {
 	m_scroll_to_bottom = true;
-	MainWindow::TheOne()->m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
+	m_scroll_to_bottom_toggle->setDisabled(true);
 	auto new_current_index = m_log->model()->index(m_log->model()->rowCount() - 1, 0);
 	m_log->setCurrentIndex(new_current_index);
 	m_log->scrollToBottom();
