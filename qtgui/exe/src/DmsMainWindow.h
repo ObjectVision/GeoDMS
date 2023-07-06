@@ -232,6 +232,8 @@ private:
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
+    void createDetailPagesActions();
+    void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
     void view_calculation_times();
