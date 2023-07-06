@@ -158,6 +158,7 @@ public:
 				auto tileB = futureData.second->GetTile();
 				this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view());
 			}
+			MG_DEBUG_ALLOCATOR_SRC("Point tile functor")
 			);
 
 		return futureTileFunctor.release();
