@@ -228,6 +228,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     createStatusBar();
     createDmsHelperWindowDocks();
+    createDetailPagesActions();
     createRightSideToolbar();
 
     // connect current item changed signal to appropriate slots
@@ -549,6 +550,61 @@ void MainWindow::scheduleUpdateToolbar()
 
 }
 
+void MainWindow::createDetailPagesActions()
+{
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
+    m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
+    m_general_page_action->setCheckable(true);
+    m_general_page_action->setChecked(true);
+    m_general_page_action->setStatusTip("Show property overview of the active item, including domain and value characteristics of attributes");
+    connect(m_general_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleGeneral);
+
+    const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
+    m_explore_page_action = std::make_unique<QAction>(explore_icon, tr("&Explore"));
+    m_explore_page_action->setCheckable(true);
+    m_explore_page_action->setStatusTip("Show all item-names that can be found from the context of the active item in namespace search order, which are: 1. referred contexts, 2. template definition context and/or using contexts, and 3. parent context.");
+    connect(m_explore_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
+
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
+    m_properties_page_action = std::make_unique<QAction>(properties_icon, tr("&Properties"));
+    m_properties_page_action->setCheckable(true);
+    m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
+    connect(m_properties_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
+
+    const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
+    m_configuration_page_action = std::make_unique<QAction>(configuration_icon, tr("&Configuration"));
+    m_configuration_page_action->setCheckable(true);
+    m_configuration_page_action->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
+    connect(m_configuration_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
+
+    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.png"));
+    m_sourcedescr_page_action = std::make_unique<QAction>(sourcedescr_icon, tr("&Source description"));
+    m_sourcedescr_page_action->setCheckable(true);
+    m_sourcedescr_page_action->setStatusTip("Show the first or next  of the 4 source descriptions of the items used to calculate the active item: 1. configured source descriptions; 2. read data specs; 3. to be written data specs; 4. both");
+    connect(m_sourcedescr_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
+
+    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
+    m_metainfo_page_action = std::make_unique<QAction>(metainfo_icon, tr("&Meta information"));
+    m_metainfo_page_action->setCheckable(true);
+    m_metainfo_page_action->setStatusTip("Show the availability of meta-information, based on the URL property of the active item or it's anchestor");
+    connect(m_metainfo_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
+}
+
+void MainWindow::updateDetailPagesToolbar()
+{
+    // detail pages buttons
+    QWidget* spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_toolbar->addWidget(spacer);
+
+    m_toolbar->addAction(m_general_page_action.get());
+    m_toolbar->addAction(m_explore_page_action.get());
+    m_toolbar->addAction(m_properties_page_action.get());
+    m_toolbar->addAction(m_configuration_page_action.get());
+    m_toolbar->addAction(m_sourcedescr_page_action.get());
+    m_toolbar->addAction(m_metainfo_page_action.get());
+}
+
 void MainWindow::updateToolbar()
 {
     if (!m_toolbar)
@@ -563,6 +619,7 @@ void MainWindow::updateToolbar()
         
         m_toolbar->setIconSize(QSize(32, 32));
         m_toolbar->setMinimumSize(QSize(38, 38));
+        updateDetailPagesToolbar();
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
@@ -574,16 +631,25 @@ void MainWindow::updateToolbar()
     m_toolbar->clear();
 
     if (!active_mdi_subwindow)
+    {
+        updateDetailPagesToolbar();
         return;
+    }
 
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     if (!active_dms_view_area)
+    {
+        updateDetailPagesToolbar();
         return;
+    }
 
     // create new actions
     auto* dv = active_dms_view_area->getDataView();
     if (!dv)
+    {
+        updateDetailPagesToolbar();
         return;
+    }
 
     auto view_style = dv->GetViewType();
 
@@ -628,6 +694,8 @@ void MainWindow::updateToolbar()
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
     }
+
+    updateDetailPagesToolbar();
 }
 
 bool MainWindow::event(QEvent* event)
@@ -1326,6 +1394,7 @@ void MainWindow::updateStatusMessage()
     auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt;
 
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
+    
     statusBar()->showMessage(fullMsg.c_str());
 }
 
@@ -1735,7 +1804,15 @@ void MainWindow::updateCaption()
 void MainWindow::createStatusBar()
 {
     statusBar()->showMessage(tr("Ready"));
+    
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
+    auto coordinate_label = new QLabel("Coordinate", this);
+    m_statusbar_coordinates = new QLineEdit(this);
+    m_statusbar_coordinates->setReadOnly(true);
+    m_statusbar_coordinates->setFixedWidth(300);
+    m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
+    statusBar()->insertPermanentWidget(0, coordinate_label);
+    statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
 }
 
 void MainWindow::on_status_msg_changed(const QString& msg)
@@ -1795,49 +1872,6 @@ void MainWindow::createRightSideToolbar()
     m_right_side_toolbar = new QToolBar(tr("DetailPagesActions"), this);
     m_right_side_toolbar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
-
-    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
-    m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
-    m_general_page_action->setCheckable(true);
-    m_general_page_action->setChecked(true);
-    m_general_page_action->setStatusTip("Show property overview of the active item, including domain and value characteristics of attributes");
-    m_right_side_toolbar->addAction(m_general_page_action.get());
-    connect(m_general_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleGeneral);
-
-    const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
-    m_explore_page_action = std::make_unique<QAction>(explore_icon, tr("&Explore"));
-    m_explore_page_action->setCheckable(true);
-    m_explore_page_action->setStatusTip("Show all item-names that can be found from the context of the active item in namespace search order, which are: 1. referred contexts, 2. template definition context and/or using contexts, and 3. parent context.");
-    m_right_side_toolbar->addAction(m_explore_page_action.get());
-    connect(m_explore_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleExplorer);
-
-    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
-    m_properties_page_action = std::make_unique<QAction>(properties_icon, tr("&Properties"));
-    m_properties_page_action->setCheckable(true);
-    m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
-    m_right_side_toolbar->addAction(m_properties_page_action.get());
-    connect(m_properties_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleProperties);
-
-    const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
-    m_configuration_page_action = std::make_unique<QAction>(configuration_icon, tr("&Configuration"));
-    m_configuration_page_action->setCheckable(true);
-    m_configuration_page_action->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
-    m_right_side_toolbar->addAction(m_configuration_page_action.get());
-    connect(m_configuration_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleConfiguration);
-
-    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.png"));
-    m_sourcedescr_page_action = std::make_unique<QAction>(sourcedescr_icon, tr("&Source description"));
-    m_sourcedescr_page_action->setCheckable(true);
-    m_sourcedescr_page_action->setStatusTip("Show the first or next  of the 4 source descriptions of the items used to calculate the active item: 1. configured source descriptions; 2. read data specs; 3. to be written data specs; 4. both");
-    m_right_side_toolbar->addAction(m_sourcedescr_page_action.get());
-    connect(m_sourcedescr_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleSourceDescr);
-
-    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
-    m_metainfo_page_action = std::make_unique<QAction>(metainfo_icon, tr("&Meta information"));
-    m_metainfo_page_action->setCheckable(true);
-    m_metainfo_page_action->setStatusTip("Show the availability of meta-information, based on the URL property of the active item or it's anchestor");
-    m_right_side_toolbar->addAction(m_metainfo_page_action.get());
-    connect(m_metainfo_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
