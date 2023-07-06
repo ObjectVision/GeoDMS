@@ -1869,15 +1869,15 @@ void MainWindow::view_calculation_times()
 
 void MainWindow::createRightSideToolbar()
 {
-    m_right_side_toolbar = new QToolBar(tr("DetailPagesActions"), this);
+    /*m_right_side_toolbar = new QToolBar(tr("DetailPagesActions"), this);
     m_right_side_toolbar->setMovable(false);
     addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_right_side_toolbar->addWidget(spacer);
+    m_right_side_toolbar->addWidget(spacer);*/
 
-    const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
+    /*const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
     m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
     m_eventlog_event_text_filter_toggle->setCheckable(true);
     m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
@@ -1899,7 +1899,7 @@ void MainWindow::createRightSideToolbar()
     m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
     m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
     m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());
-    connect(m_eventlog_scroll_to_bottom_toggle.get(), &QAction::triggered, m_eventlog.get(), &DmsEventLog::toggleScrollToBottomDirectly);
+    connect(m_eventlog_scroll_to_bottom_toggle.get(), &QAction::triggered, m_eventlog.get(), &DmsEventLog::toggleScrollToBottomDirectly);*/
 
 // value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
 //    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
