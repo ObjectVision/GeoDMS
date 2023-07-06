@@ -789,7 +789,7 @@ revisit:
 #include "DataView.h"
 #include "MouseEventDispatcher.h"
 
-x MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
+MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
 :	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point))
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)

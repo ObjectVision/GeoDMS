@@ -1326,6 +1326,7 @@ void MainWindow::updateStatusMessage()
     auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt;
 
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
+    
     statusBar()->showMessage(fullMsg.c_str());
 }
 
@@ -1735,7 +1736,15 @@ void MainWindow::updateCaption()
 void MainWindow::createStatusBar()
 {
     statusBar()->showMessage(tr("Ready"));
+    
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
+    auto coordinate_label = new QLabel("Coordinate", this);
+    m_statusbar_coordinates = new QLineEdit(this);
+    m_statusbar_coordinates->setReadOnly(true);
+    m_statusbar_coordinates->setFixedWidth(300);
+    m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
+    statusBar()->insertPermanentWidget(0, coordinate_label);
+    statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
 }
 
 void MainWindow::on_status_msg_changed(const QString& msg)

@@ -205,7 +205,7 @@ public:
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor = 1.0) const;
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
-	void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
+	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
 
 	//	Contents
 	virtual void AddLayer(const TreeItem*, bool isDropped) = 0;
