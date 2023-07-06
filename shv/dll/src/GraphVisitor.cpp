@@ -438,7 +438,7 @@ GraphDrawer::GraphDrawer(
 	,	DataView*      viewPtr
 	,	GdMode         gdMode
 	,	Float32        subPixelFactor
-	)	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), subPixelFactor)
+	)	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(hDC), subPixelFactor)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 		,	m_DoneGraphics(&doneGraphics)
@@ -459,7 +459,7 @@ GraphDrawer::GraphDrawer(
 	,	DataView*      viewPtr
 	,	GdMode         gdMode
 	,	Float32        subPixelFactor
-	)	:	GraphVisitor(rgn.BoundingBox(), subPixelFactor)
+	)	:	GraphVisitor(rgn.BoundingBox(hDC), subPixelFactor)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion( rgn.Clone() )
 		,	m_DoneGraphics(0)
@@ -789,7 +789,7 @@ revisit:
 #include "DataView.h"
 #include "MouseEventDispatcher.h"
 
-x MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
+MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
 :	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point))
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)

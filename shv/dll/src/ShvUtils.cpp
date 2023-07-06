@@ -138,6 +138,7 @@ GPoint GPoint::ScreenToClient(HWND hWnd) const
 		::ScreenToClient(hWnd, &result),
 		"ScreenToClient"
 	);
+	result /= GetWindowDIP2pixFactorXY(hWnd);
 	return result;
 }		
 

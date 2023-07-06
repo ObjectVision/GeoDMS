@@ -644,7 +644,7 @@ void WmsLayer::RunTileLoads(bool maySuspend) const
 	m_TileCache->RunTileLoads(this, maySuspend);
 }
 
-bool  WmsLayer::Draw(GraphDrawer& d) const
+bool WmsLayer::Draw(GraphDrawer& d) const
 {
 	if (!VisibleLevel(d))
 		return GVS_Continue;
@@ -658,7 +658,7 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	const wms::tile_matrix& tm = m_TMS[m_ZoomLevel];
 	grid_coord_key gcKey = tm.GridCoordKey();
 	ViewPort* vp = d.GetViewPortPtr();
-	dms_assert(vp);
+	assert(vp);
 	GridCoordPtr drawGridCoords = vp->GetOrCreateGridCoord(gcKey);
 
 	if (vp == GetViewPort())
@@ -666,7 +666,7 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 
 	drawGridCoords->Update(d.GetSubPixelFactor());
 
-	GRect bb = d.GetAbsClipRegion().BoundingBox();
+	GRect bb = d.GetAbsClipRegion().BoundingBox(d.GetDC());
 
 	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
 	GRect clippedRelRect = drawGridCoords->GetClippedRelRect();
@@ -681,10 +681,10 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	wms::tile_pos tlTile = tlPixel / tileSizeAsIPoint;
 	wms::tile_pos brTile = brPixel / tileSizeAsIPoint;
 
-	dms_assert(IsLowerBound(tlTile, brTile));
+	assert(IsLowerBound(tlTile, brTile));
 	MakeMax(tlTile, wms::tile_pos(0,0));
 	MakeMin(brTile, tm.m_MatrixSize - wms::tile_pos(1,1));
-	dms_assert(IsLowerBound(tlTile, brTile));
+	assert(IsLowerBound(tlTile, brTile));
 
 	GDAL_SimpleReader gdalReader;
 	GDAL_SimpleReader::buffer_type rasterBuffer;
@@ -719,10 +719,8 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 			try {
 				auto result = gdalReader.ReadGridData(m_TileCache->FileName(wmsTileKey).c_str(), rasterBuffer);
 				if (result==WPoint())
-				{
 					goto nextTile;
-				}
-
+	
 				GridDrawer drawer(
 					drawGridCoords.get()
 					, GetIndexCollector()
