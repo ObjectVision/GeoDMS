@@ -378,9 +378,9 @@ void GridLayer::AssignValues(sequence_traits<Bool>::cseq_t selData)
 
 void GridLayer::AssignSelValues()
 {
-	dms_assert(m_Themes[AN_Selections]); // PRECONDITION 
+	assert(m_Themes[AN_Selections]); // PRECONDITION 
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttrSource();
-	dms_assert(selAttr);                // PRECONDITION
+	assert(selAttr);                // PRECONDITION
 
 	PreparedDataReadLock drl(selAttr);
 	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
@@ -1363,7 +1363,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 
 void GridLayer::CreateSelCaretInfo()  const
 {
-	dms_assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
+	assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
 	if (m_SelCaret)
 		return;
 

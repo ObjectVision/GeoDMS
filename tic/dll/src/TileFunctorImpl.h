@@ -150,7 +150,13 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
 auto make_unique_FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 { 
-	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, tn, std::forward<PrepareFunc>(pFunc), std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(
+		tiledDomainRangeData, valueRangePtr, 
+		tn, 
+		std::forward<PrepareFunc>(pFunc), 
+		std::forward<ApplyFunc>(aFunc) 
+		MG_DEBUG_ALLOCATOR_SRC_PARAM
+	);
 }
 
 //----------------------------------------------------------------------

@@ -94,11 +94,11 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			if (m_PossibleArgFlags & AF2_HASUNDEFINED) reinterpret_cast<UInt32&>(af) |= (arg2A->HasUndefinedValues() ? AF2_HASUNDEFINED : 0);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-			auto tn = e->GetNrTiles();
 
+			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				res->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
