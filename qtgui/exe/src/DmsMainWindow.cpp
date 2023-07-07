@@ -229,7 +229,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     createStatusBar();
     createDmsHelperWindowDocks();
     createDetailPagesActions();
-    createRightSideToolbar();
 
     // connect current item changed signal to appropriate slots
     connect(this, &MainWindow::currentItemChanged, m_detail_pages, &DmsDetailPages::newCurrentItem);
@@ -256,8 +255,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
 
     scheduleUpdateToolbar();
-//    m_StatusWidget = new QLabel(statusBar());
-//    statusBar()->addWidget(m_StatusWidget);
 }
 
 MainWindow::~MainWindow()
@@ -820,9 +817,8 @@ void MainWindow::toggle_treeview()
 
 void MainWindow::toggle_detailpages()
 {
-    bool isVisible = m_right_side_toolbar->isVisible();
+    bool isVisible = m_detail_pages->isVisible();
     m_detail_pages->setVisible(!isVisible);
-    m_right_side_toolbar->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_eventlog()
@@ -1677,9 +1673,10 @@ void MainWindow::createActions()
     win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
     connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeAllSubWindows);
 
-    /*vauto win6_action = new QAction(tr("&Close All But This"), this);
+    auto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
-    connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);*/
+    connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
+
     m_window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
     m_window_menu->addSeparator();
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
@@ -1725,7 +1722,7 @@ void MainWindow::updateFileMenu()
 void MainWindow::updateViewMenu()
 {
     m_toggle_treeview_action->setChecked(m_treeview->isVisible());
-    m_toggle_detailpage_action->setChecked(m_right_side_toolbar->isVisible());
+    m_toggle_detailpage_action->setChecked(m_detail_pages->isVisible());
     m_toggle_eventlog_action->setChecked(m_eventlog->isVisible());
     bool hasToolbar = !m_toolbar.isNull();
     m_toggle_toolbar_action->setEnabled(hasToolbar);
@@ -1867,60 +1864,16 @@ void MainWindow::view_calculation_times()
 }
 
 
-void MainWindow::createRightSideToolbar()
-{
-    /*m_right_side_toolbar = new QToolBar(tr("DetailPagesActions"), this);
-    m_right_side_toolbar->setMovable(false);
-    addToolBar(Qt::ToolBarArea::RightToolBarArea, m_right_side_toolbar);
-
-    QWidget* spacer = new QWidget(this);
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_right_side_toolbar->addWidget(spacer);*/
-
-    /*const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
-    m_eventlog_event_text_filter_toggle = std::make_unique<QAction>(event_text_filter_icon, tr("&Eventlog: text filter"));
-    m_eventlog_event_text_filter_toggle->setCheckable(true);
-    m_right_side_toolbar->addAction(m_eventlog_event_text_filter_toggle.get());
-    connect(m_eventlog_event_text_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTextFilter);
-
-    const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
-    m_eventlog_event_type_filter_toggle = std::make_unique<QAction>(eventlog_type_filter_icon, tr("&Eventlog: type filter"));
-    m_eventlog_event_type_filter_toggle->setCheckable(true);
-    m_right_side_toolbar->addAction(m_eventlog_event_type_filter_toggle.get());
-    connect(m_eventlog_event_type_filter_toggle.get(), &QAction::toggled, m_eventlog.get(), &DmsEventLog::toggleTypeFilter);
-
-    const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
-    m_eventlog_clear = std::make_unique<QAction>(eventlog_type_clear_icon, tr("&Eventlog: clear"));
-    m_eventlog_clear->setDisabled(true);
-    m_right_side_toolbar->addAction(m_eventlog_clear.get());
-    connect(m_eventlog_clear.get(), &QAction::triggered, m_eventlog_model.get(), &EventLogModel::clear);
-
-    const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
-    m_eventlog_scroll_to_bottom_toggle = std::make_unique<QAction>(eventlog_scroll_to_bottom_icon, tr("&Eventlog: scroll to bottom"));
-    m_eventlog_scroll_to_bottom_toggle->setDisabled(true);
-    m_right_side_toolbar->addAction(m_eventlog_scroll_to_bottom_toggle.get());
-    connect(m_eventlog_scroll_to_bottom_toggle.get(), &QAction::triggered, m_eventlog.get(), &DmsEventLog::toggleScrollToBottomDirectly);*/
-
-// value info should be dealt with differently, more similar to DataViews and statistics, but with forward/backward and clone functions
-//    const QIcon value_info_icon = QIcon::fromTheme("detailpages-valueinfo", QIcon(":res/images/DP_ValueInfo.bmp"));
-//    QAction* value_info_page_act = new QAction(value_info_icon, tr("&Value info"), this);
-//    detail_pages_toolBar->addAction(value_info_page_act);
-}
-
 void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
-
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detailpages_dock->setWidget(m_detail_pages);
     m_detail_pages->minimumSizeHint() = QSize(20,20);
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
-
-
-
 }
 
 void MainWindow::createDmsHelperWindowDocks()

@@ -98,17 +98,19 @@ void DmsDetailPages::toggleVisualState(ActiveDetailPage new_active_detail_page, 
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
     auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
-    if (detail_pages_dock->isHidden() || m_active_detail_page != new_active_detail_page)
+    if (detail_pages_dock->isHidden() || m_active_detail_page != new_active_detail_page || !isVisible())
     {
         detail_pages_dock->show();
         toggleVisualState(new_active_detail_page, true);
         setActiveDetailPage(new_active_detail_page);
+        setVisible(true);
     }
     else
     {
         detail_pages_dock->hide();
         toggleVisualState(new_active_detail_page, false);
         setActiveDetailPage(ActiveDetailPage::NONE);
+        setVisible(false);
     }
 
     sheduleDrawPage();

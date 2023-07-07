@@ -16,6 +16,8 @@ public:
     QDmsMdiArea(QWidget* parent);
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+
+    void closeAllButActiveSubWindow();
 };
 
 class QDmsViewArea : public QMdiSubWindow
