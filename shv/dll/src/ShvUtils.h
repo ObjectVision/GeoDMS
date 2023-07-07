@@ -143,7 +143,7 @@ TokenID CopyName(TreeItem* context, TokenID orgNameID);
 
 std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObject* owner);
 
-//----------------------------------------------------------------------
+//---+-------------------------------------------------------------------
 // section : CheckedGdiCall
 //----------------------------------------------------------------------
 
@@ -181,11 +181,11 @@ void FillRectWithBrush(HDC dc, const GRect& rect, HBRUSH br);
 // section : ToolButtonID
 //----------------------------------------------------------------------
 
-enum ToolButtonID {
+enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonID in fmDmsControl.pas
+{
 
 	TB_ZoomAllLayers,               // Button Command
 	TB_ZoomActiveLayer,             // Button Command
-	TB_ShowFirstSelectedRow,        // 
 	TB_ZoomSelectedObj,             // Button Command
 
 	TB_ZoomIn1,                     // Key Command to zoom from center (triggered by '+' key)
@@ -193,7 +193,7 @@ enum ToolButtonID {
 //	===========
 	TB_ZoomIn2,				        // DualPoint   Tool
 	TB_ZoomOut2,			        // SinglePoint Tool
-	OBSOLETE_TB_Pan,                // DualPoint   Tool
+	TB_ShowFirstSelectedRow,        // Button Command
 //	===========
 	TB_Neutral,				        // zero-Tool, includes cooordinate copying when Ctrl (with Shift) key is pressed
 //	===========
@@ -232,7 +232,8 @@ enum ToolButtonID {
 	TB_GotoClipboardLocationAndZoomlevel,
 	TB_CopyLocationAndZoomlevelToClipboard,
 	//	TB_SetData,
-	TB_Undefined
+	TB_Undefined,
+	OBSOLETE_TB_Pan,                // DualPoint   Tool
 };
 
 enum class PressStatus

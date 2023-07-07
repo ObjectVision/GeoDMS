@@ -42,7 +42,8 @@ type ToolButtonID = (
 //	===========
 	TB_ZoomIn2,				  // DualPoint   Tool
 	TB_ZoomOut2,			  // SinglePoint Tool
-	OBSOLETE_TB_Pan,
+  TB_ShowFirstSelectedRow,
+// OBSOLETE_TB_Pan,
 //	===========
 	TB_Neutral,				  // zero-Tool, includes cooordinate copying when Ctrl (with Shift) key is pressed
 //	===========
@@ -120,7 +121,7 @@ type CmdStatusID = (
     sbSelectRows: TSpeedButton;
     sbSelectAll2: TSpeedButton;
     sbSelectNone2: TSpeedButton;
-    sbZoomSelectedObj2: TSpeedButton;
+    sbShowSelectedRow: TSpeedButton;
     sbSelectDistrict: TSpeedButton;
     sbCopySel: TSpeedButton;
     sbPasteSel: TSpeedButton;
@@ -154,6 +155,7 @@ type CmdStatusID = (
     procedure sbSelectObjectClick(Sender: TObject);
     procedure sbSelectRectClick(Sender: TObject);
     procedure sbZoomSelectedObjClick(Sender: TObject);
+    procedure sbShowSelectedRowClick(Sender: TObject);
     procedure sbSelectPolygonClick(Sender: TObject);
     procedure sbSelectAllClick(Sender: TObject);
     procedure sbSelectNoneClick(Sender: TObject);
@@ -383,7 +385,7 @@ begin
   case m_ViewStyle of
     tvsDataGrid, tvsClassification, tvsPalette, tvsDataGridContainer:
       begin
-        UpdateButton(sbZoomSelectedObj2,   TB_ZoomSelectedObj);
+        UpdateButton(sbShowSelectedRow,    TB_ShowFirstSelectedRow);
         UpdateButton(sbSelectRows,         TB_SelectRows);
         UpdateButton(sbSelectAll2,         TB_SelectAll);
         UpdateButton(sbSelectNone2,        TB_SelectNone);
@@ -465,6 +467,11 @@ end;
 procedure TfraDmsControl.sbZoomSelectedObjClick(Sender: TObject);
 begin
   SendToolId(TB_ZoomSelectedObj);
+end;
+
+procedure TfraDmsControl.sbShowSelectedRowClick(Sender: TObject);
+begin
+  SendToolId(TB_ShowFirstSelectedRow);
 end;
 
 

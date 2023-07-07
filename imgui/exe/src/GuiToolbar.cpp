@@ -175,8 +175,8 @@ GuiToolbar::GuiToolbar()
     m_TableViewButtons.emplace_back(TB_TableCopy,                           GV_copy,                        false, 0,     ButtonType::SINGLE, "Copy as semicolon delimited text to Clipboard ", false);
     m_TableViewButtons.emplace_back(TB_Copy,                                GV_vcopy,                       false, 0,     ButtonType::SINGLE, "Copy the visible contents as image to Clipboard", false);
     
-    m_TableViewButtons.emplace_back(TB_ZoomSelectedObj,                     MV_table_show_first_selected, false, 1,     ButtonType::SINGLE, "Show the first selected row", false);
-    m_TableViewButtons.emplace_back(TB_SelectRows,                          MV_table_select_row, false, 1,     ButtonType::SINGLE, "Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)", false);
+    m_TableViewButtons.emplace_back(TB_ShowFirstSelectedRow,                MV_table_show_first_selected,   false, 1,     ButtonType::SINGLE, "Show the first selected row", false);
+    m_TableViewButtons.emplace_back(TB_SelectRows,                          MV_table_select_row,            false, 1,     ButtonType::SINGLE, "Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)", false);
     m_TableViewButtons.emplace_back(TB_SelectAll,                           MV_select_all, false, 1,     ButtonType::SINGLE, "Select all rows", false);
     m_TableViewButtons.emplace_back(TB_SelectNone,                          MV_select_none, false, 1,     ButtonType::SINGLE, "Deselect all rows", false);
     m_TableViewButtons.emplace_back(TB_ShowSelOnlyOn, TB_ShowSelOnlyOff,    MV_show_selected_features, false, 1,     ButtonType::TOGGLE, "Show only selected rows", false);
