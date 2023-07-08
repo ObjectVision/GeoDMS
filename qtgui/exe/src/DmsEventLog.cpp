@@ -148,28 +148,28 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
 	m_event_text_filter_toggle->setToolTip(tr("&Eventlog: text filter"));
 	m_event_text_filter_toggle->setCheckable(true);
-	m_event_text_filter_toggle->setFixedSize(25,25);
+	m_event_text_filter_toggle->setFixedSize(32,32);
 	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
 
 	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
 	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
 	m_event_type_filter_toggle->setToolTip(tr("&Eventlog: type filter"));
 	m_event_type_filter_toggle->setCheckable(true);
-	m_event_type_filter_toggle->setFixedSize(25, 25);
+	m_event_type_filter_toggle->setFixedSize(32, 32);
 	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
 	m_clear->setToolTip(tr("&Eventlog: clear"));
 	m_clear->setDisabled(true);
-	m_clear->setFixedSize(25, 25);
+	m_clear->setFixedSize(32, 32);
 	connect(m_clear.get(), &QPushButton::pressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::clear);
 
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
 	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
 	m_scroll_to_bottom_toggle->setToolTip(tr("&Eventlog: scroll to bottom"));
 	m_scroll_to_bottom_toggle->setDisabled(true);
-	m_scroll_to_bottom_toggle->setFixedSize(25, 25);
+	m_scroll_to_bottom_toggle->setFixedSize(32, 32);
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
 	// throttle
@@ -195,6 +195,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	// eventlog
 	m_log = std::make_unique<QListView>();
+	m_log->setSelectionRectVisible(true);
+	m_log->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
