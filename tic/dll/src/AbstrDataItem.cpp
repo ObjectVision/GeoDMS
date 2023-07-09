@@ -202,19 +202,57 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
 
-	DataWriteLock readResultHolder(this);
-
 	try {
 		MG_DEBUGCODE(TimeStamp currTS = LastChangeTS(); )
 
-		serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
-			[sm, smi, this, &readResultHolder](tile_id t)->void
+		auto tn = GetAbstrDomainUnit()->GetNrTiles();
+		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
+		{
+			auto sharedSm = MakeShared(sm);
+			if (sm->EasyRereadTiles())
 			{
-				if (! sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
-					throwItemError("Failure during Reading from storage");
+				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, sharedSm]<typename V>(const Unit<V>*valuesUnit) {
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr
+						, [sharedSm, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t)
+						{
+
+							if (!sm->ReadDataItem(*smi, self, t))
+								throwItemError("Failure during Reading from storage");
+						}
+						MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := MappingOperator()")
+					);
+				});
 			}
-		);
-		dbg_assert(currTS == LastChangeTS() );
+			
+			else
+			{
+				struct prepare_data {};
+				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, sharedSm]<typename V>(const Unit<V>* resultValues) {
+					this->m_DataObject = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+						, [sharedSm](tile_id t) { return prepare_data{}; }
+						{
+							if (!sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
+								throwItemError("Failure during Reading from storage");
+						}
+						MG_DEBUG_ALLOCATOR_SRC_PARAM
+					);
+				});
+			}
+		}
+		else
+		{
+			DataWriteLock readResultHolder(this);
+
+			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
+				[sm, smi, this, &readResultHolder](tile_id t)->void
+				{
+					if (!sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
+						throwItemError("Failure during Reading from storage");
+				}
+			);
+			readResultHolder.Commit();
+		}
+		dbg_assert(currTS == LastChangeTS());
 	}
 	catch (const DmsException& x)
 	{
@@ -222,7 +260,6 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 			DoFail(x.AsErrMsg(), FR_Data);
 		throw;
 	}
-	readResultHolder.Commit();
 	return true;
 }
 

@@ -210,6 +210,8 @@ public:
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
 
 //	Abstact interface
+	TIC_CALL virtual bool AllowRandomTileAccess() const { return false;  }
+	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
