@@ -117,18 +117,6 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <ItemGroup>
-    <CustomBuild Include="misc/fonts/Cousine-Regular.ttf">
-      <FileType>Document</FileType>
-      <Command>
-	    ROBOCOPY ".\misc" "$(TargetDir)misc" /v /fft /E /njh /njs
-	    IF %ErrorLevel%==1 EXIT 0
-	    IF %ErrorLevel%==8 ECHO SEVERAL FILES DID NOT COPY
-      </Command>
-      <Message>RoboCopying gui resource files from misc into $(TargetDir)misc </Message>
-      <Outputs>$(TargetDir)gdaldata\LICENSE.TXT</Outputs>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\clc\dll\Clc1.vcxproj">
       <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
     </ProjectReference>
@@ -151,4 +139,10 @@
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
   </ItemGroup>
+  <Target Name="AfterBuild">
+    <ItemGroup>
+        <misc_files Include=".\misc\**\*.*"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(misc_files)" DestinationFolder="$(TargetDir)misc\fonts\" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
