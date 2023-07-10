@@ -77,9 +77,6 @@
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\clc1.vcxproj">
-      <Project>{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
