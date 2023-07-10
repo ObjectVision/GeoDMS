@@ -132,10 +132,10 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 }
 
 
-bool TiffSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*   adi = smi->CurrWD();
 
 	dms_assert(storageHolder);
 	dms_assert(adi);
@@ -147,7 +147,7 @@ bool TiffSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedR
 		return ReadPalette(*m_pImp, borrowedReadResultHolder);
 
 	// Collect zoom info
-	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
 
 	vpi.SetWritability(adi);

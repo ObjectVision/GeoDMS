@@ -136,9 +136,9 @@ void AsciiStorageManager::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataOb
 	throwErrorF("ReadGridCounts", "Cannot count AsciiGrid cells as this type of elements");
 }
 
-bool AsciiStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool AsciiStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	dms_assert( DoesExist(smi.StorageHolder()) );
+	assert( DoesExist(smi->StorageHolder()) );
 	//dms_assert(t == no_tile);
 
 	SuspendTrigger::FencedBlocker suspendingInputStreams_NYI;
@@ -146,9 +146,9 @@ bool AsciiStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObje
 		return false;
 
 	// Collect zoom info
-	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 	ViewPortInfoEx vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	vpi.SetWritability(adi);
 
 	dms_assert(adi->GetDataObjLockCount() < 0);

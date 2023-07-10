@@ -361,7 +361,7 @@ public:
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
 
 //protected: // new callback functions
-	TIC_CALL virtual bool DoReadItem(StorageMetaInfo* smi); friend struct StorageReadHandle;
+	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
 	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
 	TIC_CALL virtual void ClearData(garbage_t&) const;
 	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;

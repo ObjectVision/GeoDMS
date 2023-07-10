@@ -60,6 +60,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LispTreeType.h"
 #include "ParallelTiles.h"
 #include "TileAccess.h"
+#include "TileFunctorImpl.h"
 #include "TileLock.h"
 #include "TreeItemClass.h"
 #include "TreeItemUtils.h"
@@ -192,7 +193,7 @@ TokenID AbstrDataItem::GetXmlClassID() const
 	return DataItemClass::GetStaticClass()->GetID(); // We avoid calling GetDynamicObjClass
 }
 
-bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
+bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
@@ -209,34 +210,34 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
 		{
 			auto sharedSm = MakeShared(sm);
+			auto tileGenerator = [this, sharedSm, smi](AbstrDataObject* self, tile_id t)
+			{
+				auto tileReadLock = std::lock_guard(smi->m_TileReadSection);
+				if (!sharedSm->ReadDataItem(smi, self, t))
+					this->throwItemError("Failure during Reading from storage");
+			};
+			auto tileRangeData = GetAbstrDomainUnit()->GetTiledRangeData();
 			if (sm->EasyRereadTiles())
 			{
-				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, sharedSm]<typename V>(const Unit<V>*valuesUnit) {
-					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr
-						, [sharedSm, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t)
-						{
-
-							if (!sm->ReadDataItem(*smi, self, t))
-								throwItemError("Failure during Reading from storage");
-						}
-						MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := MappingOperator()")
-					);
+				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random rereadable tiles")
+					).release();
 				});
 			}
-			
 			else
 			{
-				struct prepare_data {};
-				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, sharedSm]<typename V>(const Unit<V>* resultValues) {
+				throwNYI(MG_POS, "AbstrDataItem::DoReadItem of random read-once tiles");
+				/* TODO, NYI
+								struct prepare_data {};
+				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>* valuesUnit) {
 					this->m_DataObject = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
-						, [sharedSm](tile_id t) { return prepare_data{}; }
-						{
-							if (!sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
-								throwItemError("Failure during Reading from storage");
-						}
-						MG_DEBUG_ALLOCATOR_SRC_PARAM
-					);
+						, [](tile_id t) { return prepare_data{}; }
+						, std::move(tileGenerator)
+						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random read-once tiles")
+					).release();
 				});
+				*/
 			}
 		}
 		else
@@ -246,7 +247,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
 				[sm, smi, this, &readResultHolder](tile_id t)->void
 				{
-					if (!sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
+					if (!sm->ReadDataItem(smi, readResultHolder.get_ptr(), t))
 						throwItemError("Failure during Reading from storage");
 				}
 			);

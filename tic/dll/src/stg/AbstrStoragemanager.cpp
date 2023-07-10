@@ -665,6 +665,18 @@ bool AbstrStorageManager::DoCheckWritability() const
 	return IsFileOrDirWritable(name) || !IsFileOrDirAccessible(name);
 }
 
+/* REMOVE
+bool AbstrStorageManager::AllowRandomTileAccess() const 
+{ 
+	return false; 
+}
+
+bool AbstrStorageManager::EasyRereadTiles() const 
+{ 
+	return false; 
+}
+*/
+
 FileDateTime AbstrStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const
 {
 	if (DoesExist(storageHolder))
@@ -688,7 +700,7 @@ StorageMetaInfoPtr AbstrStorageManager::GetMetaInfo(const TreeItem* storageHolde
 	return std::make_unique<StorageMetaInfo>(storageHolder, focusItem);
 }
 
-bool AbstrStorageManager::ReadDataItem  (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) { return false; }
+bool AbstrStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) { return false; }
 bool AbstrStorageManager::WriteDataItem (StorageMetaInfoPtr&& smi) { return false; }
 bool AbstrStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const       { return false; }
 bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)       { return false; }

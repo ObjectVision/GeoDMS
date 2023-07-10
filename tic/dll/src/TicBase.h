@@ -83,7 +83,7 @@ enum   DataCheckMode;
 class AbstrStorageManager;
 class AbstrStreamManager;
 struct StorageMetaInfo;
-using StorageMetaInfoPtr = std::unique_ptr<StorageMetaInfo>;
+using StorageMetaInfoPtr = std::shared_ptr<StorageMetaInfo>;
 struct StorageReadHandle;
 class AbstrCalculator;
 

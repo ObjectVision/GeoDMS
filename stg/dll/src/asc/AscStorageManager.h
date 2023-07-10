@@ -46,7 +46,7 @@ class AsciiStorageManager : public AbstrGridStorageManager
 {
 public:
 //	implement AbstrStorageManager interface
-	bool ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smi) override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;

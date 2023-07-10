@@ -56,15 +56,15 @@ granted by an additional written contract for support, assistance and/or develop
 
 
 // ================ Read / Write data
-bool StrStorageManager::ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	MG_CHECK(t == 0);
 
 	std::size_t dataSize; 
 	AbstrDataObject::data_write_begin_handle dataBeginHolder;
 	void* dataBegin;
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem* adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi);
 	AbstrDataObject* ado = borrowedReadResultHolder;
 	dms_assert(ado);
@@ -222,9 +222,9 @@ StorageMetaInfoPtr StrFilesStorageManager::GetMetaInfo(const TreeItem* storageHo
 	return base_type::GetMetaInfo(storageHolder, curr, sa);
 }
 
-bool StrFilesStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	DataReadLock drl(GetFileNameAttr(smi.StorageHolder(), smi.CurrRD()));
+	DataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()));
 	return base_type::ReadDataItem(smi, borrowedReadResultHolder, t);
 }
 

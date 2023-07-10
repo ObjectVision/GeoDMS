@@ -2960,7 +2960,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	return false;
 }
 
-bool TreeItem::DoReadItem(StorageMetaInfo* smi)
+bool TreeItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	return false;
 }

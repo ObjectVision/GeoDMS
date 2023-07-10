@@ -219,25 +219,25 @@ void DbfStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 // REMOVE return dbf.ReadData(&(debug_cast<DataArray<type>*>(ado)->GetDataWrite()), fieldName.begin(), vcID);
 
-bool DbfStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	TreeItemContextHandle och2(smi.StorageHolder(), "StorageParent");
+	TreeItemContextHandle och2(smi->StorageHolder(), "StorageParent");
 	dms_assert(!t);
 
-	DbfImplRead dbf(GetNameStr(), smi.StorageHolder());
+	DbfImplRead dbf(GetNameStr(), smi->StorageHolder());
 
-	SharedPtr<TNameSet> nameset = debug_cast<const DbfMetaInfo*>(&smi)->m_NameSet;
-	TestDomain(smi.CurrRD());
+	SharedPtr<TNameSet> nameset = debug_cast<const DbfMetaInfo*>(smi.get())->m_NameSet;
+	TestDomain(smi->CurrRD());
 
 	AbstrDataObject* ado = borrowedReadResultHolder;
 
-	smi.CurrWD()->GetAbstrDomainUnit()->ValidateCount(dbf.RecordCount());
+	smi->CurrWD()->GetAbstrDomainUnit()->ValidateCount(dbf.RecordCount());
 
 	const ValueClass* vc = ado->GetValuesType();
 	ValueClassID	vcID = vc->GetValueClassID();		
 
 	dms_assert(nameset);
-	SharedStr fieldName = nameset->ItemNameToFieldName(smi.CurrRI()->GetName().c_str());
+	SharedStr fieldName = nameset->ItemNameToFieldName(smi->CurrRI()->GetName().c_str());
 
 	switch (vcID)
 	{
@@ -247,7 +247,7 @@ bool DbfStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 #undef INSTANTIATE
 
 		default:
-			smi.CurrRI()->throwItemErrorF(
+			smi->CurrRI()->throwItemErrorF(
 				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: %s"
 			,	vc->GetName().c_str()
 			);

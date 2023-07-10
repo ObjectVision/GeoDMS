@@ -625,7 +625,7 @@ auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 	return base_type::GetScriptName(context);
 }
 
-bool AbstrUnit::DoReadItem(StorageMetaInfo* smi)
+bool AbstrUnit::DoReadItem(StorageMetaInfoPtr smi)
 {
 	dms_assert(!IsDisabledStorage());
 	dms_assert(IsInWriteLock(this));
