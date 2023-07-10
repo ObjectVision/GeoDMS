@@ -76,7 +76,21 @@ static std::mutex sd_asm;
 #endif
 
 StorageMetaInfo::~StorageMetaInfo()
-{}
+{
+	if (m_StorageManager)
+	{
+		m_StorageManager->CloseStorage();
+		/*
+			if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
+			{
+				assert(m_FocusItem);
+				FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
+				if (fdt)
+					DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
+			}
+		*/
+	}
+}
 
 const AbstrDataItem* StorageMetaInfo::CurrRD() const { return AsDataItem(m_Curr.get_ptr()); }
 const AbstrUnit*     StorageMetaInfo::CurrRU() const { return AsUnit(m_Curr.get_ptr()); }
@@ -832,7 +846,7 @@ void AbstrStorageManager::DoCloseStorage (bool mustCommit) const
 
 IMPL_CLASS(AbstrStorageManager, 0)
 
-TIC_CALL const Class*     DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
+TIC_CALL const Class* DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 {
 	return AbstrStorageManager::GetStaticClass();
 }
@@ -921,17 +935,7 @@ void StorageCloseHandle::Init(const AbstrStorageManager* storageManager, const T
 StorageCloseHandle::~StorageCloseHandle()
 {
 	assert(m_StorageManager);
-	m_MetaInfo.reset();
-	m_StorageManager->CloseStorage();
-/*
-	if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
-	{
-		assert(m_FocusItem);
-		FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
-		if (fdt)
-			DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
-	}
-*/
+	m_MetaInfo.reset(); // Does m_StorageManager->CloseStorage();
 }
 
 StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)

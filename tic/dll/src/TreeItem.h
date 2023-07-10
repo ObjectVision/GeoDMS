@@ -408,7 +408,7 @@ public: // TODO G8: Re-encapsulate
 	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
 
-	bool ReadItem(const StorageReadHandle& srh);
+	bool ReadItem(StorageReadHandle&& srh);
 	void SetStorageManager(AbstrStorageManager* sm);
 
 	void SetMetaInfoReady() const;

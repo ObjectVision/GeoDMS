@@ -2907,11 +2907,11 @@ bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 // Read / Write Data
 //----------------------------------------------------------------------
 
-bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a method of StorageReadHandle
+bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of StorageReadHandle
 {
 	MG_DEBUGCODE( dms_assert( CheckMetaInfoReady() ); )
 
-	dms_assert(! GetCurrRefItem() ); // caller must take care of only calling ReadItem for UltimateItems
+	assert(! GetCurrRefItem() ); // caller must take care of only calling ReadItem for UltimateItems
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
@@ -2950,9 +2950,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 
 		if (!WasFailed(FR_Data)) {
 			auto err = catchException(true);
-			err->TellExtraF("while reading data from %s"
-			,	DMS_TreeItem_GetAssociatedFilename(this)
-			);
+			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
 			DoFail(err, FR_Data);
 		}
 		DropValue();
@@ -3162,12 +3160,12 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 			[storageParent, self, readInfoPtr](Explain::Context* context)
 			{
 				auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
-				dms_assert(readInfoPtr);
-				dms_assert(*readInfoPtr);
+				assert(readInfoPtr);
+				assert(*readInfoPtr);
 				(*readInfoPtr)->OnPreLock();
 				StorageReadHandle sHandle(std::move(*readInfoPtr)); // locks storage manager
-				dms_assert(!*readInfoPtr);
-				sHandle.FocusItem()->ReadItem(sHandle); // Read Item
+				assert(!*readInfoPtr);
+				sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 			}
 			, emptyFutureSupplierSet
 				, false
