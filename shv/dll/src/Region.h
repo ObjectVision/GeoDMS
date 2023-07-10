@@ -69,7 +69,7 @@ struct Region
 	void swap(Region& oth) noexcept;
 	Region Clone() const; 
 
-	GRect BoundingBox() const;
+	GRect BoundingBox(HDC dc) const;
 
 	bool IsIntersecting(const GRect& rect) const;
 	bool IsIntersecting(const Region& rhs) const;

@@ -883,10 +883,12 @@ GraphVisitState DataView::UpdateView()
 	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
 	CounterStacks updateAllStack;
-	updateAllStack.AddDrawRegion(Region(m_ViewSize));
+	GPoint viewSize = m_ViewSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
+	updateAllStack.AddDrawRegion(Region(viewSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
-	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible|GD_UpdateData)).Visit( GetContents().get() );
+	auto drawer = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData));
+	GraphVisitState suspended = drawer.Visit( GetContents().get() );
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
@@ -1383,7 +1385,12 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	DBG_TRACE(("NewSize=(%d,%d)", point.x, point.y));
 
 	if (m_ViewSize == point)
-		return;
+	{
+		auto point2 = point; point2 /= GetWindowDIP2pixFactorXY(GetHWnd());
+		if (GetContents()->GetCurrFullSize() == TPoint(point2))
+			return;
+	}
+
 	if (point.x <= 0 || point.y <= 0)
 	{
 		GetContents()->InvalidateDraw();
@@ -1405,9 +1412,11 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 
 	MakeUpperBound(m_ViewSize, point);
 
-	GRect viewRect = GRect(GPoint(0, 0), point);
 
 	if (m_Contents) {
+		auto point2 = point;
+		point2 /= GetWindowDIP2pixFactorXY(GetHWnd());
+		GRect viewRect = GRect(GPoint(0, 0), point2);
 		if (GetContents()->IsDrawn())
 			GetContents()->ClipDrawnRect(viewRect);
 		GetContents()->SetFullRelRect(TRect(viewRect));
@@ -1486,16 +1495,15 @@ void DataView::InvalidateRgn (const Region& rgn)
 }
 
 
-void DataView::ValidateRect(GRect rect)
+void DataView::ValidateRect(const GRect& pixRect)
 {
-	rect *= GetWindowDIP2pixFactorXY(m_hWnd);
-	::ValidateRect(m_hWnd, &rect);
+	::ValidateRect(m_hWnd, &pixRect);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE && false)
 	{
 		DcHandle dc(GetHWnd(), 0);
 		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsBlue) ) );
-		::FillRect(dc, &rect, br );
+		::FillRect(dc, &pixRect, br );
 	}
 #endif
 }

@@ -962,11 +962,11 @@ StorageMetaInfoPtr GdalVectSM::GetMetaInfo(const TreeItem* storageHolder, TreeIt
 	return std::make_unique<GdalVectlMetaInfo>(this, storageHolder, adi);
 }
 
-bool GdalVectSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(&smi), borrowedReadResultHolder, t);
+	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t);
 }
 
 OGRLayer* GetLayerFromDataItem(GDALDatasetHandle& m_hDS, SharedStr layername)
@@ -1688,7 +1688,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 		if (m_hDS)
 		{
-			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo())->m_Layer;
+			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo().get())->m_Layer;
 			if (layer)
 				DoUpdateTable(storageHolder, AsUnit(curr), layer);
 		}

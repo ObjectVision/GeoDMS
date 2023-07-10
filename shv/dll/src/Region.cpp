@@ -184,12 +184,13 @@ Region Region::Clone() const
 	return Region(*this, Region(), RGN_COPY);
 }
 
-GRect Region::BoundingBox() const
+GRect Region::BoundingBox(HDC dc) const
 {
-	dms_assert(m_Rgn!=0);
+	assert(m_Rgn!=0);
 
 	GRect result;
 	::GetRgnBox(m_Rgn, &result);
+	result /= GetDcDIP2pixFactorXY(dc);
 	return result;
 }
 

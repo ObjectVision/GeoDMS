@@ -66,6 +66,17 @@ void QDmsMdiArea::dropEvent(QDropEvent* event)
     MainWindow::TheOne()->defaultView();
 }
 
+void QDmsMdiArea::closeAllButActiveSubWindow()
+{
+    auto asw = activeSubWindow();
+    if (!asw)
+        return;
+
+    for (auto swPtr : subWindowList())
+        if (swPtr != asw)
+            swPtr->close();
+}
+
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
     : QMdiSubWindow(parent)
 {

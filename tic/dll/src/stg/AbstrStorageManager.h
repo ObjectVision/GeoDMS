@@ -136,7 +136,7 @@ struct enable_shared_from_this_base : std::enable_shared_from_this<Base>
 
 enum class StorageAction { read, write, updatetree, writetree };
 
-struct StorageMetaInfo
+struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 {
 	StorageMetaInfo(AbstrStorageManager* storageManager)
 		: m_StorageManager(storageManager)
@@ -168,6 +168,7 @@ protected:
 public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure = true;
+	std::mutex m_TileReadSection;
 };
 
 struct GdalMetaInfo :StorageMetaInfo
@@ -210,13 +211,15 @@ public:
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
 
 //	Abstact interface
+	TIC_CALL virtual bool AllowRandomTileAccess() const { return false;  }
+	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
 
-	TIC_CALL virtual bool ReadDataItem  (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)=0;
+	TIC_CALL virtual bool ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)=0;
 	TIC_CALL virtual bool WriteDataItem (StorageMetaInfoPtr&& smiHolder);
 
 	TIC_CALL virtual bool ReadUnitRange (const StorageMetaInfo& smi) const;
@@ -265,8 +268,8 @@ private:
 	TIC_CALL bool OpenForRead (const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
 public:
-	typedef leveled_critical_section mutex_t;
-	typedef mutex_t::scoped_lock lock_t;
+	using mutex_t = leveled_critical_section;
+	using lock_t = mutex_t::scoped_lock;
 	mutable mutex_t m_CriticalSection;
 
 protected: friend struct StorageClass;
@@ -309,7 +312,7 @@ struct StorageCloseHandle
 
 	explicit operator bool() const { return m_StorageManager; }
 
-	StorageMetaInfo* MetaInfo() const { return m_MetaInfo.get(); }
+	StorageMetaInfoPtr MetaInfo() const { return m_MetaInfo; }
 	TreeItem* FocusItem() const { return const_cast<TreeItem*>(m_FocusItem.get_ptr()); }
 
 private:

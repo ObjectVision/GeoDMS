@@ -58,12 +58,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #define MG_DEBUG_XDB false
 
-bool XdbStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(!t);
 
-	dms_assert( DoesExist(smi.StorageHolder()) );
+	dms_assert( DoesExist(smi->StorageHolder()) );
 	dms_assert(adi);
 
 	XdbImp imp;
@@ -86,7 +86,7 @@ bool XdbStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	return imp.ReadColumn(
 		reinterpret_cast<void *>(ado->GetDataWriteBegin().get_ptr()),
 		nr_cells, 
-		imp.ColIndex(adi->GetRelativeName(smi.StorageHolder()).c_str())
+		imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
 	);
 }
 

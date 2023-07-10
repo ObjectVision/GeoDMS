@@ -2091,8 +2091,11 @@ LispRef TreeItem::GetBaseKeyExpr() const
 	if (metaInfo.index() == 2)
 	{
 		auto& sourceItem = std::get<SharedTreeItem>(metaInfo);
-		dms_assert(!sourceItem->IsCacheItem());
-		return sourceItem->GetCheckedKeyExpr();
+		assert(!sourceItem->IsCacheItem());
+		if (sourceItem == this) // avoid infinite recursion
+			throwItemError("Invalid self reference");
+		if (sourceItem != this)
+			return sourceItem->GetCheckedKeyExpr();
 	}
 	//	if (metaInfo.index() == 0 && IsUnit(this) && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
 	//		return ExprList(AsUnit(this)->GetValueType()->GetID());
@@ -2957,7 +2960,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	return false;
 }
 
-bool TreeItem::DoReadItem(StorageMetaInfo* smi)
+bool TreeItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	return false;
 }

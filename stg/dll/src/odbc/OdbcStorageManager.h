@@ -60,7 +60,7 @@ public:
 	
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 
 	STGDLL_CALL SharedStr GetDatabaseFilename(const TreeItem* storageHolder);

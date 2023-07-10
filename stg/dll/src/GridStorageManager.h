@@ -115,7 +115,7 @@ public:
 	STGDLL_CALL AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
 	STGDLL_CALL ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
 	STGDLL_CALL StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
-
+	STGDLL_CALL bool AllowRandomTileAccess() const override { return true;  }
 	SharedPtr<AbstrUnit> m_GridDomainUnit;
 };
 

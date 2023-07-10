@@ -230,7 +230,7 @@ public:
 
 	void InvalidateRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
-	void ValidateRect  (GRect  rect);
+	void ValidateRect  (const GRect& pixRect);
 //	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();

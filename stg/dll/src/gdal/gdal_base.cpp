@@ -458,11 +458,17 @@ gdalComponent::gdalComponent()
 	if (!gdalComponentImpl::s_ComponentCount)
 	{
 		try {
-			dms_assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
+			assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
 			gdalComponentImpl::s_OldErrorHandler = CPLSetErrorHandler(gdalComponentImpl::ErrorHandler); // can throw
 
-			dms_assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
+			assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
+
+
+			// Set the Proj context on the GDAL/OGR library
+			CPLSetThreadLocalConfigOption("OGR_ENABLE_PARTIAL_REPROJECTION", "YES");
+			CPLSetThreadLocalConfigOption("OGR_ENABLE_PARTIAL_REPROJECTION_THREADS", "YES");
+			CPLSetThreadLocalConfigOption("PROJ_THREAD_SAFE", "YES");
 
 //			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
 //			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);

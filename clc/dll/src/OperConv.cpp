@@ -347,23 +347,34 @@ const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 
 static leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), ord_level_type::SpecificOperator, "SpatialRefBlock");
 
+#include <gdal_priv.h>
+#include <ogr_spatialref.h>
+#include <proj.h>
+
+static std::mutex s_projMutex;
 struct SpatialRefBlock: SharedBase, gdalComponent 
 {
+	pj_ctx*                      m_ProjCtx = nullptr;
 	OGRSpatialReference          m_Src, m_Dst;  // http://www.gdal.org/ogr/classOGRSpatialReference.html
-	OGRCoordinateTransformation* m_Transformer; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
-
-	SpatialRefBlock() : m_Transformer(nullptr)
-	{}
+	OGRCoordinateTransformation* m_Transformer = nullptr; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
+	SpatialRefBlock() 
+	{
+		auto lock = std::lock_guard(s_projMutex);
+		m_ProjCtx = proj_context_create();
+	}
 
 	~SpatialRefBlock()
 	{
 		if (m_Transformer)
 			OGRCoordinateTransformation::DestroyCT(m_Transformer);
+
+		auto lock = std::lock_guard(s_projMutex);
+		proj_context_destroy(m_ProjCtx);
 	}
 
 	void CreateTransformer()
 	{
-		dms_assert(!m_Transformer);
+		assert(!m_Transformer);
 		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
 	}
 
@@ -852,7 +863,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
@@ -909,7 +920,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{

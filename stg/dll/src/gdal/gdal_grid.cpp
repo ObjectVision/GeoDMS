@@ -113,11 +113,11 @@ bool GdalGridSM::ReadPalette(AbstrDataObject* ado)
 	return true;
 }
 
-bool GdalGridSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 
 	if (adi->GetID() == PALETTE_DATA_ID)
 		return ReadPalette(borrowedReadResultHolder);
@@ -125,7 +125,7 @@ bool GdalGridSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borro
 	if (HasGridDomain(adi))
 	{
 		// Collect zoom info
-		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
+		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
 		vpi.SetWritability(adi);
 		auto test = vpi.GetCountColor();

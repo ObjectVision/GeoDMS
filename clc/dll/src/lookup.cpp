@@ -188,7 +188,7 @@ public:
 		dms_assert(valuesData);
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<V>::seq_t resData, prepare_data futureData)
 			{

@@ -86,10 +86,10 @@ void CounterStacks::AddDrawRegion(Region&& drawRegion)
 {
 	DBG_START("CounterStacks", "AddDrawRegion", MG_DEBUG_COUNTERSTACKS);
 
-	dms_assert(NoActiveCounters());
-	dms_assert(!DidBreak());
-	dbg_assert(IsOK());
-	dms_assert(!Empty() || m_Counters.size() == 0);
+	assert(NoActiveCounters());
+	assert(!DidBreak());
+	assert(IsOK());
+	assert(!Empty() || m_Counters.size() == 0);
 
 	if (drawRegion.Empty())
 		return;
