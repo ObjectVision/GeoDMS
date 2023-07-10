@@ -216,8 +216,9 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 				if (!sharedSm->ReadDataItem(smi, self, t))
 					this->throwItemError("Failure during Reading from storage");
 			};
-			auto tileRangeData = GetAbstrDomainUnit()->GetTiledRangeData();
-			if (sm->EasyRereadTiles())
+			auto tileRangeData = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+			MG_CHECK(tileRangeData);
+			if (true || sm->EasyRereadTiles())
 			{
 				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
 					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
