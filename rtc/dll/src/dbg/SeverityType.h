@@ -53,6 +53,7 @@ enum class MsgCategory {
 	disposable,
 	wms,
 	progress,
+	memory,
 };
 
 RTC_CALL CharPtr AsString(MsgCategory);

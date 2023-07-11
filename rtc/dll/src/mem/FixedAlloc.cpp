@@ -228,12 +228,22 @@ struct VirtualAllocChunkArray
 	}
 };
 
+// =========================================  FreeStackAllocSummary
+
+using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
+
+FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
+{
+	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
+}
+
 // =========================================  FreeStackAllocator definition section
 
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
 	std::vector<BYTE_PTR> freeStack;
+	objectstore_count_t objectCount = 0;
 	mutable std::mutex allocSection;
 
 	void Init_log2(alloc_index_t log2ObjectStoreSize) 
@@ -245,6 +255,8 @@ struct FreeStackAllocator
 	{
 		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
 		std::lock_guard lock(allocSection);
+
+		objectCount++;
 
 		if (freeStack.empty())
 			return { inner.get_reserved_objectstore(), true };
@@ -268,6 +280,7 @@ struct FreeStackAllocator
 	void add_to_freestack(BYTE_PTR ptr)
 	{
 		std::lock_guard lock(allocSection); // critical section here too
+		objectCount--;
 		freeStack.emplace_back(ptr);
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
@@ -278,6 +291,31 @@ struct FreeStackAllocator
 
 		inner.release(ptr, objectSize); // still thread-local ownership during release of object's memory
 		add_to_freestack(ptr); // will sync with other threads
+	}
+
+	FreeStackAllocSummary ReportStatus() const
+	{
+		if (!inner.objectStoreSize)
+			return FreeStackAllocSummary(0, 0, 0, 0);
+
+		SizeT pageCount, totalBytes = 0;
+		SizeT nrAllocated;
+		SizeT nrFreed;
+		SizeT nrUncommitted;
+		SizeT nrAllocatedBytes;
+		{
+			std::scoped_lock lock(allocSection);
+
+			pageCount = inner.chunks.size();
+			totalBytes = 0; for (const auto& page : inner.chunks) totalBytes += page.ChunkSize();
+			nrAllocated = objectCount;
+			nrUncommitted = inner.nrResevedButUncommitedObjectStores;
+			nrFreed = (totalBytes >> inner.log2ObjectStoreSize) - nrAllocated - nrUncommitted;
+			nrAllocatedBytes = inner.objectStoreSize * nrAllocated;
+		}
+		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
+			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize);
 	}
 };
 
@@ -300,10 +338,18 @@ struct FreeStackAllocatorArray
 		sd_FSA_ptr = this;
 #endif
 	}
+
+	SizeT size() const { return NR_FREE_STACK_ALLOCS; }
+
 	FreeStackAllocator& operator [](alloc_index_t i)
 	{ 
 		assert(i < NR_FREE_STACK_ALLOCS);
 		return freeStackAllocators[i]; 
+	}
+	const FreeStackAllocator& operator [](alloc_index_t i) const
+	{
+		assert(i < NR_FREE_STACK_ALLOCS);
+		return freeStackAllocators[i];
 	}
 
 private:
@@ -611,25 +657,20 @@ std::atomic<bool> s_ReportingRequestPending = false;
 void ReportFixedAllocStatus()
 {
 	s_ReportingRequestPending = false;
-/*
-#if defined(MG_CACHE_ALLOC)
 
-	reportD(SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
 
 	FreeStackAllocSummary cumulBytes;
-	for (const auto& fsa : GetFreeStackAllocatorArray())
-		cumulBytes = cumulBytes + fsa.ReportStatus();
+	const auto& fsaa = GetFreeStackAllocatorArray();
+	for (int i=0; i!=fsaa.size(); ++i)
+		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
 		, std::get<0>(cumulBytes) >> 10
 		, std::get<1>(cumulBytes) >> 10
 		, std::get<2>(cumulBytes) >> 10
 		, std::get<3>(cumulBytes) >> 10
 	);
-
-#endif //defined(MG_CACHE_ALLOC)
-*/
-
 }
 
 //----------------------------------------------------------------------
