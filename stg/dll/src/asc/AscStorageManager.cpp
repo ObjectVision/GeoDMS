@@ -151,7 +151,7 @@ bool AsciiStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* 
 	AbstrDataItem* adi = smi->CurrWD();
 	vpi.SetWritability(adi);
 
-	dms_assert(adi->GetDataObjLockCount() < 0);
+	assert(adi->GetDataObjLockCount() < 0);
 	if (vpi.GetCountColor() != -1)
 		ReadGridCounts(vpi, borrowedReadResultHolder, t);
 	else

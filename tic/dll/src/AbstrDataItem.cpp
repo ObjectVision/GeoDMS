@@ -216,11 +216,13 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 				if (!sharedSm->ReadDataItem(smi, self, t))
 					this->throwItemError("Failure during Reading from storage");
 			};
-			auto tileRangeData = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);
+			auto tileRangeData = rangeDomainUnit->GetTiledRangeData();
+			auto rangeValuesUnit = AsUnit(GetAbstrValuesUnit()->GetCurrRangeItem()); assert(rangeValuesUnit);
 			MG_CHECK(tileRangeData);
 			if (true || sm->EasyRereadTiles())
 			{
-				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
+				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
 					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
 						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();

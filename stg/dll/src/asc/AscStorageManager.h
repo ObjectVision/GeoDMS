@@ -52,6 +52,8 @@ public:
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
+	STGDLL_CALL bool AllowRandomTileAccess() const override { return false; }
+
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 
 private:
