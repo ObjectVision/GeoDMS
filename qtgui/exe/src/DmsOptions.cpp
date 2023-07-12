@@ -2,6 +2,7 @@
 #include "utl/Environment.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
+#include "StgBase.h"
 
 #include <QCheckBox>;
 #include <QPushButton>;
@@ -12,41 +13,73 @@
 #include <QGridLayout>;
 #include <QColorDialog>;
 
+void setSF(bool value, UInt32& rsf, UInt32 flag)
+{
+    if (value)
+        rsf |= flag;
+    else
+        rsf &= ~flag;
+}
+
+auto backgroundColor2StyleSheet(QColor clr) -> QString
+{
+    return QString("* { background-color: rgb(")
+        + QString::number(qRed(clr.rgba())) + ","
+        + QString::number(qGreen(clr.rgba())) + ","
+        + QString::number(qBlue(clr.rgba()))
+     + ") }";
+}
+
+void setBackgroundColor(QPushButton* btn, QColor clr)
+{
+    btn->setStyleSheet(backgroundColor2StyleSheet(clr));
+}
+
+auto getBackgroundColor(QPushButton* btn) -> QColor
+{
+    return btn->palette().color(QPalette::ColorRole::Button);
+}
+
+void DmsGuiOptionsWindow::changeColor(QPushButton* btn, const QString& title )
+{
+    auto old_color = getBackgroundColor(btn);
+    auto new_color = QColorDialog::getColor(old_color, this, title);
+    if (new_color == old_color)
+        return;
+
+    setBackgroundColor(btn, new_color);
+    m_changed = true;
+}
+
 //======== BEGIN GUI OPTIONS WINDOW ========
 void DmsGuiOptionsWindow::changeValidTreeItemColor()
 {
-    auto new_valid_treeitem_color = QColorDialog::getColor(m_valid_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem valid status color");
-    m_valid_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_valid_treeitem_color.rgba())) + "," + QString::number(qGreen(new_valid_treeitem_color.rgba())) + "," + QString::number(qBlue(new_valid_treeitem_color.rgba()))+ ") }");
+    changeColor(m_valid_color_ti_button, "Pick the TreeItem valid status color");
 }
 
 void DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor()
 {
-    auto new_not_calculated_treeitem_color = QColorDialog::getColor(m_not_calculated_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem metainfo ready status color");
-    m_not_calculated_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_not_calculated_treeitem_color.rgba())) + "," + QString::number(qGreen(new_not_calculated_treeitem_color.rgba())) + "," + QString::number(qBlue(new_not_calculated_treeitem_color.rgba())) + ") }");
-}
+    changeColor(m_not_calculated_color_ti_button, "Pick the TreeItem metainfo ready status color");
+ }
 
 void DmsGuiOptionsWindow::changeFailedTreeItemColor()
 {
-    auto new_failed_treeitem_color = QColorDialog::getColor(m_failed_color_ti_button->palette().color(QPalette::ColorRole::Button), this, "Pick the TreeItem failed status color");
-    m_failed_color_ti_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+    changeColor(m_failed_color_ti_button, "Pick the TreeItem failed status color");
 }
 
 void DmsGuiOptionsWindow::changeMapviewBackgroundColor()
 {
-    auto new_mapview_background_color = QColorDialog::getColor(m_background_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the Mapview background color");
-    m_background_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_mapview_background_color.rgba())) + "," + QString::number(qGreen(new_mapview_background_color.rgba())) + "," + QString::number(qBlue(new_mapview_background_color.rgba())) + ") }");
+    changeColor(m_background_color_button, "Pick the Mapview background color");
 }
 
 void DmsGuiOptionsWindow::changeClassificationStartColor()
 {
-    auto new_failed_treeitem_color = QColorDialog::getColor(m_start_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the classification ramp start color");
-    m_start_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+    changeColor(m_start_color_button, "Pick the classification ramp start color");
 }
 
 void DmsGuiOptionsWindow::changeClassificationEndColor()
 {
-    auto new_failed_treeitem_color = QColorDialog::getColor(m_end_color_button->palette().color(QPalette::ColorRole::Button), this, "Pick the classification ramp start color");
-    m_end_color_button->setStyleSheet(QString("* { background-color: rgb(") + QString::number(qRed(new_failed_treeitem_color.rgba())) + "," + QString::number(qGreen(new_failed_treeitem_color.rgba())) + "," + QString::number(qBlue(new_failed_treeitem_color.rgba())) + ") }");
+    changeColor(m_end_color_button, "Pick the classification ramp end color");
 }
 
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
@@ -64,6 +97,9 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     grid_layout->addWidget(m_show_hidden_items, 0, 0, 1, 3);
     grid_layout->addWidget(m_show_thousand_separator, 1, 0, 1, 3);
     grid_layout->addWidget(m_show_state_colors_in_treeview, 2, 0, 1, 3);
+    connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
 
     auto valid_color_text_ti = new QLabel("    Valid:", this);
     auto not_calculated_color_text_ti = new QLabel("    NotCalculated:", this);
@@ -126,37 +162,55 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 12, 0, 1, 3);
+
+    restoreOptions();
+}
+
+void DmsGuiOptionsWindow::setChanged(bool isChanged)
+{
+    m_changed = isChanged;
+    m_apply->setEnabled(isChanged);
+    m_undo->setEnabled(isChanged);
 }
 
 void DmsGuiOptionsWindow::apply()
 {
-    /*SetGeoDmsRegKeyString("LocalDataDir", m_ld_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
-
     auto dms_reg_status_flags = GetRegStatusFlags();
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp0->isChecked() ? dms_reg_status_flags |= RSF_SuspendForGUI : dms_reg_status_flags &= ~RSF_SuspendForGUI);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp1->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading1 : dms_reg_status_flags &= ~RSF_MultiThreading1);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp2->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading2 : dms_reg_status_flags &= ~RSF_MultiThreading2);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp3->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading3 : dms_reg_status_flags &= ~RSF_MultiThreading3);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_tracelog->isChecked() ? dms_reg_status_flags |= RSF_TraceLogFile : dms_reg_status_flags &= ~RSF_TraceLogFile);
-    SetGeoDmsRegKeyDWord("MemoryFlushThreshold", m_flush_treshold->value());*/
-    m_changed = false;
-    m_apply->setDisabled(true);
+    setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
+    setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
+    setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
+    SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
+
+    STG_Bmp_SetDefaultColor(CI_BACKGROUND, getBackgroundColor(m_background_color_button).rgba());
+    STG_Bmp_SetDefaultColor(CI_RAMPSTART, getBackgroundColor(m_start_color_button).rgba());
+    STG_Bmp_SetDefaultColor(CI_RAMPEND, getBackgroundColor(m_end_color_button).rgba());
+    setChanged(false);
 }
 
+void DmsGuiOptionsWindow::restoreOptions()
+{   
+    auto dms_reg_status_flags = GetRegStatusFlags();
+    m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
+    m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
+    m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
+//    setBackgroundColor(m_valid_color_ti_button, x);
+//    setBackgroundColor(m_not_calculated_color_ti_button, x);
+//    setBackgroundColor(m_failed_color_ti_button, x);
+    setBackgroundColor(m_background_color_button, STG_Bmp_GetDefaultColor(CI_BACKGROUND));
+    setBackgroundColor(m_start_color_button, STG_Bmp_GetDefaultColor(CI_RAMPSTART));
+    setBackgroundColor(m_end_color_button, STG_Bmp_GetDefaultColor(CI_RAMPEND));
+}
 
 void DmsGuiOptionsWindow::undo()
 {
-    //restoreOptions();
-    m_changed = false;
+    restoreOptions();
+    setChanged(false);
 }
 
 void DmsGuiOptionsWindow::ok()
 {
     if (m_changed)
         apply();
-    m_changed = false;
     done(QDialog::Accepted);
 }
 
@@ -367,42 +421,47 @@ void DmsAdvancedOptionsWindow::apply()
     SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
 
     auto dms_reg_status_flags = GetRegStatusFlags();
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp0->isChecked() ? dms_reg_status_flags |= RSF_SuspendForGUI : dms_reg_status_flags &= ~RSF_SuspendForGUI);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp1->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading1 : dms_reg_status_flags &= ~RSF_MultiThreading1);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp2->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading2 : dms_reg_status_flags &= ~RSF_MultiThreading2);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_pp3->isChecked() ? dms_reg_status_flags |= RSF_MultiThreading3 : dms_reg_status_flags &= ~RSF_MultiThreading3);
-    SetGeoDmsRegKeyDWord("StatusFlags", m_tracelog->isChecked() ? dms_reg_status_flags |= RSF_TraceLogFile : dms_reg_status_flags &= ~RSF_TraceLogFile);
+    setSF(m_pp0->isChecked(), dms_reg_status_flags, RSF_SuspendForGUI);
+    setSF(m_pp1->isChecked(), dms_reg_status_flags, RSF_MultiThreading1);
+    setSF(m_pp2->isChecked(), dms_reg_status_flags, RSF_MultiThreading2);
+    setSF(m_pp3->isChecked(), dms_reg_status_flags, RSF_MultiThreading3);
+    setSF(m_tracelog->isChecked(), dms_reg_status_flags, RSF_TraceLogFile);
+    SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
+
     SetGeoDmsRegKeyDWord("MemoryFlushThreshold", m_flush_treshold->value());
-    m_changed = false;
-    m_apply->setDisabled(true);
+
+    setChanged(false);
+}
+
+void DmsAdvancedOptionsWindow::setChanged(bool isChanged)
+{
+    m_changed = isChanged;
+    m_apply->setEnabled(isChanged);
+    m_undo->setEnabled(isChanged);
 }
 
 void DmsAdvancedOptionsWindow::ok()
 {
     if (m_changed)
         apply();
-    m_changed = false;
+    setChanged(false);
     done(QDialog::Accepted);
 }
 
 void DmsAdvancedOptionsWindow::undo()
 {
     restoreOptions();
-    m_changed = false;
+    setChanged(false);
 }
 
 void DmsAdvancedOptionsWindow::onStateChange(int state)
 {
-    m_changed = true;
-    m_apply->setDisabled(false);
-    m_undo->setDisabled(false);
+    setChanged(true);
 }
 
 void DmsAdvancedOptionsWindow::onTextChange(const QString& text)
 {
-    m_changed = true;
-    m_apply->setDisabled(false);
-    m_undo->setDisabled(false);
+    setChanged(true);
 }
 
 void DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog()

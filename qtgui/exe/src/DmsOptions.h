@@ -24,8 +24,14 @@ private slots:
     void ok();
     void apply();
     void undo();
+    void restoreOptions();
+
+    void changeColor(QPushButton*, const QString& title);
 
 private:
+    void setChanged(bool isChanged);
+    void hasChanged() { return setChanged(true); }
+
     bool m_changed = false;
     QPointer<QCheckBox> m_show_hidden_items;
     QPointer<QCheckBox> m_show_thousand_separator;
@@ -64,6 +70,7 @@ private:
     void setInitialSourceDatDirValue();
     void setInitialEditorValue();
     void setInitialMemoryFlushTresholdValue();
+    void setChanged(bool isChanged);
 
     bool m_changed = false;
 
