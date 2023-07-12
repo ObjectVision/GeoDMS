@@ -5,6 +5,7 @@
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "TicInterface.h"
+#include "ShvDllInterface.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -350,7 +351,7 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::supports_geometry |driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::disable_with_no_geometry |driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
@@ -434,6 +435,8 @@ void ExportTab::onFilenameEntryTextChanged(const QString& new_filename)
     m_final_filename->setMarkdown(markdown_text);
 }
 
+
+
 ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 	: QWidget(nullptr)
 {
@@ -488,8 +491,28 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     grid_layout_box->addWidget(spacer, 4, 0, 1, 3);
 }
 
+bool isCurrentItemOrItsSubItemsMappable()
+{
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+    auto vsflags = SHV_GetViewStyleFlags(current_item);
+    if (vsflags & ViewStyleFlags::vsfMapView)
+        return true;
+
+    auto next_sub_item = current_item->GetFirstSubItem();
+    while (next_sub_item)
+    {
+        vsflags = SHV_GetViewStyleFlags(next_sub_item);
+        if (vsflags & ViewStyleFlags::vsfMapView)
+            return true;
+
+        next_sub_item = next_sub_item->GetNextItem();
+    }
+
+    return false;
+}
+
 #include <QStandardItemModel>
-#include "ShvDllInterface.h"
+
 void ExportTab::showEvent(QShowEvent* event)
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
@@ -504,9 +527,6 @@ void ExportTab::showEvent(QShowEvent* event)
         m_native_driver_checkbox->setChecked(false);
     }
 
-
-
-
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto full_filename_base = GetFullFileNameBase(current_item);
 
@@ -519,11 +539,18 @@ void ExportTab::showEvent(QShowEvent* event)
         return;
 
     auto vsflags = SHV_GetViewStyleFlags(current_item);
+    auto is_mappable = isCurrentItemOrItsSubItemsMappable();
+
+    if (!m_is_raster && is_mappable)
+        m_driver_selection->setCurrentIndex(1); // ESRI Shapefile
+    else 
+        m_driver_selection->setCurrentIndex(0); // CSV
+
     for (int i=0; i<model->rowCount(); i++)
     {
         auto* item = model->item(i);
         auto& driver = m_available_drivers.at(i);
-        if (!(vsflags & ViewStyleFlags::vsfMapView) && (driver.driver_characteristics & driver_characteristics::supports_geometry))
+        if (!isCurrentItemOrItsSubItemsMappable() && (driver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
             item->setEnabled(false);
         else
             item->setEnabled(true);
