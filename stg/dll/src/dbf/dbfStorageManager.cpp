@@ -68,13 +68,6 @@ struct DbfImplRead : DbfImpl
 	}
 };
 
-bool DbfStorageManager::ReduceResources()
-{
-	m_NameSet.reset();
-	return true;
-} // CloseDbf
-
-
 TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 {
 	if (m_NameSet.is_null() || storageHolder != m_NameSetStorageHolder)

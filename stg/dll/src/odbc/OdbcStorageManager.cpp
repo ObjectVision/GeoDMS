@@ -639,14 +639,6 @@ StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder
 	return std::make_unique<OdbcMetaInfo>(this, storageHolder, adi);
 }
 
-bool ODBCStorageManager::ReduceResources()
-{
-	if (m_Database.is_null())
-		return false;
-	m_Database->Close();
-	return true;
-}
-
 ODBCStorageManager::ODBCStorageManager()
 {
 	m_TiDatabase              = NULL;

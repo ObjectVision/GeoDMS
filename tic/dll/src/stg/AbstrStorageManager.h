@@ -209,6 +209,7 @@ public:
 	bool IsOpen        () const { return m_IsOpen;  }
 	bool IsReadOnly    () const { return m_IsReadOnly; }
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
+	TIC_CALL AbstrStorageManagerRef ReaderClone(const StorageMetaInfo& smi) const;
 
 //	Abstact interface
 	TIC_CALL virtual bool AllowRandomTileAccess() const { return false;  }
@@ -255,8 +256,6 @@ protected:
 	TIC_CALL virtual void DoCreateStorage(const StorageMetaInfo& smi);
 	TIC_CALL virtual void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const;
 	TIC_CALL virtual void DoCloseStorage (bool mustCommit) const;
-
-	TIC_CALL virtual bool ReduceResources();
 
 public:
 	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;

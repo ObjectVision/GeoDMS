@@ -56,7 +56,6 @@ public:
 	//	implement AbstrStorageManager interface
 	bool DoCheckExistence(const TreeItem* storageHolder) const override;
 	bool DoCheckWritability() const override;
-	bool ReduceResources() override;
 	
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 

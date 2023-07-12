@@ -61,7 +61,6 @@ class DbfStorageManager : public AbstrStorageManager
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
 private:
-	virtual bool  ReduceResources();
 	TNameSet*     BuildNameSet(const TreeItem* storageHolder) const;
 	void          TestDomain(const AbstrDataItem* adi) const;
 

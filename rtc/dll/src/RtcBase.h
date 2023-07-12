@@ -118,7 +118,7 @@ struct bit_sequence;
 
 #	define MG_DEBUG_DATA
 //#	define MG_DEBUG_UPDATESOURCE
-#	define MG_DEBUG_ALLOCATOR
+//#	define MG_DEBUG_ALLOCATOR
 #	define MG_DEBUG_INTERESTSOURCE 
 #	define MG_DEBUG_DATASTORELOCK
 

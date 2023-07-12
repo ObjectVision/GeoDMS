@@ -128,12 +128,6 @@ const TreeItem* GetExportMetaInfo(const TreeItem* curr)
 // Section:     AbstractStorageManager counted wrapper
 // *****************************************************************************
 
-bool AbstrStorageManager::s_ReduceResources(ClientHandle clientHandle)
-{
-	AbstrStorageManager* self = reinterpret_cast<AbstrStorageManager*>(clientHandle);
-	return self->ReduceResources();
-}
-
 AbstrStorageManager::AbstrStorageManager()
 	:	m_Commit(true)
 	,	m_IsOpen(false)
@@ -142,17 +136,10 @@ AbstrStorageManager::AbstrStorageManager()
 	,	m_LastCheckTS(0)
 	,	m_CriticalSection(item_level_type(0), ord_level_type::AbstrStorage, "AbstrStorageManager")
 {
-	DMS_RegisterReduceResourcesFunc(s_ReduceResources, typesafe_cast<ClientHandle>(this));
-
 #if MG_DEBUG_ASM
 	auto lock = std::lock_guard(sd_asm);
 	sd_ASM_set[this] = ++sd_AsmNr;
 #endif // MG_DEBUG_ASM
-}
-
-bool AbstrStorageManager::ReduceResources()
-{
-	return true;
 }
 
 bool AbstrStorageManager::CanWriteTiles() const
@@ -185,8 +172,6 @@ AbstrStorageManager::~AbstrStorageManager()
 		sd_ASM_set.erase(this);
 	}
 #endif // MG_DEBUG_ASM
-
-	DMS_ReleaseReduceResourcesFunc(s_ReduceResources, typesafe_cast<ClientHandle>(this));
 }
 
 // Static interface functions
@@ -587,6 +572,23 @@ SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 	return SM_AttrsOfConfiguredTables; // default
 }
 
+AbstrStorageManagerRef AbstrStorageManager::ReaderClone(const StorageMetaInfo& smi) const
+{
+	auto cls = dynamic_cast<const StorageClass*>(GetDynamicClass());
+	MG_CHECK(cls);
+	AbstrStorageManagerRef result = debug_cast<AbstrStorageManager*>(cls->CreateObj());
+	assert(result);
+
+	auto itemLevel = item_level_type(0);
+#if defined(MG_DEBUG_LOCKLEVEL)
+	itemLevel = item_level_type(UInt32( m_CriticalSection.m_ItemLevel) + 1 );
+#endif
+	result->InitStorageManager(GetNameStr().c_str(), true, itemLevel);
+	result->OpenForRead(smi);
+	return result;
+}
+
+
 bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, const TreeItem* storageHolder)
 {
 	DBG_START("AbstrStorageManager", "DoesExistEx", true);
@@ -678,18 +680,6 @@ bool AbstrStorageManager::DoCheckWritability() const
 	SharedStr name(GetNameStr());
 	return IsFileOrDirWritable(name) || !IsFileOrDirAccessible(name);
 }
-
-/* REMOVE
-bool AbstrStorageManager::AllowRandomTileAccess() const 
-{ 
-	return false; 
-}
-
-bool AbstrStorageManager::EasyRereadTiles() const 
-{ 
-	return false; 
-}
-*/
 
 FileDateTime AbstrStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const
 {

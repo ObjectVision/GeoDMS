@@ -23,8 +23,6 @@
 #include "TreeBuilder.h"
 #include "DijkstraFlags.h"
 #include "InvertedRel.h"
-#include <agents.h>
-#include <concrtrm.h>
 #include <semaphore>
 
 template <class T>
@@ -470,8 +468,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	// ===================== start looping through all orgZones
 	concurrency::task_group tasks;
 
-	unsigned int max_concurrent_reads = IsMultiThreaded1() ? concurrency::GetProcessorCount() : 1;
-	auto available_tasks = std::counting_semaphore(max_concurrent_reads);
+	auto available_tasks = std::counting_semaphore(MaxConcurrentTreads());
 
 	for (ZoneType orgZone = 0; orgZone != ni.nrOrgZones; ++orgZone)
 	{

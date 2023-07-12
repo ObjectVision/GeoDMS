@@ -760,7 +760,7 @@ void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 	auto& reg = GetAllocRegister();
 	auto lock = std::lock_guard(reg.mutex);
 
-	dms_assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
+	assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
 	reg.map[ptr] = std::pair<CharPtr, size_t>{ srcStr, sz };
 }
 
@@ -770,7 +770,7 @@ void RemoveAlloc(void* ptr, size_t sz)
 	auto lock = std::lock_guard(reg.mutex);
 
 	auto pos = reg.map.find(ptr);
-	dms_assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
+	assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
 	reg.map.erase(pos);
 }
 

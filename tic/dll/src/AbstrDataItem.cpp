@@ -29,6 +29,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TicPCH.h"
 #pragma hdrstop
 
+#include <semaphore>
+
 #include "AbstrDataItem.h"
 
 #include "RtcTypelists.h"
@@ -43,6 +45,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/PropDef.h"
 #include "ser/FileCreationMode.h"
 #include "utl/mySPrintF.h"
+#include "utl/scoped_exit.h"
 #include "xct/DmsException.h"
 #include "xml/XmlOut.h"
 
@@ -209,11 +212,17 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		auto tn = GetAbstrDomainUnit()->GetNrTiles();
 		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
 		{
+			using semaphore_t = std::counting_semaphore<>;
+			auto countingSemaphore = std::make_shared<semaphore_t>(MaxConcurrentTreads());
+
 			auto sharedSm = MakeShared(sm);
-			auto tileGenerator = [this, sharedSm, smi](AbstrDataObject* self, tile_id t)
+			auto tileGenerator = [this, sharedSm, smi, countingSemaphore](AbstrDataObject* self, tile_id t)
 			{
-				auto tileReadLock = std::lock_guard(smi->m_TileReadSection);
-				if (!sharedSm->ReadDataItem(smi, self, t))
+				countingSemaphore->acquire();
+				auto returnTokenOnExit = make_scoped_exit([&countingSemaphore]() { countingSemaphore->release(); });
+//				auto tileReadLock = std::lock_guard(smi->m_TileReadSection);
+
+				if (!sharedSm->ReaderClone(*smi)->ReadDataItem(smi, self, t))
 					this->throwItemError("Failure during Reading from storage");
 			};
 			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);

@@ -30,6 +30,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "RtcPCH.h"
 #pragma hdrstop
 
+#include <concrtrm.h>
+#include <agents.h>
+
 #include "utl/Environment.h"
 
 #include "dbg/DmsCatch.h"
@@ -489,6 +492,12 @@ RTC_CALL bool ShowThousandSeparator()
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
 }
 
+RTC_CALL UInt32 MaxConcurrentTreads()
+{
+	if (!IsMultiThreaded1())
+		return 1;
+	return concurrency::GetProcessorCount();
+}
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
