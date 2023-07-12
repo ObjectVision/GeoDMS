@@ -183,6 +183,18 @@ void DmsDetailPages::sheduleDrawPage()
     );
 }
 
+SharedStr FindURL(const TreeItem* ti)
+{
+    while (ti)
+    {
+        auto result = TreeItemPropertyValue(ti, urlPropDefPtr);
+        if (!result.empty())
+            return result;
+        ti = ti->GetTreeParent();
+    }
+    return {};
+}
+
 void DmsDetailPages::drawPage()
 {
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
@@ -221,7 +233,7 @@ void DmsDetailPages::drawPage()
     }
     case ActiveDetailPage::METADATA:
     {
-        auto url = TreeItemPropertyValue(current_item, urlPropDefPtr);
+        auto url = FindURL(current_item);
         if (!url.empty())
             if (ShowInDetailPage(url))
             {

@@ -57,3 +57,4 @@ private:
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 };
 
+SharedStr FindURL(const TreeItem* ti);

@@ -337,7 +337,7 @@ void MainWindow::updateActionsForNewCurrentItem()
     m_invalidate_action->setEnabled(true);
     m_update_subtree_action->setEnabled(true);
     m_edit_config_source_action->setEnabled(true);
-    if (!TreeItemPropertyValue(m_current_item.get(), urlPropDefPtr).empty())
+    if (!FindURL(m_current_item.get()).empty())
         m_metainfo_page_action->setEnabled(true);
     else
         m_metainfo_page_action->setDisabled(true);
