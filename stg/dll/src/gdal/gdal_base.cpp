@@ -1357,7 +1357,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	GDALDatasetHandle result = nullptr;
 
- 	if (!continueWrite || GDALDriverSupportsUpdating(datasourceName) && !(gdalOpenFlags & GDAL_OF_RASTER)) // reimplement not  
+ 	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER)) // reimplement not  GDALDriverSupportsUpdating(datasourceName)
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		
