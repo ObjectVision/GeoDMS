@@ -196,6 +196,42 @@ TokenID AbstrDataItem::GetXmlClassID() const
 	return DataItemClass::GetStaticClass()->GetID(); // We avoid calling GetDynamicObjClass
 }
 
+using semaphore_t = std::counting_semaphore<>;
+struct reader_clone_farm
+{
+	semaphore_t m_Countdown;
+	std::vector<AbstrStorageManagerRef> m_ClonePtrs;
+	std::mutex m_CloneCS;
+	std::vector<UInt32> m_Tokens;
+
+	reader_clone_farm()
+		: m_Countdown(MaxConcurrentTreads())
+	{
+		auto nrThreads = MaxConcurrentTreads();
+		m_ClonePtrs.resize(nrThreads);
+		m_Tokens.reserve(nrThreads);
+		while (nrThreads)
+			m_Tokens.emplace_back(--nrThreads);
+	}
+
+	UInt32 acquire()
+	{
+		m_Countdown.acquire();
+		auto csLock = std::lock_guard(m_CloneCS);
+		auto token = m_Tokens.back();
+		m_Tokens.pop_back();
+		return token;
+	}
+	void release(UInt32 token)
+	{
+		{
+			auto csLock = std::lock_guard(m_CloneCS);
+			m_Tokens.emplace_back(token);
+		}
+		m_Countdown.release();
+	}
+};
+
 bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
@@ -212,17 +248,18 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		auto tn = GetAbstrDomainUnit()->GetNrTiles();
 		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
 		{
-			using semaphore_t = std::counting_semaphore<>;
-			auto countingSemaphore = std::make_shared<semaphore_t>(MaxConcurrentTreads());
+			auto readerFarm = std::make_shared<reader_clone_farm>();
 
 			auto sharedSm = MakeShared(sm);
-			auto tileGenerator = [this, sharedSm, smi, countingSemaphore](AbstrDataObject* self, tile_id t)
+			auto tileGenerator = [this, sharedSm, smi, readerFarm](AbstrDataObject* self, tile_id t)
 			{
-				countingSemaphore->acquire();
-				auto returnTokenOnExit = make_scoped_exit([&countingSemaphore]() { countingSemaphore->release(); });
-//				auto tileReadLock = std::lock_guard(smi->m_TileReadSection);
+				auto token = readerFarm->acquire();
+				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
 
-				if (!sharedSm->ReaderClone(*smi)->ReadDataItem(smi, self, t))
+				AbstrStorageManagerRef& readerClonePtr = readerFarm->m_ClonePtrs[token];
+				if (!readerClonePtr)
+					readerClonePtr = sharedSm->ReaderClone(*smi);
+				if (!readerClonePtr->ReadDataItem(smi, self, t))
 					this->throwItemError("Failure during Reading from storage");
 			};
 			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);
