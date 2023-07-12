@@ -351,11 +351,11 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::disable_with_no_geometry |driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::disable_with_no_geometry |driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
-    available_drivers.emplace_back("DBF", "DBF", "dbf", std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("DBF", "DBF", nullptr, std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder);
 
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
