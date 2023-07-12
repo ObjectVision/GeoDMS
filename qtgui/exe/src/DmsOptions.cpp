@@ -199,12 +199,13 @@ void DmsGuiOptionsWindow::restoreOptions()
     setBackgroundColor(m_background_color_button, STG_Bmp_GetDefaultColor(CI_BACKGROUND));
     setBackgroundColor(m_start_color_button, STG_Bmp_GetDefaultColor(CI_RAMPSTART));
     setBackgroundColor(m_end_color_button, STG_Bmp_GetDefaultColor(CI_RAMPEND));
+
+    setChanged(false);
 }
 
 void DmsGuiOptionsWindow::undo()
 {
     restoreOptions();
-    setChanged(false);
 }
 
 void DmsGuiOptionsWindow::ok()
