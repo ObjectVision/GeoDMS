@@ -179,11 +179,11 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	// filters
 	m_text_filter = std::make_unique<QLineEdit>();
-	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor trace");
+	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor");
 	m_minor_trace_filter->setCheckable(true);
 	m_minor_trace_filter->setChecked(false);
 	//m_filter
-	m_major_trace_filter = std::make_unique<QCheckBox>("Major trace");
+	m_major_trace_filter = std::make_unique<QCheckBox>("Major");
 	m_major_trace_filter->setCheckable(true);
 	m_major_trace_filter->setChecked(true);
 	m_warning_filter = std::make_unique<QCheckBox>("Warning");
