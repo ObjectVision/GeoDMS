@@ -62,5 +62,6 @@
         <file>res/images/EL_scroll_down.bmp</file>
         <file>res/images/EL_selection_text.bmp</file>
         <file>res/images/EL_selection_type.bmp</file>
+        <file>res/images/TV_template.bmp</file>
     </qresource>
 </RCC>
