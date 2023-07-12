@@ -1018,14 +1018,6 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 	return unitItem;
 }
 
-auto GDALDriverSupportsUpdating(SharedStr datasourceName) -> bool
-{
-	if (std::string(CPLGetExtension(datasourceName.c_str())) == "gml") // TODO: replace logic and check for support of GDAL_OF_UPDATE open flag
-		return false;
-
-	return true;
-}
-
 #include <boost/algorithm/string.hpp>
 
 auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::string
@@ -1357,7 +1349,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	GDALDatasetHandle result = nullptr;
 
- 	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER)) // reimplement not  GDALDriverSupportsUpdating(datasourceName)
+ 	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
 		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		
