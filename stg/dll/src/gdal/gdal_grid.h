@@ -99,7 +99,7 @@ public:
 	GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification);
 	SizeT ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const;
 	Int32 WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y);
-	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName) const;
+	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const;
 	
 	template <typename ...Args> static void UnpackStrip(Args...)  {};
 	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;

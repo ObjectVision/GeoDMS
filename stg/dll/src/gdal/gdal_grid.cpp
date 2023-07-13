@@ -342,7 +342,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 	return tileByteSize;
 }
 
-void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName) const
+void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const
 {
 	if (nrRasterBitsPerPixel == nrDmsBitsPerPixel)
 		return;
@@ -352,7 +352,10 @@ void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPi
 		return;
 	if (nrDmsBitsPerPixel == 4 && nrRasterBitsPerPixel == 8)
 		return;
-	throwErrorF(functionName, "Cannot convert %d bits DMS data from/to %d bits Raster file data", nrDmsBitsPerPixel, nrRasterBitsPerPixel);
+	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
+		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
+		, dataSourceName
+	);
 }
 
 template <int N>
@@ -410,7 +413,7 @@ void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_i
 	MG_CHECK(m_hDS->GetRasterCount() >=  1 );
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
-	Grid::ReadGridData(imp, vpi, ado, t);
+	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification)
@@ -418,7 +421,7 @@ void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile
 	MG_CHECK(m_hDS->GetRasterCount() >= 1);
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
-	Grid::ReadGridCounts(imp, vpi, ado, t);
+	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
@@ -441,7 +444,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 
 	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""));
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
-	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType());
+	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
 	return true;
 }
 
