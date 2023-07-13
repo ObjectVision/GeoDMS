@@ -125,15 +125,15 @@ int main2(int argc, char** argv)
 		switch (itemPair.first)
 		{
 		case itemCmd::statistics:
-			(*dataOut) << DMS_NumericDataItem_GetStatistics(item, nullptr);
+			(*dataOut) << DMS_NumericDataItem_GetStatistics(item, nullptr) << std::endl;
 			break;
 
 		case itemCmd::histogram:
-			(*dataOut) << "@histogram is Under Construction";
+			(*dataOut) << "@histogram is Under Construction" << std::endl;
 			break;
 
 		case itemCmd::list:
-			(*dataOut) << "@list is Under Construction";
+			(*dataOut) << "@list is Under Construction" << std::endl;
 			break;
 		}
 

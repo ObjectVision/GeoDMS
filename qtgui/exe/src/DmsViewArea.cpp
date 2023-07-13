@@ -93,16 +93,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
     CreateDmsView(parent);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
     // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
-    bool result = SHV_DataView_AddItem(m_DataView, currItem, false); 
-  
-    if (!result)
-    {
-        CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
-        throwErrorF("CreateView", "Cannot add '%s' to a view with style %d"
-            , currItem->GetFullName().c_str()
-            , viewStyle
-        );
-    }
+    m_DataView->AddLayer(currItem, false);
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
@@ -117,6 +108,10 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
+//    setAttribute(Qt::WA_Mapped);
+//    setAttribute(Qt::WA_PaintOnScreen);
+//    setAttribute(Qt::WA_NoSystemBackground);
+//    setAttribute(Qt::WA_OpaquePaintEvent);
 
     HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
     

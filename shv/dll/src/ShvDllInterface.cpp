@@ -169,7 +169,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 		StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 		SuspendTrigger::Resume();  // REMOVE
 
 		CheckPtr(dv,            DataView::GetStaticClass(), "SHV_DataView_AddItem");
