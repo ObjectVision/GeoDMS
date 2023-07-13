@@ -1667,6 +1667,7 @@ void MainWindow::createActions()
 
     auto win4_action = new QAction(tr("&Close"), this);
     win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    win4_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
 
     auto win5_action = new QAction(tr("&Close All"), this);
