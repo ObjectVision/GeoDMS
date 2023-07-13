@@ -22,8 +22,6 @@
         <file>res/images/TV_branch_end.png</file>
         <file>res/images/TV_branch_more.png</file>
         <file>res/images/TV_vline.png</file>
-        <file>res/images/TV_branch_closed.png</file>
-        <file>res/images/TV_branch_open.png</file>
         <file>res/images/TB_copy.bmp</file>
         <file>res/images/TB_group_by.bmp</file>
         <file>res/images/TB_save.bmp</file>
@@ -63,5 +61,7 @@
         <file>res/images/EL_selection_text.bmp</file>
         <file>res/images/EL_selection_type.bmp</file>
         <file>res/images/TV_template.bmp</file>
+        <file>res/images/DP_back.bmp</file>
+        <file>res/images/DP_forward.bmp</file>
     </qresource>
 </RCC>
