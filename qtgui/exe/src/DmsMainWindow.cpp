@@ -295,7 +295,6 @@ void DmsCurrentItemBar::onEditingFinished()
     {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
         auto treeView = MainWindow::TheOne()->m_treeview.get();
-        treeView->scrollTo(treeView->currentIndex(), QAbstractItemView::ScrollHint::PositionAtBottom);
     }
 }
 
@@ -343,7 +342,20 @@ void MainWindow::updateActionsForNewCurrentItem()
         m_metainfo_page_action->setDisabled(true);
 }
 
-void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
+void MainWindow::updateTreeItemVisitHistory()
+{
+    auto current_index = m_treeitem_visit_history->currentIndex();
+    if (m_treeitem_visit_history->currentIndex() < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
+    {
+        for (int i=m_treeitem_visit_history->count() - 1; i > current_index; i--)
+            m_treeitem_visit_history->removeItem(i);
+    }
+
+    m_treeitem_visit_history->addItem(m_current_item->GetFullName().c_str());
+    m_treeitem_visit_history->setCurrentIndex(m_treeitem_visit_history->count()-1);
+}
+
+void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_history)
 {
     if (m_current_item == new_current_item)
         return;
@@ -361,8 +373,11 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item)
             m_current_item_bar->setText("");
     }
 
+    if (update_history)
+        updateTreeItemVisitHistory();
+
     m_treeview->setNewCurrentItem(new_current_item);
-    m_treeview->scrollTo(m_treeview->currentIndex()); // , QAbstractItemView::ScrollHint::PositionAtCenter);
+    m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
 }
 
@@ -549,6 +564,18 @@ void MainWindow::scheduleUpdateToolbar()
 
 void MainWindow::createDetailPagesActions()
 {
+    const QIcon backward_icon = QIcon::fromTheme("backward", QIcon(":/res/images/DP_back.bmp"));
+    m_back_action = std::make_unique<QAction>(backward_icon, tr("&Back"));
+    m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    m_back_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_back_action.get(), &QAction::triggered, this, &MainWindow::back);
+
+    const QIcon forward_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_forward.bmp"));
+    m_forward_action = std::make_unique<QAction>(forward_icon, tr("&Forward"));
+    m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_forward_action.get(), &QAction::triggered, this, &MainWindow::forward);
+
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
     m_general_page_action = std::make_unique<QAction>(general_icon, tr("&General"));
     m_general_page_action->setCheckable(true);
@@ -593,7 +620,9 @@ void MainWindow::updateDetailPagesToolbar()
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_toolbar->addWidget(spacer);
-
+    
+    m_toolbar->addAction(m_back_action.get());
+    m_toolbar->addAction(m_forward_action.get());
     m_toolbar->addAction(m_general_page_action.get());
     m_toolbar->addAction(m_explore_page_action.get());
     m_toolbar->addAction(m_properties_page_action.get());
@@ -1465,6 +1494,13 @@ void MainWindow::createActions()
     m_file_menu = std::make_unique<QMenu>(tr("&File"));
     menuBar()->addMenu(m_file_menu.get());
     m_current_item_bar_container = addToolBar(tr("Current item bar"));
+
+    m_treeitem_visit_history = std::make_unique<QComboBox>();
+    //m_treeitem_visit_history->setFixedWidth(25);
+
+    //m_treeitem_visit_history->setStyleSheet("QComboBox::drop-down{width:200px;}");
+    //m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
+
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
@@ -1606,10 +1642,15 @@ void MainWindow::createActions()
     connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
     connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
     m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
+    m_toggle_treeview_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
+    m_toggle_detailpage_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_eventlog_action->setShortcut(QKeySequence(tr("Alt+2")));
+    m_toggle_eventlog_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_toolbar_action->setShortcut(QKeySequence(tr("Alt+3")));
+    m_toggle_toolbar_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
+    m_toggle_currentitembar_action->setShortcutContext(Qt::ApplicationShortcut);
     m_view_menu->addAction(m_toggle_treeview_action.get());
     m_view_menu->addAction(m_toggle_detailpage_action.get());
     m_view_menu->addAction(m_toggle_eventlog_action.get());
@@ -1657,12 +1698,14 @@ void MainWindow::createActions()
     menuBar()->addMenu(m_window_menu.get());
     auto win1_action = new QAction(tr("&Tile Windows"), this);
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
+    win1_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
 
     //auto win2_action = new QAction(tr("&Tile Vertical"), this);
     //win2_action->setShortcut(QKeySequence(tr("Ctrl+Alt+V")));
     auto win3_action = new QAction(tr("&Cascade"), this);
     win3_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    win3_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
@@ -1672,10 +1715,12 @@ void MainWindow::createActions()
 
     auto win5_action = new QAction(tr("&Close All"), this);
     win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
+    win5_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeAllSubWindows);
 
     auto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
+    win6_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
 
     m_window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
@@ -1889,4 +1934,53 @@ void MainWindow::createDmsHelperWindowDocks()
     connect(m_eventlog->m_major_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_warning_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_error_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+}
+
+void MainWindow::back()
+{
+    if (!m_root)
+        return;
+
+    if (m_treeitem_visit_history->count() == 0) // empty
+        return;
+
+    if (m_treeitem_visit_history->currentIndex() == -1) // no current item set
+        return;
+
+    if (m_treeitem_visit_history->currentIndex() == 0) //already at beginning of history list
+        return;
+
+    int previous_item_index = m_treeitem_visit_history->currentIndex() - 1;
+    m_treeitem_visit_history->setCurrentIndex(previous_item_index);
+
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root, m_treeitem_visit_history->itemText(previous_item_index).toUtf8());
+    auto found_treeitem = best_item_ref.first;
+
+    if (found_treeitem == m_current_item)
+        return;
+
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
+}
+
+void MainWindow::forward()
+{
+    if (!m_root)
+        return;
+
+    if (m_treeitem_visit_history->count() == 0) // empty
+        return;
+
+    if (m_treeitem_visit_history->count() - 1 == m_treeitem_visit_history->currentIndex()) // already at end of history list
+        return;
+
+    int next_item_index = m_treeitem_visit_history->currentIndex() + 1;
+    m_treeitem_visit_history->setCurrentIndex(next_item_index);
+    
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root, m_treeitem_visit_history->itemText(next_item_index).toUtf8());
+    auto found_treeitem = best_item_ref.first;
+
+    if (found_treeitem == m_current_item)
+        return;
+
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
 }
