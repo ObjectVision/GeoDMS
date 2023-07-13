@@ -157,7 +157,7 @@ public:
 
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
-    void setCurrentTreeItem(TreeItem* new_current_item);
+    void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
     bool LoadConfig(CharPtr configFilePath);
 
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
@@ -203,6 +203,9 @@ public slots:
     void aboutGeoDms();
     void createView(ViewStyle viewStyle);
 
+    void back();
+    void forward();
+
     void scheduleUpdateToolbar();
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
@@ -231,6 +234,7 @@ private:
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
+    void updateTreeItemVisitHistory();
     void createDetailPagesActions();
     void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
@@ -263,13 +267,14 @@ public:
         , m_gui_options_action, m_advanced_options_action, m_config_options_action
         , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
         , m_quit_action
-        , m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action;
+        , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action;
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
+    std::unique_ptr<QComboBox> m_treeitem_visit_history;
 
     // helper windows; TODO: destroy these before the above model objects
     QPointer<QLineEdit> m_statusbar_coordinates;

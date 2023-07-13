@@ -187,7 +187,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	if (isInTemplate)
 	{
 		bool isTemplate = ti->IsTemplate();
-		// TODO: template definition logic for icons.
+		return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
 	}
 
 	auto vsflags = SHV_GetViewStyleFlags(ti);

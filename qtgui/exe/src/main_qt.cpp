@@ -108,24 +108,47 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* mes
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
 }
 
+class DmsMouseForwardBackwardEventFilter : public QObject
+{
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override
+    {
+        if (event->type() == QEvent::MouseButtonPress)
+        {
+            QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
+            switch (mouse_event->button())
+            {
+            case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
+            case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
+            default: break;
+            }
+        }
+        return QObject::eventFilter(obj, event);
+    }
+};
+
 int main(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
         std::any geoDmsResources; // destruct resources after app completion
 
-        CustomEventFilter eventFilter;
+        CustomEventFilter navive_event_filter;
+        DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
 
         QApplication dms_app(argc, argv);
         geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
 
-        dms_app.installNativeEventFilter(&eventFilter);
+        dms_app.installNativeEventFilter(&navive_event_filter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         MainWindow main_window(settingsFrame);
         dms_app.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
         //main_window.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
         main_window.showMaximized();
+
+        dms_app.installEventFilter(&mouse_forward_backward_event_filter);
+
         return dms_app.exec();
     }
     catch (const CmdLineException& x)

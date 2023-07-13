@@ -205,23 +205,21 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	auto type_filter_layout = new QHBoxLayout();
 
-	//eventlog_toolbar->setMovable(false);
-	//eventlog_toolbar->setOrientation(Qt::Vertical);
 	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	
-	QWidget* spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
-	eventlog_toolbar->addWidget(spacer);
+	//QWidget* spacer = new QWidget(this);
+	//spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+	//eventlog_toolbar->addWidget(spacer);
 
-	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 5);
+	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 2);
 	type_filter_layout->addWidget(m_minor_trace_filter.get());
 	type_filter_layout->addWidget(m_major_trace_filter.get());
 	type_filter_layout->addWidget(m_warning_filter.get());
 	type_filter_layout->addWidget(m_error_filter.get());
-	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 5);
+	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 2);
 
 	//grid_layout->addWidget(m_minor_trace_filter.get(), 1, 0);
 	//grid_layout->addWidget(m_major_trace_filter.get(), 1, 1);
