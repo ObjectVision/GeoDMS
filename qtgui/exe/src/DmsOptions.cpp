@@ -38,12 +38,12 @@ static auto white = QColor(255, 255, 255);
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
-    { "Valid", "Pick the TreeItem valid status color", cool_blue.rgba()},
-    { "Invalidated", "Pick the color for not calcualate, status", salmon.rgba()},
+    { "Valid", "Pick the TreeItem valid status color", cool_blue.rgb()},
+    { "Invalidated", "Pick the color for not calcualate, status", salmon.rgb()},
     { "Failed", "Pick the TreeItem failed status color", 0xFF0000},
-    { "Exogenic", "Pick the color for exogenic items", cool_green.rgba()},
-    { "Operator", "Pick the color for template items", darkGrey.rgba()},
-    { "Background", "Pick the Mapview background color", white.rgba(), 256},
+    { "Exogenic", "Pick the color for exogenic items", cool_green.rgb()},
+    { "Operator", "Pick the color for template items", darkGrey.rgb()},
+    { "Background", "Pick the Mapview background color", white.rgb(), 256},
     { "RampStart", "Pick the classification ramp start color", 0x0000FF, 257},
     { "RampEnd", "Pick the classification ramp end color", 0xFF0000, 258},
 };
@@ -77,7 +77,7 @@ auto getBackgroundColor(QPushButton* btn) -> QColor
 
 void saveBackgroundColor(QPushButton* btn, color_option co)
 {
-    auto clr = getBackgroundColor(btn).rgba();
+    auto clr = getBackgroundColor(btn).rgb();
 
     auto& colorOptionData = sColorOptionData[(int)co];
     SetGeoDmsRegKeyDWord(colorOptionData.regKey, clr, "Colors");
