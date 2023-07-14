@@ -12,7 +12,9 @@
 #include <variant>
 
 #include "DmsMainWindow.h"
+#include "DmsOptions.h"
 #include "DmsExport.h"
+#include "DmsOptions.h"
 #include "DmsTreeView.h"
 #include "SessionData.h"
 #include "TreeItem.h"
@@ -199,25 +201,28 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	else { return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp")); } 
 }
 
+color_option getColorOption(const TreeItem* ti)
+{
+	assert(ti);
+	bool isInTemplate = ti->InTemplate();
+
+	if (isInTemplate)
+		return color_option::tv_template;
+	if (IsDataCurrReady(ti->GetCurrRangeItem()))
+		return color_option::tv_valid;
+	if (ti->m_State.GetProgress() >= PS_Validated)
+		return color_option::tv_exogenic;
+
+	return color_option::tv_not_calculated;
+}
+
 QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 {
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
-	bool isInTemplate = ti->InTemplate();
-
-	static auto salmon = QColor(255, 128, 114);
-	static auto darkGrey = QColor(50, 50, 50);
-	static auto cool_blue = QColor(82, 136, 219);
-	static auto cool_green = QColor(0, 153, 51);
-
-	if (isInTemplate)
-		return darkGrey;
-	if (IsDataCurrReady(ti->GetCurrRangeItem()))
-		return cool_blue;
-	if (ti->m_State.GetProgress() >= PS_Validated)
-		return cool_green;
-
-	return salmon;
+	auto co = getColorOption(ti);
+	auto clr = GetUserColor(co);
+	return QColor(clr);
 }
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const

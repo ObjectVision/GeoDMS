@@ -297,15 +297,27 @@ exit:
 	return result;
 }
 
-RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw)
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
 {
 	try {
-		RegistryHandleLocalMachineRW regLM;
+		RegistryHandleLocalMachineRW regLM(section);
 		auto result = regLM.WriteDWORD(key, dw);
 	}
 	catch (...) {}
 
 	return true;
+}
+
+RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section)
+{
+	try {
+		RegistryHandleLocalMachineRO regLM(section);
+		if (regLM.ValueExists(key))
+			return regLM.ReadDWORD(key);
+	}
+	catch (...) {}
+
+	return defaultValue;
 }
 
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)

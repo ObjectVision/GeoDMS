@@ -255,6 +255,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
 
     scheduleUpdateToolbar();
+
+    LoadColors();
 }
 
 MainWindow::~MainWindow()

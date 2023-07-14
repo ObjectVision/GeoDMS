@@ -149,9 +149,6 @@ std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObjec
 
 void CheckedGdiCall(bool result, CharPtr context);
 
-const UInt32 MAX_COLOR = 0xFFFFFF;
-void CheckColor(DmsColor clr); 
-
 COLORREF GetFocusClr();
 COLORREF GetDefaultClr(UInt32 i);
 COLORREF GetSysPaletteColor(UInt8& counter);

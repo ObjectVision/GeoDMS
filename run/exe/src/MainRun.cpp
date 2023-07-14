@@ -112,7 +112,7 @@ int main2(int argc, char** argv)
 		SharedStr itemSourceName = item->GetSourceName();
 		CDebugContextHandle ch("Updating", itemSourceName.c_str(), true);
 		std::cout  << std::endl << "Update " << itemSourceName.c_str();
-
+		
 		DMS_TreeItem_Update(item);
 		if (item->IsFailed())
 		{
@@ -159,45 +159,46 @@ void DMS_CONV reportMsg(CharPtr msg)
 	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
 
-int main(int argc, char** argv)
+int main_without_se(int argc, char** argv)
 {
-	DMS_Shv_Load();
-
-	DMS_SetGlobalCppExceptionTranslator(reportMsg);
-//	_crtBreakAlloc = 82368;
 	DMS_CALL_BEGIN
 		DMS_RegisterMsgCallback(logMsg, nullptr);
 
-		auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
+	auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
 
-		if (argc > 0)
-			DMS_Appl_SetExeDir( splitFullPath( ConvertDosFileName(SharedStr( argv[0] )) .c_str()).c_str() );
+	if (argc > 0)
+		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
 
-		DBG_START("Main", "", true);
+	DBG_START("Main", "", true);
+	SuspendTrigger::FencedBlocker lockSuspend;
+	--argc; ++argv;
+	CharPtr firstParam = argv[0];
+	if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+	{
+		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
 
-		--argc; ++argv;
-		CharPtr firstParam = argv[0];
-		if ((argc > 0) && firstParam[0]=='/' && firstParam[1]=='L')
-		{
-			SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam+2));
-
-			CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
-			SetCachedStatusFlag(RSF_TraceLogFile);
-			return main2(argc-1, argv+1);
-		}
-		return main2(argc, argv);
+		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
+		SetCachedStatusFlag(RSF_TraceLogFile);
+		return main2(argc - 1, argv + 1);
+	}
+	return main2(argc, argv);
 
 	DMS_CALL_END
 	return 2;
 }
 
+int main(int argc, char** argv)
+{
 
-// Unit test example
+	DMS_Shv_Load();
 
-/*#if defined(MG_DEBUGREPORTER)
+	DMS_SetGlobalCppExceptionTranslator(reportMsg);
 
-auto test = MakeDebugCaller(
-	[]() { dms_assert(1 + 1 == 2);  }
-);
+	DMS_SE_CALL_BEGIN
 
-#endif defined(MG_DEBUGREPORTER)*/
+		return main_without_se(argc, argv);
+
+	DMS_SE_CALL_END
+
+	return GetLastExceptionCode();
+}

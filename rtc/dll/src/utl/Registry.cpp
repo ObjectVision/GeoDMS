@@ -149,8 +149,13 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 
 bool RegistryHandle::WriteString(CharPtr name, std::string str) const
 {
-	auto reg_value = PackStringAsVectorBytes(str);
-	RegSetValueEx(m_Key, name, NULL, REG_SZ, &reg_value[0], str.size());
+	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.data(), str.size());
+	return true;
+}
+
+bool RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
+{
+	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.begin(), str.size());
 	return true;
 }
 
@@ -194,17 +199,6 @@ std::vector<BYTE> RegistryHandle::PackVectorStringAsVectorBytes(std::vector<std:
 	return result;
 }
 
-std::vector<BYTE> RegistryHandle::PackStringAsVectorBytes(std::string string) const
-{
-	std::vector<BYTE> result;
-	for (auto& c : string)
-	{
-		result.push_back(c);
-	}
-	result.push_back('\0');
-	return result;
-}
-
 bool RegistryHandle::WriteMultiString(CharPtr name, std::vector<std::string> strings) const
 {
 	auto reg_value = PackVectorStringAsVectorBytes(strings);
@@ -233,20 +227,23 @@ RegistryHandleCurrentUserRO::RegistryHandleCurrentUserRO()
 	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, "Software\\ObjectVision\\DMS"))
 {}
 
-SharedStr GetLocalMachinePath()
+SharedStr GetLocalMachinePath(CharPtr section)
 {
 	static SharedStr s_Result = "Software\\ObjectVision\\" + PlatformInfo::GetComputerNameA() + "\\GeoDMS";
-	return s_Result;
+	if (!section || !*section)
+		return s_Result;
+	return s_Result + "\\" + section;
 }
 
 
-RegistryHandleLocalMachineRO::RegistryHandleLocalMachineRO()
-	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, GetLocalMachinePath().c_str()))
+RegistryHandleLocalMachineRO::RegistryHandleLocalMachineRO(CharPtr section)
+	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, GetLocalMachinePath(section).c_str()))
 {}
 
 //  -----------------------------------------------------------------------
 
-RegistryHandleLocalMachineRW::RegistryHandleLocalMachineRW()
-	: RegistryHandle(OpenKey(HKEY_CURRENT_USER, GetLocalMachinePath().c_str()))
+RegistryHandleLocalMachineRW::RegistryHandleLocalMachineRW(CharPtr section)
+	: RegistryHandle(OpenKey(HKEY_CURRENT_USER, GetLocalMachinePath(section).c_str()))
 {}
+
 

@@ -4,14 +4,49 @@
 #include "ptr/SharedStr.h"
 #include "StgBase.h"
 
-#include <QCheckBox>;
-#include <QPushButton>;
-#include <QSlider>;
-#include <QLabel>;
-#include <QFileDialog>;
-#include <QLineEdit>;
-#include <QGridLayout>;
-#include <QColorDialog>;
+#include <QCheckBox>
+#include <QPushButton>
+#include <QSlider>
+#include <QLabel>
+#include <QFileDialog>
+#include <QLineEdit>
+#include <QGridLayout>
+#include <QColorDialog>
+
+struct colorOptionAttr {
+
+    CharPtr regKey;
+    CharPtr descr;
+    DmsColor color;
+    UInt32  palette_index = 0;
+
+    void apply(DmsColor clr)
+    {
+        clr &= 0xFFFFFF;
+        CheckColor(clr);
+        this->color = clr;
+        if (this->palette_index)
+            STG_Bmp_SetDefaultColor(this->palette_index, clr);
+    }
+};
+
+static auto salmon = QColor(255, 128, 114);
+static auto darkGrey = QColor(50, 50, 50);
+static auto cool_blue = QColor(82, 136, 219);
+static auto cool_green = QColor(0, 153, 51);
+static auto white = QColor(255, 255, 255);
+
+colorOptionAttr sColorOptionData[(int)color_option::count] =
+{
+    { "Valid", "Pick the TreeItem valid status color", cool_blue.rgba()},
+    { "Invalidated", "Pick the color for not calcualate, status", salmon.rgba()},
+    { "Failed", "Pick the TreeItem failed status color", 0xFF0000},
+    { "Exogenic", "Pick the color for exogenic items", cool_green.rgba()},
+    { "Operator", "Pick the color for template items", darkGrey.rgba()},
+    { "Background", "Pick the Mapview background color", white.rgba(), 256},
+    { "RampStart", "Pick the classification ramp start color", 0x0000FF, 257},
+    { "RampEnd", "Pick the classification ramp end color", 0xFF0000, 258},
+};
 
 void setSF(bool value, UInt32& rsf, UInt32 flag)
 {
@@ -40,46 +75,73 @@ auto getBackgroundColor(QPushButton* btn) -> QColor
     return btn->palette().color(QPalette::ColorRole::Button);
 }
 
-void DmsGuiOptionsWindow::changeColor(QPushButton* btn, const QString& title )
+void saveBackgroundColor(QPushButton* btn, color_option co)
+{
+    auto clr = getBackgroundColor(btn).rgba();
+
+    auto& colorOptionData = sColorOptionData[(int)co];
+    SetGeoDmsRegKeyDWord(colorOptionData.regKey, clr, "Colors");
+    colorOptionData.apply(clr);
+}
+
+void LoadColors()
+{
+    for (color_option co = color_option(0); co != color_option::count; reinterpret_cast<int&>(co)++)
+    {
+        auto& colorOptionData = sColorOptionData[(int)co];
+        auto clr = GetGeoDmsRegKeyDWord(colorOptionData.regKey, colorOptionData.color, "Colors");
+        colorOptionData.apply(clr);
+    }
+}
+
+DmsColor GetUserColor(color_option co)
+{
+    assert(co < color_option::count);
+    return sColorOptionData[(int)co].color;
+}
+
+void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 {
     auto old_color = getBackgroundColor(btn);
-    auto new_color = QColorDialog::getColor(old_color, this, title);
+    auto new_color = QColorDialog::getColor(old_color, this, sColorOptionData[(int)co].descr);
     if (new_color == old_color)
         return;
 
     setBackgroundColor(btn, new_color);
-    m_changed = true;
+    setChanged(true);
 }
 
+
 //======== BEGIN GUI OPTIONS WINDOW ========
+
 void DmsGuiOptionsWindow::changeValidTreeItemColor()
 {
-    changeColor(m_valid_color_ti_button, "Pick the TreeItem valid status color");
+    changeColor(m_valid_color_ti_button, color_option::tv_valid);
 }
 
 void DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor()
 {
-    changeColor(m_not_calculated_color_ti_button, "Pick the TreeItem metainfo ready status color");
+    changeColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
  }
 
 void DmsGuiOptionsWindow::changeFailedTreeItemColor()
 {
-    changeColor(m_failed_color_ti_button, "Pick the TreeItem failed status color");
+    changeColor(m_failed_color_ti_button, color_option::tv_failed);
 }
 
 void DmsGuiOptionsWindow::changeMapviewBackgroundColor()
 {
-    changeColor(m_background_color_button, "Pick the Mapview background color");
+    changeColor(m_background_color_button, color_option::mapview_background);
 }
 
 void DmsGuiOptionsWindow::changeClassificationStartColor()
 {
-    changeColor(m_start_color_button, "Pick the classification ramp start color");
+    changeColor(m_start_color_button, color_option::mapview_ramp_start);
 }
 
 void DmsGuiOptionsWindow::changeClassificationEndColor()
 {
-    changeColor(m_end_color_button, "Pick the classification ramp end color");
+    changeColor(m_end_color_button, color_option::mapview_ramp_end);
 }
 
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
@@ -181,9 +243,14 @@ void DmsGuiOptionsWindow::apply()
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
     SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
 
-    STG_Bmp_SetDefaultColor(CI_BACKGROUND, getBackgroundColor(m_background_color_button).rgba());
-    STG_Bmp_SetDefaultColor(CI_RAMPSTART, getBackgroundColor(m_start_color_button).rgba());
-    STG_Bmp_SetDefaultColor(CI_RAMPEND, getBackgroundColor(m_end_color_button).rgba());
+    saveBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
+    saveBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
+    saveBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+
+    saveBackgroundColor(m_background_color_button, color_option::mapview_background);
+    saveBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
+    saveBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
+
     setChanged(false);
 }
 
@@ -193,9 +260,10 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
-//    setBackgroundColor(m_valid_color_ti_button, x);
-//    setBackgroundColor(m_not_calculated_color_ti_button, x);
-//    setBackgroundColor(m_failed_color_ti_button, x);
+
+    setBackgroundColor(m_valid_color_ti_button, sColorOptionData[(int)color_option::tv_valid].color);
+    setBackgroundColor(m_not_calculated_color_ti_button, sColorOptionData[(int)color_option::tv_not_calculated].color);
+    setBackgroundColor(m_failed_color_ti_button, sColorOptionData[(int)color_option::tv_failed].color);
     setBackgroundColor(m_background_color_button, STG_Bmp_GetDefaultColor(CI_BACKGROUND));
     setBackgroundColor(m_start_color_button, STG_Bmp_GetDefaultColor(CI_RAMPSTART));
     setBackgroundColor(m_end_color_button, STG_Bmp_GetDefaultColor(CI_RAMPEND));
@@ -349,37 +417,43 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     setWindowModality(Qt::ApplicationModal);
 }
 
+struct string_option_attr {
+    CharPtr reg_key, default_value;
+};
+
+const string_option_attr sStringOptionsData[string_option::Count] = {
+    {"LocalDataDir", "C:\\LocalData"},
+    {"SourceDataDir", "C:\\SourceData"},
+    {"DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L"},
+};
+
+void setInitialStringValue(string_option so, QLineEdit* widget)
+{
+    const auto& stringOptionsData = sStringOptionsData[so];
+    auto regKeyName = stringOptionsData.reg_key;
+    auto regKey = GetGeoDmsRegKey(regKeyName);
+    if (regKey.empty())
+    {
+        regKey = stringOptionsData.default_value;
+        SetGeoDmsRegKeyString(regKeyName, regKey.c_str());
+    }
+    widget->setText(regKey.c_str());
+
+}
+
 void DmsAdvancedOptionsWindow::setInitialLocalDataDirValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("LocalDataDir", "C:\\LocalData");
-        ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    }
-    m_ld_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::LocalDataDir, m_ld_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialSourceDatDirValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("SourceDataDir", "C:\\SourceData");
-        ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    }
-    m_sd_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::SourceDataDir, m_sd_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialEditorValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L");
-        ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    }
-    m_editor_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::StartEditorCmd, m_editor_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialMemoryFlushTresholdValue()

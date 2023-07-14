@@ -1,5 +1,33 @@
+#pragma once
+
 #include <QPointer>
-#include <QDialog>;
+#include <QDialog>
+#include "geo/color.h"
+
+enum string_option
+{
+    LocalDataDir,
+    SourceDataDir,
+    StartEditorCmd,
+    Count
+};
+
+enum class color_option
+{
+    tv_valid,
+    tv_not_calculated,
+    tv_failed,
+    tv_exogenic,
+    tv_template,
+
+    mapview_background,
+    mapview_ramp_start,
+    mapview_ramp_end,
+    count
+};
+
+void LoadColors();
+DmsColor GetUserColor(color_option co);
 
 class QCheckBox;
 class QPushButton;
@@ -26,7 +54,7 @@ private slots:
     void undo();
     void restoreOptions();
 
-    void changeColor(QPushButton*, const QString& title);
+    void changeColor(QPushButton*, color_option co);
 
 private:
     void setChanged(bool isChanged);
@@ -96,3 +124,4 @@ class DmsConfigOptionsWindow : public QDialog
 public:
     DmsConfigOptionsWindow(QWidget* parent = nullptr);
 };
+

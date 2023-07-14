@@ -329,8 +329,7 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 
 		assert(item->HasInterest()); // PRECONDITION
 
-		assert(donePtr);
-		assert(*donePtr);
+		assert(!donePtr || *donePtr);
 		bool cacheReady = item == s_LastItem && (itemIsValid ? itemLastChangeTS : TimeStamp(0)) == s_LastChangeTS;
 		while (!cacheReady)
 		{
@@ -344,10 +343,11 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 				break;
 			}
 			if (donePtr)
+			{
+				*donePtr = false;
 				break;
+			}
 		}
-		if (donePtr)
-			*donePtr = cacheReady;
 
 		return &*statisticsBuffer.begin();
 

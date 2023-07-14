@@ -93,7 +93,13 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
     CreateDmsView(parent);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
     // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
-    m_DataView->AddLayer(currItem, false);
+    try {
+        m_DataView->AddLayer(currItem, false);
+    }
+    catch (...) {
+        CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
+        throw;
+    }
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
