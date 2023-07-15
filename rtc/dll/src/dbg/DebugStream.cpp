@@ -283,7 +283,7 @@ RTC_CALL static_ptr<DebugOutStream> g_DebugStream;
 
 /********** DebugOutStream::scopend_lock **********/
 
-DebugOutStream::flush_first::flush_first()
+DebugOutStream::flush_after::~flush_after()
 {
 	if (GetThreadID() == 1)
 		ProcessMainThreadOpers();

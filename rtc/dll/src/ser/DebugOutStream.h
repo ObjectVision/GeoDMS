@@ -47,10 +47,10 @@ private:
 	void SetMsgCategory(MsgCategory msgCat);
 
 public:
-	struct flush_first {
-		flush_first();
+	struct flush_after {
+		~flush_after();
 	};
-	struct scoped_lock : flush_first, leveled_critical_section::scoped_lock
+	struct scoped_lock : flush_after, leveled_critical_section::scoped_lock
 	{
 		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::nonspecific);
 		RTC_CALL ~scoped_lock();
