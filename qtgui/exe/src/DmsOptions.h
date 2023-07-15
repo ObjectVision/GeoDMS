@@ -123,5 +123,19 @@ class DmsConfigOptionsWindow : public QDialog
     Q_OBJECT
 public:
     DmsConfigOptionsWindow(QWidget* parent = nullptr);
+
+private slots:
+    void ok();
+    void apply();
+    void undo();
+
+    void setChanged(bool isChanged);
+
+private:
+    bool m_changed = false;
+
+    QPointer<QPushButton> m_ok;
+    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_undo;
 };
 

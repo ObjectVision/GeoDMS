@@ -42,22 +42,22 @@ enum RegDataType { rdUnknown, rdString, rdExpandString, rdBinary, rdDWORD, rdDWO
 struct RegistryHandle
 {
 public:
-	bool						ValueExists(CharPtr name) const;
-	UInt32						GetDataSize(CharPtr name) const;
-	RegDataType					GetDataType(CharPtr name) const;
-	UInt32						GetData(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
-	UInt32						GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
-	SharedStr					ReadString(CharPtr name) const;
-	bool						WriteString(CharPtr name, CharPtrRange str) const;
-	bool						WriteString(CharPtr name, std::string str) const;
-	std::vector<std::string>	ReadMultiString(CharPtr name) const;
-	bool						WriteMultiString(CharPtr name, std::vector<std::string> strings) const;
-	DWORD						ReadDWORD (CharPtr name) const;
-	bool						WriteDWORD(CharPtr name, DWORD dw) const;
+	RTC_CALL bool        ValueExists(CharPtr name) const;
+	RTC_CALL UInt32      GetDataSize(CharPtr name) const;
+	RTC_CALL RegDataType GetDataType(CharPtr name) const;
+	RTC_CALL UInt32      GetData(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
+	RTC_CALL UInt32      GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
+	RTC_CALL SharedStr   ReadString(CharPtr name) const;
+	RTC_CALL bool        WriteString(CharPtr name, CharPtrRange str) const;
+	RTC_CALL bool        WriteString(CharPtr name, std::string str) const;
+	RTC_CALL auto        ReadMultiString(CharPtr name) const->std::vector<std::string>;
+	RTC_CALL bool        WriteMultiString(CharPtr name, std::vector<std::string> strings) const;
+	RTC_CALL DWORD       ReadDWORD (CharPtr name) const;
+	RTC_CALL bool        WriteDWORD(CharPtr name, DWORD dw) const;
 
 protected:
 	RegistryHandle(HKEY key);
-	~RegistryHandle();
+	RTC_CALL ~RegistryHandle();
 
 private:
 	std::vector<BYTE> PackVectorStringAsVectorBytes(std::vector<std::string> strings) const;
@@ -74,12 +74,12 @@ struct RegistryHandleCurrentUserRO : RegistryHandle
 
 struct RegistryHandleLocalMachineRO : RegistryHandle
 {
-	RegistryHandleLocalMachineRO(CharPtr section = "");
+	RTC_CALL RegistryHandleLocalMachineRO(CharPtr section = "");
 };
 
 struct RegistryHandleLocalMachineRW : RegistryHandle
 {
-	RegistryHandleLocalMachineRW(CharPtr section = "");
+	RTC_CALL RegistryHandleLocalMachineRW(CharPtr section = "");
 };
 
 #endif // __RTC_UTL_REGISTRY_H

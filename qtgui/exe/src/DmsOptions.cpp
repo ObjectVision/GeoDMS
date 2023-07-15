@@ -209,23 +209,25 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     m_ok = new QPushButton("Ok", this);
     m_ok->setMaximumSize(75, 30);
     m_ok->setAutoDefault(true);
-    m_ok->setDefault(true);
     m_apply = new QPushButton("Apply", this);
     m_apply->setMaximumSize(75, 30);
-    m_apply->setDisabled(true);
-
     m_undo = new QPushButton("Undo", this);
-    m_undo->setDisabled(true);
+    m_undo->setMaximumSize(75, 30);
+
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
     connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::undo);
-    m_undo->setMaximumSize(75, 30);
+
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 12, 0, 1, 3);
 
     restoreOptions();
+
+    setChanged(false);
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
 }
 
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
@@ -415,6 +417,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     restoreOptions();
 
     setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
 }
 
 struct string_option_attr {
@@ -564,11 +567,114 @@ void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
 }
 //======== END ADVANCED OPTIONS WINDOW ========
 
+#include "Unit.h"
+#include "UnitClass.h"
+#include "utl/Registry.h"
+#include "DmsMainWindow.h"
+
 //======== BEGIN CONFIG OPTIONS WINDOW ========
 DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(QString("Config options"));
     setMinimumSize(800, 400);
+
+    auto grid_layout = new QGridLayout(this);
+    grid_layout->setVerticalSpacing(0);
+
+    unsigned int nrRows = 0;
+    static TokenID tConfigSettings = GetTokenID_mt("ConfigSettings");
+    static TokenID tOverridable    = GetTokenID_mt("Overridable");
+
+    auto tiCursor = MainWindow::TheOne()->getRootTreeItem();
+    if (tiCursor) tiCursor = tiCursor->GetSubTreeItemByID(tConfigSettings);
+    if (tiCursor) tiCursor = tiCursor->GetSubTreeItemByID(tOverridable);
+    if (tiCursor) tiCursor = tiCursor->_GetFirstSubItem();
+    if (tiCursor)
+    {
+        RegistryHandleLocalMachineRO regLM;
+        for (; tiCursor; tiCursor = tiCursor->GetNextItem())
+        {
+            if (!IsDataItem(tiCursor))
+                continue;
+            auto adi = AsDataItem(tiCursor);
+            auto avu = adi->GetAbstrValuesUnit();
+            if (avu->GetUnitClass() != Unit<SharedStr>::GetStaticClass())
+                continue;
+
+//            auto box_layout = new QHBoxLayout(this);
+            auto tiName = SharedStr(tiCursor->GetName());
+            auto label= new QLabel(tiName.c_str(), this);
+
+            auto option_input = new QLineEdit(this);
+
+            if (regLM.ValueExists(tiName.c_str()))
+                option_input->setText(regLM.ReadString(tiName.c_str()).c_str());
+            else
+            {
+                SharedDataItemInterestPtr ptr(adi);
+                PreparedDataReadLock drl(adi);
+                GuiReadLock lockHolder;
+                auto optionValue = adi->GetRefObj()->AsString(0, lockHolder);
+                option_input->setText(optionValue.c_str());
+            }
+            grid_layout->addWidget(label, nrRows, 0);
+            grid_layout->addWidget(option_input, nrRows, 1);
+
+            nrRows++;
+        }
+    }
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_ok = new QPushButton("Ok", this);
+    m_ok->setMaximumSize(75, 30);
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
+    m_apply = new QPushButton("Apply", this);
+    m_apply->setMaximumSize(75, 30);
+    m_undo = new QPushButton("Undo", this);
+    m_undo->setMaximumSize(75, 30);
+
+    connect(m_ok, &QPushButton::released, this, &DmsConfigOptionsWindow::ok);
+    connect(m_apply, &QPushButton::released, this, &DmsConfigOptionsWindow::apply);
+    connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::undo);
+
+    box_layout->addWidget(m_ok);
+    box_layout->addWidget(m_apply);
+    box_layout->addWidget(m_undo);
+    grid_layout->addLayout(box_layout, nrRows+1, 0, 1, 3);
+
+    setChanged(false);
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
 }
-//======== BEGIN CONFIG OPTIONS WINDOW ========
+
+#include "DmsMainWindow.h"
+
+void DmsConfigOptionsWindow::setChanged(bool isChanged)
+{
+    m_changed = isChanged;
+    m_apply->setEnabled(isChanged);
+    m_undo->setEnabled(isChanged);
+}
+
+void DmsConfigOptionsWindow::undo()
+{
+//    restoreOptions();
+}
+
+void DmsConfigOptionsWindow::apply()
+{
+}
+
+
+void DmsConfigOptionsWindow::ok()
+{
+    if (m_changed)
+        apply();
+    done(QDialog::Accepted);
+}
+
+
+//======== END CONFIG OPTIONS WINDOW ========
