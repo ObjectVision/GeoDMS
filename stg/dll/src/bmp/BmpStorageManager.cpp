@@ -125,7 +125,7 @@ extern "C" STGDLL_CALL void DMS_CONV STG_Bmp_SetDefaultColor(PALETTE_SIZE i, Dms
 
 		assert(i <= CI_LAST);
 
-		CheckColor(color);
+		color &= MAX_COLOR;
 
 		if (i != CI_NODATA)
 			g_BmpDefaultPalette[i] = color;

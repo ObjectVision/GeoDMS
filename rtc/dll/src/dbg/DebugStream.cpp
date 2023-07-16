@@ -193,7 +193,7 @@ namespace { // DebugOutStreamBuff is local
 				}
 			, true
 			);
-			dms_assert(m_Data.empty());
+			assert(m_Data.empty());
 		}
 		bool AtEnd() const override { return false; }
 		static void Flush(std::vector<char> bufferedCopy)
@@ -204,7 +204,7 @@ namespace { // DebugOutStreamBuff is local
 			auto i = bufferedCopy.begin(), e = bufferedCopy.end();
 			while (i!=e)
 			{
-				dms_assert(e[-1]==0); // guaranteed by caller to have a completed Line.
+				assert(e[-1]==0); // guaranteed by caller to have a completed Line.
 				SeverityTypeID st = SeverityTypeID((*i++)-1);
 				MsgCategory msgCat = MsgCategory((*i++)-1);
 				dms_assert(st <= SeverityTypeID::ST_DispError);
@@ -260,7 +260,7 @@ void DebugOutStream::SetMsgCategory(MsgCategory msgCat)
 
 void DebugOutStream::NewLine()
 {
-	dms_assert(this);
+	assert(this);
 	g_DebugStreamBuff->NewLine();
 }
 
@@ -285,7 +285,7 @@ RTC_CALL static_ptr<DebugOutStream> g_DebugStream;
 
 DebugOutStream::flush_after::~flush_after()
 {
-	if (GetThreadID() == 1)
+	if (IsMainThread())
 		ProcessMainThreadOpers();
 }
 

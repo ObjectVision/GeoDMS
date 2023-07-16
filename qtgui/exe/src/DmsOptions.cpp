@@ -79,6 +79,7 @@ auto getBackgroundColor(QPushButton* btn) -> QColor
 void saveBackgroundColor(QPushButton* btn, color_option co)
 {
     auto clr = getBackgroundColor(btn).rgb();
+    clr &= 0x00FFFFFF;
 
     auto& colorOptionData = sColorOptionData[(int)co];
     SetGeoDmsRegKeyDWord(colorOptionData.regKey, clr, "Colors");
