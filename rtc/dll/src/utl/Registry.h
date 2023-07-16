@@ -48,8 +48,9 @@ public:
 	RTC_CALL UInt32      GetData(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType)  const;
 	RTC_CALL UInt32      GetData(CharPtr name, std::vector<BYTE>& buffer, DWORD bufSize, RegDataType& regDataType) const;
 	RTC_CALL SharedStr   ReadString(CharPtr name) const;
-	RTC_CALL bool        WriteString(CharPtr name, CharPtrRange str) const;
-	RTC_CALL bool        WriteString(CharPtr name, std::string str) const;
+	RTC_CALL void        WriteString(CharPtr name, CharPtrRange str) const;
+	RTC_CALL void        WriteString(CharPtr name, std::string str) const;
+	RTC_CALL void        DeleteValue(CharPtr name) const;
 	RTC_CALL auto        ReadMultiString(CharPtr name) const->std::vector<std::string>;
 	RTC_CALL bool        WriteMultiString(CharPtr name, std::vector<std::string> strings) const;
 	RTC_CALL DWORD       ReadDWORD (CharPtr name) const;

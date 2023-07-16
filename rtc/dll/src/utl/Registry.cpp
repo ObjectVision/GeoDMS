@@ -147,16 +147,20 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 	return resultStr;
 }
 
-bool RegistryHandle::WriteString(CharPtr name, std::string str) const
+void RegistryHandle::WriteString(CharPtr name, std::string str) const
 {
 	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.data(), str.size());
-	return true;
 }
 
-bool RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
+void RegistryHandle::DeleteValue(CharPtr name) const
+{
+	RegDeleteValue(m_Key, name);
+}
+
+
+void RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
 {
 	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.begin(), str.size());
-	return true;
 }
 
 std::vector<std::string> RegistryHandle::ReadMultiString(CharPtr name) const

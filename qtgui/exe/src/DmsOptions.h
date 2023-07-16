@@ -3,6 +3,7 @@
 #include <QPointer>
 #include <QDialog>
 #include "geo/color.h"
+#include "ptr/SharedStr.h"
 
 enum string_option
 {
@@ -118,6 +119,14 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
+//======== CONFIG OPTIONS WINDOW ========
+
+struct ConfigOption {
+    SharedStr                 name, configured_value;
+    QPointer< QCheckBox>      override_cbx;
+    QPointer< QLineEdit>      override_value;
+};
+
 class DmsConfigOptionsWindow : public QDialog
 {
     Q_OBJECT
@@ -127,15 +136,17 @@ public:
 private slots:
     void ok();
     void apply();
-    void undo();
-
-    void setChanged(bool isChanged);
+    void resetValues();
+    void checkbox_toggled();
 
 private:
+    void setChanged(bool isChanged);
+    void updateAccordingToCheckboxStates();
+
     bool m_changed = false;
+    std::vector<ConfigOption> m_Options;
 
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
     QPointer<QPushButton> m_undo;
 };
-

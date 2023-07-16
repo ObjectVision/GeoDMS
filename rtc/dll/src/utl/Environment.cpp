@@ -324,7 +324,7 @@ RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
-		auto result = regLM.WriteString(key, str);
+		regLM.WriteString(key, str);
 	}
 	catch (...) {}
 	return true;

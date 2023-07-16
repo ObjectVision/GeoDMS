@@ -24,13 +24,14 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QMenu;
-class QTextEdit;
-class QTextBrowser;
-class QTreeView;
+class QComboBox;
 class QDialog;
 class QLabel;
 class QMdiSubWindow;
+class QMenu;
+class QTextBrowser;
+class QTextEdit;
+class QTreeView;
 QT_END_NAMESPACE
 
 struct TreeItem;

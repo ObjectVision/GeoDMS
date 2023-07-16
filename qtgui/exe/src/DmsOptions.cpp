@@ -3,6 +3,7 @@
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "StgBase.h"
+#include "AbstrDataItem.h"
 
 #include <QCheckBox>
 #include <QPushButton>
@@ -582,7 +583,11 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     auto grid_layout = new QGridLayout(this);
     grid_layout->setVerticalSpacing(0);
 
-    unsigned int nrRows = 0;
+    grid_layout->addWidget(new QLabel("Option", this), 0, 0);
+    grid_layout->addWidget(new QLabel("Override", this), 0, 1);
+    grid_layout->addWidget(new QLabel("Configured or override value", this), 0, 2);
+
+    unsigned int nrRows = 1;
     static TokenID tConfigSettings = GetTokenID_mt("ConfigSettings");
     static TokenID tOverridable    = GetTokenID_mt("Overridable");
 
@@ -592,7 +597,7 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     if (tiCursor) tiCursor = tiCursor->_GetFirstSubItem();
     if (tiCursor)
     {
-        RegistryHandleLocalMachineRO regLM;
+        GuiReadLock lockHolder;
         for (; tiCursor; tiCursor = tiCursor->GetNextItem())
         {
             if (!IsDataItem(tiCursor))
@@ -601,25 +606,26 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             auto avu = adi->GetAbstrValuesUnit();
             if (avu->GetUnitClass() != Unit<SharedStr>::GetStaticClass())
                 continue;
-
+            
 //            auto box_layout = new QHBoxLayout(this);
             auto tiName = SharedStr(tiCursor->GetName());
             auto label= new QLabel(tiName.c_str(), this);
 
             auto option_input = new QLineEdit(this);
+            auto option_cbx = new QCheckBox(this);
+            connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::checkbox_toggled);
 
-            if (regLM.ValueExists(tiName.c_str()))
-                option_input->setText(regLM.ReadString(tiName.c_str()).c_str());
-            else
-            {
-                SharedDataItemInterestPtr ptr(adi);
-                PreparedDataReadLock drl(adi);
-                GuiReadLock lockHolder;
-                auto optionValue = adi->GetRefObj()->AsString(0, lockHolder);
-                option_input->setText(optionValue.c_str());
-            }
             grid_layout->addWidget(label, nrRows, 0);
-            grid_layout->addWidget(option_input, nrRows, 1);
+            grid_layout->addWidget(option_cbx, nrRows, 1);
+            grid_layout->addWidget(option_input, nrRows, 2);
+
+
+            SharedDataItemInterestPtr data_item = adi;
+
+            PreparedDataReadLock drl(adi); // interestCount held by m_Options;
+            auto configuredValue = data_item->GetRefObj()->AsString(0, lockHolder);
+
+            m_Options.emplace_back(ConfigOption{ std::move(tiName), std::move(configuredValue), option_cbx, option_input });
 
             nrRows++;
         }
@@ -638,16 +644,16 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
 
     connect(m_ok, &QPushButton::released, this, &DmsConfigOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsConfigOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::undo);
+    connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::resetValues);
 
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, nrRows+1, 0, 1, 3);
 
-    setChanged(false);
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
+    resetValues();
 }
 
 #include "DmsMainWindow.h"
@@ -659,13 +665,67 @@ void DmsConfigOptionsWindow::setChanged(bool isChanged)
     m_undo->setEnabled(isChanged);
 }
 
-void DmsConfigOptionsWindow::undo()
+void DmsConfigOptionsWindow::resetValues()
 {
-//    restoreOptions();
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRO regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            option.override_cbx->setChecked(valueExists);
+        }
+    }
+    updateAccordingToCheckboxStates();
+
+    setChanged(false);
+}
+
+void DmsConfigOptionsWindow::updateAccordingToCheckboxStates()
+{
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRO regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool valueOverridden = option.override_cbx->isChecked();
+            if (valueOverridden && valueExists)
+                option.override_value->setText(regLM.ReadString(option.name.c_str()).c_str());
+            else
+                option.override_value->setText(option.configured_value.c_str());
+
+            option.override_value->setEnabled(valueOverridden);
+        }
+    }
+}
+
+void DmsConfigOptionsWindow::checkbox_toggled()
+{
+    updateAccordingToCheckboxStates();
+    setChanged(true);
 }
 
 void DmsConfigOptionsWindow::apply()
 {
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRW regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool valueOverridden = option.override_cbx->isChecked();
+            if (valueOverridden)
+            {
+                QByteArray overrideValue = option.override_value->text().toUtf8();
+                regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+            }
+            else if (valueExists)
+                regLM.DeleteValue(option.name.c_str());
+        }
+    }
+
+    setChanged(false);
 }
 
 
