@@ -1660,6 +1660,8 @@ void MainWindow::createActions()
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
     menuBar()->addMenu(m_tools_menu.get());
+    connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateToolsMenu);
+
     m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
     m_tools_menu->addAction(m_gui_options_action.get());
@@ -1778,7 +1780,12 @@ void MainWindow::updateViewMenu()
 
 }
 
-void MainWindow::updateWindowMenu() 
+void MainWindow::updateToolsMenu()
+{
+    m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
+}
+
+void MainWindow::updateWindowMenu()
 {
     for (auto* swPtr : m_CurrWindowActions)
     {

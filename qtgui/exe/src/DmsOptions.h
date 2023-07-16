@@ -4,6 +4,7 @@
 #include <QDialog>
 #include "geo/color.h"
 #include "ptr/SharedStr.h"
+struct TreeItem;
 
 enum string_option
 {
@@ -89,8 +90,8 @@ private slots:
     void ok();
     void apply();
     void undo();
-    void onStateChange(int state);
-    void onTextChange(const QString& text);
+    void onStateChange();
+    void onTextChange();
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
 
@@ -133,13 +134,17 @@ class DmsConfigOptionsWindow : public QDialog
 public:
     DmsConfigOptionsWindow(QWidget* parent = nullptr);
 
+    static bool hasOverridableConfigOptions();
+
 private slots:
     void ok();
     void apply();
     void resetValues();
-    void checkbox_toggled();
+    void onTextChange();
+    void onCheckboxToggle();
 
 private:
+    static auto getFirstOverridableOption() -> const TreeItem*;
     void setChanged(bool isChanged);
     void updateAccordingToCheckboxStates();
 

@@ -534,12 +534,12 @@ void DmsAdvancedOptionsWindow::undo()
     setChanged(false);
 }
 
-void DmsAdvancedOptionsWindow::onStateChange(int state)
+void DmsAdvancedOptionsWindow::onStateChange()
 {
     setChanged(true);
 }
 
-void DmsAdvancedOptionsWindow::onTextChange(const QString& text)
+void DmsAdvancedOptionsWindow::onTextChange()
 {
     setChanged(true);
 }
@@ -575,6 +575,17 @@ void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
 #include "DmsMainWindow.h"
 
 //======== BEGIN CONFIG OPTIONS WINDOW ========
+
+bool IsOverridableConfigSetting(const TreeItem* tiCursor)
+{
+    if (!IsDataItem(tiCursor))
+        return false;
+    auto adi = AsDataItem(tiCursor);
+    auto avu = adi->GetAbstrValuesUnit();
+    return avu->GetUnitClass() == Unit<SharedStr>::GetStaticClass();
+}
+
+
 DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
@@ -586,40 +597,32 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
 
     grid_layout->addWidget(new QLabel("Option", this), 0, 0);
     grid_layout->addWidget(new QLabel("Override", this), 0, 1);
-    grid_layout->addWidget(new QLabel("Configured or override value", this), 0, 2);
+    grid_layout->addWidget(new QLabel("Configured or User and LocalMachine specific overridden value", this), 0, 2);
 
     unsigned int nrRows = 1;
-    static TokenID tConfigSettings = GetTokenID_mt("ConfigSettings");
-    static TokenID tOverridable    = GetTokenID_mt("Overridable");
 
-    auto tiCursor = MainWindow::TheOne()->getRootTreeItem();
-    if (tiCursor) tiCursor = tiCursor->GetSubTreeItemByID(tConfigSettings);
-    if (tiCursor) tiCursor = tiCursor->GetSubTreeItemByID(tOverridable);
-    if (tiCursor) tiCursor = tiCursor->_GetFirstSubItem();
+    auto tiCursor = getFirstOverridableOption();
     if (tiCursor)
     {
         GuiReadLock lockHolder;
         for (; tiCursor; tiCursor = tiCursor->GetNextItem())
         {
-            if (!IsDataItem(tiCursor))
+            if (!IsOverridableConfigSetting(tiCursor))
                 continue;
             auto adi = AsDataItem(tiCursor);
-            auto avu = adi->GetAbstrValuesUnit();
-            if (avu->GetUnitClass() != Unit<SharedStr>::GetStaticClass())
-                continue;
             
 //            auto box_layout = new QHBoxLayout(this);
             auto tiName = SharedStr(tiCursor->GetName());
             auto label= new QLabel(tiName.c_str(), this);
 
-            auto option_input = new QLineEdit(this);
             auto option_cbx = new QCheckBox(this);
-            connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::checkbox_toggled);
+            auto option_input = new QLineEdit(this);
+            connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::onCheckboxToggle);
+            connect(option_input, &QLineEdit::textChanged, this, &DmsConfigOptionsWindow::onTextChange);
 
             grid_layout->addWidget(label, nrRows, 0);
             grid_layout->addWidget(option_cbx, nrRows, 1);
             grid_layout->addWidget(option_input, nrRows, 2);
-
 
             SharedDataItemInterestPtr data_item = adi;
 
@@ -657,7 +660,34 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     resetValues();
 }
 
-#include "DmsMainWindow.h"
+auto DmsConfigOptionsWindow::getFirstOverridableOption() -> const TreeItem*
+{
+    static TokenID tConfigSettings = GetTokenID_mt("ConfigSettings");
+    static TokenID tOverridable = GetTokenID_mt("Overridable");
+
+    auto tiRoot = MainWindow::TheOne()->getRootTreeItem();
+    if (!tiRoot) return nullptr;
+
+    auto tiConfigSettings = tiRoot->GetSubTreeItemByID(tConfigSettings);
+    if (!tiConfigSettings) return nullptr;
+
+    auto tiOverridableSettings = tiConfigSettings->GetSubTreeItemByID(tOverridable);
+    if (!tiOverridableSettings) return nullptr;
+
+    auto tiCursor = tiOverridableSettings->_GetFirstSubItem();
+    for (; tiCursor; tiCursor = tiCursor->GetNextItem())
+    {
+        if (IsOverridableConfigSetting(tiCursor))
+            return tiCursor;
+    }
+    return nullptr;
+}
+
+bool DmsConfigOptionsWindow::hasOverridableConfigOptions()
+{
+    auto firstOption = getFirstOverridableOption();
+    return firstOption != nullptr;
+}
 
 void DmsConfigOptionsWindow::setChanged(bool isChanged)
 {
@@ -701,7 +731,12 @@ void DmsConfigOptionsWindow::updateAccordingToCheckboxStates()
     }
 }
 
-void DmsConfigOptionsWindow::checkbox_toggled()
+void DmsConfigOptionsWindow::onTextChange()
+{
+    setChanged(true);
+}
+
+void DmsConfigOptionsWindow::onCheckboxToggle()
 {
     updateAccordingToCheckboxStates();
     setChanged(true);

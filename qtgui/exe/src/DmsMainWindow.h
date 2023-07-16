@@ -232,6 +232,7 @@ private:
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();
+    void updateToolsMenu();
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
