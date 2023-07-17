@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QDockWidget>
 #include <QTextBrowser>
+#include <QTimer>
 
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
@@ -47,21 +48,18 @@ auto Realm(const auto& x) -> CharPtrRange
 bool ShowInDetailPage(auto x)
 {
     auto realm = Realm(x);
-    if (!strncmp(realm.begin(), "dms", realm.size()))
+    if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
         return true;
     if (!realm.empty())
         return false;
     CharPtrRange knownSuffix(".adms");
-    return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end());
+    return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
 void DmsDetailPages::newCurrentItem()
 {
     if (m_active_detail_page != ActiveDetailPage::NONE)
-        sheduleDrawPage();
-
-    auto main_window = MainWindow::TheOne();
-    auto current_item = main_window->getCurrentTreeItem();
+        scheduleDrawPage();
 }
 
 auto getDetailPagesActionFromActiveDetailPage(ActiveDetailPage new_active_detail_page) -> QAction*
@@ -113,7 +111,7 @@ void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
         setVisible(false);
     }
 
-    sheduleDrawPage();
+    scheduleDrawPage();
 }
 
 void DmsDetailPages::toggleGeneral()
@@ -146,7 +144,7 @@ void DmsDetailPages::toggleSourceDescr()
     else
     {
         reinterpret_cast<int&>(m_SDM)++;
-        sheduleDrawPage();
+        scheduleDrawPageImpl(1000);
     }
 }
 
@@ -169,18 +167,32 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
     return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
 }
 
-void DmsDetailPages::sheduleDrawPage()
+void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
     if (m_DrawPageRequestPending)
         return;
 
     m_DrawPageRequestPending = true;
-    QTimer::singleShot(0, [this]()
+    QTimer::singleShot(milliseconds, [this]()
         {
             m_DrawPageRequestPending = false;
             this->drawPage();
         }
     );
+}
+
+void DmsDetailPages::scheduleDrawPage()
+{
+    scheduleDrawPageImpl(0);
+}
+
+void DmsDetailPages::onTreeItemStateChange()
+{
+    if (m_active_detail_page != ActiveDetailPage::GENERAL
+    &&  m_active_detail_page != ActiveDetailPage::PROPERTIES)
+        return;
+
+    scheduleDrawPageImpl(1000);
 }
 
 SharedStr FindURL(const TreeItem* ti)
@@ -251,7 +263,7 @@ void DmsDetailPages::drawPage()
                 }
                 return;
             }
-        DMS_XML_MetaInfoRef(current_item, xmlOut.get(), url.c_str());
+        DMS_XML_MetaInfoRef(current_item, xmlOut.get());
         break;
     }
     }
@@ -266,7 +278,7 @@ void DmsDetailPages::drawPage()
             setHtml( htmlEncodeTextDoc(contents).c_str() );
     }
     if (!ready)
-        sheduleDrawPage();
+        scheduleDrawPageImpl(500);
 }
 
 bool IsPostRequest(const QUrl& /*link*/)
@@ -463,6 +475,4 @@ void DmsDetailPages::connectDetailPagesAnchorClicked()
     setOpenLinks(false);
     setOpenExternalLinks(false);
     connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
-    m_Repeater.callOnTimeout(this, &DmsDetailPages::drawPage);
-    m_Repeater.setSingleShot(true);
 }

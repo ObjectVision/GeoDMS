@@ -682,54 +682,65 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
 {
-	DMS_CALL_BEGIN
+	assert(xmlOutStrPtr);
+	SuspendTrigger::Resume();
 
-		assert(xmlOutStrPtr);
-		SuspendTrigger::Resume();
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	try {
+		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
+			return false;
+	} catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
-		try {
-			if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
-				return false;
-		} catch (...)
-		{
-			auto err = catchException(true);
-			if (!err)
-				*xmlOutStrPtr << "unrecognized error";
-			else
-				*xmlOutStrPtr << *err;
-		}
-
-	DMS_CALL_END_NOTHROW
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr, CharPtr url)
+TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
-	DMS_CALL_BEGIN
+	assert(xmlOutStrPtr);
+	assert(self);
+	SuspendTrigger::Resume();
 
-		assert(xmlOutStrPtr);
-		SuspendTrigger::Resume();
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	try {
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
-		try {
+		*xmlOutStrPtr << "Description or available documentation:";
 
-			*xmlOutStrPtr << "Description or documentation available:";
-
-			XML_OutElement xmlElemA(*xmlOutStrPtr, "A");
-			xmlOutStrPtr->WriteAttr("href", url);
-			*xmlOutStrPtr << "[" << url << "]";
-		}
-		catch (...)
+		XML_Table table(*xmlOutStrPtr);
+		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
 		{
-			auto err = catchException(true);
-			if (!err)
-				*xmlOutStrPtr << "unrecognized error";
-			else
-				*xmlOutStrPtr << *err;
-		}
+			auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
+			if (!url.empty())
+			{
+				XML_Table::Row row(table);
+				row.ItemCell(cursor);
+				auto context = cursor;
+				if (url[0] == '#')
+				{
+					context = self;
+					url = SharedStr(url.begin() + 1, url.send());
+				}
 
-	DMS_CALL_END_NOTHROW
+				auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
+				row.ClickableCell(expandedUrl.c_str(), expandedUrl.c_str());
+			}
+		}
+	}
+	catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
+
 	return true;
 }
 

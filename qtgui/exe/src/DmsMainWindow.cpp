@@ -1447,7 +1447,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     {
         assert(s_CurrMainWindow == mainWindow);
         mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
-        mainWindow->m_detail_pages->sheduleDrawPage();
+        mainWindow->m_detail_pages->onTreeItemStateChange();
     }
 }
 
