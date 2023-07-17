@@ -36,7 +36,7 @@ struct colorOptionAttr {
 };
 
 static DmsColor salmon = CombineRGB(255, 128, 114);
-static DmsColor darkGrey = CombineRGB(50, 50, 50);
+static DmsColor darkGrey = CombineRGB(100, 100, 100);
 static DmsColor cool_blue = CombineRGB(82, 136, 219);
 static DmsColor cool_green = CombineRGB(0, 153, 51);
 static DmsColor white = CombineRGB(255, 255, 255);
