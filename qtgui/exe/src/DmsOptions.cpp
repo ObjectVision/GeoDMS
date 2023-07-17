@@ -20,6 +20,10 @@ struct colorOptionAttr {
     CharPtr descr;
     DmsColor color;
     UInt32  palette_index = 0;
+    QColor AsQColor() 
+    {
+        return QColor(GetRed(color), GetGreen(color),GetBlue(color));
+    }
 
     void apply(DmsColor clr)
     {
@@ -31,22 +35,22 @@ struct colorOptionAttr {
     }
 };
 
-static auto salmon = QColor(255, 128, 114);
-static auto darkGrey = QColor(50, 50, 50);
-static auto cool_blue = QColor(82, 136, 219);
-static auto cool_green = QColor(0, 153, 51);
-static auto white = QColor(255, 255, 255);
+static DmsColor salmon = CombineRGB(255, 128, 114);
+static DmsColor darkGrey = CombineRGB(50, 50, 50);
+static DmsColor cool_blue = CombineRGB(82, 136, 219);
+static DmsColor cool_green = CombineRGB(0, 153, 51);
+static DmsColor white = CombineRGB(255, 255, 255);
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
-    { "Valid", "Pick the TreeItem valid status color", cool_blue.rgb()},
-    { "Invalidated", "Pick the color for not calcualate, status", salmon.rgb()},
-    { "Failed", "Pick the TreeItem failed status color", 0xFF0000},
-    { "Exogenic", "Pick the color for exogenic items", cool_green.rgb()},
-    { "Operator", "Pick the color for template items", darkGrey.rgb()},
-    { "Background", "Pick the Mapview background color", white.rgb(), 256},
-    { "RampStart", "Pick the classification ramp start color", 0x0000FF, 257},
-    { "RampEnd", "Pick the classification ramp end color", 0xFF0000, 258},
+    { "Valid", "Pick the TreeItem valid status color", cool_blue},
+    { "Invalidated", "Pick the color for not calcualate, status", salmon},
+    { "Failed", "Pick the TreeItem failed status color", DmsRed},
+    { "Exogenic", "Pick the color for exogenic items", cool_green},
+    { "Operator", "Pick the color for template items", darkGrey},
+    { "Background", "Pick the Mapview background color", white, 256},
+    { "RampStart", "Pick the classification ramp start color", DmsRed, 257},
+    { "RampEnd", "Pick the classification ramp end color", DmsBlue, 258},
 };
 
 void setSF(bool value, UInt32& rsf, UInt32 flag)
@@ -66,9 +70,14 @@ auto backgroundColor2StyleSheet(QColor clr) -> QString
      + ") }";
 }
 
-void setBackgroundColor(QPushButton* btn, QColor clr)
+void setBackgroundQColor(QPushButton* btn, QColor clr)
 {
     btn->setStyleSheet(backgroundColor2StyleSheet(clr));
+}
+
+void setBackgroundColor(QPushButton* btn, color_option co)
+{
+    setBackgroundQColor(btn, sColorOptionData[(int)co].AsQColor());
 }
 
 auto getBackgroundColor(QPushButton* btn) -> QColor
@@ -78,8 +87,8 @@ auto getBackgroundColor(QPushButton* btn) -> QColor
 
 void saveBackgroundColor(QPushButton* btn, color_option co)
 {
-    auto clr = getBackgroundColor(btn).rgb();
-    clr &= 0x00FFFFFF;
+    auto qClr = getBackgroundColor(btn).rgb();
+    auto clr = CombineRGB(qRed(qClr), qGreen(qClr), qBlue(qClr));
 
     auto& colorOptionData = sColorOptionData[(int)co];
     SetGeoDmsRegKeyDWord(colorOptionData.regKey, clr, "Colors");
@@ -102,14 +111,22 @@ DmsColor GetUserColor(color_option co)
     return sColorOptionData[(int)co].color;
 }
 
+QColor GetUserQColor(color_option co)
+{
+    auto clr = GetUserColor(co);
+    return QColor(GetRed(clr), GetGreen(clr), GetBlue(clr));
+}
+
 void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 {
     auto old_color = getBackgroundColor(btn);
     auto new_color = QColorDialog::getColor(old_color, this, sColorOptionData[(int)co].descr);
+    if (not new_color.isValid())
+        return;
     if (new_color == old_color)
         return;
 
-    setBackgroundColor(btn, new_color);
+    setBackgroundQColor(btn, new_color);
     setChanged(true);
 }
 
@@ -265,12 +282,12 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
 
-    setBackgroundColor(m_valid_color_ti_button, sColorOptionData[(int)color_option::tv_valid].color);
-    setBackgroundColor(m_not_calculated_color_ti_button, sColorOptionData[(int)color_option::tv_not_calculated].color);
-    setBackgroundColor(m_failed_color_ti_button, sColorOptionData[(int)color_option::tv_failed].color);
-    setBackgroundColor(m_background_color_button, STG_Bmp_GetDefaultColor(CI_BACKGROUND));
-    setBackgroundColor(m_start_color_button, STG_Bmp_GetDefaultColor(CI_RAMPSTART));
-    setBackgroundColor(m_end_color_button, STG_Bmp_GetDefaultColor(CI_RAMPEND));
+    setBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
+    setBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
+    setBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+    setBackgroundColor(m_background_color_button, color_option::mapview_background);
+    setBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
+    setBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
 
     setChanged(false);
 }
