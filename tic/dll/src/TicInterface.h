@@ -143,7 +143,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden);
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName); // creates a temp. XML_Stream on a temp. FileOutBuff
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr, CharPtr url);
+TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 
 //----------------------------------------------------------------------
 // C style Interface functions for TreeItem retrieval

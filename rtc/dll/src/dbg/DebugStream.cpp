@@ -117,7 +117,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 
 void MsgDispatch(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
-	dms_assert(IsMainThread());
+	assert((st == SeverityTypeID::ST_Nothing) || IsMainThread());
 	if (!g_MsgCallbacks)
 		return;
 
