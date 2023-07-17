@@ -351,7 +351,7 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::disable_with_no_geometry |driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
