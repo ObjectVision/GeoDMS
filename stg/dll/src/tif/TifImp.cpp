@@ -342,7 +342,7 @@ bool TifImp::OpenForReadDirect(WeakStr name, SafeFileWriterArray* sfwa)
 {
 	SharedStr workingName = GetWorkingFileName(sfwa, name, FCM_OpenReadOnly);
 
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "r");
+	m_TiffHandle = TIFFOpen(ConvertDmsFileName(workingName).c_str(), "r");
 	return m_TiffHandle != nullptr;
 }
 
@@ -509,7 +509,7 @@ UInt32 TifImp::GetNrBitsPerPixel()  const
 	return bps;
 }
 
-void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName)
+void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName)
 {
 	if (nrRasterBitsPerPixel == nrDmsBitsPerPixel)
 		return;
@@ -519,7 +519,10 @@ void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, 
 		return;
 	if (nrRasterBitsPerPixel == 24 && nrDmsBitsPerPixel == 32) // UnpackStrip(UInt32* ...) can process this
 		return;
-	throwErrorF(functionName, "Cannot convert %d bits DMS data from/to %d bits Raster file data", nrDmsBitsPerPixel, nrRasterBitsPerPixel);
+	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
+		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
+		, dataSourceName
+	);
 }
 
 void TifImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel)

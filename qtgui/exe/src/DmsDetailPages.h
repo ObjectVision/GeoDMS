@@ -1,5 +1,4 @@
 #include <QPointer>
-#include <QTimer>
 #include <qtextbrowser>
 
 #include "ptr/SharedStr.h"
@@ -40,7 +39,8 @@ public slots:
 	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void leaveThisConfig();
-	void sheduleDrawPage();
+	void scheduleDrawPage();
+	void onTreeItemStateChange();
 
 public slots:
 	void onAnchorClicked(const QUrl& link);
@@ -49,8 +49,8 @@ private:
 	void toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle);
 	void toggle(ActiveDetailPage new_active_detail_page);
 	void drawPage();
+	void scheduleDrawPageImpl(int milliseconds);
 
-	QTimer m_Repeater;
 	bool m_DrawPageRequestPending = false;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;

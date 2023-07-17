@@ -1,5 +1,36 @@
+#pragma once
+
 #include <QPointer>
-#include <QDialog>;
+#include <QDialog>
+#include "geo/color.h"
+#include "ptr/SharedStr.h"
+struct TreeItem;
+
+enum string_option
+{
+    LocalDataDir,
+    SourceDataDir,
+    StartEditorCmd,
+    Count
+};
+
+enum class color_option
+{
+    tv_valid,
+    tv_not_calculated,
+    tv_failed,
+    tv_exogenic,
+    tv_template,
+
+    mapview_background,
+    mapview_ramp_start,
+    mapview_ramp_end,
+    count
+};
+
+void LoadColors();
+DmsColor GetUserColor(color_option co);
+QColor GetUserQColor(color_option co);
 
 class QCheckBox;
 class QPushButton;
@@ -23,10 +54,9 @@ private slots:
     void changeClassificationEndColor();
     void ok();
     void apply();
-    void undo();
     void restoreOptions();
 
-    void changeColor(QPushButton*, const QString& title);
+    void changeColor(QPushButton*, color_option co);
 
 private:
     void setChanged(bool isChanged);
@@ -59,9 +89,8 @@ private slots:
     void restoreOptions();
     void ok();
     void apply();
-    void undo();
-    void onStateChange(int state);
-    void onTextChange(const QString& text);
+    void onStateChange();
+    void onTextChange();
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
 
@@ -90,9 +119,38 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
+//======== CONFIG OPTIONS WINDOW ========
+
+struct ConfigOption {
+    SharedStr                 name, configured_value;
+    QPointer< QCheckBox>      override_cbx;
+    QPointer< QLineEdit>      override_value;
+};
+
 class DmsConfigOptionsWindow : public QDialog
 {
     Q_OBJECT
 public:
     DmsConfigOptionsWindow(QWidget* parent = nullptr);
+
+    static bool hasOverridableConfigOptions();
+
+private slots:
+    void ok();
+    void apply();
+    void resetValues();
+    void onTextChange();
+    void onCheckboxToggle();
+
+private:
+    static auto getFirstOverridableOption() -> const TreeItem*;
+    void setChanged(bool isChanged);
+    void updateAccordingToCheckboxStates();
+
+    bool m_changed = false;
+    std::vector<ConfigOption> m_Options;
+
+    QPointer<QPushButton> m_ok;
+    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_undo;
 };

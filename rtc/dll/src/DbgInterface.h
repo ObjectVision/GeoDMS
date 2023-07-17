@@ -81,6 +81,8 @@ RTC_CALL bool       DMS_CONV DMS_CoalesceHeap(std::size_t requiredSize);
 
 // not called from outside
 
+void MsgDispatch(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
+
 RTC_CALL void DMS_ASyncContinueCheck();
 RTC_CALL void DBG_TraceStr(CharPtr msg);
 

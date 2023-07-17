@@ -305,6 +305,13 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
+	if (st == SeverityTypeID::ST_Nothing)
+	{
+		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
+		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
+		return;
+	}
+	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
 	eventlog_model->addText(st, msgCat, msg);

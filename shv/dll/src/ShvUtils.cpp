@@ -524,11 +524,6 @@ void CheckedGdiCall(bool result, CharPtr context)
 // section : Colors
 //----------------------------------------------------------------------
 
-void CheckColor(DmsColor clr)
-{
-	MG_CHECK(clr  <= MAX_COLOR);
-}
-
 COLORREF GetFocusClr() { return ::GetSysColor(COLOR_HIGHLIGHT); }
 COLORREF GetDefaultClr(UInt32 i) { return DmsColor2COLORREF(STG_Bmp_GetDefaultColor(i)); }
 COLORREF GetSelectedClr(SelectionID i) { return GetDefaultClr(i); }

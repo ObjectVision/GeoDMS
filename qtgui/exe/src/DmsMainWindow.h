@@ -24,13 +24,14 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
-class QMenu;
-class QTextEdit;
-class QTextBrowser;
-class QTreeView;
+class QComboBox;
 class QDialog;
 class QLabel;
 class QMdiSubWindow;
+class QMenu;
+class QTextBrowser;
+class QTextEdit;
+class QTreeView;
 QT_END_NAMESPACE
 
 struct TreeItem;
@@ -39,9 +40,9 @@ class DmsDetailPages;
 class DmsTreeView;
 class DmsEventLog;
 class DmsModel;
-class DmsGuiOptionsWindow;
-class DmsAdvancedOptionsWindow;
-class DmsConfigOptionsWindow;
+//class DmsGuiOptionsWindow;
+//class DmsAdvancedOptionsWindow;
+//class DmsConfigOptionsWindow;
 class DmsExportWindow;
 class EventLogModel;
 
@@ -231,6 +232,7 @@ private:
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();
+    void updateToolsMenu();
     void updateWindowMenu();
     void updateCaption();
     void updateToolbar();
@@ -288,9 +290,9 @@ public:
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsExportWindow> m_export_window;
     QPointer<DmsErrorWindow> m_error_window;
-    QPointer<DmsGuiOptionsWindow> m_gui_options_window;
-    QPointer<DmsAdvancedOptionsWindow> m_advanced_options_window;
-    QPointer<DmsConfigOptionsWindow> m_config_options_window;
+//    QPointer<DmsGuiOptionsWindow> m_gui_options_window;
+//    QPointer<DmsAdvancedOptionsWindow> m_advanced_options_window;
+//    QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;

@@ -3,15 +3,55 @@
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
 #include "StgBase.h"
+#include "AbstrDataItem.h"
 
-#include <QCheckBox>;
-#include <QPushButton>;
-#include <QSlider>;
-#include <QLabel>;
-#include <QFileDialog>;
-#include <QLineEdit>;
-#include <QGridLayout>;
-#include <QColorDialog>;
+#include <QCheckBox>
+#include <QPushButton>
+#include <QSlider>
+#include <QLabel>
+#include <QFileDialog>
+#include <QLineEdit>
+#include <QGridLayout>
+#include <QColorDialog>
+
+struct colorOptionAttr {
+
+    CharPtr regKey;
+    CharPtr descr;
+    DmsColor color;
+    UInt32  palette_index = 0;
+    QColor AsQColor() 
+    {
+        return QColor(GetRed(color), GetGreen(color),GetBlue(color));
+    }
+
+    void apply(DmsColor clr)
+    {
+        clr &= 0xFFFFFF;
+        CheckColor(clr);
+        this->color = clr;
+        if (this->palette_index)
+            STG_Bmp_SetDefaultColor(this->palette_index, clr);
+    }
+};
+
+static DmsColor salmon = CombineRGB(255, 128, 114);
+static DmsColor darkGrey = CombineRGB(50, 50, 50);
+static DmsColor cool_blue = CombineRGB(82, 136, 219);
+static DmsColor cool_green = CombineRGB(0, 153, 51);
+static DmsColor white = CombineRGB(255, 255, 255);
+
+colorOptionAttr sColorOptionData[(int)color_option::count] =
+{
+    { "Valid", "Pick the TreeItem valid status color", cool_blue},
+    { "Invalidated", "Pick the color for not calcualate, status", salmon},
+    { "Failed", "Pick the TreeItem failed status color", DmsRed},
+    { "Exogenic", "Pick the color for exogenic items", cool_green},
+    { "Operator", "Pick the color for template items", darkGrey},
+    { "Background", "Pick the Mapview background color", white, 256},
+    { "RampStart", "Pick the classification ramp start color", DmsRed, 257},
+    { "RampEnd", "Pick the classification ramp end color", DmsBlue, 258},
+};
 
 void setSF(bool value, UInt32& rsf, UInt32 flag)
 {
@@ -30,9 +70,14 @@ auto backgroundColor2StyleSheet(QColor clr) -> QString
      + ") }";
 }
 
-void setBackgroundColor(QPushButton* btn, QColor clr)
+void setBackgroundQColor(QPushButton* btn, QColor clr)
 {
     btn->setStyleSheet(backgroundColor2StyleSheet(clr));
+}
+
+void setBackgroundColor(QPushButton* btn, color_option co)
+{
+    setBackgroundQColor(btn, sColorOptionData[(int)co].AsQColor());
 }
 
 auto getBackgroundColor(QPushButton* btn) -> QColor
@@ -40,46 +85,82 @@ auto getBackgroundColor(QPushButton* btn) -> QColor
     return btn->palette().color(QPalette::ColorRole::Button);
 }
 
-void DmsGuiOptionsWindow::changeColor(QPushButton* btn, const QString& title )
+void saveBackgroundColor(QPushButton* btn, color_option co)
+{
+    auto qClr = getBackgroundColor(btn).rgb();
+    auto clr = CombineRGB(qRed(qClr), qGreen(qClr), qBlue(qClr));
+
+    auto& colorOptionData = sColorOptionData[(int)co];
+    SetGeoDmsRegKeyDWord(colorOptionData.regKey, clr, "Colors");
+    colorOptionData.apply(clr);
+}
+
+void LoadColors()
+{
+    for (color_option co = color_option(0); co != color_option::count; reinterpret_cast<int&>(co)++)
+    {
+        auto& colorOptionData = sColorOptionData[(int)co];
+        auto clr = GetGeoDmsRegKeyDWord(colorOptionData.regKey, colorOptionData.color, "Colors");
+        colorOptionData.apply(clr);
+    }
+}
+
+DmsColor GetUserColor(color_option co)
+{
+    assert(co < color_option::count);
+    return sColorOptionData[(int)co].color;
+}
+
+QColor GetUserQColor(color_option co)
+{
+    auto clr = GetUserColor(co);
+    return QColor(GetRed(clr), GetGreen(clr), GetBlue(clr));
+}
+
+void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 {
     auto old_color = getBackgroundColor(btn);
-    auto new_color = QColorDialog::getColor(old_color, this, title);
+    auto new_color = QColorDialog::getColor(old_color, this, sColorOptionData[(int)co].descr);
+    if (not new_color.isValid())
+        return;
     if (new_color == old_color)
         return;
 
-    setBackgroundColor(btn, new_color);
-    m_changed = true;
+    setBackgroundQColor(btn, new_color);
+    setChanged(true);
 }
 
+
 //======== BEGIN GUI OPTIONS WINDOW ========
+
 void DmsGuiOptionsWindow::changeValidTreeItemColor()
 {
-    changeColor(m_valid_color_ti_button, "Pick the TreeItem valid status color");
+    changeColor(m_valid_color_ti_button, color_option::tv_valid);
 }
 
 void DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor()
 {
-    changeColor(m_not_calculated_color_ti_button, "Pick the TreeItem metainfo ready status color");
+    changeColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
  }
 
 void DmsGuiOptionsWindow::changeFailedTreeItemColor()
 {
-    changeColor(m_failed_color_ti_button, "Pick the TreeItem failed status color");
+    changeColor(m_failed_color_ti_button, color_option::tv_failed);
 }
 
 void DmsGuiOptionsWindow::changeMapviewBackgroundColor()
 {
-    changeColor(m_background_color_button, "Pick the Mapview background color");
+    changeColor(m_background_color_button, color_option::mapview_background);
 }
 
 void DmsGuiOptionsWindow::changeClassificationStartColor()
 {
-    changeColor(m_start_color_button, "Pick the classification ramp start color");
+    changeColor(m_start_color_button, color_option::mapview_ramp_start);
 }
 
 void DmsGuiOptionsWindow::changeClassificationEndColor()
 {
-    changeColor(m_end_color_button, "Pick the classification ramp end color");
+    changeColor(m_end_color_button, color_option::mapview_ramp_end);
 }
 
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
@@ -147,23 +228,24 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     m_ok = new QPushButton("Ok", this);
     m_ok->setMaximumSize(75, 30);
     m_ok->setAutoDefault(true);
-    m_ok->setDefault(true);
     m_apply = new QPushButton("Apply", this);
     m_apply->setMaximumSize(75, 30);
-    m_apply->setDisabled(true);
-
     m_undo = new QPushButton("Undo", this);
-    m_undo->setDisabled(true);
+    m_undo->setMaximumSize(75, 30);
+
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::undo);
-    m_undo->setMaximumSize(75, 30);
+    connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::restoreOptions);
+
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 12, 0, 1, 3);
 
     restoreOptions();
+
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
 }
 
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
@@ -181,9 +263,14 @@ void DmsGuiOptionsWindow::apply()
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
     SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
 
-    STG_Bmp_SetDefaultColor(CI_BACKGROUND, getBackgroundColor(m_background_color_button).rgba());
-    STG_Bmp_SetDefaultColor(CI_RAMPSTART, getBackgroundColor(m_start_color_button).rgba());
-    STG_Bmp_SetDefaultColor(CI_RAMPEND, getBackgroundColor(m_end_color_button).rgba());
+    saveBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
+    saveBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
+    saveBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+
+    saveBackgroundColor(m_background_color_button, color_option::mapview_background);
+    saveBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
+    saveBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
+
     setChanged(false);
 }
 
@@ -193,19 +280,15 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
-//    setBackgroundColor(m_valid_color_ti_button, x);
-//    setBackgroundColor(m_not_calculated_color_ti_button, x);
-//    setBackgroundColor(m_failed_color_ti_button, x);
-    setBackgroundColor(m_background_color_button, STG_Bmp_GetDefaultColor(CI_BACKGROUND));
-    setBackgroundColor(m_start_color_button, STG_Bmp_GetDefaultColor(CI_RAMPSTART));
-    setBackgroundColor(m_end_color_button, STG_Bmp_GetDefaultColor(CI_RAMPEND));
+
+    setBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
+    setBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
+    setBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+    setBackgroundColor(m_background_color_button, color_option::mapview_background);
+    setBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
+    setBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
 
     setChanged(false);
-}
-
-void DmsGuiOptionsWindow::undo()
-{
-    restoreOptions();
 }
 
 void DmsGuiOptionsWindow::ok()
@@ -337,7 +420,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsAdvancedOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::undo);
+    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::restoreOptions);
     m_undo->setMaximumSize(75, 30);
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
@@ -347,39 +430,46 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     restoreOptions();
 
     setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
+}
+
+struct string_option_attr {
+    CharPtr reg_key, default_value;
+};
+
+const string_option_attr sStringOptionsData[string_option::Count] = {
+    {"LocalDataDir", "C:\\LocalData"},
+    {"SourceDataDir", "C:\\SourceData"},
+    {"DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L"},
+};
+
+void setInitialStringValue(string_option so, QLineEdit* widget)
+{
+    const auto& stringOptionsData = sStringOptionsData[so];
+    auto regKeyName = stringOptionsData.reg_key;
+    auto regKey = GetGeoDmsRegKey(regKeyName);
+    if (regKey.empty())
+    {
+        regKey = stringOptionsData.default_value;
+        SetGeoDmsRegKeyString(regKeyName, regKey.c_str());
+    }
+    widget->setText(regKey.c_str());
+
 }
 
 void DmsAdvancedOptionsWindow::setInitialLocalDataDirValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("LocalDataDir", "C:\\LocalData");
-        ld_reg_key = GetGeoDmsRegKey("LocalDataDir");
-    }
-    m_ld_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::LocalDataDir, m_ld_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialSourceDatDirValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("SourceDataDir", "C:\\SourceData");
-        ld_reg_key = GetGeoDmsRegKey("SourceDataDir");
-    }
-    m_sd_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::SourceDataDir, m_sd_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialEditorValue()
 {
-    auto ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    if (ld_reg_key.empty())
-    {
-        SetGeoDmsRegKeyString("DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L");
-        ld_reg_key = GetGeoDmsRegKey("DmsEditor");
-    }
-    m_editor_input->setText(ld_reg_key.c_str());
+    setInitialStringValue(string_option::StartEditorCmd, m_editor_input);
 }
 
 void DmsAdvancedOptionsWindow::setInitialMemoryFlushTresholdValue()
@@ -411,8 +501,7 @@ void DmsAdvancedOptionsWindow::restoreOptions()
         m_pp3->setChecked(IsMultiThreaded3());
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
-    m_apply->setDisabled(true);
-    m_undo->setDisabled(true);
+    setChanged(false);
 }
 
 void DmsAdvancedOptionsWindow::apply()
@@ -445,22 +534,15 @@ void DmsAdvancedOptionsWindow::ok()
 {
     if (m_changed)
         apply();
-    setChanged(false);
     done(QDialog::Accepted);
 }
 
-void DmsAdvancedOptionsWindow::undo()
-{
-    restoreOptions();
-    setChanged(false);
-}
-
-void DmsAdvancedOptionsWindow::onStateChange(int state)
+void DmsAdvancedOptionsWindow::onStateChange()
 {
     setChanged(true);
 }
 
-void DmsAdvancedOptionsWindow::onTextChange(const QString& text)
+void DmsAdvancedOptionsWindow::onTextChange()
 {
     setChanged(true);
 }
@@ -485,16 +567,212 @@ void DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog()
 void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
 {
     m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
-    m_apply->setDisabled(false);
-    m_changed = true;
+    setChanged(true);
 }
 //======== END ADVANCED OPTIONS WINDOW ========
 
+#include "Unit.h"
+#include "UnitClass.h"
+#include "utl/Registry.h"
+#include "DmsMainWindow.h"
+
 //======== BEGIN CONFIG OPTIONS WINDOW ========
+
+bool IsOverridableConfigSetting(const TreeItem* tiCursor)
+{
+    if (!IsDataItem(tiCursor))
+        return false;
+    auto adi = AsDataItem(tiCursor);
+    auto avu = adi->GetAbstrValuesUnit();
+    return avu->GetUnitClass() == Unit<SharedStr>::GetStaticClass();
+}
+
+
 DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(QString("Config options"));
     setMinimumSize(800, 400);
+
+    auto grid_layout = new QGridLayout(this);
+    grid_layout->setVerticalSpacing(0);
+
+    grid_layout->addWidget(new QLabel("Option", this), 0, 0);
+    grid_layout->addWidget(new QLabel("Override (Y/N)", this), 0, 1);
+    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
+
+    unsigned int nrRows = 1;
+
+    auto tiCursor = getFirstOverridableOption();
+    if (tiCursor)
+    {
+        GuiReadLock lockHolder;
+        for (; tiCursor; tiCursor = tiCursor->GetNextItem())
+        {
+            if (!IsOverridableConfigSetting(tiCursor))
+                continue;
+            auto adi = AsDataItem(tiCursor);
+            
+//            auto box_layout = new QHBoxLayout(this);
+            auto tiName = SharedStr(tiCursor->GetName());
+            auto label= new QLabel(tiName.c_str(), this);
+
+            auto option_cbx = new QCheckBox(this);
+            auto option_input = new QLineEdit(this);
+            connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::onCheckboxToggle);
+            connect(option_input, &QLineEdit::textChanged, this, &DmsConfigOptionsWindow::onTextChange);
+
+            grid_layout->addWidget(label, nrRows, 0);
+            grid_layout->addWidget(option_cbx, nrRows, 1);
+            grid_layout->addWidget(option_input, nrRows, 2);
+
+            SharedDataItemInterestPtr data_item = adi;
+
+            PreparedDataReadLock drl(adi); // interestCount held by m_Options;
+            auto configuredValue = data_item->GetRefObj()->AsString(0, lockHolder);
+
+            m_Options.emplace_back(ConfigOption{ std::move(tiName), std::move(configuredValue), option_cbx, option_input });
+
+            nrRows++;
+        }
+    }
+
+    // ok/apply/cancel buttons
+    auto box_layout = new QHBoxLayout(this);
+    m_ok = new QPushButton("Ok", this);
+    m_ok->setMaximumSize(75, 30);
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
+    m_apply = new QPushButton("Apply", this);
+    m_apply->setMaximumSize(75, 30);
+    m_undo = new QPushButton("Undo", this);
+    m_undo->setMaximumSize(75, 30);
+
+    connect(m_ok, &QPushButton::released, this, &DmsConfigOptionsWindow::ok);
+    connect(m_apply, &QPushButton::released, this, &DmsConfigOptionsWindow::apply);
+    connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::resetValues);
+
+    box_layout->addWidget(m_ok);
+    box_layout->addWidget(m_apply);
+    box_layout->addWidget(m_undo);
+    grid_layout->addLayout(box_layout, nrRows+1, 0, 1, 3);
+
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
+    resetValues();
 }
-//======== BEGIN CONFIG OPTIONS WINDOW ========
+
+auto DmsConfigOptionsWindow::getFirstOverridableOption() -> const TreeItem*
+{
+    static TokenID tConfigSettings = GetTokenID_mt("ConfigSettings");
+    static TokenID tOverridable = GetTokenID_mt("Overridable");
+
+    auto tiRoot = MainWindow::TheOne()->getRootTreeItem();
+    if (!tiRoot) return nullptr;
+
+    auto tiConfigSettings = tiRoot->GetSubTreeItemByID(tConfigSettings);
+    if (!tiConfigSettings) return nullptr;
+
+    auto tiOverridableSettings = tiConfigSettings->GetSubTreeItemByID(tOverridable);
+    if (!tiOverridableSettings) return nullptr;
+
+    auto tiCursor = tiOverridableSettings->_GetFirstSubItem();
+    for (; tiCursor; tiCursor = tiCursor->GetNextItem())
+    {
+        if (IsOverridableConfigSetting(tiCursor))
+            return tiCursor;
+    }
+    return nullptr;
+}
+
+bool DmsConfigOptionsWindow::hasOverridableConfigOptions()
+{
+    auto firstOption = getFirstOverridableOption();
+    return firstOption != nullptr;
+}
+
+void DmsConfigOptionsWindow::setChanged(bool isChanged)
+{
+    m_changed = isChanged;
+    m_apply->setEnabled(isChanged);
+    m_undo->setEnabled(isChanged);
+}
+
+void DmsConfigOptionsWindow::resetValues()
+{
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRO regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            option.override_cbx->setChecked(valueExists);
+        }
+    }
+    updateAccordingToCheckboxStates();
+
+    setChanged(false);
+}
+
+void DmsConfigOptionsWindow::updateAccordingToCheckboxStates()
+{
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRO regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool valueOverridden = option.override_cbx->isChecked();
+            if (valueOverridden && valueExists)
+                option.override_value->setText(regLM.ReadString(option.name.c_str()).c_str());
+            else
+                option.override_value->setText(option.configured_value.c_str());
+
+            option.override_value->setEnabled(valueOverridden);
+        }
+    }
+}
+
+void DmsConfigOptionsWindow::onTextChange()
+{
+    setChanged(true);
+}
+
+void DmsConfigOptionsWindow::onCheckboxToggle()
+{
+    updateAccordingToCheckboxStates();
+    setChanged(true);
+}
+
+void DmsConfigOptionsWindow::apply()
+{
+    if (m_Options.size())
+    {
+        RegistryHandleLocalMachineRW regLM;
+        for (auto& option : m_Options)
+        {
+            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool valueOverridden = option.override_cbx->isChecked();
+            if (valueOverridden)
+            {
+                QByteArray overrideValue = option.override_value->text().toUtf8();
+                regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+            }
+            else if (valueExists)
+                regLM.DeleteValue(option.name.c_str());
+        }
+    }
+
+    setChanged(false);
+}
+
+
+void DmsConfigOptionsWindow::ok()
+{
+    if (m_changed)
+        apply();
+    done(QDialog::Accepted);
+}
+
+
+//======== END CONFIG OPTIONS WINDOW ========

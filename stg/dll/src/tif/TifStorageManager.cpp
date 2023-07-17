@@ -163,13 +163,13 @@ void TiffSM::ReadGridCounts(const TifImp& imp, const StgViewPortInfo& vpi, Abstr
 {
 	DBG_START("TiffSM", "ReadGridCounts", true);
 
-	Grid::ReadGridCounts(imp, vpi, ado, t);
+	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 void TiffSM::ReadGridData(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridData", false);
-	Grid::ReadGridData(imp, vpi, ado, t);
+	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 bool TiffSM::ReadPalette(const TifImp& imp, AbstrDataObject* ado)
@@ -243,7 +243,7 @@ void TiffSM::WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeIt
 
 	WriteGeoRefFile(adi, replaceFileExtension(GetNameStr().c_str(), "tfw"));
 
-	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType);
+	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType, GetNameStr().c_str());
 }
 
 void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi)

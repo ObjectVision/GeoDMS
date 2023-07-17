@@ -139,7 +139,8 @@ RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
 RTC_CALL std::vector<std::string> GetGeoDmsRegKeyMultiString(CharPtr key);
 
-RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw);
+RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section = "");
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section = "");
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str);
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings);
 

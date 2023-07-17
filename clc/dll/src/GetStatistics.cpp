@@ -329,19 +329,24 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 
 		assert(item->HasInterest()); // PRECONDITION
 
-		assert(donePtr);
-		assert(*donePtr);
-		if (item != s_LastItem || (itemIsValid ? itemLastChangeTS : TimeStamp(0)) != s_LastChangeTS)
+		assert(!donePtr || *donePtr);
+		bool cacheReady = item == s_LastItem && (itemIsValid ? itemLastChangeTS : TimeStamp(0)) == s_LastChangeTS;
+		while (!cacheReady)
 		{
-			s_LastItem = 0; // invalidate cache contents during processing	
+			s_LastItem = nullptr; // invalidate cache contents during processing	
 
-			*donePtr = NumericDataItem_GetStatistics(item, statisticsBuffer);
-		}
-
-		if (*donePtr)
-		{
-			s_LastItem = item;
-			s_LastChangeTS = itemLastChangeTS;
+			cacheReady = NumericDataItem_GetStatistics(item, statisticsBuffer);
+			if (cacheReady)
+			{
+				s_LastItem = item;
+				s_LastChangeTS = itemLastChangeTS;
+				break;
+			}
+			if (donePtr)
+			{
+				*donePtr = false;
+				break;
+			}
 		}
 
 		return &*statisticsBuffer.begin();

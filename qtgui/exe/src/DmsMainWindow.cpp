@@ -255,6 +255,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
 
     scheduleUpdateToolbar();
+
+    LoadColors();
 }
 
 MainWindow::~MainWindow()
@@ -873,26 +875,22 @@ void MainWindow::toggle_currentitembar()
 
 void MainWindow::gui_options()
 {
-    if (!m_gui_options_window)
-        m_gui_options_window = new DmsGuiOptionsWindow(this);
-
-    m_gui_options_window->show();
+    // Modal
+    auto optionsWindow = new DmsGuiOptionsWindow(this);
+    optionsWindow->show();
 }
 
 void MainWindow::advanced_options()
 {
-    if (!m_advanced_options_window)
-        m_advanced_options_window = new DmsAdvancedOptionsWindow(this);
-
-    m_advanced_options_window->show();
+    // Modal
+    auto optionsWindow = new DmsAdvancedOptionsWindow(this);
+    optionsWindow->show();
 }
 
 void MainWindow::config_options()
 {
-    if (!m_config_options_window)
-        m_config_options_window = new DmsConfigOptionsWindow(this);
-
-    m_config_options_window->show();
+    auto optionsWindow = new DmsConfigOptionsWindow (this);
+    optionsWindow->show();
 }
 
 void MainWindow::code_analysis_set_source()
@@ -1449,7 +1447,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     {
         assert(s_CurrMainWindow == mainWindow);
         mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
-        mainWindow->m_detail_pages->sheduleDrawPage();
+        mainWindow->m_detail_pages->onTreeItemStateChange();
     }
 }
 
@@ -1662,6 +1660,8 @@ void MainWindow::createActions()
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
     menuBar()->addMenu(m_tools_menu.get());
+    connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateToolsMenu);
+
     m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
     m_tools_menu->addAction(m_gui_options_action.get());
@@ -1780,7 +1780,12 @@ void MainWindow::updateViewMenu()
 
 }
 
-void MainWindow::updateWindowMenu() 
+void MainWindow::updateToolsMenu()
+{
+    m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
+}
+
+void MainWindow::updateWindowMenu()
 {
     for (auto* swPtr : m_CurrWindowActions)
     {

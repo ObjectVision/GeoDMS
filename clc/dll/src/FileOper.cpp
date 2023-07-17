@@ -270,7 +270,7 @@ namespace
 
 	ConstParamOperator<Float64> cpVersion(&cog_Version, DMS_GetVersionNumber());
 	ConstParamOperator<UInt32>  cpMajorVNr(&cog_MajorVNr, DMS_GetMajorVersionNumber());
-	ConstParamOperator<UInt32>  cpMinorVNr(&cog_MinorVNr, DMS_GetMajorVersionNumber());
+	ConstParamOperator<UInt32>  cpMinorVNr(&cog_MinorVNr, DMS_GetMinorVersionNumber());
 	ConstParamOperator<UInt32>  cpPatchNr(&cog_PNr, DMS_GetPatchNumber());
 
 	ConstParamOperator<SharedStr, CharPtr> cpPlatform(&cog_Platform, DMS_GetPlatform());

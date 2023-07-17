@@ -121,7 +121,7 @@ void AsciiStorageManager::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataOb
 		throwItemError("cannot open file for reading");
 
 	const ValueClass* streamType = GetStreamType(borrowedReadResultHolder);
-	dms_assert(streamType);
+	assert(streamType);
 
 	// Pick up data type
 	UInt32 bitsPerPixel = streamType->GetBitSize();

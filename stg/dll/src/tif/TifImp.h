@@ -93,7 +93,7 @@ public:
 	STGIMPL_CALL UPoint GetTileSize()      const;
 	STGIMPL_CALL SizeT  GetTileByteSize()  const; // the # bytes in a row - aligned tile.
 
-	static STGIMPL_CALL void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName);
+	static STGIMPL_CALL void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName);
 	static STGIMPL_CALL void UnpackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel);
 	static STGIMPL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th);
 	static void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th) {}

@@ -1013,26 +1013,26 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 		// parent ?
 		auto context = src->GetTreeParent();
-		if (WasInFailed(context))
-			return { context, {} };
-
-		// using refs ?
-		if (context && src->CurrHasUsingCache())
-		{
-			auto usingCache = src->GetUsingCache();
-			assert(usingCache);
-			for (auto usingUrl : usingCache->UsingUrls())
-			{
-				auto usingUrlStr = SharedStr(usingUrl);
-				auto ur = context->FindBestItem(usingUrlStr);
-				if (ur.first && WasInFailed(ur.first))
-					return ur;
-			}
-		}
-
-		// explicit Suppliers ?
 		if (context)
 		{
+			if (WasInFailed(context))
+				return { context, {} };
+
+			// using refs ?
+			if (src->CurrHasUsingCache())
+			{
+				auto usingCache = src->GetUsingCache();
+				assert(usingCache);
+				for (auto usingUrl : usingCache->UsingUrls())
+				{
+					auto usingUrlStr = SharedStr(usingUrl);
+					auto ur = context->FindBestItem(usingUrlStr);
+					if (ur.first && WasInFailed(ur.first))
+						return ur;
+				}
+			}
+
+			// explicit Suppliers ?
 			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
 			if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
 			{
