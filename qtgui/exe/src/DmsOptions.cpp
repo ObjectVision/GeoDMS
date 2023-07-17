@@ -121,6 +121,8 @@ void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 {
     auto old_color = getBackgroundColor(btn);
     auto new_color = QColorDialog::getColor(old_color, this, sColorOptionData[(int)co].descr);
+    if (not new_color.isValid())
+        return;
     if (new_color == old_color)
         return;
 
