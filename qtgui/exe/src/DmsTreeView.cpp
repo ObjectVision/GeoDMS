@@ -221,8 +221,7 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
 	auto co = getColorOption(ti);
-	auto clr = GetUserColor(co);
-	return QColor(clr);
+	return GetUserQColor(co);
 }
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const

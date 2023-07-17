@@ -30,6 +30,7 @@ enum class color_option
 
 void LoadColors();
 DmsColor GetUserColor(color_option co);
+QColor GetUserQColor(color_option co);
 
 class QCheckBox;
 class QPushButton;
