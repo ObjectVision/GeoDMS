@@ -598,8 +598,8 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     grid_layout->setVerticalSpacing(0);
 
     grid_layout->addWidget(new QLabel("Option", this), 0, 0);
-    grid_layout->addWidget(new QLabel("Override", this), 0, 1);
-    grid_layout->addWidget(new QLabel("Configured or User and LocalMachine specific overridden value", this), 0, 2);
+    grid_layout->addWidget(new QLabel("Override (Y/N)", this), 0, 1);
+    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
 
     unsigned int nrRows = 1;
 
