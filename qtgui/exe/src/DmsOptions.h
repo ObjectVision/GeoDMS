@@ -54,7 +54,6 @@ private slots:
     void changeClassificationEndColor();
     void ok();
     void apply();
-    void undo();
     void restoreOptions();
 
     void changeColor(QPushButton*, color_option co);
@@ -90,7 +89,6 @@ private slots:
     void restoreOptions();
     void ok();
     void apply();
-    void undo();
     void onStateChange();
     void onTextChange();
     void setLocalDataDirThroughDialog();

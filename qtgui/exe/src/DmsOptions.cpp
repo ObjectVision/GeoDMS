@@ -235,7 +235,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::undo);
+    connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::restoreOptions);
 
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
@@ -244,7 +244,6 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 
     restoreOptions();
 
-    setChanged(false);
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
 }
@@ -290,11 +289,6 @@ void DmsGuiOptionsWindow::restoreOptions()
     setBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
 
     setChanged(false);
-}
-
-void DmsGuiOptionsWindow::undo()
-{
-    restoreOptions();
 }
 
 void DmsGuiOptionsWindow::ok()
@@ -426,7 +420,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
     connect(m_apply, &QPushButton::released, this, &DmsAdvancedOptionsWindow::apply);
-    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::undo);
+    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::restoreOptions);
     m_undo->setMaximumSize(75, 30);
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
@@ -507,8 +501,7 @@ void DmsAdvancedOptionsWindow::restoreOptions()
         m_pp3->setChecked(IsMultiThreaded3());
         m_tracelog->setChecked(GetRegStatusFlags() & RSF_TraceLogFile);
     }
-    m_apply->setDisabled(true);
-    m_undo->setDisabled(true);
+    setChanged(false);
 }
 
 void DmsAdvancedOptionsWindow::apply()
@@ -541,14 +534,7 @@ void DmsAdvancedOptionsWindow::ok()
 {
     if (m_changed)
         apply();
-    setChanged(false);
     done(QDialog::Accepted);
-}
-
-void DmsAdvancedOptionsWindow::undo()
-{
-    restoreOptions();
-    setChanged(false);
 }
 
 void DmsAdvancedOptionsWindow::onStateChange()
@@ -581,8 +567,7 @@ void DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog()
 void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
 {
     m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
-    m_apply->setDisabled(false);
-    m_changed = true;
+    setChanged(true);
 }
 //======== END ADVANCED OPTIONS WINDOW ========
 
