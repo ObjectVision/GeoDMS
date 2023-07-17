@@ -32,6 +32,7 @@
 
 #include "ser/FileStreamBuff.h"
 #include "stg/AbstrStoragemanager.h"
+#include "GridStorageManager.h"
 #include "TicInterface.h"
 #include "utl/splitPath.h"
 
@@ -300,6 +301,18 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     if (item->IsFailed())
         return false;
 
+    if (IsUnit(item)) // exclude unit that is grid domain
+    {
+        if (IsGridDomain(AsUnit(item)))
+            return false;
+    }
+
+    if (IsDataItem(item)) // exclude dataitem with grid domain
+    {
+        if (HasGridDomain(AsDataItem(item)))
+            return false;
+    }
+
     // category Table
     if (CurrentItemCanBeExportedAsTableOrDatabase(item))
         return true;
@@ -322,7 +335,7 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
 
     if (!IsDataItem(item))
     {
-        if (IsUnit(item))
+        /*if (IsUnit(item))
         {
             auto domainCandidate = AsUnit(item);
             if (!domainCandidate->CanBeDomain())
@@ -331,7 +344,7 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
                 if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
                     if (currentItemCanBeExportedToRaster(subItem))
                         return true;
-        }
+        }*/
         return false;
     }
 
