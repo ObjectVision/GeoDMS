@@ -183,19 +183,17 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	if (!ti)
 		return QVariant();
+	bool isTemplate = ti->IsTemplate();
 	bool isInTemplate = ti->InTemplate();
-	if (isInTemplate)
-	{
-		bool isTemplate = ti->IsTemplate();
+	if (isTemplate)
 		return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
-	}
 
 	auto vsflags = SHV_GetViewStyleFlags(ti);
-	if (vsflags & ViewStyleFlags::vsfMapView) { return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));}
-	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfTableView) { return QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
+	if (vsflags & ViewStyleFlags::vsfMapView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfTableView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
 	else { return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp")); } 
 }
 
@@ -206,7 +204,7 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 	bool isInTemplate = ti->InTemplate();
 
 	static auto salmon = QColor(255, 128, 114);
-	static auto darkGrey = QColor(50, 50, 50);
+	static auto darkGrey = QColor(100, 100, 100);
 	static auto cool_blue = QColor(82, 136, 219);
 	static auto cool_green = QColor(0, 153, 51);
 
