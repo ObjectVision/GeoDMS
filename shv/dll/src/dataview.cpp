@@ -1540,56 +1540,6 @@ IMPL_RTTI_CLASS(DataView);
 
 #include "ShvDllInterface.h"
 
-LRESULT CALLBACK DataViewWndProc(
-	HWND hWnd,
-	UINT uMsg,
-	WPARAM wParam,
-	LPARAM lParam
-)
-{
-	{
-		CppTranslatorContext dispErrorContext(&DMS_DisplayError);
-
-		LRESULT result = 0;
-		DMS_CALL_BEGIN
-
-			DBG_START("DataViewWndProc", "", MG_DEBUG_WNDPROC);
-				DBG_TRACE(("msg: %x(%x, %x)", uMsg, wParam, lParam));
-
-			if (uMsg == WM_CREATE)
-			{
-				LPVOID lpCreateParams = ((LPCREATESTRUCT)lParam)->lpCreateParams;
-				DataView* view = reinterpret_cast<DataView*>(lpCreateParams);
-				SetWindowLongPtr(hWnd, 0, (LONG_PTR)view);
-			}
-
-			DataView* view = reinterpret_cast<DataView*>( GetWindowLongPtr(hWnd, 0) ); // retrieve pointer to DataView obj.
-			
-			if (view && SHV_DataView_DispatchMessage(view, hWnd, uMsg, wParam, lParam, &result) )
-				return result;
-
-			if (uMsg == WM_DESTROY)
-			{
-				SHV_DataView_Destroy(view); // delete view; 
-				view = 0;
-				SetWindowLongPtr(hWnd, 0, (LONG_PTR)view);
-			}
-			goto defWindowProc;
-
-		DMS_CALL_END
-		return result;
-	}
-defWindowProc:
-	if (uMsg >= WM_KEYFIRST  && uMsg <= WM_KEYLAST)
-	{
-		HWND parent = (HWND)GetWindowLongPtr(hWnd, GWLP_HWNDPARENT);
-		if (parent)
-			return SendMessage(parent, uMsg, wParam, lParam);
-	}
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
 	assert(m_ParentView == 0);

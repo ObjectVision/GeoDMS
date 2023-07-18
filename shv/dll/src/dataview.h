@@ -339,6 +339,4 @@ void Unkeep(DataView*);
 void OnDestroyDataView(DataView* self);
 void BroadcastCommandToAllDataViews(ToolButtonID id);
 
-SHV_CALL LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
 #endif // !defined(__SHV_DATAVIEW_H)
