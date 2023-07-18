@@ -186,7 +186,6 @@ public:
 //	composition
 	void BringToTop();
 	void DestroyWindow();
-	SHV_CALL void CreateViewWindow(DataView* parent, CharPtr caption);
 	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations

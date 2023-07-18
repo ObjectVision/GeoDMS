@@ -1575,77 +1575,20 @@ LRESULT CALLBACK DataViewWndProc(
 				SetWindowLongPtr(hWnd, 0, (LONG_PTR)view);
 			}
 			goto defWindowProc;
+
 		DMS_CALL_END
 		return result;
 	}
 defWindowProc:
+	if (uMsg >= WM_KEYFIRST  && uMsg <= WM_KEYLAST)
+	{
+		HWND parent = (HWND)GetWindowLongPtr(hWnd, GWLP_HWNDPARENT);
+		if (parent)
+			return SendMessage(parent, uMsg, wParam, lParam);
+	}
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-
-ATOM CreateDmsClass(HINSTANCE instance)
-{
-	static ATOM dmsAtom = 0;
-	if (!dmsAtom)
-	{
-		WNDCLASSEX wndClassData;
-		wndClassData.cbSize        = sizeof(WNDCLASSEX);
-		wndClassData.style         = CS_DBLCLKS;
-		wndClassData.lpfnWndProc   = &DataViewWndProc;
-		wndClassData.cbClsExtra    = 0;
-		wndClassData.cbWndExtra    = sizeof(DataView*);
-		wndClassData.hInstance     = instance;
-		wndClassData.hIcon         = NULL;
-		wndClassData.hCursor       = NULL;
-		wndClassData.hbrBackground = HBRUSH(COLOR_WINDOW+1);
-		wndClassData.lpszMenuName  = NULL;
-		wndClassData.lpszClassName = "DmsWnd";
-		wndClassData.hIconSm       = NULL;
-
-		dmsAtom = RegisterClassEx(&wndClassData);
-		if (!dmsAtom)
-			throwLastSystemError("GetDmsAtom");
-	}
-	return dmsAtom;
-}
-
-void DataView::CreateViewWindow(DataView* parent, CharPtr caption)
-{
-	dms_assert(parent);
-	HINSTANCE instance = GetInstance(parent->GetHWnd());
-
-	GPoint windowSize(
-		600, // width
-		400  // height
-	); 
-
-	MakeLowerBound(windowSize, TPoint2GPoint(GetContents()->CalcMaxSize()));
-
-	DWORD dwStyle = WS_OVERLAPPEDWINDOW|WS_VISIBLE; // implies WM_OVERLAPPED|WS_CAPTION|WM_SYSMENU|WS_SIZEBOX|WS_MINIMIZEBOX|WS_MAXIMIZEBOX
-
-	GRect clientRect(GPoint(0,0), windowSize);
-	AdjustWindowRect(&clientRect, dwStyle, false);
-	windowSize = clientRect.Size();
-
-	CreateDmsClass(instance);
-	HWND hWnd = CreateWindow(
-		"DmsWnd", 
-		caption, 
-		dwStyle,
-		100,  // x
-		100,  // y
-		windowSize.x,  // width
-		windowSize.y,  // height
-		parent->GetHWnd(), 
-		NULL,          // hMenu
-		instance,      // hInstance
-		this           // lpParam
-	);
-	if (hWnd)
-		parent->AddChildView( this ); // fare well, get destroyed when window closes
-	else
-		throwLastSystemError("CreateViewWindow(%s)", caption);
-}
 
 bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 {
