@@ -70,13 +70,13 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
-    m_ignore = new QPushButton("Ignore");
+    m_ignore = new QPushButton(tr("&Ignore"));
     m_ignore->setMaximumSize(75, 30);
     m_ignore->setAutoDefault(true);
     m_ignore->setDefault(true);
 
 
-    m_reopen = new QPushButton("Reopen");
+    m_reopen = new QPushButton(tr("&Reopen"));
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
     m_reopen->setMaximumSize(75, 30);
