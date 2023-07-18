@@ -54,6 +54,7 @@ enum class MsgCategory {
 	wms,
 	progress,
 	memory,
+	commands,
 };
 
 RTC_CALL CharPtr AsString(MsgCategory);

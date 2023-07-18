@@ -32,6 +32,7 @@
 
 #include "ser/FileStreamBuff.h"
 #include "stg/AbstrStoragemanager.h"
+#include "GridStorageManager.h"
 #include "TicInterface.h"
 #include "utl/splitPath.h"
 
@@ -300,6 +301,18 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
     if (item->IsFailed())
         return false;
 
+    if (IsUnit(item)) // exclude unit that is grid domain
+    {
+        if (IsGridDomain(AsUnit(item)))
+            return false;
+    }
+
+    if (IsDataItem(item)) // exclude dataitem with grid domain
+    {
+        if (HasGridDomain(AsDataItem(item)))
+            return false;
+    }
+
     // category Table
     if (CurrentItemCanBeExportedAsTableOrDatabase(item))
         return true;
@@ -322,7 +335,7 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
 
     if (!IsDataItem(item))
     {
-        if (IsUnit(item))
+        /*if (IsUnit(item))
         {
             auto domainCandidate = AsUnit(item);
             if (!domainCandidate->CanBeDomain())
@@ -331,7 +344,7 @@ bool currentItemCanBeExportedToRaster(const TreeItem* item)
                 if (IsDataItem(subItem) && domainCandidate->UnifyDomain(AsDataItem(subItem)->GetAbstrDomainUnit()))
                     if (currentItemCanBeExportedToRaster(subItem))
                         return true;
-        }
+        }*/
         return false;
     }
 
@@ -351,7 +364,7 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf"}, driver_characteristics::disable_with_no_geometry |driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});

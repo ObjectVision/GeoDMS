@@ -76,7 +76,7 @@ public slots:
 
 private:
 	bool isScrolledToBottom();
-	QPointer<QTimer> m_throttle_timer;
+	//QPointer<QTimer> m_throttle_timer;
 };
 
 

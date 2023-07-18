@@ -185,20 +185,24 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	if (!ti)
 		return QVariant();
+	bool isTemplate = ti->IsTemplate();
 	bool isInTemplate = ti->InTemplate();
-	if (isInTemplate)
-	{
-		bool isTemplate = ti->IsTemplate();
+	bool isDataItem = IsDataItem(ti);
+
+	if (isTemplate)
 		return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
-	}
 
 	auto vsflags = SHV_GetViewStyleFlags(ti);
-	if (vsflags & ViewStyleFlags::vsfMapView) { return QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));}
-	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfTableView) { return QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfContainer) { return QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
-	else { return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp")); } 
+	if (vsflags & ViewStyleFlags::vsfMapView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfTableView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
+	else if (vsflags & ViewStyleFlags::vsfContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
+	else 
+	{
+		
+		return isDataItem ? isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
+	} 
 }
 
 color_option getColorOption(const TreeItem* ti)

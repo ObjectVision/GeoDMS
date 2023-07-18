@@ -173,9 +173,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
 	// throttle
-	m_throttle_timer = new QTimer(this);
-	m_throttle_timer->setSingleShot(true);
-	connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
+	//m_throttle_timer = new QTimer(this);
+	//m_throttle_timer->setSingleShot(true);
+	//connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
 
 	// filters
 	m_text_filter = std::make_unique<QLineEdit>();
@@ -284,10 +284,12 @@ void DmsEventLog::scrollToBottomThrottled()
 	if (!m_scroll_to_bottom)
 		return;
 
-	if (m_throttle_timer->isActive())
-		return;
+	scrollToBottomOnTimeout();
+	
+	//if (m_throttle_timer->isActive())
+	//	return;
 
-	m_throttle_timer->start(1000);
+	//m_throttle_timer->start(1000);
 }
 
 void DmsEventLog::toggleTextFilter(bool toggled)

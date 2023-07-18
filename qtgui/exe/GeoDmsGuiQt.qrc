@@ -63,5 +63,11 @@
         <file>res/images/TV_template.bmp</file>
         <file>res/images/DP_back.bmp</file>
         <file>res/images/DP_forward.bmp</file>
+        <file>res/images/TV_container_bw.bmp</file>
+        <file>res/images/TV_container_table_bw.bmp</file>
+        <file>res/images/TV_globe_bw.bmp</file>
+        <file>res/images/TV_palette_bw.bmp</file>
+        <file>res/images/TV_table_bw.bmp</file>
+        <file>res/images/TV_unit_transparant_bw.bmp</file>
     </qresource>
 </RCC>
