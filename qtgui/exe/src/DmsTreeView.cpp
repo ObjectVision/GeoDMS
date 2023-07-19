@@ -241,6 +241,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	if (!ti)
 		return QVariant();
 
+	SuspendTrigger::Resume();
 	if (!ti->Is(PS_MetaInfo) && !ti->WasFailed())
 	{
 		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");

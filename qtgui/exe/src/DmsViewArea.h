@@ -36,8 +36,10 @@ public:
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; } // QEvent::WinIdChange
     void UpdatePosAndSize();
 
-protected:
-    void paintEvent(QPaintEvent* event);
+    void on_rescale();
+
+//protected:
+//    void paintEvent(QPaintEvent* event);
 
 private:
     auto contentsRectInPixelUnits() -> QRect;

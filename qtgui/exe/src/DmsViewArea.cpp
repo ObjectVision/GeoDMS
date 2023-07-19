@@ -13,12 +13,7 @@
 #include "ShvDllInterface.h"
 #include "QEvent.h"
 
-LRESULT CALLBACK DataViewWndProc(
-    HWND hWnd,
-    UINT uMsg,
-    WPARAM wParam,
-    LPARAM lParam
-)
+LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     DBG_START("DataViewWndProc", "", MG_DEBUG_WNDPROC);
     DBG_TRACE(("msg: %x(%x, %x)", uMsg, wParam, lParam));
@@ -244,7 +239,7 @@ auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
 
 void QDmsViewArea::UpdatePosAndSize()
 {
-    auto rect= contentsRectInPixelUnits();
+    auto rect = contentsRectInPixelUnits();
 
     MoveWindow((HWND)m_DataViewHWnd
         , rect.x(), rect.y()
@@ -253,8 +248,17 @@ void QDmsViewArea::UpdatePosAndSize()
     );
 }
 
+void QDmsViewArea::on_rescale()
+{
+    auto rect = contentsRectInPixelUnits();
+
+    m_DataView->InvalidateRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
+}
+
+/*
 void QDmsViewArea::paintEvent(QPaintEvent* event)
 {
     UpdatePosAndSize();
     return QMdiSubWindow::paintEvent(event);
 }
+*/
