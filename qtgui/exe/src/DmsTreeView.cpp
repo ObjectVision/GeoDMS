@@ -43,6 +43,9 @@ namespace {
 		//if (p->m_State.GetProgress() < PS_MetaInfo)
 		//	MainWindow::TheOne()->m_treeview->waiter.start();
 
+		ObjectMsgGenerator thisMsgGenerator(ti, "update TreeView");
+		Waiter showWaitingStatus(&thisMsgGenerator);
+
 		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
 		while (si != ti)
@@ -348,6 +351,9 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 	auto root_node_index = rootIndex();
 	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
 		return {};
+
+	ObjectMsgGenerator thisMsgGenerator(new_current_item, "DmsTreeView::expandToCurrentItem");
+	Waiter showWaitingStatus(&thisMsgGenerator);
 
 	auto parent_index = root_node_index;
 	while (true)
