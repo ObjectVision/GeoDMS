@@ -110,7 +110,6 @@ void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
         setActiveDetailPage(ActiveDetailPage::NONE);
         setVisible(false);
     }
-    MainWindow::TheOne()->updateToolbar();
 
     scheduleDrawPage();
 }
