@@ -447,7 +447,9 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::Resume();
+//		SuspendTrigger::Resume();
+		SuspendTrigger::FencedBlocker blockSuspension;
+
 		dms_assert(item);
 		if (g_LastQueriedItem != item || g_LastAdminMode != HasAdminMode())
 		{

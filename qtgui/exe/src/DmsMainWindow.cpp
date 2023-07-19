@@ -387,7 +387,11 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
 
 void MainWindow::fileOpen() 
 {
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms").toLower();
+
+    if (configFileName.isEmpty())
+        return;
+
     LoadConfig(configFileName.toUtf8().data());
 }
 

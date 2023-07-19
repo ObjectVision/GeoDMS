@@ -598,7 +598,7 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     grid_layout->setVerticalSpacing(0);
 
     grid_layout->addWidget(new QLabel("Option", this), 0, 0);
-    grid_layout->addWidget(new QLabel("Override (Y/N)", this), 0, 1);
+    grid_layout->addWidget(new QLabel("Override(Y/N)", this), 0, 1);
     grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
 
     unsigned int nrRows = 1;
@@ -652,10 +652,14 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     connect(m_apply, &QPushButton::released, this, &DmsConfigOptionsWindow::apply);
     connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::resetValues);
 
+    QWidget* spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    grid_layout->addWidget(spacer, nrRows+1, 0, 1, 3);
+
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, nrRows+1, 0, 1, 3);
+    grid_layout->addLayout(box_layout, nrRows+2, 0, 1, 3);
 
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);

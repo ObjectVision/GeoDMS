@@ -758,11 +758,15 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		bool firstValue = true;
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
-			if (!showAll && !pd->HasNonDefaultValue(self))
-				continue;
 			if (pd->IsDepreciated())
 				continue;
+			if (!showAll && !pd->HasNonDefaultValue(self))
+				continue;
+			if (SuspendTrigger::DidSuspend())
+				return;
 			result = pd->GetValueAsSharedStr(self);
+			if (SuspendTrigger::DidSuspend())
+				return;
 		}
 		catch (...)
 		{
@@ -824,6 +828,9 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		while (cls)
 		{
 			WritePropValueRows(xmlTable, self, cls, showAll);
+			if (SuspendTrigger::DidSuspend())
+				return false;
+
 			cls = cls->GetBaseClass();
 		}
 

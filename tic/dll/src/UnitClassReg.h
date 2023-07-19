@@ -68,6 +68,7 @@ struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 		if (u->GetTSF(TSF_Categorical) == m_IsCategorical)
 			if (IsDataReady(u->GetCurrRangeItem()) || u->GetTSF(USF_HasConfigRange))
 			{
+				SuspendTrigger::FencedBlocker blockThis;
 				u->PrepareDataUsage(DrlType::Suspendible);
 				return u->GetRange();
 			}
