@@ -307,10 +307,12 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
+//	assert(IsMainThread());
 	if (st == SeverityTypeID::ST_Nothing)
 	{
 		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
-		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
+//		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
+		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
 	}
 	assert(IsMainThread());

@@ -104,6 +104,10 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* mes
         }
         return true; // Stop further processing of the message
     }
+    if (msg->message == WM_APP + 3)
+    {
+        ProcessMainThreadOpers();
+    }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
 }

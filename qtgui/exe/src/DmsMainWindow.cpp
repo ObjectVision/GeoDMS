@@ -1005,6 +1005,7 @@ void MainWindow::tableView()
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
+    assert(IsMainThread());
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
     dms_main_window->setStatusMessage(msg);
     return;
@@ -1188,6 +1189,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
 {
+    assert(IsMainThread());
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
@@ -1423,6 +1425,7 @@ void MainWindow::updateStatusMessage()
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
+    assert(IsMainThread());
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
     switch (notificationCode) {
     case NC_Deleting:
@@ -1455,6 +1458,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach)
 {
+    assert(IsMainThread());
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
 }
