@@ -40,11 +40,12 @@ namespace {
 		auto p = ti->GetTreeParent();
 		if (!p)
 			return 0;
-		//if (p->m_State.GetProgress() < PS_MetaInfo)
-		//	MainWindow::TheOne()->m_treeview->waiter.start();
 
+		SuspendTrigger::Resume();
 		ObjectMsgGenerator thisMsgGenerator(ti, "update TreeView");
-		Waiter showWaitingStatus(&thisMsgGenerator);
+		Waiter showWaitingStatus;
+		if (!p->Is(PS_MetaInfo) && !p->WasFailed())
+			showWaitingStatus.start(&thisMsgGenerator);
 
 		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
@@ -55,7 +56,6 @@ namespace {
 			++row;
 		}
 		return row;
-
 	}
 }
 
@@ -240,8 +240,14 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	if (!ti)
 		return QVariant();
-	ti->UpdateMetaInfo();
 
+	if (!ti->Is(PS_MetaInfo) && !ti->WasFailed())
+	{
+		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");
+		Waiter showWaitingStatus(&thisMsgGenerator);
+
+		ti->UpdateMetaInfo();
+	}
 	switch (role)
 	{
 	case Qt::DecorationRole: 
@@ -380,7 +386,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)//, waiter(false)
+	: QTreeView(parent)
 {
 	setRootIsDecorated(true);
 	setUniformRowHeights(true);
