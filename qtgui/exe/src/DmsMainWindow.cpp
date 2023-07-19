@@ -622,6 +622,9 @@ void MainWindow::createDetailPagesActions()
 
 void MainWindow::updateDetailPagesToolbar()
 {
+    if (m_detail_pages->isHidden())
+        return;
+
     // detail pages buttons
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -721,7 +724,7 @@ void MainWindow::updateToolbar()
         if (!is_command_enabled)
             action->setDisabled(true);
         
-        m_toolbar->addAction(action);
+        m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
 
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
