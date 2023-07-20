@@ -1642,7 +1642,7 @@ void MainWindow::createActions()
 
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
