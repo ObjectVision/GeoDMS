@@ -1,17 +1,17 @@
 //<HEADER> 
 /*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
+Data & Model Server (DMS) is a server written in C++ for DSS applications.
 Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+Copyright (C) 1998-2004  YUSE GSO Object Vision BV.
 
 Documentation on using the Data & Model Server software can be found at:
 http://www.ObjectVision.nl/DMS/
 
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
+See additional guidelines and notes in srv/dms/Readme-srv.txt
 
 This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
+modify it under the terms of the GNU General Public License version 2
 (the License) as published by the Free Software Foundation,
 provided that this entire header notice and readme-srv.txt is preserved.
 
@@ -75,7 +75,7 @@ template <typename T>
 struct raw_constructed : std::is_trivially_constructible<T> {};
 
 
-template <typename T, typename U> struct raw_constructed<Pair<T, U>> : std::bool_constant<raw_constructed<T>::value && raw_constructed<U>::value> {};
+template <typename T, typename U> struct raw_constructed<Pair<T, U>> : std::bool_constant<raw_constructed<T>::value&& raw_constructed<U>::value> {};
 template <bit_size_t N> struct raw_constructed<bit_value<N>> : std::true_type {};
 template <typename T> struct raw_constructed<Couple<T> > : raw_constructed<T> {};
 template <typename T> struct raw_constructed<Point<T> > : raw_constructed<T> {};
@@ -84,7 +84,7 @@ template <typename T> struct raw_constructed<Range<T> > : raw_constructed<T> {};
 template <typename T> struct raw_destructed : std::is_trivially_destructible<T> {};
 
 template <bit_size_t N> struct raw_destructed<bit_value<N> > : std::true_type {};
-template <typename T, typename U> struct raw_destructed<Pair<T, U>> : std::bool_constant<raw_destructed<T>::value &&  raw_destructed<U>::value> {};
+template <typename T, typename U> struct raw_destructed<Pair<T, U>> : std::bool_constant<raw_destructed<T>::value&& raw_destructed<U>::value> {};
 template <typename T> struct raw_destructed<Couple<T> > : raw_destructed<T> {};
 template <typename T> struct raw_destructed<Point<T> > : raw_destructed<T> {};
 template <typename T> struct raw_destructed<Range<T> > : raw_destructed<T> {};
@@ -92,18 +92,18 @@ template <typename T> struct raw_destructed<Range<T> > : raw_destructed<T> {};
 template <typename T>
 struct trivially_copyable : std::is_trivially_copyable<T> {};
 template <bit_size_t N> struct trivially_copyable<bit_value<N> > : std::true_type {};
-template <typename T, typename U> struct trivially_copyable<Pair<T, U>> : std::bool_constant<trivially_copyable<T>::value && trivially_copyable<U>::value> {};
+template <typename T, typename U> struct trivially_copyable<Pair<T, U>> : std::bool_constant<trivially_copyable<T>::value&& trivially_copyable<U>::value> {};
 template <typename T> struct trivially_copyable<Couple<T> > : trivially_copyable<T> {};
 template <typename T> struct trivially_copyable<Point<T> > : trivially_copyable<T> {};
 template <typename T> struct trivially_copyable<Range<T> > : trivially_copyable<T> {};
 
 template <typename T>
-struct raw_copyable : std::bool_constant<trivially_copyable<T>::value && raw_constructed<T>::value> {};
+struct raw_copyable : std::bool_constant<trivially_copyable<T>::value&& raw_constructed<T>::value> {};
 
 template <typename T>
 struct trivially_move_assignable : std::is_trivially_move_assignable<T> {};
 template <bit_size_t N> struct trivially_move_assignable<bit_value<N> > : std::true_type {};
-template <typename T, typename U> struct trivially_move_assignable<Pair<T, U>> : std::bool_constant<trivially_move_assignable<T>::value && trivially_move_assignable<U>::value> {};
+template <typename T, typename U> struct trivially_move_assignable<Pair<T, U>> : std::bool_constant<trivially_move_assignable<T>::value&& trivially_move_assignable<U>::value> {};
 template <typename T> struct trivially_move_assignable<Couple<T> > : trivially_move_assignable<T> {};
 template <typename T> struct trivially_move_assignable<Point<T> > : trivially_move_assignable<T> {};
 template <typename T> struct trivially_move_assignable<Range<T> > : trivially_move_assignable<T> {};
@@ -114,7 +114,7 @@ template <typename T> struct trivially_move_assignable<Range<T> > : trivially_mo
 
 template <typename Iter> inline
 typename std::enable_if< raw_destructed< typename std::iterator_traits<Iter>::value_type >::value >::type
-destroy_range(Iter first, Iter last)
+destroy_range(Iter /*first*/, Iter /*last*/)
 {
 	// NOP
 }
@@ -135,7 +135,7 @@ destroy_range(Iter first, Iter last)
 template <typename Iter1, typename Iter2>
 Iter2 swap_range(Iter1 first, Iter1 last, Iter2 otherRange)
 {
-	for (;first != last; ++first, ++otherRange)
+	for (; first != last; ++first, ++otherRange)
 		omni::swap(*otherRange, *first);
 	return otherRange;
 }
@@ -143,7 +143,7 @@ Iter2 swap_range(Iter1 first, Iter1 last, Iter2 otherRange)
 template <typename Iter1, typename Iter2>
 Iter2 swap_range_backward(Iter1 first, Iter1 last, Iter2 otherRange)
 {
-	while(first != last)
+	while (first != last)
 		omni::swap(*--last, *--otherRange);
 	return otherRange;
 }
@@ -157,12 +157,12 @@ Iter2 swap_range_backward(Iter1 first, Iter1 last, Iter2 otherRange)
 
 #if defined(MG_DEBUG_RANGEFUNCS)
 
-	template <typename Iter>
-	struct is_random_iter : std::bool_constant<
-				std::is_reference_v<ref_type_of_iterator<Iter> >
-			&&	std::is_base_of_v<std::random_access_iterator_tag,  typename std::iterator_traits<Iter>::iterator_category>
-			>
-	{};
+template <typename Iter>
+struct is_random_iter : std::bool_constant<
+	std::is_reference_v<ref_type_of_iterator<Iter> >
+	&& std::is_base_of_v<std::random_access_iterator_tag, typename std::iterator_traits<Iter>::iterator_category>
+>
+{};
 
 #endif
 
@@ -172,21 +172,23 @@ Iter fast_copy(CIter first, CIter last, Iter target)
 	return std::copy(first, last, target);
 }
 
-template <typename Iter> inline
-Iter
-fast_move(Iter first, Iter last, Iter target)
+template <typename Iter>
+inline auto fast_move(Iter first, Iter last, Iter target)
+-> typename std::enable_if_t < !std::is_trivially_copy_assignable_v<typename std::iterator_traits<Iter>::value_type>, Iter>
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = std::iterator_traits< Iter>::value_type;
 
-	BOOST_MPL_ASSERT_NOT((is_bitvalue< T>));
-	BOOST_MPL_ASSERT_NOT((boost::has_trivial_assign< T >));
+	static_assert(!is_bitvalue_v<T>);
+	static_assert(!std::is_trivially_copy_assignable_v< T >);
 #endif
 
-//	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
+	//	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
 
-	return swap_range(first, last, target);
+	for (; first != last; ++first, ++target)
+		*target = std::move(*first);
+	return target;
 }
 
 template <typename Iter, typename CIter> inline
@@ -195,11 +197,11 @@ fast_copy_backward(CIter first, CIter last, Iter target)
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	BOOST_MPL_ASSERT_NOT((is_bitvalue<typename std::iterator_traits<CIter>::value_type>));
-	BOOST_MPL_ASSERT_NOT((is_bitvalue<typename std::iterator_traits< Iter>::value_type>));
+	static_assert(!is_bitvalue_v<typename std::iterator_traits<CIter>::value_type>);
+	static_assert(!is_bitvalue_v<typename std::iterator_traits< Iter>::value_type>);
 #endif
 
-//	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES, BUT PROBLEM WITH INCOMPATIBLE ITERATORS
+	//	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES, BUT PROBLEM WITH INCOMPATIBLE ITERATORS
 
 	return std::copy_backward(first, last, target);
 }
@@ -213,28 +215,31 @@ fast_move_backward(Iter first, Iter last, Iter targetEnd)
 	typedef typename std::iterator_traits< Iter>::value_type  T;
 
 	static_assert(!is_bitvalue_v< T>);
-	static_assert(!std::is_trivially_assignable_v< T, T>);
+	static_assert(!std::is_trivially_move_assignable_v< T, T>);
 #endif
 
-	dms_assert((targetEnd <= first) || (last <= targetEnd) ); // BEWARE OF OVERLAPPING RANGES
+	dms_assert((targetEnd <= first) || (last <= targetEnd)); // BEWARE OF OVERLAPPING RANGES
 
-	return swap_range_backward(first, last, targetEnd);
+	while (first != last)
+		*--targetEnd = std::move(*--last);
+	return targetEnd;
 }
 
 template <typename T> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, T>, T*>::type
+typename std::enable_if<std::is_trivially_copy_assignable_v<T>, T*>::type
 fast_copy(const T* first, const T* last, T* target)
 {
-	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
+	dms_assert(!(first < target) || (last <= target)); // BEWARE OF OVERLAPPING RANGES
 
-	std::size_t n = last-first;
-	memcpy(target, first, n*sizeof(T) );
-	return target+n;
+	std::size_t n = last - first;
+	memcpy(target, first, n * sizeof(T));
+	return target + n;
 }
 
-template <typename T> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, T>, T*>::type
-fast_move(T* first, T* last, T* target)
+
+template <typename Iter>
+inline auto fast_move(Iter first, Iter last, Iter target)
+-> typename std::enable_if_t < std::is_trivially_copy_assignable_v<typename std::iterator_traits<Iter>::value_type>, Iter>
 {
 	return fast_copy(first, last, target);
 }
@@ -243,11 +248,11 @@ fast_move(T* first, T* last, T* target)
 template <typename T> inline T*
 fast_copy_backward_trivial_impl(const T* first, const T* last, T* targetEnd)
 {
-	dms_assert( (targetEnd <= first ) || (last <= targetEnd) ); // BEWARE OF OVERLAPPING RANGES
+	dms_assert((targetEnd <= first) || (last <= targetEnd)); // BEWARE OF OVERLAPPING RANGES
 
-	std::size_t n = last-first;
+	std::size_t n = last - first;
 	T* target = targetEnd - n;
-	memmove(target, first, n*sizeof(T) );
+	memmove(target, first, n * sizeof(T));
 	return target;
 }
 
@@ -269,7 +274,7 @@ template <bit_size_t N, typename CB, typename B> inline
 typename std::enable_if<std::is_same_v<B, typename std::remove_const<CB>::type >, bit_iterator<N, B> >::type
 fast_copy(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iterator<N, B> target)
 {
-	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
+	dms_assert(!(first < target) || (last <= target)); // BEWARE OF OVERLAPPING RANGES
 
 	for (; first.nr_elem(); ++target, ++first)
 	{
@@ -280,17 +285,17 @@ fast_copy(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iterator<N, B
 	dms_assert(first.nr_elem() == 0);
 
 	CB* currSourceBlock = first.data_begin();
-	CB* lastSourceBlock = last .data_begin();
-	B*  currTargetBlock = target.data_begin();
+	CB* lastSourceBlock = last.data_begin();
+	B* currTargetBlock = target.data_begin();
 
-	if (target.nr_elem() == 0)  
+	if (target.nr_elem() == 0)
 	{
 		// first and target are in phase; fast_copy the full block data
 		currTargetBlock = fast_copy(currSourceBlock, lastSourceBlock, currTargetBlock);
 
 		// copy the remaining bits of the incomplete last block; phase equality guarantees that this doesnt cross a block boundary in the target range
 		if (last.nr_elem())
-			setbits(*currTargetBlock, (B(1) << (last.nr_elem() * N))-B(1), *lastSourceBlock);
+			setbits(*currTargetBlock, (B(1) << (last.nr_elem() * N)) - B(1), *lastSourceBlock);
 		return bit_iterator<N, B>(currTargetBlock, last.nr_elem());
 	}
 	else
@@ -343,7 +348,7 @@ fast_copy(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iterator<N, B
 }
 
 template <int N, typename B> inline
-bit_iterator<N, B> 
+bit_iterator<N, B>
 fast_move(bit_iterator<N, B> first, bit_iterator<N, B> last, bit_iterator<N, B> target)
 {
 	return fast_copy(first, last, target);
@@ -353,7 +358,7 @@ template <int N, typename CB, typename B> inline
 typename std::enable_if<std::is_same_v<B, typename std::remove_const<CB>::type >, bit_iterator<N, B> >::type
 fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iterator<N, B> target)
 {
-	dms_assert(!(first < target)|| (last <= target) ); // BEWARE OF OVERLAPPING RANGES
+	dms_assert(!(first < target) || (last <= target)); // BEWARE OF OVERLAPPING RANGES
 
 	for (; last.nr_elem(); --target, --last)
 	{
@@ -364,17 +369,17 @@ fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iter
 	dms_assert(last.nr_elem() == 0);
 
 	CB* firstSourceBlock = first.data_begin(); if (first.nr_elem()) ++firstSourceBlock;
-	CB* lastSourceBlock = last .data_begin();
-	B*  currTargetBlock = target.data_begin();
+	CB* lastSourceBlock = last.data_begin();
+	B* currTargetBlock = target.data_begin();
 
-	if (target.nr_elem() == 0)  
+	if (target.nr_elem() == 0)
 	{
 		// first and target are in phase; fast_copy the full block data
 		currTargetBlock = fast_copy_backward(firstSourceBlock, lastSourceBlock, currTargetBlock);
 
 		// copy the remaining bits of the incomplete last block; phase equality guarantees that this doesnt cross a block boundary in the target range
 		if (first.nr_elem())
-			setbits(*--currTargetBlock, bit_info<N, B>::used_bits_mask - ((B(1) << (first.nr_elem() * N))- B(1)), *first.data_begin());
+			setbits(*--currTargetBlock, bit_info<N, B>::used_bits_mask - ((B(1) << (first.nr_elem() * N)) - B(1)), *first.data_begin());
 		return bit_iterator<N, B>(currTargetBlock, first.nr_elem());
 	}
 	else
@@ -387,33 +392,33 @@ fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, bit_iter
 
 
 		// first and target are out of phase; copy and shift block data
-		UInt32 elemShift      = target.nr_elem();
-		UInt32 bitShift       = elemShift * N;                              dms_assert((bitShift   < bit_info<N, B>::nr_used_bits_per_block ));
-		UInt32 carryShift     = bit_info<N, B>::nr_used_bits_per_block - bitShift; dms_assert((carryShift < bit_info<N, B>::nr_used_bits_per_block ));
-		B      bitShiftMask   = (B(1) << bitShift)-B(1);
+		UInt32 elemShift = target.nr_elem();
+		UInt32 bitShift = elemShift * N;                              dms_assert((bitShift < bit_info<N, B>::nr_used_bits_per_block));
+		UInt32 carryShift = bit_info<N, B>::nr_used_bits_per_block - bitShift; dms_assert((carryShift < bit_info<N, B>::nr_used_bits_per_block));
+		B      bitShiftMask = (B(1) << bitShift) - B(1);
 		B      carryShiftMask = bit_info<N, B>::used_bits_mask - bitShiftMask;
 
-		while(firstSourceBlock != lastSourceBlock)
+		while (firstSourceBlock != lastSourceBlock)
 		{
 			--lastSourceBlock;
-			dms_assert( (*lastSourceBlock & ~bit_info<N, B>::used_bits_mask) == 0);
+			dms_assert((*lastSourceBlock & ~bit_info<N, B>::used_bits_mask) == 0);
 
-			setbits(*currTargetBlock, bitShiftMask, (*lastSourceBlock) >> carryShift); 
+			setbits(*currTargetBlock, bitShiftMask, (*lastSourceBlock) >> carryShift);
 
 			// OPTIMIZE: for all but the last incomplete targetBlock, a simple assignment would suffice
-			setbits(*--currTargetBlock, carryShiftMask, (*lastSourceBlock) << bitShift); 
+			setbits(*--currTargetBlock, carryShiftMask, (*lastSourceBlock) << bitShift);
 		}
 		// copy the remaining bits of the incomplete last block; this could cross a block boundary in the target range
 		return std::copy_backward(
-			first, 
+			first,
 			bit_iterator<N, CB>(lastSourceBlock, SizeT(0)),
-			bit_iterator<N,  B>(currTargetBlock, SizeT(elemShift))
+			bit_iterator<N, B>(currTargetBlock, SizeT(elemShift))
 		);
 	}
 }
 
 template <int N, typename B> inline
-bit_iterator<N, B> 
+bit_iterator<N, B>
 fast_move_backward(bit_iterator<N, B> first, bit_iterator<N, B> last, bit_iterator<N, B> target)
 {
 	return fast_copy_backward(first, last, target);
@@ -423,15 +428,15 @@ template <int N, typename CB, typename Iter> inline
 Iter fast_copy(bit_iterator<N, CB> first, bit_iterator<N, CB> last, Iter target)
 {
 	for (; first != last; ++target, ++first)
-		*target = typesafe_cast<bit_value<N> >(*first);
+		*target = typesafe_cast<bit_value<N>>(*first);
 	return target;
 }
 
 template <int N, typename CB, typename Iter> inline
 Iter fast_copy_backward(bit_iterator<N, CB> first, bit_iterator<N, CB> last, Iter targetEnd)
 {
-	while(first !=last)
-		*--last == typesafe_cast<bit_value<N> >(*--targetEnd);
+	while (first != last)
+		*--last == typesafe_cast<bit_value<N>>(*--targetEnd);
 	return targetEnd;
 }
 
@@ -447,7 +452,7 @@ raw_copy(CIter first, CIter last, Iter target)
 }
 
 template <typename Iter, typename CIter> inline
-typename std  :: enable_if< !raw_copyable< typename std::iterator_traits<Iter>::value_type >::value, Iter >::type
+typename std::enable_if< !raw_copyable< typename std::iterator_traits<Iter>::value_type >::value, Iter >::type
 raw_copy(CIter first, CIter last, Iter target)
 {
 	using T = std::iterator_traits<Iter>::value_type;
@@ -463,7 +468,7 @@ raw_copy(CIter first, CIter last, Iter target)
 //----------------------------------------------------------------------
 
 template <typename T>
-struct raw_movable: std::bool_constant< raw_copyable<T>::value && raw_destructed<T>::value > {};
+struct raw_movable : std::bool_constant< raw_copyable<T>::value&& raw_destructed<T>::value > {};
 
 template <typename Iter, typename CIter> inline
 Iter
@@ -499,9 +504,9 @@ typename std::enable_if< raw_movable< typename std::iterator_traits<Iter>::value
 raw_move(CIter first, CIter last, Iter target)
 {
 	return raw_copy(first, last, target);
-//	UInt32 n = (last - first);
-//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
-//	return target + n;
+	//	UInt32 n = (last - first);
+	//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
+	//	return target + n;
 }
 
 template <typename Iter, typename CIter> inline
@@ -533,10 +538,10 @@ typename std::enable_if< raw_movable< typename std::iterator_traits<Iter>::value
 raw_move_backward(CIter first, CIter last, Iter targetEnd)
 {
 	return fast_move_backward(first, last, targetEnd);
-//	UInt32 n = (last - first);
-//	Iter target = targetEnd - n;
-//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
-//	return target;
+	//	UInt32 n = (last - first);
+	//	Iter target = targetEnd - n;
+	//	memmove(target, first, n * sizeof(typename std::iterator_traits<Iter>::value_type));
+	//	return target;
 }
 
 
@@ -590,7 +595,7 @@ fast_fill(T* first, T* last, U value)
 	UInt32 v = (UInt32(value) << 16) | (UInt32(value) & 0xFFFF);
 
 	std::fill(alignedBlockPtr, alignedBlockEnd, v);
-	first += 2*n2;
+	first += 2 * n2;
 	std::fill(first, last, value);
 }
 
@@ -607,7 +612,7 @@ void fast_fill(bit_iterator<N, B> first, bit_iterator<N, B> last, U value)
 
 	bit_sequence<N, B>(
 		first.data_begin(), last - first
-	).set_range(value);	
+		).set_range(value);
 }
 
 //----------------------------------------------------------------------
@@ -656,7 +661,7 @@ template <typename T> inline
 typename std::enable_if<std::is_trivially_assignable_v<T, T> >::type
 fast_zero(T* first, T* last)
 {
-	memset(first, 0, (last-first)*sizeof(T));
+	memset(first, 0, (last - first) * sizeof(T));
 }
 
 template <int N, typename Block> inline void
@@ -667,16 +672,16 @@ fast_zero(bit_iterator<N, Block> first, bit_iterator<N, Block> last)
 
 	if (elemIndex)
 	{
-		(*first.data_begin()) &= ((Block(1) << (elemIndex*N))-1);
+		(*first.data_begin()) &= ((Block(1) << (elemIndex * N)) - 1);
 		first.skip_block();
 	}
 
 	dms_assert(first.nr_elem() == 0);
 
 	bit_sequence<N, Block>(
-		first.data_begin(), 
+		first.data_begin(),
 		last - first
-	).clear_range();
+		).clear_range();
 }
 
 template <typename T> inline void
@@ -727,7 +732,7 @@ undefine_if_not(Iter first, Iter last, bit_iterator<1, BT> selIter)
 
 		++selIter; ++first;
 	}
-	
+
 }
 
 //----------------------------------------------------------------------

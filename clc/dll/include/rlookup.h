@@ -182,16 +182,14 @@ void rlookup2index_array_unchecked(Vec& resData,
 {
 	dms_assert(resData.size()  == arg1Data.size());
 
-	// First, make a index mapping E2->E2  for arg2.
-	std::vector<UInt32> index(arg2Data.size()); 
-	auto
-		indexBegin = index.begin(),
-		indexEnd   = index.end();
-
 	auto a2Db = arg2Data.begin();
 
+	// First, make a index mapping E2->E2  for arg2.
+	std::vector<UInt32> index;
+
 	// Sort index 
-	make_index(indexBegin, indexEnd, a2Db);
+	make_index(index, arg2Data.size(), a2Db);
+	auto indexBegin = index.begin(), indexEnd = index.end();
 
 	// Then, do a binary search of each element 
 	auto a1De = rlookup2index_range(resData.begin(), resData.end(), indexBegin, indexEnd, arg1Data.begin(), a2Db);
@@ -206,8 +204,8 @@ template <typename I, typename V>
 auto make_index_array(typename DataArray<V>::locked_cseq_t arg2Data) -> indexed_tile_t<I, V>
 {
 	// make a mapping V->E2  from arg2. Assign in backward order to keep the first occurence
-	std::vector<I> index(arg2Data.size());
-	make_index(index.begin(), index.end(), arg2Data.begin());
+	std::vector<I> index;
+	make_index(index, arg2Data.size(), arg2Data.begin());
 	return { std::move(index), std::move(arg2Data) };
 }
 

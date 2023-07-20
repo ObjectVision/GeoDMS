@@ -45,18 +45,10 @@ template <typename T> inline
 typename std::enable_if< raw_constructed< T >::value, OwningPtrSizedArray<T> >::type
 new_zero_array(UInt32 n)
 {
-	auto result = OwningPtrSizedArray<T>(n MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+	auto result = OwningPtrSizedArray<T>(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 	fast_zero(result.begin(), result.end());
 	return result;
 }
-/*
-template <typename T> inline 
-typename std::enable_if< !raw_constructed< T >::value, T* >::type
-new_zero_array(UInt32 n)
-{
-	return new T[n];
-}
-*/
 // ============== RandomMlDataProvider
 
 struct RandomMlDataProvider
@@ -66,8 +58,8 @@ struct RandomMlDataProvider
 	typedef UInt32                       choice_index;
 	typedef UInt32                       param_index;
 
-	using value_array = OwningPtrSizedArray<value_type>;
-	using  choice_array = OwningPtrSizedArray<choice_index>;
+	using value_array  = OwningPtrSizedArray<value_type>;
+	using choice_array = OwningPtrSizedArray<choice_index>;
 
 	RandomMlDataProvider(obs_index i, choice_index j, param_index k)
 		:	m_nrI(i)
@@ -81,8 +73,8 @@ struct RandomMlDataProvider
 		dms_assert(nrD / i == j*k);
 		dms_assert(nrD < 0x1FFFFFFF / sizeof(value_type) );
 
-		m_D = value_array( nrD MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-		m_J = choice_array( i MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+		m_D = value_array( nrD, dont_initialize MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+		m_J = choice_array( i, dont_initialize MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 		random_uniform_fill (m_D.begin(), m_D.begin()+nrD,  1);
 		random_discrete_fill(m_J.begin(), m_J.begin()+i, j, 2);
 	}
@@ -189,11 +181,11 @@ struct MlModel
 
 		//	============== second derivative
 
-			for (param_index k = 0; k!=nrK; ++k) 
+			value_type* fisherRow = &(m_Fisher[0]);
+			for (param_index k = 0; k!=nrK; ++k)
 			{
-				value_type* fisherRow = &( m_Fisher[k*nrK] );
 //				for (param_index kk = 0; kk!=nrK; ++fisherRow, ++kk)
-				param_index kk = k; fisherRow += k;
+				param_index kk = k;
 				{
 
 					value_type result = value_type();
@@ -203,8 +195,9 @@ struct MlModel
 							*	( m_DataProvider.GetD(i, j,  k) - currExpD[k ] )
 							*	( m_DataProvider.GetD(i, j, kk) - currExpD[kk] );
 
-					*fisherRow += result;
+					fisherRow[k] += result;
 				}
+				fisherRow += k;
 			}
 		}
 	}

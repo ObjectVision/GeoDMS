@@ -78,8 +78,8 @@ struct ClassifyFunc
 		PreparedDataReadLock drl(classBreaks);
 		auto classBreakData = const_array_cast<ThemeValuesType>( classBreaks )->GetDataRead();
 		m_ClassBreakData = ClassBreakData(classBreakData.begin(), classBreakData.end() );
-		m_Index.resize(m_ClassBreakData.size());
-		make_index(m_Index.begin(), m_Index.end(), m_ClassBreakData.begin() );
+		m_Index.clear();
+		make_index(m_Index, m_ClassBreakData.size(), m_ClassBreakData.begin() );
 	}
 	IndexType operator ()( typename param_type<ThemeValuesType>::type value) const
 	{
@@ -180,7 +180,7 @@ Int32 AbstrThemeValueGetter::GetOrdinalValue(SizeT entityIndex) const
 
 UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(Int32);
@@ -208,7 +208,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 		if (auto cvg = dynamic_cast<const ConstValueGetter<SharedStr>*>(this))
 			return TextInfo{ cvg->m_Value, false };
 	}
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 	{
@@ -226,7 +226,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 
 SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(SharedStr);
@@ -236,7 +236,7 @@ SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetr
 
 const AbstrThemeValueGetter* AbstrThemeValueGetter::CreatePaletteGetter() const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	if (IsDirectGetter())
 		return this;
 	if (m_PaletteGetter.is_null() || m_PaletteAttr != m_PaletteGetter->GetPaletteAttr())
@@ -355,7 +355,6 @@ struct LazyGetter : public AbstrThemeValueGetter
 
 	SizeT GetCount() const override
 	{
-
 		return m_ThemeAttr->GetCurrRefObj()->GetTiledRangeData()->GetRangeSize();
 	}
 

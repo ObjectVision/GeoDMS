@@ -51,7 +51,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "OperArgPolicy.h"
 
 #include "TreeItemFlags.h"
-//#include "DataController.h"
 
 //----------------------------------------------------------------------
 // class  : TreeItem Facets
@@ -67,6 +66,7 @@ struct OperationContext;
 struct UsingCache;
 struct SupplCache;
 struct SourceLocation;
+
 class AbstrCalculator;
 using TreeItemList = single_linked_list<TreeItem>;
 
@@ -166,7 +166,7 @@ public:
 
 //	storage
 
-	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly);
+	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
 	TIC_CALL bool HasStorageManager() const;
 	TIC_CALL AbstrStorageManager* GetStorageManager(bool throwOnFailure = true) const;
 	         AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager; }
@@ -361,7 +361,7 @@ public:
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
 
 //protected: // new callback functions
-	TIC_CALL virtual bool DoReadItem(StorageMetaInfo* smi); friend struct StorageReadHandle;
+	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
 	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
 	TIC_CALL virtual void ClearData(garbage_t&) const;
 	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
@@ -402,13 +402,13 @@ public: // TODO G8: Re-encapsulate
 	void EnableAutoDeleteRootImpl(); // does not call UpdateMetaInfo
 	void MakeCalculator() const;
 	void UpdateMetaInfoImpl() const;
-	void SetReferredItem(const TreeItem* refItem) const;
+	TIC_CALL void SetReferredItem(const TreeItem* refItem) const;
 	const TreeItem* DetermineReferredItem(const AbstrCalculator* ac) const;
 
 	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
 
-	bool ReadItem(const StorageReadHandle& srh);
+	bool ReadItem(StorageReadHandle&& srh);
 	void SetStorageManager(AbstrStorageManager* sm);
 
 	void SetMetaInfoReady() const;

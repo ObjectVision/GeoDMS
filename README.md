@@ -3,7 +3,7 @@ Geographic Data & Model Software (GeoDMS) is a platform for developing Geographi
 Where fast generic, landuse modeling and routing algorithms are implemented in C++ and exposed through the GeoDMS scripting language.
 
 # Getting started
-If you are new to GeoDMS, the [GeoDMS academy](https://www.geodms.nl/GeoDMS_Academy) will guide you through some of the basic features of the language. Recent GeoDMS versions can be downloaded from the [release page](https://github.com/ObjectVision/GeoDMS/releases) of this repository. For the full documentation of GeoDMS, including additional examples, see [our wiki](https://www.geodms.nl/Welcome).
+If you are new to GeoDMS, the [GeoDMS academy](https://github.com/ObjectVision/GeoDMS_Academy) will guide you through some of the basic features of the language. Recent GeoDMS versions can be downloaded from the [release page](https://github.com/ObjectVision/GeoDMS/releases) of this repository. For the full documentation of GeoDMS, including additional examples, see [our wiki](https://github.com/ObjectVision/GeoDMS/wiki).
 
 # Compilation
 Build instructions for GeoDMS can be found at our [wiki compilation page](https://www.geodms.nl/Compiling_the_GeoDMS_c%2B%2B_code).
@@ -11,13 +11,10 @@ Build instructions for GeoDMS can be found at our [wiki compilation page](https:
 # Terms of use
 This open source software; you can use, redistribute, and/or
 modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation
-on the condition that this readme file is provided and all copyright 
-notices in the source code are preserved.
+(the License) as published by the Free Software Foundation.
 
-See LICENSE.TXT for terms of distribution or look at our web site:
-https://www.geodms.nl/Licence
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
+For redistribution consult the GNU GPL2 license at [LICENSE.md](LICENSE.md), our [wiki](https://www.geodms.nl/Licence)
+or [https://www.gnu.org/licenses/old-licenses/gpl-2.0.html](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
 
 You can use, redistribute and/or modify this library source code file
 
@@ -28,11 +25,10 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 
 # Contact
-Feel free to contact us for support on landuse modeling, transport modeling or geographic scientific computing type projects.
+Feel free to contact us for support on landuse modeling, transport modeling or geographic scientific computing.
 
 Company: Object Vision BV  
 Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)  
 Phone:    +31-20-598.9083  
 Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538  
 Website:  [https://objectvision.nl](https://objectvision.nl)  
-Wiki:     [https://GeoDMS.nl  ](https://www.geodms.nl/) 

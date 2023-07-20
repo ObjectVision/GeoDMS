@@ -31,8 +31,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "SpiritTools.h"
 
+#include "geo/BaseBounds.h"
 #include "geo/MinMax.h"
-#include "geo/seqvector.h"
 #include "ptr/IterCast.h"
 #include "utl/mySPrintF.h"
 
@@ -168,6 +168,10 @@ UInt32 nrLineBreaks(CharPtr first, CharPtr last)
 //  parse helper functions
 //
 ///////////////////////////////////////////////////////////////////////////////
+
+const boost::spirit::uint_parser<UInt64>  uint64_p;
+const boost::spirit::uint_parser<UInt64, 16> hex64_p;
+
 
 void CheckInfo(const parse_info_t& info)
 {

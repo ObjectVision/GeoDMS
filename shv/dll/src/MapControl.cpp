@@ -63,13 +63,14 @@ MapControl::MapControl(DataView* dv)
 
 void MapControl::Init(DataView* dv)
 {
-	m_ViewPort = make_shared_gr<ViewPort>(this, dv, "MapView", GetDesktopDIP2pixFactor())();
+	assert(dv);
+	m_ViewPort = make_shared_gr<ViewPort>(this, dv, "MapView")();
 	m_LayerSet = make_shared_gr<LayerSet>(m_ViewPort.get())();
 
 	m_ScrollPort = make_shared_gr<ScrollPort>(this, dv, "LayerControls", false)();
 	m_LayerControlSet = make_shared_gr<LayerControlSet>(m_ScrollPort.get(), m_LayerSet.get())();
 
-	m_OvViewPort = make_shared_gr<ViewPort>(this, dv, "Overview", GetDesktopDIP2pixFactor())();
+	m_OvViewPort = make_shared_gr<ViewPort>(this, dv, "Overview")();
 	m_OvLayerSet = make_shared_gr<LayerSet>(m_OvViewPort.get())();
 
 	InsertEntry(m_ScrollPort.get());

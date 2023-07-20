@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_SET_STACK_UTIL_H
 
 #include "dbg/Check.h"
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include <vector>
 
 ///////////////////////////////////////////////////////////////////////////////

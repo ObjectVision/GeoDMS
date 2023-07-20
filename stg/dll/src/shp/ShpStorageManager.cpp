@@ -221,19 +221,23 @@ void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 	);
 }
 
-bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	if (t)
 		return true;
 
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*   adi = smi->CurrWD();
 
 	dms_assert(adi->GetDataObjLockCount() < 0); // Write lock is already set.
 
 	ShpImp impl;
 
-	if (!impl.Read( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!impl.Read( GetNameStr(), sfwa.get()) )
 		return false;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
@@ -253,7 +257,7 @@ bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(),
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(),
 			[borrowedReadResultHolder, shpImpFeatureCount, &impl] <typename P> (const Unit<P>*)
 			{
 				ReadSequences<P>(borrowedReadResultHolder, shpImpFeatureCount, &impl); // also reads (Multi)Polygons
@@ -345,7 +349,8 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -369,7 +374,9 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+
+	if (!sfwa || !pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -420,7 +427,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(), 
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(), 
 			[this, ado, storageHolder, adi, &impl] <typename P> (const Unit<P>*)
 			{
 				WriteSequences<P>(ado, &impl, this->GetNameStr(), storageHolder, adi); // also reads (Multi)Polygons
@@ -444,21 +451,25 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
+
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get() ))
 		return; // nothing read; file does not exist; probably has to write data and not read
 
 	const AbstrDataItem* pData = nullptr;
 	TokenID dataNameID;
-	TokenID formatName = TokenID::GetEmptyID();
+	auto vc = ValueComposition::Single;
 	ShapeTypes shapeType = impl.GetShapeType();
 
 	switch (shapeType)
 	{
 		case ST_MultiPoint:
-		case ST_Polyline: formatName = GetTokenID_mt("arc");     pData=GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Polygon:  formatName = GetTokenID_mt("polygon"); pData=GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Point:    formatName = token::point;   pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
+		case ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
 		default: throwItemErrorF("ShapeType %d is not supported", shapeType);
 	}
 
@@ -467,24 +478,21 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	AbstrUnit* u_size    = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, SHAPEID_ID   );
 	AbstrUnit* u_content = Unit<DPoint>::GetStaticClass()->CreateUnit(curr, SHAPERANGE_ID);
-	u_content->SetFormat(formatName);
 
-	dms_assert(u_size);
-	dms_assert(u_content);
+	assert(u_size);
+	assert(u_content);
 
-	pData = 
-		CreateDataItem(
-			curr, dataNameID, 
-			u_size, u_content, 
-			IsPoint(shapeType) ? ValueComposition::Single : ValueComposition::Sequence
-		);
+	pData = CreateDataItem(curr, dataNameID, u_size, u_content, vc);
 }
 
 
 bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder()) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get()))
 		return false;
 
 	AbstrUnit* au = smi.CurrWU();

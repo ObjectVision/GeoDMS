@@ -60,7 +60,8 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 			>>	(	strlit<>("Node_rel"   )[AssignFlags(result, DijkstraFlag::OrgNode)]
 				|	strlit<>("impedance"  )[AssignFlags(result, DijkstraFlag::OrgImp )]
 				|	strlit<>("OrgZone_rel")[AssignFlags(result, DijkstraFlag::OrgZone)]
-				) 
+				|   strlit<>("OrgZone_loc" )[AssignFlags(result, DijkstraFlag::OrgZoneLoc)]
+				)
 				%	COMMA
 			>> RBRACE)
 		>> !(COLON >> strlit<>("max_imp")[AssignFlags(result, DijkstraFlag::ProdOrgMaxImp)]);
@@ -72,6 +73,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>>	(	strlit<>("Node_rel")[AssignFlags(result, DijkstraFlag::DstNode)]
 			|	strlit<>("impedance")[AssignFlags(result, DijkstraFlag::DstImp)]
 			|	strlit<>("DstZone_rel")[AssignFlags(result, DijkstraFlag::DstZone)]
+			|   strlit<>("DstZone_loc")[AssignFlags(result, DijkstraFlag::DstZoneLoc)]
 			)
 			%	COMMA
 		>> RBRACE;
@@ -82,6 +84,10 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 	boost::spirit::rule<>  dstLimitRule =
 		strlit<>("limit(OrgZone_max_mass,DstZone_mass)")[AssignFlags(result, DijkstraFlag::DstLimit)];
 
+	boost::spirit::rule<>  dstEuclidicRule =
+		strlit<>("euclid(maxSqrDist)")[AssignFlags(result, DijkstraFlag::UseEuclidicFilter)];
+
+	
 	boost::spirit::rule<>  altLinkImpRule =
 		  strlit<>("alternative(link_imp)")[AssignFlags(result, DijkstraFlag::UseAltLinkImp)]
 		>> !(strlit<>(":alt_imp")[AssignFlags(result, DijkstraFlag::ProdOdAltImpedance)]);
@@ -149,6 +155,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>> !(chlit<>(';') >> endPointtRule)
 		>> !(chlit<>(';') >> impCutRule)
 		>> !(chlit<>(';') >> dstLimitRule)
+		>> !(chlit<>(';') >> dstEuclidicRule)
 		>> !(chlit<>(';') >> altLinkImpRule)
 		>> !(chlit<>(';') >> interactionRule)
 		>> !(chlit<>(';') >> tbRule)

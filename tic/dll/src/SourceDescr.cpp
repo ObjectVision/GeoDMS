@@ -32,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "act/ActorVisitor.h"
 #include "act/SupplierVisitFlag.h"
 #include "dbg/DmsCatch.h"
+#include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
 #include "geo/SequenceArray.h"
 #include "ser/MoreStreamBuff.h"
@@ -218,7 +219,10 @@ namespace { // local defs
 		case SourceDescrMode::All:        fout << "Utilized Storage Managers\n"; break;
 		}
 		fout << "For item: \n" << ti->GetSourceName() << "\n";
-		fout << "(other specs can be selected at View->Source Descr variant)";
+		if (DMS_Appl_GetExeType() == exe_type::geodms_qt_gui)
+			fout << "(other specs can be obtaint by re-pressing the (S) button in the DetailPage toolbar)";
+		else
+			fout << "(other specs can be selected at View->Source Descr variant)";
 
 
 		for (auto token: m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)])

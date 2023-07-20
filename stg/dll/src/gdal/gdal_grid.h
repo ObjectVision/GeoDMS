@@ -55,7 +55,7 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 private:
@@ -83,6 +83,8 @@ struct GDAL_SimpleReader : gdalComponent
 {
 	typedef UInt32 color_type;
 	typedef std::vector<UInt8> band_data;
+	STGDLL_CALL GDAL_SimpleReader();
+
 	struct buffer_type
 	{
 		band_data redBand, greenBand, blueBand, transBand;
@@ -97,7 +99,7 @@ public:
 	GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification);
 	SizeT ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const;
 	Int32 WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y);
-	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName) const;
+	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const;
 	
 	template <typename ...Args> static void UnpackStrip(Args...)  {};
 	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;

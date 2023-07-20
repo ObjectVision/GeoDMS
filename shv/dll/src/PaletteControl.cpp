@@ -159,17 +159,32 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		{
 			std::shared_ptr<Theme> theme = m_Layer->GetTheme(a); 
 
+			
+
 			if (!theme) {
 				FeatureLayer* fLayer = dynamic_cast<FeatureLayer*>(m_Layer.get()); if (!fLayer) continue;
 				DmsColor* value;
 				switch (a) {
-					case AN_BrushColor : value = &fLayer->GetDefaultBrushColor(); break;
-					case AN_PenColor   : value = &fLayer->GetDefaultArcColor(); break;
-					case AN_SymbolColor: value = &fLayer->GetDefaultPointColor(); break;
+					case AN_BrushColor : 
+						if (m_Layer->IsDisabledAspectGroup(AG_Brush))
+							continue;
+						value = &fLayer->GetDefaultBrushColor(); break;
+					case AN_PenColor   : 
+						if (m_Layer->IsDisabledAspectGroup(AG_Pen))
+							continue;
+						value = &fLayer->GetDefaultArcColor(); break;
+					case AN_SymbolColor: 
+						if (m_Layer->IsDisabledAspectGroup(AG_Symbol))
+							continue;
+						value = &fLayer->GetDefaultPointColor(); break;
 					case AN_SymbolFont : 
+						if (m_Layer->IsDisabledAspectGroup(AG_Symbol))
+							continue;
 						column->SetTheme(Theme::CreateValue(AN_SymbolFont, SharedStr(defFontNames[FR_Symbol])).get(), nullptr);
 						continue;
 					case AN_SymbolIndex:
+						if (m_Layer->IsDisabledAspectGroup(AG_Symbol))
+							continue;
 						column->SetTheme(Theme::CreateValue(AN_SymbolIndex, UInt32(defSymbol)).get(), nullptr);
 						continue;
 					default: continue;
@@ -365,7 +380,7 @@ void PaletteControl::CreateColumnsImpl()
 
 	if	(	m_ThemeAttr 
 		&&	classIds->UnifyDomain(m_PaletteDomain)
-		&&	classIds->CanBeDomain()  && classIds->GetCount() <= 256
+		&&	classIds->CanBeDomain()  && classIds->GetPreparedCount() <= 256
 		&&	(!m_Layer || (!m_Layer->IsTopographic() && !m_Layer->HasEditAttr()))
 		)
 	{
@@ -396,7 +411,11 @@ void PaletteControl::CreateColumnsImpl()
 
 void PaletteControl::DoUpdateView()
 {
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) );
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ));
 	base_type::DoUpdateView();
 }
 

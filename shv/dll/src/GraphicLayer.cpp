@@ -137,12 +137,11 @@ void GraphicLayer::SetActive(bool newState)
 			{
 				e = Entity2FeatureIndex(e);
 				if (IsDefined(e))
-					_InvalidateFeature(e);
+					InvalidateFeature(e);
 			}
 		}
 		if (newState)
 		{
-			CreateViewValueAction(GetActiveAttr(), GetFocusElemIndex(), false);
 			auto dv = GetDataView().lock();
 			dv->OnCaptionChanged();
 		}
@@ -174,7 +173,11 @@ SharedStr GraphicLayer::GetCaption() const
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("%s recs in MapView %s %s", AsString(nrRecs, FormattingFlags::ThousandSeparator), GetThemeDisplayName(this), domainName);
+	return mgFormat2SharedStr("active layer: %s with %s %s rows"
+		, GetThemeDisplayName(this)
+		, AsString(nrRecs, FormattingFlags::ThousandSeparator)
+		, domainName
+	);
 }
 
 struct ActivateClassificationCmd : AbstrCmd
@@ -493,18 +496,18 @@ void GraphicLayer::SelectAll(bool select)
 	lock.Commit();
 }
 
-void GraphicLayer::SelectDistrict(const CrdPoint& pnt, EventID eventID)
+void GraphicLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 {
 	throwErrorD("SelectDistrict", "Active Layer is not a GridLayer");
 }
 
-bool GraphicLayer::SelectFeatureIndex(SizeT featureIndex, EventID eventID)
+bool GraphicLayer::SelectFeatureIndex(AbstrDataObject* selAttrObj, SizeT featureIndex, EventID eventID)
 {
 	SizeT i = Feature2EntityIndex(featureIndex);
 	if (!(eventID & EID_REQUEST_SEL))
 		return SetFocusEntityIndex(i, eventID & EID_LBUTTONDBLCLK);
 
-	return SelectEntityIndex(i, eventID);
+	return SelectEntityIndex(selAttrObj, i, eventID);
 }
 
 bool GraphicLayer::IsFeatureSelected(SizeT featureIndex) const
@@ -562,7 +565,7 @@ SharedStr GraphicLayer::GetCurrClassLabel() const
 	);
 }
 
-bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
+bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID)
 {
 	dms_assert((eventID & EID_REQUEST_SEL) && !(eventID & EID_REQUEST_INFO));
 
@@ -571,27 +574,23 @@ bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
 
 	bool doToggle = (eventID & EID_CTRLKEY );
 
-	AbstrDataItem* selAttr = GetEditAttr();
-	InvalidationBlock changeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
-
 	ClassID currClassID;
 	bool doSetClassID = HasEditAttr() && IsDefined(currClassID = GetCurrClassID());
 
-//	bool resetExistingValues = (!doSetClassID) && IsCreateNewEvent(eventID);
 	bool keepExistingValues = doSetClassID || !IsCreateNewEvent(eventID);
-	DataWriteLock writeLock(selAttr, DmsRwChangeType(!keepExistingValues));
 
+	auto tileLoc = selAttrObj->GetTiledLocation(selectedIndex);
 	if (doSetClassID)
 	{ 
-		auto selData = mutable_array_cast<ClassID>(writeLock)->GetDataWrite();
-		if (ClassID(selData[selectedIndex]) == currClassID)
+		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetWritableTile(tileLoc.first);
+		if (ClassID(selData[tileLoc.second]) == currClassID)
 			goto cancel;
 
-		selData[selectedIndex] = currClassID;
+		selData[tileLoc.second] = currClassID;
 	}
 	else
 	{
-		auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite();
+		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetWritableTile(tileLoc.first);
 
 		// oldValue  FALSE   TRUE
 		// ========  ======  =====
@@ -599,22 +598,20 @@ bool GraphicLayer::SelectEntityIndex(SizeT selectedIndex, EventID eventID)
 		// FALSE     ->TRUE  cancel
 		// TRUE      ->TRUE  ->FALSE
 
-		if (doToggle && !selData[selectedIndex] )
+		if (doToggle && !selData[tileLoc.second] )
 			goto cancel;
 
-		selData[selectedIndex] = (not doToggle) || ( selData[selectedIndex]==0);
+		selData[tileLoc.second] = (not doToggle) || ( selData[tileLoc.second]==0);
 	}
 	if (keepExistingValues && !HasEntityAggr())
 	{
 		selectedIndex = Entity2FeatureIndex(selectedIndex);
 		if (IsDefined(selectedIndex))
-			_InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
+			InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
 	}
 	else
 		InvalidateDraw(); // change 
 
-	writeLock.Commit(); // increases TimeStamp
-	changeLock.ProcessChange(); // absorbes GetLastTS without DoInvalidate
 	return true;
 
 cancel:
@@ -640,10 +637,12 @@ bool GraphicLayer::IsEntitySelected(SizeT entityID) const
 		return false;
 
 	auto selTheme =  CreateSelectionsTheme();
-	dms_assert(selTheme);
-	const AbstrDataItem* selAttr = const_cast<AbstrDataItem*>(selTheme->GetThemeAttr());
+	assert(selTheme);
+	const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
+	assert(selAttr);
 
-	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	assert(selAttr->m_DataLockCount > 0); //	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	return selAttr->GetValue<SelectionID>(entityID);
 }
 
 
@@ -665,8 +664,8 @@ void GraphicLayer::OnFocusElemChanged(SizeT newSelectedID, SizeT oldSelectedID)
 		return;
 	}
 
-	if (IsDefined(oldSelectedID)) _InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
-	if (IsDefined(newSelectedID)) _InvalidateFeature(Entity2FeatureIndex(newSelectedID));
+	if (IsDefined(oldSelectedID)) InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
+	if (IsDefined(newSelectedID)) InvalidateFeature(Entity2FeatureIndex(newSelectedID));
 }
 
 bool GraphicLayer::OnCommand(ToolButtonID id)

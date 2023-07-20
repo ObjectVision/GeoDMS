@@ -46,13 +46,23 @@ AbstrBoundingBoxCache::AbstrBoundingBoxCache(const AbstrDataObject* featureData)
 
 AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 {
-	leveled_critical_section::scoped_lock lockBB_regeister(cs_BB);
+	if (m_HasBeenRegistered)
+	{
+		leveled_critical_section::scoped_lock lockBB_register(cs_BB);
+		g_BB_Register.erase(m_FeatureData);
+	}
+}
 
-	g_BB_Register.erase(m_FeatureData);
+DRect AbstrBoundingBoxCache::GetBounds(tile_id t, tile_offset featureID) const
+{
+	throwIllegalAbstract(MG_POS, "AbstrBoundingBoxCache::GetBounds");
 }
 
 DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
 {
-	throwIllegalAbstract(MG_POS, "AbstrBoundingBoxCache::GetBounds");
+	tile_loc tl = m_FeatureData->GetTiledLocation(featureID);
+	return GetBounds(tl.first, tl.second);
 }
+
+
 

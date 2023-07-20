@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__UNITPROCESSOR_H)
@@ -93,14 +65,20 @@ void visit(const AbstrUnit* inviter, UnitPtrAutoLambda&& al)
 	inviter->InviteUnitProcessor(alc);
 }
 
+template<typename TypeList, typename ResultType, typename UnitPtrAutoLambda>
+auto visit_and_return_result(const AbstrUnit* inviter, UnitPtrAutoLambda&& al) -> ResultType
+{
+	ResultType result;
+	visit<TypeList>(inviter, [&result, al = std::forward<UnitPtrAutoLambda>(al)](auto unit) { result = al(unit); });
+	return result;
+}
 
+/* REMOVE
 template<typename ValuePtrAutoLambda>
 auto value_ptr_caller(ValuePtrAutoLambda&& autoLambda)
 {
-	return [autoLambda](auto valuesUnit) {
-		using values_unit = std::remove_reference_t<decltype(*valuesUnit)>;
-		using value_type = typename values_unit::value_t;
-		value_type* v = nullptr;
+	return [autoLambda]<typename V>(const Unit<V>* valuesUnit) {
+		V* v = nullptr;
 		autoLambda(v);
 	};
 }
@@ -110,8 +88,7 @@ void visit_value_ptr(const AbstrUnit* inviter, ValuePtrAutoLambda&& autoLambda)
 {
 	visit<TypeList>(value_ptr_caller(std::forward<ValuePtrAutoLambda>(autoLambda)));
 }
-
-
+*/
 
 
 #endif // __UNITPROCESSOR_H

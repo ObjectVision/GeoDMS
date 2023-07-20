@@ -53,6 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include "StgBase.h"
+#include "gdal/gdal_base.h"
 
 #include "CaretOperators.h"
 #include "Carets.h"
@@ -68,6 +69,34 @@ granted by an additional written contract for support, assistance and/or develop
 #include "MouseEventDispatcher.h"
 #include "ScaleBar.h"
 #include "SelCaret.h"
+#include "WmsLayer.h"
+
+//----------------------------------------------------------------------
+// class  : ViewPoint
+//----------------------------------------------------------------------
+
+#include "ser/MoreStreamBuff.h"
+
+ViewPoint::ViewPoint(CharPtrRange viewPointStr)
+{
+	auto streamWrap = MemoInpStreamBuff(viewPointStr.first, viewPointStr.second);
+	FormattedInpStream inp(&streamWrap);
+	inp >> "X=" >> center.Col() >> "; Y=" >> center.Row() >> "; Z=" >> zoomLevel;
+
+}
+
+bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
+{
+	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
+	FormattedOutStream out(&streamWrap, flags);
+	out << "X=" << center.Col() << "; Y=" << center.Row() << "; Z=" << zoomLevel;
+
+	if (streamWrap.CurrPos() >= len)
+		return false;
+	out << char(0);
+	return true;
+}
+
 
 //----------------------------------------------------------------------
 // class  : ViewPort
@@ -361,7 +390,7 @@ void ViewPort::ZoomWorldFullRect(const TRect& relClientRect)
 		const ScalableObject* go = gc->GetConstEntry(n);
 		if (!go->HasNoExtent())
 		{
-			auto cwfr= calcWorldFullRect(relClientRect, go, m_Orientation, m_SubPixelFactor);
+			auto cwfr= calcWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
 			roi |= cwfr;
 		}
 	}
@@ -385,7 +414,7 @@ CrdRect ViewPort::GetCurrWorldFullRect() const
 	{
 		const ScalableObject* go = gc->GetConstEntry(i);
 		if (!go->HasNoExtent())
-			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, m_SubPixelFactor);
+			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
 	}
 	return roi;
 }
@@ -412,6 +441,14 @@ CrdType ViewPort::GetCurrZoomLevel() const
 	return m_w2vTr.ZoomLevel();
 }
 
+CrdType ViewPort::GetSubPixelFactor() const
+{
+	auto dv = GetDataView().lock();
+	assert(dv);
+	auto scaleFactor = GetWindowDIP2pixFactor(dv->GetHWnd());
+	return scaleFactor * m_SubPixelFactor;
+}
+
 void ViewPort::ZoomAll()
 {
 	ScalableObject* gc = GetContents();
@@ -428,7 +465,7 @@ void ViewPort::AL_ZoomAll()
 
 	ScalableObject* go = GetActiveLayer();
 	if (go)
-		SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, m_SubPixelFactor));
+		SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, GetSubPixelFactor()));
 }
 
 void ViewPort::AL_ZoomSel()
@@ -436,7 +473,7 @@ void ViewPort::AL_ZoomSel()
 	GraphicLayer* al = GetActiveLayer();
 	if (al)
 	{
-		CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, m_SubPixelFactor);
+		CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, GetSubPixelFactor());
 		if (! selectRect.empty())
 			SetROI(selectRect);
 	}
@@ -449,8 +486,35 @@ void ViewPort::AL_SelectAllObjects(bool select)
 		al->SelectAll(select);
 }
 
+auto FindWmsLayer(LayerSet* ls) -> WmsLayer*
+{
+	for (gr_elem_index i = 0, n = ls->NrEntries(); i!=n; ++i)
+	{
+		auto* layerBase = ls->GetEntry(i);
+		auto asWmsLayer = dynamic_cast<WmsLayer*>(layerBase);
+		if (asWmsLayer)
+			return asWmsLayer;
+		auto asSubset = dynamic_cast<LayerSet*>(layerBase);
+		if (!asSubset)
+			continue;
+		asWmsLayer = FindWmsLayer(asSubset);
+		if (asWmsLayer)
+			return asWmsLayer;
+	}
+	return nullptr;
+}
+
+auto ViewPort::FindBackgroundWmsLayer() -> WmsLayer*
+{
+	auto ls = GetLayerSet();
+	return FindWmsLayer(ls);
+}
+
 void ViewPort::ZoomIn1()
 {
+	auto layer = FindBackgroundWmsLayer();
+	if (layer && layer->ZoomIn(this))
+		return;
 	ZoomFactor(0.5); // zoom in on half of org ROI
 }
 
@@ -468,28 +532,71 @@ void ViewPort::ZoomFactor(CrdType factor)
 
 void ViewPort::ZoomOut1()
 {
+	auto layer = FindBackgroundWmsLayer();
+	if (layer && layer->ZoomOut(this, false))
+		return;
 	ZoomFactor(2.0); // zoom in on twice the org ROI
+}
+
+void ViewPort::Pan(CrdPoint delta)
+{
+	CrdPoint center = Center(GetROI());
+	auto newCenter = center + delta;
+	PanTo(newCenter);
 }
 
 void ViewPort::PanTo(CrdPoint newCenter)
 {
-	CrdPoint s = Size(GetROI()) * 0.5;
+	CrdPoint sz = Size(GetROI()) * 0.5;
 
-	SetROI(CrdRect(newCenter - s, newCenter + s));
+	SetROI(CrdRect(newCenter - sz, newCenter + sz));
 }
 
 void ViewPort::PanToClipboardLocation()
 {
-	SharedStr clipboardText = ClipBoard().GetText();
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 
-	MemoInpStreamBuff buff(clipboardText.begin(), clipboardText.send());
-	FormattedInpStream fin(&buff);
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.center.first) && IsDefined(viewPoint.center.second))
+		PanTo(viewPoint.center);
+}
 
-	CrdPoint worldCrd;
-	dms_assert(worldCrd.first == 0.0 && worldCrd.second == 0.0);
-	fin >> "[ X=" >> worldCrd.Col() >> "; Y=" >> worldCrd.Row() >> "]";
-	if (worldCrd.first != 0.0 || worldCrd.second != 0.0)
-		PanTo(worldCrd);
+void ViewPort::ZoomToClipboardLocation()
+{
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.zoomLevel))
+		SetCurrZoomLevel(viewPoint.zoomLevel);
+}
+
+void ViewPort::PanAndZoomToClipboardLocation()
+{
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+
+	SharedStr clipboardText = clipBoard.GetText();
+	auto viewPoint = ViewPoint(clipboardText.AsRange());
+	if (IsDefined(viewPoint.center.first) && IsDefined(viewPoint.center.second))
+		PanTo(viewPoint.center);
+	if (IsDefined(viewPoint.zoomLevel))
+		SetCurrZoomLevel(viewPoint.zoomLevel);
+}
+
+void ViewPort::CopyLocationAndZoomlevelToClipboard()
+{
+	auto roi = GetROI();
+	auto center = Center(roi);
+	auto zoomLevel = GetCurrZoomLevel();
+	auto viewPoint = ViewPoint(center, GetCurrZoomLevel(), {});
+	char buffer[201];;
+	if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+	{
+		ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+		ClipBoard::ClearBuff();
+		clipBoard.AddTextLine(buffer);
+	}
 }
 
 bool ViewPort::MouseEvent(MouseEventDispatcher& med)
@@ -500,10 +607,25 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	if (eventID & EID_MOUSEWHEEL )
 	{
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(eventInfo.m_wParam);
+		wheelDelta /= WHEEL_DELTA;
 		if (wheelDelta)
 		{
-			CrdType factor = pow(0.5, wheelDelta / WHEEL_DELTA);
-			ZoomFactor(factor);
+			CrdPoint oldWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+			if (wheelDelta > 0)
+			{
+				MakeMin<int>(wheelDelta, 5);
+				while (wheelDelta--)
+					ZoomIn1();
+			}
+			else 
+			{
+				assert(wheelDelta < 0);
+				MakeMax<int>(wheelDelta, -5);
+				while (wheelDelta++)
+					ZoomOut1();
+			}
+			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+			Pan(oldWorldPoint - newWorldPoint);
 			return true;
 		}
 	}
@@ -598,7 +720,7 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 		bmpInfo.bmiHeader.biSizeImage
 			=	abs(bmpInfo.bmiHeader.biHeight) * ((bmpInfo.bmiHeader.biWidth * (bmpInfo.bmiHeader.biBitCount+7)/8 + 0x03) & ~0x03);
 
-	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage MG_DEBUG_ALLOCATOR_SRC_STR("SaveBitmap"));
+	OwningPtrSizedArray<BYTE> pBuf( bmpInfo.bmiHeader.biSizeImage, dont_initialize MG_DEBUG_ALLOCATOR_SRC("SaveBitmap"));
 
 	bmpInfo.bmiHeader.biCompression=BI_RGB;
 	GetDIBits(hdc,hBitmap,0,bmpInfo.bmiHeader.biHeight,pBuf.begin(), &bmpInfo, DIB_RGB_COLORS);
@@ -714,6 +836,17 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case 'F': return OnCommand(TB_ZoomSelectedObj);
 			case 'N': return OnCommand(TB_Export);
 			case 'G': return OnCommand(TB_GotoClipboardLocation);
+			case '1': return OnCommand(TB_GotoClipboardLocation);
+			case '2': return OnCommand(TB_GotoClipboardZoomlevel);
+			case '3': return OnCommand(TB_GotoClipboardLocationAndZoomlevel);
+			case '0': return OnCommand(TB_CopyLocationAndZoomlevelToClipboard);
+		}
+	}
+	else if (KeyInfo::IsShiftCtrl(virtKey)) {
+		switch (KeyInfo::CharOf(virtKey)) {
+			case '1': BroadcastCommandToAllDataViews(TB_GotoClipboardLocation); return true;
+			case '2': BroadcastCommandToAllDataViews(TB_GotoClipboardZoomlevel); return true;
+			case '3': BroadcastCommandToAllDataViews(TB_GotoClipboardLocationAndZoomlevel); return true;
 		}
 	} else if (KeyInfo::IsCtrlAlt(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {
@@ -737,7 +870,7 @@ bool ViewPort::OnCommand(ToolButtonID id)
 		case TB_ZoomAllLayers:    ZoomAll();   return true;
 		case TB_ZoomActiveLayer:  AL_ZoomAll(); return true;
 		case TB_ZoomSelectedObj:  AL_ZoomSel(); return true;
-
+		case TB_ShowFirstSelectedRow: AL_ZoomSel(); return true;
 		case TB_Neutral:
 			SetViewPortCursor( LoadCursor(NULL, IDC_ARROW) );
 			goto setControllerID;
@@ -802,6 +935,19 @@ bool ViewPort::OnCommand(ToolButtonID id)
 			}
 		case TB_GotoClipboardLocation:
 			PanToClipboardLocation();
+			return true;
+
+		case TB_GotoClipboardZoomlevel:
+			ZoomToClipboardLocation();
+			return true;
+
+		case TB_GotoClipboardLocationAndZoomlevel:
+			PanAndZoomToClipboardLocation();
+			return true;
+
+		case TB_CopyLocationAndZoomlevelToClipboard:
+			CopyLocationAndZoomlevelToClipboard();
+			return true;
 	}
 	return base_type::OnCommand(id);
 
@@ -814,7 +960,21 @@ setControllerID:
 void ViewPort::FillMenu(MouseEventDispatcher& med)
 {
 	//	Goto & Find
-	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents such as [ X=999; y=999 ] pan there"), new MembFuncCmd<ViewPort>(&ViewPort::PanToClipboardLocation), this));
+	static SharedStr msg0 = SharedStr("Ctrl-0: Copy Location and Zoomlevel as ViewPoint to Clipboard");
+	static SharedStr msg1 = SharedStr("Ctrl-1: Pan to ViewPoint location in Clipboard");
+	static SharedStr msg2 = SharedStr("Ctrl-2: Zoom to ViewPoint zoom-level");
+	static SharedStr msg3 = SharedStr("Ctrl-3: Pan and Zoom to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msg0, make_MembFuncCmd(&ViewPort::CopyLocationAndZoomlevelToClipboard), this));
+	med.m_MenuData.push_back(MenuItem(msg1, make_MembFuncCmd(&ViewPort::PanToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg2, make_MembFuncCmd(&ViewPort::ZoomToClipboardLocation), this));
+	med.m_MenuData.push_back(MenuItem(msg3, make_MembFuncCmd(&ViewPort::PanAndZoomToClipboardLocation), this));
+
+	static SharedStr msgS1 = SharedStr("Shift-Ctrl-1: Pan all MapViews to ViewPoint location in Clipboard");
+	static SharedStr msgS2 = SharedStr("Shift-Ctrl-2: Zoom all MapViews to ViewPoint zoom-level");
+	static SharedStr msgS3 = SharedStr("Shift-Ctrl-3: Pan and Zoom all MapViews to ViewPoint in Clipboard");
+	med.m_MenuData.push_back(MenuItem(msgS1, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '1'), this));
+	med.m_MenuData.push_back(MenuItem(msgS2, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '2'), this));
+	med.m_MenuData.push_back(MenuItem(msgS3, make_MembFuncCmd(&ViewPort::OnKeyDown, KeyInfo::Flag::Ctrl | KeyInfo::Flag::Shift | '3'), this));
 
 	base_type::FillMenu(med);
 }
@@ -854,10 +1014,11 @@ public:
 		GridLayer*     target, 
 		GridCoordPtr    gridCoords,
 		SelValuesData* selValues
-	)	:	AbstrController(owner, target, 
-				EID_LBUTTONDOWN|EID_MOUSEMOVE|EID_MOUSEDRAG,
-				EID_LBUTTONUP,
-				EID_LBUTTONUP|EID_RBUTTONDOWN|EID_RBUTTONUP|EID_CAPTURECHANGED|EID_SCROLLED
+	)	:	AbstrController(owner, target 
+			,	EID_LBUTTONDOWN|EID_MOUSEMOVE|EID_MOUSEDRAG
+			,	EID_LBUTTONUP
+			,	EID_LBUTTONUP|EID_RBUTTONDOWN|EID_RBUTTONUP|EID_CAPTURECHANGED|EID_SCROLLED
+			,	ToolButtonID::TB_PasteSel
 			)
 		,	m_ViewPort(vp)
 		,	m_GridLayer(target)
@@ -1027,9 +1188,10 @@ void ViewPort::SetROI(const CrdRect& r)
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
 	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
 
-	CrdType minSize = GetSubItemValue(m_WorldCrdUnit,  vpminsID, 10.0);
+	CrdType minSize = GetSubItemValue(m_WorldCrdUnit,  vpminsID, -1.0);
 	CrdType maxSize = GetSubItemValue(m_WorldCrdUnit,  vpmaxsID, 40000.0e+9);
-
+	if (minSize == -1.0)
+		minSize = 10.0 / GetUnitSizeInMeters(m_WorldCrdUnit);
 	CrdRect rr = r;
 	LimitRange(rr.first.Row(), rr.second.Row(), minSize, maxSize);
 	LimitRange(rr.first.Col(), rr.second.Col(), minSize, maxSize);

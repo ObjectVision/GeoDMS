@@ -250,10 +250,12 @@ struct RegCountOperator : public QuaternaryOperator
 		fc->m_MetaInfo = make_noncopyable_any<RegionInfoArray>(std::move(regionInfoArray));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
-		RegionInfoArray& regionInfoArray = *noncopyable_any_cast<RegionInfoArray>(&fc->m_MetaInfo);
+		RegionInfoArray* regionInfoArrayPtr = noncopyable_any_cast<RegionInfoArray>(&fc->m_MetaInfo);
+		MG_CHECK(regionInfoArrayPtr);
+		RegionInfoArray& regionInfoArray = *regionInfoArrayPtr;
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]); dms_assert(arg1A);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]); dms_assert(arg2A);
@@ -263,6 +265,7 @@ struct RegCountOperator : public QuaternaryOperator
 		auto actorTypeRange = const_array_cast<ActorType>(arg1A)->GetValueRangeData(); // LANDUSE CLASSES
 		dms_assert(actorTypeRange);
 		ActorTypeIndex n = Cardinality(actorTypeRange->GetRange());
+		MG_CHECK(regionInfoArray.size() == n);
 
 		// ================ lock data
 

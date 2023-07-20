@@ -94,11 +94,11 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			if (m_PossibleArgFlags & AF2_HASUNDEFINED) reinterpret_cast<UInt32&>(af) |= (arg2A->HasUndefinedValues() ? AF2_HASUNDEFINED : 0);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-			auto tn = e->GetNrTiles();
 
+			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && !res->HasRepetitiveUsers())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + GetGroup()->GetName().c_str()) );
+			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
+				res->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -146,11 +146,11 @@ public:
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<Arg1ValueType>(arg1A); dms_assert(arg1);
-		auto arg2 = const_array_cast<Arg2ValueType>(arg2A); dms_assert(arg2);
+		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
+		auto arg2 = MakeShared(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
@@ -170,7 +170,7 @@ public:
 		auto arg2Data = const_array_cast<Arg2ValueType>(arg2A)->GetTile(af & AF2_ISPARAM ? 0 : t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, arg2Data, af MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		CalcTile(resData, arg1Data, arg2Data, af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
 	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, sequence_traits<Arg2ValueType>::cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;

@@ -149,7 +149,10 @@ template <class V>
 std::size_t DataArrayBase<V>::GetNrTileBytesNow(tile_id t, bool calcStreamSize) const
 {
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
-	return NrBytesOf(GetTile(t), calcStreamSize);
+	auto tile = GetTile(t);
+	if (tile.size() == 0)
+		return std::size_t(-1); // can be anything
+	return NrBytesOf(tile, calcStreamSize);
 }
 
 template <class V>
@@ -170,12 +173,30 @@ bool DataArrayBase<V>::IsSmallerThan(SizeT sz) const
 template <class V>
 SizeT NumericArray<V>::FindPos(V v, SizeT startPos) const
 {
-	auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos);
-	for (tile_id tn = this->GetTiledRangeData()->GetNrTiles(); loc.first != tn; ++loc.first, loc.second = 0)
+	auto tn = this->GetTiledRangeData()->GetNrTiles();
+	if (tn)
 	{
-		auto pos = vector_find(this->GetDataRead(loc.first), v, loc.second);
-		if (IsDefined(pos))
-			return this->GetTiledRangeData()->GetRowIndex(loc.first, pos);
+		auto loc = this->GetTiledRangeData()->GetTiledLocation(startPos);
+		if (!IsDefined(loc.first))
+		{
+			if (!startPos)
+				loc = { 0, 0 }; // Irregular tile start
+			else
+			{
+				// Irregular tile continuation after last element of tile:
+				// go back, pick up location, go forward locally and go.
+				loc = this->GetTiledRangeData()->GetTiledLocation(startPos - 1); 
+				MG_CHECK(loc.first < tn);
+				++loc.first;
+				loc.second = 0;
+			}
+		}
+		for (; loc.first < tn; ++loc.first, loc.second = 0)
+		{
+			auto pos = vector_find(this->GetTile(loc.first), v, loc.second);
+			if (IsDefined(pos))
+				return this->GetTiledRangeData()->GetRowIndex(loc.first, pos);
+		}
 	}
 	return UNDEFINED_VALUE(SizeT);
 }
@@ -234,6 +255,13 @@ void NumericArray<V>::SetValueAsSizeT(SizeT index, SizeT val)
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
 	this->SetIndexedValue(index, conv.GetValue(val) );
+}
+
+template <class V>
+void NumericArray<V>::SetValueAsDiffT(SizeT index, DiffT val)
+{
+	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
+	this->SetIndexedValue(index, conv.GetValue(val));
 }
 
 template <class V>
@@ -462,18 +490,19 @@ DRect GeoArrayAdapter<Base>::GetActualRangeAsDRect(bool checkForNulls) const
 {
 	using field_t = typename Base::field_t;
 	Range<field_t> result;
-	for (tile_id t = 0, tn = this->GetTiledRangeData()->GetNrTiles(); t != tn; ++t)
-	{
-		auto data = this->GetDataRead(t);
-
-		result |=
-			Range<field_t>(
-				data.begin(), 
-				data.end(), 
-				checkForNulls,
-				false // don't call MakeStrictlyGreater on upper bound of the range
-			);
-	}
+	std::mutex resultMutationCS;
+	parallel_tileloop(this->GetTiledRangeData()->GetNrTiles(), [&result, &resultMutationCS, this, checkForNulls](tile_id t)
+		{
+			auto data = this->GetTile(t);
+			auto range = 
+				Range<field_t>(data.begin(), data.end()
+				,	checkForNulls
+				,	false // don't call MakeStrictlyGreater on upper bound of the range
+				);
+			auto exclusiveAccessLock = std::lock_guard(resultMutationCS);
+			result |= range;
+		}
+	);
 	return Convert<DRect>(result);
 }
 

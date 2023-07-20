@@ -127,7 +127,6 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 #include "dbg/Check.h"
 #include "geo/IndexRange.h"
 #include "geo/SequenceTraits.h"
-#include "geo/SeqVector.h"
 #include "ptr/WeakPtr.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/Token.h"
@@ -205,18 +204,19 @@ struct SA_ConstReference : private SequenceArray_Base<T>
 	using typename SequenceArray_Base<T>::sequence_value_type;
 
 	// sequence properties
-	size_type      size () const { dms_assert(!is_null()); return m_CSeqPtr->size();  }
-	bool           empty() const { dms_assert(!is_null()); return m_CSeqPtr->empty(); }
-	bool       IsDefined() const { dms_assert(!is_null()); return ::IsDefined(*m_CSeqPtr); }
+	size_type      size () const { assert(!is_null()); return m_CSeqPtr->size();  }
+	bool           empty() const { assert(!is_null()); return m_CSeqPtr->empty(); }
+	bool       IsDefined() const { assert(!is_null()); return ::IsDefined(*m_CSeqPtr); }
 
 	// Element ro access
-	const_iterator begin() const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
-	const_iterator end  () const { dms_assert(!is_null()); dms_assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
+	const_iterator begin() const { assert(!is_null()); assert(m_CSeqPtr->first <= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->first;  }
+	const_iterator end  () const { assert(!is_null()); assert(m_CSeqPtr->second<= m_Container->m_Values.size() || !IsDefined()); return m_Container->m_Values.begin() + m_CSeqPtr->second; }
 
+	auto AsRange() const ->IterRange<const_iterator> { return { begin(), end() }; }
 
-	const_reference operator[](size_type i) const { dms_assert(i<size()); return begin()[i]; }
-	const_reference front()                 const { dms_assert(0<size()); return begin()[0]; }
-	const_reference back()                  const { dms_assert(0<size()); return end()[-1]; }
+	const_reference operator[](size_type i) const { assert(i<size()); return begin()[i]; }
+	const_reference front()                 const { assert(0<size()); return begin()[0]; }
+	const_reference back()                  const { assert(0<size()); return end()[-1]; }
 
 //	compare contents
 	RTC_CALL bool operator ==(SA_ConstReference<T> rhs) const;
@@ -243,7 +243,7 @@ private:
 	RTC_CALL SA_ConstReference(const SequenceArrayType* sa, const_seq_iterator cSeqPtr);
 
 	// Forbidden to call directly; can be constructed as part of a default SA_ConstIterator
-	SA_ConstReference() : m_CSeqPtr() { dms_assert(is_null()); }
+	SA_ConstReference() : m_CSeqPtr() { assert(is_null()); }
 
 	bool is_null() const 
 	{
@@ -255,6 +255,26 @@ private:
 	WeakPtr<const SequenceArrayType> m_Container;
 	const_seq_iterator               m_CSeqPtr;
 };
+
+template <typename T, typename A>
+bool operator < (const std::vector<T, A>& lhs, SA_ConstReference<T> rhs) noexcept
+{
+	return IsDefined(lhs)
+		? rhs.IsDefined()
+		? lex_compare(lhs.begin(), lhs.end(), cbegin_ptr(rhs), cend_ptr(rhs))
+		: false
+		: rhs.IsDefined();
+}
+
+inline bool operator < (const SharedStr& lhs, SA_ConstReference<char> rhs) noexcept
+{
+	return lhs.IsDefined()
+		? rhs.IsDefined()
+		? lex_compare(lhs.begin(), lhs.end(), cbegin_ptr(rhs), cend_ptr(rhs))
+		: false
+		: rhs.IsDefined();
+}
+
 
 //=======================================
 // SequenceArray<T>::reference
@@ -595,6 +615,18 @@ private:
 	friend struct SA_Reference<T>;
 };
 
+inline size_t payload(const SharedStr& v) { return v.ssize(); }
+template <typename Seq> size_t payload(const Seq& v) { return v.size(); }
+
+template <typename CIter>
+std::size_t CalcActualDataSize(CIter first, CIter last)
+{
+	std::size_t result = 0;
+	for (; first != last; ++first)
+		result += payload(*first);
+	return result;
+}
+
 //=======================================
 // sequence_array
 //=======================================
@@ -748,14 +780,14 @@ public:
 	bool IsLocked()        const { return m_Indices.IsLocked() && m_Values.IsLocked  (); }
 #endif
 	bool CanWrite()        const { return m_Indices.CanWrite       () && m_Values.CanWrite  (); }
-	bool IsAssigned()      const { return m_Indices.IsAssigned     () && m_Values.IsAssigned(); }
+	bool IsAssigned()      const { return m_Indices.IsAssigned     (); }
 	bool IsHeapAllocated() const { return m_Indices.IsHeapAllocated() && m_Values.IsHeapAllocated(); }
 
 	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Lock  (dms_rw_mode rwMode);
 
 	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
-	void UnLock() { allocate_data(0 MG_DEBUG_ALLOCATOR_SRC_SA); m_Indices.UnLock(); m_Values.UnLock(); }
+	void UnLock() { m_Indices.UnLock(); m_Values.UnLock(); }
 	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
@@ -765,22 +797,49 @@ public:
 	RTC_CALL void reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Resize(data_size_type expectedDataSize, seq_size_type expectedSeqsSize, seq_size_type nrSeqs MG_DEBUG_ALLOCATOR_SRC_ARG);
 
+	void SetValues(data_vector_t newValues) 
+	{ 
+		MGD_CHECKDATA(m_Values.IsLocked());
+		m_Values.UnLock();
+		m_Values = std::move(newValues); 
+		MGD_CHECKDATA(!m_Values.IsLocked());
+		m_Values.Lock(dms_rw_mode::read_only);
+		MGD_CHECKDATA(m_Values.IsLocked());
+	}
+
 	void data_reserve(data_size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		m_Values.reserve(expectedDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
-	data_size_type data_size()  const
+	auto data_size() const
 	{
 		return m_Values.size();
 	}
-	data_size_type actual_data_size()  const
+	auto data_begin() const
+	{
+		return m_Values.begin();
+	}
+	auto data_end() const
+	{
+		return m_Values.end();
+	}
+	auto actual_data_size() const
 	{
 		return m_ActualDataSize;
 	}
-	data_size_type data_capacity() const
+	auto data_capacity() const
 	{
 		return m_Values.capacity();
 	}
+	auto index_begin()
+	{
+		return m_Indices.begin();
+	}
+	auto index_begin() const
+	{
+		return m_Indices.begin();
+	}
+
 
 	RTC_CALL bool allocate_data(data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL bool allocate_data(data_vector_t& oldData, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
@@ -820,15 +879,13 @@ private:
 
 	RTC_CALL void appendRange(const_data_iterator first, const_data_iterator last);
 
-	RTC_CALL data_size_type calcActualDataSize() const;
-
-	RTC_CALL static data_size_type CalcActualDataSize(const_iterator first, const_iterator last);
+protected:
+	auto calcActualDataSize() const->data_size_type;
 
 #if defined(MG_DEBUG)
 	RTC_CALL void checkActualDataSize() const;
 	RTC_CALL void checkConsecutiveness() const;
 #endif
-
 	seq_vector_t   m_Indices;            // for identifying allocated sequences
 	data_vector_t  m_Values;             // for sequential storage of sequences of T (the memory pool)
 	data_size_type m_ActualDataSize = 0; // no of elements in allocated sequences (not abandoned elements)
@@ -861,13 +918,50 @@ struct sequence_vector : sequence_array<T>
 	{
 		this->Lock(dms_rw_mode::write_only_all);
 	}
-	RTC_CALL sequence_vector(const_iterator i, const_iterator e);
+	template<typename CIter>
+	sequence_vector(CIter i, CIter e);
 	~sequence_vector()
 	{
 		if (this->IsAssigned())
 			this->UnLock();
 	}
 };
+
+//=======================================
+// sequence_array
+//=======================================
+
+// sequence_array constructors
+
+template <typename T>
+template <typename CIter>
+sequence_vector<T>::sequence_vector(CIter i, CIter e)
+	:	sequence_vector()
+{
+	auto srcDataSize = CalcActualDataSize(i, e);
+
+	this->reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC("sequence_vector from span"));
+
+	auto ri = this->m_Indices.begin();
+
+	while (i != e)
+	{
+		this->allocateSequenceRange(ri, begin_ptr(*i), end_ptr(*i));
+		++ri;
+		++i;
+	}
+	dms_assert(this->calcActualDataSize() == this->actual_data_size());
+	dms_assert(srcDataSize == this->actual_data_size());
+	dms_assert(!this->IsDirty());
+}
+
+template <typename T>
+auto sequence_array<T>::calcActualDataSize() const -> data_size_type
+{
+	MGD_CHECKDATA(IsLocked());
+	return CalcActualDataSize(begin(), end());
+}
+
 
 //=======================================
 // sequence for sequence_array elements

@@ -103,7 +103,7 @@ private:
 
 private:
 	ScalableObject*           m_LayerElem; // ownership must be guarded by derived class that sees the complete type
-	FontSizeCategory          m_FID;
+	FontSizeCategory          m_FID = FontSizeCategory::MEDIUM;
 
 	std::shared_ptr<LayerHeaderControl>  m_HeaderControl;
 
@@ -171,7 +171,7 @@ class LayerControlSet : public GraphicVarRows
 public:
 	LayerControlSet(MovableObject* owner, LayerSet* layerSet);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_PushVisibility|GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::PushVisibility| GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -206,7 +206,7 @@ public:
 	~LayerControlGroup();
 	void Init(LayerSet* layerSet, CharPtr caption);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
 	void FillMenu(MouseEventDispatcher& med) override;

@@ -329,17 +329,17 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 {
 	DetermineOperPolicy();
 #if defined(MG_DEBUG_SPECIAL_OPERATORS)
-	CharPtr calcability[6] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree"};
+	CharPtr calcability[7] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree", "calc_at_subitem"};
 
 	if (op != oper_policy::none)
 	{
 		// TODO WIKI
 		auto operNameStr = SharedStr(operNameID.str_range_st());
-		DBG_START("SpecialOperGroup", operNameStr.c_str(), "");
+		DBG_START("SpecialOperGroup", operNameStr.c_str(), false);
 		for (auto i = 0; i != maxNrArgs; ++i)
 		{
 			auto oap = argPolicyArray[i];
-			dms_assert(oap <= oper_arg_policy::subst_with_subitems);
+			dms_assert(oap <= oper_arg_policy::calc_at_subitem);
 			DBG_TRACE(("arg %d calc %s", i, calcability[int(oap)]));
 		}
 	}

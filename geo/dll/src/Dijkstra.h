@@ -60,7 +60,7 @@ struct DijkstraHeap
 	{
 		m_NrV = nrV;
 		if (useSrcZoneStamps)
-			m_SrcZoneStamp = OwningPtrSizedArray<ZoneType>(nrV MG_DEBUG_ALLOCATOR_SRC_STR("dijkstra: m_SrcZoneStamp"));
+			m_SrcZoneStamp = OwningPtrSizedArray<ZoneType>(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_SrcZoneStamp"));
 		ResetZoneStamps();
 	}
 
@@ -167,11 +167,11 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 		DijkstraHeap<NodeType, LinkType, ZoneType, ImpType>::Init(nrV, useSrcZoneStamps);
 		if (nrV && !m_ResultData)
 		{
-			m_ResultData = OwningPtrSizedArray<ImpType>(nrV MG_DEBUG_ALLOCATOR_SRC_STR("dijkstra: m_ResultData"));
+			m_ResultData = OwningPtrSizedArray<ImpType>(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_ResultData"));
 			this->m_ResultDataPtr = m_ResultData.begin();
 			if (useTraceBack && !m_TraceBackData)
 			{
-				m_TraceBackData = OwningPtrSizedArray<LinkType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC_STR("dijkstra: m_TraceBackData"));
+				m_TraceBackData = OwningPtrSizedArray<LinkType>(nrV, Undefined() MG_DEBUG_ALLOCATOR_SRC("dijkstra: m_TraceBackData"));
 				this->m_TraceBackDataPtr = m_TraceBackData.begin();
 			}
 		}

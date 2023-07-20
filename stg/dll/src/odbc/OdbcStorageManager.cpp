@@ -588,7 +588,7 @@ public:
 
 			dms_assert(data.size() == recordCount);
 			if (recordsPerFrame == recordCount)
-				data.get_sa().data_reserve(GetActualSizeEstimate() MG_DEBUG_ALLOCATOR_SRC_STR("ODBC"));
+				data.get_sa().data_reserve(GetActualSizeEstimate() MG_DEBUG_ALLOCATOR_SRC("ODBC"));
 
 			sequence_array<char>::iterator stringPtr = data.begin() + recordsRead;
 
@@ -637,14 +637,6 @@ private:
 StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction sa) const
 {
 	return std::make_unique<OdbcMetaInfo>(this, storageHolder, adi);
-}
-
-bool ODBCStorageManager::ReduceResources()
-{
-	if (m_Database.is_null())
-		return false;
-	m_Database->Close();
-	return true;
 }
 
 ODBCStorageManager::ODBCStorageManager()
@@ -746,17 +738,17 @@ void ReadData(ODBCStorageReader& isb, sequence_traits<SharedStr>::seq_t data)
 
 typedef SharedStr String;
 
-bool ODBCStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(t == 0);
 
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
 	TreeItem* tableHolder = const_cast<TreeItem*>(adi->GetTreeParent());
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(&smi), tableHolder, adi->GetName().c_str(), adi);
+	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder, adi->GetName().c_str(), adi);
 
 	adi->GetAbstrDomainUnit()->ValidateCount(ir.GetRecordCount());
 

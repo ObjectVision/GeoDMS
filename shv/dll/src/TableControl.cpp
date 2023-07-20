@@ -111,8 +111,13 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 		TRect newSelRect = GetSelRect();
 		if (m_OldSelRect != newSelRect)
 		{
-			Region selChange( TRect2GRect(m_OldSelRect) );
-			selChange ^= Region( TRect2GRect(newSelRect) );
+			auto scaleFactor = GetWindowDIP2pixFactorXY( dv->GetHWnd() );
+			auto gRect = TRect2GRect(m_OldSelRect);
+			gRect *= scaleFactor;
+			Region selChange( gRect );
+			gRect = TRect2GRect(newSelRect);
+			gRect *= scaleFactor;
+			selChange ^= Region( gRect );
 			dv->InvalidateRgn(selChange);
 		}
 	}
@@ -186,7 +191,12 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 TableControl::TableControl(MovableObject* owner)
 	:	base_type(owner)
 	,	m_TableView(0)
-{}
+{
+	assert(owner);
+	auto dv = owner->GetDataView().lock();
+	assert(dv);
+	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
+}
 
 TableControl::~TableControl()
 {
@@ -283,6 +293,29 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
 	PreparedDataReadLock lck(m_SelIndexAttr);
+	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
+}
+
+SizeT TableControl::nrRows() const
+{
+	dms_assert(!SuspendTrigger::DidSuspend());
+	auto rowEntity = GetRowEntity();
+	if (!rowEntity)
+		return 8;
+
+	return rowEntity->GetCount();
+}
+
+SizeT TableControl::getRecNo(SizeT rowNr) const
+{
+	if (!IsDefined(rowNr) || rowNr >= nrRows())
+		return UNDEFINED_VALUE(SizeT);
+
+	if (m_State.Get(TCF_FlipSortOrder))
+		rowNr = (nrRows() - (rowNr + 1));
+	if (!m_SelIndexAttr)
+		return rowNr;
+	assert(m_SelIndexAttr->m_DataLockCount > 0);
 	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
 }
 
@@ -755,7 +788,7 @@ bool TableControl::OnCommand(ToolButtonID id)
 		case TB_SelectAll :      SelectAllRows( true); return true;
 		case TB_SelectNone:      SelectAllRows(false); return true;
 		case TB_SelectRows:      SelectRows();         return true;
-		case TB_ZoomSelectedObj: GoToFirstSelected();  return true;
+		case TB_ShowFirstSelectedRow: GoToFirstSelected();  return true;
 		case TB_Export:          Export();             return true;
 		case TB_TableCopy:       TableCopy();          return true;
 
@@ -784,6 +817,17 @@ bool TableControl::OnCommand(ToolButtonID id)
 		}
 	}
 	return base_type::OnCommand(id);
+}
+
+auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
+{
+	SuspendTrigger::Resume();
+	switch (id)
+	{
+	case TB_TableGroupBy:
+		return NrRows() > 1 ? CommandStatus::ENABLED : CommandStatus::DISABLED;
+	}
+	return GraphicVarCols::OnCommandEnable(id);
 }
 
 void TableControl::RemoveEntry(MovableObject* g)
@@ -934,18 +978,23 @@ void TableControl::SaveTo(OutStreamBuff* buffPtr) const
 
 	SizeT pk = k2 - 1;
 
-	std::vector<const AbstrDataItem*>   itemArray; itemArray.reserve(k2 - k1);
+	std::vector<TableColumnSpec> itemArray; itemArray.reserve(k2 - k1);
 	for (SizeT j = k1; j != k2; ++j)
 	{
 		const DataItemColumn* dic = GetConstColumn(j);
 		if (!dic) continue;
-		const AbstrDataItem* adi = dic->GetActiveAttr();
-		if (adi)
-			itemArray.emplace_back(adi);
+		const AbstrDataItem* adi = dic->GetActiveTextAttr();
+		if (!adi)
+			continue;
+		auto& currSpec = itemArray.emplace_back();
+		currSpec.m_DataItem = adi;
+		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetID();
+		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
 	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
 	for (SizeT i = n1; i != n2; ++i)
 		recNos.emplace_back(GetRecNo(i));
+
 	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
 }
 
@@ -955,8 +1004,8 @@ void TableControl::TableCopy() const
 
 	SaveTo(&buff);
 
-	ClipBoard board;
-	board.SetText(buff.GetData(), buff.GetDataEnd());
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+	clipBoard.SetText(buff.GetData(), buff.GetDataEnd());
 }
 
 ExportInfo TableControl::GetExportInfo()
@@ -989,7 +1038,9 @@ void TableControl::Export()
 	
 	SharedStr fileName = mySSPrintF("%s.csv", info.m_FullFileNameBase.c_str());
 
-	FileOutStreamBuff buff(fileName, DSM::GetSafeFileWriterArray(), true);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	MG_CHECK(sfwa);
+	FileOutStreamBuff buff(fileName, sfwa.get(), true);
 	SaveTo(&buff);
 }
 
@@ -1182,7 +1233,10 @@ void TableControl::CreateTableGroupBy(bool activate)
 				);
 			}
 		}
-		SharedPtr<AbstrUnit> groupByEntity = Unit<UInt32>::GetStaticClass()->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
+		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
+		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
+
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
 		groupByEntity->DisableStorage();
 		groupByEntity->SetExpr(mgFormat2SharedStr("unique(%s)", expr));
 		m_GroupByEntity = groupByEntity.get_ptr();

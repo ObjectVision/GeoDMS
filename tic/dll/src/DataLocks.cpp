@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "xct/DmsException.h"
 
 #include "AbstrCalculator.h"
+#include "DataArray.h"
 #include "DataStoreManagerCaller.h"
 #include "FreeDataManager.h"
 #include "ParallelTiles.h"
@@ -50,6 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
+#include "UnitProcessor.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DATALOCKS 0
@@ -231,27 +233,21 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi)
 	:	DataReadLock((Update(adi), adi))
 {}
 
-SharedStr MakeTmpStreamName(stream_id_t lastStreamID) // TODO G8.4: Merge with 
-{
-	SharedStr result;
-	dms_assert(lastStreamID); // no overflow?
-	while (lastStreamID)
-	{
-		result = mySSPrintF("/%02x", lastStreamID % 256) + result;
-		lastStreamID /= 256;
-	}
-	result = ".tmp" + result;
-	return result;
-}
-
 auto CreateFileData(AbstrDataItem* adi, bool mustClear) -> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
 	bool isTmp = !isPersistent;
 
 	SharedStr filename = adi->m_FileName;
-	dms_assert(!filename.empty());
-	return CreateFileTileArray(adi, mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all, filename, isTmp, DataStoreManager::Curr()->GetSafeFileWriterArray());
+	assert(!filename.empty());
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return {};
+	return CreateFileTileArray(adi
+		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
+		,	filename, isTmp
+		,	sfwa.get()
+	);
 }
 
 auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>
@@ -264,7 +260,7 @@ auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWrit
 // DataWriteLock
 //----------------------------------------------------------------------
 
-DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTile 
+DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedObj* abstrValuesRangeData) // was lockTile 
 {
 	dms_assert(std::uncaught_exceptions() == 0);
 
@@ -276,7 +272,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTil
 	if (!adi)
 		return;
 
-	dms_assert((adi->GetTreeParent() == nullptr) or adi->GetTreeParent()->Was(PS_MetaInfo) or adi->GetTreeParent()->WasFailed(FR_MetaInfo));
+	assert((adi->GetTreeParent() == nullptr) or adi->GetTreeParent()->Was(PS_MetaInfo) or adi->GetTreeParent()->WasFailed(FR_MetaInfo) || IsMainThread());
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataWriteLockAtom::ctor") sg_ActorLockMap, adi);
 
@@ -287,8 +283,21 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm) // was lockTil
 	if (!adi->m_FileName.empty())
 		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
 	else
-		reset(CreateAbstrHeapTileFunctor(adi, mustClear MG_DEBUG_ALLOCATOR_SRC(adi->md_FullName + ": DataWriteLock")).release() );
+		reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
+/*
+	if (abstrValuesRangeData)
+	{
+		MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
+		visit<typelists::ranged_unit_objects>(adi->GetAbstrValuesUnit(), [this, abstrValuesRangeData]<typename T>(const Unit<T>*)
+		{
+			auto tileFunctor = dynamic_cast<DataArray<T>*>(this->get_ptr()); // ValueComposition ?
+			assert(tileFunctor);
+			if (tileFunctor)
+				tileFunctor->InitValueRangeData(dynamic_cast<const range_or_void_data<T>*>(abstrValuesRangeData));
+		});
+	}
+*/		
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)
 		CopyData(adi->GetRefObj(), get());

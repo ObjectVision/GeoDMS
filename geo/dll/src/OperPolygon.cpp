@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "GeoPCH.h"
 #pragma hdrstop
 
+#include "geo/DynamicPoint.h"
 #include "geo/Conversions.h"
 #include "mci/CompositeCast.h"
 #include "ptr/OwningPtrSizedArray.h"
@@ -47,10 +48,11 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 #include "ValueFiller.h"
 
-#include "OperAttrUni.h"
 #include "CastedUnaryAttrOper.h"
+#include "OperAttrUni.h"
 #include "Prototypes.h"
 #include "UnitCreators.h"
+
 
 #include <numeric>
 
@@ -166,8 +168,6 @@ struct Sequence2ScalarFunc
 //									ArcLength Operator
 // *****************************************************************************
 
-#include "geo/DynamicPoint.h"
-
 template <class P>
 struct ArcLengthFunc : Sequence2ScalarFunc<P>
 {
@@ -260,21 +260,13 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			parallel_tileloop(polyEntity->GetNrTiles(), [this, arg1A, arg2A, arg3A, resObj = resLock.get()](tile_id tr)->void
-				{
-					this->Calculate(resObj, tr, arg1A, arg2A, arg3A);
-				}
-			);
+			this->Calculate(resLock.get(), arg1A, arg2A, arg3A);
 			resLock.Commit();
 		}
 		return true;
 	}
 
-	virtual void Calculate(AbstrDataObject* res, tile_id tr
-	,	const AbstrDataItem* arg1A
-	,	const AbstrDataItem* arg2A
-	,	const AbstrDataItem* arg3A
-	)	const =0;
+	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const =0;
 };
 
 template <class T>
@@ -296,7 +288,7 @@ public:
 			)
 	{}
 
-	void Calculate(AbstrDataObject* res, tile_id tr
+	void Calculate(AbstrDataObject* res
 	,	const AbstrDataItem* arg1A
 	,	const AbstrDataItem* arg2A
 	,	const AbstrDataItem* arg3A
@@ -305,14 +297,14 @@ public:
 		const Arg1Type* arg1 = const_array_cast<PointType>(arg1A); // point array
 		const Arg2Type* arg2 = nullptr; if (arg2A) arg2 = const_array_cast<PolygonIndex>(arg2A); // polygon ordinal; nullptr indicates sequence set has void domain (thus, one sequence)
 		const Arg3Type* arg3 = nullptr; if (arg3A) arg3 = const_array_cast<OrdinalType> (arg3A); // ordinal within polygon; nullptr indicates ascending order
-		dms_assert(arg1); 
+		assert(arg1); 
 
 		ResultType *result = mutable_array_cast<PolygonType>(res);
-		dms_assert(result);
+		assert(result);
 
-		auto resData = result->GetWritableTile(tr);
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-		Range<PolygonIndex> polyIndexRange = arg2 ? arg2->GetValueRangeData()->GetTileRange(tr) : Range<PolygonIndex>(0, 1);
+		Range<PolygonIndex> polyIndexRange = arg2 ? arg2->GetValueRangeData()->GetRange() : Range<PolygonIndex>(0, 1);
 
 		PolygonIndex nrPolys = Cardinality(polyIndexRange);
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
@@ -332,7 +324,6 @@ public:
 				Arg2Type::const_iterator i2 = arg2Data.begin(), e2 = arg2Data.end();
 				for(; i2 != e2; ++i2)
 				{
-	//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, *i2); 
 					SizeT polyNr = *i2;
 					polyNr -= polyIndexRange.first;
 					if (polyNr < nrPolys)
@@ -353,8 +344,8 @@ public:
 		MG_DEBUGCODE( size_t cumulSize = 0; )
 		dbg_assert(cumulSize == resData.get_sa().actual_data_size());
 
-		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), 0);
-		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), SizeT(0));
+		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 
 		// ==== then resize each resulting polygon according to the nr of seen points.
 		for (PolygonIndex i=0; i!=nrPolys; ++i)
@@ -372,10 +363,8 @@ public:
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
-		{
-			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: currOrdinals"));
-			fast_zero(currOrdinals.begin(), currOrdinals.begin() + nrPolys);
-		}
+			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
+
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
 			auto arg1Data = arg1->GetLockedDataRead(ta);
@@ -388,7 +377,6 @@ public:
 			auto b3 = arg3Data.begin();
 			for (SizeT i=0, n = arg1Data.size(); i!=n; ++i)
 			{
-//				SizeT polyNr = Range_GetIndex_naked(polyIndexRange, b2[i]);
 				SizeT polyNr = (arg2) ? b2[i] - polyIndexRange.first : 0;
 				if (polyNr < nrPolys)
 				{
@@ -410,8 +398,7 @@ public:
 
 static TokenID s_Point = token::point;
 static TokenID s_NextPoint = GetTokenID_st("NextPoint");
-static TokenID s_nrOrgEntity = GetTokenID_st("SequenceNr");
-static TokenID s_SequenceNr = GetTokenID_st("Ordinal");
+static TokenID s_DepreciatedSequenceNr = GetTokenID_st("SequenceNr");
 
 namespace {
 	enum TableCreateFlags
@@ -419,7 +406,7 @@ namespace {
 		DoCloseLast           = 0x0001
 	,	DoCreateNextPoint     = 0x0002
 	,	DoCreateNrOrgEntity   = 0x0004
-	,	DoCreateSequenceNr    = 0x0008
+	,	DoCreateOrdinal    = 0x0008
 	,	DoCreateDistFromStart = 0x0010
 	,	DoIncludeEndPoints    = 0x0020
 	};
@@ -443,23 +430,22 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
+		auto arg1A = AsDataItem(args[0]);
+		assert(arg1A);
 
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		ResultUnitType* resDomain
-			=	debug_cast<ResultUnitType*>(
-					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
-				);
-		dms_assert(resDomain);
+		ResultUnitType* resDomain = debug_cast<ResultUnitType*>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 
-		*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
+			*resSub1 = CreateDataItem(resDomain, s_Point, resDomain, pointValuesUnit),
 			*resSub2 = nullptr, 
 			*resSub3 = nullptr,
 			*resSub4 = nullptr;
@@ -474,14 +460,21 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && polyEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, polyEntity);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity);
 			MG_PRECONDITION(resSub3);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3->SetTSF(TSF_Categorical);
+			if (!mustCalc)
+			{
+				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, polyEntity);
+				depreciatedRes->SetTSF(TSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Depreciated);
+				depreciatedRes->SetReferredItem(resSub3);
+			}
 		}
 
-		if (m_CreateFlags & DoCreateSequenceNr)
+		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_SequenceNr, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
 			MG_PRECONDITION(resSub4);
 		}
 		
@@ -707,7 +700,9 @@ struct AbstrDynaPointOperator : public TernaryOperator
 			=	debug_cast<ResultUnitType*>(
 					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
 				);
-		dms_assert(resDomain);
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -726,15 +721,25 @@ struct AbstrDynaPointOperator : public TernaryOperator
 
 		if (m_CreateFlags & DoCreateNrOrgEntity && pointEntity->GetUnitClass() != Unit<Void>::GetStaticClass() )
 		{
-			resSub3 = CreateDataItem(resDomain, s_nrOrgEntity, resDomain, pointEntity);
-			resSub3->SetTSF(DSF_Categorical);
+			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
+			resSub3->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub3);
+
+			if (!mustCalc)
+			{
+				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
+				depreciatedRes->SetTSF(TSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Depreciated);
+				depreciatedRes->SetReferredItem(resSub3);
+			}
 		}
 
-		if (m_CreateFlags & DoCreateSequenceNr)
+		if (m_CreateFlags & DoCreateOrdinal)
 		{
-			resSub4 = CreateDataItem(resDomain, s_SequenceNr, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4 = CreateDataItem(resDomain, token::ordinal, resDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
+			resSub4->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub4);
+
 		}
 		
 		if (mustCalc)
@@ -779,7 +784,7 @@ class DynaPointOperator : public AbstrDynaPointOperator
 	typedef DataArray<DistType>        Arg3Type;
 	typedef DataArray<PointType>       ResultSub1Type; // Point
 	typedef DataArray<PointType>       ResultSub2Type; // NextPoint
-	typedef AbstrDataItem              ResultSub3Type; // SequenceNr (nr_OrgEntity)
+	typedef AbstrDataItem              ResultSub3Type; // sequence_rel
 	typedef DataArray<UInt32>          ResultSub4Type; // Ordinal
 
 public:
@@ -1041,7 +1046,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1060,9 +1065,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters( te MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: polyTileCounters"));
-
-			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
+			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
+//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin()+te);
 
 //			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
 //			{
@@ -1351,7 +1355,7 @@ protected:
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(domainUnit, valuesUnit);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -1371,9 +1375,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
-			OwningPtrSizedArray<UInt32> polyTileCounters(te MG_DEBUG_ALLOCATOR_SRC_STR("OperPolygon: polyTileCounters"));
-
-			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
+			OwningPtrSizedArray<UInt32> polyTileCounters(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: polyTileCounters"));
+//			fast_zero(polyTileCounters.begin(), polyTileCounters.begin() + te);
 
 			//			for (tile_id u=0, ue = valuesUnit->GetNrTiles(); u != ue; ++u) // each polygon tile
 			//			{
@@ -1583,8 +1586,8 @@ protected:
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
 		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
-		if (res1) res1->SetTSF(DSF_Categorical);
-		if (res2) res2->SetTSF(DSF_Categorical);
+		if (res1) res1->SetTSF(TSF_Categorical);
+		if (res2) res2->SetTSF(TSF_Categorical);
 
 		if (mustCalc)
 		{
@@ -1623,7 +1626,12 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
+
+				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons at %d point tiles x %d polygon tiles resulted in %d matches"
+					, domain1Unit->GetNrTiles()
+					, ue
+					, intersectCount
+				);
 			}
 
 			StoreRes(res, res1, res2, resData);
@@ -1649,10 +1657,10 @@ class PointInAllPolygonsOperator : public AbstrPointInAllPolygonsOperator
 	typedef DataArray<PointType>   Arg1Type;
 	typedef DataArray<PolygonType> Arg2Type;
 
-	using ResDataElemType = Point<SizeT>;
-
-	typedef std::vector<ResDataElemType> ResTileDataType;
-	typedef std::map<Point<tile_id>, ResTileDataType> ResDataType;
+	using ResDataElemType = std::pair<tile_offset, tile_offset>;
+	using ResTileDataType = std::vector<ResDataElemType>;
+	using DualTileKey = std::pair<tile_id, tile_id>;
+	using ResDataType     = std::map<DualTileKey, ResTileDataType>;
 
 	typedef typename scalar_of<PointType>::type  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
@@ -1706,15 +1714,11 @@ public:
 		auto pointArray = pointData->GetTile(t);
 		auto polyArray = polyData->GetTile(u);
 
-		SizeT p1Offset = pointDataA->GetAbstrDomainUnit()->GetTileFirstIndex(t);
-		SizeT p2Offset = polyDataA->GetAbstrDomainUnit()->GetTileFirstIndex(u);
-
 		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
 
-		typedef typename SpatialIndexType::template iterator<BoxType> box_iter_type;
-		typedef typename scalar_of<P>::type coordinate_type;
-
-		typedef ResDataElemType res_data_elem_type;
+		using box_iter_type   = typename SpatialIndexType::template iterator<BoxType> ;
+		using coordinate_type = typename scalar_of<P>::type ;
+		using res_data_elem_type = ResDataElemType;
 
 		ResTileDataType* resTileData = nullptr;
 		if (!resTileData)
@@ -1724,34 +1728,30 @@ public:
 			if (!resDataHandle)
 				resDataHandle = makeResource<ResDataType>();
 			ResDataType& resData = GetAs<ResDataType>(resDataHandle);
-			resTileData = &(resData[Point<tile_id>(t, u)]);
+			resTileData = &(resData[DualTileKey(t, u)]);
 		}
 		dms_assert(resTileData);
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		parallel_for(SizeT(0), pointArray.size(), [p1Offset, p2Offset, &pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection](SizeT i)->void
+		parallel_for(tile_offset(0), tile_offset(pointArray.size()),
+			[&pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection]
+			(tile_offset pointTileOffset)->void
 			{
-				auto pointPtr = pointArray.begin() + i;
-				SizeT p1_rel = p1Offset + i;
-//				BoxType bbox = RangeFromSequence(polyPtr->begin(), polyPtr->end());
+				auto pointPtr = pointArray.begin() + pointTileOffset;
 				if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), *pointPtr))
 					return;
 
-//				box_iter_type iter;
 				for (auto iter = spIndexPtr->begin(*pointPtr); iter; ++iter)
 				{
 					if (IsInside(*((*iter)->get_ptr()), *pointPtr))
 					{
-						res_data_elem_type back;
-						back.first = p1_rel;
-						back.second = p2Offset + (((*iter)->get_ptr()) - polyArray.begin());
-
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->push_back(std::move(back));
+						resTileData->emplace_back(pointTileOffset, (*iter)->get_ptr() - polyArray.begin());
 					}
 				}
-			});
+			}
+		);
 	}
 
 	void StoreRes(AbstrUnit* res, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resDataHandle) const override
@@ -1764,26 +1764,62 @@ public:
 				count += resTiles.second.size();
 		res->SetCount(count);
 
-		locked_tile_write_channel<UInt32> res1Writer(res1);
-		locked_tile_write_channel<UInt32> res2Writer(res2);
-
 		if (resData)
 		{
-			for (auto& resTiles : *resData) // ordered by (t, u)
-			{
-				ResTileDataType& resTileData = resTiles.second;
-				std::sort(resTileData.begin(), resTileData.end()); // sort on (m_OrgRel)
+			std::vector<ResDataType::value_type> resTileDataArray; resTileDataArray.reserve(resData->size());
+			for (auto& resTileData : *resData)
+				resTileDataArray.emplace_back(std::move(resTileData));
 
-				for (auto& resElemData : resTileData)
+			parallel_for<SizeT>(0, resTileDataArray.size()
+			,	[&resTileDataArray](SizeT t)
 				{
-					if (res1) res1Writer.Write(resElemData.first);
-					if (res2) res2Writer.Write(resElemData.second);
-				}
-			}
+					auto& resTileData = resTileDataArray[t];
+					std::sort(resTileData.second.begin(), resTileData.second.end()); // sort on (m_OrgRel)
+				});
+			if (res1)
+				visit<typelists::domain_elements>(res1->GetAbstrValuesUnit()
+				,	[res1, &resTileDataArray]<typename P>(const Unit<P>* resValuesUnit)
+					{
+						locked_tile_write_channel<P> resWriter(res1);
+						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
+						MG_CHECK(tileRangeDataPtr);
+
+						for (auto& resTiles : resTileDataArray) // ordered by (t, u)
+						{
+							ResTileDataType& resTileData = resTiles.second;
+
+							for (auto& resElemData : resTileData)
+								resWriter.Write(tileRangeDataPtr->GetTileValue(resTiles.first.first, resElemData.first));
+						}
+						MG_CHECK(resWriter.IsEndOfChannel()); 
+						resWriter.Commit();
+					}
+				);
+			if (res2)
+				visit<typelists::domain_elements>(res2->GetAbstrValuesUnit()
+				,	[res2, &resTileDataArray]<typename P>(const Unit<P>*resValuesUnit)
+					{
+						locked_tile_write_channel<P> resWriter(res2);
+						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
+						MG_CHECK(tileRangeDataPtr);
+
+						for (auto& resTiles : resTileDataArray) // ordered by (t, u)
+						{
+							ResTileDataType& resTileData = resTiles.second;
+
+							for (auto& resElemData : resTileData)
+								resWriter.Write(tileRangeDataPtr->GetTileValue(resTiles.first.second, resElemData.second));
+						}
+						MG_CHECK(resWriter.IsEndOfChannel());
+						resWriter.Commit();
+					}
+				);
 		}
-		auto tn = res->GetNrTiles();
-		if (res1) { MG_CHECK(res1Writer.IsEndOfChannel()); res1Writer.Commit(); }
-		if (res2) { MG_CHECK(res2Writer.IsEndOfChannel()); res2Writer.Commit(); }
+		else
+		{
+			if (res1) { DataWriteLock wr1(res1); wr1.Commit(); }
+			if (res2) { DataWriteLock wr2(res2); wr2.Commit(); }
+		}
 	}
 };
 
@@ -1877,7 +1913,7 @@ namespace
 			, p2p_pso(&cogP2P_pso, true, true, ValueComposition::Polygon)
 
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
-			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateSequenceNr)
+			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateOrdinal)
 		{}
 
 	};
@@ -1913,10 +1949,10 @@ namespace
 
 			,	arcLength(&cogAL)
 			,	area(&cogAREA)
-			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateSequenceNr)
-			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateSequenceNr | DoIncludeEndPoints)
-			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateSequenceNr)
-			,	dynaPoint4(&cogDynaSegmentWithEnds, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateSequenceNr | DoIncludeEndPoints)
+			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateOrdinal)
+			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
+			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal)
+			,	dynaPoint4(&cogDynaSegmentWithEnds, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
 		{}
 
 	};

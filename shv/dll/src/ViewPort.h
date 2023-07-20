@@ -46,19 +46,38 @@ class NeedleCaret;
 class ScaleBarCaret;
 struct RoiTracker;
 struct SelValuesData;
+struct WmsLayer;
 
 enum ToolButtonID;
+using SharedRwDataItemInterestPtr = InterestPtr<SharedPtr<AbstrDataItem> >;
+
+//----------------------------------------------------------------------
+// class  : ViewPoint
+//----------------------------------------------------------------------
+
+struct ViewPoint
+{
+	CrdPoint center = Undefined();
+	CrdType  zoomLevel = UNDEFINED_VALUE(CrdType);
+	SharedStr spatialReference;
+
+	ViewPoint(CrdPoint c, CrdType zl, SharedStr sr)
+		: center(c), zoomLevel(zl), spatialReference(sr)
+	{}
+	ViewPoint(CharPtrRange viewPointStr);
+
+	bool WriteAsString(char* buffer, SizeT len, FormattingFlags flags);
+};
 
 //----------------------------------------------------------------------
 // class  : ViewPort
 //----------------------------------------------------------------------
-typedef InterestPtr<SharedPtr<AbstrDataItem> > SharedRwDataItemInterestPtr;
 
 class ViewPort : public Wrapper
 {
 	typedef Wrapper base_type;
 public:
-	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelfactor);
+	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelfactor = 1.0);
 	~ViewPort();
 
 //	delayed construction
@@ -86,8 +105,13 @@ public:
 	void Scroll(const GPoint& delta);
 	void InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const;
 
+	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
+
 	void PanToClipboardLocation();
+	void ZoomToClipboardLocation();
+	void PanAndZoomToClipboardLocation();
+	void CopyLocationAndZoomlevelToClipboard();
 
 	bool IsNeedleVisible() const { return m_State.Get(VPF_NeedleVisible); }
 	void ToggleNeedleController();
@@ -100,7 +124,7 @@ public:
 	CrdRect CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
 	CrdRect CalcWorldClientRect() const;
 	CrdType GetCurrZoomLevel() const;
-	CrdType GetSubPixelFactor() const { return m_SubPixelFactor; }
+	CrdType GetSubPixelFactor() const;
 
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
@@ -143,6 +167,7 @@ public:
 	void PasteGrid(SelValuesData* svd, GridLayer* gl);
 
 	WeakPtr<RoiTracker> m_Tracker;
+	auto FindBackgroundWmsLayer() -> WmsLayer*;
 
 private:
 	// Override virtuals of GraphicObject

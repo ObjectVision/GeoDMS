@@ -87,8 +87,9 @@ bool TreeItemHasPropertyValue(const TreeItem* ti, const AbstrPropDef* pd)
 
 #include "PropFuncs.h"
 
-TokenID TreeItem_GetDialogType(const TreeItem* self) { 
-	dms_assert(self);
+TokenID TreeItem_GetDialogType(const TreeItem* self) 
+{ 
+	assert(self);
 
 	if (dialogTypePropDefPtr->HasNonDefaultValue(self))
 		return dialogTypePropDefPtr->GetValue(self);
@@ -137,7 +138,7 @@ void MakeClassBreakAttr(AbstrDataItem* adi)
 
 bool HasMapType(const TreeItem* ti)
 {
-	dms_assert(ti);
+	assert(ti);
 	return TreeItem_GetDialogType(ti) == token::map;
 }
 
@@ -195,9 +196,16 @@ namespace { // local defs
 	class ExprPropDef: public PropDef<TreeItem, SharedStr>
 	{
 	public:
-		ExprPropDef()
-			:	PropDef<TreeItem, SharedStr>(EXPR_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, chg_mode::invalidate, false, true, true)
-		{}
+		ExprPropDef(bool depreciatedName)
+			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME
+				,	set_mode::optional
+				,	depreciatedName ? xml_mode::none : xml_mode::element
+				,	depreciatedName ? cpy_mode::none : cpy_mode::expr
+				,	chg_mode::invalidate, false, true, true)
+		{
+			if (depreciatedName)
+				SetDepreciated();
+		}
 		// override base class
 		ApiType GetValue(const TreeItem* ti) const override 
 		{
@@ -668,7 +676,8 @@ namespace { // local defs
 namespace {
 	static NamePropDef namePropDef;
 	static MF_RoPropDef<TreeItem, SharedStr> fullNameProp(FULLNAME_NAME, &TreeItem::GetFullName);
-	static ExprPropDef exprPropDef;
+	static ExprPropDef depreciatedExprPropDef(true);
+	static ExprPropDef calcRulePropDef(false);
 	static DisableStoragePropDef disableStoragePropDef;
 	static KeepDataPropDef keepDataPropDef;
 	static FreeDataPropDef freeDataPropDef;
@@ -689,6 +698,7 @@ namespace {
 	static StoredPropDef<TreeItem, SharedStr> integrityCheckPropDef(ICHECK_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
 	static StoredPropDef<TreeItem, SharedStr> storageNamePropDef(STORAGENAME_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, TokenID  > storageTypePropDef(STORAGETYPE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false, chg_mode::invalidate);
+	static StoredPropDef<TreeItem, SharedStr> storageDriverPropDef(STORAGEDRIVER_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageOptionsPropDef(STORAGEOPTIONS_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, PropBool > storageReadOnlyPropDef(STORAGEREADONLY_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
 	static StoredPropDef<TreeItem, TokenID  > syncModePropDef(SYNCMODE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
@@ -735,13 +745,14 @@ namespace {
 
 }
 
-PropDef<TreeItem, SharedStr>* exprPropDefPtr           = &exprPropDef;
+PropDef<TreeItem, SharedStr>* calcRulePropDefPtr       = &calcRulePropDef;
 PropDef<TreeItem, SharedStr>* descrPropDefPtr          = &descrPropDef;
 PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr = &integrityCheckPropDef;
 PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr  = &explicitSupplPropDef;
 
 PropDef<TreeItem, SharedStr>* storageNamePropDefPtr    = &storageNamePropDef;
 PropDef<TreeItem, TokenID  >* storageTypePropDefPtr    = &storageTypePropDef;
+PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr  = &storageDriverPropDef;
 PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr = &storageOptionsPropDef;
 PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr= &storageReadOnlyPropDef;
 PropDef<TreeItem, TokenID  >* syncModePropDefPtr       = &syncModePropDef;

@@ -70,8 +70,10 @@ granted by an additional written contract for support, assistance and/or develop
 //	Shadow creation 
 //----------------------------------------------------------------------
 
+std::mutex s_mutableTileRecSection;
+
 template <typename V>
-void CloseShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
+void CloseMutableShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>::cseq_t shadowData)
 {
 	auto trd = sourceTileArray->GetTiledRangeData();
 	SizeT nrElem = trd->GetElemCount();
@@ -93,19 +95,25 @@ void CloseShadow(DataArrayBase<V>* sourceTileArray, typename sequence_traits<V>:
 }
 
 template <typename V>
-struct shadow_tile : tile<V>
+struct mutable_shadow_tile : tile<V>
 {
 	using tile<V>::tile;
 
-	~shadow_tile()
+	~mutable_shadow_tile()
 	{
 		if (m_SourceTileArray)
-			CloseShadow<V>(m_SourceTileArray, GetConstSeq(*this));
+			CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this));
 	}
 
 	SharedPtr< DataArrayBase<V> > m_SourceTileArray;
 };
 
+template <typename V>
+struct const_shadow_sequence_tile : tile<V>
+{
+	using tile<V>::tile;
+	std::vector< typename DataArrayBase<V>::locked_cseq_t > m_Seqs;
+};
 
 template <typename V>
 void InitMutableShadow(DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr, const AbstrTileRangeData* trd, dms_rw_mode rwMode MG_DEBUG_ALLOCATOR_SRC_ARG)
@@ -114,7 +122,7 @@ void InitMutableShadow(DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr, co
 	auto range = trd->GetRangeAsI64Rect();
 	dms_assert(Cardinality(range) == nrElem);
 
-	resizeSO(*shadowTilePtr, nrElem, !trd->IsCovered() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	resizeSO(*shadowTilePtr, nrElem, (!trd->IsCovered() || rwMode == dms_rw_mode::write_only_mustzero) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 	if (rwMode <= dms_rw_mode::read_write)
 	{
@@ -147,14 +155,14 @@ void InitConstShadow(const DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr
 
 	U64Grid<V> shadowData(Size(range), shadowTilePtr->begin());
 
-	parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowTilePtr, &shadowData, shadowRangeBase = range.first](tile_id t)
-	{
-		I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
-		auto tileData = tileFunctor->GetTile(t);
-		dms_assert(Cardinality(tileRange) == tileData.size());
+	parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowData, shadowRangeBase = range.first](tile_id t)
+		{
+			I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
+			auto tileData = tileFunctor->GetTile(t);
+			dms_assert(Cardinality(tileRange) == tileData.size());
 
-		RectCopy(shadowData, U64Grid<const V>(Size(tileRange), tileData.begin()), shadowRangeBase - tileRange.first);
-	}
+			RectCopy(shadowData, U64Grid<const V>(Size(tileRange), tileData.begin()), shadowRangeBase - tileRange.first);
+		}
 	);
 }
 
@@ -164,27 +172,136 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 	auto trd = tileFunctor->GetTiledRangeData();
 	dms_assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<shadow_tile<V>> shadowTilePtr = new shadow_tile<V>;
+	SharedPtr<mutable_shadow_tile<V>> shadowTilePtr = new mutable_shadow_tile<V>;
 
 	InitMutableShadow(tileFunctor, shadowTilePtr.get_ptr(), trd, rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	if (rwMode >= dms_rw_mode::read_write)
 		shadowTilePtr->m_SourceTileArray = tileFunctor;
-	return { TileRef(shadowTilePtr.get_ptr()) , GetSeq(*shadowTilePtr) };
+	return { TileRef(shadowTilePtr.get_ptr()), GetSeq(*shadowTilePtr) };
 }
 
-template <typename V>
-auto ConstShadowTile(const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG) -> typename DataArrayBase<V>::locked_cseq_t
+
+
+template <typename V> struct const_tile_type;
+template <fixed_elem V> struct const_tile_type<V> { using type = tile<V>; };
+template <sequence_or_string V> struct const_tile_type<V> { using type = const_shadow_sequence_tile<V>; };
+
+template <typename V> using const_tile_t = typename const_tile_type<V>::type;
+
+std::mutex shadowPtrSection;
+
+template <typename V> 
+struct const_shadow : const_tile_t<V>
 {
-//	auto mst = MutableShadowTile(di, dms_rw_mode::read_only);
-//	return { mst.get_ptr(), GetConstSeq(mst)};
+	const DataArrayBase<V>* m_Owner = nullptr;
+	std::mutex        m_TileGenerationCS;
+	bool              m_TileReady = false;
+
+	void Disconnect()
+	{
+		auto lockCS = std::unique_lock(shadowPtrSection);
+		if (!m_Owner)
+			return;
+		m_Owner->m_shadowTilePtr = nullptr;
+		m_Owner = nullptr;
+	}
+
+	void DecoupleShadowFromOwner() override
+	{
+		m_Owner = nullptr;
+	}
+
+	~const_shadow()
+	{
+		Disconnect();
+	}
+};
+
+
+AbstrDataObject::~AbstrDataObject()
+{
+	if (!m_shadowTilePtr)
+		return;
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!m_shadowTilePtr)
+		return;
+	m_shadowTilePtr->DecoupleShadowFromOwner();
+	m_shadowTilePtr = nullptr;
+}
+
+template<typename V>
+SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
+{
+	assert(ado);
+	auto lockCS = std::unique_lock(shadowPtrSection);
+	if (!ado->m_shadowTilePtr)
+	{
+		auto csPtr = new const_shadow<V>;
+		csPtr->m_Owner = ado;
+		ado->m_shadowTilePtr = csPtr;
+	}
+	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
+}
+
+template <fixed_elem V>
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
+{
 	auto trd = tileFunctor->GetTiledRangeData();
-	dms_assert(trd->GetNrTiles() != 1);
+	assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<tile<V>> shadowTilePtr = new tile<V>; // normal tile
+	InitConstShadow<V>(tileFunctor, shadowTilePtr, trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
+}
 
-	InitConstShadow<V>(tileFunctor, shadowTilePtr.get_ptr(), trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
+template <sequence_or_string V>
+void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>* tileFunctor MG_DEBUG_ALLOCATOR_SRC_ARG)
+{
+	auto trd = tileFunctor->GetTiledRangeData();
+	auto tn = trd->GetNrTiles();
+	assert(tn != 1);
 
-	return { TileCRef(shadowTilePtr.get_ptr()) , GetConstSeq(*shadowTilePtr) };
+	using element_type = elem_of_t<V>;
+	if (tn != 0)
+	{
+		shadowTilePtr->m_Seqs.reserve(tn);
+		for (tile_id t = 0; t != tn; ++t)
+			shadowTilePtr->m_Seqs.emplace_back(tileFunctor->GetTile(t));
+
+		auto minValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_begin();
+		auto maxValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_end();
+		for (tile_id t = 1; t != tn; ++t)
+		{
+			auto currValueBeginPtr = shadowTilePtr->m_Seqs[t].get_sa().data_begin();
+			auto currValueEndPtr = shadowTilePtr->m_Seqs[t].get_sa().data_end();
+			MakeMin(minValuePtr, currValueBeginPtr);
+			MakeMax(maxValuePtr, currValueEndPtr);
+
+			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+		}
+		shadowTilePtr->SetValues(sequence_obj<element_type>(alloc_data<element_type>(const_cast<element_type*>(minValuePtr), const_cast<element_type*>(maxValuePtr), 0)));
+
+		SizeT nrElem = trd->GetRangeSize();
+		shadowTilePtr->resizeSO(nrElem, true MG_DEBUG_ALLOCATOR_SRC("ConstShadowSequenceArrayTile "));
+
+		auto range = trd->GetRangeAsI64Rect();
+		dms_assert(Cardinality(range) == nrElem);
+
+		U64Grid<IndexRange<SizeT>> shadowData(Size(range), &*shadowTilePtr->index_begin());
+
+		parallel_tileloop_if_separable<V>(tn, [shadowTilePtr, trd, &shadowData, shadowRangeBase = range.first, minValuePtr](tile_id t)
+			{
+				I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
+				auto tileData = shadowTilePtr->m_Seqs[t];
+				dms_assert(Cardinality(tileRange) == tileData.size());
+
+				RectCopyAndAddConst< IndexRange<SizeT>>(shadowData
+					, U64Grid<const IndexRange<SizeT>>(Size(tileRange), tileData.get_sa().index_begin())
+					, shadowRangeBase - tileRange.first
+					, tileData.get_sa().data_begin() - minValuePtr
+				);
+			}
+		);
+	}
 }
 
 #if defined(MG_DEBUG)
@@ -215,7 +332,16 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return ConstShadowTile(this MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+		{
+			auto cstPtr = GetConstShadowTile(this);
+			auto cstGenerationLock = std::unique_lock(cstPtr->m_TileGenerationCS);
+			if (!cstPtr->m_TileReady)
+			{
+				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+				cstPtr->m_TileReady = true;
+			}
+			return { TileCRef(cstPtr.get_ptr()), GetConstSeq(*cstPtr) };
+		}
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
@@ -230,7 +356,7 @@ DataArrayBase<V>::GetDataWrite(tile_id t, dms_rw_mode rwMode)
 	{
 		auto tn = GetTiledRangeData()->GetNrTiles();
 		if (tn != 1)
-			return MutableShadowTile(this, rwMode MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
+			return MutableShadowTile(this, rwMode MG_DEBUG_ALLOCATOR_SRC("MutableShadowTile this->md_SrcStr"));
 		t = 0;
 	}
 	dms_assert(t < GetTiledRangeData()->GetNrTiles());
@@ -391,88 +517,6 @@ SplitClasses(Iter c, Iter d, Iter r, Iter e)
 	}
 	dms_assert(d == c);
 }
-/* === NYI: SplitData in tiled domain  
-template <typename V>
-void FileTileArray<V>::FileTileArray(AbstrDataItem* adi, dms_rw_mode rwMode, const DomainChangeInfo* info, bool dontAlloc)
-{
-	dms_assert(rwMode == dms_rw_mode::read_write || rwMode == dms_rw_mode::write_only_mustzero || rwMode == dms_rw_mode::write_only_all);
-	dms_assert(rwMode == dms_rw_mode::read_write || !info);
-	dms_assert(!(dontAlloc && info));
-	dms_check_not_debugonly; 
-
-	const AbstrUnit* adu = GetTiledRangeData(); // NOTE THAT: adi may be nullptr, as for example when used in DoOverlay
-	dms_assert(CheckCalculatingOrReady(adu->GetCurrRangeItem()));
-	SizeT nrElem = (dontAlloc) ? 0 : (info) ? info->newSize : adu->GetCount();
-	if (!IsDefined(nrElem))
-		throwErrorD("DoCreateMemoryStorage", "Cannot derive cardinality for domain");
-//	if (!m_Seqs[0].CanWrite() || !m_Seqs[0].IsOpen())
-
-	tile_id tn = GetTiledRangeData()->GetNrTiles();
-	if (tn != m_Seqs.m_NrRealTiles || ta != m_Seqs.m_NrDataTiles)
-		m_Seqs = tile_array<V>(tn, ta);
-
-
-	bool isTiled = GetTiledRangeData()->IsCurrTiled();
-	dms_assert(isTiled || t==1);
-
-	if (rwMode == dms_rw_mode::read_write && !(adi && adi->DataAllocated()))
-		rwMode = dms_rw_mode::write_only_mustzero; // no data to be read, assume values must be initialized
-
-	if (rwMode > dms_rw_mode::read_write) // thus: dms_write_only_xxx
-		if (adi && IsFileable<V>(adi, nrElem) && !adi->IsSdKnown())
-		{
-			DataStoreManager::Curr()->CreateFileData(adi, rwMode); // calls OpenFileData -> DoCreateMappedFiles
-			return;
-		}
-	while (t--)
-	{
-		MGD_CHECKDATA( !IsLocked(t) );
-		if (info && info->delta < 0)
-		{
-			// merge and erase 
-			dms_assert(rwMode == dms_rw_mode::read_write);
-			dms_assert(m_Seqs[t].IsAssigned());
-			DoCreateWritable(adi, rwMode, info->OldSize(), t);
-
-			SeqLock<sequence_t> lock(m_Seqs[t], rwMode);
-
-			dms_assert(m_Seqs[t].IsAssigned());
-			dms_assert(m_Seqs[t].size() == info->OldSize());
-			dms_assert(info->changePos - info->delta <= info->OldSize());
-
-			m_Seqs[t].erase(m_Seqs[t].begin() + info->changePos, m_Seqs[t].begin() + info->changePos - info->delta);
-		}
-
-		nrElem = GetTiledRangeData()->GetTileSize(t);
-
-		DoCreateWritable(adi, rwMode, nrElem, t);
-
-		dms_assert(m_Seqs[t].CanWrite() && m_Seqs[t].Size() == nrElem);
-
-		if (info && info->delta > 0)
-		{
-			// split data with row doubling
-			dms_assert(info->changePos + info->delta <= info->OldSize());
-			dms_assert(rwMode == dms_rw_mode::read_write);
-
-			SeqLock<sequence_t> lock(m_Seqs[t], rwMode);
-			dms_assert(m_Seqs[t].size() == info->newSize);
-
-			iterator
-				c = m_Seqs[t].begin()+info->changePos,
-				d = c + info->delta,
-				e = m_Seqs[t].end(),
-				r = fast_move_backward(d, m_Seqs[t].begin()+info->OldSize(), e ); 
-
-			dms_assert(r == d + info->delta);
-
-			SplitClasses<V>(c, d, r, e);
-		}
-		MGD_CHECKDATA( !IsLocked(t) );
-	}
-	MGD_CHECKDATA(m_Seqs.size() && m_Seqs[0].IsHeapAllocated() || m_Seqs.m_NrRealTiles == 0); // DEBUG
-}
-*/
 
 //----------------------------------------------------------------------
 //	DataStorage
@@ -555,7 +599,7 @@ bool DataArrayBase<V>::IsNull(SizeT index) const
 	if (!IsDefined(tl.first))
 		return true;
 	auto data = GetTile(tl.first);
-	return !IsDefined(data[tl.second]);
+	return tl.second >= data.size() || !IsDefined(data[tl.second]);
 }
 
 template <class V>
@@ -665,10 +709,9 @@ containsUndefined:
 		return allDefinedInRange ? DCM_CheckDefined : DCM_CheckBoth;
 	}
 containsOutOfRange:
-	return 
-		(dcm & DCM_CheckDefined) || !AllDefined(b, e)
-			?	DCM_CheckBoth
-			:	DCM_CheckRange;
+	if (dcm & DCM_CheckDefined) return DCM_CheckBoth;
+	if (!AllDefined(b, e)) return DCM_CheckBoth;
+	return DCM_CheckRange;
 }
 
 template <typename CI>
@@ -712,8 +755,13 @@ DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
 	else
 	{
-		auto valuesRange = GetValueRangeData()->GetRange();
 		std::atomic<UInt32> dcm = DCM_None;
+		typename Unit<field_of_t<V>>::range_t valuesRange = {};
+		auto valuesRangeData = GetValueRangeData();
+		if (!valuesRangeData)
+			dcm = DCM_CheckRange;
+		else
+			valuesRange = valuesRangeData->GetRange();
 		parallel_tileloop(GetTiledRangeData()->GetNrTiles(),
 			[&dcm, this, valuesRange](tile_id t)->void
 			{
@@ -721,17 +769,14 @@ DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 				{
 					auto data = GetDataRead(t);
 
-					DataCheckMode localDcm = CheckMode(
-						data.begin()
-						, data.end()
-						, valuesRange
-						, DataCheckMode(dcm.load())
-					);
+					DataCheckMode localDcm = CheckMode(data.begin(), data.end(), valuesRange, DataCheckMode(dcm.load()) );
 
 					dcm |= localDcm;
 				}
 			}
 		);
+		if (!valuesRangeData)
+			dcm &= ~DCM_CheckRange;
 		return DataCheckMode(dcm.load());
 	}
 }
@@ -741,9 +786,10 @@ void DataArrayBase<V>::DoSimplifyCheckMode(DataCheckMode& dcm) const
 {
 	if constexpr (has_var_range_field_v<V>)
 	{
+		if (dcm != DCM_CheckBoth)
+			return;
 		auto vrd = GetValueRangeData();
-		MG_CHECK(vrd);
-		if (dcm == DCM_CheckBoth && vrd && !ContainsUndefined(vrd->GetRange()))
+		if (vrd && !ContainsUndefined(vrd->GetRange()))
 			dcm = DCM_CheckRange; // implies excluding UNDEFINED_VALUE()
 	}
 	else
@@ -809,6 +855,9 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 	{
 		return std::make_unique<HeapSingleArray<V>>(tdr, mustClear);
 	}
+	if (tdr->GetNrTiles() == 0 && tdr->GetElemCount() != 0)
+		throwDmsErrD("CreateHeapTileArray cannot create a DataArray for an unspecified domain");
+
 	auto newTileFunctor = std::make_unique<HeapTileArray<V>>(tdr, mustClear);
 #if defined(MG_DEBUG_ALLOCATOR)
 	newTileFunctor->md_SrcStr = srcStr;
@@ -818,7 +867,7 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 
 
 template<typename V>
-TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
+TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<field_of_t<V>>* valuesUnitPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<TileFunctor<V>>
 {
 	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
 	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
@@ -827,7 +876,19 @@ TIC_CALL auto CreateHeapTileArray(const AbstrTileRangeData* tdr, const Unit<fiel
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto instantiateThis = & CreateHeapTileArrayU<UInt32>;
+
+template<typename V>
+TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or_void_data<field_of_t<V>>* valuesRangeDataPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<V>>
+{
+	auto newTileFunctor = CreateHeapTileArray_impl<V>(tdr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
+
+	if constexpr (has_var_range_v<V>)
+		newTileFunctor->InitValueRangeData( valuesRangeDataPtr );
+	return newTileFunctor;
+}
+
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
@@ -839,29 +900,30 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const bool mustClear M
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
-		reportF(SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles), ", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+		reportF(SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+
+	if (!abstrValuesRangeData)
+		abstrValuesRangeData = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem())->GetTiledRangeData();
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	switch (adi->GetValueComposition())
 	{
 	case ValueComposition::Single:
 		visit<typelists::fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
-				auto ht = CreateHeapTileArray<value_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-				resultHolder.reset(ht.release());
+				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
 		visit<typelists::sequence_fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
-				auto ht = CreateHeapTileArray<element_type>(currTRD, valuesUnitPtr, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-				resultHolder.reset(ht.release());
+				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;

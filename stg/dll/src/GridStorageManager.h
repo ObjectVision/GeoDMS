@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/grid.h"
 #include "mem/RectCopy.h"
 #include "mem/tiledata.h"
+#include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -114,7 +115,7 @@ public:
 	STGDLL_CALL AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder) override;
 	STGDLL_CALL ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
 	STGDLL_CALL StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
-
+	STGDLL_CALL bool AllowRandomTileAccess() const override { return true;  }
 	SharedPtr<AbstrUnit> m_GridDomainUnit;
 };
 
@@ -167,7 +168,7 @@ namespace Grid {
 		UInt32 scanlineSize = imp.GetTileByteWidth();
 
 		// one strip of tiles of storage defined values
-		OwningPtrSizedArray<T> strip(tile_wh MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.ReadTiles: strip"));
+		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: strip"));
 
 		SizeT tileByteSizeLocal = array_traits<T>::ByteSize(tile_wh);
 		SizeT tileByteSizeNative = imp.GetTileByteSize();
@@ -177,7 +178,7 @@ namespace Grid {
 
 		if (tileByteSizeLocal < tileByteSizeNative)
 		{
-			rawBuffer = OwningPtrSizedArray<char>(tileByteSizeNative MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.ReadTiles: rawBuffer"));
+			rawBuffer = OwningPtrSizedArray<char>(tileByteSizeNative, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: rawBuffer"));
 			stripBuff = rawBuffer.begin();
 		}
 			
@@ -251,14 +252,14 @@ namespace Grid {
 	};
 
 	template <typename T, typename Imp>
-	void ReadData(Imp& imp, const StgViewPortInfo& viewPort2Grid,
-		T defaultColor, // value for reading beyond imageboundary
-		typename sequence_traits<T>::pointer pixels // buffer for pixel output
+	void ReadData(Imp& imp, const StgViewPortInfo& viewPort2Grid,T defaultColor // value for reading beyond imageboundary
+	,	typename sequence_traits<T>::pointer pixels // buffer for pixel output
+	,	CharPtr dataSourceName // for diagnostic purpose
 	)
 	{
-		dms_assert(pixels);
+		assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData");
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "from", dataSourceName);
 
 		if (viewPort2Grid.IsNonScaling() && nrbits_of_v<T> == imp.GetNrBitsPerPixel())
 		{
@@ -279,7 +280,7 @@ namespace Grid {
 		UInt32 stripWidth = _Width(readRectInGrid);
 		UInt32 stripBufferSize = stripWidth * stripHeight;
 		//	buffer for reading from m_TiffHandle
-		OwningPtrSizedArray<T> stripBuffer( stripBufferSize MG_DEBUG_ALLOCATOR_SRC_STR("GridStorageManager.ReadData: stripBuffer"));
+		OwningPtrSizedArray<T> stripBuffer( stripBufferSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
 		MG_DEBUGCODE(fast_fill(stripBuffer.begin(), stripBuffer.begin() + stripBufferSize, defaultColor)); // DEBUG
 		UPoint currViewPortSize = Size(viewPortRect);
 
@@ -289,7 +290,7 @@ namespace Grid {
 
 		Int32 currViewPortRow = dy >= 0 ? viewPortRect.first.Row() : viewPortRect.second.Row();
 
-		OwningPtrSizedArray<UInt32> stripBuffOffsets( currViewPortSize.Col() MG_DEBUG_ALLOCATOR_SRC_STR("GridStorageManager.ReadData: stripBuffOffsets"));
+		OwningPtrSizedArray<UInt32> stripBuffOffsets( currViewPortSize.Col(), dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffOffsets"));
 		{
 			OwningPtrSizedArray<UInt32>::pointer stripBufOffsetPtr = stripBuffOffsets.begin();
 			Double ox = viewPort2Grid.Offset().X() + dx / 2.0;
@@ -360,7 +361,9 @@ namespace Grid {
 
 
 	template <typename Imp>
-	void ReadGridData(Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+	void ReadGridData(Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
 		auto dataHandle = ado->GetDataWriteBegin(t);
 		void* dataPtr = dataHandle.get_ptr();
@@ -370,23 +373,27 @@ namespace Grid {
 		ValueClassID streamTypeID = streamType->GetValueClassID();
 		switch (streamType->GetBitSize())
 		{
-		case 1:  ReadData<Bool  >(imp, vpi, false, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin()); return;
-		case 2:  ReadData<UInt2 >(imp, vpi, UInt2(0), mutable_array_cast<UInt2>(ado)->GetDataWrite(t).begin()); return;
-		case 4:  ReadData<UInt4 >(imp, vpi, UInt4(0), mutable_array_cast<UInt4>(ado)->GetDataWrite(t).begin()); return;
-		case 8:  ReadData<UInt8 >(imp, vpi, Undef08(streamTypeID), reinterpret_cast<UInt8*>(dataPtr)); return;
-		case 16: ReadData<UInt16>(imp, vpi, Undef16(streamTypeID), reinterpret_cast<UInt16*>(dataPtr)); return;
-		case 32: ReadData<UInt32>(imp, vpi, Undef32(streamTypeID), reinterpret_cast<UInt32*>(dataPtr)); return;
-		case 64: ReadData<Float64>(imp, vpi, Undef64(streamTypeID), reinterpret_cast<Float64*>(dataPtr)); return;
+		case 1:  ReadData<Bool  >(imp, vpi, false, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
+		case 2:  ReadData<UInt2 >(imp, vpi, UInt2(0), mutable_array_cast<UInt2>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
+		case 4:  ReadData<UInt4 >(imp, vpi, UInt4(0), mutable_array_cast<UInt4>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
+		case 8:  ReadData<UInt8 >(imp, vpi, Undef08(streamTypeID), reinterpret_cast<UInt8*>(dataPtr), dataSourceName); return;
+		case 16: ReadData<UInt16>(imp, vpi, Undef16(streamTypeID), reinterpret_cast<UInt16*>(dataPtr), dataSourceName); return;
+		case 32: ReadData<UInt32>(imp, vpi, Undef32(streamTypeID), reinterpret_cast<UInt32*>(dataPtr), dataSourceName); return;
+		case 64: ReadData<Float64>(imp, vpi, Undef64(streamTypeID), reinterpret_cast<Float64*>(dataPtr), dataSourceName); return;
 		}
-		throwErrorF("GRID::ReadGridData", "Cannot read cells into elements of type %s", streamType->GetName());
+		auto streamTypeName = SharedStr(streamType->GetName());
+		throwErrorF("GRID::ReadGridData", "Cannot read raster data as elements of type %s", streamTypeName);
 	}
 
 	template <typename CountType, typename ColorType, typename Imp>
-	void CountDataImpl(const Imp& imp, const StgViewPortInfo& viewPort2tiff, typename sequence_traits<CountType>::pointer pixels)
+	void CountDataImpl(const Imp& imp, const StgViewPortInfo& viewPort2tiff
+		, typename sequence_traits<CountType>::pointer pixels
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
 		dms_assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData");
+		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData", "from", dataSourceName);
 
 		ColorType countColor = viewPort2tiff.GetCountColor();
 		dms_assert(Negative(countColor) != countColor);
@@ -397,13 +404,13 @@ namespace Grid {
 		UInt32 stripWidth = _Width(readRect);
 
 		//	buffer for reading from m_TiffHandle
-		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.CountDataImpl: stripBuffer"));
+		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripBuffer"));
 
 		IPoint viewPortOrigin = viewPort2tiff.GetViewPortOrigin();
 		UPoint viewPortSize = viewPort2tiff.GetViewPortSize();
 
 		fast_zero(pixels, pixels + viewPort2tiff.GetNrViewPortCells());// initialize buffer;
-		OwningPtrSizedArray<UInt32> viewRectOffsets( stripWidth MG_DEBUG_ALLOCATOR_SRC_STR("GridStoragemanager.CountDataImpl: stripWidth"));
+		OwningPtrSizedArray<UInt32> viewRectOffsets( stripWidth, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripWidth"));
 		{
 			OwningPtrSizedArray<UInt32>::pointer viewRectOffsetPtr = viewRectOffsets.begin();
 			Double finvx = 1.0 / viewPort2tiff.Factor().X(), ox = viewPort2tiff.Offset().X() - 0.5;
@@ -441,38 +448,46 @@ namespace Grid {
 	};
 
 	template <typename CountType, typename Imp>
-	void CountData(const Imp& imp, const StgViewPortInfo& viewPort2tiff, typename sequence_traits<CountType>::pointer pixels)
+	void CountData(const Imp& imp, const StgViewPortInfo& viewPort2tiff, typename sequence_traits<CountType>::pointer pixels
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
 		UInt32 bpp = imp.GetNrBitsPerPixel();
 		switch (bpp)
 		{
-		case  1: CountDataImpl<CountType, Bool  >(imp, viewPort2tiff, pixels); return;
+		case  1: CountDataImpl<CountType, Bool  >(imp, viewPort2tiff, pixels, dataSourceName); return;
 			//		case  2: CountDataImpl<CountType, UInt2 >(viewPort2tiff, pixels); return;
-		case  4: CountDataImpl<CountType, UInt4 >(imp, viewPort2tiff, pixels); return;
-		case  8: CountDataImpl<CountType, UInt8 >(imp, viewPort2tiff, pixels); return;
-		case 16: CountDataImpl<CountType, UInt16>(imp, viewPort2tiff, pixels); return;
-		case 32: CountDataImpl<CountType, UInt32>(imp, viewPort2tiff, pixels); return;
+		case  4: CountDataImpl<CountType, UInt4 >(imp, viewPort2tiff, pixels, dataSourceName); return;
+		case  8: CountDataImpl<CountType, UInt8 >(imp, viewPort2tiff, pixels, dataSourceName); return;
+		case 16: CountDataImpl<CountType, UInt16>(imp, viewPort2tiff, pixels, dataSourceName); return;
+		case 32: CountDataImpl<CountType, UInt32>(imp, viewPort2tiff, pixels, dataSourceName); return;
 		}
 		throwErrorF("GRID::CountData", "reading %d bits per pixel not supported", bpp);
 	}
 
 	template <typename Imp>
-	void ReadGridCounts(const Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+	void ReadGridCounts(const Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
 		UInt32 bitsPerPixel = GetStreamType(ado)->GetBitSize();
 
 		switch (bitsPerPixel) {
-		case  1: CountData<Bool  >(imp, vpi, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin()); return;
-		case  8: CountData<UInt8 >(imp, vpi, reinterpret_cast<UInt8 *>(ado->GetDataWriteBegin(t).get_ptr())); return;
-		case 16: CountData<UInt16>(imp, vpi, reinterpret_cast<UInt16*>(ado->GetDataWriteBegin(t).get_ptr())); return;
-		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t).get_ptr())); return;
+		case  1: CountData<Bool  >(imp, vpi, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
+		case  8: CountData<UInt8 >(imp, vpi, reinterpret_cast<UInt8 *>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
+		case 16: CountData<UInt16>(imp, vpi, reinterpret_cast<UInt16*>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
+		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
 		}
-		throwErrorF("GRID::ReadGridCounts", "Cannot count rastercells into elements of type %s", GetStreamType(ado)->GetName());
+		auto streamTypeName = SharedStr(GetStreamType(ado)->GetName());
+		throwErrorF("GRID::ReadGridCounts", "Cannot count raster data into elements of type %s", streamTypeName);
 	}
 
 
 	template <typename T, typename Imp>
-	void WriteTiles(Imp& imp, const Range<IPoint>& entireRect, tile_id nrTiles, const Range<IPoint>* segmInfo, T defValue, const TileFunctor<T>* tilesArray)
+	void WriteTiles(Imp& imp, const Range<IPoint>& entireRect, tile_id nrTiles, const Range<IPoint>* segmInfo
+		, const TileFunctor<T>* tilesArray
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
 		UInt32 w = imp.GetWidth();
 		UInt32 h = imp.GetHeight();
@@ -480,7 +495,7 @@ namespace Grid {
 		UPoint tileSize = imp.GetTileSize(); // size of one tile or strip
 		UInt32 tw_aligned = array_traits<T>::ByteAlign(tileSize.X());
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData");
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData", "to", dataSourceName);
 
 		// nr of tiles
 		Int32
@@ -495,7 +510,7 @@ namespace Grid {
 		UInt32 scanlineSize = imp.GetTileByteWidth();
 
 		// one strip of tiles 
-		OwningPtrSizedArray<T> strip(tile_wh MG_DEBUG_ALLOCATOR_SRC_STR("GridStorageManager.WriteTiles: strip"));
+		OwningPtrSizedArray<T> strip(tile_wh, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.WriteTiles: strip"));
 		UInt32 tileByteSize = array_traits<T>::ByteSize(tile_wh);
 		TileCRef dmsTileLock;
 
@@ -538,10 +553,13 @@ namespace Grid {
 	};
 
 	template <typename Imp>
-	void WriteGridData(Imp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi, const ValueClass* streamType)
+	void WriteGridData(Imp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi
+		, const ValueClass* streamType
+		, CharPtr dataSourceName // for diagnostic purpose
+	)
 	{
-		dms_assert(adi);
-		dms_assert(adi->GetDataRefLockCount()); // Read lock already set
+		assert(adi);
+		assert(adi->GetDataRefLockCount()); // Read lock already set
 
 		MG_CHECK(vpi.IsNonScaling());
 
@@ -578,22 +596,25 @@ namespace Grid {
 		const AbstrDataObject* ado = adi->GetRefObj();
 		switch (streamType->GetValueClassID())
 		{
-		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, Bool(0), const_array_cast< Bool  >(ado)); return;
-		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt2(0), const_array_cast< UInt2 >(ado)); return;
-		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt4(0), const_array_cast< UInt4 >(ado)); return;
+		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;
+		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado), dataSourceName); return;
+		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado), dataSourceName); return;
 
-		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt8(0), const_array_cast< UInt8 >(ado)); return;
-		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt8(0), reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado))); return;
+		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado), dataSourceName); return;
+		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado)), dataSourceName); return;
 
-		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt16(0), const_array_cast< UInt16>(ado)); return;
-		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt16(0), reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado))); return;
+		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado), dataSourceName); return;
+		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado)), dataSourceName); return;
 
-		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado))); return;
-		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), const_array_cast< UInt32>(ado)); return;
-		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, UInt32(0), reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado))); return;
-		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, Float64(0), const_array_cast<Float64>(ado)); return;
+		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado)), dataSourceName); return;
+		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado), dataSourceName); return;
+		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado)), dataSourceName); return;
+		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado), dataSourceName); return;
+		case VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado)), dataSourceName); return;
+		case VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
 		}
-		adi->throwItemError("TiffSM cannot store this as GridData");
+		auto streamTypeName = SharedStr(streamType->GetName());
+		throwErrorF("GRID::WriteGridData", "cannot store %s elements as raster data ", streamTypeName);
 	}
 
 } // namespace Grid

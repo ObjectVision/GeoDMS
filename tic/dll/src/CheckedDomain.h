@@ -42,13 +42,28 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrDataItem.h"
 #include "Unit.h"
+#include "UnitClass.h"
 
 //----------------------------------------------------------------------
 // function checked_domain
 //----------------------------------------------------------------------
 
+inline CharPtr ExpandRole(CharPtr role)
+{
+	MG_CHECK(role);
+	if (*role == 'a') switch (role[1])
+	{
+	case '1': return "first argument";
+	case '2': return "second argument";
+	case '3': return "third argument";
+	case '4': return "fourth argument";
+	case '5': return "fifth argument";
+	}
+	return role;
+}
+
 template <typename D>
-const Unit<D>* checked_domain(const TreeItem* ti)
+const Unit<D>* checked_domain(const TreeItem* ti, CharPtr role)
 {
 	dms_assert(ti);
 	const AbstrDataItem* adi = checked_cast<const AbstrDataItem*>(ti);
@@ -56,10 +71,10 @@ const Unit<D>* checked_domain(const TreeItem* ti)
 	dms_assert(au);
 	const Unit<D>* u = const_unit_dynacast<D>(au);
 	if (!u) 
-		ti->throwItemErrorF(
-			"DataItem with DomainUnit of type %s expected, but Domain is of type %s", 
-			ValueWrap<D>::GetStaticClass()->GetName().c_str(),
-			au->GetClsName().c_str()
+		ti->throwItemErrorF("%s attribute with Domain of type %s expected, but Domain is of type %s"
+		,	ExpandRole(role)
+		,	Unit<D>::GetStaticClass()->GetName().c_str()
+		,	au->GetClsName().c_str()
 		);
 	return u;
 }

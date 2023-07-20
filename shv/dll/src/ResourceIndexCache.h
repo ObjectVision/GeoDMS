@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __SHV_INDEXCACHE_H
 #define __SHV_INDEXCACHE_H
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "ptr/WeakPtr.h"
 
 #include <vector>
@@ -49,6 +49,7 @@ class AbstrThemeValueGetter;
 struct ResourceIndexCache
 {
 	resource_index_t GetKeyIndex(entity_id entityId) const;
+	Int32 GetWidth(entity_id e) const;
 
 protected: 
 	ResourceIndexCache(
@@ -56,7 +57,9 @@ protected:
 	,	const Theme* worldSizeTheme  // Additional zoom-level dependent factor of Character Height in World Coord Units
 	,	Float64 defPixelSize
 	,	Float64 defWorldSize
-	,	const AbstrUnit* entityDomain);
+	,	const AbstrUnit* entityDomain
+	,	const AbstrUnit* projectionBaseUnit
+	);
 
 	bool CompareValueGetter(const AbstrThemeValueGetter* additionalTheme) const;
 	bool IsDifferent(Float64 nrPixelsPerWorldUnit, Float64 subPixelFactor) const;
@@ -74,6 +77,24 @@ protected:
 
 	mutable std::vector<resource_index_t> m_KeyIndices;
 };
+
+template<typename KeyType> 
+void MakeKeyIndex(std::vector<resource_index_t>& keyIndices, KeyType& keys)
+{
+	assert(keys.size());
+	auto orgKeys = keys;
+
+	std::sort(keys.begin(), keys.end());
+	keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+
+	if (keys.size() > 1)
+	{
+		keyIndices.resize(orgKeys.size());
+		rlookup2index_array_unchecked(keyIndices, orgKeys, keys);
+	}
+	else
+		keyIndices.clear();
+}
 
 
 #endif // __SHV_INDEXCACHE_H

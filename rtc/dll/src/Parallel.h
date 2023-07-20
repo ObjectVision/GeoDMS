@@ -17,6 +17,7 @@ RTC_CALL bool IsMultiThreaded0(); /// RSF_SuspendForGUI
 RTC_CALL bool IsMultiThreaded1();
 RTC_CALL bool IsMultiThreaded2();
 RTC_CALL bool IsMultiThreaded3();
+RTC_CALL UInt32 MaxConcurrentTreads();
 
 //#define MG_ITEMLEVEL
 enum class item_level_type : UInt32 {};

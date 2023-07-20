@@ -51,7 +51,7 @@ class DataItemClass;
 
 template <typename Host>
 struct ValueClassVisitor {
-	virtual void Visit(const Host* inviter) const { throwIllegalAbstract(MG_POS, "ValueClassVisitor"); }
+	virtual void Visit(const Host* /*inviter*/) const { throwIllegalAbstract(MG_POS, "ValueClassVisitor"); }
 };
 
 struct ValueClassProcessor1

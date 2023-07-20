@@ -96,7 +96,7 @@ public:
 
 //	Override TreeItem virtuals that forward to DataObject
 	SharedStr GetSignature() const override;
-	bool DoReadItem(StorageMetaInfo* smi) override;
+	bool DoReadItem(StorageMetaInfoPtr smi) override;
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
 	void ClearData(garbage_t&) const override;
 
@@ -151,6 +151,9 @@ public:
 	template <typename V> V LockAndGetValue(SizeT index) const;
 	template <typename V> SizeT LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const;
 
+	TokenID DomainUnitToken() const { return m_tDomainUnit; }
+	TokenID ValuesUnitToken() const { return m_tValuesUnit; }
+
 protected:
 	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
@@ -177,7 +180,7 @@ public: // TODO G8: Re-encapsulate
 	friend struct DomainUnitPropDef;
 	friend struct ValuesUnitPropDef;
 
-	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src);
+	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers);
 
 //	Serialization
 	DECL_RTTI(TIC_CALL, TreeItemClass)
@@ -187,9 +190,24 @@ public: // TODO G8: Re-encapsulate
 // PropDefPtrs
 //----------------------------------------------------------------------
 
+struct TableColumnSpec
+{
+	SharedDataItemInterestPtr m_DataItem;
+	TokenID m_ColumnName;
+	bool    m_RelativeDisplay = false;
+	mutable Float64 m_ColumnTotal = 0.0;
+};
+
+//----------------------------------------------------------------------
+// PropDefPtrs
+//----------------------------------------------------------------------
+
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_ValuesUnitPropDefPtr;
 TIC_CALL extern PropDef<AbstrDataItem, SharedStr>* s_DomainUnitPropDefPtr;
 
+TIC_CALL const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi);
+TIC_CALL UInt32 ElementWeight(const AbstrDataItem* adi);
+TIC_CALL UInt32 LTF_ElementWeight(const AbstrDataItem* adi);
 
 
 #endif

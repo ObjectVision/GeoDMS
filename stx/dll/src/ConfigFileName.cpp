@@ -120,6 +120,21 @@ CharPtr ConfigurationFilenameLockBase::GetCurrentDirNameFromConfigLoadDir()
 		:	ConfigurationFilenameContainer::GetIt()->GetConfigLoadDirFromCurrentDir().c_str();
 }
 
+SharedStr ConfigurationFilenameLockBase::GetConfigDir()
+{
+	auto current_file = s_LastFileNameLock;
+	if (!current_file)
+		return ConfigurationFilenameContainer::GetIt()->GetConfigLoadDirFromCurrentDir();
+
+	while (true)
+	{
+		auto prev = current_file->m_PrevFilenameLock;
+		if (!prev)
+			return current_file->m_CurrDirName;
+		current_file = prev;
+	}
+}
+
 const ConfigurationFilenameLockBase* ConfigurationFilenameLockBase::s_LastFileNameLock =0;
 
 // *****************************************************************************

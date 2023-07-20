@@ -262,15 +262,14 @@ public:
 //											INSTANTIATION
 // *****************************************************************************
 
+#include "utl/TypeListOper.h"
+#include "RtcTypeLists.h" 
+
 namespace 
 {
 	CommonOperGroup cogTR("triangualize");
 
-	#define INSTANTIATE(x) \
-		TriangualizeOperator<x> tr##x(&cogTR); \
-
-	INSTANTIATE_SEQ_POINTS
-	#undef INSTANTIATE
+	tl_oper::inst_tuple<typelists::seq_points, TriangualizeOperator<_>, AbstrOperGroup*> trOPers(&cogTR);
 }
 
 /******************************************************************************/

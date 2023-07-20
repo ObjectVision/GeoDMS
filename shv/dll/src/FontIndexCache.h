@@ -53,6 +53,7 @@ struct FontIndexCache : ResourceIndexCache
 	,	const Theme* fontNameTheme   // FontNames as string
 	,	const Theme* fontAngleTheme
 	,	const AbstrUnit* entityDomain
+	,	const AbstrUnit* projectionBaseUnit
 	,	Float64 defFontPixelSize
 	,	Float64 defFontWorldSize
 	,	TokenID defFontNameID
@@ -78,7 +79,6 @@ private: friend struct FontArray;
 	void AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const;
 	void AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNameID, UInt16 fontAngle) const;
 	void AddUndefinedKey() const;
-	void MakeKeyIndex() const;
 
 	TokenID m_DefaultFontNameId;
 	UInt16  m_DefaultFontAngle;

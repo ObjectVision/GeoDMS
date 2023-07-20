@@ -38,6 +38,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/PointStream.h"
 #include "set/IndexCompare.h"
 
+#include "OperRelUni.h"
+
 //----------------------------------------------------------------------
 // Section      : SelectRow calculates the row for which the polygon 
 //                has exactly <measure> area above it
@@ -56,13 +58,11 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		measure *= 2; // calculating with twice the area is easier
 
 		//	point_index sort on Row ASC
-		std::vector<UInt32> pointIndex(polySize);
+		std::vector<UInt32> pointIndex;
+		make_index(pointIndex, polySize, polyBegin);
 		auto
 			currPointIndexPtr = pointIndex.begin(),
 			lastPointIndexPtr = pointIndex.end();
-
-		fill_id(currPointIndexPtr, lastPointIndexPtr);
-		std::stable_sort(currPointIndexPtr, lastPointIndexPtr, IndexCompareOper<ConstPointIter>(polyBegin));
 
 		DensityType doubleAreaSofar = 0;
 		ScalarType prevWidth = 0, prevRow = polyBegin[*currPointIndexPtr].Row();
@@ -77,7 +77,7 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		{
 			ScalarType currRow   = polyBegin[*currPointIndexPtr].Row();
 			ScalarType currWidth = CalcWidth<ScalarType>(polyBegin, polyEnd,  polyBegin[*currPointIndexPtr]);
-			DensityType deltaDoubleArea = (prevWidth + currWidth) * (currRow - prevRow);
+			DensityType deltaDoubleArea = (DensityType(prevWidth) + DensityType(currWidth)) * (DensityType(currRow) - DensityType(prevRow));
 
 			DBG_TRACE(("currPoint  %s", AsString(polyBegin[*currPointIndexPtr]).c_str()));
 			DBG_TRACE(("currWidth  %s", AsString(currWidth).c_str()));

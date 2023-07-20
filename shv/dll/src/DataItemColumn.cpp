@@ -99,7 +99,7 @@ DataItemColumn::DataItemColumn(
 	,	m_ColumnNr(UNDEFINED_VALUE(UInt32))	
 	,	m_ActiveRow(0)
 {
-	dms_assert(!GetActiveTheme());
+	assert(!GetActiveTheme());
 }
 
 DataItemColumn::DataItemColumn(const DataItemColumn& src)
@@ -256,9 +256,10 @@ void DataItemColumn::UpdateTheme()
 		auto aggrMethod = IsDefined(m_GroupByIndex) ? AggrMethod::first : m_AggrMethod;
 		while (!Allowed(GetSrcAttr(), aggrMethod))
 		{
-			dms_assert(aggrMethod != AggrMethod::first); // must always be allowed.
+			assert(aggrMethod != AggrMethod::first); // must always be allowed.
 			aggrMethod = AggrMethod(int(aggrMethod) + 1);
-			dms_assert(aggrMethod < AggrMethod::nr_methods); // there will be an allowed method.
+			if (aggrMethod == AggrMethod::nr_methods)
+				aggrMethod = AggrMethod::sum;
 			m_AggrMethod = aggrMethod;
 		}
 
@@ -317,8 +318,8 @@ void DataItemColumn::SetElemWidth(GType width)
 	GrowHor(colWidth - currClientWidth, relPosX, 0);
 	MakeMax(m_ElemSize.x, width);
 
-	dms_assert(GetCurrClientSize().x() == colWidth);
-	dms_assert(m_ElemSize.x            == width);
+	assert(GetCurrClientSize().x() == colWidth);
+	assert(m_ElemSize.x            == width);
 }
 
 void DataItemColumn::SetActiveRow(SizeT row)
@@ -340,7 +341,9 @@ void DataItemColumn::SetActiveRow(SizeT row)
 
 void DataItemColumn::MakeVisibleRow()
 {
-	dms_assert(AllVisible());
+	if (!AllVisible())
+		return;
+
 	DBG_START("DataItemColumn", "MakeVisibleRow", MG_DEBUG_SCROLL);
 
 	UpdateView(); // make sure that this DIC has the appropiate size
@@ -437,7 +440,8 @@ void DataItemColumn::DoUpdateView()
 		n = 8;
 		PrepareDataOrUpdateViewLater(tc->GetRowEntity());
 	}
-	TPoint size( m_ElemSize.x, m_ElemSize.y );
+
+	TPoint size( m_ElemSize.x, m_ElemSize.y);
 
 	if (HasElemBorder())
 	{
@@ -446,6 +450,7 @@ void DataItemColumn::DoUpdateView()
 	}
 	UInt32 rowSepHeight = RowSepHeight();
 	size.y() += rowSepHeight;
+
 	MakeMin<SizeT>(n, MaxValue<TType>() / size.y());
 	size.y() *= n;
 	MakeMin<TType>(size.y(), MaxValue<TType>() - rowSepHeight);
@@ -458,10 +463,12 @@ void DataItemColumn::DoUpdateView()
 
 void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 {
-	dms_assert(d.DoDrawBackground()); // PRECONDITION
-	dms_assert(d.GetDC()); // implied by prev
-	dms_assert(IsMainThread());
+	assert(d.DoDrawBackground()); // PRECONDITION
+	assert(d.GetDC()); // implied by prev
+	assert(IsMainThread());
 	base_type::DrawBackground(d);
+
+	auto scaleFactor = GetDcDIP2pixFactorXY(d.GetDC());
 
 	GType rowSep = RowSepHeight();
 	if (!rowSep)
@@ -474,7 +481,9 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 
-	GRect  absFullRect = GetClippedCurrFullAbsRect(d);
+	GRect  absFullRect = GetClippedCurrFullAbsRect(d); 
+	absFullRect.left = absFullRect.left * scaleFactor.first;
+	absFullRect.right = absFullRect.right * scaleFactor.first;
 	GType  rowDelta    = ElemSize().y + rowSep;
 	if (HasElemBorder())
 		rowDelta += 2*BORDERSIZE;
@@ -504,19 +513,20 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	{
 		if (currRow >= clipEndRow)
 			return;
-		absFullRect.Top   () = currRow;
-		absFullRect.Bottom() = currRow+rowSep;
+		absFullRect.Top() = currRow * scaleFactor.second;
+		absFullRect.Bottom() = (currRow+rowSep) * scaleFactor.second;
+//		absFullRect *= GetDcDIP2pixFactorXY(d.GetDC());
 		FillRect(d.GetDC(), &absFullRect, br);
 
 		++recNo;
 		currRow += rowDelta;
 	}
-	dms_assert(recNo == n);
+	assert(recNo == n);
 
-	absFullRect.Top() = currRow;
-	if (absFullRect.Top() >= clipEndRow)
+	if (currRow >= clipEndRow)
 		return;
-	absFullRect.Bottom() = absFullRect.Top() + rowSep;
+	absFullRect.Top() = currRow * scaleFactor.second;
+	absFullRect.Bottom() = (currRow + rowSep) * scaleFactor.second;
 	FillRect(d.GetDC(), &absFullRect, br);
 }
 
@@ -546,7 +556,7 @@ void DataItemColumn::InvalidateRelRect(TRect rect)
 	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsPos () );
 	screenRect &= GetDrawnClientAbsRect();
 	if (!screenRect.empty())
-		dv->InvalidateRect( screenRect );
+		dv->InvalidateRect(screenRect);
 }
 
 void DataItemColumn::InvalidateDrawnActiveElement()
@@ -821,9 +831,10 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 		if (!m_FontIndexCache)
 			m_FontIndexCache.assign(
 				new FontIndexCache(
-					0, 0, fontTheme.get(), 0
+					nullptr, nullptr, fontTheme.get(), nullptr
 				,	fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault() // theme domain entity
-				,	cellHeight, 0, GetTokenID_mt(defFontNames[fr]), 0
+				,	nullptr
+				,	cellHeight+2, 0, GetTokenID_mt(defFontNames[fr]), 0
 				)
 			);
 		m_FontIndexCache->UpdateForZoomLevel(1.0, subPixelFactor);
@@ -1095,7 +1106,6 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
 		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
-
 		GType height = m_ElemSize.y + RowSepHeight();
 		if (HasElemBorder()) height += (2*BORDERSIZE);
 		SizeT rowNr = relClientPos.y() / height;
@@ -1122,25 +1132,34 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )
 		{
-			if (!IgnoreActivation())
-				GenerateValueInfo();
-
-			if (GetEnabledTheme(AN_LabelText))
-				OnKeyDown(VK_F2);
-			else if ( GetEnabledTheme(AN_LabelBackColor) )
+			if ( GetEnabledTheme(AN_LabelBackColor) )
 			{
 				if (IsEditable(AN_LabelBackColor))
+				{
 					SelectBrushColor();
-				else
-					MessageBeep(-1);
+					return true;
+				}
 			}
 			else if (GetEnabledTheme(AN_LabelTextColor))
 			{
 				if (IsEditable(AN_LabelTextColor))
+				{
 					SelectPenColor();
-				else
-					MessageBeep(-1);
+					return true;
+				}
 			}
+			else if (GetEnabledTheme(AN_LabelText))
+			{
+				if (IsEditable(AN_LabelTextColor))
+				{
+					OnKeyDown(VK_F2);
+					return true;
+				}
+			}
+			if (!IgnoreActivation())
+				GenerateValueInfo();
+			else
+				MessageBeep(-1);
 		}
 		return true;  // don't continue processing LBUTTONDBLCLK
 	}
@@ -1197,8 +1216,8 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	{
 		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
 
-		med.m_MenuData.push_back( MenuItem(SharedStr("Ascending" ), new MembFuncCmd<DataItemColumn>(&DataItemColumn::SortAsc ), this) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("Descending"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::SortDesc), this) );
+		med.m_MenuData.emplace_back( SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
+		med.m_MenuData.emplace_back( SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
@@ -1206,7 +1225,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 			if (Allowed(GetSrcAttr(), am))
 				med.m_MenuData.push_back(MenuItem(
 					SharedStr(OperName(GetSrcAttr(), am)),
-					new MembFuncCmd<DataItemColumn, AggrMethod>(&DataItemColumn::SetAggrMethod, am), 
+					make_MembFuncCmd(&DataItemColumn::SetAggrMethod, am), 
 					this,
 					am == m_AggrMethod ? MF_CHECKED : 0
 				));
@@ -1214,20 +1233,32 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 
 //	Display Relative
 	if (IsNumeric())
-		med.m_MenuData.push_back( 
-			MenuItem(
-				SharedStr("&Relative Display (as % of total)")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::ToggleRelativeDisplay)
-			,	this
-			,	m_State.Get(DIC_RelativeDisplay) ? MF_CHECKED : 0
-			)
+		med.m_MenuData.emplace_back(SharedStr("&Relative Display (as % of total)")
+		,	make_MembFuncCmd(&DataItemColumn::ToggleRelativeDisplay)
+		,	this
+		,	m_State.Get(DIC_RelativeDisplay) ? MF_CHECKED : 0
 		);
 //	Goto & Find
-	med.m_MenuData.push_back(MenuItem(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::GotoClipboardRow), this));
-	med.m_MenuData.push_back(MenuItem(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), new MembFuncCmd<DataItemColumn>(&DataItemColumn::FindNextClipboardValue), this));
+	med.m_MenuData.emplace_back(SharedStr("Goto (Ctrl-G): take Clipboard contents as row number and go there"), make_MembFuncCmd(&DataItemColumn::GotoClipboardRow), this);
+	med.m_MenuData.emplace_back(SharedStr("FindNextValue (Ctrl-F): take Clipboard contents as value and search for it, starting after the current position"), make_MembFuncCmd(&DataItemColumn::FindNextClipboardValue), this);
 
+//	Explain Value
+	if (tc)
+	{
+		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
+		GType height = m_ElemSize.y + RowSepHeight();
+		if (HasElemBorder()) height += (2 * BORDERSIZE);
+		SizeT rowNr = relClientPos.y() / height;
+		if (rowNr <= tc->NrRows())
+		{
+			med.m_MenuData.emplace_back(mySSPrintF("&Value info for row %d of '%s'", rowNr, caption.c_str())
+			, make_LambdaCmd([this, tc, rowNr]() { CreateViewValueAction(this->GetActiveAttr(), tc->GetRecNo(rowNr), true); })
+			, this
+			);
+		}
+	}
 //	Remove DIC
-	med.m_MenuData.push_back( MenuItem(mySSPrintF("&Remove %s", caption.c_str()), new MembFuncCmd<DataItemColumn>(&DataItemColumn::Remove), this) );
+	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this);
 
 //	Ramping
 	SharedPtr<const AbstrDataItem> activeAttr = GetActiveAttr();
@@ -1252,7 +1283,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 			med.m_MenuData.push_back(
 				MenuItem(
 					SharedStr(GetEnabledTheme(AN_LabelTextColor) ? "Ramp Colors": "Ramp Values")
-				,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::Ramp)
+				,	make_MembFuncCmd(&DataItemColumn::Ramp)
 				,	this
 				,	rampingPossible ? 0 : MFS_GRAYED
 				)
@@ -1267,14 +1298,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Select from Palette")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::SelectBrushColor)
+			,   make_MembFuncCmd(&DataItemColumn::SelectBrushColor)
 			,	this
 			)
 		);
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Set to transparent")
-			,	new MembFuncCmd<DataItemColumn>(&DataItemColumn::SetTransparentBrushColor)
+			,   make_MembFuncCmd(&DataItemColumn::SetTransparentBrushColor)
 			,	this
 			)
 		);
@@ -1286,14 +1317,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Select from Palette")
-				, new MembFuncCmd<DataItemColumn>(&DataItemColumn::SelectPenColor)
+				, make_MembFuncCmd(&DataItemColumn::SelectPenColor)
 				, this
 			)
 		);
 		med.m_MenuData.push_back(
 			MenuItem(
 				SharedStr("Set to transparent")
-				, new MembFuncCmd<DataItemColumn>(&DataItemColumn::SetTransparentPenColor)
+				, make_MembFuncCmd(&DataItemColumn::SetTransparentPenColor)
 				, this
 			)
 		);
@@ -1370,9 +1401,9 @@ void DataItemColumn::Ramp()
 	if (adi->IsDerivable())
 		adi->throwItemError("Ramp: Cannot change derived data; try to copy the attribute and change the copied data");
 
-	DataWriteLock lock(adi);
+	auto lock = DataWriteLock(adi, dms_rw_mode::read_write);
 
-	auto colorTheme = GetEnabledTheme(AN_LabelTextColor);
+	auto colorTheme = GetEnabledTheme(AN_LabelBackColor);
 	if (colorTheme)
 	{
 		dms_assert(colorTheme->GetThemeAttr() == adi);
@@ -1427,7 +1458,10 @@ protected:
 //----------------------------------------------------------------------
 
 ColumnSizerDragger::ColumnSizerDragger(DataView* owner, DataItemColumn* target)
-	:	AbstrController(owner, target, 0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS & ~EID_SCROLLED)
+	:	AbstrController(owner, target
+		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
+	)
 {}
 
 bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
@@ -1470,38 +1504,31 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 	SelectCol();
 
 	medOwner->InsertController(
-		new TieCursorController(
-			medOwner.get(),
-			owner.get(),
-			TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1)),
-			EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new TieCursorController(medOwner.get(), owner.get()
+		,	TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1))
+		,	EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		)
 	);
 
 	medOwner->InsertController(
-		new DualPointCaretController(
-			medOwner.get(),
-			new MovableRectCaret( TRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) ),
-			this,
-			mousePoint,
-			EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new DualPointCaretController(medOwner.get()
+		,	new MovableRectCaret( TRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) )
+		,	this, mousePoint
+		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
 		)
 	);
 
 	medOwner->InsertController(
-		new DualPointCaretController(
-			medOwner.get(),
-			new MovableRectCaret( TRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) ),
-			this,
-			mousePoint,
-			EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		new DualPointCaretController(medOwner.get()
+		,	new MovableRectCaret( TRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) )
+		,	this, mousePoint
+		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	ToolButtonID::TB_Undefined
 		)
 	);
 	medOwner->InsertController(
-		new ColumnSizerDragger(
-			medOwner.get(),
-			this
-		)
+		new ColumnSizerDragger(medOwner.get(), this)
 	);
 }
 

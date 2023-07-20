@@ -75,7 +75,7 @@ public:
 		arg1A->GetAbstrDomainUnit()->UnifyDomain(arg2A->GetAbstrDomainUnit());
 		arg1A->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit());
 
-		MG_CHECK(checked_domain<LinkType>(arg1A) == checked_domain<LinkType>(arg2A));
+		MG_CHECK(checked_domain<LinkType>(arg1A, "a1") == checked_domain<LinkType>(arg2A, "a2"));
 		MG_CHECK(arg1A->GetAbstrValuesUnit() == arg2A->GetAbstrValuesUnit());
 
 		AbstrUnit* res = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
@@ -143,20 +143,21 @@ public:
 							rb[ currNode ] = nrParts;
 
 							LinkType currLink = link1[currNode];
-							while (currLink != UNDEFINED_VALUE(LinkType))
+							while (currLink < nrE)
 							{
-								NodeType otherNode = node2Data[currLink]; dms_assert(otherNode < nrV);
-								nodeStack.push_back(otherNode);			
+								NodeType otherNode = node2Data[currLink]; 
+								if (otherNode <  nrV)
+									nodeStack.push_back(otherNode);			
 								currLink = nextLink1[currLink];
 							}
 							currLink = link2[currNode];
-							while (currLink != UNDEFINED_VALUE(LinkType))
+							while (currLink < nrE)
 							{
-								NodeType otherNode = node1Data[currLink]; dms_assert(otherNode < nrV);
-								nodeStack.push_back(otherNode);			
+								NodeType otherNode = node1Data[currLink];
+								if (otherNode < nrV)
+									nodeStack.push_back(otherNode);
 								currLink = nextLink2[currLink];
 							}
-
 						}
 					}
 					while (!nodeStack.empty());

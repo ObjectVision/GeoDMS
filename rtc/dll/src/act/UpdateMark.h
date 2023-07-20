@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "cpc/Types.h"
 #include "RtcBase.h"
+#include "Parallel.h"
 #include "act/ActorEnums.h"
 #include "utl/IncrementalLock.h"
 #include "utl/swapper.h"

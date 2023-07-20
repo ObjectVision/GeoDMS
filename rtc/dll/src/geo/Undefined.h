@@ -32,6 +32,8 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_GEO_UNDEFINED_H)
 #define __RTC_GEO_UNDEFINED_H
 
+#include <string_view>
+
 // Types
 #include "cpc/Types.h"
 #include "geo/ElemTraits.h"
@@ -52,37 +54,20 @@ granted by an additional written contract for support, assistance and/or develop
 //inline Float64 QNaN_Value(const Float80*)  { char ldNan[ 8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F } return  *(double*) ldNan }
 //inline Float80 QNaN_Value(const Float80*)  { char ldNan[10] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F } return  *(long double*) ldNan }
 
-template <typename T> struct has_9999_as_null: std::false_type {};
-#if !defined(MG_USE_QNAN)
-template <>           struct has_9999_as_null<  Int16> : std::true_type {};
-template <>           struct has_9999_as_null<  Int32> : std::true_type {};
-template <>           struct has_9999_as_null<  Int64> : std::true_type {};
-template <>           struct has_9999_as_null<Float32> : std::true_type {};
-template <>           struct has_9999_as_null<Float64> : std::true_type {};
-#endif
+inline constexpr Void    UndefinedValue(const Void*)    { return Void(); }
+inline constexpr UInt64  UndefinedValue(const UInt64*)  { return 0xFFFFFFFFFFFFFFFFui64; }  // 2^64-1 = 4294967295
+inline constexpr UInt32  UndefinedValue(const UInt32*)  { return 0xFFFFFFFF; }  // 2^32-1 = 4294967295
+inline constexpr Int32   UndefinedValue(const long*)    { return 0x80000000; }
+inline constexpr UInt32  UndefinedValue(const unsigned long*) { return 0xFFFFFFFF; }
+inline constexpr UInt16  UndefinedValue(const UInt16*)  { return 0xFFFF; }      // 2^16-1 = 65535
+inline constexpr UInt8   UndefinedValue(const UInt8*)   { return 0xFF; }        // 2^08-1 =  255
+inline constexpr Int8    UndefinedValue(const Int8*)    { return Int8(0x80); }  // 2^07   = -128
 
-inline Void    UndefinedValue(const Void*)    { return Void(); }
-inline UInt64  UndefinedValue(const UInt64*)  { return 0xFFFFFFFFFFFFFFFFui64; }  // 2^64-1 = 4294967295
-inline UInt32  UndefinedValue(const UInt32*)  { return 0xFFFFFFFF; }  // 2^32-1 = 4294967295
-inline Int32   UndefinedValue(const long*)    { return 0x80000000; }
-inline UInt32  UndefinedValue(const unsigned long*) { return 0xFFFFFFFF; }
-inline UInt16  UndefinedValue(const UInt16*)  { return 0xFFFF; }      // 2^16-1 = 65535
-inline UInt8   UndefinedValue(const UInt8*)   { return 0xFF; }        // 2^08-1 =  255
-inline Int8    UndefinedValue(const Int8*)    { return Int8(0x80); }  // 2^07   = -128
-
-#if defined(MG_USE_QNAN)
-inline Int32   UndefinedValue(const Int32*)   { return 0x80000000; }
-inline Int64   UndefinedValue(const Int64*)   { return 0x8000000000000000i64; }
-inline Int16   UndefinedValue(const Int16*)   { return Int16(0x8000); }       
-inline Float32 UndefinedValue(const Float32*) { return std::numeric_limits<Float32>::quiet_NaN(); }
-inline Float64 UndefinedValue(const Float64*) { return std::numeric_limits<Float64>::quiet_NaN(); }
-#else
-inline Int32   UndefinedValue(const Int32*)   { return -9999; }
-inline Int64   UndefinedValue(const Int64*)   { return -9999; }
-inline Int16   UndefinedValue(const Int16*)   { return -9999; }
-inline Float32 UndefinedValue(const Float32*) { return -9999; }
-inline Float64 UndefinedValue(const Float64*) { return -9999; }
-#endif
+inline constexpr Int32   UndefinedValue(const Int32*)   { return 0x80000000; }
+inline constexpr Int64   UndefinedValue(const Int64*)   { return 0x8000000000000000i64; }
+inline constexpr Int16   UndefinedValue(const Int16*)   { return Int16(0x8000); }
+inline constexpr Float32 UndefinedValue(const Float32*) { return std::numeric_limits<Float32>::quiet_NaN(); }
+inline constexpr Float64 UndefinedValue(const Float64*) { return std::numeric_limits<Float64>::quiet_NaN(); }
 
 #if defined(DMS_TM_HAS_FLOAT80)
 inline Float80 UndefinedValue(const Float80*)  { return std::numeric_limits<T>::quiet_NaN(); }
@@ -96,21 +81,16 @@ template <>           struct has_max_as_null< UInt8 > : std::true_type {};
 
 template <typename T> struct has_min_as_null: std::false_type {};
 template <>           struct has_min_as_null< long > : std::true_type {};
-
-#if defined(MG_USE_QNAN)
 template <>           struct has_min_as_null< Int64> : std::true_type {};
 template <>           struct has_min_as_null< Int32> : std::true_type {};
 template <>           struct has_min_as_null< Int16> : std::true_type {};
 template <>           struct has_min_as_null< Int8 > : std::true_type {};
-#endif
-
-template <typename T, typename U> struct has_equivalent_null : std::bool_constant<has_9999_as_null<T>::value &&  has_9999_as_null<U>::value > {};
-template <typename T>             struct has_equivalent_null<T,T> : std::true_type {};
 
 #define UNDEFINED_VALUE_STRING "null"
 #define UNDEFINED_VALUE_STRING_LEN (sizeof(UNDEFINED_VALUE_STRING)-1)
 
-inline CharPtr       UndefinedValue(const CharPtr*) { return nullptr; }
+inline CharPtr          UndefinedValue(const CharPtr*) { return nullptr; }
+inline std::string_view UndefinedValue(const std::string_view*) { return { UNDEFINED_VALUE_STRING, 4 }; }
 
 template <typename T> constexpr bool has_undefines_v = !is_bitvalue_v<T>;
 template <typename T> using has_undefines = std::bool_constant<has_undefines_v<T>>;
@@ -120,10 +100,14 @@ template <typename T> using has_undefines = std::bool_constant<has_undefines_v<T
 //----------------------------------------------------------------------
 
 template <typename T>
-T UndefinedOrZero(const T* x) { return UndefinedValue(x); }
+constexpr T UndefinedOrZero(const T* x) { return UndefinedValue(x); }
 
 template <typename T>
-T UndefinedOrMax(const T* x) { return UndefinedValue(x); }
+constexpr T UndefinedOrMax(const T* x) { return UndefinedValue(x); }
+
+template <typename Field, typename Alloc>
+constexpr std::vector<Field, Alloc> UndefinedOrZero(const std::vector<Field, Alloc>*) { return std::vector<Field>(); }
+
 
 //----------------------------------------------------------------------
 // Section      : MakeUndefined operator; override for burdensome copy constructibles (to avoid return by value)
@@ -140,6 +124,20 @@ inline void MakeUndefinedOrZero(T& v)
 {
 	v = UNDEFINED_OR_ZERO(T); 
 }
+
+template <typename Field, typename Alloc>
+inline void MakeUndefined(std::vector<Field, Alloc>& vec)
+{
+	if (vec.size())
+		vec = std::vector<Field, Alloc>();
+}
+
+template <typename Field, typename Alloc>
+inline void MakeUndefinedOrZero(std::vector<Field, Alloc>& vec)
+{
+	MakeUndefined(vec);
+}
+
 
 //----------------------------------------------------------------------
 // Undefined value and its casting to Basic types for typed Undefined creation
@@ -159,12 +157,36 @@ template <typename T> void Assign(T& lhs, Undefined)    { MakeUndefinedOrZero(lh
 //----------------------------------------------------------------------
 
 template <typename T>
-inline bool IsDefined(const T& v) { return v != UNDEFINED_VALUE(T); }
+inline constexpr bool IsDefined(const T& v) { return v != UNDEFINED_VALUE(T); }
 
-#if defined(MG_USE_QNAN)
-inline bool IsDefined(Float32 v) { return !isnan(v); }
-inline bool IsDefined(Float64 v) { return !isnan(v); }
-#endif
+template <typename Field>
+inline constexpr bool IsDefined(const std::vector<Field>& v) { return v.size(); }
+
+//inline bool IsDefined(Float32 v) { return fpclassify(v) <= 0; }
+//inline bool IsDefined(Float64 v) { return fpclassify(v) <= 0; }
+// https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+const UInt32 F32_EXP_FLAGS = 0xFF << 23;
+const UInt32 F32_SGN_FLAG = 1 << 31;
+
+// https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+const UInt64 F64_EXP_FLAGS = 0x7FFui64 << 52;
+const UInt64 F64_SGN_FLAG = 1ui64 << 63;
+
+inline bool IsDefined(Float32 v)
+{
+	//	return !isnan(v);
+	UInt32 vAsUInt32 = *reinterpret_cast<const UInt32*>(&v);
+	UInt32 expFlags = vAsUInt32 & F32_EXP_FLAGS;
+	return expFlags != F32_EXP_FLAGS;
+}
+
+inline bool IsDefined(Float64 v)
+{
+	//	return !isnan(v);
+	UInt64 vAsUInt64 = *reinterpret_cast<const UInt64*>(&v);
+	UInt64 expFlags = vAsUInt64 & F64_EXP_FLAGS;
+	return expFlags != F64_EXP_FLAGS;
+}
 
 bool IsDefined(Void); // CHECK THAT THIS IS NEVER CALLED
 

@@ -56,7 +56,7 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetContextNotification(TContextNotification clientFunc, ClientHandle clientHandle)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_clientFunc  = clientFunc;
 	s_cientHandle = clientHandle;
 }
@@ -68,41 +68,62 @@ void ProgressMsg(CharPtr msg)
 		(*s_clientFunc)(s_cientHandle, msg);
 }
 
+/********** MsgCategory **********/
+
+CharPtr AsString(MsgCategory msgCat)
+{
+	switch (msgCat) {
+	case MsgCategory::system: return "[system]";
+	case MsgCategory::wms: return "[wms]";
+	case MsgCategory::disposable: return "[disposable]";
+	case MsgCategory::progress: return "[progress]";
+	}
+	return "";
+}
 /********** AbstrContextHandle **********/
 
-THREAD_LOCAL static AbstrContextHandle* s_LastAbstrContextHandle = nullptr;
+template<typename Base>
+THREAD_LOCAL StackHandle<Base>* StackHandle<Base>::s_Last = nullptr;
 
 #if defined(MG_DEBUG)
 THREAD_LOCAL static AbstrContextHandle* sd_PrevAbstrContextHandle = nullptr;
 THREAD_LOCAL static UInt32 sd_ContextHandleCount = 0;
 #endif
 
-AbstrContextHandle::AbstrContextHandle() noexcept
-	:	m_Prev(s_LastAbstrContextHandle)
+template<typename Base>
+StackHandle<Base>::StackHandle() noexcept
+	:	m_Prev(s_Last)
 { 
-	s_LastAbstrContextHandle = this; 
+	s_Last = this; 
 #if defined(MG_DEBUG)
 	++sd_ContextHandleCount;
 	sd_PrevAbstrContextHandle = m_Prev;
 #endif
-	dms_assert(m_Prev != this);
+	assert(m_Prev != this);
 }
 
-AbstrContextHandle::~AbstrContextHandle() noexcept
-{ 
-	dms_assert(s_LastAbstrContextHandle == this);
-	dms_assert(m_Prev != this);
-	s_LastAbstrContextHandle = m_Prev;
+template<typename Base>
+StackHandle<Base>::~StackHandle() noexcept
+{
+	assert(s_Last == this);
+	assert(m_Prev != this);
+	s_Last = m_Prev;
 #if defined(MG_DEBUG)
 	--sd_ContextHandleCount;
 	dms_assert(m_Prev == sd_PrevAbstrContextHandle); // no stack frame corruption due to buffer overflow ?
 	if (m_Prev)
 		sd_PrevAbstrContextHandle = m_Prev->m_Prev;
 #endif
-	dms_assert(s_LastAbstrContextHandle != this);
+	assert(s_Last != this);
 }
 
-bool AbstrContextHandle::Describe(FormattedOutStream& fos) // default: calls GetDescription
+AbstrMsgGenerator::AbstrMsgGenerator() noexcept
+{}
+
+AbstrMsgGenerator::~AbstrMsgGenerator() noexcept
+{}
+
+bool AbstrMsgGenerator::Describe(FormattedOutStream& fos) // default: calls GetDescription
 {
 	CharPtr extraInfo = GetDescription();
 	if (!extraInfo || !*extraInfo)
@@ -112,7 +133,7 @@ bool AbstrContextHandle::Describe(FormattedOutStream& fos) // default: calls Get
 	return true;
 }
 
-CharPtr AbstrContextHandle::GetDescription()
+CharPtr AbstrMsgGenerator::GetDescription()
 {
 	return "ABSTRACT AbstrContextHandle::GetDescription()";
 }
@@ -123,7 +144,8 @@ AbstrContextHandle* AbstrContextHandle::GetPrev() const
 }
 
 
-UInt32 AbstrContextHandle::GetContextLevel() const
+template<typename Base>
+UInt32 StackHandle<Base>::GetContextLevel() const
 {
 	dms_assert(this);
 	UInt32 r=1;
@@ -137,10 +159,14 @@ UInt32 AbstrContextHandle::GetContextLevel() const
 }
 
 
-AbstrContextHandle* AbstrContextHandle::GetLast()
+template<typename Base>
+StackHandle<Base>* StackHandle<Base>::GetLast()
 {
-	return s_LastAbstrContextHandle;
+	return s_Last;
 }
+
+
+template StackHandle<AbstrMsgGenerator>;
 
 /********** FixedContextHandle **********/
 
@@ -158,46 +184,32 @@ CharPtr SharedStrContextHandle::GetDescription()
 	return m_MsgStr.c_str(); 
 }
 
-/********** ContextHandle **********/
-
-void ContextHandle::SetText(WeakStr context) 
-{
-	m_Context = context;
-}
-
-CharPtr ContextHandle::GetDescription()
-{
-	try {
-
-		GenerateDescription();
-		return m_Context.c_str();
-
-	}
-	catch (...) {}
-	return "<ContextHandle::GenerateDescription() threw an exception>";
-}
-
 /********** ObjectContextHandle **********/
 
-void ObjectContextHandleBase::GenerateDescription()
+template <typename Base>
+void ObjectContextPolicy<Base>::GenerateDescription()
 {
 	if (!m_Role) 
 		m_Role = "Object";
 	if (m_Obj)
-		SetText(
+		this->SetText(
 			mySSPrintF("while in %s for %s"
 			,	m_Role
 			,	m_Obj->GetSourceName().c_str()
 			)
 		);
 	else
-		SetText(mySSPrintF("while in %s('null')", m_Role));
+		this->SetText(mySSPrintF("while in %s('null')", m_Role));
 }
 
-bool ObjectContextHandleBase::IsFinalContext() const
+template <typename Base>
+bool ObjectContextPolicy<Base>::IsFinalContext() const
 {
 	return m_Obj && m_Obj->GetLocation() != nullptr;
 }
+
+template ObjectContextPolicy<MsgGenerator>;
+template ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
@@ -207,29 +219,9 @@ void ObjectIdContextHandle::GenerateDescription()
 	ObjectContextHandle::GenerateDescription();
 }
 
-/********** CDebugCOutHandle  **********/
-#include <iostream>
-
-static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
-{
-	std::cerr << '\n' << msg;
-}
-
-CDebugCOutHandle::CDebugCOutHandle()
-{
-	DMS_RegisterMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
-CDebugCOutHandle::~CDebugCOutHandle()
-{
-	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
 /********** CDebugContextHandle  **********/
 
 #include <concrt.h>
-//#include "Parallel.h"
-//#include "ptr/SharedBase.h"
 
 namespace { // local defs
 
@@ -272,8 +264,6 @@ CDebugContextHandle::~CDebugContextHandle()
 		DebugOutStream::scoped_lock lock(g_DebugStream);
 		*g_DebugStream << "} " << m_ClassName  << "::" << m_FuncName << " (" << RunningTime() << " secs)";
 	}
-
-//	PopNotification(); AVOID DIFFERENCES BETWEEN DEBUG AND RELEASE
 }
 
 void CDebugContextHandle::GenerateDescription()

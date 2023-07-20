@@ -31,6 +31,9 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_COLOR_H)
 #define __RTC_COLOR_H
 
+#include "RtcBase.h"
+#include "dbg/Check.h"
+
 // ------------------------------------------------------------------------
 //
 // Common definition of RGB color
@@ -67,5 +70,13 @@ const DmsColor DmsOrange= CombineRGB(0xFF, 0x80, 0x00);
 const DmsColor DmsWhite = DmsRed + DmsGreen + DmsBlue;
 const DmsColor DmsBlack = 0;
 const DmsColor DmsTransparent = 0xFFFFFFFF;
+
+const UInt32 MAX_COLOR = 0xFFFFFF;
+
+inline void CheckColor(DmsColor clr)
+{
+	MG_CHECK(clr <= MAX_COLOR);
+}
+
 
 #endif __RTC_COLOR_H

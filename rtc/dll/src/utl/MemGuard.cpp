@@ -30,6 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "RtcPCH.h"
 #pragma hdrstop
 
+#include "act/MainThread.h"
 #include "dbg/SeverityType.h"
 #include "mem/FixedAlloc.h"
 #include "utl/MemGuard.h"
@@ -62,7 +63,7 @@ struct memory_info {
 
 	bool SufficientFreeSpace(std::size_t requestedSize) const
 	{
-		if (!MaxPhysMemoryLoad())
+		if (!MaxPhysMemoryLoad() || MaxPhysMemoryLoad() == 100)
 			return true;
 		percentage_type expectedPhysicalMemoryLoad = ExpectedMemoryLoad(requestedSize);
 		return expectedPhysicalMemoryLoad <= MaxPhysMemoryLoad();
@@ -101,10 +102,13 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			// Programs that must run on earlier versions of Windows as well as Windows 7 and later versions should always call this function as K32EmptyWorkingSet. 
 			// To ensure correct resolution of symbols, add Psapi.lib to the TARGETLIBS macro and compile the program with -DPSAPI_VERSION=1. To use run-time dynamic linking, load Psapi.dll.
 
-			reportD(SeverityTypeID::ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
 			K32EmptyWorkingSet(GetCurrentProcess());
-
-			DBG_DebugReport();
+			AddMainThreadOper([] 
+				{
+					reportD(SeverityTypeID::ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
+//					DBG_DebugReport();
+				}
+			, true);
 		}
 	}
 }

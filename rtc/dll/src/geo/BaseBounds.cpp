@@ -38,7 +38,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 Float64 AsFloat64(const Void& ) { throwIllegalAbstract(MG_POS, "AsFloat64(Void)"); }
 
-
 //----------------------------------------------------------------------
 // Section      : Transformations
 //----------------------------------------------------------------------

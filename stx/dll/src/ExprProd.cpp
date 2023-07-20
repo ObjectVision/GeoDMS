@@ -107,12 +107,6 @@ void ExprProd::ProdUnaryOper(TokenID id)
 	);
 }
 		
-void ExprProd::ProdNullaryOper(TokenID id)
-{
-	// tail -> ((id), tail); as a nullary function call
-	m_Result.push_back(RewriteExprTop_InParse(List1<LispRef>(LispRef(id))));
-}
-
 void ExprProd::ProdStringValue()
 {
 	// tail -> (string, tail)
@@ -279,23 +273,23 @@ const TreeItem* WriteHtmlLink(OutStreamBase& outStream, const TreeItem* searchCo
 		if (item)
 		{
 			XML_hRef xmlElemA(outStream, ItemUrl(item).c_str());
-			outStream.WriteValueN(first, last - first, "");
+			outStream.WriteRange(first, last);
 			return item;
 		}
 	}
-	outStream.WriteValueN(first, last - first, "");
+	outStream.WriteRange(first, last);
 	return nullptr;
 }
 	
 void HtmlProd::ProdIdentifier(CharPtr first, CharPtr last)
 {
-	m_OutStream.WriteValueN(m_LastPos, first-m_LastPos, "");
+	m_OutStream.WriteRange(m_LastPos, first);
 	m_LastIdentifier = WriteHtmlLink(m_OutStream, m_SearchContext, first, last);
 	m_LastPos = last;
 }
 
 HtmlProd::~HtmlProd()
 {
-	m_OutStream.WriteValueN(m_LastPos, m_OrgExpr.csend() - m_LastPos, "");
+	m_OutStream.WriteRange(m_LastPos, m_OrgExpr.csend());
 }
 

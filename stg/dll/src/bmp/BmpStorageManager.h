@@ -44,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 struct BmpPalStorageManager : AbstrGridStorageManager
 {
 //	implement AbstrStorageManager interface
-	bool ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smi) override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;

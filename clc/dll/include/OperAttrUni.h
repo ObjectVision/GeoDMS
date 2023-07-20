@@ -59,6 +59,13 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			,	m_PossibleArgFlags(possibleArgFlags)
 	{}
 
+	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData override
+	{
+		auto result = UnaryOperator::EstimatePerformance(resultHolder, args);
+		result.expectedTime *= GetGroup()->GetCalcFactor();
+		return result;
+	}
+
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		MG_PRECONDITION(args.size() == 1);
@@ -85,8 +92,8 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			auto tn = e->GetNrTiles();
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && !res->HasRepetitiveUsers())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + GetGroup()->GetName().c_str()));
+			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -130,10 +137,10 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<Arg1ValueType>(arg1A); dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
@@ -150,7 +157,7 @@ public:
 		auto arg1Data = const_array_cast<Arg1ValueType>(arg1A)->GetTile(t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, af MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr));
+		CalcTile(resData, arg1Data, af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
 	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;

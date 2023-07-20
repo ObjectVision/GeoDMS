@@ -334,7 +334,7 @@ struct partitioning_info_t
 		DataReadLock lock(m_AtomicRegionPartitioningDI);
 		auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
 		MG_DEBUGCODE( md_NrAtomicRegions = nrAtomicRegions);
-		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions MG_DEBUG_ALLOCATOR_SRC_STR("DiscrAlloc: m_AtomicRegionPartitioningData"));
+		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions, dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
 		m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
 	}
 
@@ -2410,7 +2410,11 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 		dms_assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		UInt32 ar = regionInfo.m_AtomicRegionMapData[regionInfo.m_CurrPI];
 		if (ar >= atomicRegionCount.size())
-			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF("Value %u out of range of valid Atomic Regions", ar);
+			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
+					"Value %u%s out of range of valid Atomic Regions"
+				,	ar
+				,	IsDefined(ar) ? "" : "(a.k.a. null-value)"
+			);
 		++atomicRegionCount[ar];
 	}
 	dms_assert(regionInfo.m_CurrPI >= regionInfo.m_N);
@@ -2561,7 +2565,7 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	typedef ClaimType     ResultTotalType;   
 	typedef PriceType     ResultShadowPriceType; 
 	using htp_info_type = htp_info_t<S, AR, AT>;
-	bool m_MustAdjust;
+	const bool m_MustAdjust;
 
 public:
 	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)
@@ -2588,7 +2592,7 @@ public:
 		const AbstrDataItem* ggTypeNamesA = AsDataItem(args[0]);
 		dms_assert(ggTypeNamesA);
 
-		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]));
+		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
 
 		const AbstrUnit* allocUnit = debug_cast<const AbstrUnit*>(GetItem(args[1]));
 
@@ -2615,7 +2619,7 @@ public:
 		dms_assert(res);
 
 		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
-		resLanduse->SetTSF(DSF_Categorical);
+		resLanduse->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStatus =
 			CreateDataItem(
@@ -2660,7 +2664,7 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpInfo.m_PriceUnit);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(args.size() == 11);
 		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);

@@ -37,6 +37,9 @@ template <typename V> class Unit;
 #include "TreeItemDualRef.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "Explain.h"
+#include "DataController.h"
+#include "ItemLocks.h"
+struct ItemReadLock;
 
 // *****************************************************************************
 // Section:     enums
@@ -50,6 +53,17 @@ enum ArgFlags
 	AF1_HASUNDEFINED= 0x002,
 	AF2_HASUNDEFINED= 0x020,
 	AF3_HASUNDEFINED= 0x200,
+};
+// *****************************************************************************
+// Section:     PerformanceEstimationData
+// *****************************************************************************
+
+struct PerformanceEstimationData
+{
+	calc_time_t expectedTime;
+	SizeT resultingMemory;
+	SizeT workingMemory = 0;
+	UInt16 extraTasks = 0;
 };
 
 // *****************************************************************************
@@ -68,6 +82,9 @@ public:
 //	Returns FALSE in case of suspension; throw on matching failure
 	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs = LispPtr()) const
 	{
+		if (resultHolder && !resultHolder.IsTmp())
+			return;
+
 		dms_assert(!CanExplainValue()); // or this method should be overridden.
 		auto argSeq = GetItems(args);
 		bool actualResult = CreateResult(resultHolder, argSeq, false);
@@ -75,14 +92,14 @@ public:
 		dms_assert(resultHolder);
 	}
 
-	virtual bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context = nullptr) const
+	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.
 		auto argSeq = GetItems(args);
 		return CreateResult(resultHolder, argSeq, true);
 	}
-
+	TIC_CALL virtual auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData;
 
 	arg_index             NrSpecifiedArgs()        const { return m_ArgClassesEnd - m_ArgClassesBegin; }
 	arg_index             NrOptionalArgs()         const { dms_assert(NrSpecifiedArgs() >= m_NrOptionalArgs);  return m_NrOptionalArgs; }

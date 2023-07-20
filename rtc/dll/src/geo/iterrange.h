@@ -68,7 +68,7 @@ struct IterRange : Couple<Iter>
 	IterRange(value_type values[N]) : Couple(values, values+ N) { dms_assert((first == iterator() == (second == iterator()))); }
 
 //	special ctor to identify an Undefined sequence (as a NULL string value in SQL)
-	IterRange() {}
+	IterRange() {} // value-initialisation
 
 	template <typename CIter>
 		IterRange(const IterRange<CIter>& src)

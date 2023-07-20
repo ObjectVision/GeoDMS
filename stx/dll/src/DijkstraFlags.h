@@ -40,23 +40,24 @@ granted by an additional written contract for support, assistance and/or develop
 
 enum class DijkstraFlag : UInt64
 {
+	None = 0,
 	VerboseLogging = 0x01,
-	Bidirectional  = 0x02,
-	BidirFlag      = 0x04,
+	Bidirectional = 0x02,
+	BidirFlag = 0x04,
 
 	OD = 0x08, // implies: multiple sources
 
 	OrgNode = 0x10,  // defines a selection of Nodes as Src, else all nodes will be a Src, required when not DMOF_OD
 	OrgZone = 0x20,  // partition of (selected src)nodes into SrcZones, which implies DMOF_OD
-	OrgImp  = 0x40,
+	OrgImp = 0x40,
 	OrgData = OrgNode | OrgZone | OrgImp,
 
 	DstNode = 0x0080,
 	DstZone = 0x0100,
-	DstImp  = 0x0200,
+	DstImp = 0x0200,
 	DstData = DstNode | DstZone | DstImp,
 
-	ImpCut   = 0x0400,
+	ImpCut = 0x0400,
 	DstLimit = 0x0800,
 
 	SparseResult = ImpCut | DstLimit,
@@ -77,7 +78,7 @@ enum class DijkstraFlag : UInt64
 
 	ProdOdOrgZone_rel = 0x80000,
 	ProdOdDstZone_rel = 0x100000,
-	ProdOdImpedance = 0x200000, 
+	ProdOdImpedance = 0x200000,
 	ProdOdAltImpedance = 0x400000,
 
 	ProdOrgFactor = 0x00800000, // TODO ?
@@ -85,11 +86,17 @@ enum class DijkstraFlag : UInt64
 	ProdOrgMaxImp = 0x02000000, // TODO
 	ProdDstFactor = 0x04000000, // TODO
 	ProdDstSupply = 0x08000000, // DONE ?
-	ProdLinkFlow  = 0x10000000, // DONE ?
-	Counting      = 0x20000000,
+	ProdLinkFlow = 0x10000000, // DONE ?
+	Counting = 0x20000000,
 
-	ProdOdStartPoint_rel = 0x100000000,
-	ProdOdEndPoint_rel = 0x200000000,
+	ProdOdStartPoint_rel = 0x01'0000'0000,
+	ProdOdEndPoint_rel = 0x02'0000'0000,
+
+	OrgZoneLoc = 0x04'0000'0000,
+	DstZoneLoc = 0x08'0000'0000,
+	UseEuclidicFilter = 0x10'0000'0000,
+
+	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 
 	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply,
 	Interaction = TripDistr | ProdLinkFlow,

@@ -135,7 +135,8 @@ struct UniqueSupplierQuery
 	template <typename Action>
 	void operator()(const Action& action)
 	{
-		dms_assert(m_Curr);
+		assert(m_Curr);
+		m_Curr->UpdateMetaInfo();
 		ActorVisitState res = m_Curr->VisitSuppliers(m_SVF, RecurseTreeItem<Action>(action, m_SAS));
 		dms_assert(res == AVS_Ready);
 	}
@@ -184,8 +185,8 @@ struct ItemSchemaControllerWriterBase : WeakPtr<ItemSchemaView>
 	ItemSchemaControllerWriterBase(ItemSchemaView* isv, UInt32 nrItems, UInt32 nrRoots)
 		:	WeakPtr(isv)
 	{
-		isv->m_SchemaNodes->SetCount(nrItems);
-		isv->m_SchemaLinks->SetCount(nrItems - nrRoots);
+		isv->m_SchemaNodes->SetCount(nrItems);           isv->m_SchemaNodes->SetTSF(USF_HasConfigRange);
+		isv->m_SchemaLinks->SetCount(nrItems - nrRoots); isv->m_SchemaLinks->SetTSF(USF_HasConfigRange);
 	}
 };
 
@@ -194,8 +195,6 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 	ItemSchemaControllerWriter(ItemSchemaController* self, ItemSchemaView* isv, UInt32 nrItems)
 		:	ItemSchemaControllerWriterBase(isv, nrItems, self->m_RootItems.size())
 		,	m_ISC(self)
-		,	loc(0,0)
-		,	nodeIndex(0)
 		,	labelTextLock(isv->m_SchemaLabelText)
 		,	locationLock (isv->m_SchemaLocation)
 		,	f1Lock       (isv->m_F1)
@@ -236,8 +235,8 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 
 	WeakPtr<ItemSchemaController> m_ISC;
 	SPoint loc;
-	UInt32 nodeIndex;
-	UInt32 rootIndex;
+	UInt32 nodeIndex = 0;
+	UInt32 rootIndex = 0;
 private:
 	DataWriteLock labelTextLock, locationLock, f1Lock, f2Lock;
 };
@@ -306,7 +305,7 @@ void ItemSchemaController::UpdateItems(ItemSchemaView* isv)
 		PlaceLabels<QueryType>(writer, m_RootItems[writer.rootIndex], &gs);
 		writer.NextRow();
 	}
-	dms_assert(m_AllItems.size() == nrItems);
+	assert(m_AllItems.size() == nrItems);
 	writer.Commit();
 };
 

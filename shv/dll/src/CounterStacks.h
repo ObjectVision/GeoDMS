@@ -36,8 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "geo/Geometry.h"
-#include "geo/SeqVector.h"
-//#include "set/ResourceCollection.h"
+#include "geo/BaseBounds.h"
 #include "utl/swap.h"
 
 #include <boost/utility.hpp>
@@ -165,22 +164,24 @@ struct ResumableCounter : private boost::noncopyable
 
 	SizeT Value() const
 	{
-		dms_assert(IsOK());
+		assert(IsOK());
 		return m_AutoCounter; 
+	}
+	operator SizeT() const {
+		return m_AutoCounter;
 	}
 
 	void SetValue(SizeT newValue)
 	{
-		dms_assert(IsChangable());
-		dms_assert(newValue >= m_AutoCounter);
+		assert(IsChangable());
+		assert(newValue >= m_AutoCounter);
 		m_AutoCounter = newValue;
-		dms_assert(IsOK());
-
+		assert(IsOK());
 	}
 
 	bool Inc()
 	{
-		dms_assert(IsOK());
+		assert(IsOK());
 		if (m_CounterStacksPtr)
 			m_CounterStacksPtr->EraseSuspended();
 		if (MustBreakNext())
@@ -191,7 +192,7 @@ struct ResumableCounter : private boost::noncopyable
 
 	void operator ++()
 	{
-		dms_assert(IsChangable());
+		assert(IsChangable());
 		++m_AutoCounter;
 		if (m_MarkProgress)
 			SuspendTrigger::MarkProgress();
@@ -199,11 +200,9 @@ struct ResumableCounter : private boost::noncopyable
 
 	void operator +=(SizeT inc)
 	{
-		dms_assert(IsChangable());
+		assert(IsChangable());
 		m_AutoCounter += inc;
 	}
-
-	bool operator ==(SizeT value) const { return m_AutoCounter == value; }
 
 	bool MustBreak         () const;
 	bool MustBreakOrSuspend() const;
@@ -216,16 +215,16 @@ struct ResumableCounter : private boost::noncopyable
 private: friend CounterStacks;
 	bool IsChangable() const 
 	{ 
-		dms_assert( IsActive() );
-		dms_assert(!m_CounterStacksPtr || m_CounterStacksPtr->NoSuspendedCounters());
+		assert( IsActive() );
+		assert(!m_CounterStacksPtr || m_CounterStacksPtr->NoSuspendedCounters());
 		return m_AutoCounter < m_StopValue;
 	}
 	bool IsOK ()       const 
 	{ 
 #		if defined(MG_CHECK_PAST_BREAK)
-		dms_assert(m_AutoCounter <= m_StopValue || (m_CounterStacksPtr && m_CounterStacksPtr->HasBreakingStackSize()) );
+		assert(m_AutoCounter <= m_StopValue || (m_CounterStacksPtr && m_CounterStacksPtr->HasBreakingStackSize()) );
 #		endif
-		return m_AutoCounter != UNDEFINED_VALUE(SizeT); 
+		return m_AutoCounter  != UNDEFINED_VALUE(SizeT); 
 	}
 	bool IsActive()    const { return !m_CounterStacksPtr || m_CounterStacksPtr->m_CurrCounter == this; }
 

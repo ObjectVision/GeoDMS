@@ -78,7 +78,8 @@ using calc_result_t = FutureData; // std::pair<DataControllerRef, SharedTreeItem
 
 TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef;
 auto MakeResult(const AbstrCalculator* calculator)->make_result_t;
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Context* context=nullptr)->calc_result_t;
+auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t;
+void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context);
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass);
 
@@ -130,18 +131,19 @@ public:
 
 	TIC_CALL virtual bool CheckSyntax () const;
 	TIC_CALL BestItemRef FindErrorneousItem() const;
+	TIC_CALL BestItemRef FindPrimaryDataFailedItem() const;
 
 	TIC_CALL auto GetSourceItem() const->SharedPtr<const TreeItem>;  // directly referred persistent object.
 
-	virtual SharedStr GetExpr()       const { return GetAsFLispExprOrg(); }
+	TIC_CALL virtual SharedStr GetExpr() const;
 	TIC_CALL virtual void      WriteHtmlExpr(OutStreamBase& stream) const;
 	virtual TIC_CALL MetaInfo  GetMetaInfo() const;
 	virtual LispRef   GetLispExprOrg() const { return m_LispExprOrg; } // overridable, but with default behaviour
 
 	TIC_CALL virtual bool IsSourceRef() const;
 
-	TIC_CALL SharedStr GetAsFLispExpr()    const;
-	TIC_CALL SharedStr GetAsFLispExprOrg() const;
+	TIC_CALL SharedStr GetAsFLispExpr(FormattingFlags ff)    const;
+	TIC_CALL SharedStr GetAsFLispExprOrg(FormattingFlags ff) const;
 
 	virtual bool        IsDataBlock() const { return false; }
 	virtual bool        IsDcPtr    () const { return false; }

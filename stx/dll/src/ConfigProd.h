@@ -85,7 +85,7 @@ struct ConfigProd : AbstrDataBlockProd
 	void DoStorageProp();
 	void DoFileType();
 	void DoUsingProp();
-	void DoUnitRangeProp();
+	void DoUnitRangeProp(bool isCategorical);
 	void DoNrOfRowsProp();
 
 	void DoArrayAssignment   () override;

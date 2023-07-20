@@ -83,10 +83,12 @@ public:
 	typedef typename seq_t::difference_type         difference_type;
 
 	sequence_obj() {}
-	sequence_obj(provider_t* provider) : m_Provider(provider) {}
+	explicit sequence_obj(provider_t* provider) : m_Provider(provider) {}
+	explicit sequence_obj(alloc_data<V> allocData) : m_Data(std::move(allocData)) {}
 	sequence_obj(sequence_obj&& rhs) noexcept
 		:	sequence_obj()
 	{
+		MGD_CHECKDATA(!IsLocked());
 		operator =(std::move(rhs));
 	}
 	~sequence_obj() 
@@ -121,8 +123,8 @@ public:
 	SizeT          size () const { MGD_CHECKDATA(IsLocked()); return m_Data.size(); }
 	bool           empty() const { MGD_CHECKDATA(IsLocked()); return m_Data.empty(); }
 	SizeT       capacity() const { MGD_CHECKDATA(IsLocked()); return m_Data.m_Capacity; }
-	iterator       begin()       { MGD_CHECKDATA(IsLocked()); dms_assert(CanWrite()); return m_Data.begin(); }
-	iterator       end  ()       { MGD_CHECKDATA(IsLocked()); dms_assert(CanWrite()); return m_Data.end();   }
+	iterator       begin()       { MGD_CHECKDATA(IsLocked()); assert(!m_Provider || CanWrite()); return m_Data.begin(); }
+	iterator       end  ()       { MGD_CHECKDATA(IsLocked()); assert(!m_Provider || CanWrite()); return m_Data.end();   }
 	const_iterator begin() const { MGD_CHECKDATA(IsLocked()); return m_Data.begin(); }
 	const_iterator end  () const { MGD_CHECKDATA(IsLocked()); return m_Data.end();   }
 
@@ -135,6 +137,7 @@ public:
 	void appendInitializer(SizeT n, Initializer&& initFunc) 
 	{ 
 		MGD_CHECKDATA(IsLocked()); 
+		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		dms_assert(oldSize + n > oldSize); // No overflow
 		m_Provider->grow(m_Data, n, false MG_DEBUG_ALLOCATOR_SRC_SA);
@@ -144,6 +147,7 @@ public:
 	void appendRange(const_iterator first, const_iterator last)
 	{
 		MGD_CHECKDATA(IsLocked());
+		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		SizeT n = last - first;
 		dms_assert(oldSize + n >= oldSize); // No overflow
@@ -155,39 +159,41 @@ public:
 	void push_back(param_t v)
 	{ 
 		MGD_CHECKDATA(IsLocked());
+		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		dms_assert(oldSize + 1 > oldSize); // No overflow
 		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC_SA);
 		dms_assert(m_Data.size() == oldSize + 1);
 		m_Data.back() = v;
 	}
-	void   erase(iterator b, iterator e) { MGD_CHECKDATA(IsLocked()); destroy_range(b, e);  raw_move(e, end(), b); cut(size() - (e - b)); }
-	void   cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); m_Provider->cut(m_Data, newNrElems); }
-	void   clear ()                      { MGD_CHECKDATA(IsLocked()); m_Provider->clear(m_Data); dms_assert(empty()); }
+	void erase(iterator b, iterator e) { MGD_CHECKDATA(IsLocked()); destroy_range(b, e);  raw_move(e, end(), b); cut(size() - (e - b)); }
+	void cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->cut(m_Data, newNrElems); }
+	void clear ()                      { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->clear(m_Data); dms_assert(empty()); }
 
-	void   Reset (provider_t* provider) { Reset(); m_Provider = provider; }
-	void   Reset()
+	void Reset (provider_t* provider) { Reset(); m_Provider = provider; }
+	void Reset()
 	{
-		MGD_CHECKDATA(!IsLocked()); 
+		MGD_CHECKDATA(!IsLocked());
 
-		if (m_Provider)
-			m_Provider->free(m_Data);
+		if (!m_Provider)
+			return;
 
+		m_Provider->free(m_Data);
 		dms_assert(m_Data.empty());
 		dms_assert(IsHeapAllocated() || !IsOpen());
 		m_Provider = nullptr;
 	}
 
-	bool   IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
-	bool   CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
-	bool   IsAssigned() const { return m_Provider; }
-	bool   IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }
+	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
+	bool CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
+	bool IsAssigned() const { return m_Provider; }
+	bool IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const { return m_Provider->CloneForSeqs(); }
 
 	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
-	void Lock  (dms_rw_mode rwMode) { MGD_CHECKDATA(!IsLocked()); m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
+	void Lock  (dms_rw_mode rwMode) { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
 	void UnLock() { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
 	void Drop  () { MGD_CHECKDATA(!IsLocked() && m_Provider); m_Provider->Drop  (m_Data); dms_assert(Empty()); }
 	WeakStr GetFileName() const { return m_Provider->GetFileName(); }

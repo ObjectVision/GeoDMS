@@ -185,7 +185,7 @@ public:
 		dms_assert(args.size() == 2);
 
 		const AbstrDataItem* adi = AsDataItem(args[0]);
-		checked_domain<Void>(args[0]);
+		checked_domain<Void>(args[0], "a1");
 
 		const AbstrUnit* arg2A = AsUnit(args[1]);
 		dms_assert(arg2A);
@@ -280,16 +280,17 @@ public:
 		dms_assert(arg1A->GetUnitClass() == GetArgClass(0));
 		dms_assert(arg1A->GetUnitClass() == GetResultClass());
 
-		checked_domain<Void>(args[1]);
+		checked_domain<Void>(args[1], "a2");
 
 		AbstrUnit* result = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder);
 		resultHolder = result;
 
-		SharedPtr<UnitMetric> metric;
 		const UnitMetric* arg1SI = arg1A->GetMetric();
-		if (!IsEmpty(arg1SI))
+		if (IsEmpty(arg1SI))
+			result->SetMetric(nullptr);
+		else
 		{
-			metric = new UnitMetric(*arg1SI);
+			auto metric = std::make_unique<UnitMetric>(*arg1SI);
 
 			const AbstrDataItem* adi = AsDataItem(args[2]);
 
@@ -297,13 +298,13 @@ public:
 			Float64 power = adi->GetCurrRefObj()->GetValueAsFloat64(0);
 			metric->m_Factor = exp(log(metric->m_Factor) * power);
 
-			UnitMetric::BaseUnitsIterator 
-				b1 = metric->m_BaseUnits.begin(), 
+			UnitMetric::BaseUnitsIterator
+				b1 = metric->m_BaseUnits.begin(),
 				e1 = metric->m_BaseUnits.end();
 			for (; b1 != e1; ++b1)
-				(*b1).second = Int32( (*b1).second *  power );
+				(*b1).second = Int32((*b1).second * power);
+			result->SetMetric(metric.release());
 		}
-		result->SetMetric(metric);
 		return true;
 	}
 };
@@ -338,11 +339,12 @@ public:
 		AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew());
 		resultHolder = result;
 
-		SharedPtr<UnitMetric> metric;
 		const UnitMetric* arg1SI = arg1->GetMetric();
-		if (!IsEmpty(arg1SI))
+		if (IsEmpty(arg1SI))
+			result->SetMetric(nullptr);
+		else
 		{
-			metric = new UnitMetric(*arg1SI);
+			auto metric = std::make_unique<UnitMetric>(*arg1SI);
 
 			metric->m_Factor = sqrt(metric->m_Factor);
 
@@ -355,8 +357,8 @@ public:
 					GetGroup()->throwOperErrorF("argument %s has a non-square metric", arg1->GetFullName().c_str());
 				(*b1++).second /= 2;
 			}
+			result->SetMetric(metric.release());
 		}
-		result->SetMetric(metric);
 		return true;
 	}
 };

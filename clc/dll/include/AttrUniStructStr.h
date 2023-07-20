@@ -56,7 +56,7 @@ struct same_length_unary_string_assign : unary_string_assign
 {
 	static void PrepareTile(sequence_traits<assignee_type>::seq_t res, sequence_traits<arg1_type>::cseq_t a1)
 	{
-		res.get_sa().data_reserve(a1.get_sa().actual_data_size() MG_DEBUG_ALLOCATOR_SRC_STR("same_length_unary_string_assign: data_reserve"));
+		res.get_sa().data_reserve(a1.get_sa().actual_data_size() MG_DEBUG_ALLOCATOR_SRC("same_length_unary_string_assign: data_reserve"));
 	}
 };
 

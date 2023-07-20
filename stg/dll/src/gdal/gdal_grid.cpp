@@ -113,11 +113,11 @@ bool GdalGridSM::ReadPalette(AbstrDataObject* ado)
 	return true;
 }
 
-bool GdalGridSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 
 	if (adi->GetID() == PALETTE_DATA_ID)
 		return ReadPalette(borrowedReadResultHolder);
@@ -125,7 +125,7 @@ bool GdalGridSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borro
 	if (HasGridDomain(adi))
 	{
 		// Collect zoom info
-		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
+		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
 		vpi.SetWritability(adi);
 		auto test = vpi.GetCountColor();
@@ -219,7 +219,7 @@ UPoint GDalGridImp::GetTileSize() const {
 	poBand->GetBlockSize(&x, &y);
 	return shp2dms_order(x, y);
 }
-UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalDataType(m_ValueClassID)); }
+UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalRasterDataType(m_ValueClassID)); }
 UInt32 GDalGridImp::GetTileByteWidth() const {
 	return (GetTileSize().X() * GetNrBitsPerPixel() + 7) / 8;
 }
@@ -262,10 +262,20 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
+
+	// apply color table
+	auto color_table = poBand->GetColorTable();
+	if (!color_table)
+		return resultCode;
+
+	auto color_count = color_table->GetColorEntryCount();
+	
+	// TODO: implement
+
 	return resultCode;
 }
 
@@ -324,7 +334,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID),
 		0, //nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
@@ -332,7 +342,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 	return tileByteSize;
 }
 
-void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName) const
+void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const
 {
 	if (nrRasterBitsPerPixel == nrDmsBitsPerPixel)
 		return;
@@ -342,7 +352,10 @@ void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPi
 		return;
 	if (nrDmsBitsPerPixel == 4 && nrRasterBitsPerPixel == 8)
 		return;
-	throwErrorF(functionName, "Cannot convert %d bits DMS data from/to %d bits Raster file data", nrDmsBitsPerPixel, nrRasterBitsPerPixel);
+	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
+		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
+		, dataSourceName
+	);
 }
 
 template <int N>
@@ -385,7 +398,7 @@ void GDalGridImp::SetWidth(auto width)
 }
 void GDalGridImp::SetHeight(auto height)
 {
-	MG_CHECK(height == GetWidth());
+	MG_CHECK(height == GetHeight());
 }
 void GDalGridImp::SetTiled()
 {
@@ -400,7 +413,7 @@ void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_i
 	MG_CHECK(m_hDS->GetRasterCount() >=  1 );
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
-	Grid::ReadGridData(imp, vpi, ado, t);
+	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification)
@@ -408,7 +421,7 @@ void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile
 	MG_CHECK(m_hDS->GetRasterCount() >= 1);
 
 	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
-	Grid::ReadGridCounts(imp, vpi, ado, t);
+	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
@@ -431,7 +444,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 
 	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""));
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
-	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType());
+	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
 	return true;
 }
 
@@ -519,30 +532,37 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
 
 	if (!uBase)
-	{
 		uBase = FindProjectionBase(curr, gridDataDomain);
-	}
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 	
-	if (!uBase && sm != SM_AllTables)
-		return;
-
-	else if (uBase)
+	if (uBase)
 	{
 		if (IsOpen())
 		{
 			if (m_hDS->GetRasterCount())
 			{
-				gdal_transform gdalTr;
-				m_hDS->GetGeoTransform(gdalTr);
-				gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-				gridDataDomain->SetDescr(SharedStr(m_hDS->GetProjectionRef()));
+				try {
+					GDAL_ErrorFrame frame;
+					gdal_transform gdalTr;
+					m_hDS->GetGeoTransform(gdalTr);
+
+					gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
+
+					// spatial ref info
+					m_hDS.UpdateBaseProjection(uBase);
+
+					frame.ThrowUpWhateverCameUp();
+				}
+				catch (...)
+				{
+					gridDataDomain->CatchFail(FR_MetaInfo);
+				}
 			}
 		}
 	}
 
-	if (!sm == SM_AllTables)
+	if (sm != SM_AllTables)
 		return;
 
 	auto subDatasetList = m_hDS->GetMetadata("SUBDATASETS");
@@ -622,42 +642,64 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 		width, height, // roi size
 		&buffer[0],
 		width, height, // buffer size
-		gdalDataType(VT_UInt8),
+		gdalRasterDataType(VT_UInt8),
 		0, //nPixelSpace,
 		0 //nLineSpace
 	);
 	dms_assert(resultCode == CE_None);
 }
 
+struct SimpleGridDriverNames : CPLStringList
+{
+	SimpleGridDriverNames()
+	{
+		AddString("JPEG");
+		AddString("PNG");
+		AddString("GTiff");
+		AddString("BMP");
+	}
+};
+
+const SimpleGridDriverNames& GetSimpleGridDataDriverNames()
+{
+	static SimpleGridDriverNames result;
+	return result;
+}
+
 WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 {
 	GDAL_ErrorFrame frame;
-	GDALDatasetHandle dsHnd = (GDALDataset*)GDALOpen(fileName, GA_ReadOnly);
+	GDALDatasetHandle dsHnd = GDALDataset::FromHandle(GDALOpenEx(fileName, GA_ReadOnly, GetSimpleGridDataDriverNames(), nullptr, nullptr));
 	if (!dsHnd)
 	{
 		reportD(SeverityTypeID::ST_Warning, "Failed to open wmts tile, likely due to a corrupted download, delete the file for redownload.");
 		return WPoint();
 	}
 
-		//throwDmsErrF("GDAL: cannot open %s", fileName);
+	auto number_of_raster_bands = dsHnd->GetRasterCount();
 
 	auto rBand = dsHnd->GetRasterBand(1);
+
 	MG_CHECK(rBand); 
 	ReadBand(rBand, buffer.redBand);
+
+	auto check = rBand->GetRasterDataType();
+
 	auto size = buffer.redBand.size();
-	if (dsHnd->GetRasterCount() > 2) // Red Green Blue, at least.
+	vector_resize(buffer.combinedBands, size);
+	if (number_of_raster_bands > 2) // Red Green Blue, at least.
 	{
 		auto gBand = dsHnd->GetRasterBand(2);
 		auto bBand = dsHnd->GetRasterBand(3);
+		
 		ReadBand(gBand, buffer.greenBand);
 		ReadBand(bBand, buffer.blueBand);
 
 		MakeMin(size, buffer.greenBand.size());
 		MakeMin(size, buffer.blueBand.size());
 
-		vector_resize(buffer.combinedBands, size);
 		SizeT i = 0;
-		if (dsHnd->GetRasterCount() > 3) // also a transparency band ?
+		if (number_of_raster_bands > 3) // also a transparency band ?
 		{
 			auto tBand = dsHnd->GetRasterBand(4);
 			ReadBand(tBand, buffer.transBand);
@@ -687,11 +729,28 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 		for (; i != size; ++i)
 			buffer.combinedBands[i] = (buffer.redBand[i] << 16) | (buffer.greenBand[i] << 8) | buffer.blueBand[i];
 	}
-	else
+	else // single band
 	{
-		vector_resize(buffer.combinedBands, size);
-		for (SizeT i = 0; i != size; ++i)
-			buffer.combinedBands[i] = buffer.redBand[i] * 0x010101;
+		GDALColorTable* color_table = rBand->GetColorTable();
+		if (color_table && color_table->GetPaletteInterpretation() == GPI_RGB)
+		{ 
+			UInt8 r=0,g=0,b=0,a=0;
+			for (SizeT i = 0; i != size; ++i)
+			{
+				auto color_entry = color_table->GetColorEntry(buffer.redBand[i]);
+				r = static_cast<UInt8>(color_entry->c1);
+				g = static_cast<UInt8>(color_entry->c2);
+				b = static_cast<UInt8>(color_entry->c3);
+				a = static_cast<UInt8>(color_entry->c4);
+
+				buffer.combinedBands[i] = (a << 24) | (r << 16) | (g << 8) | b;
+			}
+		}
+		else // grayscale
+		{
+			for (SizeT i = 0; i != size; ++i)
+				buffer.combinedBands[i] = buffer.redBand[i] * 0x010101;
+		}
 	}
 
 	auto width = rBand->GetXSize();

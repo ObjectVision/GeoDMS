@@ -145,10 +145,17 @@ template <bit_size_t N> struct is_integral<bit_value<N> > : std::true_type{}; //
 template <>             struct is_integral<Void         > : std::true_type {};
 template <typename T> constexpr bool is_integral_v = is_integral<T>::value;
 
+template <typename T>   struct is_simple : std::is_arithmetic<T> {};
+template <>             struct is_simple<Int64> : std::true_type {};
+template <>             struct is_simple<UInt64> : std::true_type {};
+template <bit_size_t N> struct is_simple<bit_value<N> > : std::true_type {};
+template <typename T>   struct is_simple<Point<T> > : is_simple<T> {};
+
 template <typename T>   struct is_numeric : std::is_arithmetic<T> {};
-template <>             struct is_numeric<Int64> : std::true_type{};
-template <>             struct is_numeric<UInt64> : std::true_type{};
-template <bit_size_t N> struct is_numeric<bit_value<N> > : std::bool_constant< (N>1) > {}; // bit_value<1> (pseudo bool) is not considered as a numeric.
+template <>             struct is_numeric<Int64> : std::true_type {};
+template <>             struct is_numeric<UInt64> : std::true_type {};
+template <bit_size_t N> struct is_numeric<bit_value<N> > : std::true_type {};
+template <>             struct is_numeric<bit_value<1> > : std::false_type {}; // bit_value<1> (pseudo bool) is not considered as a numeric.
 
 template <>           struct is_numeric<bool> {};      // PREVENT USING bool directly
 
@@ -192,7 +199,11 @@ template <> struct has_fixed_elem_size<SharedStr>                : std::false_ty
 
 template <typename T> constexpr bool has_fixed_elem_size_v = has_fixed_elem_size<T>::value;
 
+template <class _Ty>
+concept fixed_elem = has_fixed_elem_size_v<_Ty>;
 
+template <class _Ty>
+concept sequence_or_string = !has_fixed_elem_size_v<_Ty>;
 
 //----------------------------------------------------------------------
 // Section      : type converters
@@ -207,6 +218,8 @@ template <typename T> using field_of_t = typename field_of<T>::type;
 template <typename T> struct elem_of                   { typedef T        type; }; 
 template <typename T> struct elem_of<std::vector<T> >  { typedef T        type; };
 template <>           struct elem_of<SharedStr>        { typedef CharType type; };
+
+template <typename T> using elem_of_t = typename elem_of<T>::type;
 
 template <typename T> struct scalar_of                 { typedef T type; };
 template <typename T> struct scalar_of<Range<T> >      { typedef typename scalar_of<T>::type type; };
@@ -287,6 +300,8 @@ template <typename T> struct cardinality_type<std::vector<T>> : cardinality_type
 template <typename T> constexpr bool is_separable_v = has_fixed_elem_size_v<T> && !is_bitvalue_v<T>; ;
 template <typename T> constexpr bool has_var_range_v = is_separable_v<T> && !is_void_v<T>;
 template <typename T> constexpr bool has_var_range_field_v = has_var_range_v<field_of_t<T>>;
+
+template <typename T> constexpr bool has_range_v = has_var_range_v<T> || is_bitvalue_v<T> || is_void_v<T>;
 
 //----------------------------------------------------------------------
 // Section      : elem_traits

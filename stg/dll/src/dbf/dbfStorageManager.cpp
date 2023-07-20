@@ -62,17 +62,11 @@ struct DbfImplRead : DbfImpl
 {
 	DbfImplRead(WeakStr filename, const TreeItem* storageHolder)
 	{
-		if (! OpenForRead(filename, DSM::GetSafeFileWriterArray(storageHolder)) )
+		auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+		if (! OpenForRead(filename, sfwa.get()) )
 			throwErrorF("DBF", "Cannot open %s for read (%d: %s)", filename.c_str(), errno, strerror(errno) );
 	}
 };
-
-bool DbfStorageManager::ReduceResources()
-{
-	m_NameSet.reset();
-	return true;
-} // CloseDbf
-
 
 TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 {
@@ -218,25 +212,25 @@ void DbfStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 // REMOVE return dbf.ReadData(&(debug_cast<DataArray<type>*>(ado)->GetDataWrite()), fieldName.begin(), vcID);
 
-bool DbfStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	TreeItemContextHandle och2(smi.StorageHolder(), "StorageParent");
+	TreeItemContextHandle och2(smi->StorageHolder(), "StorageParent");
 	dms_assert(!t);
 
-	DbfImplRead dbf(GetNameStr(), smi.StorageHolder());
+	DbfImplRead dbf(GetNameStr(), smi->StorageHolder());
 
-	SharedPtr<TNameSet> nameset = debug_cast<const DbfMetaInfo*>(&smi)->m_NameSet;
-	TestDomain(smi.CurrRD());
+	SharedPtr<TNameSet> nameset = debug_cast<const DbfMetaInfo*>(smi.get())->m_NameSet;
+	TestDomain(smi->CurrRD());
 
 	AbstrDataObject* ado = borrowedReadResultHolder;
 
-	smi.CurrWD()->GetAbstrDomainUnit()->ValidateCount(dbf.RecordCount());
+	smi->CurrWD()->GetAbstrDomainUnit()->ValidateCount(dbf.RecordCount());
 
 	const ValueClass* vc = ado->GetValuesType();
 	ValueClassID	vcID = vc->GetValueClassID();		
 
 	dms_assert(nameset);
-	SharedStr fieldName = nameset->ItemNameToFieldName(smi.CurrRI()->GetName().c_str());
+	SharedStr fieldName = nameset->ItemNameToFieldName(smi->CurrRI()->GetName().c_str());
 
 	switch (vcID)
 	{
@@ -246,7 +240,7 @@ bool DbfStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 #undef INSTANTIATE
 
 		default:
-			smi.CurrRI()->throwItemErrorF(
+			smi->CurrRI()->throwItemErrorF(
 				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: %s"
 			,	vc->GetName().c_str()
 			);
@@ -260,6 +254,10 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("DbfStorageManager", "WriteDataItem", false);
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
 	auto smi = smiHolder.get();
 	StorageWriteHandle storageHandle(std::move(smiHolder));
 
@@ -269,7 +267,6 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const ValueClass*      vc      = ado->GetValuesType();
 	ValueClassID           vcID    = vc->GetValueClassID();		
 	SharedPtr<TNameSet>    nameset = debug_cast<DbfMetaInfo*>(smi)->m_NameSet;
-	SafeFileWriterArray*   sfwa    = DSM::GetSafeFileWriterArray(storageHolder);
 	dms_assert(nameset);
 	SharedStr fieldName = nameset->ItemNameToFieldName(adi->GetName().c_str());
 	CharPtr fieldNameStr = fieldName.c_str();
@@ -278,7 +275,7 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), sfwa, debug_cast<const DataArray<T>*>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
+#define INSTANTIATE(T) case VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), sfwa.get(), debug_cast<const DataArray<T>*>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

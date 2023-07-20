@@ -43,7 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataArray.h"
 #include "Unit.h"
 #include "DataController.h"
-
+#include "LispTreeType.h"
 
 #include "Theme.h"
 
@@ -97,7 +97,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 		expr = AbstrCalculator::RewriteExprTop(expr);
 	}
 	if (!idValues->GetValueType()->IsNumeric() || idValues->GetRangeAsFloat64().first != 0)
-		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef("ordinal"), expr)); //, idValues->GetAsLispRef()));
+		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(token::ordinal), expr)); //, idValues->GetAsLispRef()));
 	if (idValues->GetValueType()->GetCrdClass() != ValueWrap<entity_id>::GetStaticClass())
 		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(ValueWrap<entity_id>::GetStaticClass()->GetID()), expr)); //, idValues->GetAsLispRef()));
 	
@@ -121,9 +121,10 @@ DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 	PreparedDataReadLock lock(AsDataItem(res->GetOld()));
 
 	if (lock.GetRefObj())
-		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetTile(t);
+		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 	else
 		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
+
 	return lock;
 }
 
@@ -149,7 +150,8 @@ entity_id IndexCollector::GetEntityIndex(feature_id featureIndex) const
 {
 	dms_assert(HasExtKey() || HasGeoRel());
 
-	dms_assert(featureIndex < m_Array.size());
+	if (featureIndex >= m_Array.size())
+		return UNDEFINED_VALUE(entity_id);
 	return m_Array[featureIndex];
 }
 

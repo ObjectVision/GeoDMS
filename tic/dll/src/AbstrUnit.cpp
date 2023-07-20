@@ -11,6 +11,7 @@
 #include "mci/ValueClass.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
+#include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"
@@ -102,7 +103,7 @@ private:
 };
 
 namespace {
-	static_quick_assoc<const AbstrUnit*, TokenID> s_FormatAssoc;
+	static_quick_assoc<const AbstrUnit*, TokenID> s_SpatialReferenceAssoc;
 }
 //----------------------------------------------------------------------
 // class  : AbstrUnit 
@@ -113,8 +114,8 @@ AbstrUnit::AbstrUnit() {}  // ctor calls for ~OwningPtr<DataItemsAssocPair> in c
 // DataItemsOut
 AbstrUnit::~AbstrUnit() 
 {
-	if (GetTSF(USF_HasFormat))
-		s_FormatAssoc.eraseExisting(this);
+	if (GetTSF(USF_HasSpatialReference))
+		s_SpatialReferenceAssoc.eraseExisting(this);
 }
 
 inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
@@ -127,7 +128,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 
 const AbstrTileRangeData* AbstrUnit::GetTiledRangeData() const
 {
-	throwIllegalAbstract(MG_POS, "GetTiledRangeData");
+	return nullptr;
 }
 
 UInt32 AbstrUnit::GetNrDataItemsOut() const
@@ -180,6 +181,8 @@ SharedStr AbstrUnit::GetProjMetrString() const
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
 
+
+
 auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
 {
 	if (!role[2]) // zero-termination
@@ -224,7 +227,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible%s"
+	SharedStr msg = mgFormat2SharedStr("%s mismatch between %s%s (%s %s: %s) and %s%s (%s %s: %s)%s"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
@@ -234,7 +237,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	if (um & UM_Throw)
 		throwItemError(msg);
 
-	dms_assert(resultMsg);
+	assert(resultMsg);
 	*resultMsg = msg;
 }
 
@@ -356,29 +359,31 @@ bool AbstrUnit::HasVarRangeData() const
 	return AsUnit(this)->HasTiledRangeData() && !AsUnit(this)->GetValueType()->HasFixedValues();
 }
 
-void AbstrUnit::SetFormat(TokenID format)
+void AbstrUnit::SetSpatialReference(TokenID format)
 {
 	dms_assert(!format.empty());
 	SetTSF(
-		USF_HasFormat,
-		s_FormatAssoc.assoc(this, format)
+		USF_HasSpatialReference,
+		s_SpatialReferenceAssoc.assoc(this, format)
 	);
 }
 
-TokenID AbstrUnit::GetFormat () const
+TokenID AbstrUnit::GetSpatialReference() const
 {
-	if (GetTSF(USF_HasFormat))
-		return s_FormatAssoc.GetExisting(this);
+	if (GetTSF(USF_HasSpatialReference))
+		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
 		return TokenID(m->m_BaseUnits.begin()->first);
 	return TokenID::GetEmptyID();
 }
 
-TokenID AbstrUnit::GetCurrFormat() const
+TokenID AbstrUnit::GetCurrSpatialReference() const
 {
-	if (GetTSF(USF_HasFormat))
-		return s_FormatAssoc.GetExisting(this);
+	assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
+
+	if (GetTSF(USF_HasSpatialReference))
+		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
 		return TokenID(m->m_BaseUnits.begin()->first);
@@ -560,11 +565,11 @@ SharedStr AbstrUnit::GetNameOrCurrMetric(FormattingFlags ff) const
 }
 
 // should only be called from PrepareData
-void AbstrUnit::SetMetric(const UnitMetric* m)
+void AbstrUnit::SetMetric(SharedPtr<const UnitMetric> m)
 {
 }
 
-void AbstrUnit::SetProjection(const UnitProjection* p)
+void AbstrUnit::SetProjection(SharedPtr<const UnitProjection> p)
 {
 }
 
@@ -602,8 +607,8 @@ void AbstrUnit::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) 
 	base_type::CopyProps(result, copyContext);
 
 	AbstrUnit* resultUnit = debug_cast<AbstrUnit*>(result);
-	if (GetTSF(USF_HasFormat) || resultUnit->GetTSF(USF_HasFormat))
-		resultUnit->SetFormat(GetFormat());
+	if (GetTSF(USF_HasSpatialReference) || resultUnit->GetTSF(USF_HasSpatialReference))
+		resultUnit->SetSpatialReference(GetSpatialReference());
 	if (GetTSF(USF_HasConfigRange))
 		resultUnit->SetTSF(USF_HasConfigRange);
 }
@@ -615,12 +620,12 @@ SharedStr AbstrUnit::GetSignature() const
 
 auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 {
-	if (IsDefaultUnit() )
+	if (IsDefaultUnit() || IsCacheItem() || !GetTreeParent())
 		return SharedStr(GetValueType()->GetID());
 	return base_type::GetScriptName(context);
 }
 
-bool AbstrUnit::DoReadItem(StorageMetaInfo* smi)
+bool AbstrUnit::DoReadItem(StorageMetaInfoPtr smi)
 {
 	dms_assert(!IsDisabledStorage());
 	dms_assert(IsInWriteLock(this));
@@ -669,6 +674,11 @@ SizeT AbstrUnit::GetPreparedCount(bool throwOnUndefined) const  // Returns 0 if 
 	return GetCount();
 }
 
+bool AbstrUnit::PrepareRange() const  // Returns 0 if non-countable unit
+{
+	return true;
+}
+
 SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit
 {
 	return 0;
@@ -687,6 +697,11 @@ row_id AbstrUnit::GetBase() const  // Returns 0 if non-countable unit
 bool AbstrUnit::IsOrdinalAndZeroBased() const
 {
 	return GetNrDimensions() == 1 && GetBase() == 0;
+}
+
+row_id AbstrUnit::GetEstimatedCount() const
+{
+	return GetCount();
 }
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
@@ -800,7 +815,12 @@ void AbstrUnit::SetRangeAsFloat64(Float64 begin, Float64 end)
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsFloat64"); 
 }
 
-Range<Float64> AbstrUnit::GetRangeAsFloat64() const 
+void AbstrUnit::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	throwIllegalAbstract(MG_POS, this, "SetRangeAsUInt64");
+}
+
+Range<Float64> AbstrUnit::GetRangeAsFloat64() const
 { 
 	throwIllegalAbstract(MG_POS, this, "GetRangeAsFloat64");
 }
@@ -880,11 +900,33 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
 {
   public:
 	FormatPropDef()
-		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
+	{
+		SetDepreciated();
+	}
+
+	// override base class
+	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
+	void SetValue(AbstrUnit* item, ParamType val) override
+	{ 
+		auto fullName = SharedStr(item->GetFullName());
+		reportF(SeverityTypeID::ST_Warning, "%s: depreciated specification of the format property: use SpatialReference=\"%s\""
+			, fullName
+			, val
+		);
+		item->SetSpatialReference(val); 
+	}
+};
+
+class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
+{
+public:
+	SpatialReferencePropDef()
+		: PropDef<AbstrUnit, TokenID>(SR_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
 	{}
 	// override base class
-	ApiType GetValue(const AbstrUnit* item) const override { return item->GetFormat(); }
-	void SetValue(AbstrUnit* item, ParamType val) override{ item->SetFormat(val); }
+	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
+	void SetValue(AbstrUnit* item, ParamType val) override { item->SetSpatialReference(val); }
 };
 
 struct MetricPropDef : ReadOnlyPropDef<AbstrUnit, SharedStr>
@@ -917,6 +959,7 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 };
 
 FormatPropDef formatPropDef;
+SpatialReferencePropDef srPropDef;
 MetricPropDef metricPropDef;
 ProjectionPropDef projectionPropDef;
 ValueTypePropDef valueTypePropDef;

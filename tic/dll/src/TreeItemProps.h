@@ -36,13 +36,15 @@ granted by an additional written contract for support, assistance and/or develop
 
 using PropBool = Bool;
 
-TIC_CALL extern PropDef<TreeItem, SharedStr>* exprPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* calcRulePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* descrPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* integrityCheckPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* storageNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* storageTypePropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* syncModePropDefPtr;
 
@@ -73,6 +75,6 @@ enum class SourceDescrMode {
 	All = 3
 };
 
-SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
+TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
 
 #endif // __TIC_TREEITEMPROPS_H

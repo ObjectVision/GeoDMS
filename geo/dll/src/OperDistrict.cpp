@@ -77,8 +77,10 @@ struct DistrictOperator : public UnaryOperator
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 
-		AbstrUnit* resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
-		dms_assert(resUnit);
+		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
+		resUnit->SetTSF(TSF_Categorical);
+
+		assert(resUnit);
 		resultHolder = resUnit;
 
 		AbstrDataItem*
@@ -96,7 +98,7 @@ struct DistrictOperator : public UnaryOperator
 			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj());
 			dms_assert(inputGrid);
 
-			auto resLock = CreateHeapTileArray<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC_STR("OperDistrict: resLock"));
+			auto resLock = CreateHeapTileArrayV<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
 			
 			district_type nrDistricts = 0;
 
@@ -168,8 +170,8 @@ public:
 		dms_assert(domain);
 		dms_assert(values);
 
-		checked_domain<Void>(radiusA);
-		checked_domain<Void>(isCircleA);
+		checked_domain<Void>(radiusA, "a1");
+		checked_domain<Void>(isCircleA, "a2");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain, values, COMPOSITION(T));

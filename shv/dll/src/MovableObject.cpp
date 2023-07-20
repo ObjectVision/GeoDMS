@@ -213,8 +213,8 @@ GRect MovableObject::GetParentClipAbsRect() const
 
 void MovableObject::SetClientSize(TPoint newSize)
 {
-	dms_assert(newSize.x() >= 0);
-	dms_assert(newSize.y() >= 0);
+	assert(newSize.x() >= 0);
+	assert(newSize.y() >= 0);
 
 	if (m_ClientSize == newSize)
 		return;
@@ -223,7 +223,7 @@ void MovableObject::SetClientSize(TPoint newSize)
 	GrowHor(newSize.x()  - m_ClientSize.x(), m_ClientSize.x(), 0 );
 	GrowVer(newSize.y()  - m_ClientSize.y(), m_ClientSize.y(), 0 );
 
-	dms_assert(m_ClientSize == newSize);
+	assert(m_ClientSize == newSize);
 }
 
 void MovableObject::SetClientRect(const TRect& r)
@@ -237,7 +237,8 @@ void MovableObject::SetFullRelRect(TRect r)
 {
 	if (HasBorder())
 		r.Shrink(BORDERSIZE);
-	SetClientRect(r);
+	if (!r.empty())
+		SetClientRect(r);
 }
 
 void MovableObject::InvalidateClientRect(TRect rect) const
@@ -365,7 +366,7 @@ void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HB
 
 void MovableObject::CopyToClipboard(DataView* dv)
 {
-	ClipBoard clipBoard;
+	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 

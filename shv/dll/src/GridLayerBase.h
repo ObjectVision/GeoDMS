@@ -51,8 +51,8 @@ protected:
 
 	void FillLcMenu(MenuData& menuData) override;
 
-	virtual void Zoom1To1() = 0;
-	void Zoom1To1Caller() { Zoom1To1(); }
+	virtual void Zoom1To1(ViewPort* vp) = 0;
+	void Zoom1To1Caller() { Zoom1To1(GetViewPort()); }
 	mutable GridCoordPtr m_GridCoord;
 };
 

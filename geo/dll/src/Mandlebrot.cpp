@@ -90,8 +90,8 @@ public:
 		dms_assert(arg3A);
 		dms_assert(arg4A);
 
-		checked_domain<Void>  (arg3A);
-		checked_domain<Void>  (arg4A);
+		checked_domain<Void>(arg3A, "a3");
+		checked_domain<Void>(arg4A, "a4");
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(arg1, arg2);

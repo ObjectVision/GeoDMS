@@ -107,6 +107,9 @@ const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e
 const TreeItem* GetDialogDataRef(const TreeItem* item);
 void            SetDialogDataRef(      TreeItem* item, const TreeItem* ref);
 
+SHV_CALL auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*;
+SHV_CALL bool RefersToMappable(const TreeItem* ti);
+
 //----------------------------------------------------------------------
 // section : Sync & Save
 //----------------------------------------------------------------------
@@ -134,20 +137,17 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew);
 // section : ViewContext
 //----------------------------------------------------------------------
 
-TokenID UniqueName(TreeItem* context, TokenID nameBaseID);
+SHV_CALL TokenID UniqueName(TreeItem* context, TokenID nameBaseID);
 TokenID UniqueName(TreeItem* context, const Class* cls);
 TokenID CopyName(TreeItem* context, TokenID orgNameID);
 
 std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObject* owner);
 
-//----------------------------------------------------------------------
+//---+-------------------------------------------------------------------
 // section : CheckedGdiCall
 //----------------------------------------------------------------------
 
 void CheckedGdiCall(bool result, CharPtr context);
-
-const UInt32 MAX_COLOR = 0xFFFFFF;
-void CheckColor(DmsColor clr); 
 
 COLORREF GetFocusClr();
 COLORREF GetDefaultClr(UInt32 i);
@@ -178,7 +178,8 @@ void FillRectWithBrush(HDC dc, const GRect& rect, HBRUSH br);
 // section : ToolButtonID
 //----------------------------------------------------------------------
 
-enum ToolButtonID {
+enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonID in fmDmsControl.pas
+{
 
 	TB_ZoomAllLayers,               // Button Command
 	TB_ZoomActiveLayer,             // Button Command
@@ -189,7 +190,7 @@ enum ToolButtonID {
 //	===========
 	TB_ZoomIn2,				        // DualPoint   Tool
 	TB_ZoomOut2,			        // SinglePoint Tool
-	OBSOLETE_TB_Pan,                // DualPoint   Tool
+	TB_ShowFirstSelectedRow,        // Button Command
 //	===========
 	TB_Neutral,				        // zero-Tool, includes cooordinate copying when Ctrl (with Shift) key is pressed
 //	===========
@@ -223,9 +224,21 @@ enum ToolButtonID {
 	TB_SyncScale, TB_SyncROI,
 	TB_TableGroupBy,
 	TB_GotoClipboardLocation,
-	TB_FindClipboardLocation
-//	TB_SetData,
+	TB_FindClipboardLocation,
+	TB_GotoClipboardZoomlevel,
+	TB_GotoClipboardLocationAndZoomlevel,
+	TB_CopyLocationAndZoomlevelToClipboard,
+	//	TB_SetData,
+	TB_Undefined,
+	OBSOLETE_TB_Pan,                // DualPoint   Tool
+};
 
+enum class PressStatus
+{
+	DontCare,
+	Up,
+	Dn,
+	ThirdWay,
 };
 
 //----------------------------------------------------------------------
@@ -237,7 +250,9 @@ enum class FontSizeCategory
 	SMALL,
 	MEDIUM,
 	LARGE,
-	COUNT
+	COUNT,
+
+	CARET = SMALL
 };
 
 CharPtr GetDefaultFontName(FontSizeCategory fid);
@@ -245,14 +260,24 @@ UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent 
 
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 
-Float64 GetDesktopDIP2pixFactor();
+SHV_CALL Float64 GetWindowDIP2pixFactorX(HWND hWnd);
+SHV_CALL Float64 GetWindowDIP2pixFactorY(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd);
+SHV_CALL Float64 GetWindowDIP2pixFactor(HWND hWnd);
+SHV_CALL Float64 GetDcDIP2pixFactorX(HDC dc);
+SHV_CALL Float64 GetDcDIP2pixFactorY(HDC dc);
+SHV_CALL Point<Float64> GetDcDIP2pixFactorXY(HDC dc);
+SHV_CALL Float64 GetDcDIP2pixFactor(HDC dc);
 
 //----------------------------------------------------------------------
 // desktop data section
 //----------------------------------------------------------------------
 
-TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item);
-TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
+SHV_CALL TreeItem* GetDefaultDesktopContainer(const TreeItem* ti);
+SHV_CALL TreeItem* GetExportsContainer   (TreeItem* desktopItem);
+SHV_CALL TreeItem* GetViewDataContainer  (TreeItem* desktopItem);
+SHV_CALL TreeItem* CreateContainer       (TreeItem* container,   const TreeItem* item);
+SHV_CALL TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item);
 
 template <typename T>
 const T* GetUltimateSourceItem(const T* item)
@@ -302,6 +327,8 @@ extern "C" {
 	SHV_CALL UInt32               DMS_CONV SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode);
 	SHV_CALL const AbstrDataItem* DMS_CONV SHV_DataContainer_GetItem     (const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode);
 }
+
+SHV_CALL auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*;
 
 //----------------------------------------------------------------------
 // UpdateShowSelOnly section

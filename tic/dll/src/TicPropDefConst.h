@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define STORAGENAME_NAME        "StorageName"
 #define STORAGETYPE_NAME        "StorageType"
 #define STORAGEREADONLY_NAME    "StorageReadOnly"
+#define STORAGEDRIVER_NAME      "StorageDriver"
 #define STORAGEOPTIONS_NAME     "StorageOptions"
 #define DISABLESTORAGE_NAME     "DisableStorage"
 #define KEEPDATA_NAME           "KeepData"
@@ -51,6 +52,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define	WRITE_ONLY_SM_NAME      "NonReadOnlyStorageManagers"
 #define	ALL_SM_NAME             "AllStorageManagers"
 #define EXPR_NAME               "Expr"
+#define CALCRULE_NAME           "CalcRule"
 #define DESCR_NAME              "Descr"
 #define ICHECK_NAME             "IntegrityCheck"
 #define LABEL_NAME              "Label"
@@ -91,6 +93,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 // PropDefs in AbstrUnit.cpp
 #define	FORMAT_NAME              "Format"
+#define	SR_NAME                  "SpatialReference"
 #define METRIC_NAME              "Metric"
 #define PROJECTION_NAME          "Projection"
 #define VALUETYPE_NAME           "ValueType"

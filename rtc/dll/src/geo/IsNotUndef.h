@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_GEO_ISNOTUNDEF_H
 
 #include "geo/BitValue.h"
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 
 template <typename T> inline bool IsNotUndef(const T& v)
 {

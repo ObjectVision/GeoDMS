@@ -74,8 +74,7 @@ std::vector<MsgStruct> g_MsgQueue;
 
 SHV_CALL void DMS_CONV DMS_Shv_Load() 
 {
-	DMS_Clc1_Load();
-	DMS_Clc2_Load();
+	DMS_Clc_Load();
 	DMS_Stg_Load();
 	DMS_Geo_Load();
 }
@@ -170,7 +169,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 		StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 		SuspendTrigger::Resume();  // REMOVE
 
 		CheckPtr(dv,            DataView::GetStaticClass(), "SHV_DataView_AddItem");
@@ -289,6 +288,7 @@ void OnDestroyDataView(DataView* self)
 	);
 }
 
+/*
 ActorVisitState DataView_Update(DataView* self)
 {
 	DMS_CALL_BEGIN
@@ -308,17 +308,29 @@ ActorVisitState DataView_Update(DataView* self)
 
 	return AVS_Ready; // assume fail, so we are done since we don't want to repeat failure
 }
+*/
 
-ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
+ActorVisitState DataView_Update(DataView* self)
 {
-	DMS_SE_CALL_BEGIN
+	DMS_CALL_BEGIN
 
 		ProcessMainThreadOpers();
 
 		if (self->UpdateView() != GVS_Continue)
 			return AVS_SuspendedOrFailed;  // come back if suspended and not failed
-		
+
 		return AVS_Ready;
+
+	DMS_CALL_END
+
+	return AVS_Ready;
+}
+
+ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
+{
+	DMS_SE_CALL_BEGIN
+
+		return DataView_Update(self);
 
 	DMS_SE_CALL_END
 
@@ -339,6 +351,8 @@ void DMS_CONV SHV_DataView_Destroy(DataView* self)
 void DMS_CONV SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle clientHandle, StatusTextFunc stf)
 {
 	DMS_CALL_BEGIN
+
+		assert(self); // Precondition
 
 		CheckPtr(self, DataView::GetStaticClass(), "SHV_DataView_SetStatusTextFunc");
 
@@ -400,6 +414,7 @@ static UInt32          g_LastViewStyleFlags;
 bool IsMapViewable(const AbstrDataItem* adi)
 {
 	dms_assert(adi);
+	dms_assert(!SuspendTrigger::DidSuspend());
 	if (adi->WasFailed(FR_MetaInfo))
 		return false;
 
@@ -431,6 +446,9 @@ bool IsMapViewable(const AbstrDataItem* adi)
 SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
+
+//		SuspendTrigger::Resume();
+		SuspendTrigger::FencedBlocker blockSuspension;
 
 		dms_assert(item);
 		if (g_LastQueriedItem != item || g_LastAdminMode != HasAdminMode())

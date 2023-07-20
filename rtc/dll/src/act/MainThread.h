@@ -43,7 +43,7 @@ RTC_CALL bool   NoOtherThreadsStarted();
 RTC_CALL bool   IsElevatedThread();
 RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
-RTC_CALL void AddMainThreadOper(std::function<void()>&& func);
+RTC_CALL void AddMainThreadOper(std::function<void()>&& func, bool postAlways = false);
 RTC_CALL void ProcessMainThreadOpers();
 
 #endif // __RTC_ACT_MAINTHREAD_H

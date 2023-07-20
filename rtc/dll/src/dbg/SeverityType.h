@@ -47,4 +47,16 @@ enum class SeverityTypeID {
 	ST_Nothing    = 6
 };
 
+enum class MsgCategory {
+	nonspecific,
+	system,
+	disposable,
+	wms,
+	progress,
+	memory,
+	commands,
+};
+
+RTC_CALL CharPtr AsString(MsgCategory);
+
 #endif // __RTC_DBG_SEVERITYTYPE_H

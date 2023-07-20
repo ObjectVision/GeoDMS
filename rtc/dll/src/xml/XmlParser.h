@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_XML_XMLPARSER_H
 
 
-#include "geo/SeqVector.h"
+#include "geo/BaseBounds.h"
 #include "set/QuickContainers.h"
 #include "set/Token.h"
 

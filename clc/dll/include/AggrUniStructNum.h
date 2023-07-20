@@ -99,9 +99,9 @@ struct count_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(count_unit_creator(args)); }
 
-	void operator()(typename count_total_best::assignee_ref output, typename count_total_best::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(typename count_total_best::assignee_ref output, typename count_total_best::value_cseq1 input) const
 	{ 
-		count_best_total(output, input.begin(), input.end(), hasUndefinedValues);
+		count_best_total(output, input.begin(), input.end());
 	}
 };
 
@@ -196,7 +196,7 @@ struct first_total_best
 		MakeUndefined(output);
 	}
 
-	void operator()(typename first_total_best::assignee_ref output, typename first_total_best::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(typename first_total_best::assignee_ref output, typename first_total_best::value_cseq1 input) const
 	{ 
 		if (IsDefined(output))
 			return;
@@ -246,7 +246,7 @@ struct last_total_best
 		output = UNDEFINED_OR_ZERO(T);
 	}
 
-	void operator()(typename base_type::assignee_ref output, typename base_type::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(typename base_type::assignee_ref output, typename base_type::value_cseq1 input) const
 	{ 
 		auto
 			i = input.end(),

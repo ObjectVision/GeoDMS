@@ -49,28 +49,24 @@ void aggr1_total(assignee_ref output, CIV valuesFirst, CIV valuesLast, TAssignUn
 
 template <typename TAssignFunc, typename CIV> 
 typename std::enable_if<has_undefines_v<typename std::iterator_traits<CIV>::value_type> >::type
-aggr1_total_best(typename TAssignFunc::assignee_ref output, CIV valuesFirst, CIV valuesLast, bool hasUndefinedValues, TAssignFunc assignFunc = TAssignFunc() )
+aggr1_total_best(typename TAssignFunc::assignee_ref output, CIV valuesFirst, CIV valuesLast, TAssignFunc assignFunc = TAssignFunc() )
 { 
 	typedef typename TAssignFunc::assignee_ref assignee_ref;
 	typedef typename TAssignFunc::arg1_cref arg1_cref;
 
-	if (!hasUndefinedValues)
-		aggr1_total<assignee_ref>(output, valuesFirst, valuesLast, assignFunc);
-	else
-		aggr1_total<assignee_ref>(output, valuesFirst, valuesLast,  
-			[assignFunc](assignee_ref res, arg1_cref arg)
-			{
-				if (IsDefined(arg))
-					assignFunc(res, arg);
-			}
-		);
+	aggr1_total<assignee_ref>(output, valuesFirst, valuesLast,  
+		[assignFunc](assignee_ref res, arg1_cref arg)
+		{
+			if (IsDefined(arg))
+				assignFunc(res, arg);
+		}
+	);
 }
 
 template <typename TAssignFunc, typename CIV> 
 typename boost::disable_if<has_undefines<typename std::iterator_traits<CIV>::value_type> >::type
-aggr1_total_best(typename TAssignFunc::assignee_ref output, CIV valuesFirst, CIV valuesLast, bool hasUndefinedValues, TAssignFunc assignFunc = TAssignFunc() )
+aggr1_total_best(typename TAssignFunc::assignee_ref output, CIV valuesFirst, CIV valuesLast, TAssignFunc assignFunc = TAssignFunc() )
 { 
-	dms_assert(!hasUndefinedValues);
 	aggr1_total<typename TAssignFunc::assignee_ref>(output, valuesFirst, valuesLast, assignFunc);
 }
 
@@ -83,19 +79,15 @@ void aggr2_total(assignee_ref output, CIV values1First, CIV values1Last, CIV val
 
 template <typename TAssignFunc, typename CIV> 
 typename std::enable_if<has_undefines_v<typename std::iterator_traits<CIV>::value_type> >::type
-aggr2_total_best(typename TAssignFunc::assignee_ref output, CIV values1First, CIV values1Last, CIV values2First, bool hasUndefinedValues, TAssignFunc assignFunc = TAssignFunc() )
+aggr2_total_best(typename TAssignFunc::assignee_ref output, CIV values1First, CIV values1Last, CIV values2First, TAssignFunc assignFunc = TAssignFunc() )
 { 
-//	typedef binary_assign_nonnullonly<TAssignFunc> TCheckedFunc;
-	if (!hasUndefinedValues)
-		aggr2_total<typename TAssignFunc::assignee_ref>(output, values1First, values1Last, values2First, assignFunc);
-	else
-		aggr2_total<typename TAssignFunc::assignee_ref>(output, values1First, values1Last, values2First,
-			[assignFunc](typename TAssignFunc::assignee_ref res, typename TAssignFunc::arg1_cref arg1, typename TAssignFunc::arg2_cref arg2)
-			{
-				if (IsDefined(arg1) && IsDefined(arg2))
-					assignFunc(res, arg1, arg2);
-			}
-		);
+	aggr2_total<typename TAssignFunc::assignee_ref>(output, values1First, values1Last, values2First,
+		[assignFunc](typename TAssignFunc::assignee_ref res, typename TAssignFunc::arg1_cref arg1, typename TAssignFunc::arg2_cref arg2)
+		{
+			if (IsDefined(arg1) && IsDefined(arg2))
+				assignFunc(res, arg1, arg2);
+		}
+	);
 }
 
 template <typename TAssignFunc, typename CIV> 
@@ -133,22 +125,19 @@ typename std::enable_if<has_undefines_v<typename std::iterator_traits<CIV>::valu
 aggr_fw_best_partial(OIA outFirst
 	,	CIV valuesFirst,  CIV valuesLast
 	,	const IndexGetter* indices
-	,	bool hasUndefinedValues, const TAssignFunc& assignFunc = TAssignFunc()
+	,	const TAssignFunc& assignFunc = TAssignFunc()
 	)
 {
 	typedef typename TAssignFunc::assignee_ref assignee_ref;
 	typedef typename TAssignFunc::arg1_cref arg1_cref;
 
-	if (!hasUndefinedValues)
-		aggr_fw_partial(outFirst, valuesFirst, valuesLast, indices, assignFunc);
-	else
-		aggr_fw_partial(outFirst, valuesFirst, valuesLast, indices,
-			[assignFunc](assignee_ref res, arg1_cref arg)
-			{
-				if (IsDefined(arg))
-					assignFunc(res, arg);
-			}
-		);
+	aggr_fw_partial(outFirst, valuesFirst, valuesLast, indices,
+		[assignFunc](assignee_ref res, arg1_cref arg)
+		{
+			if (IsDefined(arg))
+				assignFunc(res, arg);
+		}
+	);
 }
 
 // Specialization for Values without <null>
@@ -157,11 +146,9 @@ typename std::enable_if<!has_undefines_v<typename std::iterator_traits<CIV>::val
 aggr_fw_best_partial(OIA outFirst
 	,	CIV valuesFirst,  CIV valuesLast
 	,	const IndexGetter* indices
-	,	bool hasUndefinedValues
 	,	TAssignFunc assignFunc = TAssignFunc()
 	)
 {
-	dms_assert(!hasUndefinedValues);
 	aggr_fw_partial<TAssignFunc>(outFirst, valuesFirst, valuesLast, indices, assignFunc);
 }
 
@@ -201,19 +188,15 @@ typename std::enable_if<has_undefines_v<typename std::iterator_traits<CIV>::valu
 aggr2_fw_best_partial(OIA outFirst
 	,	CIV values1First,  CIV values1Last,	CIV values2First
 	,	const IndexGetter* indices
-	,	bool hasUndefinedValues
 	,	TAssignFunc assignFunc = TAssignFunc()
 	)
 {
-	if (!hasUndefinedValues)
-		aggr2_fw_partial(outFirst, values1First, values1Last, values2First, indices, assignFunc);
-	else
-		aggr2_fw_partial(outFirst, values1First, values1Last, values2First, indices,
-			[assignFunc](typename TAssignFunc::assignee_ref res, typename TAssignFunc::arg1_cref arg1, typename TAssignFunc::arg2_cref arg2)
-			{
-				if (IsDefined(arg1) && IsDefined(arg2))
-					assignFunc(res, arg1, arg2);
-			} );
+	aggr2_fw_partial(outFirst, values1First, values1Last, values2First, indices,
+		[assignFunc](typename TAssignFunc::assignee_ref res, typename TAssignFunc::arg1_cref arg1, typename TAssignFunc::arg2_cref arg2)
+		{
+			if (IsDefined(arg1) && IsDefined(arg2))
+				assignFunc(res, arg1, arg2);
+		} );
 }
 
 // Specialization for Values without <null>
@@ -222,11 +205,9 @@ typename std::enable_if<!has_undefines_v<typename std::iterator_traits<CIV>::val
 aggr2_fw_best_partial(OIA outFirst
 	,	CIV values1First,  CIV values1Last, CIV values2First
 	,	const IndexGetter* indices
-	,	bool hasUndefinedValues
 	,	const TAssignFunc& assignFunc = TAssignFunc()
 	)
 {
-	dms_assert(!hasUndefinedValues);
 	aggr2_fw_partial<TAssignFunc>(outFirst, values1First, values1Last, values2First, indices, assignFunc);
 }
 

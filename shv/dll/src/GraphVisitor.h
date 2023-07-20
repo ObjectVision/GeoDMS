@@ -115,7 +115,7 @@ public:
 	Float64 GetSubPixelFactor() const;
 
 protected:
-	GraphVisitor(const GRect& clipRect, CrdType subPixelFactor);
+	GraphVisitor(const GRect& clipRect, CrdType subPixelFactor = 1.0);
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
@@ -136,9 +136,9 @@ class GraphObjLocator : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphObjLocator(GPoint pnt, CrdType subPixelFactor);
+	GraphObjLocator(GPoint pnt);
 
-	static MovableObject* Locate(DataView* view, GPoint pnt, CrdType subPixelFactor);
+	static MovableObject* Locate(DataView* view, GPoint pnt);
 
 protected:
   	GraphVisitState DoMovable(MovableObject* obj) override;
@@ -164,8 +164,8 @@ class GraphDrawer : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor);
-	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor);
+	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
+	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
@@ -238,7 +238,7 @@ public:
 class GraphUpdater: public GraphVisitor
 {
 public:
-	GraphUpdater(const GRect& clipRect, CrdType subPixelFactor);
+	GraphUpdater(const GRect& clipRect, CrdType subPixelFactor = 1.0);
 
 	GraphVisitState DoObject(GraphicObject* go) override;
 };

@@ -306,8 +306,15 @@ TUpdateState =  (
                               ST_Fatal,
                               ST_DispError
                            );
+   TMsgCategory          = (
+                              MC_nonspecific,
+                              MC_system,
+	                          MC_flaggable,
+	                          MC_wms,
+	                          MC_progress
+                           );
    // Callback function for trace-info subscription
-   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msg: PMsgChar);  cdecl;
+   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; msg: PMsgChar);  cdecl;
    TReduceResources = function(clientHandle: TClientHandle): boolean; cdecl;
 
 {*******************************************************************************

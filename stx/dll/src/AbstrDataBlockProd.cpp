@@ -59,24 +59,24 @@ void AbstrDataBlockProd::DoRgbValue1(UInt32 p_nRed)
 	// first check if the rgb values are within the range of 0..255
 	if (p_nRed>255)
 		throwSemanticError("Value Red out of range");
-	m_IntValAsUInt32 = CombineRGB(p_nRed, 0, 0);
+	m_IntValAsUInt64 = CombineRGB(p_nRed, 0, 0);
 }
 void AbstrDataBlockProd::DoRgbValue2(UInt32 p_nGreen)
 {
 	// first check if the rgb values are within the range of 0..255
 	if (p_nGreen>255)
 		throwSemanticError("Value Green out of range");
-	m_IntValAsUInt32 += CombineRGB(0, p_nGreen, 0);
+	m_IntValAsUInt64 += CombineRGB(0, p_nGreen, 0);
 }
 void AbstrDataBlockProd::DoRgbValue3(UInt32 p_nBlue)
 {
 	// first check if the rgb values are within the range of 0..255
 	if (p_nBlue>255)
 		throwSemanticError("Value Blue out of range");
-	m_IntValAsUInt32 += CombineRGB(0, 0, p_nBlue);
+	m_IntValAsUInt64 += CombineRGB(0, 0, p_nBlue);
 
 	m_eValueType = VT_UInt32;
-	m_FloatVal   = m_IntValAsUInt32;
+	m_FloatVal   = m_IntValAsUInt64;
 }
 
 // *****************************************************************************
@@ -90,12 +90,12 @@ void AbstrDataBlockProd::DoRgbValue3(UInt32 p_nBlue)
 //     Int32 p_nIntVal: the retrieved integer value
 // *****************************************************************************
 
-void AbstrDataBlockProd::DoIntegerValue(UInt32 nIntVal)
+void AbstrDataBlockProd::DoUInt64(UInt64 nIntVal)
 {
 	// m_IntValAsUInt32
-	m_IntValAsUInt32 = (m_bSignIsPlus)
+	m_IntValAsUInt64 = (m_bSignIsPlus)
 		? nIntVal
-		: UNDEFINED_VALUE(UInt32);
+		: UNDEFINED_VALUE(UInt64);
 
 	m_FloatVal = Convert<Float64>(nIntVal);
 
@@ -103,13 +103,13 @@ void AbstrDataBlockProd::DoIntegerValue(UInt32 nIntVal)
 		m_FloatVal = -m_FloatVal;
 	
 	// m_IntValAsInt32
-	if (nIntVal > UInt32(MAX_VALUE(Int32)) || nIntVal == UNDEFINED_VALUE(UInt32))
-		m_IntValAsInt32 = UNDEFINED_VALUE(Int32);
+	if (nIntVal > UInt64(MAX_VALUE(Int64)) || nIntVal == UNDEFINED_VALUE(UInt64))
+		m_IntValAsInt64 = UNDEFINED_VALUE(Int64);
 	else
-		m_IntValAsInt32 = (m_bSignIsPlus)
-			? +Int32(nIntVal)
-			: -Int32(nIntVal);
-	m_eValueType = (m_bSignIsPlus) ? VT_UInt32 : VT_Int32;
+		m_IntValAsInt64 = (m_bSignIsPlus)
+			? +Int64(nIntVal)
+			: -Int64(nIntVal);
+	m_eValueType = (m_bSignIsPlus) ? VT_UInt64 : VT_Int64;
 }
 
 // *****************************************************************************
@@ -154,6 +154,8 @@ void AbstrDataBlockProd::DoFirstIntervalValue()
 		case VT_Float64:
 		case VT_Int32:
 		case VT_UInt32:
+		case VT_Int64:
+		case VT_UInt64:
 			m_FloatInterval.first = m_FloatVal;
 			break;
 
@@ -197,6 +199,8 @@ void AbstrDataBlockProd::DoSecondIntervalValue()
 		case VT_Float64:
 		case VT_Int32:
 		case VT_UInt32:
+		case VT_Int64:
+		case VT_UInt64:
 			m_FloatInterval.second = m_FloatVal;
 			break;
 
@@ -236,8 +240,8 @@ void AbstrDataBlockProd::DoSecondPointValue()
 
 void AbstrDataBlockProd::DoNullValue()
 {
-	MakeUndefined(m_IntValAsUInt32);
-	MakeUndefined(m_IntValAsInt32 );
+	MakeUndefined(m_IntValAsUInt64);
+	MakeUndefined(m_IntValAsInt64 );
 	MakeUndefined(	m_FloatVal    );
 	MakeUndefined(m_StringVal.m_StringValue);
 	MakeUndefined(m_DPointVal);

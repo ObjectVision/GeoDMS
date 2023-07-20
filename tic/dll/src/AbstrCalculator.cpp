@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -67,25 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LispContextHandle.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemClass.h"
-
-
-// *****************************************************************************
-// Section:    AbstrValuesUnit for arrow, move to generic display location
-// *****************************************************************************
-
-const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
-{
-	dms_assert(adi);
-	while (true)
-	{
-		auto au = adi->GetAbstrValuesUnit();
-		if (!au->IsDefaultUnit())
-			return au;
-		adi = AsDataItem( adi->GetCurrRefItem() );
-		if (!adi)
-			return nullptr;
-	}
-}
+#include "MoreDataControllers.h"
 
 // *****************************************************************************
 // Section:    to be located into following code
@@ -108,7 +62,12 @@ metainfo_policy_flags arg2metainfo_polcy(oper_arg_policy oap)
 	}
 }
 
-TIC_CALL void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const 
+SharedStr AbstrCalculator::GetExpr() const
+{
+	return GetAsFLispExprOrg(FormattingFlags::ThousandSeparator); 
+}
+
+void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const 
 { 
 	stream.WriteValue(GetExpr().c_str());
 }
@@ -135,36 +94,7 @@ LispRef GetLispRefForTreeItem(const TreeItem* sourceObject, const CopyTreeContex
 }
 
 using item_ref_type = std::variant<SharedTreeItem, LispRef>;
-/*
-auto GetItemRefForSubItem(const TreeItem* sourceItem, SharedStr relPath) -> item_ref_type
-{
-	if (sourceItem->IsCacheItem())
-	{
-		return slSubItemCall(sourceItem->)
-	}
-	auto end = relPath.send();
-	auto begin = relPath.begin();
-	while (true)
-	{
-		dms_assert(!sourceItem->IsCacheItem());
-		if (begin == end)
-			return { sourceItem, TokenID() };
-		auto delimPos = begin;
-		while (delimPos != end && *delimPos != DELIMITER_CHAR)
-			++delimPos;
-		auto subItem = sourceItem->GetConstSubTreeItemByID(GetTokenID_mt(begin, delimPos));
-		if (subItem->IsCacheItem())
-			return item_ref_type{ sourceItem, GetTokenID_mt( begin, end ) };
-		sourceItem = subItem;
-		begin = delimPos; 
-		if (begin != end)
-		{
-			dms_assert(*begin == DELIMITER_CHAR);
-			++begin;
-		}
-	}
-}
-*/
+
 SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 {
 	auto end = relPath.send();
@@ -206,7 +136,7 @@ TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef
 	auto metaInfo = calculator->GetMetaInfo();
 	if (metaInfo.index() == 0)
 		throwErrorF("GetDC", "KeyExpr expected but called with: %s\nMeta functions and template instantiations are not supported here."
-			, AsFLispSharedStr(std::get<0>(metaInfo).GetAsLispRef()).c_str()
+			, AsFLispSharedStr(std::get<0>(metaInfo).GetAsLispRef(), FormattingFlags::ThousandSeparator).c_str()
 		);
 	if (metaInfo.index() == 2) // follow source
 		return GetOrCreateDataController(std::get<2>(metaInfo)->GetCheckedKeyExpr());
@@ -222,7 +152,7 @@ auto MakeResult(const AbstrCalculator* calculator)->make_result_t
 	return dc; // return owner of potential future.
 }
 
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Context* context)->calc_result_t
+auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t
 {
 	auto dc = MakeResult(calculator);
 	dms_assert(dc);
@@ -230,7 +160,7 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 	if (dc->WasFailed(FR_MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
-	auto result = dc->CalcResult(context);
+	auto result = dc->CalcResult(nullptr);
 	if (SuspendTrigger::DidSuspend())
 		return {};
 	if (!result)
@@ -239,6 +169,24 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls, Explain::Co
 		dc->ThrowFail();
 	}
 	return result;
+}
+
+void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context)
+{
+	assert(context);
+	auto dc = MakeResult(calculator);
+	dms_assert(dc);
+	dms_assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
+	if (dc->WasFailed(FR_MetaInfo))
+		return;
+
+	auto funcDC = dynamic_cast<const FuncDC*>(dc.get());
+	if (!funcDC)
+		return;
+	if (!funcDC->m_OperatorGroup->CanExplainValue())
+		return;
+
+	auto result = dc->CalcResult(context);
 }
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass)
@@ -320,7 +268,7 @@ AbstrCalculator::AbstrCalculator(const TreeItem* context, LispPtr lispRefOrg, Ca
 		m_LispExprSubst = m_LispExprOrg;
 		m_HasSubstituted = true; // already done by caller ?
 	}
-	dms_assert(m_SearchContext);
+	assert(m_SearchContext);
 }
 
 
@@ -334,7 +282,9 @@ bool AbstrCalculator::CheckSyntax () const
 
 const TreeItem* AbstrCalculator::SearchContext() const
 {
-	return m_SearchContext;
+	auto searchContext = m_SearchContext;
+	MG_CHECK(searchContext);
+	return searchContext;
 }
 
 static TokenID thisToken = GetTokenID_st("this");
@@ -386,8 +336,15 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 
 bool AbstrCalculator::IsSourceRef() const
 {
-	return GetLispExprOrg().IsSymb() 
-		&& !ValueClass::FindByScriptName(GetLispExprOrg().GetSymbID());
+	auto lispRefOrg = GetLispExprOrg();
+	if (!lispRefOrg.IsSymb())
+		return false;
+	auto symbID = lispRefOrg.GetSymbID();
+	if (ValueClass::FindByScriptName(symbID))
+		return false;
+	if (token::isConst(symbID))
+		return false;
+	return true;
 }
 
 AcConstructor* s_Constructor = nullptr;
@@ -472,7 +429,7 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDirectStr(const TreeItem* conte
 AbstrCalculatorRef AbstrCalculator::ConstructFromLispRef(const TreeItem* context, LispPtr lispExpr, CalcRole cr)
 {
 	DBG_START("AbstrCalculator", "ConstructFromLispRef", false);
-	DBG_TRACE(("lispExpr %s", AsFLispSharedStr(lispExpr).c_str()));
+	DBG_TRACE(("lispExpr %s", AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	return new DC_Ptr(context, lispExpr, cr);
 }
@@ -482,15 +439,15 @@ AbstrCalculatorRef AbstrCalculator::ConstructFromDBT(AbstrDataItem* context, con
 	return GetConstructor()->ConstructDBT(context, src);
 }
 
-SharedStr AbstrCalculator::GetAsFLispExprOrg() const
+SharedStr AbstrCalculator::GetAsFLispExprOrg(FormattingFlags ff) const
 {
-	return AsFLispSharedStr(GetLispExprOrg());
+	return AsFLispSharedStr(GetLispExprOrg(), ff);
 }
 
-SharedStr AbstrCalculator::GetAsFLispExpr() const
+SharedStr AbstrCalculator::GetAsFLispExpr(FormattingFlags ff) const
 {
 	auto metaInfo = GetMetaInfo();
-	return AsFLispSharedStr(GetAsLispRef(metaInfo));
+	return AsFLispSharedStr(GetAsLispRef(metaInfo), ff);
 }
 
 UInt32 CountIndirections(CharPtr expr)
@@ -712,6 +669,32 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	return { nullptr, {} };
 }
 
+BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
+{
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		return FindBestItem(supplRefID);
+	}
+	for (auto ti : m_SupplierArray)
+	{
+		if (!ti)
+			continue;
+		if (WasInFailed(ti))
+			return { ti, {} };
+		if (IsDataItem(ti.get_ptr()))
+		{
+			SharedDataItemInterestPtr adi = AsDataItem(ti.get_ptr());
+			adi->PrepareDataUsage(DrlType::Certain);
+			
+			DataReadLock lock(adi);
+			if (adi->WasFailed(FR_Data))
+				return { adi.get_ptr(), {}};
+		}
+	}
+	return { nullptr, {} };
+}
+
 // *****************************************************************************
 // struct SubstitutionBuffer 
 // *****************************************************************************
@@ -728,6 +711,9 @@ LispRef& SubstitutionBuffer::BufferedLispRef(metainfo_policy_flags mpf, LispPtr 
 LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr supplRef, metainfo_policy_flags mpf) const
 {
 	TokenID supplRefID = supplRef.GetSymbID();
+	if (token::isConst(supplRefID))
+		return ExprList(supplRefID);
+
 	const TreeItem* supplier = FindItem(supplRefID);
 	if (!supplier || supplier->IsCacheItem())
 	{
@@ -854,12 +840,32 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		ArgRef argRef;
 		if (!mustCalcArg) 
 		{ // DomainContainer and ValuesContainer and SubsetContainer
+			LispRef argExpr = cursor.Left();
 			if (oap == oper_arg_policy::calc_as_result)
 			{
-				// skip condition argument for select_xxxx meta functions
+				// skip condition argument for select_with_attr_xxxx meta functions
 				assert(currArg == 1); // only this one
 				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
 				continue;
+			}
+			if (oap == oper_arg_policy::calc_at_subitem)
+			{
+				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				continue;
+			}
+
+
+			if (!argExpr.IsSymb())
+			{
+				auto errMsgTxt = mySSPrintF(
+					"meta-function %s expects an item reference as argument %d, but an expression was given.\n"
+					"Consider defining and using a separate item as %s"
+					, og->GetName()
+					, currArg + 1
+					, AsFLispSharedStr(argExpr, FormattingFlags::ThousandSeparator)
+				);
+				holder->Fail(errMsgTxt, FR_MetaInfo);
+				return {};
 			}
 			TokenID symbID = cursor.Left().GetSymbID();
 			if (auto vc = ValueClass::FindByScriptName(symbID))
@@ -878,8 +884,9 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FR_MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
-		else if (mustCalcArg)
+		else
 		{
+			assert(mustCalcArg);
 			FutureData dc = GetOrCreateDataController(std::get<1>(ac->SubstituteExpr(substBuff, cursor.Left()))); // what about non-substitited stuff?
 			dms_assert(dc);
 			FutureData fd = dc->CalcResultWithValuesUnits();
@@ -915,6 +922,9 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const AbstrOperGroup* og, LispPtr metaCallArgs)
 {
 	dms_assert(ac);
+	assert(holder);
+	if (holder->WasFailed(FR_MetaInfo))
+		return false;
 	bool result;
 	try {
 		auto args = ApplyMetaFunc_GetArgs(holder, ac, og, metaCallArgs);
@@ -988,21 +998,17 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("ApplyMetaFunc_impl", "", false);
-	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs)));
+	DBG_TRACE(("metaCallExpr=%s", AsFLispSharedStr(metaCallArgs, FormattingFlags::ThousandSeparator)));
 #endif
-
-//	if (holder->GetDynamicClass() != TreeItem::GetStaticClass())
-//		holder->throwItemError("Only containers can be the sink for Meta Functions");
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;
-//	UpdateMarker::ChangeSourceLock changeStamp(holder, "ApplyMetaFunction");
-//	Actor::UpdateLock lock(holder, actor_flag_set::AF_UpdatingMetaInfo);
+
 	SuspendTrigger::FencedBlocker lockSuspend;
 
 	bool resultFlag = ApplyMetaFunc_impl(holder, ac, og, metaCallArgs);
 
-	dms_assert(resultFlag != holder->WasFailed(FR_MetaInfo));
+	dms_assert(resultFlag || holder->WasFailed(FR_MetaInfo));
 
 	dms_assert(holder->GetIsInstantiated() || holder->WasFailed(FR_MetaInfo));
 	holder->SetIsInstantiated(); // REMOVE if the above assert is PROVEN.
@@ -1067,7 +1073,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				auto leftExpr = localExpr.Right().Left();
 				if (!leftExpr.IsSymb())
-					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr).c_str());
+					throwErrorF("ExprParser", "Scope operator: Left operand should be a name, but '%s' given.", AsFLispSharedStr(leftExpr, FormattingFlags::ThousandSeparator).c_str());
 				SharedPtr<const TreeItem> scopeItem = FindItem(leftExpr.GetSymbID());
 				if (!scopeItem)
 					throwErrorF("ExprParser", "Scope operator: container '%s' not found", leftExpr.GetSymbID().GetStr().c_str());
@@ -1081,16 +1087,33 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			{
 				LispRef indexExpr = localExpr.Right().Left();
 				if (!indexExpr.IsSymb())
-					throwErrorD("ExprParser", "DataItem expected as left operand of arrow");
+					throwErrorF("Calculation Rule Parser", "named DataItem expected as left operand of the arrow operator: try defining an attribute with calculation rule '%s'"
+					, AsString(indexExpr)
+					);
 
 				SharedPtr<const TreeItem> indexItem = FindItem(indexExpr.GetSymbID());
+				if (!indexItem.get_ptr())
+					throwErrorF("Calculation Rule Parser", "reference '%s' not found (as left operand of the arrow operator)"
+					, AsString(indexExpr.GetSymbID())
+					);
 				if (!IsDataItem(indexItem.get_ptr()))
-					throwErrorD("ExprParser", "DataItem expected as left operand of arrow");
+					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '%s' refers to a %s"
+					, AsString(indexExpr.GetSymbID())
+					, AsString(indexItem->GetDynamicClass()->GetID())
+					);
 
-				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
 
 				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get_ptr()) );
-				dms_assert(avu);
+				if (!avu)
+				{
+					auto formalDomainUnit = SharedStr(AsDataItem(indexItem.get())->DomainUnitToken());
+					auto formalValuesUnit = SharedStr(AsDataItem(indexItem.get())->ValuesUnitToken());
+					throwErrorF("Calculation Rule Parser", "DataItem with a specified formal domain and values-unit expected as left operand of the arrow operator."
+						"\nHint: '%s' is specified with formal domain '%s' and values-unit '%s'. Check that these refer to unit definitions seen from the current context."
+						, AsString(indexExpr.GetSymbID()), formalDomainUnit.c_str(), formalValuesUnit.c_str()
+					);
+				}
+				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
 
 				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, avu);
 				SubstitutionBuffer localBuffer;
@@ -1110,11 +1133,6 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					bufferValue = std::get<1>(metaInfo);
 				goto exit;
 			}
-//			if (head->GetSymbID() == token::DomainUnit)
-//			{
-//				xxx;
-//			}
-//			dms_assert(head.GetSymbID() != token::sourceDescr); // TODO G8: Clean-up the mess
 			if (head.GetSymbID() == token::sourceDescr)
 			{
 				LispPtr sourceRef = localExpr.Right().Left();
@@ -1208,7 +1226,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 		LispRef head = localExpr.Left();
 		TokenID exprHeadID = head.GetSymbID();
-		if (exprHeadID == token::arrow)
+		if (exprHeadID == token::arrow || exprHeadID == token::scope)
 			goto skipTemplInst;
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
@@ -1411,8 +1429,8 @@ TIC_CALL CharPtr  DMS_CONV DMS_ParseResult_GetAsSLispExpr(AbstrCalculator* self,
 		static SharedStr result;
 
 		result = afterRewrite
-			? self->GetAsFLispExpr()
-			: self->GetAsFLispExprOrg();
+			? self->GetAsFLispExpr(FormattingFlags::ThousandSeparator)
+			: self->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator);
 		return result.c_str();
 
 	DMS_CALL_END

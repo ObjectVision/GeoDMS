@@ -30,6 +30,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "RtcPCH.h"
 #pragma hdrstop
 
+#include <concrtrm.h>
+#include <agents.h>
+
 #include "utl/Environment.h"
 
 #include "dbg/DmsCatch.h"
@@ -40,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/IndexedStrings.h"
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
+#include "utl/Environment.h"
 #include "LockLevels.h"
 
 #include <concrt.h>
@@ -150,6 +154,22 @@ bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, b
 	return false;
 }
 
+//  -------------------- Main Window Handle
+
+static void* s_GlobalMainWindow = nullptr;
+
+RTC_CALL void* GetGlobalMainWindowHandle() {
+	return s_GlobalMainWindow; 
+}
+
+RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow)
+{
+	auto oldHandle = GetGlobalMainWindowHandle();
+	s_GlobalMainWindow = hWindow;
+	return oldHandle;
+}
+
+
 //  -----------------------------------------------------------------------
 
 #include "utl/IncrementalLock.h"
@@ -165,7 +185,7 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
+	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS & ~QS_TIMER);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
@@ -193,16 +213,30 @@ SharedStr GetCurrentDir()
 	return ConvertDosFileName(SharedStr(begin_ptr(buffer), end_ptr(buffer)-1));
 }
 
-void   SetCurrentDir(CharPtr dir)
+void SetCurrentDir(CharPtr dir)
 {
 	SetCurrentDirectory(dir);
+}
+
+static exe_type s_ExeType = exe_type::unknown_run_or_dephi;
+
+void DMS_Appl_SetExeType(exe_type t)
+{
+	s_ExeType = t;
+}
+
+exe_type DMS_Appl_GetExeType()
+{
+	return s_ExeType;
 }
 
 void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "dms.ttf").c_str(), FR_PRIVATE, 0);
+	auto r1 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
+	auto r2 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSans-Medium.ttf").c_str(), FR_PRIVATE, 0);
+//	AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSansMath-Regular.ttf").c_str(), FR_PRIVATE, 0);
 	SetMainThreadID();
 }
 
@@ -263,10 +297,10 @@ exit:
 	return result;
 }
 
-RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw)
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
 {
 	try {
-		RegistryHandleLocalMachineRW regLM;
+		RegistryHandleLocalMachineRW regLM(section);
 		auto result = regLM.WriteDWORD(key, dw);
 	}
 	catch (...) {}
@@ -274,11 +308,23 @@ RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw)
 	return true;
 }
 
+RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section)
+{
+	try {
+		RegistryHandleLocalMachineRO regLM(section);
+		if (regLM.ValueExists(key))
+			return regLM.ReadDWORD(key);
+	}
+	catch (...) {}
+
+	return defaultValue;
+}
+
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
-		auto result = regLM.WriteString(key, str);
+		regLM.WriteString(key, str);
 	}
 	catch (...) {}
 	return true;
@@ -418,7 +464,7 @@ RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
 	return GetRegStatusFlags();
 }
 
-RTC_CALL void SetRegStatusFlag(UInt32 newSF, bool newVal)
+RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 {
 	leveled_critical_section::scoped_lock lock(s_RegAccess);
 	g_OvrStatusMask |= newSF;
@@ -458,6 +504,12 @@ RTC_CALL bool ShowThousandSeparator()
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
 }
 
+RTC_CALL UInt32 MaxConcurrentTreads()
+{
+	if (!IsMultiThreaded1())
+		return 1;
+	return concurrency::GetProcessorCount();
+}
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
@@ -474,20 +526,20 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 
 	switch (param[2])
 	{
-		case 'A': SetRegStatusFlag(RSF_AdminMode, newValue); break;
-		case 'C': SetRegStatusFlag(RSF_ShowStateColors, newValue); break;
-		case 'V': SetRegStatusFlag(RSF_TreeViewVisible, newValue); break;
-		case 'D': SetRegStatusFlag(RSF_DetailsVisible, newValue); break;
-		case 'E': SetRegStatusFlag(RSF_EventLogVisible, newValue); break;
-		case 'T': SetRegStatusFlag(RSF_ToolBarVisible, newValue); break;
-		case 'I': SetRegStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
-		case 'R': SetRegStatusFlag(RSF_DynamicROI, newValue); break;
+		case 'A': SetCachedStatusFlag(RSF_AdminMode, newValue); break;
+		case 'C': SetCachedStatusFlag(RSF_ShowStateColors, newValue); break;
+		case 'V': SetCachedStatusFlag(RSF_TreeViewVisible, newValue); break;
+		case 'D': SetCachedStatusFlag(RSF_DetailsVisible, newValue); break;
+		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
+		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
+		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
+		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
 		case 'S':
-		case '0': SetRegStatusFlag(RSF_SuspendForGUI, newValue); break;
-		case '1': SetRegStatusFlag(RSF_MultiThreading1, newValue); break;
-		case '2': SetRegStatusFlag(RSF_MultiThreading2, newValue); break;
-		case '3': SetRegStatusFlag(RSF_MultiThreading3, newValue); break;
-		case 'H': SetRegStatusFlag(RSF_ShowThousandSeparator, newValue); break;
+		case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
+		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
+		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
+		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
+		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
 		default: 
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
 			return true;
@@ -554,7 +606,7 @@ exit:
 	return regAttr.value;
 }
 
-extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
+extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 {
 	auto ui = UInt32(i);
 	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
@@ -563,6 +615,12 @@ extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	regAttr.wasRead = true;
 	regAttr.value   = dw;
+}
+
+// TODO: REMOVE
+extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
+{
+	RTC_SetCachedDWord(i, dw);
 }
 
 void MakeDir(WeakStr dirName)
@@ -582,6 +640,16 @@ bool IsDosDir(WeakStr dosFileName, CharPtr dmsFileName)
 	if (attr == INVALID_FILE_ATTRIBUTES)
 		throwLastSystemError("IsDir(%s)", dmsFileName);
 	return (attr & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter)
+{
+	while (range.first != range.second)
+	{
+		if (*range.first == delimiter)
+			*range.first = '\\';
+		++range.first;
+	}
 }
 
 void ReplaceDosDelimiters(MutableCharPtrRange range)
@@ -730,8 +798,6 @@ bool FindFileBlock::IsValid() const
 {
 	return m_Handle != INVALID_HANDLE_VALUE;
 }
-
-// REMOVE COMMENT: Make DataStoreManager.GetDir subdir aware to be prepared for CalcCache partitioning
 
 DWORD FindFileBlock::GetFileAttr() const
 {
@@ -1031,48 +1097,57 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 //  -----------------------------------------------------------------------
 
 // Child process used by exec expressions for executables; Create; Execute and Wait for termination
-DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine) 
-{ 
-   PROCESS_INFORMATION piProcInfo; 
-   STARTUPINFO siStartInfo; 
- 
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	STARTUPINFO siStartInfo;
+	PROCESS_INFORMATION piProcInfo;
+
 	// Set up members of STARTUPINFO structure. 
-   ZeroMemory( &siStartInfo, sizeof(STARTUPINFO) );
-   ZeroMemory( &piProcInfo, sizeof(PROCESS_INFORMATION) );
-   siStartInfo.cb = sizeof(STARTUPINFO); 
-//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
- 
-   // Create the child process.
-   BOOL res = CreateProcess
-   (
-      moduleName,
-	  cmdLine,        // command line can be rewritten
-      NULL,           // process security attributes 
-      NULL,           // primary thread security attributes 
-      TRUE,           // handles are inherited 
-      0,              // creation flags		
-      NULL,           // use parent's environment 
-      NULL,           // use parent's current directory 
-      &siStartInfo,   // STARTUPINFO pointer 
-      &piProcInfo
+	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
+	siStartInfo.cb = sizeof(STARTUPINFO);
+	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
+
+//	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
+
+	// Create the child process.
+	BOOL res = CreateProcessA
+	(
+		moduleName,
+		cmdLine,		// command line can be rewritten
+		NULL,           // process security attributes 
+		NULL,           // primary thread security attributes 
+		TRUE,           // handles are inherited 
+		0,              // creation flags		
+		NULL,           // use parent's environment 
+		NULL,           // use parent's current directory 
+		&siStartInfo,   // STARTUPINFO pointer 
+		&piProcInfo
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName, cmdLine);
+			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
 
-    // Wait until child process exits.
+	return { piProcInfo.hProcess, piProcInfo.hThread };
+}
+
+DWORD ExecuteChildProcess(CharPtr moduleName, Char * cmdLine)
+{
+	auto childProcess = StartChildProcess(moduleName, cmdLine);
+
+	// Wait until child process exits.
 	UINT32 waitCounter = 0;
-	while (auto resWFSO = WaitForSingleObject(piProcInfo.hProcess, INFINITE))
+	while (auto resWFSO = WaitForSingleObject(childProcess.first, INFINITE))
 	{
 		++waitCounter;
 	}
 	DWORD exitCode;
-	res = GetExitCodeProcess(piProcInfo.hProcess, &exitCode);
+	BOOL res = GetExitCodeProcess(childProcess.first, &exitCode);
 	if (!res)
 		throwLastSystemError("ExecuteChildProcess(%s, %s) failed to return an exitcode", moduleName, cmdLine);
 
-	CloseHandle(piProcInfo.hThread);
-	CloseHandle(piProcInfo.hProcess);
+	CloseHandle(childProcess.second);
+	CloseHandle(childProcess.first);
 
 	return exitCode;
 };

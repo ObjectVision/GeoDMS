@@ -97,15 +97,15 @@ public:
 
 	virtual TokenID GetID() const override;
 
-	virtual void SelectPoint(const CrdPoint& pnt, EventID eventID) {};
-	virtual void SelectRect(const CrdRect& worldRect, EventID eventID) {};
-	virtual void SelectCircle(const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) {};
-	virtual void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) {};
-	virtual void SelectDistrict(const CrdPoint& pnt, EventID eventID);
+	virtual void SelectPoint(CrdPoint /*worldPnt*/ , EventID) {};
+	virtual void SelectRect(CrdRect /*worldRect*/, EventID) {};
+	virtual void SelectCircle(CrdPoint /*worldPnt*/, CrdType /*worldRadius*/, EventID ) {};
+	virtual void SelectPolygon(const CrdPoint* /*first*/, const CrdPoint* /*last*/, EventID) {};
+	virtual void SelectDistrict(CrdPoint /*worldPnt*/, EventID );
 
 	virtual CrdRect CalcSelectedFullWorldRect() const = 0;
 
-	virtual void _InvalidateFeature(SizeT featureIndex) = 0;
+	virtual void InvalidateFeature(SizeT featureIndex) = 0;
 
 	std::weak_ptr<LayerSet> GetLayerSet();
 
@@ -114,7 +114,7 @@ public:
 	void SelectAll(bool select);
 
 //	feature support (feature ID -> entity ID in ExtKey, in GridLayer, feature==rastercell
-	bool SelectFeatureIndex(SizeT featureIndex, EventID eventID);
+	bool SelectFeatureIndex(AbstrDataObject* selAttrObj, SizeT featureIndex, EventID eventID);
 	bool IsFeatureSelected(SizeT featureIndex) const;
 
 	bool VisibleLevel(Float64 currNrPixelsPerUnit) const;
@@ -133,7 +133,7 @@ protected:
 	const IndexCollector*  GetIndexCollector() const;
 //	const IndexCollector*  GetFeatureIndexCollector() const;
 
-	bool SelectEntityIndex  (SizeT selectedIndex, EventID eventID);
+	bool SelectEntityIndex  (AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID);
 	bool SetFocusEntityIndex(SizeT focussedIndex, bool showDetails);
 	bool IsEntitySelected   (SizeT entityID) const;
 

@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -112,14 +84,14 @@ auto domain_change_context::GetCurrContext()->domain_change_context*
 }
 
 template <typename RD>
-auto GetRangeDataAsLispRef(const RD& rd, LispPtr base) -> LispRef
+auto GetRangeDataAsLispRef(const RD& rd, bool asCategorical, LispPtr base) -> LispRef
 {
 	if (!rd)
 		return base;
-	return rd->GetAsLispRef(base);
+	return rd->GetAsLispRef(base, asCategorical);
 }
 
-auto GetRangeDataAsLispRef(Void rd, LispPtr base) -> LispRef
+auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> LispRef
 {
 	return base;
 }
@@ -131,13 +103,7 @@ auto GetRangeDataAsLispRef(Void rd, LispPtr base) -> LispRef
 template <class V>
 LispRef UnitBase<V>::GetKeyExprImpl() const
 {
-/*
-	//	dms_assert(Was(PS_MetaInfo));
-	dms_assert(m_LastGetStateTS == UpdateMarker::GetLastTS()
-		|| HasConfigData()
-		|| InTemplate() || IsPassor()); // suppliers have been scanned, thus m_Calculator has been determined.
-*/
-	dms_assert(!IsCacheItem());
+	assert(!IsCacheItem());
 
 	LispRef result;
 	if (!IsDefaultUnit()) // || IsCacheRoot())
@@ -162,12 +128,12 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 			if (!IsDefaultUnit())
 			{
 				LispRef baseUnitMetricExpr;
-				auto format = GetFormat();
-				if (format)
+				auto sr = GetSpatialReference();
+				if (sr)
 				{
-					// BaseUnit( 'format', result ) provides a format specific identity
-					auto formatStr = format.AsStrRange();
-					baseUnitMetricExpr = LispRef(formatStr.m_CharPtrRange.first, formatStr.m_CharPtrRange.second);
+					// BaseUnit( 'sr', result ) provides a format specific identity
+					auto srStr = sr.AsStrRange();
+					baseUnitMetricExpr = LispRef(srStr.m_CharPtrRange.first, srStr.m_CharPtrRange.second);
 				}
 				else
 				{
@@ -196,7 +162,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 #endif
 	// add range or tile spec to keyExpr
 	if (GetTSF(USF_HasConfigRange))
-		result = GetRangeDataAsLispRef(m_RangeDataPtr, result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
+		result = GetRangeDataAsLispRef(m_RangeDataPtr, GetTSF(TSF_Categorical), result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result).c_str());
@@ -339,7 +305,9 @@ tile_loc RegularAdapter<Base>::GetTiledLocationForValue(value_type v) const
 template <typename Base>
 tile_loc RegularAdapter<Base>::GetTiledLocation(row_id index) const
 {
-	dms_assert(index < Cardinality(this->m_Range));
+	assert(index < Cardinality(this->m_Range));
+//	if (index >= Cardinality(this->m_Range))
+//		return tile_loc{UNDEFINED_VALUE(tile_id), UNDEFINED_VALUE(tile_offset)};
 
 	auto v = Range_GetValue_naked(this->m_Range, index);
 	return GetTiledLocationForValue(v);
@@ -354,21 +322,15 @@ tile_id RegularAdapter<Base>::GetNrTiles() const
 //-------------------------------LispRef	LispRef GetAsLispRef(LispRef base) const 
 
 template <typename V>
-auto SimpleRangeData<V>::GetAsLispRef(LispPtr base) const -> LispRef
+auto SimpleRangeData<V>::GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef
 {
-	return ExprList(GetTokenID("Range"), base
-		, AsLispRef(m_Range.first)
-		, AsLispRef(m_Range.second)
-	);
+	return AsLispRef(m_Range, base, asCategorical);
 }
 
 template <typename V>
-auto SmallRangeData<V>::GetAsLispRef(LispPtr base) const -> LispRef
+auto SmallRangeData<V>::GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef
 {
-	return ExprList(GetTokenID("Range"), base
-		, AsLispRef(m_Range.first)
-		, AsLispRef(m_Range.second)
-	);
+	return AsLispRef(m_Range, base, asCategorical);
 }
 
 //-------------------------------
@@ -581,6 +543,15 @@ bool CountableUnitBase<V>::ContainsUndefined(tile_id t) const
 	return :: ContainsUndefined(this->m_RangeDataPtr->GetTileRange(t));
 }
 
+template <typename V>
+bool RangedUnit<V>::PrepareRange() const
+{
+	if (!this->PrepareDataUsage(DrlType::Suspendible))
+		return false;
+
+	return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
+}
+
 template <class V>
 typename Range<V>
 RangedUnit<V>::GetPreparedRange() const
@@ -662,7 +633,7 @@ RangedUnit<V>::GetCurrMetric() const
 }
 
 template <typename V>
-void RangedUnit<V>::SetMetric(const UnitMetric* m) 
+void RangedUnit<V>::SetMetric(SharedPtr<const UnitMetric> m)
 { 
 	m_Metric = m;
 }
@@ -764,6 +735,11 @@ void CountableUnitBase<V>::SetRange(const range_t& range)
 	if (this->IsCacheItem())
 		return;
 
+//	if (!UpdateMetaInfoDetectionLock::IsLocked())
+//		this->DoInvalidate();
+//	this->SetDC(nullptr);
+//	this->SetReferredItem(nullptr);
+
 	if (oldRangeDataPtr)
 	{
 		dms_assert(!UpdateMarker::IsLoadingConfig());
@@ -853,6 +829,17 @@ void VarNumRangeUnitAdapter<U>::SetRangeAsFloat64(Float64 begin, Float64 end)
 		typename U::range_t(
 			Convert<typename U::value_t>(begin)
 		,	Convert<typename U::value_t>(end)
+		)
+	);
+}
+
+template <class U>
+void VarNumRangeUnitAdapter<U>::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	this->SetRange(
+		typename U::range_t(
+			Convert<typename U::value_t>(begin)
+			, Convert<typename U::value_t>(end)
 		)
 	);
 }
@@ -979,10 +966,10 @@ const UnitProjection* GeoUnitAdapter<U>::GetCurrProjection() const
 }
 
 template <class U>
-void GeoUnitAdapter<U>::SetProjection(const UnitProjection* p) 
+void GeoUnitAdapter<U>::SetProjection(SharedPtr <const UnitProjection> p)
 { 
-	m_Projection = p;
-	dms_assert(!p || p->GetBaseUnit() != this); 
+	assert(!p || p->GetBaseUnit() != this);
+	m_Projection = std::move(p);
 }
 
 template <typename U>
@@ -1096,7 +1083,7 @@ auto CountableUnitBase<V>::GetTileRange(tile_id t) const -> range_t
 	return si->GetTileRange(t);
 }
 
-template <typename V> 
+template <typename V>
 SizeT CountableUnitBase<V>::GetPreparedCount(bool throwOnUndefined) const
 {
 	return CheckedCardinality(this, this->GetPreparedRange(), throwOnUndefined );
@@ -1126,7 +1113,7 @@ template <typename V>
 typename CountableUnitBase<V>::value_t 
 CountableUnitBase<V>::GetValueAtIndex(row_id i) const
 {
-	return Range_GetValue_naked(this->GetRange(), i);
+	return Range_GetValue_checked(this->GetRange(), i);
 }
 
 template <typename V> 
@@ -1253,7 +1240,8 @@ namespace {
 		IrregularTileRangeData<V>* itr = nullptr;
 	};
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_> > unitRangeProps;
+	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitRangeProps(false);
+	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitCatRangeProps(true);
 
 	tl_oper::inst_tuple<typelists::tiled_domain_elements, TiledUnitInstantiator<_> > tui;
 }
@@ -1296,13 +1284,13 @@ extern "C" {
 		DMS_CALL_BEGIN
 
 			CheckPtr(parent, TreeItem::GetStaticClass(), "DMS_CreateUnit");
-		CheckPtr(uc, UnitClass::GetStaticClass(), "DMS_CreateUnit");
-		dms_assert(!parent->IsCacheItem());
+			CheckPtr(uc, UnitClass::GetStaticClass(), "DMS_CreateUnit");
+			assert(!parent->IsCacheItem());
 
-		return uc->CreateUnit(parent, GetTokenID_mt(name));
+			return uc->CreateUnit(parent, GetTokenID_mt(name));
 
 		DMS_CALL_END
-			return 0;
+		return nullptr;
 	}
 
 	//----------------------------------------------------------------------
@@ -1314,8 +1302,8 @@ extern "C" {
 		DMS_CALL_BEGIN
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_NumericUnit_SetRangeAsFloat64");
-		dms_assert(self->GetValueType()->IsNumeric());
-		self->SetRangeAsFloat64(begin, end);
+			assert(self->GetValueType()->IsNumeric());
+			self->SetRangeAsFloat64(begin, end);
 	
 		DMS_CALL_END
 	}
@@ -1325,11 +1313,11 @@ extern "C" {
 		DMS_CALL_BEGIN
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_NumericUnit_GetRangeAsFloat64");
-		dms_assert(self->GetValueType()->IsNumeric());
+			assert(self->GetValueType()->IsNumeric());
 
-		auto result = self->GetRangeAsFloat64();
-		if (begin) *begin = result.first;
-		if (end)   *end = result.second;
+			auto result = self->GetRangeAsFloat64();
+			if (begin) *begin = result.first;
+			if (end)   *end = result.second;
 
 		DMS_CALL_END
 	}
@@ -1341,7 +1329,7 @@ extern "C" {
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_GeometricUnit_SetRangeAsDPoint");
 
-		self->SetRangeAsDPoint(rowBegin, colBegin, rowEnd, colEnd);
+			self->SetRangeAsDPoint(rowBegin, colBegin, rowEnd, colEnd);
 	
 		DMS_CALL_END
 	}
@@ -1368,7 +1356,7 @@ extern "C" {
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_GeometricUnit_SetRangeAsIPoint");
 
-		self->SetRangeAsIPoint(rowBegin, colBegin, rowEnd, colEnd);
+			self->SetRangeAsIPoint(rowBegin, colBegin, rowEnd, colEnd);
 
 		DMS_CALL_END
 	}
@@ -1380,12 +1368,12 @@ extern "C" {
 
 			TreeItemContextHandle checkPtr(self, AbstrUnit::GetStaticClass(), "DMS_GeometricUnit_GetRangeAsIPoint");
 
-		InterestPtr<const TreeItem*> lockPtr(self);
-		auto rect = self->GetRangeAsIRect();
-		if (rowBegin) *rowBegin = rect.first.Row();
-		if (colBegin) *colBegin = rect.first.Col();
-		if (rowEnd)   *rowEnd   = rect.second.Row();
-		if (colEnd)   *colEnd   = rect.second.Col();
+			InterestPtr<const TreeItem*> lockPtr(self);
+			auto rect = self->GetRangeAsIRect();
+			if (rowBegin) *rowBegin = rect.first.Row();
+			if (colBegin) *colBegin = rect.first.Col();
+			if (rowEnd)   *rowEnd   = rect.second.Row();
+			if (colEnd)   *colEnd   = rect.second.Col();
 
 		DMS_CALL_END
 	}

@@ -190,7 +190,7 @@ private:
 RTC_CALL extern std::atomic<UInt32> gd_TokenCreationBlockCount;
 #endif
 
-inline TokenID UndefinedValue(const TokenID* x) { return TokenID(Undefined()); }
+inline TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
 
 // ===================== Interface
 

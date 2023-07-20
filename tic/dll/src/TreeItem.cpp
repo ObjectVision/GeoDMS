@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -38,6 +10,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
+#include "act/UpdateMark.h"
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
@@ -171,32 +144,6 @@ std::atomic<UInt32> TreeItem::s_NotifyChangeLockCount = 0;
 UInt32 TreeItem::s_MakeEndoLockCount     = 0;
 UInt32 TreeItem::s_ConfigReadLockCount   = 0;
 
-
-#if defined(MG_DEBUG)
-
-/* REMOVE
-SizeT d_DcKnownCount = 0;
-
-SizeT TreeItem::GetDcKnownCount() { return d_DcKnownCount; }
-
-#endif //defined(MG_DEBUG)
-
-void TreeItem::SetDcKnown  () const
-{
-//	dms_assert(!IsDcKnown());
-	SetTSF  (TSF_DSM_CrKnown);
-	MG_DEBUGCODE( ++d_DcKnownCount; )
-}
-
-void TreeItem::ClearDcKnown() const
-{
-//	dms_assert( IsDcKnown());
-	ClearTSF(TSF_DSM_CrKnown);
-	MG_DEBUGCODE( --d_DcKnownCount; )
-}
-*/
-#endif //defined(MG_DEBUG)
-
 #if defined(MG_DEBUG_DATA)
 
 namespace {
@@ -320,11 +267,6 @@ TreeItem::~TreeItem ()
 
 	dms_assert(_GetFirstSubItem() == 0);
 
-#if defined(MG_DEBUGREPORTER)
-	if (HasInterest())
-		DBG_DebugReport();
-#endif 
-
 	if (mc_RefItem)
 		SetReferredItem(nullptr);
 
@@ -417,16 +359,10 @@ void TreeItem::EnableAutoDeleteRootImpl() // does not call UpdateMetaInfo
 	DBG_TRACE(("START ResetAllKeepIterest(this)"));
 	ResetAllKeepInterest(this);              // neccesary to bring interestCount to 0 and DataInMem to DiskCache         
 
-	SessionData::CancelDataStoreManager(this);
-
 	StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
 	SafeFileWriterArray sfwa;
-	DBG_TRACE(("START SessionData::CloseDataStoreManager(this, sfwa)"));
-
 	EnableAutoDeleteImpl(); // this may be destroyed
-
-	SessionData::CloseDataStoreManager(this, sfwa); // this may be destroyed
 
 	DBG_TRACE(("START SessionData::ReleaseIt(this)"));
 	SessionData::ReleaseIt(this);
@@ -486,13 +422,19 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
-	dms_assert(m_State.GetProgress() < PS_MetaInfo);
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+//	static TokenID m25_rel = GetTokenID_mt("m25_rel");
+//	if (id == m25_rel)
+//		m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
+	assert(m_State.GetProgress() < PS_MetaInfo);
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
 
-	dms_assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
+	assert(!_GetFirstSubItem()); // not allowed since the FullName of sub items would be corrupted
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	if (s_MakeEndoLockCount)
 		SetTSF(TSF_IsEndogenous);
 	if (parent) 
@@ -514,6 +456,7 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 			SetFreeDataState(true); 
 		if (parent->GetStoreDataState())
 			SetStoreDataState(true);
+		NotifyStateChange(parent, NC_NewSubItem);
 	}
 #if defined(MG_DEBUG_DATA)
 	md_FullName = GetFullName();
@@ -594,7 +537,7 @@ const TreeItem* TreeItem::GetFirstSubItem() const
 
 const TreeItem* TreeItem::GetCurrFirstSubItem() const
 {
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo);
 	return _GetFirstSubItem();
 }
 
@@ -790,49 +733,12 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 		return;
 	dms_assert(pr);
 	mc_Calculator = std::move(pr);
-	assert(!pr);
 }
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
 {
 	return static_cast<const TreeItem*>(Actor::GetInterestPtrOrNull().get_ptr()); 
 }
-
-/* REMOVE
-const TreeItem* TreeItem::DetermineReferredItem(const AbstrCalculator* ac) const
-{
-	dms_assert(ac);
-	const TreeItem* refItem = nullptr;
-	ac->MakeDataController();
-	if (ac->IsFailed())
-	{
-		Fail(ac);
-		return nullptr;
-	}
-	const DataController* dc = ac->GetDataController(); // GetDataController cannot throw if it is made before
-	if (dc)
-	{
-		try {
-			refItem = ac->MakeResultingTreeItem();
-			if (!refItem)
-			{
-				dms_assert(ac->WasFailed(FR_MetaInfo));
-				Fail(ac, FR_Determine);
-			}
-			dms_assert(!refItem || refItem == this || !refItem->InTemplate());
-			if (refItem == this)
-				refItem = nullptr;
-		}
-		catch (...)
-		{
-			CatchFail(FR_Determine);
-			dms_assert(!refItem);
-		}
-	}
-	return refItem;
-	
-}
-*/
 
 bool TreeItem::HasCalculatorImpl() const
 // if true this func guarantees that GetCalculator will return a non-null mc_Calculator
@@ -938,7 +844,7 @@ void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
 	if (metaInfo.index() == 0)
 	{
 		std::get<MetaFuncCurry>(metaInfo).operator()(holder, ac);
-		dms_assert(ac->GetHolder()->GetIsInstantiated());
+		assert(ac->GetHolder()->GetIsInstantiated() || ac->GetHolder()->WasFailed(FR_MetaInfo));
 	}
 }
 
@@ -949,6 +855,8 @@ void TreeItem::MakeCalculator() const
 	if (WasFailed(FR_Determine))
 		return;
 
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+		GetTreeParent()->UpdateMetaInfo();
 	dms_assert(!m_Parent || (m_Parent->m_State.GetProgress() >= PS_MetaInfo) || m_Parent->WasFailed(FR_MetaInfo));
 
 	//	may only be called after HasCalculator (would) return(ed) true
@@ -966,7 +874,6 @@ void TreeItem::MakeCalculator() const
 			, FR_Determine
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
-
 
 	if (mc_Expr.empty() && (IsCacheItem() || !IsUnit(this))|| IsPassor())
 		return;
@@ -989,29 +896,16 @@ void TreeItem::MakeCalculator() const
 
 void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
-	auto msg = mySSPrintF("ItemType is incompatible with the result of the calculation which is of type %s",
-		refItem->GetDynamicObjClass()->GetName()
+	auto msg = mySSPrintF("ItemType %s is incompatible with the result of the calculation which is of type %s"
+	,	self->GetDynamicObjClass()->GetName().c_str()
+	,	refItem->GetDynamicObjClass()->GetName().c_str()
 	);
 	self->Fail(msg, FR_Determine);
 }
 
-/*
-bool TreeItem::_CheckResultType(const TreeItem* refItem) const
-{
-	dms_assert(refItem);
-	if (WasFailed(FR_Determine))
-		return false;
-	if (refItem->WasFailed(FR_MetaInfo))
-		return false;
-	if (refItem->GetDynamicClass()->IsDerivedFrom(GetDynamicClass()) )
-		return true;
-	FailItemType(this, refItem);
-	return false;
-}
-*/
 bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 {
-	dms_assert(refItem);
+	assert(refItem);
 	if (WasFailed(FR_Determine))
 		return false;
 	try {
@@ -1032,6 +926,7 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 
 bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 {
+	assert(refItem);
 	return _CheckResultObjType(refItem);
 }
 
@@ -1161,11 +1056,16 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 	if (mc_RefItem == refItem)
 		return;
 
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+	if (m_State.Get(actor_flag_set::AFD_PivotElem) && refItem)
+		refItem->m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
 
-	if (mc_RefItem && mc_RefItem->IsCacheRoot() && _GetFirstSubItem()) // when called from destructor, all subitems were already destroyed
-		TreeItem_RemoveInheritedSubItems(const_cast<TreeItem*>(this)); // only allowed from MainThread()
+//	if (mc_RefItem && mc_RefItem->IsCacheRoot() && _GetFirstSubItem()) // when called from destructor, all subitems were already destroyed
+//		TreeItem_RemoveInheritedSubItems(const_cast<TreeItem*>(this)); // only allowed from MainThread()
 
 	// remove the old interest
 	OldRefDecrementer oldRefItemCounter;
@@ -1205,6 +1105,9 @@ retry:
 	mc_RefItem->DetermineState();
 	if (GetKeepDataState()) 
 		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+
+	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
+	m_StatusFlags.SetBits(inheritedFlags, mc_RefItem->m_StatusFlags.GetBits(inheritedFlags));
 }
 
 // ============ GetParent
@@ -1486,7 +1389,7 @@ const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 	if (!this)
 		return nullptr;
 
-	const TreeItem* subItem = GetCurrFirstSubItem(); // calls UpdateMetaInfo
+	const TreeItem* subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
 	{
 		if (!subItem)
@@ -1751,9 +1654,9 @@ const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 
 auto TreeItem::GetScriptName(const TreeItem* context) const -> SharedStr
 {
-	dms_assert(*GetName().c_str());
-	dms_assert(context);
-	dms_assert(context->GetTreeParent());
+	assert(*GetName().c_str());
+	assert(context);
+	assert(context->GetTreeParent());
 
 	return context->GetTreeParent()->GetFindableName(this);
 }
@@ -1869,7 +1772,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 {
 	const Class* cls = GetDynamicClass();
 
-	dms_assert(dest || !id);
+	assert(dest || !id);
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return nullptr; 
@@ -1877,7 +1780,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	if (isNew && copyContext.MustMakePassor())
 		result->SetPassor();
 
-	dms_assert(result);
+	assert(result);
 //	result->m_State.Clear(ASF_DataReadableDefined);
 
 	bool mustCopyProps = true;
@@ -1889,8 +1792,8 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 	if (dstIsRoot)
 	{
-		dms_assert(!isArg);
-		dms_assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
+		assert(!isArg);
+		assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
 		copyContext.m_DstRoot = result;
 		mustCopyProps = copyContext.MustCopyRoot();
 	}
@@ -1941,13 +1844,16 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result)))
 			result->SetTSF(TSF_InheritedRef);
 
+		if (GetTSF(TSF_Categorical))
+			result->SetTSF(TSF_Categorical);
+
 		CopyProps(result, copyContext);
 
 		//	Now, copy data if requested
 		if (isArg)
 		{
-			dms_assert(!dest->InTemplate());
-			dms_assert(copyContext.m_ArgList.IsRealList());
+			assert(!dest->InTemplate());
+			assert(copyContext.m_ArgList.IsRealList());
 
 			result->SetCalculator( AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc) );
 			result->SetIsHidden(true);
@@ -1957,23 +1863,28 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 		if (copyContext.MustUpdateMetaInfo())
 			UpdateMetaInfo();
-		CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps() ).Apply();
-		if (!result->m_Location)
-			result->m_Location = m_Location;
+		if (isNew && copyContext.MergeProps())
+			result->DisableStorage();
 
-		if (!copyContext.MustCopyExpr())
+		if (!copyContext.InFenceOperator())
 		{
-			// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
-			// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
-			if (!result->mc_Calculator)
-				result->SetCalculator( CreateCalculatorForTreeItem(result, this, copyContext) );
-		}
-		else
-		{
-			if (mc_Calculator && mc_Calculator->IsDataBlock() )
-				result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator) );
-		}
+			CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
+			if (!result->m_Location)
+				result->m_Location = m_Location;
 
+			if (!copyContext.MustCopyExpr())
+			{
+				// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
+				// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
+				if (!result->mc_Calculator)
+					result->SetCalculator(CreateCalculatorForTreeItem(result, this, copyContext));
+			}
+			else
+			{
+				if (mc_Calculator && mc_Calculator->IsDataBlock())
+					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator));
+			}
+		}
 	} // end if (!mustCopyProps)
 
 	// Now, copy all sub-items
@@ -1982,10 +1893,12 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 			subItem->Copy(result, subItem->GetID(), copyContext);
 
 	// Now, copy from refItem; maybe more sub-items should be copied
-//	const TreeItem* refItem = GetReferredItem();
-//	if (refItem)
-//		CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::DontCreateNew|DataCopyMode::NoRoot) ).Apply();
-
+	if (copyContext.CopyReferredItems())
+	{
+		const TreeItem* refItem = GetReferredItem();
+		if (refItem)
+			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::DontCreateNew|DataCopyMode::NoRoot) ).Apply();
+	}
 	return result;
 }
 
@@ -2028,6 +1941,35 @@ void TreeItem::UpdateMetaInfoImpl() const
 	UpdateLock lock2(this, actor_flag_set::AF_UpdatingMetaInfo);
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,
+		[this](const Actor* supplier) -> bool
+		{
+			auto foundItem = dynamic_cast<const TreeItem*>(supplier);
+			assert(foundItem);
+			if (foundItem->GetTSF(TSF_Depreciated))
+			{
+				SharedTreeItem prevItem = foundItem, refItem = prevItem->GetCurrRefItem();
+				MG_CHECK(refItem); // follows from TSF_Depreciated
+				SharedTreeItem refRefItem = refItem->GetCurrRefItem();
+				while (refRefItem) {
+					prevItem = refItem;
+					refItem = refRefItem;
+					refRefItem = refItem->GetCurrRefItem();
+				} 
+				MG_CHECK(prevItem->GetID() != refItem->GetID());
+				
+				auto msg = mySSPrintF("'%s' refers by '%s' to '%s'\nReplace '%s' by '%s'."
+				,	this->GetFullName()
+				,	foundItem->GetFullName()
+				,	prevItem->GetID()
+				,	prevItem->GetID()
+				,	refItem->GetID()
+				);
+				reportD(SeverityTypeID::ST_Warning, msg.AsRange());
+			}
+			return true;
+		}
+	);
 
 	if (IsDataItem(this))
 	{
@@ -2104,6 +2046,15 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 {
 	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
 	dms_assert(diagnostic_tests::DetermineStateWasCalled(this));
+	assert(IsMainThread());
+
+	if (m_State.Get(ASF_GetCalcMetaInfo))
+		throwItemError(
+			"Invalid recursion in TreeItem::GetCurrMetaInfo() detected.\n"
+			"Check calculation rule of this item"
+		);
+	auto_flag_recursion_lock<ASF_GetCalcMetaInfo> lock(m_State);
+
 	if (HasCalculatorImpl())
 	{
 		//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
@@ -2140,8 +2091,11 @@ LispRef TreeItem::GetBaseKeyExpr() const
 	if (metaInfo.index() == 2)
 	{
 		auto& sourceItem = std::get<SharedTreeItem>(metaInfo);
-		dms_assert(!sourceItem->IsCacheItem());
-		return sourceItem->GetCheckedKeyExpr();
+		assert(!sourceItem->IsCacheItem());
+		if (sourceItem == this) // avoid infinite recursion
+			throwItemError("Invalid self reference");
+		if (sourceItem != this)
+			return sourceItem->GetCheckedKeyExpr();
 	}
 	//	if (metaInfo.index() == 0 && IsUnit(this) && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
 	//		return ExprList(AsUnit(this)->GetValueType()->GetID());
@@ -2339,7 +2293,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			"Check calculation rule and other referring properties of this item and/or its SubItems"
 		);
 	}
-	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
+//	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
 
 	FencedInterestRetainContext retainLocalInterestUntilThisDies;
 
@@ -2356,7 +2310,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 	try {
 		DetermineState();
-
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
@@ -2367,11 +2320,12 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 		TreeItemContextHandle tdc(this, "UpdateMetaInfo");
 
-		dms_assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress, guaranteed by IsDeterminingState() || IsPassor() || DetermineState()
+		assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress, guaranteed by IsDeterminingState() || IsPassor() || DetermineState()
 
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
+		UpdateMarker::ChangeSourceLock lock(this, "TreeItem::UpdateMetaInfoImpl");
 
-		dms_assert(!WasFailed(FR_MetaInfo));
+		assert(!WasFailed(FR_MetaInfo));
 		UpdateMetaInfoImpl(); // recursion protected part of UpdateMetaInfo
 
 		SetMetaInfoReady();
@@ -2387,20 +2341,22 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 //		if	(mc_RefItem && !GetTSF(TSF_InheritedRef) && !mc_Expr.empty())
 //			Unify(mc_RefItem);
-		NotifyStateChange(this, NC2_MetaReady);
+//		NotifyStateChange(this, NC2_MetaReady);
 	}
 	catch (...)
 	{
 		// don't try again
-		dms_assert(m_State.GetProgress() <= PS_MetaInfo);
+		assert(m_State.GetProgress() <= PS_MetaInfo);
 		m_State.SetProgress(PS_MetaInfo);
 		CatchFail(FR_MetaInfo);
 	}
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
 void TreeItem::UpdateMetaInfo() const
 {
+	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
+
 	assert(IsMetaThread());
 	auto remainingStackSpace = RemainingStackSpace();
 	if (remainingStackSpace <= 327680)
@@ -2656,6 +2612,8 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 {
 	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
 
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+		GetTreeParent()->UpdateMetaInfo();
 	dms_assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); // precondition
 
 	// =============== Parent
@@ -2781,7 +2739,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 			return AVS_SuspendedOrFailed;
 	}
 
-	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
+//	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
 
 	// =============== IntegrityChecker
 
@@ -2859,7 +2817,6 @@ garbage_t TreeItem::DropValue()
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	dsm_section_type::scoped_lock sectionLock(s_DataStoreManagerSection); // prevent concurrent (read or remove) access to m_TreeItemDcMap.
 	garbage_t garbageCan;
 	ClearData(garbageCan); // Resets m_SegsPtr (DoClearData) and resets TSF_DataInMem
 	return garbageCan;
@@ -2867,9 +2824,11 @@ garbage_t TreeItem::DropValue()
 
 TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const // noexcept
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
+	// postcondition of UpdateMetaInfo
+	assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); 
 
 	TimeStamp lastChangeTS = 0; // DataStoreManager::GetCachedConfigSourceTS(this);
 	if (!lastChangeTS
@@ -2895,8 +2854,8 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 
 			if (lastFileChange)
 			{
-				MakeMax(lastChangeTS, DataStoreManager::Curr()->DetermineExternalChange(lastFileChange) );
-				dms_assert( UpdateMarker::CheckTS(lastChangeTS) );
+//				MakeMax(lastChangeTS, DSM::Curr()->DetermineExternalChange(lastFileChange) );
+				assert( UpdateMarker::CheckTS(lastChangeTS) );
 			}
 		}
 		catch (...)
@@ -2948,12 +2907,11 @@ bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 // Read / Write Data
 //----------------------------------------------------------------------
 
-bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a method of StorageReadHandle
+bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of StorageReadHandle
 {
 	MG_DEBUGCODE( dms_assert( CheckMetaInfoReady() ); )
 
-	dms_assert(! GetCurrRefItem() ); // caller must take care of only calling ReadItem for UltimateItems
-//	dms_assert(! GetTSF(DSF_DSM_Allocated|TSF_DSM_SdKnown) ); // else we would be reading DataStoreCache
+	assert(! GetCurrRefItem() ); // caller must take care of only calling ReadItem for UltimateItems
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
@@ -2961,7 +2919,6 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 
 	if (WasFailed(FR_Data))
 		return false;
-//	if (GetTSF(TSF_DataInMem | TSF_HasConfigData) || HasCalculatorImpl())
 	if (IsDataReady(this))
 		return true;
 
@@ -2981,25 +2938,19 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 		,		GetFullName().c_str()
 		);	
 
-//		dms_assert(!DataAllocated() );
-
 		if (srh.Read())
 			return true;
 		else if (!SuspendTrigger::DidSuspend())
 			throwItemError("DoReadItem returned Failure");
 		dms_assert(GetInterestCount());
-//REMOVE BECAUSE NO PROOF OF NON-REENTRANCE IS GIVEN; operations on DataWriteLock might abort after reading this
-//		SuspendTrigger::MarkProgress();
 	} 
 	catch (...)
 	{
- 		dms_assert(!HasConfigData());
+ 		dms_assert(!HasCurrConfigData());
 
 		if (!WasFailed(FR_Data)) {
 			auto err = catchException(true);
-			err->TellExtraF("while reading data from %s"
-			,	DMS_TreeItem_GetAssociatedFilename(this)
-			);
+			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
 			DoFail(err, FR_Data);
 		}
 		DropValue();
@@ -3007,7 +2958,7 @@ bool TreeItem::ReadItem(const StorageReadHandle& srh) // TODO: Make this a metho
 	return false;
 }
 
-bool TreeItem::DoReadItem(StorageMetaInfo* smi)
+bool TreeItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	return false;
 }
@@ -3093,10 +3044,14 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
+		SuspendTrigger::SilentBlocker xx;
 		auto dc2 = dc->CalcResult();
+		assert(!SuspendTrigger::DidSuspend());
+
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
 		if (dc->WasFailed()) //  && !WasFailed())
 		{
+			self->StopSupplInterest();
 			self->Fail(dc.get_ptr());
 		}
 		if (self->WasFailed(FR_Data))
@@ -3108,6 +3063,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 		}
 		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;
+		self->StopSupplInterest();
 		dms_assert(dc2);
 	}
 	else
@@ -3204,12 +3160,12 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 			[storageParent, self, readInfoPtr](Explain::Context* context)
 			{
 				auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
-				dms_assert(readInfoPtr);
-				dms_assert(*readInfoPtr);
+				assert(readInfoPtr);
+				assert(*readInfoPtr);
 				(*readInfoPtr)->OnPreLock();
 				StorageReadHandle sHandle(std::move(*readInfoPtr)); // locks storage manager
-				dms_assert(!*readInfoPtr);
-				sHandle.FocusItem()->ReadItem(sHandle); // Read Item
+				assert(!*readInfoPtr);
+				sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 			}
 			, emptyFutureSupplierSet
 				, false
@@ -3285,8 +3241,16 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		goto data_ready; // may have been arranged in an alternative thread.
 	if (IsDataItem(this))
 	{
-		if (!AsDataItem(this)->GetAbstrValuesUnit()->PrepareDataUsage(drlFlags))
-			return false;
+		auto avu = AbstrValuesUnit( AsDataItem(this) );
+		if (avu && !avu->IsCacheItem())
+		{
+			if (!avu->PrepareDataUsage(drlFlags) || !avu->PrepareRange())
+			{
+				if (!SuspendTrigger::DidSuspend())
+					Fail(avu);
+				return false;
+			}
+		}
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
@@ -3633,8 +3597,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 					dirName += ".xml";
 			}
 			xmlOutStr->WriteInclude(dirName.c_str());
+			auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 			if (xmlOutStr->HasFileName())
-				IncludeFileSave(this, dirName.c_str(), DSM::GetSafeFileWriterArray(this));
+				IncludeFileSave(this, dirName.c_str(), sfwa.get());
 			return;
 		}
 	}
@@ -3642,10 +3607,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	// Copy of code from Object because xmlElem must live after subItems
 	SharedStr tagName = SharedStr((xmlOutStr->GetSyntaxType() != OutStreamBase::ST_DMS) ? GetXmlClassName().c_str() : GetSignature().c_str());
 
-	XML_OutElement xmlElem(*xmlOutStr, 
-				tagName.c_str(),
-				GetName().c_str(), 
-				true);
+	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str(), true);
 
 	xmlOutStr->DumpPropList(this);
 	xmlOutStr->DumpSubTags(this);
@@ -3753,12 +3715,16 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 	return m_StorageManager;
 }
 
-void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly) // TODO replace CharPtr storageName door SharedStr
+void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver, CharPtr options)
 {
 	DBG_START("TreeItem", "SetStorageManager", false);
 	storageNamePropDefPtr->SetValue(this, SharedStr(storageName) );
 	storageTypePropDefPtr->SetValue(this, storageType ? GetTokenID_mt(storageType) : TokenID::GetEmptyID() );
 	storageReadOnlyPropDefPtr->SetValue(this, readOnly);
+	if (driver != nullptr)
+		storageDriverPropDefPtr->SetValue(this, SharedStr(driver));
+	if (options != nullptr)
+		storageOptionsPropDefPtr->SetValue(this, SharedStr(options));
 	SetStorageManager(nullptr);
 //	m_State.Clear(ASF_DataReadableDefined);
 	Invalidate();
@@ -3791,6 +3757,10 @@ const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID)
 //	InterestCount management
 //----------------------------------------------------------------------
 
+#include "DataArray.h"
+
+//mc_IntegrityCheckTiles
+
 #if defined(MG_DEBUG_DATASTORELOCK)
 UInt32 sd_ItemInterestCounter = 0;
 #endif
@@ -3798,26 +3768,19 @@ UInt32 sd_ItemInterestCounter = 0;
 void TreeItem::StartInterest() const
 {
 	dms_assert(!std::uncaught_exceptions());
-	if (!s_DataStoreManagerUsageCounter.try_lock_shared())
+	if (!s_SessionUsageCounter.try_lock_shared())
 	{
 		dms_assert(OperationContext::CancelableFrame::CurrActive());
 		DSM::CancelOrThrow(this);
 	}
-	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_DataStoreManagerUsageCounter.unlock_shared(); });
+	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
 	UpdateMetaInfo();
 	dms_assert(GetInterestCount() == 0);
 
 	SharedPtr<const TreeItem> refItem = GetReferredItem();
 
-//	dms_assert(IsCacheItem() || !IsDcKnown());
-
-//	MapExternalSourceHandle externalSourceHandle(this);
-//	dms_assert(IsCacheItem() || IsDcKnown() || !externalSourceHandle.m_Self);
-//	dms_assert(IsDcKnown() || !IsKnown());
-
 	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
 	SharedTreeItemInterestPtr refItemHolder = refItem;
-//	SharedActorInterestPtr    checkerHolder = HasIntegrityChecker() ? GetIntegrityChecker() : nullptr;
 	SharedTreeItemInterestPtr parentHolder = GetTreeParent(); //  IsCacheItem() ? GetTreeParent() : nullptr;
 
 	Actor::StartInterest();
@@ -3833,12 +3796,8 @@ void TreeItem::StartInterest() const
 	}
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
 	parentHolder.release();
-//	checkerHolder.release();
 	refItemHolder.release();
 	calcHolder.release();
-//	externalSourceHandle.m_Self = nullptr;
-//	dms_assert(!mc_Calculator || mc_Calculator->GetRefCount() == 1 && mc_Calculator->GetInterestCount() == 1);
-
 	unlockDsmUsageCounter.release();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	++sd_ItemInterestCounter;
@@ -3873,7 +3832,7 @@ garbage_t TreeItem::StopInterest() const noexcept
 	{
 		reportF(SeverityTypeID::ST_Warning, "%s uncaught exception ", GetSourceName());
 	}
-	s_DataStoreManagerUsageCounter.unlock_shared();
+	s_SessionUsageCounter.unlock_shared();
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemInterestCounter;
@@ -3903,18 +3862,7 @@ void TreeItem::CheckFlagInvariants() const
 #endif
 
 // ============== BLOB ====================
-/* REMOVE
-bool TreeItem::LoadBlobIfAny() const
-{
-	dms_assert(GetCurrUltimateItem() == this);
-	if (DataAllocated())
-		return true;
-	if (!GetTSF(TSF_DSM_SdKnown))
-		return false;
 
-	return DataStoreManager::Curr()->LoadBlob(this, false);
-}
-*/
 void TreeItem::LoadBlobBuffer (const BlobBuffer& rs)
 {
 	dms_assert(IsCacheRoot());

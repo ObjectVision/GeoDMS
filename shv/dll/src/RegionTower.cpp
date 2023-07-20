@@ -55,7 +55,7 @@ void RegionTower::Add(Region&& rgn) // move semantics
 		*currRgnPtr = Region();
 	}
 	m_Regions.push_back(std::move(rgn));
-	dms_assert(rgn.Empty()); // post-condition
+	assert(rgn.Empty()); // post-condition
 }
 
 Region RegionTower::GetResult()
@@ -69,6 +69,6 @@ Region RegionTower::GetResult()
 	}
 	Region rgn = std::move(m_Regions.front());
 	m_Regions.pop_back();
-	dms_assert(m_Regions.empty());
+	assert(m_Regions.empty());
 	return rgn;
 }

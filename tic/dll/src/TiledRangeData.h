@@ -73,7 +73,7 @@ struct SimpleRangeData : SharedObj
 			return m_Range.first == 0;
 	}
 
-	auto GetAsLispRef(LispPtr base) const->LispRef;
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef;
 
 	Range<V> m_Range;
 };
@@ -85,7 +85,7 @@ struct AbstrTileRangeData : SharedObj
 	virtual tile_offset GetMaxTileSize() const = 0;
 	virtual bool IsCovered() const { return true; }
 	virtual tile_loc GetTiledLocation(row_id index) const = 0;
-	virtual tile_loc GetTiledLocation(row_id index, tile_id prevT) const { return GetTiledLocation(index); }
+	virtual tile_loc GetTiledLocation(row_id index, tile_id /*prevT*/) const { return GetTiledLocation(index); }
 	virtual row_id GetRangeSize() const = 0;
 	virtual row_id GetDataSize() const { return GetRangeSize(); }
 
@@ -94,10 +94,10 @@ struct AbstrTileRangeData : SharedObj
 	virtual row_id  GetFirstRowIndex(tile_id t) const = 0;
 	virtual row_id  GetRowIndex(tile_id t, tile_offset localIndex) const = 0;
 
-	virtual void Load(BinaryInpStream& pis) {}
-	virtual void Save(BinaryOutStream& pis) const {}
+	virtual void Load(BinaryInpStream& /*pis*/) {}
+	virtual void Save(BinaryOutStream& /*pos*/) const {}
 
-	virtual LispRef GetAsLispRef(LispPtr base) const = 0;
+	virtual LispRef GetAsLispRef(LispPtr base, bool asCategorical) const = 0;
 
 	TIC_CALL hash_code GetHashCode() const;
 	TIC_CALL row_id GetElemCount() const;
@@ -123,21 +123,27 @@ struct SmallRangeData : AbstrTileRangeData
 	row_id GetRangeSize() const override { return Cardinality(GetRange()); }
 
 	tile_id GetNrTiles() const override { return 1; }
-	tile_offset GetTileSize(tile_id t) const override { dms_assert(t == 0); return GetRangeSize(); }
+	tile_offset GetTileSize(tile_id t) const override { assert(t == 0); return GetRangeSize(); }
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
 	tile_loc GetTiledLocation(row_id index) const override { return { 0, index }; }
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(GetRangeSize(), row_id(1))}; }
-	I64Rect GetTileRangeAsI64Rect(tile_id t) const { dms_assert(t == 0 || t == no_tile); return GetRangeAsI64Rect(); }
-	row_id GetFirstRowIndex(tile_id t) const override { dms_assert(t == 0); return 0; }
-	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { dms_assert(t == 0);  return localIndex; }
+	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t == no_tile); return GetRangeAsI64Rect(); }
+	row_id GetFirstRowIndex(tile_id t) const override { assert(t == 0); return 0; }
+	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  return localIndex; }
 
 	// range_t(dependent on T) specific functions, non virtual
-	Range<V> GetTileRange(tile_id t) const { dms_assert(t == 0); return GetRange(); }
+	Range<V> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return m_Range.first == 0; }
 
-	auto GetAsLispRef(LispPtr base) const -> LispRef override;
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef override;
+
+	V GetTileValue(tile_id t, tile_offset localIndex) const
+	{
+		assert(t == 0);
+		return Range_GetValue_checked(m_Range, localIndex);
+	}
 
 	Range<V> m_Range;
 };
@@ -149,32 +155,30 @@ struct FixedRange : AbstrTileRangeData
 		return Range<UInt32>(0, 1 << N);
 	}
 	tile_id GetNrTiles() const override { return 1; }
-	tile_offset GetTileSize(tile_id t) const override { dms_assert(t == 0); return GetRangeSize(); }
+	tile_offset GetTileSize(tile_id t) const override { assert(t == 0); return GetRangeSize(); }
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
-	tile_loc GetTiledLocation(row_id index) const override { dms_assert(index < (1 << N)); return { 0, index }; }
+	tile_loc GetTiledLocation(row_id index) const override { assert(index < (1 << N)); return { 0, index }; }
 	row_id GetRangeSize() const override { return 1 << N; }
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(1 << N, 1) }; }
-	I64Rect GetTileRangeAsI64Rect(tile_id t) const { dms_assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
-	row_id GetFirstRowIndex(tile_id t) const override { dms_assert(t == 0); return 0; }
-	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { dms_assert(t == 0);  return localIndex; }
+	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
+	row_id GetFirstRowIndex(tile_id t) const override { assert(t == 0); return 0; }
+	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  return localIndex; }
 
 	// range_t(dependent on T) specific functions, non virtual
-	Range<UInt32> GetTileRange(tile_id t) const { dms_assert(t == 0); return GetRange(); }
+	Range<UInt32> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return true; }
 
-	LispRef GetAsLispRef(LispPtr base) const override { return base; }
-};
+	bit_value<N> GetTileValue(tile_id t, tile_offset localIndex) const
+	{
+		assert(t == 0);
+		assert(localIndex < (1 << N));
+		return localIndex;
+	}
 
-/*
-template <bit_size_t N>
-struct FixedRangeVirtualPtr : FixedRange<N> // pseudo pointer to no object specific data
-{
-	auto operator ->() const -> const FixedRange<N>* { return this; }
-	operator bool() const { return true; }
+	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override { return base; }
 };
-*/
 
 template <typename V>
 struct TiledRangeData : AbstrTileRangeData
@@ -231,7 +235,7 @@ struct TiledRangeData : AbstrTileRangeData
 	}
 	V GetTileValue(tile_id t, tile_offset localIndex) const
 	{
-		dms_assert(t != no_tile);
+		assert(t != no_tile);
 		return Range_GetValue_checked(GetTileRange(t), localIndex);
 	}
 	row_id  GetFirstRowIndex(tile_id t) const override
@@ -341,7 +345,7 @@ struct MaxRangeData : TiledRangeData<V>
 
 	tile_id GetNrTiles() const override { return 0; }
 	tile_offset GetTileSize(tile_id t) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileSize"); }
-	tile_offset GetMaxTileSize() const override { return 0; }
+	tile_offset GetMaxTileSize() const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetMaxTileSize"); }
 	tile_loc GetTiledLocation(row_id index) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileLocation"); }
 
 //	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(this->GetRangeSize(), row_id(1)) }; }
@@ -351,10 +355,10 @@ struct MaxRangeData : TiledRangeData<V>
 
 	// range_t(dependent on T) specific functions, non virtual
 	Range<V> GetTileRange(tile_id t) const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileRange"); }
-	row_id GetElemCount() const { return 0; }
+	row_id GetElemCount() const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetElemCount"); }
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
-	auto GetAsLispRef(LispPtr base) const->LispRef override { return base; }
+	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef override { return base; }
 };
 
 //----------------------------------------------------------------------
@@ -365,8 +369,8 @@ template <typename T>
 struct FixedRangeConverter {
 	FixedRangeConverter(const range_data_ptr_or_void<T>& src) {}
 
-	template <typename I> T GetValue(I i) { return Convert<T>(i); }
-	template <typename I> I GetScalar(T v) { return Convert<I>(v); }
+	template <typename I> T GetValue(I i) const { return Convert<T>(i); }
+	template <typename I> I GetScalar(T v) const { return Convert<I>(v); }
 };
 
 template <typename T>
@@ -374,8 +378,8 @@ struct CountableVarRangeConverter
 {
 	CountableVarRangeConverter(const range_data_ptr_or_void<T>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> T GetValue(I i) { return Range_GetValue_checked(m_Range, Convert<row_id>(i)); }
-	template <typename I> I GetScalar(const Point<T>& v) { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
+	template <typename I> T GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<row_id>(i)); }
+	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<T> m_Range;
 };
@@ -384,8 +388,8 @@ template <typename T>
 struct CountableVarRangeConverter<Point<T>> {
 	CountableVarRangeConverter(const range_data_ptr_or_void<Point<T>>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> Point<T> GetValue(I i) { return Range_GetValue_checked(m_Range, Convert<T>(i)); }
-	template <typename I> I GetScalar(const Point<T>& v) { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
+	template <typename I> Point<T> GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<T>(i)); }
+	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<Point<T> > m_Range;
 };

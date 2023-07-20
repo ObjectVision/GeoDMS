@@ -189,7 +189,7 @@ bool UsingCache::AddUsingInternal(const TreeItem* nameSpace) const
 			return false;
 		m_Usings.erase(m_Usings.begin() + prevPos);
 	}
-	m_Usings.push_back(nameSpace);
+	m_Usings.emplace_back(nameSpace);
 	return true;
 }
 
@@ -276,9 +276,9 @@ void UsingCache::UpdateUsings() const
 		TokenID url = *i;
 		const TreeItem* ns = FindNamespace(url);
 	   	if (!ns)
-			throwErrorF("UsingCache", "%s\nCannot find reference in Using = \"%s\"", 
-				m_Context->GetSourceName().c_str(),
-				GetTokenStr(url).c_str()
+			throwErrorF("UsingCache", "Cannot find reference in Using = \"%s\"\n%s"
+			,	GetTokenStr(url).c_str()
+			,	m_Context->GetSourceName().c_str()
 			);
 		AddUsingInternal(ns);
 	}
@@ -328,11 +328,11 @@ void UsingCache::UpdateCache() const
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
-	MG_DEBUG_DATA_CODE( md_PrevState = m_CacheState; )
+	MG_DEBUG_DATA_CODE(md_PrevState = m_CacheState; )
 
 	// Trigger UpdateMetaInfo with GetNrSubItems 
 	// in order to find all items, m_Usings, etc.
-	UInt32 nrSubItems = m_Context->CountNrSubItems(); 
+	m_Context->UpdateMetaInfo();
 
 	m_CacheState = CS_READY;
 	tmp_swapper<CacheStateType> lockCacheStateAsBusy(m_CacheState, CS_BUSY); 
@@ -344,7 +344,7 @@ void UsingCache::UpdateCache() const
 
 #if defined(MG_DEBUG)
 	MG_LOCKER_NO_UPDATEMETAINFO
-	dms_assert(sd_UpdateCacheTmpLockCount == 0);
+	assert(sd_UpdateCacheTmpLockCount == 0);
 	StaticMtIncrementalLock<sd_UpdateCacheTmpLockCount> useTmp;
 #endif
 
@@ -354,8 +354,10 @@ void UsingCache::UpdateCache() const
 
 	const TreeItem* refItem = m_Context;
 	while (true) {
+		assert(refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->m_State.GetFailType());
+
+		auto nrSubItems = m_Context->CountNrSubItems();
 		tmpSubItems.clear();
-		dms_assert(refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->m_State.GetFailType());
 		tmpSubItems.reserve(nrSubItems);
 		const TreeItem* subItem = refItem->_GetFirstSubItem(); // avoid UpdateMetaInfo
 		while (subItem)
@@ -369,7 +371,6 @@ void UsingCache::UpdateCache() const
 		refItem = refItem->GetReferredItem();
 		if (!refItem)
 			break;
-		nrSubItems = refItem->CountNrSubItems();
 	}
 
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )

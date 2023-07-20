@@ -219,11 +219,12 @@ const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 	return AsDynamicDataItem( ref );
 }
 
-const TreeItem* GetMappingItem(const TreeItem* ti)
+auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 {
 	dms_assert(ti); // PRECONDITION
 	do
 	{
+		dms_assert(!SuspendTrigger::DidSuspend());
 		if (IsThisMappable(ti))
 			return ti;
 		ti = ti->GetReferredItem();
@@ -231,7 +232,7 @@ const TreeItem* GetMappingItem(const TreeItem* ti)
 	return nullptr;
 }
 
-const AbstrDataItem* GetMappedData(const TreeItem* ti)
+auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*
 {
 	dms_assert(ti); // PRECONDITION
 	ti = GetMappingItem(ti);
@@ -435,10 +436,10 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 
 	const TreeItem* mappingItem = GetMappingItem(adi);
 	if (mappingItem)
-		infoTxt = mySSPrintF("the selected %s", mappingItem->GetFullName().c_str());
+		infoTxt = mySSPrintF("the selected '%s'", mappingItem->GetFullName().c_str());
 	else
 	{
-		infoTxt = mySSPrintF("the DomainUnit %s", adu->GetFullName().c_str());
+		infoTxt = mySSPrintF("the DomainUnit '%s'", adu->GetFullName().c_str());
 		mappingItem = GetMappingItem(adu);
 	}
 	if (!mappingItem)

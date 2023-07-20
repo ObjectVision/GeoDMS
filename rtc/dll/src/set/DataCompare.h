@@ -38,16 +38,20 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename T, bool CheckUndefined> struct DataCompareImpl;
 
 template <typename T> struct DataCompareImpl<T, false> {
+	using is_transparent = int;
+
 	template <typename U1, typename U2>
-	bool operator()(U1 left, U2 right) const
+	bool operator()(U1&& left, U2&& right) const
 	{
-		return left < right;
+		return std::forward<U1>(left) < std::forward<U2>(right);
 	}
 };
 
 template <typename T> struct DataCompareImpl<T, true> {
+	using is_transparent = int;
+
 	template <typename U1, typename U2>
-	bool operator()(U1 left, U2 right) const
+	bool operator()(U1&& left, U2&& right) const
 	{
 		return IsDefined(right) && ((left < right) || !IsDefined(left));
 	}
@@ -59,8 +63,10 @@ struct DataCompare : DataCompareImpl<T, has_undefines<T>::value && !has_min_as_n
 template <typename T>
 struct DataCompare<Couple<T> >
 {
+	using is_transparent = int;
+
 	template <typename U1, typename U2>
-	bool operator()(U1 left, U2 right) const
+	bool operator()(U1&& left, U2&& right) const
 	{
 		return m_ElemComp(left.Row(), right.Row())
 			||	!m_ElemComp(right.Row(), left.Row())

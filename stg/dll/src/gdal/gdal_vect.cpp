@@ -157,28 +157,6 @@ namespace gdalVectImpl {
 		return ValueComposition::Unknown;
 	}
 
-	// *****************************************************************************
-	//
-	// use of TNameSet
-	//
-	// *****************************************************************************
-
-	struct TOgrNameSet : TNameSet
-	{
-		static const UInt32 MAX_ITEM_NAME_SIZE = 64;
-
-		TOgrNameSet(OGRFeatureDefn* featureDefn, const Actor* context)
-			: TNameSet(MAX_ITEM_NAME_SIZE)
-		{
-			for (SizeT i = 0, numFields = featureDefn->GetFieldCount(); i != numFields; ++i)
-			{
-				WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
-				InsertFieldName(fieldDefn->GetNameRef());
-			}
-			//		CheckAmbiguity(context, "GDAL/OGR Layer Attribute names", "item names");
-		}
-	};
-
 }	// namespace gdal2VectImpl
 
 // ------------------------------------------------------------------------
@@ -187,8 +165,8 @@ namespace gdalVectImpl {
 
 gdalVectComponent::gdalVectComponent()
 {
-	if (!gdalVectImpl::s_ComponentCount)
-		OGRRegisterAll(); // can throw
+	//if (!gdalVectImpl::s_ComponentCount)
+	//	OGRRegisterAll(); // can throw
 
 	++gdalVectImpl::s_ComponentCount;
 }
@@ -210,6 +188,8 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 	:	GdalMetaInfo(storageHolder, adi)
 	,	m_GdalVectSM(gdv)
 {
+	assert(storageHolder->DoesContain(adi)); // PRECONDITION
+
 	const TreeItem* adiParent = adi;
 	while (true) {
 		if (sqlStringPropDefPtr->HasNonDefaultValue(adiParent))
@@ -218,31 +198,45 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			return;
 		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 
 	adiParent = adi;
 	while (true) {
 		if (IsUnit(adiParent))
-			goto found;
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
 			break;
+		}
 		adiParent = adiParent->GetTreeParent();
-		//if (!IsUnit(adiParent) && !IsDataItem(adiParent)) // support containers with same domain unit as parent.
-		//	adiParent = adiParent->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 	adiParent = adi;
 	while (true) {
 		if (!IsDataItem(adiParent))
-			goto found;
-		if (adiParent == storageHolder)
-			adi->ThrowFail("Cannot determine Layer item", FR_Data);
-		adiParent = adi->GetTreeParent();
-	}
+		{
+			m_NameID = adiParent->GetID();
+			return;
+		}
 
-found:
-	m_NameID = adiParent->GetID();
+		if (adiParent == storageHolder)
+		{
+			assert(m_NameID == TokenID());
+			break;
+		}
+		adiParent = adi->GetTreeParent();
+		assert(adiParent != nullptr); // follows from PRECONDITION
+	}
 }
 
 void GdalVectlMetaInfo::OnOpen()
@@ -267,7 +261,7 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (gdal_error_frame.HasError())
 		{
-			throwErrorF("gdal.vect", "cannot open layer %s, invalid sql string %s,\n%s"
+			throwErrorF("gdal.vect", "cannot find layer with name %s, invalid sql string %s,\n%s"
 			,	m_NameID.GetStr().c_str()
 			,	m_SqlString.c_str()
 			,	gdal_error_frame.GetMsgAndReleaseError().c_str()
@@ -287,6 +281,14 @@ void GdalVectlMetaInfo::OnOpen()
 
 		if (m_Layer)
 			m_Layer->SetNextByIndex(0);
+		
+		if (!m_Layer)
+		{
+			auto is_container = !IsDataItem(CurrRI()) && !IsUnit(CurrRI());
+			if (!is_container)
+				throwErrorF("gdal.vect", "cannot find layer with name %s in dataset.\n", m_NameID.GetStr().c_str());
+		}
+
 		m_IsOwner = false;
 	}
 }
@@ -354,7 +356,7 @@ GdalVectSM::~GdalVectSM()
 void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	DBG_START("GdalVectSM", "OpenStorage", true);
-	dms_assert(m_hDS == nullptr);
+	assert(m_hDS == nullptr);
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
 		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()
@@ -553,7 +555,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		readBuffer = makeResource<dataBufType>();
 	}
 	dataBufType& data = GetAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC_STR("gdal_vect: ReadPolyData"));
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(
@@ -617,7 +619,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 		readBuffer = makeResource<dataBufType>();
 	}
 	dataBufType& data = GetAs<dataBufType>(readBuffer);
-	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC_STR("gdal_vect"));
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect"));
 
 	SizeT i=0;
 	auto lch = MakeLCH(
@@ -960,11 +962,11 @@ StorageMetaInfoPtr GdalVectSM::GetMetaInfo(const TreeItem* storageHolder, TreeIt
 	return std::make_unique<GdalVectlMetaInfo>(this, storageHolder, adi);
 }
 
-bool GdalVectSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(&smi), borrowedReadResultHolder, t);
+	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t);
 }
 
 OGRLayer* GetLayerFromDataItem(GDALDatasetHandle& m_hDS, SharedStr layername)
@@ -1013,25 +1015,23 @@ void SetPointGeometryForFeature(OGRFeature * feature, PointType b, ValueComposit
 	OGRPoint pt;
 	pt.setX(b.Col());
 	pt.setY(b.Row());
-	feature->SetGeometry(&pt);
+	feature->SetGeometry(&pt); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
-template<typename PointType>
-void SetArcGeometryForFeature(OGRFeature* feature, PointType b, ValueComposition vc)
+template<typename SequenceType>
+void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposition vc)
 {
 	dms_assert(vc == ValueComposition::Sequence);
 	auto OGRLine = (OGRLineString*)OGRGeometryFactory::createGeometry(wkbLineString);
 
-	typedef typename sequence_traits<PointType>::container_type SequenceArray;
-	typename DataArrayBase<PointType>::const_reference sequence = b;
+	typedef typename sequence_traits<SequenceType>::container_type SequenceArray;
+//	typename DataArrayBase<SequenceType>::const_reference sequence = b;
 
-	for (auto&& [y, x] : sequence) { // points in reverse order
-		OGRPoint pt;
-		pt.setX(x);
-		pt.setY(y);
+	for (auto&& [y, x] : b) { // points in reverse order
+		OGRPoint pt(x, y);
 		OGRLine->addPoint(&pt);
 	}
-	feature->SetGeometry((OGRGeometry*)OGRLine);
+	feature->SetGeometry((OGRGeometry*)OGRLine); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename PointType>
@@ -1068,7 +1068,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 
 	OGRMultiPoly->addGeometry(OGRPoly);
 
-	feature->SetGeometry((OGRGeometry*)OGRMultiPoly);
+	feature->SetGeometry((OGRGeometry*)OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
@@ -1094,26 +1094,23 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 				}
 				case ValueComposition::Sequence:
 				{
-					typedef typename sequence_traits<value_type>::container_type sequence_type;
+					using sequence_type = typename sequence_traits<value_type>::container_type;
+
 					auto darray = debug_valcast<const DataArray<sequence_type>*>(ado)->GetDataRead(t);
 					auto b = darray.begin(), e = darray.end();
 					dms_assert(tileFeatureIndex < (e - b));
 
-					SetArcGeometryForFeature(feature, *(b+tileFeatureIndex), vc);
+					SetArcGeometryForFeature(feature, b[tileFeatureIndex], vc);
 
 					break;
 				}
 				case ValueComposition::Polygon: {
-					typedef typename sequence_traits<value_type  >::container_type PolygonType;
-					typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
+					using PolygonType = typename sequence_traits<value_type  >::container_type;
+//					typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
 					
 					auto polyData = debug_valcast<const DataArray<PolygonType>*>(ado)->GetDataRead(t);
 
-					typename PolygonArray::const_iterator
-					polygonIter = polyData.begin(),
-					polygonEnd = polyData.end();
-
-					SetPolygonGeometryForFeature(feature, *(polygonIter+tileFeatureIndex), vc);
+					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex], vc);
 				}
 				break;
 			}
@@ -1218,20 +1215,6 @@ std::vector<TileCRef> ReadableTileHandles(const std::vector<DataReadLock>& drl, 
 	return tileReadLocks;
 }
 
-/* REMOVE
-std::map<SharedStr, TokenT> GetFieldnameTokenTMapping(SharedStr layername, DataItemsWriteStatusInfo& dataItemsStatusInfo)
-{
-	std::map<SharedStr, TokenT> fieldnameTokenTMap;
-	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[GetTokenID_mt(layername.c_str()).GetTokenT()])
-	{
-		if (not writableField.second.doWrite)
-			continue;
-		fieldnameTokenTMap[writableField.second.name] = GetTokenID_mt(writableField.second.name.c_str()).GetTokenT();
-	}
-	return fieldnameTokenTMap;
-}
-*/
-
 SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 {
 	if (!layer)
@@ -1252,7 +1235,7 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 	return count;
 }
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldType DmsType2OGRFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Int32:
@@ -1284,11 +1267,11 @@ OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
 	case VT_SharedStr:
 		return OFTString;
 	default:
-		return OGRFieldType::OFTBinary;
+		return OGRFieldType::OFTMaxType;
 	}
 }
 
-OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Bool:
@@ -1304,7 +1287,7 @@ OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
 	}
 }
 
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc)
+OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 {
 	switch (vc) {
 	case ValueComposition::Single:
@@ -1340,8 +1323,8 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			SharedStr       fieldName = SharedStr(fieldCandidate->GetID());
 			int             bApproxOK = TRUE;
 
-			OGRFieldType    type    = DmsType2OGRFieldType(vci, vc);
-			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci, vc);
+			OGRFieldType    type    = DmsType2OGRFieldType(vci);
+			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
 			OGRFieldDefn    fieldDefn(fieldName.c_str(), type);         error_frame.ThrowUpWhateverCameUp();
 			fieldDefn.SetSubType(subtype);                   error_frame.ThrowUpWhateverCameUp();
 			layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
@@ -1372,7 +1355,6 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 	SharedStr fieldName;
 	TokenID layerID;
 	int geometryFieldCount = 0;
-	OGRLayer* layerHandle;
 	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame error_frame;
@@ -1383,21 +1365,22 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		if (not (IsDataItem(subItem) and subItem->IsStorable()))
 			continue;
 
-		layerHandle = NULL;
 		unitItem = GetLayerHolderFromDataItem(storageHolder, subItem);
 		layerDomain = AsDynamicUnit(unitItem);
 		layerName = unitItem->GetName().c_str();
-		layerHandle = result.dsh_->GetLayerByName(layerName.c_str()); error_frame.ThrowUpWhateverCameUp();
+		OGRLayer* layerHandle = result.dsh_->GetLayerByName(layerName.c_str()); error_frame.ThrowUpWhateverCameUp();
 
 		if (not layerHandle && (DataSourceHasNamelessLayer(datasourceName)))
 			layerHandle = result.dsh_->GetLayer(0);
 
 		if (not layerHandle)
 		{
-			OGRSpatialReference* ogrSR = nullptr;
 			OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-			ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); error_frame.ThrowUpWhateverCameUp();
-			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR, eGType, layerOptionArray); error_frame.ThrowUpWhateverCameUp();
+			auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder);
+			
+			error_frame.ThrowUpWhateverCameUp();
+			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); 
+			error_frame.ThrowUpWhateverCameUp();
 			SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layerHandle, layerName, disi);
 		}
 
@@ -1459,6 +1442,10 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
 	if (not m_DataItemsStatusInfo.m_continueWrite)
 	{
+		// disable spatial index in case of GPKG, SQLite
+		//if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
+		//	layerOptionArray.AddString("SPATIAL_INDEX=NO");
+
 		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		m_DataItemsStatusInfo.m_continueWrite = true;
 	}
@@ -1477,10 +1464,9 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	if (not layer)
 	{
-		OGRSpatialReference* ogrSR = nullptr;
 		OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-		ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
-		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
+		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
+		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
 	}
 
@@ -1553,6 +1539,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layerTokenT);
 
+
+	//Spatial index explicitly for shapefile 
 	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
 	{
 		if (DataSourceHasNamelessLayer(datasourceName))
@@ -1593,15 +1581,16 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "Unit.h"
 #include "UnitClass.h"
 
-void UpdateSpatialRef(AbstrDataItem* geometry, OGRSpatialReference* spatialRef)
+void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
 {
-	dms_assert(geometry);
+	assert(geometry);
+	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
+	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
 	if (!spatialRef)
 		return;
-	CplString wkt;
-	spatialRef->exportToWkt(&wkt.m_Text);
-	if (wkt.m_Text)
-		geometry->SetDescr(SharedStr(wkt.m_Text));
+	auto wkt = GetAsWkt(&*spatialRef);
+	if (!wkt.empty())
+		geometry->SetDescr(wkt);
 }
 
 #include "mci/ValueWrap.h"
@@ -1616,7 +1605,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	GDAL_ErrorFrame gdal_error_frame;
 
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
-	const AbstrUnit* vu = FindProjectionRef(storageHolder, layerDomain);
+	auto vu = FindProjectionRef(storageHolder, layerDomain);
 	if (!vu)
 		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
@@ -1633,6 +1622,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
+				// TODO: interpret geometry type if possible from WKT
 				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
 				gdal_vc = ValueComposition::String;
 			}
@@ -1643,7 +1633,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		}
 		dms_assert(geometry);
 		if (gdal_vc != ValueComposition::String)
-			UpdateSpatialRef(geometry, layer->GetSpatialRef());
+		{
+			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+			std::optional<OGRSpatialReference> ogrSR; 
+			if (ogrSR_ptr) 
+				ogrSR = *ogrSR_ptr;
+			UpdateSpatialRef(m_hDS, geometry, ogrSR);
+		}
 	}
 
 
@@ -1653,8 +1649,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	{
 		WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
 		auto subType = fieldDefn->GetSubType();
-		auto raw_item_name = SharedStr(fieldDefn->GetNameRef());
-		SharedStr itemName = as_item_name(raw_item_name.begin(), raw_item_name.end());
+		auto raw_item_name = fieldDefn->GetNameRef();
+		SharedStr itemName = as_item_name(raw_item_name, raw_item_name + StrLen(raw_item_name));
 		TreeItem* tiColumn = layerDomain->GetItem(itemName.c_str());
 		
 		auto valueType = gdalVectImpl::OGR2ValueClass(fieldDefn->GetType(), fieldDefn->GetSubType());
@@ -1672,23 +1668,35 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
-	if (curr->IsStorable() && curr->HasCalculator())
-		return;
 
 	if (IsUnit(curr))
 	{
+		if (curr->HasCalculator())
+		{
+			if (!IsReadOnly())
+				return;
+			if (curr != storageHolder)
+				return;
+			SharedStr currFullName = curr->GetFullName();
+			reportF(SeverityTypeID::ST_Warning, "'%s' has a calculation rule and has a configured data source. If related attributes should be read from '%s', consider reading it as a separate table and use rjoin on a primary-key to obtain the read attribute values."
+				, currFullName.c_str()
+				, GetNameStr().c_str()
+			);
+		}
+
 		// Get Table Attr info (= fields of its features)
 		StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 		if (m_hDS)
 		{
-
-			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo())->m_Layer;
+			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo().get())->m_Layer;
 			if (layer)
 				DoUpdateTable(storageHolder, AsUnit(curr), layer);
 		}
-
 		return;
 	}
+
+	if (curr->HasCalculator())
+		return;
 
 	if (curr != storageHolder || sm != SM_AllTables)
 		return;

@@ -128,7 +128,7 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 
 //	new interface
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
-	virtual SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)=0;
+	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) = 0;
 
 	const AbstrBoundingBoxCache* GetBoundingBoxCache() const;
 
@@ -138,7 +138,7 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 	void UpdateShowSelOnly      ()                   override;
 
 //	override GraphicDrawer
-	void SelectPoint(const CrdPoint& pnt, EventID eventID) override;
+	void SelectPoint(CrdPoint pnt, EventID eventID) override;
 
 //	override virtual of GraphicObject
 	void DoUpdateView() override;
@@ -180,14 +180,14 @@ protected:
 //	override virtual of FeatureLayer
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
-	void SelectRect   (const CrdRect& worldRect, EventID eventID) override;
-	void SelectCircle (const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectRect   (CrdRect worldRect, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
 	CrdRect CalcSelectedClientWorldRect() const override; // specialization that doesn't use BoundinBox
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void   _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void   InvalidateFeature(SizeT featureIndex) override;
 
 private:
 	void InvalidatePoint(UInt32 selectedID);
@@ -230,12 +230,12 @@ protected:
 //	override virtual of FeatureLayer
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
-	void SelectRect   (const CrdRect& worldRect, EventID eventID) override;
-	void SelectCircle (const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectRect   (CrdRect worldRect, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void  _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };
@@ -259,12 +259,12 @@ protected:
 //	override virtual of FeatureLayer
 	bool DrawImpl(FeatureDrawer& fd) const override;
 
-	void SelectRect   (const CrdRect& worldRect, EventID eventID) override;
-	void SelectCircle (const CrdPoint& worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectRect   (CrdRect worldRect, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void  _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

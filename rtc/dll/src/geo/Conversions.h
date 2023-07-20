@@ -45,6 +45,19 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/FormattedStream.h"
 
 //----------------------------------------------------------------------
+// Section      : has_equivalent_null
+//----------------------------------------------------------------------
+
+template <typename T, typename U> constexpr bool has_equivalent_null_v = 
+	(is_bitvalue_v<T> || is_bitvalue_v<U> 
+		? is_bitvalue_v<T> && is_bitvalue_v<U> 
+		: U(UNDEFINED_OR_ZERO(T)) == UNDEFINED_OR_ZERO(U)
+	);
+
+template <typename T, typename U> struct has_equivalent_null : std::bool_constant<has_equivalent_null_v<T, U>> {};
+template <typename T>             struct has_equivalent_null<T, T> : std::true_type {};
+
+//----------------------------------------------------------------------
 // Bool conversions
 //----------------------------------------------------------------------
 
@@ -295,6 +308,17 @@ inline T Convert4(StringCRef val, const T*, const ExceptFunc* dummyExceptFunc, c
 	return result;
 }
 
+template <typename T, typename ExceptFunc, typename ConvertFunc>
+inline T Convert4(std::string_view val, const T*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+{
+	T result;
+	if (IsDefined(val))
+		AssignValueFromCharPtrs(result, begin_ptr(val), end_ptr(val));
+	else
+		Assign(result, Undefined());
+	return result;
+}
+
 template <typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc) 
 { 
@@ -303,9 +327,17 @@ inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* du
 		:	UNDEFINED_VALUE(SharedStr); 
 }
 
+template <typename ExceptFunc, typename ConvertFunc>
+inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc)
+{
+	return IsDefined(val)
+		? SharedStr(val.begin(), val.end())
+		: UNDEFINED_VALUE(SharedStr);
+}
+
 // conversions to string
 template <typename T, typename ExceptFunc, typename ConvertFunc>
-inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* /*dummyExceptFunc*/, const ConvertFunc* /*dummyConvertFunc*/)
 {
 	return AsString(val);
 }

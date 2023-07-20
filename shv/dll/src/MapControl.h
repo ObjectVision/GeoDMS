@@ -52,7 +52,7 @@ public:
 	~MapControl();
 	void Init(DataView* dv);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ChildCovered; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ChildCovered; };
 
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
 	bool OnCommand(ToolButtonID id) override;

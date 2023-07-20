@@ -47,7 +47,7 @@ class LayerSet : public GraphicContainer<ScalableObject>
 public:
 	LayerSet(GraphicObject* owner, CharPtr caption = "");
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_PushVisibility; }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::PushVisibility; }
 
 //	override ScalableObject --- LayerControl Support
 	void              FillLcMenu(MenuData& menuData)          override;

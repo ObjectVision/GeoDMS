@@ -249,7 +249,7 @@ void E00StorageManager::DoCreateStorage(const TreeItem* storageHolder)
 					)
 				)
 			);
-	checked_domain<SPoint>(gridData);
+	checked_domain<SPoint>(gridData, "GridData");
 	MG_CHECK2
 	(
 		gridData, 
@@ -388,9 +388,6 @@ bool E00StorageManager::RetrieveHeaderInfoOnly()
 	return true;
 }
 
-
-
-// Unclear in this context, but obligatory
 void E00StorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	DBG_START("E00StorageManager", "DoWriteTree", true);

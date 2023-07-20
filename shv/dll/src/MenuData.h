@@ -108,14 +108,19 @@ struct MenuData : private std::vector<MenuItem>
 	using std::vector<MenuItem>::pop_back;
 	using std::vector<MenuItem>::operator [];
 
-	MenuData()
-		:	m_CurrLevel(0)
-	{}
+	MenuData() {}
+
+
+	template <typename ...Args>
+	constexpr decltype(auto) emplace_back(Args&&... args) {
+		auto& reference = std::vector<MenuItem>::emplace_back<Args...>(std::forward<Args>(args)...);
+		reference.m_Level = m_CurrLevel;
+		return reference;
+	}
 
 	void push_back(MenuItem&& item)
 	{
-		std::vector<MenuItem>::emplace_back(std::move(item));
-		back().m_Level = m_CurrLevel;
+		emplace_back(std::move(item));
 	}
 
 	void AddSeparator()
@@ -124,7 +129,7 @@ struct MenuData : private std::vector<MenuItem>
 			push_back( MenuItem() );
 	}
 
-	UInt32                              m_CurrLevel;
+	UInt32                              m_CurrLevel = 0;
 	std::weak_ptr<const DataItemColumn> m_DIC;
 };
 

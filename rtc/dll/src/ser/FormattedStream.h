@@ -133,7 +133,7 @@ struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
 	streamsize_t   m_LineStartPos;
 	bool           m_AtEnd;
 	reader_flags   m_Flags;
-	MG_DEBUGCODE( streamsize_t md_LastPos; )
+	MG_DEBUGCODE( streamsize_t md_LastPos = 0; )
 };
 
 #define INSTANTIATE(T) \
@@ -181,6 +181,11 @@ inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value)
 	return str;
 }
 
+inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value)
+{
+	str.Buffer().WriteBytes(value.begin(), value.size());
+	return str;
+}
 
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value);
 

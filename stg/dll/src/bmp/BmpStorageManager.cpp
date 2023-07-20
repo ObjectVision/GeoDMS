@@ -123,7 +123,10 @@ extern "C" STGDLL_CALL void DMS_CONV STG_Bmp_SetDefaultColor(PALETTE_SIZE i, Dms
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(i <= CI_LAST);
+		assert(i <= CI_LAST);
+
+		color &= MAX_COLOR;
+
 		if (i != CI_NODATA)
 			g_BmpDefaultPalette[i] = color;
 
@@ -329,7 +332,7 @@ namespace Bmp
 //
 // ------------------------------------------------------------------------
 
-bool BmpPalStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(t == no_tile);
 
@@ -341,7 +344,7 @@ bool BmpPalStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObj
 //	OwningPtr<Bmp::AbstrDataHandler>  f(Bmp::AbstrDataHandler::Create(adi));
 //	dms_assert(f);
 //	f->ReadData(this, &imp, adi);
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	switch (adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims())
 	{
 	case 2: 

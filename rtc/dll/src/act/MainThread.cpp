@@ -107,23 +107,27 @@ std::vector < std::function<void()>>  s_OperQueue;
 
 leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
 
-void AddMainThreadOper(std::function<void()>&& func)
+
+void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 {
-	if (IsMainThread())
+	if (IsMainThread() && !postAlways)
 	{
 		ProcessMainThreadOpers();
 		func();
 		return;
 	}
 	leveled_std_section::scoped_lock lock(s_QueueSection);
+	bool wasEmpty = s_OperQueue.empty();
 	s_OperQueue.emplace_back(std::move(func));
 	SuspendTrigger::DoSuspend();
+	if (wasEmpty)
+		MsgDispatch(SeverityTypeID::ST_Nothing, MsgCategory::disposable, "");
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
 void ProcessMainThreadOpers()
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 
 	if (s_ProcessMainThreadOperLevel)
 		return;

@@ -103,7 +103,7 @@ void ReadBinRange(InpStream& ar, Vector& vec)
 		MakeUndefined(vec);
 	else
 	{
-		resizeSO(vec, len, false MG_DEBUG_ALLOCATOR_SRC_STR("ReadBinRange"));
+		resizeSO(vec, len, false MG_DEBUG_ALLOCATOR_SRC("ReadBinRange"));
 
 		ReadBinRangeImpl(ar, 
 			begin_ptr(vec), 

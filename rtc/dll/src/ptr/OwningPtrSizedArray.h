@@ -41,6 +41,13 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/OwningPtrArray.h"
 #include "set/RangeFuncs.h"
 
+struct DontInitialize_tag {};
+struct ValueConstruct_tag {};
+struct Internal_tag {};
+
+constexpr DontInitialize_tag dont_initialize;
+constexpr ValueConstruct_tag value_construct;
+
 template <class T>
 struct OwningPtrSizedArray : private ref_base<T, movable>
 {
@@ -55,12 +62,27 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	OwningPtrSizedArray()
 	{}
 
-	OwningPtrSizedArray(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
-		:	ref_base<T, movable>(array_traits<T>::Create(sz MG_DEBUG_ALLOCATOR_SRC_PARAM))
-		,	m_Size(sz)
-	{}
+	OwningPtrSizedArray(SizeT sz, Internal_tag  MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: ref_base<T, movable>(array_traits<T>::CreateUninitialized(sz MG_DEBUG_ALLOCATOR_SRC_PARAM))
+		, m_Size(sz)
+	{
+	}
+
+	OwningPtrSizedArray(SizeT sz, DontInitialize_tag  MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: OwningPtrSizedArray(sz, Internal_tag() MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	{
+		if constexpr (!is_bitvalue_v<T>)
+			std::uninitialized_default_construct(begin(), end());
+	}
+
+	OwningPtrSizedArray(SizeT sz, ValueConstruct_tag MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: OwningPtrSizedArray(sz, Internal_tag() MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	{
+		std::uninitialized_value_construct(begin(), end());
+	}
+
 	OwningPtrSizedArray(SizeT sz, Undefined MG_DEBUG_ALLOCATOR_SRC_ARG)
-		: OwningPtrSizedArray(sz MG_DEBUG_ALLOCATOR_SRC_PARAM)
+		: OwningPtrSizedArray(sz, dont_initialize MG_DEBUG_ALLOCATOR_SRC_PARAM)
 	{
 		fast_undefine(begin(), begin() + sz);
 	}
@@ -93,7 +115,6 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	SizeT size() const { return m_Size; }
 	bool empty() const { return !m_Size; }
 	operator bool() const { return m_Size; }
-//	bool IsDefined() const { return this->get_ptr() != nullptr; }
 
 	void clear() { OwningPtrSizedArray empty; swap(empty); }
 
@@ -111,35 +132,48 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	iterator       end  ()       { return begin() + m_Size; }
 	const_iterator end  () const { return begin() + m_Size; }
 
-	void reserve(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
-	{
-		if (sz > m_Size)
-		{
-			OwningPtrSizedArray local(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-			swap(local);
-		}
-	}
 	void resizeSO(SizeT sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		auto oldSize = m_Size;
-		grow(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		m_Size = sz;
-		if (oldSize < m_Size)
-			fast_zero(begin() + oldSize, end());
+		grow(sz, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		assert(m_Size >= sz); // Prostcondition of grow.
+		if (sz < m_Size)
+		{
+			array_traits<T>::Destroy(this->m_Ptr + sz, m_Size - sz); // possibly nop, but possibly not
+			m_Size = sz; // drop trailing if shrinking was requested, without destroying them (yet).
+		}
 	}
-	void reallocSO(SizeT sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
+
+	void reallocSO(SizeT sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) 
 	{
-		reserve(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		m_Size = sz;
-		if (mustClear)
-			fast_zero(begin(), end());
+		auto oldSz = m_Size;
+		if (sz > m_Size)
+		{
+			OwningPtrSizedArray local(sz, Internal_tag() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			swap(local);
+			assert(mustClear || is_simple<T>::value);
+			if (mustClear)
+				std::uninitialized_value_construct  (begin(), end());
+			else
+				std::uninitialized_default_construct(begin(), end());
+		}
+		else if (sz < m_Size)
+		{
+			array_traits<T>::Destroy(this->m_Ptr + sz, m_Size - sz); // possibly nop, but possibly not
+			m_Size = sz; // drop trailing if shrinking was requested, without destroying them (yet).
+		}
 	}
-	void grow(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+
+private:
+	void grow(SizeT sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (sz > m_Size)
 		{
-			OwningPtrSizedArray local(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
-			fast_copy(begin(), end(), local.begin());
+			OwningPtrSizedArray local(sz, Internal_tag() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			auto localIter = fast_copy(begin(), end(), local.begin());
+			if (mustClear)
+				std::uninitialized_value_construct(localIter, local.end());
+			else
+				std::uninitialized_default_construct(localIter, local.end());
 			swap(local);
 		}
 	}

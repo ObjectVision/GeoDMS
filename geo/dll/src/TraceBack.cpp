@@ -87,11 +87,11 @@ struct TraceBackOperator : QuaternaryOperator
 
 		dms_assert(flowUnit);
 
-		du->UnifyDomain( checked_domain<LinkType>(arg2A), "e1", "e2", UM_Throw);
+		du->UnifyDomain( checked_domain<LinkType>(arg2A, "a2"), "e1", "e2", UM_Throw);
 		du->UnifyDomain( arg3A->GetAbstrValuesUnit(), "e1", "e3", UM_Throw);
 		vu->UnifyDomain( arg2A->GetAbstrValuesUnit(), "v1", "v2", UM_Throw);
-		vu->UnifyDomain( checked_domain<LinkType>(arg3A), "v1", "e3", UM_Throw);
-		vu->UnifyDomain( checked_domain<LinkType>(arg4A), "v1", "e4", UM_Throw);
+		vu->UnifyDomain( checked_domain<LinkType>(arg3A, "a3"), "v1", "e3", UM_Throw);
+		vu->UnifyDomain( checked_domain<LinkType>(arg4A, "a4"), "v1", "e4", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(du, flowUnit);
@@ -210,14 +210,14 @@ public:
 		const AbstrDataItem* arg2A = debug_valcast<const AbstrDataItem*>(args[1]);
 		const AbstrDataItem* arg3A = debug_valcast<const AbstrDataItem*>(args[2]);
 
-		const Unit<LinkType>* e = checked_domain<LinkType>(arg1A);
+		const Unit<LinkType>* e = checked_domain<LinkType>(arg1A, "a1");
 		const Unit<NodeType>* v = const_unit_cast<NodeType>(arg1A->GetAbstrValuesUnit());
 
 		dms_assert(e && v);
-		e->UnifyDomain( checked_domain<LinkType>(arg2A), "e1", "e2", UM_Throw);
+		e->UnifyDomain( checked_domain<LinkType>(arg2A, "a2"), "e1", "e2", UM_Throw);
 		e->UnifyDomain( arg3A->GetAbstrValuesUnit(),     "e1", "v3", UM_Throw);
 		v->UnifyDomain( arg2A->GetAbstrValuesUnit(),     "v1", "v2", UM_Throw);
-		v->UnifyDomain( checked_domain<LinkType>(arg3A), "v1", "e3", UM_Throw);
+		v->UnifyDomain( checked_domain<LinkType>(arg3A, "a3"), "v1", "e3", UM_Throw);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(v, v);
