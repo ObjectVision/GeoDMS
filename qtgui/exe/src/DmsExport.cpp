@@ -528,8 +528,8 @@ bool isCurrentItemOrItsSubItemsMappable()
 
 void ExportTab::showEvent(QShowEvent* event)
 {
-    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
-    if (driver.HasNativeVersion())
+    const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
+    if (currDriver.HasNativeVersion())
     {
         m_native_driver_checkbox->setEnabled(true);
         m_native_driver_checkbox->setChecked(true);
@@ -562,8 +562,8 @@ void ExportTab::showEvent(QShowEvent* event)
     for (int i=0; i<model->rowCount(); i++)
     {
         auto* item = model->item(i);
-        auto& driver = m_available_drivers.at(i);
-        if (!isCurrentItemOrItsSubItemsMappable() && (driver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
+        const auto& otherDriver = m_available_drivers.at(i);
+        if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
             item->setEnabled(false);
         else
             item->setEnabled(true);
