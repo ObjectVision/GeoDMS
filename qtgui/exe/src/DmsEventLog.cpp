@@ -172,7 +172,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
 	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
 	m_scroll_to_bottom_toggle->setToolTip(tr("Scroll to bottom"));
-	m_scroll_to_bottom_toggle->setStatusTip("Scroll content of eventlog to bottom and rescroll on new log messages");
+	m_scroll_to_bottom_toggle->setStatusTip("Scroll content of eventlog to bottom and keep up with new log messages");
 	m_scroll_to_bottom_toggle->setDisabled(true);
 	m_scroll_to_bottom_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
