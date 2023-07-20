@@ -516,7 +516,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         else
             reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
     }
-    dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    try
+    {
+        dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::TheOne()->error(errMsg);
+    }
     
     if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
