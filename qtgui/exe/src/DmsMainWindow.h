@@ -160,7 +160,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
     bool LoadConfig(CharPtr configFilePath);
-
+    void updateToolbar();
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
@@ -235,7 +235,6 @@ private:
     void updateToolsMenu();
     void updateWindowMenu();
     void updateCaption();
-    void updateToolbar();
     void updateTreeItemVisitHistory();
     void createDetailPagesActions();
     void updateDetailPagesToolbar();

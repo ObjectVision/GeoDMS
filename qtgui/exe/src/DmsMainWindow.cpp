@@ -622,13 +622,16 @@ void MainWindow::createDetailPagesActions()
 
 void MainWindow::updateDetailPagesToolbar()
 {
+    if (m_detail_pages->isHidden())
+        return;
+
     // detail pages buttons
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_toolbar->addWidget(spacer);
     
-    m_toolbar->addAction(m_back_action.get());
-    m_toolbar->addAction(m_forward_action.get());
+    //m_toolbar->addAction(m_back_action.get());
+    //m_toolbar->addAction(m_forward_action.get());
     m_toolbar->addAction(m_general_page_action.get());
     m_toolbar->addAction(m_explore_page_action.get());
     m_toolbar->addAction(m_properties_page_action.get());
@@ -721,7 +724,7 @@ void MainWindow::updateToolbar()
         if (!is_command_enabled)
             action->setDisabled(true);
         
-        m_toolbar->addAction(action);
+        m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
 
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
@@ -854,6 +857,12 @@ void MainWindow::toggle_detailpages()
 {
     bool isVisible = m_detail_pages->isVisible();
     m_detail_pages->setVisible(!isVisible);
+    m_general_page_action->setVisible(!isVisible);
+    m_explore_page_action->setVisible(!isVisible);
+    m_properties_page_action->setVisible(!isVisible);
+    m_configuration_page_action->setVisible(!isVisible);
+    m_sourcedescr_page_action->setVisible(!isVisible);
+    m_metainfo_page_action->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_eventlog()
@@ -1509,6 +1518,8 @@ void MainWindow::createActions()
 
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
+    m_current_item_bar_container->addAction(m_back_action.get());
+    m_current_item_bar_container->addAction(m_forward_action.get());
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
