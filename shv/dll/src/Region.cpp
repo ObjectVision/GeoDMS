@@ -379,24 +379,29 @@ void Region::FillRectArray(RectArray& ra) const
 	static std::vector<BYTE> rgnDataBuffer;
 	UInt32 regionDataSize = GetRegionData(m_Rgn, 0, 0);
 	rgnDataBuffer.resize( regionDataSize ); 
-
-	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>( begin_ptr( rgnDataBuffer ));
+	if (!regionDataSize)
+	{
+		ra.clear();
+		return;
+	}
+	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>(begin_ptr(rgnDataBuffer));
 
 	GetRegionData(
-		m_Rgn, 
-		regionDataSize, 
+		m_Rgn,
+		regionDataSize,
 		rgnData
-	); 
-	dms_assert(rgnData->rdh.iType  == RDH_RECTANGLES);
-	dms_assert(rgnData->rdh.dwSize >= 32);
+	);
+	assert(rgnData->rdh.iType == RDH_RECTANGLES);
+	assert(rgnData->rdh.dwSize >= 32);
 
-//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
-	RECT*  rects = reinterpret_cast<RECT*>( &(rgnData->Buffer[0]) );
+	//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
+	RECT* rects = reinterpret_cast<RECT*>(&(rgnData->Buffer[0]));
 
 	UInt32 n = rgnData->rdh.nCount;
 
-	ra.assign(rects, rects+n);
+	ra.assign(rects, rects + n);
 }
+
 
 SharedStr Region::AsString() const
 {

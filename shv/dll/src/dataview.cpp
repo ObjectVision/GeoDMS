@@ -200,7 +200,7 @@ DataView::DataView(TreeItem* viewContext)
 //	for (int i = 0; i != nrPaletteColors; ++i)
 //		m_ColorPalette[i] = DmsColor2COLORREF(i + 1);
 
-	dms_assert(viewContext);
+	assert(viewContext);
 
 	InsertCaret(m_FocusCaret);
 	m_State.Set(DVF_CaretsVisible); // Paint will draw them.if true; we assume application and view has focus.
@@ -799,8 +799,6 @@ void DataView::InvalidateChangedGraphics()
 
 GraphVisitState DataView::UpdateView()
 {
-	DBG_START("DataView", "UpdateView", MG_DEBUG_REGION);
-
 	if (m_State.Get(DVF_InUpdateView))
 		return GVS_Continue;
 	if (SuspendTrigger::MustSuspend())
@@ -837,12 +835,34 @@ GraphVisitState DataView::UpdateView()
 		dms_assert(!SuspendTrigger::DidSuspend());
 		while (! m_DoneGraphics.Empty() )
 		{
+			DBG_START("DataView::UpdateView", "Region", MG_DEBUG_REGION);
+
 			const Region& drawRegion = m_DoneGraphics.CurrRegion();
-
-			DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
-
-			if	( SelectClipRgn(dc, drawRegion.GetHandle() ) == NULLREGION )
+#if defined(MG_DEBUG)
+			if (MG_DEBUG_REGION)
 			{
+				Region dcRegion(dc, m_hWnd);
+				Region combRegion = dcRegion & drawRegion;
+
+				DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
+				DBG_TRACE(("dc  Region = %s", dcRegion.AsString().c_str()));
+				DBG_TRACE(("combRegion = %s", combRegion.AsString().c_str()));
+				ProcessMainThreadOpers();
+			}
+#endif
+			if	( ExtSelectClipRgn(dc, drawRegion.GetHandle(), RGN_AND) == NULLREGION )
+			{
+#if defined(MG_DEBUG)
+				if (MG_DEBUG_REGION)
+				{
+					Region dcRegion2(dc, m_hWnd);
+					if (!dcRegion2.Empty())
+					{
+						DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
+						ProcessMainThreadOpers();
+					}
+				}
+#endif
 				m_DoneGraphics.PopBack();
 				continue;
 			}
@@ -884,11 +904,15 @@ GraphVisitState DataView::UpdateView()
 
 	CounterStacks updateAllStack;
 	GPoint viewSize = m_ViewSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
-	updateAllStack.AddDrawRegion(Region(viewSize));
+	updateAllStack.AddDrawRegion(Region(m_ViewSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
-	auto drawer = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData));
-	GraphVisitState suspended = drawer.Visit( GetContents().get() );
+
+	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData))
+		.Visit(GetContents().get());
+
+//	auto allDrawer = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData));
+//	GraphVisitState suspended = allDrawer.Visit( GetContents().get() );
 	dms_assert((suspended == GVS_Break) == SuspendTrigger::DidSuspend());
 
 	dms_assert(m_DoneGraphics.Empty()); // it was empty and the OnPaint is only processed in sync
@@ -1414,9 +1438,10 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 
 
 	if (m_Contents) {
+		GRect viewRect = GRect(GPoint(0, 0), point);
 		auto point2 = point;
 		point2 /= GetWindowDIP2pixFactorXY(GetHWnd());
-		GRect viewRect = GRect(GPoint(0, 0), point2);
+		GRect viewRect2 = GRect(GPoint(0, 0), point2);
 		if (GetContents()->IsDrawn())
 			GetContents()->ClipDrawnRect(viewRect);
 		GetContents()->SetFullRelRect(TRect(viewRect));

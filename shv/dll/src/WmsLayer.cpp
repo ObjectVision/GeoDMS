@@ -666,7 +666,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 	drawGridCoords->Update(d.GetSubPixelFactor());
 
-	GRect bb = d.GetAbsClipRegion().BoundingBox(d.GetDC());
+	GRect bb = d.GetAbsClipRegion().BoundingBox();
 
 	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
 	GRect clippedRelRect = drawGridCoords->GetClippedRelRect();
