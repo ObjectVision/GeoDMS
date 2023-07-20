@@ -281,7 +281,7 @@ public:
     QPointer<QLineEdit> m_statusbar_coordinates;
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
-    QPointer<DmsTreeView> m_treeview;
+    DmsTreeView* m_treeview;
     QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
 //    QPointer<QToolBar> m_right_side_toolbar;
 //    QPointer<QLabel>   m_StatusWidget;

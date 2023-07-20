@@ -294,10 +294,7 @@ void DmsCurrentItemBar::onEditingFinished()
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
     if (found_treeitem)
-    {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
-        auto treeView = MainWindow::TheOne()->m_treeview.get();
-    }
 }
 
 bool MainWindow::IsExisting()

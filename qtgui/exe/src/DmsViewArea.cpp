@@ -1,8 +1,10 @@
 #include "RtcBase.h"
 #include "DmsViewArea.h"
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
 
 #include <QMdiArea>
+#include <QMimeData>
 
 #include <windows.h>
 #include <ShellScalingApi.h>
@@ -94,8 +96,35 @@ void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event)
     event->acceptProposedAction(); // TODO: further specify that only treenodes dragged from treeview can be dropped here.
 }
 
+bool processUrlOfDropEvent(QList<QUrl> urls)
+{
+    for (auto& url : urls)
+    {
+        auto local_file = url.toLocalFile();
+        if (QFileInfo(local_file).suffix() != "dms")
+            continue;
+
+        MainWindow::TheOne()->LoadConfig(local_file.toUtf8());
+        return true;
+    }
+    return false;
+}
+
 void QDmsMdiArea::dropEvent(QDropEvent* event)
 {
+    const QMimeData* mimeData = event->mimeData();
+    if (mimeData->hasUrls())
+    {
+        QList<QUrl> urls = mimeData->urls();
+        if (processUrlOfDropEvent(urls))
+            return;
+    }
+
+    auto tree_view = MainWindow::TheOne()->m_treeview;
+    auto source = qobject_cast<DmsTreeView*>(event->source());
+    if (tree_view != source)
+        return;
+
     MainWindow::TheOne()->defaultView();
 }
 
@@ -208,6 +237,18 @@ void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event)
 
 void QDmsViewArea::dropEvent(QDropEvent* event)
 {
+    const QMimeData* mimeData = event->mimeData();
+    if (mimeData->hasUrls())
+    {
+        QList<QUrl> urls = mimeData->urls();
+        if (processUrlOfDropEvent(urls))
+            return;
+    }
+    auto tree_view = MainWindow::TheOne()->m_treeview;
+    auto source = qobject_cast<DmsTreeView*>(event->source());
+    if (tree_view != source)
+        return;
+
     SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
 }
 
