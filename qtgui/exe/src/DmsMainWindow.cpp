@@ -434,6 +434,11 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+void MainWindow::wiki()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
+}
+
 DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
     :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str())
 {
@@ -1754,10 +1759,11 @@ void MainWindow::createActions()
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
     menuBar()->addMenu(m_help_menu.get());
-    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
+    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms); // TODO: ownership not transferred using add action likely a memory leaks
     aboutAct->setStatusTip(tr("Show the application's About box"));
     QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
+    QAction* wikiAct = m_help_menu->addAction(tr("&Wiki"), this, &MainWindow::wiki);
 }
 
 void MainWindow::updateFileMenu()

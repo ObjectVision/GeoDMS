@@ -202,6 +202,7 @@ public slots:
     void fileOpen();
     void reOpen();
     void aboutGeoDms();
+    void wiki();
     void createView(ViewStyle viewStyle);
 
     void back();
