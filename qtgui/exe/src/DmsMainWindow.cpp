@@ -516,7 +516,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         else
             reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
     }
-    dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    try
+    {
+        dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::TheOne()->error(errMsg);
+    }
     
     if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
@@ -1642,7 +1650,7 @@ void MainWindow::createActions()
 
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
