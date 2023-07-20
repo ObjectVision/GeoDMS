@@ -51,7 +51,7 @@ struct Timer
 		time(&curr_time);
 //		time_t delta_time = curr_time - begin_time;
 //		MakeMax(nrSecs, delta_time / 5);
-		MakeMin(nrSecs, 600);
+		MakeMin<time_t>(nrSecs, 600);
 
 		if (curr_time < last_time + nrSecs)
 			return false;

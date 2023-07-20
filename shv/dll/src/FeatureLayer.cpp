@@ -434,14 +434,14 @@ const int FONT_DECIFONTSIZE_RIGHT =  6;
 const int FONT_DECIFONTSIZE_HOR = Max<int>(FONT_DECIFONTSIZE_LEFT,  FONT_DECIFONTSIZE_RIGHT);
 const int FONT_DECIFONTSIZE_VER = Max<int>(FONT_DECIFONTSIZE_ABOVE, FONT_DECIFONTSIZE_BELOW);
 
-GRect FeatureLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const
+GRect FeatureLayer::GetFeaturePixelExtents(CrdPoint subPixelFactors) const
 {
 	if (!GetEnabledTheme(AN_LabelText))
 		return GRect(0, 0, 0, 0);
 
 	Int32 
-		maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_LabelSize).get(), DEFAULT_FONT_PIXEL_SIZE )*subPixelFactor,
-		maxFontSizeX = maxFontSizeY * GetMaxLabelStrLen();
+		maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_LabelSize).get(), DEFAULT_FONT_PIXEL_SIZE )*subPixelFactors.second,
+		maxFontSizeX = ((maxFontSizeY * 6) / 10) * GetMaxLabelStrLen();
 
 	return GRect(
 		- ((FONT_DECIFONTSIZE_LEFT *maxFontSizeX)/10+1), 
@@ -451,9 +451,9 @@ GRect FeatureLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const
 	);
 }
 
-GRect FeatureLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
+GRect FeatureLayer::GetBorderPixelExtents(CrdPoint subPixelFactors) const
 {
-	return GetFeaturePixelExtents(subPixelFactor);
+	return GetFeaturePixelExtents(subPixelFactors);
 }
 
 CrdRect FeatureLayer::GetFeatureWorldExtents() const
@@ -484,11 +484,11 @@ CrdRect FeatureLayer::GetFeatureWorldExtents() const
 	return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
 }
 
-CrdRect FeatureLayer::GetExtentsInflator(const CrdTransformation& tr, CrdType subPixelFactor) const
+CrdRect FeatureLayer::GetExtentsInflator(const CrdTransformation& tr, CrdPoint subPixelFactors) const
 {
 	CrdRect symbRect = 
 		tr.WorldScale(
-			Convert<CrdRect>(GetBorderPixelExtents(subPixelFactor)) 
+			Convert<CrdRect>(GetBorderPixelExtents(subPixelFactors)) 
 		);
 
 	symbRect += GetFeatureWorldExtents();
@@ -497,7 +497,7 @@ CrdRect FeatureLayer::GetExtentsInflator(const CrdTransformation& tr, CrdType su
 
 CrdRect FeatureLayer::GetWorldClipRect  (const GraphDrawer& d) const
 {
-	return d.GetWorldClipRect() + - GetExtentsInflator(d.GetTransformation(), d.GetSubPixelFactor());
+	return d.GetWorldClipRect() + - GetExtentsInflator(d.GetTransformation(), d.GetSubPixelFactors());
 }
 
 #include "MapControl.h"
@@ -1300,14 +1300,14 @@ bool GraphicPointLayer::DrawImpl(FeatureDrawer& fd) const
 	return result;
 }
 
-GRect GraphicPointLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const
+GRect GraphicPointLayer::GetFeaturePixelExtents(CrdPoint subPixelFactors) const
 {
-	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactor);
+	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactors);
 	if (!IsDisabledAspectGroup(AG_Symbol))
 	{
 		Int32 
-			maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_SymbolSize).get(), DEFAULT_SYMB_PIXEL_SIZE )*subPixelFactor,
-			maxFontSizeX = maxFontSizeY;		
+			maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_SymbolSize).get(), DEFAULT_SYMB_PIXEL_SIZE )*subPixelFactors.second,
+			maxFontSizeX = (maxFontSizeY*6)/10;
 
 		rect |= GRect(
 			- ((SYMB_DECIFONTSIZE_LEFT *maxFontSizeX)/10+1), 
@@ -1871,13 +1871,13 @@ bool GraphicArcLayer::DrawImpl(FeatureDrawer& fd) const
 	return result;
 }
 
-GRect GraphicArcLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const
+GRect GraphicArcLayer::GetFeaturePixelExtents(CrdPoint subPixelFactors) const
 {
-	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactor);
+	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactors);
 
 	if (!IsDisabledAspectGroup(AG_Pen))
 	{
-		Int32 maxSize = GetMaxValue( GetEnabledTheme(AN_PenWidth).get(), DEFAULT_PEN_PIXEL_WIDTH )*subPixelFactor;
+		Int32 maxSize = GetMaxValue( GetEnabledTheme(AN_PenWidth).get(), DEFAULT_PEN_PIXEL_WIDTH ) * 0.5* (subPixelFactors.first + subPixelFactors.second);
 
 		rect |= GRect(
 			- (maxSize+1), 
@@ -2079,12 +2079,12 @@ bool GraphicPolygonLayer::DrawImpl(FeatureDrawer& fd) const
 	return result;
 }
 
-GRect GraphicPolygonLayer::GetFeaturePixelExtents(CrdType subPixelFactor) const
+GRect GraphicPolygonLayer::GetFeaturePixelExtents(CrdPoint subPixelFactors) const
 {
-	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactor);
+	GRect rect = base_type::GetFeaturePixelExtents(subPixelFactors);
 	if (!IsDisabledAspectGroup(AG_Pen))
 	{
-		Int32 maxSize = GetMaxValue( GetEnabledTheme(AN_PenWidth).get(), DEFAULT_PEN_PIXEL_WIDTH )*subPixelFactor;
+		Int32 maxSize = GetMaxValue( GetEnabledTheme(AN_PenWidth).get(), DEFAULT_PEN_PIXEL_WIDTH ) * (0.5* (subPixelFactors.first + subPixelFactors.second));
 		
 		rect |= GRect(
 			- (maxSize+1), 

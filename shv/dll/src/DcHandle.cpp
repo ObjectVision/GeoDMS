@@ -179,8 +179,10 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 // AddClientOffset
 //----------------------------------------------------------------------
 
-AddClientOffset::AddClientOffset(GraphVisitor* v, const TPoint& c2p)
-	:	tmp_swapper<TPoint>(v->m_ClientOffset, v->m_ClientOffset+c2p)
+
+
+AddClientOffset::AddClientOffset(GraphVisitor* v, TPoint c2p)
+	:	tmp_swapper<TPoint>(v->m_ClientOffset, v->m_ClientOffset + v->GetDeviceSize(c2p))
 {
 }
 

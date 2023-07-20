@@ -86,7 +86,7 @@ ScalableObject::ScalableObject(GraphicObject* owner)
 TRect ScalableObject::CalcFullAbsRect(const GraphVisitor& v) const
 {
 	auto wr = CalcWorldClientRect();
-	return DRect2TRect( v.GetTransformation().Apply( wr ) ) + TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
+	return DRect2TRect( v.GetTransformation().Apply( wr ) ) + TRect(GetBorderPixelExtents(v.GetSubPixelFactors()));
 }
 
 TRect ScalableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
@@ -96,7 +96,7 @@ TRect ScalableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
 		return TRect();
 
 	return DRect2TRect( v.GetTransformation().Apply( cwcr ) ) 
-		+ TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
+		+ TRect(GetBorderPixelExtents(v.GetSubPixelFactors()));
 }
 
 CrdRect ScalableObject::CalcWorldClientRect() const
@@ -124,17 +124,9 @@ CrdRect ScalableObject::GetCurrWorldClientRect() const
 	return m_WorldClientRect;
 }
 
-GRect ScalableObject::GetBorderPixelExtents(CrdType subPixelFactor) const
+GRect ScalableObject::GetBorderPixelExtents(CrdPoint subPixelFactors) const
 {
 	return GRect(0, 0, 0, 0);
-}
-
-CrdRect ScalableObject::CalcFullWorldRect(const CrdTransformation& tr, CrdType subPixelFactor) const
-{
-	CrdRect result = CalcWorldClientRect();
-	result += tr.WorldScale(Convert<CrdRect>(GetBorderPixelExtents(subPixelFactor)));
-
-	return result;
 }
 
 //----------------------------------------------------------------------
@@ -159,13 +151,18 @@ const ViewPort* ScalableObject::GetViewPort() const
 void ScalableObject::InvalidateWorldRect(const CrdRect& rect, const GRect* borderExtentsPtr) const 
 {
 	const ViewPort* vp = GetViewPort();
-	if (vp)
-		vp->InvalidateWorldRect(
-			rect
-		,	borderExtentsPtr
-			?	*borderExtentsPtr
-			:	GetBorderPixelExtents(vp->GetSubPixelFactor())
-		);
+	if (!vp)
+		return;
+	auto dv = vp->GetDataView().lock();
+	if (!dv)
+		return;
+
+	vp->InvalidateWorldRect(
+		rect
+	,	borderExtentsPtr
+		?	*borderExtentsPtr
+		:	GetBorderPixelExtents(dv->GetDIP2pixFactorXY())
+	);
 }
 
 ScalableObject* ScalableObject::GetEntry(SizeT i)

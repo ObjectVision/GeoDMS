@@ -266,7 +266,7 @@ void DataView::DestroyWindow()
 
 HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) const
 {
-	dip2pixFactor *= GetWindowDIP2pixFactor(m_hWnd);
+//	dip2pixFactor *= GetWindowDIP2pixFactor(m_hWnd);
 	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
@@ -276,7 +276,7 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 		m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor] =
 			GdiHandle<HFONT>(
 				CreateFont(
-	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96
+	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96*dip2pixFactor
 					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(96.0 / 72.0),
 					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
 					  0, // nEscapement
@@ -305,7 +305,7 @@ void DataView::InsertCaret(AbstrCaret* c)
 	if (m_State.Get(DVF_CaretsVisible) && m_hWnd && c->IsVisible())
 	{
 		dms_assert(m_hWnd);
-		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
+		CaretDcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::CARET));
 		c->Reverse(dc, true);
 	}
 }
@@ -778,11 +778,7 @@ void DataView::InvalidateChangedGraphics()
 		GraphInvalidator().Visit( go.get() );
 	}
 
-	dms_assert(!SuspendTrigger::DidSuspend());
-
-//	UpdateViewProcessor().Visit( const_cast<MovableObject*>(go) );
-
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	// make sure the m_DoneGraphics is updated according to invalidated rgn before scrolling; can result in UpdateView
 	UpdateWindow(GetHWnd()); // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
@@ -816,12 +812,15 @@ GraphVisitState DataView::UpdateView()
 
 	InvalidateChangedGraphics();
 
-	if (GraphUpdater( ViewRect()).Visit( GetContents().get() ) == GVS_Break)
+	auto scaleFactors = GetDIP2pixFactorXY();
+
+	if (GraphUpdater( ViewRect(), scaleFactors).Visit( GetContents().get() ) == GVS_Break)
 		return GVS_Break;
 
 	assert(!SuspendTrigger::DidSuspend());
 	if (SuspendTrigger::MustSuspend())
 		return GVS_Break;
+
 
 	if (!m_DoneGraphics.Empty())
 	{
@@ -867,7 +866,7 @@ GraphVisitState DataView::UpdateView()
 				continue;
 			}
 
-			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData));
+			GraphDrawer drawer(dc, m_DoneGraphics, this, GdMode( GD_StoreRect|GD_Suspendible|GD_UpdateData|GD_DrawData), scaleFactors);
 			CaretHider caretHider(this, dc); // Only area as clipped by m_DoneGraphics.Curr().Region() is hidden
 
 			dms_assert(!SuspendTrigger::DidSuspend());
@@ -903,12 +902,12 @@ GraphVisitState DataView::UpdateView()
 	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
 	CounterStacks updateAllStack;
-	GPoint viewSize = m_ViewSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
+//	GPoint viewSize = m_ViewSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
 	updateAllStack.AddDrawRegion(Region(m_ViewSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
 
-	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData))
+	GraphVisitState suspended = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData), scaleFactors)
 		.Visit(GetContents().get());
 
 //	auto allDrawer = GraphDrawer(NULL, updateAllStack, this, GdMode(GD_Suspendible | GD_UpdateData));
@@ -994,7 +993,7 @@ void DataView::Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableO
 	DBG_TRACE(("clip = %s", AsString(rcClip  ).c_str()));
 
 	dbg_assert( md_InvalidateDrawLock == 0);
-	auto scaleFactor = GetWindowDIP2pixFactorXY(GetHWnd());
+	auto scaleFactor = GetDIP2pixFactorXY();
 	delta *= scaleFactor;
 	rcScroll *= scaleFactor;
 	rcClip *= scaleFactor;
@@ -1348,7 +1347,8 @@ void DataView::OnPaint()
 		::FillRect(paintDC, &rect, br1 );
 	}
 #endif
-	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground)).Visit( GetContents().get() );
+	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetDIP2pixFactorXY())
+		.Visit( GetContents().get() );
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 
@@ -1378,6 +1378,8 @@ void DataView::OnMouseMove(WPARAM nFlags, const GPoint& point)
 		if (!_TrackMouseEvent(&tme))
 			throwLastSystemError("TrackMouseEvent");
 	}
+//	GPoint dipPoint = point;
+//	dipPoint /= GetDIP2pixFactorXY();
 	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
 		DispatchMouseEvent(EID_MOUSEDRAG, nFlags, point);
 	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
@@ -1408,10 +1410,10 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
 	DBG_TRACE(("NewSize=(%d,%d)", point.x, point.y));
 
+	auto dipPoint = point; dipPoint /= GetDIP2pixFactorXY();
 	if (m_ViewSize == point)
 	{
-		auto point2 = point; point2 /= GetWindowDIP2pixFactorXY(GetHWnd());
-		if (GetContents()->GetCurrFullSize() == TPoint(point2))
+		if (GetContents()->GetCurrFullSize() == TPoint(dipPoint))
 			return;
 	}
 
@@ -1439,12 +1441,10 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 
 	if (m_Contents) {
 		GRect viewRect = GRect(GPoint(0, 0), point);
-		auto point2 = point;
-		point2 /= GetWindowDIP2pixFactorXY(GetHWnd());
-		GRect viewRect2 = GRect(GPoint(0, 0), point2);
+		GRect dipViewRect = GRect(GPoint(0, 0), dipPoint);
 		if (GetContents()->IsDrawn())
 			GetContents()->ClipDrawnRect(viewRect);
-		GetContents()->SetFullRelRect(TRect(viewRect));
+		GetContents()->SetFullRelRect(TRect(dipViewRect));
 	}
 	m_ViewSize = point;
 
@@ -1494,7 +1494,7 @@ void DataView::InvalidateRect(GRect rect)
 #if defined(MG_DEBUG)
 	CheckRgnLimits(rect);
 #endif
-	rect *= GetWindowDIP2pixFactorXY(GetHWnd());
+	rect *= GetDIP2pixFactorXY();
 	::InvalidateRect(m_hWnd, &rect, true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)

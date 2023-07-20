@@ -87,7 +87,7 @@ public:
 };
 
 
-bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result)
+bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* message, qintptr* /*result*/ )
 {
     MSG* msg = static_cast<MSG*>(message);
 

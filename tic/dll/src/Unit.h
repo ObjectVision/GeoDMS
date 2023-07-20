@@ -325,8 +325,8 @@ struct VoidUnitBase : UnitBase<Void>
 {
 	static_assert(!has_var_range_field_v<Void>);
 
-	typedef Void          value_t;
-	typedef Range<UInt32> range_t;
+	using value_t = Void;
+	using range_t = Range<UInt32>;
 
 	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override {
 		static SharedPtr<FixedRange<0>> s_RangeData = new FixedRange<0>;
@@ -334,11 +334,11 @@ struct VoidUnitBase : UnitBase<Void>
 	}
 
 	range_t GetRange() const { return range_t(0, 1); }
-	range_t GetTileRange(tile_id t) const { dms_assert(t==0); return range_t(0, 1); }
+	range_t GetTileRange(tile_id t) const { assert(t==0); return range_t(0, 1); }
 
 // Support for Numerics
-	value_t GetValueAtIndex (row_id   i) const { dms_assert(!i); return Void(); }
-	row_id  GetIndexForValue(value_t v) const { return 0; }
+	value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
+	row_id  GetIndexForValue(value_t ) const { return 0; }
 };
 
 template <bit_size_t N>

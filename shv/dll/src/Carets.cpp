@@ -53,11 +53,6 @@ inline void LineTo(HDC dc, GPoint p)
 	LineTo  (dc, p.x, p.y);
 }
 
-AbstrCaret::AbstrCaret()
-	:	m_StartPoint( UNDEFINED_VALUE(GPoint) )
-	,	m_UsedObject(0)
-{}
-
 void AbstrCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
 {
 	DBG_START("AbstrCaret", "Move", MG_DEBUG_CARET);

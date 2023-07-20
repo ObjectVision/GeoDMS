@@ -569,9 +569,9 @@ void DataItemColumn::InvalidateDrawnActiveElement()
 
 void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents, GuiReadLockPair& locks) const
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(d.DoDrawData()); // PRECONDITION
-	dms_assert(d.GetDC()); // implied by prev
+	assert(!SuspendTrigger::DidSuspend());
+	assert(d.DoDrawData()); // PRECONDITION
+	assert(d.GetDC()); // implied by prev
 
 // TODO: Set scaled Font size, Set TextAlignMode
 //	CrdPoint base = d.GetTransformation().GetOffset();
@@ -837,7 +837,7 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 				,	cellHeight+2, 0, GetTokenID_mt(defFontNames[fr]), 0
 				)
 			);
-		m_FontIndexCache->UpdateForZoomLevel(1.0, subPixelFactor);
+		m_FontIndexCache->UpdateForZoomLevel(subPixelFactor, subPixelFactor);
 		m_FontArray.assign(new FontArray(m_FontIndexCache, true) );
 	}
 	dms_assert(m_FontArray);

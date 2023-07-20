@@ -1203,11 +1203,14 @@ void GridLayer::DoUpdateView()
 	}
 }
 
-GRect GridLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
+GRect GridLayer::GetBorderPixelExtents(CrdPoint subPixelFactors) const
 {
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE* subPixelFactor);
+	IPoint focusSize(
+		RoundUp<4>(subPixelFactors.first * FOCUS_BORDER_SIZE)
+	,	RoundUp<4>(subPixelFactors.second * FOCUS_BORDER_SIZE)
+	);
 
-	return GRect(-focusSize, -focusSize, focusSize, focusSize);  // max rounding error without considering orientation
+	return GRect(-focusSize.first, -focusSize.second, focusSize.first, focusSize.second);  // max rounding error without considering orientation
 }
 
 void GridLayer::Zoom1To1(ViewPort* vp)
