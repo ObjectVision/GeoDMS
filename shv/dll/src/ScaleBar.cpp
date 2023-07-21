@@ -310,9 +310,8 @@ void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
 void ScaleBarCaretOperator::operator() (AbstrCaret* c) const
 {
 	assert(c);
-	auto dv = c->UsedObject()->GetDataView().lock();
-	if (!dv)
-		return;
+	auto obj = c->UsedObject(); if (!obj) return;
+	auto dv = obj->GetDataView().lock(); if (!dv) return;
 
 	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox(dv->GetDIP2pixFactorXY());
 	c->SetStartPoint(GPoint(0, 0) );
