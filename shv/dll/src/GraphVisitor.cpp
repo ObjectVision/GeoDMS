@@ -357,8 +357,7 @@ GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 	dms_assert(vp);
 	if (vp->GetWorldCrdUnit())
 	{
-		auto vpRect = TRect2GRect(vp->GetCurrClientRelRect() + m_ClientOffset);
-		vpRect *= GetSubPixelFactors();
+		auto vpRect = TRect2GRect( m_Transformation.Apply(vp->GetCurrClientRelRect() + m_ClientOffset) );
 		VisitorRectSelector clipper(this, vpRect);
 		if (clipper.empty()) 
 			return GVS_UnHandled;
@@ -581,13 +580,11 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 
 	if (obj->HasBorder() && DoDrawBackground())
 	{
-		auto extents = TRect2GRect(obj->GetCurrFullAbsRect(*this));
+		auto extents = obj->GetCurrFullAbsRect(*this);
+		extents *= m_Transformation.Factor();
+		auto gExtents = TRect2GRect(extents);
 
-		DrawBorder(
-			GetDC(),
-			extents,
-			obj->RevBorder()
-		);
+		DrawBorder(GetDC(), gExtents, obj->RevBorder());
 	}
 	return GVS_UnHandled;
 }

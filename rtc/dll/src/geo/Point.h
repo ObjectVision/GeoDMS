@@ -62,6 +62,9 @@ struct Point: Couple<T>
 	template <typename U>
 	void operator =(const Point<U>& rhs) { first = rhs.first; second = rhs.second; }
 
+	template <typename U>
+	void operator *=(const Point<U>& rhs) { first *= rhs.first; second *= rhs.second; }
+
 #if defined(DMS_POINT_ROWCOL)
 	const T& Row() const { return first;  }
 	const T& Col() const { return second; }

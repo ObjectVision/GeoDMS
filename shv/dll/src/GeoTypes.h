@@ -364,7 +364,14 @@ struct TRect : Range<TPoint>
 		first  += delta;
 		second -= delta;
 	}
-	TRect& Expand(Int32 delta) 
+
+	template <typename Factor>
+	void operator *=(Factor f)
+	{
+		first  *= f;
+		second *= f;
+	}
+	TRect& Expand(Int32 delta)
 	{
 		Left  () -= delta;
 		Right () += delta;
