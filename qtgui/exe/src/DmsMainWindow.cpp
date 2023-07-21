@@ -294,10 +294,7 @@ void DmsCurrentItemBar::onEditingFinished()
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
     if (found_treeitem)
-    {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
-        auto treeView = MainWindow::TheOne()->m_treeview.get();
-    }
 }
 
 bool MainWindow::IsExisting()
@@ -437,6 +434,11 @@ void MainWindow::aboutGeoDms()
             tr(dms_about_text.c_str()));
 }
 
+void MainWindow::wiki()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
+}
+
 DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
     :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str())
 {
@@ -516,7 +518,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         else
             reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
     }
-    dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    try
+    {
+        dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::TheOne()->error(errMsg);
+    }
     
     if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
@@ -1642,7 +1652,7 @@ void MainWindow::createActions()
 
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
@@ -1749,10 +1759,11 @@ void MainWindow::createActions()
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
     menuBar()->addMenu(m_help_menu.get());
-    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
+    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms); // TODO: ownership not transferred using add action likely a memory leaks
     aboutAct->setStatusTip(tr("Show the application's About box"));
     QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
+    QAction* wikiAct = m_help_menu->addAction(tr("&Wiki"), this, &MainWindow::wiki);
 }
 
 void MainWindow::updateFileMenu()
