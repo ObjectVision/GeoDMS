@@ -77,8 +77,10 @@ struct DistrictOperator : public UnaryOperator
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 
-		AbstrUnit* resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
-		dms_assert(resUnit);
+		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
+		resUnit->SetTSF(TSF_Categorical);
+
+		assert(resUnit);
 		resultHolder = resUnit;
 
 		AbstrDataItem*

@@ -222,7 +222,6 @@ public:
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				// spawn []() { GetPreparedCount() }.then([](){ if main.lock mainlock->notify([](){})})
 				SharedPtr<const AbstrUnit> paletteDomain = m_Result->GetActiveTheme()->GetPaletteDomain();
 
 				//TODO: Dit moet toch handiger kunnen 
@@ -231,6 +230,7 @@ public:
 				{
 					SuspendTrigger::DoSuspend();
 					paletteDomain->PrepareData(); // wants to know GetCount();
+					assert(IsCalculatingOrReady(paletteDomain->GetCurrRangeItem()));
 					SuspendTrigger::Resume();
 				}
 				else
@@ -238,6 +238,11 @@ public:
 					SuspendTrigger::SilentBlocker xx;
 					paletteDomain->PrepareData();
 				}
+#if defined(MG_DEBUG)
+				auto* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem());
+				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
+				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FR_Data));
+#endif
 				std::weak_ptr<GraphicLayer> wResLayer = m_Result;
 				std::weak_ptr<LayerSet> wLayerSet = ls->weak_from_base<LayerSet>();
 				std::weak_ptr<DataView> wDv = ls->GetDataView();
@@ -384,13 +389,13 @@ private:
 
 void GraphDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(IsDataItem(viewItem));
+	assert(!SuspendTrigger::DidSuspend());
+	MG_USERCHECK(IsDataItem(viewItem));
 
 	LayerInfo info = GetCompleteLayerInfoOrThrow(viewItem);
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
-	dms_assert(info.IsComplete());
+	MG_USERCHECK(info.IsComplete());
 	AddLayerCmd(AsDynamicDataItem(viewItem), info, isDropped).Visit(GetContents().get());
 }
 
@@ -404,13 +409,24 @@ SharedStr GraphDataView::GetCaption() const
 	auto mapContents = GetContents();
 	if (mapContents)
 	{
+		SharedStr spatialRefStr;
+		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
+		if (wcu)
+			spatialRefStr = wcu->GetSpatialReference();
+		if (spatialRefStr.empty())
+			spatialRefStr = "MapView";
+		else
+			spatialRefStr = "MapView with " + spatialRefStr;
 		auto ls = mapContents->GetLayerSet();
 		if (ls)
 		{
 			auto al = ls->GetActiveLayer();
 			if (al)
-				return al->GetCaption();
+			{
+				return spatialRefStr + ", " + al->GetCaption();
+			}
 		}
+		return spatialRefStr;
 	}
 	return SharedStr("MapView");
 }

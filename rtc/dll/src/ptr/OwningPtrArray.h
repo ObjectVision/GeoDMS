@@ -48,13 +48,18 @@ struct array_traits
 {
 	using pointer = typename sequence_traits<T>::pointer;
 	
-	static pointer Create(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	static pointer CreateUninitialized(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
 		auto result = CreateMyAllocator<T>()->allocate(nrElems MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		return result;
+	}
+	static pointer CreateDefaultConstructed(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		auto result = CreateUninitialized(nrElems MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		std::uninitialized_default_construct(result, result + nrElems);
 		return result;
 	}
-	static void Destroy(pointer p, SizeT nrElems)  
+	static void Destroy(pointer p, SizeT nrElems)
 	{
 		std::destroy_n(p, nrElems);
 		CreateMyAllocator<T>()->deallocate(p, nrElems);
@@ -74,9 +79,13 @@ struct array_traits<bit_value<N> >
 		nr_elems_per_byte = 8/N, 
 		last_elem_in_byte = nr_elems_per_byte - 1 
 	};
-	static pointer Create(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	static pointer CreateUninitialized(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
-		return pointer(array_traits<block_type>::Create(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
+		return pointer(array_traits<block_type>::CreateUninitialized(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
+	}
+	static pointer CreateDefaultConstructed(SizeT nrElems MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		return pointer(array_traits<block_type>::CreateDefaultConstructed(pointer::calc_nr_blocks(nrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM), SizeT(0));
 	}
 	static void Destroy(pointer p, SizeT nrElems)  { array_traits<block_type>::Destroy(p.data_begin(), pointer::calc_nr_blocks(nrElems)); }
 	static SizeT ByteAlign(SizeT nrElems) { return (nrElems+last_elem_in_byte) & ~last_elem_in_byte; }
@@ -84,84 +93,5 @@ struct array_traits<bit_value<N> >
 	static SizeT NrElemsIn(SizeT nrBytes) { return nrBytes * nr_elems_per_byte; }
 	static void* DataBegin(pointer p) { return p.data_begin(); }
 };
-
-// constness: value semantics, so a const ptr cannot be reassigned and can only grant const access to the pointee
-/* REMOVE
-template <class T>
-struct OwningPtrArray : ref_base<T, movable>
-{
-	using base_type = ref_base<T, movable>;
-	using typename base_type::pointer;
-	using typename base_type::const_pointer;
-	using typename base_type::reference;
-	using typename base_type::const_reference;
-
-	typedef pointer iterator;
-	typedef const_pointer const_iterator;
-
-	OwningPtrArray(pointer ptrArray = nullptr  ) noexcept
-		: base_type(ptrArray)
-	{}
-	OwningPtrArray(SizeT nrElems)
-		: base_type(array_traits<T>::Create(nrElems))
-	{}
-	OwningPtrArray(SizeT nrElems, Undefined) 
-		: base_type(array_traits<T>::Create(nrElems))
-	{ 
-		fast_undefine(begin(), begin() + nrElems); 
-	}
-	OwningPtrArray(OwningPtrArray<T>&& oth) noexcept 
-		: base_type(oth.release())
-	{}
-
-	~OwningPtrArray() noexcept
-	{
-		reset(); 
-	}
-
-	pointer release () { pointer tmp_ptr = this->m_Ptr; this->m_Ptr= nullptr; return tmp_ptr; }
-	void reset (pointer ptr = pointer()) noexcept 
-	{ 
-		dms_assert(this->m_Ptr != ptr || !ptr);
-		array_traits<T>::Destroy(this->m_Ptr);
-		this->m_Ptr = ptr;
-	}
-
-	void swap (OwningPtrArray<T>& oth) noexcept
-	{
-		std::swap(this->m_Ptr, oth.m_Ptr);
-	}
-
-	void operator = (OwningPtrArray<T>&& rhs) noexcept
-	{ 
-		reset(rhs.release());
-	}
-
-	const_reference operator [](UInt32 i) const noexcept
-	{ 
-		dms_assert(this->m_Ptr);
-		return this->m_Ptr[i];
-	}
-
-	const_pointer begin() const noexcept
-	{
-		return this->get_ptr();
-	}
-
-	reference operator [](UInt32 i) { dms_assert(this->m_Ptr); return this->m_Ptr[i]; }
-	pointer begin()   { return this->get_ptr(); }
-
-	friend void swap(OwningPtrArray<T>& a, OwningPtrArray<T>& b) noexcept 
-	{
-		a.swap(b); 
-	}
-
-private: // illegal copy ctors
-	OwningPtrArray(const OwningPtrArray<T>& oth) = delete;
-};
-
-template <class T>       T* begin_ptr(      OwningPtrArray<T>& opa) { return opa.begin(); }
-template <class T> const T* begin_ptr(const OwningPtrArray<T>& opa) { return opa.begin(); }
-*/
 
 #endif // __RTC_PTR_OWNINGPTRARRAY_H

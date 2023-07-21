@@ -64,8 +64,8 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 	template <typename ScannerT>
 	struct definition
 	{
-		typedef datablock_grammar::definition<ScannerT> datablock_definition_t;
-		typedef expr_grammar<EmptyExprProd>::definition<ScannerT> expr_definition_t;
+		using datablock_definition_t = datablock_grammar::definition<ScannerT>;
+		using expr_definition_t = expr_grammar<EmptyExprProd>::definition<ScannerT>;
 
 		datablock_definition_t m_DataBlockDef;
 		expr_definition_t      m_ExprDef;
@@ -239,7 +239,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 								//<entity nr of rows prop> ::= nrofrows = <integer value> ;
 								entityNrOfRowsProp = (as_lower_d["nrofrows"]
 									>> EQUAL[([&cp](...) { cp.SetSign(true); })]
-									>> m_DataBlockDef.integerValue
+									>> m_DataBlockDef.unsignedInteger
 									)[([&cp](...) { cp.DoNrOfRowsProp(); })];
 
 								directExpr = EQUAL >> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.DoExprProp(_1, _2);})];

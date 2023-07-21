@@ -11,6 +11,7 @@
 #include "mci/ValueClass.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
+#include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"
@@ -180,6 +181,8 @@ SharedStr AbstrUnit::GetProjMetrString() const
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
 
+
+
 auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
 {
 	if (!role[2]) // zero-termination
@@ -224,7 +227,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible%s"
+	SharedStr msg = mgFormat2SharedStr("%s mismatch between %s%s (%s %s: %s) and %s%s (%s %s: %s)%s"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
@@ -234,7 +237,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	if (um & UM_Throw)
 		throwItemError(msg);
 
-	dms_assert(resultMsg);
+	assert(resultMsg);
 	*resultMsg = msg;
 }
 
@@ -622,7 +625,7 @@ auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 	return base_type::GetScriptName(context);
 }
 
-bool AbstrUnit::DoReadItem(StorageMetaInfo* smi)
+bool AbstrUnit::DoReadItem(StorageMetaInfoPtr smi)
 {
 	dms_assert(!IsDisabledStorage());
 	dms_assert(IsInWriteLock(this));
@@ -669,6 +672,11 @@ void AbstrUnit::OnDomainChange(const DomainChangeInfo* info)
 SizeT AbstrUnit::GetPreparedCount(bool throwOnUndefined) const  // Returns 0 if non-countable unit
 {
 	return GetCount();
+}
+
+bool AbstrUnit::PrepareRange() const  // Returns 0 if non-countable unit
+{
+	return true;
 }
 
 SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit
@@ -807,7 +815,12 @@ void AbstrUnit::SetRangeAsFloat64(Float64 begin, Float64 end)
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsFloat64"); 
 }
 
-Range<Float64> AbstrUnit::GetRangeAsFloat64() const 
+void AbstrUnit::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	throwIllegalAbstract(MG_POS, this, "SetRangeAsUInt64");
+}
+
+Range<Float64> AbstrUnit::GetRangeAsFloat64() const
 { 
 	throwIllegalAbstract(MG_POS, this, "GetRangeAsFloat64");
 }
@@ -888,7 +901,10 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
   public:
 	FormatPropDef()
 		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
-	{}
+	{
+		SetDepreciated();
+	}
+
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
 	void SetValue(AbstrUnit* item, ParamType val) override
@@ -906,7 +922,7 @@ class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
 {
 public:
 	SpatialReferencePropDef()
-		: PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+		: PropDef<AbstrUnit, TokenID>(SR_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
 	{}
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
@@ -943,6 +959,7 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 };
 
 FormatPropDef formatPropDef;
+SpatialReferencePropDef srPropDef;
 MetricPropDef metricPropDef;
 ProjectionPropDef projectionPropDef;
 ValueTypePropDef valueTypePropDef;

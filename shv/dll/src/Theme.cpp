@@ -159,8 +159,17 @@ const AbstrDataItem* Theme::GetPaletteOrThemeAttr() const
 	if (m_PaletteAttr)
 		return m_PaletteAttr;
 	if (m_Classification)
-		return 0;
+		return nullptr;
 	return m_ThemeAttr;
+}
+
+const AbstrDataItem* Theme::GetThemeOrPaletteAttr() const
+{
+	if (m_ThemeAttr)
+		return m_ThemeAttr;
+	if (m_Classification)
+		return nullptr;
+	return m_PaletteAttr;
 }
 
 CharPtr Theme::GetAspectName() const

@@ -233,27 +233,21 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi)
 	:	DataReadLock((Update(adi), adi))
 {}
 
-SharedStr MakeTmpStreamName(stream_id_t lastStreamID) // TODO G8.4: Merge with 
-{
-	SharedStr result;
-	dms_assert(lastStreamID); // no overflow?
-	while (lastStreamID)
-	{
-		result = mySSPrintF("/%02x", lastStreamID % 256) + result;
-		lastStreamID /= 256;
-	}
-	result = ".tmp" + result;
-	return result;
-}
-
 auto CreateFileData(AbstrDataItem* adi, bool mustClear) -> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
 	bool isTmp = !isPersistent;
 
 	SharedStr filename = adi->m_FileName;
-	dms_assert(!filename.empty());
-	return CreateFileTileArray(adi, mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all, filename, isTmp, DataStoreManager::Curr()->GetSafeFileWriterArray());
+	assert(!filename.empty());
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return {};
+	return CreateFileTileArray(adi
+		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
+		,	filename, isTmp
+		,	sfwa.get()
+	);
 }
 
 auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>

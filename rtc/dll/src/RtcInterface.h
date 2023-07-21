@@ -77,6 +77,9 @@ RTC_CALL const ValueClass* DMS_CONV DMS_ValueType_GetCrdClass  (const ValueClass
 
 RTC_CALL CharPtr DMS_CONV DMS_GetVersion();
 RTC_CALL Float64 DMS_CONV DMS_GetVersionNumber();
+RTC_CALL UInt32 DMS_CONV DMS_GetMajorVersionNumber();
+RTC_CALL UInt32 DMS_CONV DMS_GetMinorVersionNumber();
+RTC_CALL UInt32 DMS_CONV DMS_GetPatchNumber();
 RTC_CALL CharPtr DMS_CONV DMS_GetPlatform();
 RTC_CALL CharPtr DMS_CONV DMS_GetBuildConfig();
 
@@ -89,6 +92,8 @@ RTC_CALL void DMS_CONV DMS_Rtc_Load();
 RTC_CALL bool DMS_CONV DMS_RTC_Test();
 
 } // end extern "C"
+
+RTC_CALL auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff;
 
 RTC_CALL extern bool g_IsTerminating;
 

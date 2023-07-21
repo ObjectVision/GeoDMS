@@ -173,6 +173,7 @@ mutable_array_cast(DataWriteLock const& lock)
 {
 	return debug_valcast<TileFunctor<V>*>(lock.get());
 }
+
 using DataWriteHandle = DataWriteLock; // TODO G8.5: RENAME DataWriteLock -> DataWriteHandle
 
 template<typename V>

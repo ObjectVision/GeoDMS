@@ -32,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_SER_DEBUGOUTSTREAM_H
 
 #include "ser/FormattedStream.h"
+#include "dbg/SeverityType.h"
 #include <concrt.h>
 
 struct DebugOutStream : FormattedOutStream, leveled_critical_section
@@ -40,18 +41,18 @@ struct DebugOutStream : FormattedOutStream, leveled_critical_section
 
 	RTC_CALL void NewLine();
 	RTC_CALL void PrintSpaces();
-// REMOVE	RTC_CALL void Flush();
 
 private:
 	void SetSeverity(SeverityTypeID st);
+	void SetMsgCategory(MsgCategory msgCat);
 
 public:
-	struct flush_first {
-		flush_first();
+	struct flush_after {
+		~flush_after();
 	};
-	struct scoped_lock : flush_first, leveled_critical_section::scoped_lock
+	struct scoped_lock : flush_after, leveled_critical_section::scoped_lock
 	{
-		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID(0) );
+		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::nonspecific);
 		RTC_CALL ~scoped_lock();
 	private:
 		WeakPtr<DebugOutStream> m_Str;

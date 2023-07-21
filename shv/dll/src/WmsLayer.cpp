@@ -186,7 +186,7 @@ namespace wms {
 			m_SslSocket.set_verify_mode(ssl::verify_none);
 			m_SslSocket.set_verify_callback(ssl::host_name_verification(host.m_Name));
 
-			report("ctor", false);
+			MG_DEBUGCODE(report("ctor", false));
 			++s_InstanceCount;
 		}
 
@@ -194,30 +194,29 @@ namespace wms {
  
 		void SetTimer()
 		{
-			report("SetTimer", true);
+			MG_DEBUGCODE(report("SetTimer", true));
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
-#if defined(MG_DEBUG_WMS)
-				self->report(("TimerExpired: " + ec.message()).c_str(), true);
-#endif
+				MG_DEBUGCODE(self->report(("TimerExpired: " + ec.message()).c_str(), true));
 			});
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
 		{
-			report("Run", true);
+			MG_DEBUGCODE(report("Run", true));
 
 			m_Request.set(http::field::host, host.Name());
 			m_Request.set(http::field::connection, "keep-alive");
 			m_Request.set(http::field::user_agent, "GeoDMS");
 
 			// Look up the domain name
+			report(SeverityTypeID::ST_MajorTrace, ("connect to" + host.m_Name).c_str(), "OK", true);
 			host.async_connect(m_SslSocket.lowest_layer(), [self = shared_from_this()](boost::system::error_code ec, auto iter)
 				{ 
-				auto owner = self->m_Owner.lock();
-				if (owner) self->on_connect(ec);  
-			//	if (owner) self->on_handshake(ec);
-			}
+					auto owner = self->m_Owner.lock();
+					if (owner) self->on_connect(ec);  
+				//	if (owner) self->on_handshake(ec);
+				}
 			);
 
 			SetTimer();
@@ -231,9 +230,7 @@ namespace wms {
 		bool report_status(const boost::system::error_code& ec, CharPtr what);
 		void report(CharPtr what, bool alive)
 		{
-			#if defined(MG_DEBUG_WMS)
-				report(SeverityTypeID::ST_MajorTrace, what, "OK", alive);
-			#endif
+			report(SeverityTypeID::ST_MinorTrace, what, "OK", alive);
 		}
 
 		void on_connect(const boost::system::error_code& ec) {
@@ -255,6 +252,7 @@ namespace wms {
 			m_Request.prepare_payload();
 
 			// Send the HTTP request to the remote host
+			report(SeverityTypeID::ST_MajorTrace, m_Target.c_str(), "OK", true);
 			http::async_write(m_SslSocket, m_Request, [self = shared_from_this()](const boost::system::error_code& ec, std::size_t bytes_transferred) 
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -298,15 +296,15 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STARTED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "SUSPENDED: GetIOC()"); )
+			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MajorTrace, "STOPPED: GetIOC()"));
+		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
@@ -431,7 +429,7 @@ namespace wms {
 
 	TileLoader::~TileLoader()
 	{
-		report("dtor", false);
+		MG_DEBUGCODE(report("dtor", false));
 		--s_InstanceCount;
 		auto owner = m_Owner.lock();
 		if (owner)
@@ -446,7 +444,7 @@ namespace wms {
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
+		reportF(MsgCategory::wms, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
 			, what 
 			, msg 
 			, m_Request 
@@ -462,9 +460,7 @@ namespace wms {
 
 		if (!ec)
 		{
-			#if defined(MG_DEBUG_WMS)
-				report(SeverityTypeID::ST_MajorTrace, what, "OK", true);
-			#endif
+			report(SeverityTypeID::ST_MinorTrace, what, "OK", true);
 			return false;
 		}
 		report(SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
@@ -648,7 +644,7 @@ void WmsLayer::RunTileLoads(bool maySuspend) const
 	m_TileCache->RunTileLoads(this, maySuspend);
 }
 
-bool  WmsLayer::Draw(GraphDrawer& d) const
+bool WmsLayer::Draw(GraphDrawer& d) const
 {
 	if (!VisibleLevel(d))
 		return GVS_Continue;
@@ -662,7 +658,7 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	const wms::tile_matrix& tm = m_TMS[m_ZoomLevel];
 	grid_coord_key gcKey = tm.GridCoordKey();
 	ViewPort* vp = d.GetViewPortPtr();
-	dms_assert(vp);
+	assert(vp);
 	GridCoordPtr drawGridCoords = vp->GetOrCreateGridCoord(gcKey);
 
 	if (vp == GetViewPort())
@@ -685,10 +681,10 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	wms::tile_pos tlTile = tlPixel / tileSizeAsIPoint;
 	wms::tile_pos brTile = brPixel / tileSizeAsIPoint;
 
-	dms_assert(IsLowerBound(tlTile, brTile));
+	assert(IsLowerBound(tlTile, brTile));
 	MakeMax(tlTile, wms::tile_pos(0,0));
 	MakeMin(brTile, tm.m_MatrixSize - wms::tile_pos(1,1));
-	dms_assert(IsLowerBound(tlTile, brTile));
+	assert(IsLowerBound(tlTile, brTile));
 
 	GDAL_SimpleReader gdalReader;
 	GDAL_SimpleReader::buffer_type rasterBuffer;
@@ -723,10 +719,8 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 			try {
 				auto result = gdalReader.ReadGridData(m_TileCache->FileName(wmsTileKey).c_str(), rasterBuffer);
 				if (result==WPoint())
-				{
 					goto nextTile;
-				}
-
+	
 				GridDrawer drawer(
 					drawGridCoords.get()
 					, GetIndexCollector()
@@ -753,9 +747,8 @@ bool  WmsLayer::Draw(GraphDrawer& d) const
 	return GVS_Continue;
 }
 
-void WmsLayer::Zoom1To1()
+void WmsLayer::Zoom1To1(ViewPort* vp)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	if (!vp->GetWorldCrdUnit())
@@ -771,6 +764,47 @@ void WmsLayer::Zoom1To1()
 	CrdPoint p = Center(vp->GetROI());
 	CrdPoint s = m_TMS[zoomLevel].m_Raster2World.Factor() * Convert<CrdPoint>(vp->GetCurrClientSize()) * 0.5;
 	vp->SetROI(CrdRect(p - s, p + s));
+}
+
+bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
+{
+	dms_assert(vp);
+
+	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
+	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
+	if (!m_ZoomLevel)
+		return false;
+	MakeMin(m_ZoomLevel, m_TMS.size());
+	--m_ZoomLevel;
+	Zoom1To1(vp);
+//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
+	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor < 0.99 || justClickIsOK)
+		return true;
+	if (!m_ZoomLevel)
+		return false;
+	--m_ZoomLevel;
+	Zoom1To1(vp);
+	return true;
+}
+
+bool WmsLayer::ZoomIn(ViewPort* vp)
+{
+	dms_assert(vp);
+
+	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
+	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
+	if (m_ZoomLevel >= m_TMS.size() - 1)
+		return false;
+//	++m_ZoomLevel;
+	Zoom1To1(vp);
+	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
+	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor >  1.01)
+		return true;
+	if (m_ZoomLevel >= m_TMS.size() - 1)
+		return false;
+	++m_ZoomLevel;
+	Zoom1To1(vp);
+	return true;
 }
 
 void WmsLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)

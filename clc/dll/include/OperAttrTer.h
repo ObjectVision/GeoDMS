@@ -152,12 +152,12 @@ public:
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<Arg1ValueType>(arg1A); dms_assert(arg1);
-		auto arg2 = const_array_cast<Arg2ValueType>(arg2A); dms_assert(arg2);
-		auto arg3 = const_array_cast<Arg3ValueType>(arg3A); dms_assert(arg3);
+		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
+		auto arg2 = MakeShared(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
+		auto arg3 = MakeShared(const_array_cast<Arg3ValueType>(arg3A)); assert(arg3);
 
 		using prepare_data = std::tuple<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>, SharedPtr<typename Arg3Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, arg3, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t), arg3->GetFutureTile(af & AF3_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

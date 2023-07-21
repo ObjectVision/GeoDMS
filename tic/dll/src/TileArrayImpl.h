@@ -55,19 +55,7 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const ->locked_cseq_t override;
-
-	void Commit() override
-	{
-		MG_CHECK(m_Seqs.size() == this->m_TileRangeData->GetNrTiles());
-
-		tile_id t = 0;
-		for (auto& tile : m_Seqs)
-		{
-			MG_CHECK(tile->size() == this->m_TileRangeData->GetTileSize(t++));
-		}
-	}
-
-	tiles_t m_Seqs;
+	mutable tiles_t m_Seqs;
 };
 
 template <typename V>
@@ -84,11 +72,6 @@ struct HeapSingleArray : GeneratedTileFunctor<V>
 
 	auto GetWritableTile(tile_id t, dms_rw_mode rwMode)->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override;
-
-	void Commit() override
-	{
-		MG_CHECK(m_Seq.size() == this->m_TileRangeData->GetTileSize(0));
-	}
 
 	tile_t m_Seq;
 };
@@ -130,16 +113,6 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	locked_seq_t GetWritableTile(tile_id t, dms_rw_mode rwMode) override;
 	locked_cseq_t GetTile(tile_id t) const override;
 
-	void Commit() override
-	{
-		tile_id t = 0;
-		MG_CHECK(m_Files.size() == this->m_TileRangeData->GetNrTiles());
-		for (auto& file : m_Files)
-		{
-			MG_CHECK(file->size() == this->m_TileRangeData->GetTileSize(t++));
-		}
-	}
-
 	SharedStr m_CacheFileName;
 	files_t m_Files;
 	bool    m_IsTmp;
@@ -158,25 +131,40 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 	this->m_TileRangeData = trd;
 	tile_id tn = trd->GetNrTiles();
 
-	tiles_t seqs(tn MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-
+	tiles_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+/*
 	for (tile_id t = 0; t != tn; ++t)
 	{
 		seqs[t] = new tile<V>;
 		auto tileSize = trd->GetTileSize(t);
 		reallocSO(*seqs[t], tileSize, mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
 	}
-
+*/
 	m_Seqs = std::move(seqs);
+}
+
+extern std::mutex s_mutableTileRecSection;
+
+template <typename V>
+void InitTile(SharedPtr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear)
+{
+	auto sectionLokc = std::unique_lock(s_mutableTileRecSection);
+	if (!tilePtr)
+	{
+		tilePtr = new tile<V>;
+		reallocSO(*tilePtr, trd->GetTileSize(t), mustClear MG_DEBUG_ALLOCATOR_SRC("HeapTileArray<V>::ctor"));
+	}
+	assert(tilePtr);
+	assert(tilePtr->size() == trd->GetTileSize(t));
 }
 
 template <typename V>
 auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	const auto& tilePtr = m_Seqs[t];
-	dms_assert(tilePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
+	auto& tilePtr = m_Seqs[t];
+	InitTile(tilePtr, this->GetTiledRangeData(), t, rwMode != dms_rw_mode::write_only_all);
 
 	return locked_seq_t(TileRef(tilePtr.get_ptr()), GetSeq(*tilePtr));
 }
@@ -184,12 +172,10 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 template <typename V>
 auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	const auto& tilePtr = m_Seqs[t];
-
-	auto tileSize = this->GetTiledRangeData()->GetTileSize(t);
-	dms_assert(tilePtr->size() == tileSize);
+	auto& tilePtr = m_Seqs[t];
+	InitTile(tilePtr, this->GetTiledRangeData(), t, true);
 
 	return locked_cseq_t(TileCRef(tilePtr.get_ptr()), GetConstSeq(*tilePtr));
 }
@@ -316,7 +302,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	dms_assert(trd);
 	tile_id tn = trd->GetNrTiles();
 
-	files_t seqs(tn MG_DEBUG_ALLOCATOR_SRC_EMPTY);
+	files_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 
 	for (tile_id t = 0; t != tn; ++t)
 	{
@@ -364,16 +350,6 @@ auto FileTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	dms_assert(filePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 	return locked_cseq_t(TileCRef(make_SharedThing( std::move(fileMapHandle) )), GetConstSeq(*filePtr));
 }
-/* REMOVE
-template <typename V>
-void FileTileArray<V>::DropData()
-{
-	tile_id tn = this->GetTiledRangeData()->GetNrTiles();
-	for (tile_id t=0; t!=tn; ++t)
-		m_Files[t]->Drop();
-}
-*/
-
 
 #endif //!defined(__TIC_TILEARRAYIMPL_H)
 

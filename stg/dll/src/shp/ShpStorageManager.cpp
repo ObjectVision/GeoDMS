@@ -221,19 +221,23 @@ void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 	);
 }
 
-bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	if (t)
 		return true;
 
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*   adi = smi->CurrWD();
 
 	dms_assert(adi->GetDataObjLockCount() < 0); // Write lock is already set.
 
 	ShpImp impl;
 
-	if (!impl.Read( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!impl.Read( GetNameStr(), sfwa.get()) )
 		return false;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
@@ -253,7 +257,7 @@ bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(),
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(),
 			[borrowedReadResultHolder, shpImpFeatureCount, &impl] <typename P> (const Unit<P>*)
 			{
 				ReadSequences<P>(borrowedReadResultHolder, shpImpFeatureCount, &impl); // also reads (Multi)Polygons
@@ -345,7 +349,8 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -369,7 +374,9 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+
+	if (!sfwa || !pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -420,7 +427,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(), 
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(), 
 			[this, ado, storageHolder, adi, &impl] <typename P> (const Unit<P>*)
 			{
 				WriteSequences<P>(ado, &impl, this->GetNameStr(), storageHolder, adi); // also reads (Multi)Polygons
@@ -444,8 +451,12 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
+
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get() ))
 		return; // nothing read; file does not exist; probably has to write data and not read
 
 	const AbstrDataItem* pData = nullptr;
@@ -477,8 +488,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder()) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get()))
 		return false;
 
 	AbstrUnit* au = smi.CurrWU();

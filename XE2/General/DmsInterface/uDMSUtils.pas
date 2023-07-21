@@ -835,7 +835,7 @@ begin
     tiGeometry := nil;
   end;
 
-  // install the storage mamager(s) and run the export
+  // install the storage manager(s) and run the export
 geometryFound: // create context in ViewData
   avd := TConfiguration.CurrentConfiguration.DesktopManager.GetActiveViewData;
   vdc := DMS_CreateTreeItem(avd, PItemChar( TDesktopManager.GetUniqueName('DbfTable', avd)));

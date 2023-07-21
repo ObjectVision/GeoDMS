@@ -136,7 +136,7 @@ struct enable_shared_from_this_base : std::enable_shared_from_this<Base>
 
 enum class StorageAction { read, write, updatetree, writetree };
 
-struct StorageMetaInfo
+struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 {
 	StorageMetaInfo(AbstrStorageManager* storageManager)
 		: m_StorageManager(storageManager)
@@ -167,6 +167,8 @@ protected:
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
+	bool      m_MustRememberFailure = true;
+	std::mutex m_TileReadSection;
 };
 
 struct GdalMetaInfo :StorageMetaInfo
@@ -177,6 +179,7 @@ struct GdalMetaInfo :StorageMetaInfo
 	SharedTreeItemInterestPtr m_LayerCreationOptions;
 	SharedTreeItemInterestPtr m_ConfigurationOptions;
 	SharedTreeItemInterestPtr m_DriverItem;
+	SharedStr m_Driver, m_Options;
 };
 
 
@@ -191,8 +194,9 @@ public:
 	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, bool readOnly, bool throwOnFailure = true);
 	TIC_CALL static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
 	TIC_CALL static SharedStr            Expand(const TreeItem* configStore, SharedStr storageName);
-	TIC_CALL static SharedStr            GetFullStorageName(const TreeItem* configStore, SharedStr storageName);
-	TIC_CALL static SharedStr            GetFullStorageName(CharPtr subDir, CharPtr storageNameCStr);
+	TIC_CALL static SharedStr            Expand(CharPtr configDir, CharPtr storageName);
+	TIC_CALL static SharedStr            GetFullStorageName(const TreeItem* configStore, SharedStr storageName); // ForItem
+	TIC_CALL static SharedStr            GetFullStorageName(CharPtr subDir, CharPtr storageNameCStr); // ForFolder
 	TIC_CALL static SyncMode             GetSyncMode(const TreeItem* storageHolder);
 
 //	override / extent PerssistentRefObject interface
@@ -205,15 +209,18 @@ public:
 	bool IsOpen        () const { return m_IsOpen;  }
 	bool IsReadOnly    () const { return m_IsReadOnly; }
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
+	TIC_CALL AbstrStorageManagerRef ReaderClone(const StorageMetaInfo& smi) const;
 
 //	Abstact interface
+	TIC_CALL virtual bool AllowRandomTileAccess() const { return false;  }
+	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
 
-	TIC_CALL virtual bool ReadDataItem  (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)=0;
+	TIC_CALL virtual bool ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)=0;
 	TIC_CALL virtual bool WriteDataItem (StorageMetaInfoPtr&& smiHolder);
 
 	TIC_CALL virtual bool ReadUnitRange (const StorageMetaInfo& smi) const;
@@ -250,8 +257,6 @@ protected:
 	TIC_CALL virtual void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const;
 	TIC_CALL virtual void DoCloseStorage (bool mustCommit) const;
 
-	TIC_CALL virtual bool ReduceResources();
-
 public:
 	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
 	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
@@ -262,8 +267,8 @@ private:
 	TIC_CALL bool OpenForRead (const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
 public:
-	typedef leveled_critical_section mutex_t;
-	typedef mutex_t::scoped_lock lock_t;
+	using mutex_t = leveled_critical_section;
+	using lock_t = mutex_t::scoped_lock;
 	mutable mutex_t m_CriticalSection;
 
 protected: friend struct StorageClass;
@@ -306,17 +311,16 @@ struct StorageCloseHandle
 
 	explicit operator bool() const { return m_StorageManager; }
 
-	StorageMetaInfo* MetaInfo() const { return m_MetaInfo.get(); }
+	StorageMetaInfoPtr MetaInfo() const { return m_MetaInfo; }
 	TreeItem* FocusItem() const { return const_cast<TreeItem*>(m_FocusItem.get_ptr()); }
 
 private:
 	void Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem);
 
-	StorageMetaInfoPtr m_MetaInfo;
-
 protected:
+	StorageMetaInfoPtr                   m_MetaInfo;
 	SharedPtr<const AbstrStorageManager> m_StorageManager;
-	SharedPtr<const TreeItem>      m_StorageHolder, m_FocusItem;
+	SharedTreeItem                       m_StorageHolder, m_FocusItem;
 private:
 	AbstrStorageManager::lock_t    m_StorageLock;
 	TimeStamp                      m_TimeStampBefore;
@@ -329,7 +333,7 @@ private:
 
 struct StorageReadHandle : StorageCloseHandle
 {
-	TIC_CALL StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa);
+	TIC_CALL StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
 	TIC_CALL StorageReadHandle(StorageMetaInfoPtr&& info);
 
 	bool Read() const;

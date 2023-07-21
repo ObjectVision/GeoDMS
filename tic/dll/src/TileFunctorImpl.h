@@ -56,20 +56,22 @@ struct DelayedTileFunctor : TileFunctor<V>
 
 	using cache_t = std::unique_ptr<SharedPtr<future_tile>[]>;
 	cache_t m_ActiveTiles;
+//	std::unique_ptr<std::mutex[]> m_Mutices;
 
-	DelayedTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn MG_DEBUG_ALLOCATOR_SRC_ARG)
+	
+	DelayedTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
-		, m_ActiveTiles(std::make_unique<SharedPtr<future_tile>[]>(tn))
+		, m_ActiveTiles(std::make_unique<SharedPtr<future_tile>[]>(tiledDomainRangeData->GetNrTiles()))
 	{
 		MG_CHECK(tiledDomainRangeData);
-		MG_CHECK(tiledDomainRangeData->GetNrTiles() == tn);
+		MG_CHECK(tiledDomainRangeData->GetNrTiles() == tiledDomainRangeData->GetNrTiles());
 		if constexpr (has_var_range_field_v<V>)
 		{
 			MG_CHECK(valueRangePtr);
 		}
 	}
 
-	auto GetFutureTile(tile_id t) const->SharedPtr<future_tile> override
+	auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> override
 	{
 		return m_ActiveTiles[t];
 	}
@@ -77,7 +79,7 @@ struct DelayedTileFunctor : TileFunctor<V>
 	{
 		dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-		return m_ActiveTiles[t]->GetTile();
+		return GetFutureTile(t)->GetTile();
 	}
 };
 
@@ -111,33 +113,49 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 			{
 				const tile_spec& tf = std::get<0>(m_State);
 				tile_data resData;
-				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC("md_SrcStr"));
+				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC(md_SrcStr));
 				tf.aFunc(GetSeq(resData), tf.pState);
 				m_State.emplace<1>(std::move(resData));
 			}
-			dms_assert(m_State.index() == 1);
+			assert(m_State.index() == 1);
 			return locked_cseq_t(this, GetConstSeq(std::get<1>(m_State)));
 		}
 		std::mutex  m_Mutex;
 		future_state m_State;
 #if defined(MG_DEBUG_ALLOCATOR)
-		SharedStr md_SrcStr;
+		CharPtr md_SrcStr;
 #endif
 	};
 
-	FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
-		: DelayedTileFunctor<V>(tiledDomainRangeData, valueRangePtr, tn MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
+		, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC_ARG)
+	: DelayedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	, aFunc(aFunc_)
+#if defined(MG_DEBUG_ALLOCATOR)
+	, md_SrcStr(srcStr)
+#endif
 	{
-		dms_assert(tn > 1);
-		for (tile_id t = 0; t != tn; ++t)
-			this->m_ActiveTiles[t] = new tile_record(pFunc(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		assert(tiledDomainRangeData->GetNrTiles() > 1);
+		for (tile_id t = 0; t != tiledDomainRangeData->GetNrTiles(); ++t)
+			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
+
+	ApplyFunc aFunc;
+
+#if defined(MG_DEBUG_ALLOCATOR)
+	CharPtr md_SrcStr;
+#endif
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
-auto make_unique_FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 { 
-	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, tn, std::forward<PrepareFunc>(pFunc), std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(
+		tiledDomainRangeData, valueRangePtr, 
+		std::forward<PrepareFunc>(pFunc), 
+		std::forward<ApplyFunc>(aFunc) 
+		MG_DEBUG_ALLOCATOR_SRC_PARAM
+	);
 }
 
 //----------------------------------------------------------------------
@@ -152,16 +170,16 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 
 	struct lazy_tile_record
 	{
-		std::mutex                    m_Mutex;
-		std::shared_ptr< tile_data >  m_TileFutureSPtr; // keep it !
+		std::mutex                  m_Mutex;
+		std::weak_ptr< tile_data >  m_TileFutureWPtr; // don't keep it !
 	};
 
 	using cache_t = std::unique_ptr<lazy_tile_record[]>;
 
-	LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+	LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ApplyFunc(std::move(aFunc))
-		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tn))
+		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tiledDomainRangeData->GetNrTiles()))
 	{}
 
 //	auto CreateFutureTile(tile_id t) const->TileRef override;
@@ -173,9 +191,9 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 };
 
 template <typename V, typename ApplyFunc>
-auto make_unique_LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, tile_id tn, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_LazyTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, tn, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 
@@ -191,7 +209,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 
 //	auto lock = std::scoped_lock(m_ActiveTiles[t].m_Mutex);
 
-	auto tileSPtr = m_ActiveTiles[t].m_TileFutureSPtr;
+	auto tileSPtr = m_ActiveTiles[t].m_TileFutureWPtr.lock();
 	dms_assert(tileSPtr); // called only from within m_Func
 	dms_assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
@@ -201,22 +219,22 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 template <typename V, typename ApplyFunc>
 auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
 	auto lock = std::scoped_lock(m_ActiveTiles[t].m_Mutex);
 
-	auto tileSPtr = m_ActiveTiles[t].m_TileFutureSPtr;
+	auto tileSPtr = m_ActiveTiles[t].m_TileFutureWPtr.lock();
 	if (!tileSPtr)
 	{
 		tileSPtr = std::make_shared<tile_data>(); // done by GetWritableTile
 
 		resizeSO(*tileSPtr, this->GetTiledRangeData()->GetTileSize(t), false MG_DEBUG_ALLOCATOR_SRC("this->md_SrcStr"));
 
-		m_ActiveTiles[t].m_TileFutureSPtr = tileSPtr;
+		m_ActiveTiles[t].m_TileFutureWPtr = tileSPtr;
 		m_ApplyFunc(const_cast<LazyTileFunctor<V, ApplyFunc>*>(this), t);
 	}
-	dms_assert(tileSPtr);
-	dms_assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
+	assert(tileSPtr);
+	assert(tileSPtr->size() == this->GetTiledRangeData()->GetTileSize(t));
 
 	return locked_cseq_t(make_SharedThing(std::move(tileSPtr)), GetConstSeq(*tileSPtr) );
 }

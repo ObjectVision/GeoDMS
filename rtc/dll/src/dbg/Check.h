@@ -45,7 +45,10 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 #include "ser/format.h"
+#include "dbg/SeverityType.h"
 class Object;
+struct TokenID;
+struct CharPtrRange;
 
 //----------------------------------------------------------------------
 // Statements like:
@@ -115,7 +118,6 @@ private:
 
 #endif //defined(CC_FIX_ASSERT)
 
-
 //----------------------------------------------------------------------
 // Exception Generation & Message functions
 //----------------------------------------------------------------------
@@ -123,15 +125,15 @@ private:
 #define MG_POS __FILE__, __LINE__
 #define MG_NIL 0, 0
 
-[[noreturn]] RTC_CALL void throwErrorD             (CharPtr type, CharPtr msg);
-[[noreturn]] RTC_CALL void throwDmsErrD            (              CharPtr msg);
+[[noreturn]] RTC_CALL void throwErrorD (CharPtr type, CharPtr msg);
+[[noreturn]] RTC_CALL void throwDmsErrD(              CharPtr msg);
+[[noreturn]] RTC_CALL void throwErrorD (const TokenID& type, CharPtr msg);
 
-template<typename ...Args>
-[[noreturn]] void throwErrorF(CharPtr type, CharPtr format, Args&&... args)
+template<typename Type, typename ...Args>
+[[noreturn]] void throwErrorF(Type&& type, CharPtr format, Args&&... args)
 {
-	throwErrorD(type, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+	throwErrorD(std::forward<Type>(type), mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
-
 
 template<typename ...Args>
 [[noreturn]] void throwDmsErrF(CharPtr format, Args&&... args)
@@ -145,9 +147,29 @@ template<typename ...Args>
 [[noreturn]] RTC_CALL void throwIllegalAbstract   (CharPtr sourceFile, int line, CharPtr method);
 [[noreturn]] RTC_CALL void throwNYI               (CharPtr sourceFile, int line, CharPtr method);
 
-RTC_CALL void reportD(SeverityTypeID st, CharPtr mgs);
-RTC_CALL void reportD(SeverityTypeID st, CharPtr mgs1, CharPtr msg2);
-RTC_CALL void reportD_without_cancellation_check(SeverityTypeID st, CharPtr mgs);
+RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, const CharPtrRange& msg);
+RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
+RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2);
+RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
+
+inline void reportD_impl(SeverityTypeID st, const CharPtrRange& msg) { reportD_impl(MsgCategory::nonspecific, st, msg); }
+inline void reportD(SeverityTypeID st, CharPtr msg) { reportD(MsgCategory::nonspecific, st, msg); }
+inline void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2) { reportD(MsgCategory::nonspecific, st, msg1, msg2); }
+inline void reportD_without_cancellation_check(SeverityTypeID st, CharPtr msg) { reportD_without_cancellation_check(MsgCategory::nonspecific, st, msg); }
+
+struct CharPtrRange;
+template<typename CharIterType>
+void reportD(SeverityTypeID st, IterRange<CharIterType> value)
+{
+	reportD_impl(st, CharPtrRange(value.begin(), value.end()));
+}
+
+template<typename CharIterType>
+void reportD(MsgCategory msgCat, SeverityTypeID st, IterRange<CharIterType> value)
+{
+	reportD_impl(msgCat, st, CharPtrRange(value.begin(), value.end()));
+}
+
 
 template <typename ...Args>
 void reportF(SeverityTypeID st, CharPtr format, Args&&... args)
@@ -156,9 +178,21 @@ void reportF(SeverityTypeID st, CharPtr format, Args&&... args)
 }
 
 template <typename ...Args>
+void reportF(MsgCategory msgCat, SeverityTypeID st, CharPtr format, Args&&... args)
+{
+	reportD(msgCat, st, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+}
+
+template <typename ...Args>
 void reportF_without_cancellation_check(SeverityTypeID st, CharPtr format, Args&&... args)
 {
 	reportD_without_cancellation_check(st, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+}
+
+template <typename ...Args>
+void reportF_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr format, Args&&... args)
+{
+	reportD_without_cancellation_check(msgCat, st, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
 }
 
 RTC_CALL void ReportSuspension();

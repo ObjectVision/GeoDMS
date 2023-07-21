@@ -156,7 +156,7 @@ public:
 	{
 		return GetValue(item);
 	}
-	virtual void SetValue(ItemType* item, ParamType value)
+	virtual void SetValue(ItemType* /*item*/, ParamType /*value*/)
 	{
 		throwIllegalAbstract(MG_POS, "AbstrPropDef::SetValue");
 	}

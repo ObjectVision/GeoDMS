@@ -50,6 +50,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include "IndexGetterCreator.h"
+#include "LispTreeType.h"
 
 CommonOperGroup cogCONNEIGH("connect_neighbour",   oper_policy::dynamic_result_class);
 CommonOperGroup cogCON     ("connect",             oper_policy::dynamic_result_class);
@@ -128,7 +129,7 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(pointDomain, pointDomain);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 		if (mustCalc)
 		{
@@ -302,7 +303,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 		if (!resultHolder)
 		{
 			resultHolder = CreateCacheDataItem(point2Entity, point1Entity);
-			resultHolder->SetTSF(DSF_Categorical);
+			resultHolder->SetTSF(TSF_Categorical);
 		}
 
 		if (mustCalc)
@@ -451,13 +452,13 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 	}
 
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
 	{
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
 	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(*p, maxDepth, optionalMaxSqrDistPtr));
-			for (auto iter = spIndex.begin(Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
+			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr));
+			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
@@ -465,7 +466,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 				{
 					m_ArcPtr = streetPtr;
-					iter.RefineSearch( Inflate(*p, Point<T>(aph.m_Dist, aph.m_Dist)) );
+					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
 				}
 			}
 			if (aph.m_FoundAny || !maxDepth)
@@ -491,12 +492,13 @@ static TokenID s_InArc = GetTokenID_st("InArc");
 static TokenID s_InSegm = GetTokenID_st("InSegm");
 static TokenID s_SegmID = GetTokenID_st("SegmID");
 
+template <compare_type CT, bool HasMaxDist, bool HasMinDist>
+using ConnectInfoBaseClass = std::conditional_t < CT == compare_type::none,
+	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
+	, std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>>;
+
 template <typename P, typename E = UInt32, compare_type CT = compare_type::none, typename SegmID = UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false, bool OnlyDistResult = false>
-//class ConnectInfoOperator : public boost::mpl::if_c<CT== compare_type::none, BinaryOperator, QuaternaryOperator>::type
-class ConnectInfoOperator : std::conditional_t<CT == compare_type::none, 
-		std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
-	,	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>
-	>
+class ConnectInfoOperator : ConnectInfoBaseClass<CT, HasMaxDist, HasMinDist>
 {
 	typedef P                              PointType;
 	typedef Range<P>                       RangeType;
@@ -562,11 +564,47 @@ public:
 	{}
 
 	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && !HasMinDist && HasMaxDist>::type* = nullptr)
+		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && HasMinDist && HasMaxDist>::type* = nullptr)
+		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
 	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && !HasMaxDist>::type* = nullptr)
 		:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
 			,	Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			,	Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && HasMaxDist>::type* = nullptr)
+		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass()
+		)
+	{}
+
+	template <compare_type CT2 = CT>
+	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && HasMinDist && HasMaxDist>::type* = nullptr)
+		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
+			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
+		)
 	{}
 
 	// Override Operator
@@ -582,7 +620,6 @@ public:
 		const AbstrDataItem* argMaxDist = (HasMaxDist) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argMinDist = (HasMinDist) ? AsDataItem(args[argCount++]) : nullptr;
 		dms_assert(args.size() == argCount);
-
 
 		const AbstrUnit* polyUnit    = arg1A->GetAbstrValuesUnit();
 		const AbstrUnit* pointUnit   = arg2A->GetAbstrValuesUnit();
@@ -617,15 +654,20 @@ public:
 
 
 		AbstrDataItem* resSub1 = OnlyDistResult ? AsDataItem(resultHolder.GetNew()) : CreateDataItem(resultHolder, s_Dist, pointEntity, distUnit);
-		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_ArcID,    pointEntity, polyEntity);
+		AbstrDataItem* resSub2 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, token::arc_rel, pointEntity, polyEntity);
 		AbstrDataItem* resSub3 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_CutPoint, pointEntity, pointUnit );
 		AbstrDataItem* resSub4 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InArc,    pointEntity, boolUnit  );
 		AbstrDataItem* resSub5 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_InSegm,   pointEntity, boolUnit  );
 		AbstrDataItem* resSub6 = OnlyDistResult ? nullptr : CreateDataItem(resultHolder, s_SegmID,   pointEntity, segmUnit  );
 
-		if (resSub2)
-			resSub2->SetTSF(DSF_Categorical);
-
+		if (resSub2 && !mustCalc)
+		{
+			resSub2->SetTSF(TSF_Categorical);
+			auto resNrOrg_depreciated = CreateDataItem(resultHolder, s_ArcID, pointEntity, polyEntity);
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
+			resNrOrg_depreciated->SetReferredItem(resSub2);
+		}
 		if (mustCalc)
 		{
 			Timer processTimer;
@@ -740,9 +782,10 @@ public:
 						SizeT currRow = 0;
 						for (; pointPtr != pointEnd; ++r1, ++pointPtr)
 						{
-							if (IsDefined(*pointPtr))
+							auto point = *pointPtr;
+							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -806,9 +849,6 @@ public:
 // *****************************************************************************
 //									FastConnectOperator
 // *****************************************************************************
-
-static TokenID s_UnionData = GetTokenID_st("UnionData");
-static TokenID s_orgEntity = GetTokenID_st("nr_OrgEntity");
 
 template <class T, class R = seq_index_type, compare_type CT = compare_type::none, typename E= UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false>
 class FastConnectOperator : std::conditional_t<CT == compare_type::none
@@ -905,28 +945,28 @@ public:
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());
 
-		ResultUnitType* resDomain
-			=	mutable_unit_cast<R>(
-					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
-				);
+		ResultUnitType* resDomain = mutable_unit_cast<R>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
 		dms_assert(resDomain);
+		bool createNewResult = !resultHolder;
 		resultHolder = resDomain;
 
-		AbstrDataItem* resSub = 
-			CreateDataItem(
-				resDomain
-			,	s_UnionData
-			,	resDomain
-			,	polyUnit
-			,	ValueComposition::Sequence);
-		AbstrDataItem* resNrOrg = 
-			CreateDataItem(
-				resDomain
-			,	s_orgEntity
-			,	resDomain
-			,	arg1A->GetAbstrDomainUnit()
-			);
-		resNrOrg->SetTSF(DSF_Categorical);
+		AbstrDataItem* resSub   = CreateDataItem(resDomain, token::geometry, resDomain, polyUnit, ValueComposition::Sequence);
+		if (!mustCalc)
+		{
+			auto resSub_depreciated = CreateDataItem(resDomain, GetTokenID_mt("UnionData"), resDomain, polyUnit, ValueComposition::Sequence);
+			resSub_depreciated->SetTSF(TSF_Depreciated);
+			resSub_depreciated->SetReferredItem(resSub);
+		}
+
+		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
+		resNrOrg->SetTSF(TSF_Categorical);
+		if (!mustCalc)
+		{
+			auto resNrOrg_depreciated = CreateDataItem(resDomain, token::nr_OrgEntity, resDomain, arg1A->GetAbstrDomainUnit());
+			resNrOrg_depreciated->SetTSF(TSF_Categorical);
+			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
+			resNrOrg_depreciated->SetReferredItem(resNrOrg);
+		}
 
 		MG_PRECONDITION(resSub);
 
@@ -962,7 +1002,7 @@ public:
 
 			resultSubData.data_reserve( actualDataSize + arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
 
-			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
+			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
 			R* nrOrgEntityDataPtr = nrOrgEntityData.begin();
 			R* nrOrgEntityIter = nrOrgEntityDataPtr;
 
@@ -991,7 +1031,7 @@ public:
 			SpatialIndexType spIndex(
 				sequence_array_index<PointType>(resStreetBegin),
 				sequence_array_index<PointType>(resStreetEnd  ),
-				2*arg2Count
+				2*SizeT(arg2Count)
 			);
 
 			for (tile_id t=0, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
@@ -1036,19 +1076,19 @@ public:
 				};
 				for (;pointPtr != pointEnd; ++pointPtr)
 				{
-					if (!IsDefined(*pointPtr))
+					auto point = *pointPtr;
+					if (!IsDefined(point))
 						continue;
 					dms_assert(resStreetEnd < resCutBegin);
 
-					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(pointPtr, spIndex, filter, maxSqrDistPtr);
+					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
 					if (arcHnd.m_FoundAny)
 					{
-
 						// add Arc with connection
 						dms_assert(resStreetEnd->empty());
 						resStreetEnd->resize_uninitialized(2);
 						auto resPointPtr = resStreetEnd->begin();
-						resPointPtr[0] = *pointPtr;
+						resPointPtr[0] = point;
 						resPointPtr[1] = arcHnd.m_CutPoint;
 						dms_assert(resPointPtr + 2 == resStreetEnd->end());
 
@@ -1112,10 +1152,10 @@ public:
 
 			R nrNewStreets = nrOrgEntityIter - nrOrgEntityData.begin();
 
-			dms_assert(resStreetEnd - resultSubData.begin() == arg1Count + (arg2Count - nrOmittedPoints));
-			dms_assert(resCutIter - resCutBegin == nrNewStreets);
+			assert(resStreetEnd - resultSubData.begin() == arg1Count + (arg2Count - nrOmittedPoints));
+			assert(resCutIter - resCutBegin == nrNewStreets);
 
-			resDomain->SetCount(arg1Count + (arg2Count - nrOmittedPoints) + nrNewStreets);
+			resDomain->SetCount(arg1Count + (SizeT(arg2Count) - nrOmittedPoints) + nrNewStreets);
 
 			DataWriteLock resLock(resSub); 
 
@@ -1142,7 +1182,7 @@ public:
 			// TODO G8: use TileWriteChannel en visitor to avoid multiple shadowing.
 			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IdAssigner     (resNrOrgLock.get(), t, 0, 0, arg1Count));
 			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( NullAssigner   (resNrOrgLock.get(), t, arg1Count, arg2Count - nrOmittedPoints) );
-			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, arg1Count + arg2Count  - nrOmittedPoints, nrNewStreets, nrOrgEntityData.begin() ) );
+			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, SizeT(arg1Count) + arg2Count  - nrOmittedPoints, nrNewStreets, nrOrgEntityData.begin() ) );
 
 			resNrOrgLock.Commit();
 		}

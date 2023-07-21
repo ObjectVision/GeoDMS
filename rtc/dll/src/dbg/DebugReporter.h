@@ -62,7 +62,7 @@ protected:
 		}
 		// remove from list
 		*firstPtr = m_Next;
-		m_Next = 0;
+		m_Next = nullptr;
 	}
 
 private:
@@ -74,7 +74,7 @@ private:
 struct DebugReporter : linked_list
 {
 	virtual void Report() const =0;
-	static void ReportAll();
+	RTC_CALL static void ReportAll();
 
 protected:
 	RTC_CALL DebugReporter();

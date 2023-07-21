@@ -76,11 +76,11 @@ struct gdalComponent : gdalDynamicLoader
 
 struct GDAL_ErrorFrame : gdalThread
 {
-	GDAL_ErrorFrame();
-	~GDAL_ErrorFrame() noexcept(false);
+	STGDLL_CALL GDAL_ErrorFrame();
+	STGDLL_CALL ~GDAL_ErrorFrame() noexcept(false);
 
 	void RegisterError(dms_CPLErr eErrClass, int err_no, const char *msg);
-	void ThrowUpWhateverCameUp();
+	STGDLL_CALL void ThrowUpWhateverCameUp();
 	auto ReleaseError()
 	{
 		auto result = m_eErrClass;
@@ -95,6 +95,7 @@ struct GDAL_ErrorFrame : gdalThread
 	bool HasError() const { return m_eErrClass >= CE_Failure; }
 
 	dms_CPLErr m_eErrClass;
+	int m_nr_uncaught_exceptions = 0;
 	int m_err_no = 0, m_prev_proj_err_no = 0;
 	SharedStr m_msg;
 
@@ -160,32 +161,25 @@ public:
 
 // *****************************************************************************
 
-GDALDataType gdalDataType(ValueClassID tid);
+GDALDataType gdalRasterDataType(ValueClassID tid);
 
 // *****************************************************************************
 
-/* REMOVE
-struct sr_releaser {
-	void operator ()(OGRSpatialReference* p) const;
-};
-using sr_ptr_type = std::unique_ptr < OGRSpatialReference, sr_releaser>;
-*/
-
-// *****************************************************************************
-
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc); // TODO move OGR helper funcs to gdal_vect.cpp
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc);
-SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi);
+auto DmsType2OGRFieldType(ValueClassID id) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
+auto DmsType2OGRSubFieldType(ValueClassID id) -> OGRFieldSubType;
+auto DmsType2OGRGeometryType(ValueComposition vc) -> OGRwkbGeometryType;
+auto GetWktProjectionFromValuesUnit(const AbstrDataItem* adi) -> SharedStr;
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem);
-CPLStringList GetOptionArray(const TreeItem* optionsItem);
+auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
-OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem);
-SharedStr GetAsWkt(const OGRSpatialReference* sr);
+auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
+auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
-//auto GetUnitSizeInMeters(const OGRSpatialReference* sr) -> Float64;
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
+STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
 
 struct GDALDatasetHandle
 {
@@ -202,7 +196,9 @@ struct GDALDatasetHandle
 	struct deleter {
 		void operator ()(GDALDataset* dsh) {
 			gdalThread cleanupProjAfterItDidItsPjThings; // see https://github.com/ObjectVision/GeoDMS/issues/11
+			GDAL_ErrorFrame catchAllIssues;
 			GDALClose(GDALDataset::ToHandle(dsh)); 
+			catchAllIssues.ReleaseError();
 		};
 	};
 
@@ -235,11 +231,11 @@ private:
 	CPLStringList m_DefaultConfigurationOptions;
 };
 
-
 // *****************************************************************************
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite);
 
-typedef double gdal_transform[6];
+using gdal_transform = double[6];
+
 CrdTransformation GetTransformation(gdal_transform gdalTr);
 
 #endif // __STG_GDAL_BASE_H

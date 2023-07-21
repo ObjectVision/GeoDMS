@@ -76,7 +76,7 @@ protected:
 
 	const AbstrDataItem* GetGridAttr() const;
 	const AbstrUnit* GetGeoCrdUnit() const       override;
-	void  _InvalidateFeature(SizeT selectedID) override;
+	void  InvalidateFeature(SizeT selectedID) override;
 
 	void AssignValues(sequence_traits<Bool>::cseq_t selData);
 	void AssignSelValues();
@@ -97,7 +97,7 @@ private:
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
 
-	void Zoom1To1() override;
+	void Zoom1To1(ViewPort* vp) override;
 
 //	GridCoordPtr GetGridCoordInfo(ViewPort* vp) const; friend class ViewPort;
 	void CreateSelCaretInfo () const;

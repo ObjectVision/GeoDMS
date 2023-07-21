@@ -59,13 +59,11 @@ granted by an additional written contract for support, assistance and/or develop
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
 
-#define MG_DEBUG_INTERESTSOURCE_LOGGING
 #define MG_DEBUG_INTERESTSOURCE_VALUE false
 
 #else
 
 #define MG_DEBUG_INTERESTSOURCE_VALUE false
-#undef MG_DEBUG_INTERESTSOURCE_LOGGING
 
 #endif
 
@@ -393,7 +391,7 @@ void Actor::TriggerEvaluation() const
 TimeStamp Actor::GetLastChangeTS () const
 {
 	DetermineState();
-	dms_assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
+	assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
 	return m_LastChangeTS;
 }
 
@@ -957,7 +955,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 		}
 	}
 
-	dms_assert(IsMetaThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
+	assert(IsMetaThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 	DBG_START("IncInterestCount", "Actor", MG_DEBUG_INTERESTSOURCE_VALUE);
@@ -1031,7 +1029,7 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 		reportF(SeverityTypeID::ST_MajorTrace, "DecInterestCount %s", GetInterestCount());
 #endif
 
-	dms_assert(m_InterestCount);
+	assert(m_InterestCount);
 
 	if (!m_InterestCount) 
 		return {}; // DEBUG, MITIGATION OF ISSUE

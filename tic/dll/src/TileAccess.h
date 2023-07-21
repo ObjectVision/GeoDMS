@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct AbstrReadableTileData {
 	virtual void WriteFormattedValue(FormattedOutStream& out, SizeT index) const = 0;
+	virtual Float64 GetAsFloat64(SizeT index) const = 0;
 };
 
 template<typename V>
@@ -66,6 +67,13 @@ struct ReadableTileData :AbstrReadableTileData
 	{
 		dms_assert(index < m_CSeq.size());
 		::WriteDataString(out, m_CSeq[index]);
+	}
+	Float64 GetAsFloat64(SizeT index) const override 
+	{
+		if constexpr (is_numeric_v<V> || is_bitvalue_v<V>)
+			return Convert<Float64>(m_CSeq[index]);
+		else
+			throwIllegalAbstract(MG_POS, "ReadableTileData::GetAsFloat64");
 	}
 };
 

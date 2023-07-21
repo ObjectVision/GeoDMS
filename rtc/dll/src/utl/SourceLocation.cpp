@@ -77,29 +77,35 @@ FileDescr::~FileDescr()
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
 
-IStringHandle DMS_ReportChangedFiles(bool updateFileTimes)
+auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
+{
+	VectorOutStreamBuff vos;
+	FormattedOutStream fos(&vos, FormattingFlags::None);
+
+	FileDateTime fdt;
+	auto
+		i = s_FDS.begin(),
+		e = s_FDS.end();
+	while (i != e)
+	{
+		FileDescr* fd = *i;
+		fdt = GetFileOrDirDateTime(fd->GetFileName());
+		if (fdt != fd->m_Fdt)
+		{
+			if (updateFileTimes)
+				fd->m_Fdt = fdt;
+			fos << fd->GetFileName().c_str() << "\n";
+		}
+		++i;
+	}
+	
+	return vos;
+}
+
+IStringHandle DMS_ReportChangedFiles(bool updateFileTimes) //TODO: remove IStringHandle
 {
 	DMS_CALL_BEGIN
-
-		VectorOutStreamBuff vos;
-		FormattedOutStream fos(&vos, FormattingFlags::None);
-
-		FileDateTime fdt;
-		auto 
-			i = s_FDS.begin(), 
-			e = s_FDS.end();
-		while (i!=e)
-		{
-			FileDescr* fd = *i;
-			fdt = GetFileOrDirDateTime(fd->GetFileName());
-			if (fdt != fd->m_Fdt)
-			{
-				if (updateFileTimes)
-					fd->m_Fdt = fdt;
-				fos << fd->GetFileName().c_str() << "\n";
-			}
-			++i;
-		}
+		auto vos = ReportChangedFiles(updateFileTimes);
 		if (vos.CurrPos() == 0)
 			return nullptr;
 		return IString::Create(vos.GetData(), vos.GetDataEnd());

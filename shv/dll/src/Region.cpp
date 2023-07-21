@@ -50,22 +50,22 @@ static const GRect s_EmptyRect      = GRect(0, 0, 0, 0);
 
 void CheckRgnLimits(const GRect& rect)
 {
-	dms_assert(rect.top  >= RGN_LOWERBOUND);
-	dms_assert(rect.left >= RGN_LOWERBOUND);
-	dms_assert(rect.bottom >= rect.top );
-	dms_assert(rect.right  >= rect.left);
-	dms_assert(RGN_UPPERBOUND >= rect.bottom);
-	dms_assert(RGN_UPPERBOUND >= rect.right );
+	assert(rect.top  >= RGN_LOWERBOUND);
+	assert(rect.left >= RGN_LOWERBOUND);
+	assert(rect.bottom >= rect.top );
+	assert(rect.right  >= rect.left);
+	assert(RGN_UPPERBOUND >= rect.bottom);
+	assert(RGN_UPPERBOUND >= rect.right );
 }
 
 #endif
 
 GRect ClipRect(const GRect& rect)
 {
-#if defined(MG_DEBUG)
-	CheckRgnLimits(rect);
-#endif
 	GRect result = rect & s_WindowClipRect;
+//#if defined(MG_DEBUG)
+//	CheckRgnLimits(result);
+//#endif
 	if (result.empty())
 		return s_EmptyRect;
 	return result;
@@ -186,7 +186,7 @@ Region Region::Clone() const
 
 GRect Region::BoundingBox() const
 {
-	dms_assert(m_Rgn!=0);
+	assert(m_Rgn!=0);
 
 	GRect result;
 	::GetRgnBox(m_Rgn, &result);
@@ -313,7 +313,7 @@ bool Region::Empty() const
 		return true;
 
 	int result = CombineRgn(m_Rgn, m_Rgn, NULL, RGN_COPY);
-	dms_assert(result != ERROR);
+	assert(result != ERROR);
 	return result == NULLREGION;
 }
 
@@ -379,24 +379,29 @@ void Region::FillRectArray(RectArray& ra) const
 	static std::vector<BYTE> rgnDataBuffer;
 	UInt32 regionDataSize = GetRegionData(m_Rgn, 0, 0);
 	rgnDataBuffer.resize( regionDataSize ); 
-
-	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>( &*rgnDataBuffer.begin() );
+	if (!regionDataSize)
+	{
+		ra.clear();
+		return;
+	}
+	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>(begin_ptr(rgnDataBuffer));
 
 	GetRegionData(
-		m_Rgn, 
-		regionDataSize, 
+		m_Rgn,
+		regionDataSize,
 		rgnData
-	); 
-	dms_assert(rgnData->rdh.iType  == RDH_RECTANGLES);
-	dms_assert(rgnData->rdh.dwSize >= 32);
+	);
+	assert(rgnData->rdh.iType == RDH_RECTANGLES);
+	assert(rgnData->rdh.dwSize >= 32);
 
-//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
-	RECT*  rects = reinterpret_cast<RECT*>( &(rgnData->Buffer[0]) );
+	//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
+	RECT* rects = reinterpret_cast<RECT*>(&(rgnData->Buffer[0]));
 
 	UInt32 n = rgnData->rdh.nCount;
 
-	ra.assign(rects, rects+n);
+	ra.assign(rects, rects + n);
 }
+
 
 SharedStr Region::AsString() const
 {

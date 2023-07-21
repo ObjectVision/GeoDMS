@@ -1,31 +1,5 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
 
 #include "RtcPCH.h"
 #pragma hdrstop
@@ -85,7 +59,7 @@ SharedStr GenerateContext()
 		fos << "while generating context.";
 	else
 	{
-		fos << "Context:\n";
+		fos << "\nContext:";
 
 		if (!IsMainThread())
 			fos << "\nThread " << GetThreadID();
@@ -167,8 +141,6 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 		m_FullName = ptr->GetFullName();
 		m_HasBeenReported = false;
 	}
-//	m_Class = ptr->GetCurrentObjClass();
-//	dms_assert(m_Class);
 }
 
 SharedStr ErrMsg::GetAsText() const
@@ -278,31 +250,43 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 	DMS_CALL_END
 }
 
-RTC_CALL void reportD_without_cancellation_check(SeverityTypeID st, CharPtr msg)
+RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
 	if (!g_DebugStream)
 		return;
 
-	DebugOutStream::scoped_lock lock(g_DebugStream, st);
+	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
 	*g_DebugStream << msg;
 }
 
-RTC_CALL void reportD(SeverityTypeID st, CharPtr msg)
+RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
 	DMS_ASyncContinueCheck();
-	reportD_without_cancellation_check(st, msg);
+	reportD_without_cancellation_check(msgCat, st, msg);
 }
 
-RTC_CALL void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2)
+RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, const CharPtrRange& msg)
 {
 	if (!g_DebugStream)
 		return;
 
 	DMS_ASyncContinueCheck();
-	DebugOutStream::scoped_lock lock(g_DebugStream, st);
+	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
+
+	*g_DebugStream << msg;
+}
+
+RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2)
+{
+	if (!g_DebugStream)
+		return;
+
+	DMS_ASyncContinueCheck();
+	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
 
 	*g_DebugStream << msg1 << msg2;
 }
+
 
 RTC_CALL void ReportSuspension()
 {
@@ -326,6 +310,13 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	dms_assert(type && *type && (strncmp(type, msg, StrLen(type)) || strncmp(ERR_TXT, msg + StrLen(type), sizeof(ERR_TXT) - 1)));
 	DmsException::throwMsgF("%s" ERR_TXT "%s", type, msg);
 }
+
+[[noreturn]] RTC_CALL void throwErrorD(const TokenID& type, CharPtr msg)
+{
+	auto typeStr = SharedStr(type);
+	throwErrorD(typeStr.c_str(), msg);
+}
+
 
 [[noreturn]] RTC_CALL void  throwDmsErrD(CharPtr msg)
 {
@@ -429,14 +420,14 @@ RTC_CALL ErrMsgPtr catchAndReportException()
 
 RTC_CALL void catchAndProcessException()
 {
-	if (s_cppTrFunc)
-	{
-		dms_assert(IsMainThread());
-		static ErrMsgPtr msgPtr; // static to avoid the need to destroy when a Structured Exception will be thrown.
-		msgPtr = catchException(false);
+	dms_assert(IsMainThread());
+	static ErrMsgPtr msgPtr; // static to avoid the need to destroy when a Structured Exception will be thrown.
+	msgPtr = catchException(false);
 
+	if (s_cppTrFunc)
 		s_cppTrFunc(msgPtr->GetAsText().c_str()); // may throw a Borland Structured Exception
-	}
+//	else
+//		throw;
 }
 
 
@@ -563,17 +554,23 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 	return SharedStr(result);
 }
 
+
 #define DMS_SE_CPP 0xE06D7363
 
-THREAD_LOCAL unsigned int g_ExceptionCode = 0;
+THREAD_LOCAL unsigned int g_StructuredExceptionCode = 0;
 THREAD_LOCAL _EXCEPTION_POINTERS* g_pExp;
+
+RTC_CALL unsigned int GetLastExceptionCode()
+{
+	return g_StructuredExceptionCode;
+}
 
 int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandException)
 {
 //	if ((u == DMS_SE_CPP) || (u == EXCEPTION_BORLAND_ERROR))
 	if (passBorlandException && u == EXCEPTION_BORLAND_ERROR)
 			return EXCEPTION_CONTINUE_SEARCH;
-	g_ExceptionCode = u;
+	g_StructuredExceptionCode = u;
 	g_pExp = pExp;
 
 	return EXCEPTION_EXECUTE_HANDLER;
@@ -590,8 +587,10 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	auto exceptionText = GetExceptionText(u, pExp);
 
 	if (mustTerminate)
+	{
+		MessageBox(reinterpret_cast<HWND>(GetGlobalMainWindowHandle()), exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
 		std::terminate();
-
+	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
 	,	(u == EXCEPTION_BORLAND_ERROR) ? "Borland" : "OS"
 	,	u
@@ -601,12 +600,12 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 
 [[noreturn]] RTC_CALL void call_trans_SE2DMSfunc()
 {
-	trans_SE2DMSfunc(g_ExceptionCode, g_pExp, false);
+	trans_SE2DMSfunc(g_StructuredExceptionCode, g_pExp, false);
 }
 
 [[noreturn]] RTC_CALL void call_HaltOnSE()
 {
-	trans_SE2DMSfunc(g_ExceptionCode, g_pExp, true);
+	trans_SE2DMSfunc(g_StructuredExceptionCode, g_pExp, true);
 }
 
 

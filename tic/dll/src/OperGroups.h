@@ -105,14 +105,19 @@ struct AbstrOperGroup : SharedObj
 	void SetCanExplainValue() { m_Policy = 	oper_policy(m_Policy | oper_policy::can_explain_value); }
 
 	virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const =0;
-	virtual CharPtr GetObsoleteMsg() const { return "NOT OBSOLETE"; }
+	virtual CharPtr GetObsoleteMsg() const { return "NO OBSOLETE MSG PROVIDED"; }
 
-	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const { auto oap = GetArgPolicy(argNr, firstArgValue); return oap != oper_arg_policy::is_templ && oap!=oper_arg_policy::calc_never; }
+	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const 
+	{ 
+		auto oap = GetArgPolicy(argNr, firstArgValue); 
+		return oap != oper_arg_policy::is_templ && oap != oper_arg_policy::calc_never && oap != oper_arg_policy::calc_at_subitem;
+	}
 	bool MustSupplyTree(arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::subst_with_subitems; }
 	bool IsArgTempl (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::is_templ; }
 
 	TokenID   GetNameID()            const { return m_OperNameID; }
 	TokenStr  GetName()              const { return GetTokenStr(GetNameID()); }
+	CharPtr   GetNameStr()           const { return m_OperName.c_str(); }
 	const Operator* GetFirstMember() const { return m_FirstMember; }
 
 	TIC_CALL void UpdateNameID();
@@ -157,7 +162,7 @@ struct SpecialOperGroup: AbstrOperGroup
 		: SpecialOperGroup(GetTokenID_st(operName), maxNrArgs, argPolicyArray, op)
 	{}
 
-	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
+	TIC_CALL oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
 
 private:
 	void DetermineOperPolicy();

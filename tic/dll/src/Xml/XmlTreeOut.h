@@ -45,8 +45,6 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 /********** defines                                        **********/
 
-#define MAX_TEXTOUT_SIZE 400
-
 #define CLR_BODY "#DDD2D0"
 #define CLR_HROW "#FFFFE0"
 
@@ -90,7 +88,7 @@ struct XML_Table : XML_OutElement
 
 		void WriteCellData(CharPtr value)
 		{
-			OutStream().WriteValueN(value, MAX_TEXTOUT_SIZE - 3, "...");
+			OutStream().WriteTrimmed(value);
 		}
 
 		void ValueCell(CharPtr value)

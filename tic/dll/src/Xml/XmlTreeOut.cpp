@@ -173,10 +173,9 @@ void WriteCdf(XML_Table& xmlTable, const TreeItem* ti)
 
 bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo)
 {
-	dms_assert(unit);
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
-	dms_assert(IsMainThread());
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
+	assert(IsMainThread());
 
 	xmlTable.NameValueRow("ValueType", unit->GetValueType()->GetName().c_str());
 
@@ -184,6 +183,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 		return false;
 	if (unit->GetUnitClass() == Unit<Void>::GetStaticClass())
 		return true;
+
+	if (unit->GetTSF(TSF_Categorical))
+		xmlTable.NameValueRow("Categorical", "Yes");
 
 	if (unit->GetNrDimensions() == 1)
 	{
@@ -238,8 +240,10 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 	if (trd->IsCovered())
 	{
-		xmlTable.NameValueRow("Nr Tiles", AsString(trd->GetNrTiles()).c_str());
-		xmlTable.NameValueRow("Max Tile size", AsString(trd->GetMaxTileSize()).c_str());
+		auto nrTiles = trd->GetNrTiles();
+		xmlTable.NameValueRow("Nr Tiles", AsString(nrTiles).c_str());
+		if (nrTiles)
+			xmlTable.NameValueRow("Max Tile size", AsString(trd->GetMaxTileSize()).c_str());
 	}
 	else if (allTileInfo)
 	{
@@ -256,9 +260,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 {
-	dms_assert(unit);
-
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
 
 	xmlTable.LinedRow();
 	if (unit->IsDefaultUnit())
@@ -334,8 +336,7 @@ void NewLine(OutStreamBase& out)
 
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
-//	lispExpr.PrintAsFLisp(stream.FormattingStream(), 0); doesn't do HtmlEncode
-	stream << AsFLispSharedStr(lispExpr).c_str();
+	stream << AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str();
 }
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
@@ -397,7 +398,12 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	}
 	SharedPtr<const AbstrCalculator> calc = ti->GetCalculator();
 	if (calc)
-		stream << calc->GetAsFLispExprOrg().c_str();
+	{
+		if (calc->IsDataBlock())
+			stream << "[ ... ]";
+		else
+			stream << calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+	}
 	return nullptr;
 }
 
@@ -466,9 +472,14 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStr);
-
-		self->XML_Dump(xmlOutStr);
+		assert(xmlOutStr);
+		try {
+			self->XML_Dump(xmlOutStr);
+		}
+		catch (...)
+		{
+			*xmlOutStr << catchException(false)->Why().c_str();
+		}
 
 	DMS_CALL_END
 }
@@ -522,6 +533,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		vc = di->GetValueComposition();
 		if (vc != ValueComposition::Single)
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
+		if (di->GetTSF(TSF_Categorical))
+			xmlTable.NameValueRow("Categorical", "Yes");
 
 		WriteCdf(xmlTable, di);
 	}
@@ -669,27 +682,65 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
 {
-	DMS_CALL_BEGIN
+	assert(xmlOutStrPtr);
+	SuspendTrigger::Resume();
 
-		dms_assert(self->GetInterestCount() || self->WasFailed(FR_Data));
-		dms_assert(xmlOutStrPtr);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	try {
+		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
+			return false;
+	} catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
 
-		SuspendTrigger::Resume();
+	return true;
+}
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
-		try {
-			if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
-				return false;
-		} catch (...)
+TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
+{
+	assert(xmlOutStrPtr);
+	assert(self);
+	SuspendTrigger::Resume();
+
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	try {
+
+		*xmlOutStrPtr << "Description or available documentation:";
+
+		XML_Table table(*xmlOutStrPtr);
+		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
 		{
-			auto err = catchException(true);
-			if (!err)
-				*xmlOutStrPtr << "unrecognized error";
-			else
-				*xmlOutStrPtr << *err;
-		}
+			auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
+			if (!url.empty())
+			{
+				XML_Table::Row row(table);
+				row.ItemCell(cursor);
+				auto context = cursor;
+				if (url[0] == '#')
+				{
+					context = self;
+					url = SharedStr(url.begin() + 1, url.send());
+				}
 
-	DMS_CALL_END_NOTHROW
+				auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
+				row.ClickableCell(expandedUrl.c_str(), expandedUrl.c_str());
+			}
+		}
+	}
+	catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
+
 	return true;
 }
 
@@ -707,11 +758,15 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		bool firstValue = true;
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
-			if (!showAll && !pd->HasNonDefaultValue(self))
-				continue;
 			if (pd->IsDepreciated())
 				continue;
+			if (!showAll && !pd->HasNonDefaultValue(self))
+				continue;
+			if (SuspendTrigger::DidSuspend())
+				return;
 			result = pd->GetValueAsSharedStr(self);
+			if (SuspendTrigger::DidSuspend())
+				return;
 		}
 		catch (...)
 		{
@@ -763,7 +818,8 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStrPtr);
+		assert(xmlOutStrPtr);
+		assert(!SuspendTrigger::DidSuspend());
 
 		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
@@ -772,6 +828,9 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		while (cls)
 		{
 			WritePropValueRows(xmlTable, self, cls, showAll);
+			if (SuspendTrigger::DidSuspend())
+				return false;
+
 			cls = cls->GetBaseClass();
 		}
 
@@ -1077,7 +1136,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 			dms_assert(s_gDumpFolder.empty() );
 			fileNameStr = MakeAbsolutePath( fileNameStr.c_str() );
 		}
-		ItemSave(self, fileNameStr.c_str(), DSM::GetSafeFileWriterArray(self), isRoot);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa)
+			return false;
+		ItemSave(self, fileNameStr.c_str(), sfwa.get(), isRoot);
 		return true;
 
 	DMS_CALL_END

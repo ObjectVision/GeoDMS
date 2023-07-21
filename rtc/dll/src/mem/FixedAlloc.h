@@ -31,7 +31,7 @@
 #include <atomic>
 
 #if defined(MG_DEBUG)
-#define MG_DEBUG_ALLOCATOR
+//#define MG_DEBUG_ALLOCATOR
 #endif
 
 #if defined(MG_DEBUG_ALLOCATOR)

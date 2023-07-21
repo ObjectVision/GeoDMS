@@ -770,39 +770,39 @@ void ListObj::Print(FormattedOutStream& out, UInt32 level) const
 
 void ListObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 {
-	// Check if right track ends in a EndP
-	DynamicIncrementalLock<> lock(level);
-
-	if (level > LispRef::MAX_PRINT_LEVEL)
+	if (IsDefined(level))
 	{
-		out << "[...]";
+		++level;
+		if (level > LispRef::MAX_PRINT_LEVEL)
+		{
+			out << "[...]";
+			return;
+		}
+	}
+	// Check if right track ends in a EndP
+	LispPtr cursor = m_Right;
+	while (cursor.IsRealList())
+		cursor = cursor->Right();
+	if (cursor.EndP())
+	{
+		m_Left.PrintAsFLisp(out, level);
+		out << '(';
+		cursor = m_Right;
+		while (cursor.IsRealList())
+		{
+			dms_assert(cursor->GetRefCount() >= 1);
+			if (cursor != m_Right)
+				out << ", "; // comma after first element
+			cursor->Left().PrintAsFLisp(out, level);
+			cursor = cursor->Right();
+		}
+		out << ')';
 	}
 	else
 	{
-		LispPtr cursor = m_Right;
-		while (cursor.IsRealList())
-			cursor = cursor->Right();
-		if (cursor.EndP())
-		{
-			m_Left.PrintAsFLisp(out, level);
-			out << '(';
-			cursor = m_Right;
-			while (cursor.IsRealList())
-			{
-				dms_assert(cursor->GetRefCount() >= 1);
-				if (cursor != m_Right)
-					out << ", "; // comma after first element
-				cursor->Left().PrintAsFLisp(out, level);
-				cursor = cursor->Right();
-			}
-			out << ')';
-		}
-		else
-		{
-			out << '[';  m_Left.PrintAsFLisp(out, level);
-			out << ", "; m_Right.PrintAsFLisp(out, level);
-			out << "]";
-		}
+		out << '[';  m_Left.PrintAsFLisp(out, level);
+		out << ", "; m_Right.PrintAsFLisp(out, level);
+		out << "]";
 	}
 }
 
@@ -847,7 +847,7 @@ void LispPtr::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 
 leveled_critical_section gc_FLispUsageGuard(item_level_type(0), ord_level_type::FLispUsageCache, "FLispUsageCache");
 
-SharedStr AsFLispSharedStr(LispPtr lispRef)
+SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff)
 {
 	// MUTEX, PROTECT EXCLUSIVE USE OF GLOBAL STATIC RESOURCE FOR PERFORMANCE REASONS;
 	leveled_critical_section::scoped_lock lock(gc_FLispUsageGuard);
@@ -857,8 +857,8 @@ SharedStr AsFLispSharedStr(LispPtr lispRef)
 	dbg_assert(cap == vector.capacity());
 
 	ExternalVectorOutStreamBuff vecBuf(vector);
-	FormattedOutStream outStr(&vecBuf, FormattingFlags::ThousandSeparator);
-	lispRef.PrintAsFLisp(outStr, 0);
+	FormattedOutStream outStr(&vecBuf, ff);
+	lispRef.PrintAsFLisp(outStr, ff == FormattingFlags::ThousandSeparator ? 0 : UNDEFINED_VALUE(UInt32));
 	outStr << char('\0');
 	return SharedStr(begin_ptr(vector), end_ptr(vector)-1);
 }

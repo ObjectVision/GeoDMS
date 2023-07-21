@@ -49,6 +49,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "MapControl.h"
 #include "MouseEventDispatcher.h"
 #include "ViewPort.h"
+#include "WmsLayer.h"
 
 HBITMAP CreateBlender()
 {
@@ -208,6 +209,8 @@ void GraphicRect::AdjustTargetVieport()
 	if (!IsNearlyEqual(tr, trr))
 	{
 		targetVP->SetROI(trr);
+		auto wmsLayer = targetVP->FindBackgroundWmsLayer();
+		if (wmsLayer) wmsLayer->ZoomOut(targetVP.get(), true);
 		UpdateExtents();
 	}
 }

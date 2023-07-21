@@ -288,7 +288,7 @@ bool TextControl::Draw(GraphDrawer& d) const
 		DrawText(
 			d.GetDC(),
 			clientAbsRect,
-			0, // // use font of current DC
+			0, // use font of current DC
 			GetColor(),
 			GetBkColor(),
 			GetCaption().c_str()

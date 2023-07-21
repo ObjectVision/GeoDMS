@@ -1,9 +1,9 @@
 # GeoDMS
-Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
+Geographic  Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
 Where fast generic, landuse modeling and routing algorithms are implemented in C++ and exposed through the GeoDMS scripting language.
 
 # Getting started
-If you are new to GeoDMS, the [GeoDMS academy](https://www.geodms.nl/GeoDMS_Academy) will guide you through some of the basic features of the language. Recent GeoDMS versions can be downloaded from the [release page](https://github.com/ObjectVision/GeoDMS/releases) of this repository. For the full documentation of GeoDMS, including additional examples, see [our wiki](https://www.geodms.nl/Welcome).
+If you are new to GeoDMS, the [GeoDMS academy](https://github.com/ObjectVision/GeoDMS_Academy) will guide you through some of the basic features of the language. Recent GeoDMS versions can be downloaded from the [release page](https://github.com/ObjectVision/GeoDMS/releases) of this repository. For the full documentation of GeoDMS, including additional examples, see [our wiki](https://github.com/ObjectVision/GeoDMS/wiki).
 
 # Compilation
 Build instructions for GeoDMS can be found at our [wiki compilation page](https://www.geodms.nl/Compiling_the_GeoDMS_c%2B%2B_code).
@@ -32,4 +32,4 @@ Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)
 Phone:    +31-20-598.9083  
 Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538  
 Website:  [https://objectvision.nl](https://objectvision.nl)  
-Wiki:     [https://GeoDMS.nl  ](https://www.geodms.nl/) 
+Wiki:     [https://github.com/ObjectVision/GeoDMS/wiki](https://github.com/ObjectVision/GeoDMS/wiki) 

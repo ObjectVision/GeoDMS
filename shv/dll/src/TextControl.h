@@ -91,7 +91,7 @@ public:
 		COLORREF textColor = CLR_INVALID, 
 		COLORREF bkColor   = CLR_INVALID
 	);
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ClipExtents; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
 	void SetWidth (UInt32 width);
 	void SetHeight(UInt32 height);

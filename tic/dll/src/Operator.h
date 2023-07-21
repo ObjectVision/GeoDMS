@@ -37,6 +37,9 @@ template <typename V> class Unit;
 #include "TreeItemDualRef.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "Explain.h"
+#include "DataController.h"
+#include "ItemLocks.h"
+struct ItemReadLock;
 
 // *****************************************************************************
 // Section:     enums
@@ -89,7 +92,7 @@ public:
 		dms_assert(resultHolder);
 	}
 
-	virtual bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context = nullptr) const
+	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.

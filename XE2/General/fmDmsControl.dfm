@@ -888,12 +888,11 @@ inherited fraDmsControl: TfraDmsControl
       Left = 836
       Top = 0
       Width = 245
-      Height = 33
+      Height = 14
       Align = alRight
       Alignment = taRightJustify
       Caption = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
       Layout = tlCenter
-      ExplicitHeight = 14
     end
     object sbSelectObject: TSpeedButton
       Left = 432
@@ -4546,7 +4545,7 @@ inherited fraDmsControl: TfraDmsControl
       ShowHint = True
       OnClick = sbSelectNoneClick
     end
-    object sbZoomSelectedObj2: TSpeedButton
+    object sbShowSelectedRow: TSpeedButton
       Left = 112
       Top = 0
       Width = 32
@@ -4687,7 +4686,7 @@ inherited fraDmsControl: TfraDmsControl
         000000000000}
       ParentShowHint = False
       ShowHint = True
-      OnClick = sbZoomSelectedObjClick
+      OnClick = sbShowSelectedRowClick
     end
     object sbToggleShowSelOnly2: TSpeedButton
       Left = 256
@@ -5134,7 +5133,7 @@ inherited fraDmsControl: TfraDmsControl
     Left = 72
     Top = 16
     Bitmap = {
-      494C010103004800940020002000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C0101030048009C0020002000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000002000000001002000000000000040
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

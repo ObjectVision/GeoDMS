@@ -81,6 +81,7 @@ const UInt32 MAX_TILE_SIZE = 0x10000;
 //----------------------------------------------------------------------
 // class  : AbstrUnit
 //----------------------------------------------------------------------
+
 enum UnifyMode {
 	UM_AllowDefaultLeft  =  1, 
 	UM_AllowDefaultRight =  2,
@@ -90,6 +91,8 @@ enum UnifyMode {
 	UM_AllowVoidRight    = 16,
 	UM_AllowAllEqualCount= 32,
 };
+
+inline auto operator | (UnifyMode lhs, UnifyMode rhs) { return UnifyMode(int(lhs) | int(rhs)); }
 
 class AbstrUnit : public TreeItem
 {
@@ -148,8 +151,8 @@ public:
 	virtual tile_id GetThisCurrTileID(SizeT& index, tile_id prevT) const;
 	virtual tile_id GetNrTiles() const;
 
-	TIC_CALL row_id  GetTileFirstIndex(tile_id t) const;
-	TIC_CALL row_id  GetTileIndex(tile_id t, tile_offset tileOffset) const;
+	TIC_CALL row_id GetTileFirstIndex(tile_id t) const;
+	TIC_CALL row_id GetTileIndex(tile_id t, tile_offset tileOffset) const;
 	bool IsCovered() const;
 
 	Range<row_id>   GetTileIndexRange(tile_id t) const;
@@ -160,6 +163,7 @@ public:
 	virtual row_id  GetDimSize(DimType dimNr) const;
 
 // Support for countables
+	virtual bool PrepareRange() const;
 	virtual row_id GetPreparedCount(bool throwOnUndefined = true) const;  // Returns 0 if non-countable unit
 	virtual tile_offset GetPreparedTileCount(tile_id t) const;  // Returns 0 if non-countable unit
 	TIC_CALL void ValidateCount(row_id) const;
@@ -182,6 +186,7 @@ public:
 
 // Support for Numerics
 	virtual void SetRangeAsFloat64(Float64 begin, Float64 end);
+	virtual void SetRangeAsUInt64(UInt64 begin, UInt64 end);
 	virtual Range<Float64> GetRangeAsFloat64() const;
 	virtual Range<Float64> GetTileRangeAsFloat64(tile_id t) const;
 
@@ -221,7 +226,7 @@ public:
 
 protected:
 	SharedStr GetSignature() const override;
-	bool DoReadItem(StorageMetaInfo* smi) override;
+	bool DoReadItem(StorageMetaInfoPtr smi) override;
 
 private:
 	void      UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const;

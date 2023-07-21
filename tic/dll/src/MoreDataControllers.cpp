@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -42,6 +13,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/SeverityType.h"
 #include "geo/StringArray.h"
 #include "ser/FileStreamBuff.h"
+#include "utl/mySPrintF.h"
 #include "utl/swap.h"
 #include "xct/DmsException.h"
 
@@ -142,6 +114,8 @@ const AbstrDataItem* AsDataItem(const ArgRef& ar)
 // Section:     FuncDC implementation
 // *****************************************************************************
 
+#include "TreeItemContextHandle.h"
+
 FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	:	DataController(keyExpr)
 	,	m_OperatorGroup(og)
@@ -149,13 +123,21 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	dms_assert(og && (og->MustCacheResult() || !og->CanResultToConfigItem()));
 
 	DBG_START("FuncDC", "ctor", false);
-	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr).c_str()));
+	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s.\n%s"
+			, og->GetName()
+			, og->GetObsoleteMsg()
+			, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
+		);
 
 	if (og->IsObsolete())
-		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s.\n%s"
+			, og->GetName()
+			, og->GetObsoleteMsg()
+			, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
+		);
 
 	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
 	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
@@ -169,7 +151,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	OwningPtr<DcRefListElem>* nextArgPtr = &m_Args;
 	for (LispPtr tailPtr = keyExpr.Right(); !tailPtr.EndP(); tailPtr = tailPtr.Right()) 
 	{
-		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left()).c_str()));
+		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
 		nextArgPtr->assign(dcRef);
 		MG_CHECK(tailPtr->Left());
@@ -332,10 +314,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -359,50 +341,8 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	
-	if (IsNew()) // && !m_State.Get(DCF_CacheRootKnown))
-	{
-		dms_assert(m_Data->IsCacheRoot());
-/*
-		auto storeRecordPtr = DataStoreManager::Curr()->GetStoreRecord(GetLispRef());
-		if (storeRecordPtr)
-		{
-			m_State.Set(DCF_CacheRootKnown);
-			bool isStored = (storeRecordPtr->ts != 0);
-			auto sfwa = DataStoreManager::Curr()->GetSafeFileWriterArray();
+	assert(!IsNew() || m_Data->IsCacheRoot());
 
-			SharedStr filenameBase = DataStoreManager::Curr()->m_StoreMap[GetLispRef()].fileNameBase;
-			dms_assert(!filenameBase.empty());
-
-			auto cacheRoot = GetNew();
-			for (auto cacheItem = cacheRoot; cacheItem; cacheItem->WalkCurrSubTree(cacheItem))
-			{
-				bool isDataItem = IsDataItem(cacheItem);
-				if (!isStored && !isDataItem)
-					continue;
-				SharedStr filename = filenameBase;
-				if (cacheItem != cacheRoot)
-					filename += '/' + cacheRoot->GetRelativeName(cacheItem);
-					
-				if (isDataItem)
-				{
-					auto openFile = OpenFileData(AsDataItem(cacheItem), filename+".dmsdata", sfwa); // issue: requires DataReady on domain => always store domain
-					if (isStored)
-						AsDataItem(cacheItem)->m_DataObject.assign(openFile.release());
-					else
-						AsDataItem(cacheItem)->m_FileName = filename;
-				}
-				else if (IsUnit(cacheItem))
-				{
-					MappedFileInpStreamBuff fin(filename+".dmsunit", sfwa, true, false);
-					cacheItem->LoadBlobStream(&fin);
-				}
-
-			}
-		}
-*/
-	}
-
-//	dms_assert(m_State.Get(DCF_CacheRootKnown) == (IsNew() && m_Data->IsDcKnown()));
 	if (m_Data->WasFailed(FR_MetaInfo))
 		Fail(m_Data);
 
@@ -428,7 +368,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
 	dms_assert(IsMetaThread());
@@ -446,7 +386,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 #endif
 
 	FutureData thisFutureResult = this;
-	if (m_State.Get(DCF_CalcStarted))
+	if (m_State.Get(DCF_CalcStarted) && !context)
 	{
 		dms_assert(CheckCalculatingOrReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data));
 		dms_assert(!SuspendTrigger::DidSuspend());
@@ -476,7 +416,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	if (m_Data->WasFailed(FR_Data))
 		Fail(m_Data);
 
-	if (WasFailed(FR_Data))
+	if (WasFailed(FR_Data) && !context || WasFailed(FR_MetaInfo))
 		return {};
 
 	dms_assert(GetInterestCount());
@@ -492,7 +432,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 
 	dms_assert(GetInterestCount()); 
 
-	if (!IsAllDataReady(m_Data.get()) || context)
+	if (!IsAllDataReady(m_Data->GetCurrUltimateItem()) || context)
 	{
 		dms_assert(m_Data->GetInterestCount());
 		dms_assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
@@ -525,6 +465,7 @@ bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
 		case oper_arg_policy::calc_always:    
 			return true;
 //		case oper_arg_policy::calc_never:
+//		case oper_arg_policy::calc_at_subitem:
 //		case oper_arg_policy::is_templ:       
 //		case oper_arg_policy::subst_with_subitems:
 		default:
@@ -757,7 +698,7 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 				SuspendTrigger::MarkProgress();
 		}
 
-		dms_assert(!result || (operContext && operContext->IsScheduled()) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
+		assert(!result || (operContext && operContext->IsScheduled()) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
 	}
 	catch (...)
 	{

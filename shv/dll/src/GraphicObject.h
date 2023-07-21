@@ -42,13 +42,14 @@ granted by an additional written contract for support, assistance and/or develop
 // const : GraphicClass flags
 //----------------------------------------------------------------------
 
-enum GraphicClassFlags {
-
-	GCF_PushVisibility = 0x0001,
-	GCF_ChildCovered   = 0x0002, // Row and Col Containers are filled by children (thus don't require fill)
-	GCF_ClipExtents    = 0x0004
-
+enum class GraphicClassFlags : UInt32 {
+	None           = 0,
+	PushVisibility = 0x0001,
+	ChildCovered   = 0x0002, // Row and Col Containers are filled by children (thus don't require fill)
+	ClipExtents    = 0x0004,
 };
+inline bool operator &(GraphicClassFlags lhs, GraphicClassFlags rhs) { return UInt32(lhs) & UInt32(rhs); }
+inline GraphicClassFlags operator |(GraphicClassFlags lhs, GraphicClassFlags rhs) { return GraphicClassFlags(UInt32(lhs) | UInt32(rhs)); }
 
 //----------------------------------------------------------------------
 // const : GraphicObject flags
@@ -135,11 +136,11 @@ public:
 	GraphicObject(GraphicObject* owner);
 	void Init() {}
 
-	virtual GraphicClassFlags GetGraphicClassFlags() const { return GraphicClassFlags(); }
+	virtual GraphicClassFlags GetGraphicClassFlags() const { return GraphicClassFlags::None; }
 
-	bool MustPushVisibility() const { return GetGraphicClassFlags() & GCF_PushVisibility; }
-	bool MustClip          () const { return GetGraphicClassFlags() & GCF_ClipExtents;    }
-	bool IsChildCovered    () const { return GetGraphicClassFlags() & GCF_ChildCovered;   }
+	bool MustPushVisibility() const { return GetGraphicClassFlags() & GraphicClassFlags::PushVisibility; }
+	bool MustClip          () const { return GetGraphicClassFlags() & GraphicClassFlags::ClipExtents;    }
+	bool IsChildCovered    () const { return GetGraphicClassFlags() & GraphicClassFlags::ChildCovered;   }
 
 	bool IsVisible          () const { return  m_State.Get(GOF_IsVisible);        }
 	bool AllVisible         () const { return  m_State.Get(GOF_AllVisible);       }

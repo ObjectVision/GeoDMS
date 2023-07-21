@@ -1,41 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.h : interface of the DataView class
-//
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+
+#pragma once
 
 #if !defined(__SHV_DATAVIEW_H)
 #define __SHV_DATAVIEW_H
-
-#if _MSC_VER >= 1000
-#pragma once
-#endif // _MSC_VER >= 1000
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -62,12 +32,14 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LayerInfo.h"
 #include "MovableObject.h"
 #include "TextEditController.h"
+#include "Waiter.h"
 
 #include "ShvUtils.h"
 
 class AbstrCaretOperator;
 class AbstrCmd;
 class FocusCaret;
+class DataView;
 
 //----------------------------------------------------------------------
 // struct : MsgStruct
@@ -154,6 +126,8 @@ struct DataViewList : double_linked_list<DataView>
 	void BringChildToTop(DataView* dv);
 	void AddChildView(DataView* childView);
 	void DelChildView(DataView* childView);
+
+	void BroadcastCmd(ToolButtonID id);
 };
 
 //----------------------------------------------------------------------
@@ -177,11 +151,22 @@ struct DbgInvalidateDrawLock
 #define MG_DEBUG_DATAVIEWSET
 #endif
 
+struct MdiCreateStruct
+{
+	ViewStyle ct = tvsUndefined;
+	DataView* dataView = nullptr;
+	TreeItem* contextItem = nullptr;
+	CharPtr   caption = nullptr;
+	bool      makeOverlapped = true;
+	GPoint    maxSize = GPoint(600, 400);
+	HWND      hWnd = 0;
+};
+
 //----------------------------------------------------------------------
 // class  : DataView
 //----------------------------------------------------------------------
 
-class DataView : public Actor, public DataViewList, public enable_shared_from_this_base<DataView>
+class DataView : public Actor, public DataViewList, public enable_shared_from_this_base<DataView>, private MsgGenerator
 {
 	typedef Actor base_type;
 public:
@@ -191,6 +176,8 @@ public:
 	DataView(TreeItem* viewContext);
 	virtual ~DataView();
 
+	virtual auto GetViewType() const->ViewStyle = 0;
+
 //	void StopOwning() { m_SelfOwned.reset(); }
 //	std::shared_ptr<DataView> shared_from_this() { return m_SelfOwned; }
 
@@ -199,14 +186,13 @@ public:
 //	composition
 	void BringToTop();
 	void DestroyWindow();
-	void CreateViewWindow(DataView* parent, CharPtr caption);
 	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations
 	bool DispatchMsg(const MsgStruct& msg);
 	bool OnKeyDown(UInt32 nVirtKey);
 
-	// Attributes
+//	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { dms_assert(m_Contents); return m_Contents; }
 	std::shared_ptr<const MovableObject> GetContents() const { dms_assert(m_Contents); return m_Contents; }
 	TreeItem*      GetViewContext   () const { dms_assert(m_ViewContext); return m_ViewContext; }
@@ -215,10 +201,10 @@ public:
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND  GetHWnd()        const { return m_hWnd; }
 
-	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor = 1.0) const;
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
-	void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
+	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
 
 	//	Contents
 	virtual void AddLayer(const TreeItem*, bool isDropped) = 0;
@@ -239,14 +225,15 @@ public:
 	void SetTextCaret(const GPoint& caretPos);
 	void ClearTextCaret();
 
-	void InvalidateRect(const GRect&  rect);
+	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
+
+	SHV_CALL void InvalidateRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
-	void ValidateRect  (const GRect&  rect);
-	void ValidateRgn   (const Region& rgn );
+	void ValidateRect  (const GRect& pixRect);
+//	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();
-	ActorVisitState UpdateViews();
-	void Scroll(GPoint delta, const GRect& rcScroll, const GRect& rcClip, const MovableObject* src);
+	void Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
 	void SetCursorPos(GPoint clientPoint);
@@ -260,9 +247,7 @@ public:
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView
 	virtual SharedStr GetCaption() const;
 
-#if defined(MG_DEBUG_DATAVIEWSET)
 	bool IsInActiveDataViewSet();
-#endif
 	void AddGuiOper(std::function<void()>&& func);
 
 protected: // override virtuals of Actor 
@@ -284,6 +269,7 @@ private:
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
+	void SetUpdateTimer();
 
 	void OnMouseMove(WPARAM nFlags, const GPoint& point);
 	void OnSize     (WPARAM nType,  const GPoint& point);
@@ -292,6 +278,10 @@ private:
 	void ProcessGuiOpers();
 	void OnCopyData(UINT cmd, const UInt32* first, const UInt32* last);
 
+	// ContextHandling
+	void GenerateDescription() override;
+
+	// rtti
 	MG_DEBUGCODE( bool IsShvObj() const override { return true; } )
 public:
 	void OnCaptionChanged() const;
@@ -320,6 +310,7 @@ private:
 	ScrollPort*                   m_ScrollEventsReceiver;
 
 	std::list < std::function<void()>>  m_GuiOperQueue;
+	Waiter                        m_Waiter;
 
 public:
 	ToolButtonID                  m_ControllerID = TB_Neutral;
@@ -339,13 +330,13 @@ public:
 	DECL_RTTI(SHV_CALL, Class);
 };
 
+
 //================================= ownership
 
 void Keep(const std::shared_ptr<DataView>& self);
 void Unkeep(DataView*);
 
 void OnDestroyDataView(DataView* self);
-
-SHV_CALL LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+void BroadcastCommandToAllDataViews(ToolButtonID id);
 
 #endif // !defined(__SHV_DATAVIEW_H)

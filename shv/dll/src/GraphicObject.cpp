@@ -603,7 +603,7 @@ void GraphicObject::SetActive(bool newState)
 {
 #if defined(MG_DEBUG)
 	if (newState == IsActive())
-		reportF(SeverityTypeID::ST_Warning, "SetActive(%d) called on %sactive object", newState, IsActive() ? "" : "non-");
+		reportF(SeverityTypeID::ST_MinorTrace, "SetActive(%d) called on %sactive object", newState, IsActive() ? "" : "non-");
 #endif
 
 	m_State.Set(GOF_Active, newState);
@@ -629,7 +629,7 @@ void GraphicObject::SetShowSelectedOnly(bool on)
 
 	InvalidateViews();
 	InvalidateDraw();
-	OnVisibilityChanged();
+//	OnVisibilityChanged();
 
 	SyncShowSelOnly(SM_Save);
 	UpdateShowSelOnly();
@@ -696,7 +696,7 @@ FontSizeCategory GraphicObject::GetFontSizeCategory() const
 	auto owner = GetOwner().lock();
 	if (owner)
 		return owner->GetFontSizeCategory();
-	return FontSizeCategory::SMALL;
+	return FontSizeCategory::MEDIUM;
 }
 
 bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
@@ -741,13 +741,14 @@ CommandStatus GraphicObject::OnCommandEnable(ToolButtonID id) const
 		case TB_ShowSelOnlyOn:
 		case TB_ShowSelOnlyOff:
 		{
-			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
+			return CommandStatus::ENABLED;
+			/*if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
 			bool showSelectedOnly = ShowSelectedOnly();
 			return (ShowSelectedOnlyEnabled() || showSelectedOnly)
 					?	showSelectedOnly
 						? CommandStatus::DOWN
 						: CommandStatus::UP
-					: CommandStatus::DISABLED;
+					: CommandStatus::DISABLED;*/
 		}
 	}
 	return CommandStatus::ENABLED;
@@ -766,8 +767,9 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 			bol = failReason.begin(),
 			eos = failReason.send();
 		SharedTreeItem item;
-		if (DSM::Curr() && DSM::Curr()->m_ConfigRoot)
-			item = DSM::Curr()->m_ConfigRoot->FindBestItem(fr->FullName()).first;
+		if (auto curr = DSM::Curr())
+			if (auto cr = curr->GetConfigRoot())
+				item = cr->FindBestItem(fr->FullName()).first;
 		while (true) {
 			CharPtr eol = std::find(bol, eos, '\n');
 			auto txt = SharedStr(bol, eol);

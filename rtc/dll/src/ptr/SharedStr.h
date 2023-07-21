@@ -264,7 +264,7 @@ private:
 
 friend WeakStr;
 friend inline void MakeUndefined(SharedStr& v) { v.assign( SharedCharArray_CreateUndefined() ); }
-friend inline SharedStr UndefinedValue(const SharedStr* x) { return SharedStr(Undefined()); }
+friend inline SharedStr UndefinedValue(const SharedStr*) { return SharedStr(Undefined()); }
 };
 
 inline WeakStr::WeakStr(const SharedStr& str)

@@ -65,10 +65,10 @@ struct AbstrPthElementTot: BinaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* argVA = AsDataItem(args[0]);
-		dms_assert(argVA);
+		assert(argVA);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), argVA->GetAbstrValuesUnit());
@@ -83,7 +83,7 @@ struct AbstrPthElementTot: BinaryOperator
 			DataReadLock argVLock(argVA);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-			dms_assert(res);
+			assert(res);
 			DataWriteLock resLock(res);
 
 			Calculate(resLock, argVA, p);
@@ -105,10 +105,10 @@ struct AbstrPthElementWeightedTot: TernaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* argVA = AsDataItem(args[0]);
-		dms_assert(argVA);
+		assert(argVA);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(Unit<Void>::GetStaticClass()->CreateDefault(), argVA->GetAbstrValuesUnit());
@@ -121,13 +121,13 @@ struct AbstrPthElementWeightedTot: TernaryOperator
 			WeightType cumulWeight = arg2A->GetValue<WeightType>(0);
 
 			const AbstrDataItem* weightA = AsDataItem(args[2]);
-			dms_assert(weightA);
+			assert(weightA);
 
 			DataReadLock argVLock  (argVA);
 			DataReadLock weightLock(weightA);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-			dms_assert(res);
+			assert(res);
 
 			DataWriteLock resLock(res);
 
@@ -154,13 +154,13 @@ struct AbstrPthElementPart: TernaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* argRankingA = AsDataItem(args[0]);
-		dms_assert(argRankingA);
+		assert(argRankingA);
 
 		const AbstrDataItem* argPartitionA = AsDataItem(args[2]);
-		dms_assert(argPartitionA);
+		assert(argPartitionA);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(argPartitionA->GetAbstrValuesUnit(), argRankingA->GetAbstrValuesUnit());
@@ -177,7 +177,7 @@ struct AbstrPthElementPart: TernaryOperator
 
 		if (mustCalc)
 		{
-			dms_assert(argTargetCountA);
+			assert(argTargetCountA);
 			DataReadLock argVLock(argRankingA);
 			DataReadLock arg2Lock(argTargetCountA);
 			DataReadLock arg3Lock(argPartitionA);
@@ -202,13 +202,13 @@ struct AbstrPthElementWeightedPart: QuaternaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 4);
+		assert(args.size() == 4);
 
 		const AbstrDataItem* argVA = AsDataItem(args[0]);
-		dms_assert(argVA);
+		assert(argVA);
 
 		const AbstrDataItem* argPartitionA = AsDataItem(args[3]);
-		dms_assert(argPartitionA);
+		assert(argPartitionA);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(argPartitionA->GetAbstrValuesUnit(), argVA->GetAbstrValuesUnit());
@@ -225,12 +225,12 @@ struct AbstrPthElementWeightedPart: QuaternaryOperator
 
 		// check partitions domain with weight domain
 		const AbstrDataItem* weightA = AsDataItem(args[2]);
-		dms_assert(weightA);
+		assert(weightA);
 		weightA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), "e3", "e1", UM_Throw);
 
 		if (mustCalc)
 		{
-			dms_assert(arg2A);
+			assert(arg2A);
 			DataReadLock argVLock(argVA);
 			DataReadLock arg2Lock(arg2A);
 			DataReadLock arg3Lock(argPartitionA);
@@ -266,36 +266,37 @@ struct NthElementTot: AbstrPthElementTot<I>
 	// Override Operator
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, UInt32 n) const override
 	{
-		const ArgVType* argV = const_array_cast<V>(argVA); dms_assert(argV);
+		const ArgVType* argV = const_array_cast<V>(argVA); assert(argV);
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == 1);
+		assert(resData.size() == 1);
 
 		UInt32 N = 0;
-		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
+		auto tn = argVA->GetAbstrDomainUnit()->GetNrTiles();
+		for (tile_id t=0; t!=tn; ++t)
 		{
-			auto argVData = argV->GetLockedDataRead(t);
-			count_best_total(N, argVData.begin(), argVData.end(), argVA->HasUndefinedValues());
+			auto argVData = argV->GetTile(t);
+			count_best_total(N, argVData.begin(), argVData.end());
 		}
 		if (n >= N)
 		{
 			resData[0] = UNDEFINED_OR_MAX(V);
 			return;
 		}
-		dms_assert(n < N);
+		assert(n < N);
 		typename sequence_traits<V>::container_type copy;
 		copy.reserve(N);
 
-		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
-			for (auto argVi: argV->GetLockedDataRead(t))
+		for (tile_id t=0; t!=tn; ++t)
+			for (auto argVi: argV->GetTile(t))
 				if (IsDefined(argVi))
 				{
-					dms_assert(copy.size() < N); // sufficient reservation
+					assert(copy.size() < N); // sufficient reservation
 					copy.push_back(argVi);
 				}
-		dms_assert(copy.size() == N); // neccesary reservation
+		assert(copy.size() == N); // neccesary reservation
 		std::nth_element(copy.begin(), copy.begin() + n, copy.end());
 
 		resData[0] = copy[n];
@@ -318,7 +319,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 	// Override Operator
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, const DataArray<I>* arg2, bool e2Void, const AbstrDataItem* argPA) const override
 	{
-		const ArgVType* argV = const_array_cast<V>(argVA); dms_assert(argV);
+		const ArgVType* argV = const_array_cast<V>(argVA); assert(argV);
 
 		const AbstrUnit* valuesDomain = argVA->GetAbstrDomainUnit();
 		SizeT N = 0;
@@ -328,19 +329,19 @@ struct NthElementPart: AbstrPthElementPart<I>
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead();
 
-		dms_assert(arg2Data.size() == (e2Void ? 1 : nrP)); // domain of arg2 is domain compatible with values unit of argP
+		assert(arg2Data.size() == (e2Void ? 1 : nrP)); // domain of arg2 is domain compatible with values unit of argP
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == nrP);
+		assert(resData.size() == nrP);
 
 		std::vector<SizeT> partCount(nrP, 0);
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
-			auto argVData = argV->GetLockedDataRead(t);
+			auto argVData = argV->GetTile(t);
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter, argVA->HasUndefinedValues() );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter );
 		}
 
 		// cumulative counts per partition
@@ -351,12 +352,12 @@ struct NthElementPart: AbstrPthElementPart<I>
 			cumul.push_back(cumulativeN);
 			cumulativeN += *i;
 		}
-		dms_assert(cumulativeN <= N);
+		assert(cumulativeN <= N);
 		std::vector<SizeT> cumul2 = cumul;
 		typename sequence_traits<V>::container_type copy(cumulativeN, V());
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
-			auto argVData = argV->GetLockedDataRead(t);
+			auto argVData = argV->GetTile(t);
 
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
 
@@ -368,17 +369,17 @@ struct NthElementPart: AbstrPthElementPart<I>
 					SizeT p = indexGetter->Get(j);
 					if (IsDefined(p))
 					{
-						dms_assert(p < nrP);
+						assert(p < nrP);
 						copy[cumul2[p]++] = (*i);
-						dms_assert(cumul2[p] <= cumul[p] + partCount[p]);
+						assert(cumul2[p] <= cumul[p] + partCount[p]);
 					}
 				}
 			}
 		}
 		for (SizeT i = 0; i != nrP; ++i)
 		{
-			dms_assert(cumul2[i] == cumul[i] + partCount[i]);
-			dms_assert(cumul2[i] <= ((i+1<nrP) ? cumul[i+1] : cumulativeN) );
+			assert(cumul2[i] == cumul[i] + partCount[i]);
+			assert(cumul2[i] <= ((i+1<nrP) ? cumul[i+1] : cumulativeN) );
 
 			UInt32 pos = arg2Data[e2Void ? 0 : i], pCount = partCount[i];
 			if (pos<pCount)
@@ -408,8 +409,8 @@ namespace nth {
 		for (; first != last; ++first)
 		{
 			WeightType elemWeight = firstWeight[*first];
-			dms_assert(IsDefined(elemWeight));
-			dms_assert(elemWeight >= 0); 
+			assert(IsDefined(elemWeight));
+			assert(elemWeight >= 0); 
 			w += elemWeight;
 		}
 		return w;
@@ -421,12 +422,12 @@ namespace nth {
 		IndexIter originalLast = last;
 		while(1 < last - first)
 		{	// divide and conquer, ordering partition containing Nth
-			dms_assert(first < last);
+			assert(first < last);
 			std::pair<IndexIter, IndexIter> mid = std::_Partition_by_median_guess_unchecked(first, last, IndexCompareOper<RankIter>(firstRank));
 
-			dms_assert(first <= mid.first);
-			dms_assert(mid.first < mid.second);
-			dms_assert(mid.second <= last);
+			assert(first <= mid.first);
+			assert(mid.first < mid.second);
+			assert(mid.second <= last);
 
 			WeightType midFirstWeight = accumulate_ptr<WeightType>(first, mid.first, firstWeight);
 
@@ -439,7 +440,7 @@ namespace nth {
 				{
 					first = mid.second;
 					cumulWeight -= midLastWeight;
-					dms_assert(cumulWeight >= 0);
+					assert(cumulWeight >= 0);
 				}
 				else
 					return firstRank[*mid.first]; // Nth inside fat pivot, done
@@ -465,19 +466,19 @@ struct NthElementWeightedTot: AbstrPthElementWeightedTot<W>
 	// Override Operator
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, W cumulWeight, const AbstrDataItem* argWA) const override
 	{
-		const ArgVType* argV = const_array_cast<V>(argVA); dms_assert(argV);
-		const ArgWType* argW = const_array_cast<W>(argWA); dms_assert(argW);
+		const ArgVType* argV = const_array_cast<V>(argVA); assert(argV);
+		const ArgWType* argW = const_array_cast<W>(argWA); assert(argW);
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == 1);
+		assert(resData.size() == 1);
 
 		SizeT N = 0;
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetLockedDataRead(t);
-			count_best_total(N, argVData.begin(), argVData.end(), argVA->HasUndefinedValues());
+			count_best_total(N, argVData.begin(), argVData.end());
 		}
 
 		sequence_traits<UInt32>::container_type indexVector; indexVector.reserve(N);
@@ -490,14 +491,14 @@ struct NthElementWeightedTot: AbstrPthElementWeightedTot<W>
 		{
 			if (IsDefined(v) && IsDefined(*argW_ptr) && *argW_ptr > 0)
 			{
-				dms_assert(indexVector.size() < N); // sufficient reservation
+				assert(indexVector.size() < N); // sufficient reservation
 				indexVector.push_back(i);
 			}
 			++argW_ptr; ++i;
 		}
-		dms_assert(indexVector.size() <= N); // neccesary reservation
+		assert(indexVector.size() <= N); // neccesary reservation
 
-		dms_assert(argVData.size() == argWData.size());
+		assert(argVData.size() == argWData.size());
 		resData[0] = nth::nth_element_weighted<V, W>(indexVector.begin(), indexVector.end(), argVData.begin(), argWData.begin(), cumulWeight);
 	}
 };
@@ -520,9 +521,9 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 	// Override Operator
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, const AbstrDataItem* arg2A, bool e2Void, const AbstrDataItem* argWA, const AbstrDataItem* argPA) const override
 	{
-		const ArgVType* argV = const_array_cast<V>(argVA); dms_assert(argV);
-		const ArgWType* arg2 = const_array_cast<W>(arg2A); dms_assert(arg2);
-		const ArgWType* argW = const_array_cast<W>(argWA); dms_assert(argW);
+		const ArgVType* argV = const_array_cast<V>(argVA); assert(argV);
+		const ArgWType* arg2 = const_array_cast<W>(arg2A); assert(arg2);
+		const ArgWType* argW = const_array_cast<W>(argWA); assert(argW);
 
 		const AbstrUnit* valuesDomain = argVA->GetAbstrDomainUnit();
 		SizeT N = 0;
@@ -531,12 +532,12 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead(); // NOT TILED.
-		dms_assert(arg2Data.size() == (e2Void ? 1 : nrP));
+		assert(arg2Data.size() == (e2Void ? 1 : nrP));
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == nrP);
+		assert(resData.size() == nrP);
 
 		// === make partCount
 		std::vector<SizeT> partCount(nrP, 0);
@@ -544,7 +545,7 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 		{
 			auto argVData = argV->GetLockedDataRead(t);
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter, argVA->HasUndefinedValues() );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter);
 		}
 
 		// === cumulative counts per partition
@@ -555,7 +556,7 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 			cumul.push_back(cumulativeN);
 			cumulativeN += pc;
 		}
-		dms_assert(cumulativeN <= N);
+		assert(cumulativeN <= N);
 		std::vector<SizeT> cumul2 = cumul;
 
 		// === make indexvector
@@ -565,7 +566,7 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 		auto argVData = argV->GetLockedDataRead();
 		auto argWData = argW->GetLockedDataRead();
 		SizeT ie = argVData.size();
-		dms_assert(ie == argWData.size());
+		assert(ie == argWData.size());
 
 		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, no_tile);
 		for (SizeT ii = 0; ii != ie; ++i, ++ii)
@@ -575,7 +576,7 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 				SizeT p = indexGetter->Get(ii);
 				if (IsDefined(p))
 				{
-					dms_assert(p < nrP);
+					assert(p < nrP);
 					if (IsDefined(argWData[ii]) && (argWData[ii] > 0))
 					{
 						indexVector[ cumul2[p] ] = i;
@@ -583,16 +584,16 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 					}
 					else
 						--partCount[p];
-					dms_assert(cumul2[p] <= cumul[p] + partCount[p]);
+					assert(cumul2[p] <= cumul[p] + partCount[p]);
 				}
 			}
 		}
-		dms_assert(argVData.size() == argWData.size());
+		assert(argVData.size() == argWData.size());
 
 		for (SizeT ii = 0; ii != nrP; ++ii) // FOR EACH P
 		{
-			dms_assert(cumul2[ii] == cumul[ii] + partCount[ii]);
-			dms_assert(cumul2[ii] <= ((ii+1<nrP) ? cumul[ii+1] : cumulativeN) );
+			assert(cumul2[ii] == cumul[ii] + partCount[ii]);
+			assert(cumul2[ii] <= ((ii+1<nrP) ? cumul[ii+1] : cumulativeN) );
 
 			W cumulWeight = arg2Data[e2Void ? 0 : ii];
 
@@ -632,18 +633,18 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, RatioType r) const override
 	{
 		const ArgVType* argV = const_array_cast<V>(argVA);
-		dms_assert(argV);
+		assert(argV);
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == 1);
+		assert(resData.size() == 1);
 
 		SizeT N = 0;
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetLockedDataRead(t);
-			count_best_total(N, argVData.begin(), argVData.end(), argVA->HasUndefinedValues());
+			count_best_total(N, argVData.begin(), argVData.end());
 		}
 		typename sequence_traits<V>::container_type copy;
 		copy.reserve(N);
@@ -655,12 +656,12 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 			{
 				if (IsDefined(*iv))
 				{
-					dms_assert(copy.size() < N); // sufficient reservation
+					assert(copy.size() < N); // sufficient reservation
 					copy.push_back(*iv);
 				}
 			}
 		}
-		dms_assert(copy.size() == N); // neccesary reservation
+		assert(copy.size() == N); // neccesary reservation
 		Float64 rr = r;
 		rr *= (N - 1);
 
@@ -671,7 +672,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 				cbi = copy.begin(),
 				cbp = cbi + pos,
 				cbe = copy.end();
-			dms_assert(cbp != cbe);
+			assert(cbp != cbe);
 			std::nth_element(cbi, cbp, cbe);
 			resData[0] = *cbp;
 			rr -= pos;
@@ -707,7 +708,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 	// Override Operator
 	void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, const DataArray<RatioType>* arg2, bool e2Void, const AbstrDataItem* argPA) const override
 	{
-		const ArgVType* argV = const_array_cast<V>(argVA); dms_assert(argV);
+		const ArgVType* argV = const_array_cast<V>(argVA); assert(argV);
 
 		const AbstrUnit* valuesDomain = argVA->GetAbstrDomainUnit();
 		SizeT N = 0;
@@ -716,12 +717,12 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 
 		SizeT nrP = argPA->GetAbstrValuesUnit()->GetCount();
 		auto arg2Data = arg2->GetDataRead();
-		dms_assert(arg2Data.size() == (e2Void ? 1 : nrP));
+		assert(arg2Data.size() == (e2Void ? 1 : nrP));
 
 		ResultType* result = mutable_array_cast<V>(res);
-		dms_assert(result);
+		assert(result);
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == nrP);
+		assert(resData.size() == nrP);
 
 		std::vector<I> partCount(nrP, 0);
 
@@ -729,7 +730,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		{
 			auto argVData = argV->GetTile(t);
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter, argVA->HasUndefinedValues() );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter);
 		}
 
 		// cumulative counts per partition
@@ -740,7 +741,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 			cumul.push_back(cumulativeN);
 			cumulativeN += *i;
 		}
-		dms_assert(cumulativeN <= N);
+		assert(cumulativeN <= N);
 		std::vector<I> cumul2 = cumul;
 
 		typename sequence_traits<V>::container_type copy(cumulativeN, V());
@@ -757,10 +758,10 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 					SizeT p = indexGetter->Get(j);
 					if (IsDefined(p))
 					{
-						dms_assert(p < nrP);
+						assert(p < nrP);
 
 						copy[cumul2[p]++] = (*i);
-						dms_assert(cumul2[p] <= cumul[p] + partCount[p]);
+						assert(cumul2[p] <= cumul[p] + partCount[p]);
 					}
 				}
 			}
@@ -768,8 +769,8 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		V resValue;
 		for (SizeT i = 0; i != nrP; ++i)
 		{
-			dms_assert(cumul2[i] == cumul[i] + partCount[i]);
-			dms_assert(cumul2[i] == ((i+1<nrP) ? cumul[i+1] : cumulativeN) );
+			assert(cumul2[i] == cumul[i] + partCount[i]);
+			assert(cumul2[i] == ((i+1<nrP) ? cumul[i+1] : cumulativeN) );
 
 			I pCount = partCount[i];
 			Float64 rr = arg2Data[e2Void ? 0 : i];
@@ -781,7 +782,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 					cbi = copy.begin() + cumul[i],
 					cbp = cbi + pos,
 					cbe = cbi + pCount;
-				dms_assert(cbp != cbe);
+				assert(cbp != cbe);
 				std::nth_element(cbi, cbp, cbe);
 				resValue = *cbp;
 				rr -= pos;

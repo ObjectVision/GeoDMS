@@ -174,7 +174,11 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "overlay_polygon at %d tiles of first argument x %d tiles of second argument resulted in %d matches"
+					, domain1Unit->GetNrTiles()
+					, ue
+					, intersectCount
+				);
 			}
 
 			StoreRes(res, resG, res1, res2, resData);
@@ -448,7 +452,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 			SizeT i = p1-pb;
 			if (unionPermState != PolygonFlags::none)
 			{
-				dms_assert(unionPermState == PolygonFlags::F_DoPartUnion);
+				assert(unionPermState == PolygonFlags::F_DoPartUnion);
 				SizeT ri = vg->Get(i);	
 				if (ri >= n)
 				{
@@ -458,7 +462,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				}
 				i = ri;
 			}
-			dms_assert( i < n);
+			assert( i < n);
 			geometryPtr += i;
 		}
 #if defined(MG_DEBUG_POLYGON)
@@ -567,10 +571,23 @@ protected:
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+			resUnit->SetTSF(TSF_Categorical);
+
 			resultHolder = resUnit;
 			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon);
-			if (!resDomain->IsKindOf( Unit<Void>::GetStaticClass() ))
-				resNrOrgEntity = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
+			{
+				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
+				resNrOrgEntity->SetTSF(TSF_Categorical);
+
+				if (!mustCalc)
+				{
+					auto depreciatedRes = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+					depreciatedRes->SetTSF(TSF_Categorical);
+					depreciatedRes->SetTSF(TSF_Depreciated);
+					depreciatedRes->SetReferredItem(resNrOrgEntity);
+				}
+			}
 		}
 		else
 		{
@@ -880,7 +897,7 @@ public:
 			dms_assert(geometryDataPtr);
 
 			domainCount = geometryDataPtr->Size();
-			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
+			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
 			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
 			for (SizeT i = 0; i != domainCount; ++i) // TODO G8: parallel_for and cleanResources in a threadLocal thing
@@ -969,6 +986,8 @@ protected:
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
 		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		res->SetTSF(TSF_Categorical);
+
 		resultHolder = res;
 
 		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, domain1Unit);

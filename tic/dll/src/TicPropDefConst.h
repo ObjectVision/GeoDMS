@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define STORAGENAME_NAME        "StorageName"
 #define STORAGETYPE_NAME        "StorageType"
 #define STORAGEREADONLY_NAME    "StorageReadOnly"
+#define STORAGEDRIVER_NAME      "StorageDriver"
 #define STORAGEOPTIONS_NAME     "StorageOptions"
 #define DISABLESTORAGE_NAME     "DisableStorage"
 #define KEEPDATA_NAME           "KeepData"

@@ -90,6 +90,7 @@ public:
 	const AbstrDataItem* GetClassification() const;
 	const AbstrDataItem* GetPaletteAttr()    const;
 	const AbstrDataItem* GetPaletteOrThemeAttr()    const;
+	const AbstrDataItem* GetThemeOrPaletteAttr() const;
 	AspectNr             GetAspectNr()       const { return m_AspectNr; }
 	CharPtr              GetAspectName()     const;
 

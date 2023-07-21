@@ -77,7 +77,7 @@ bool itemName_test(CharPtr p)
 
 CharPtr ParseTreeItemName(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	if (itemNameFirstChar_test(*name))
 	{
 		++name;
@@ -89,7 +89,7 @@ CharPtr ParseTreeItemName(CharPtr name)
 
 CharPtr ParseTreeItemPath(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	while (true)
 	{
 		name = ParseTreeItemName(name); // could be empty
@@ -127,14 +127,14 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 	SizeT n = last - first;
 	if (!n)
 		return {};
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		++n;
 
 	auto resultPtr = SharedCharArray::Create(n+1, false); // size + zero termination
 	auto resultStr = SharedStr(resultPtr);
 
 	auto dstPtr = resultPtr->begin();
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		*dstPtr++ = '_';
 
 	auto dstEnd = fast_copy(first, last, dstPtr);

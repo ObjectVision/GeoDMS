@@ -63,12 +63,12 @@ public:
 		const AbstrUnit* argUnitA= AsUnit(args[m_ReverseArgs ? 0 : 1]);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(
-				argDataA->GetAbstrDomainUnit() 
-			,	argUnitA 
-			,	m_VC
-			);
-		
+		{
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, m_VC);
+			if (argUnitA->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
+		}
+
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -84,7 +84,7 @@ public:
 			}
 			else
 			{
-				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+				DataWriteLock resLock(res, dms_rw_mode::write_only_all);
 
 				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res](tile_id t)->void
 					{
@@ -103,7 +103,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -149,7 +149,7 @@ public:
 				visit<typelists::fields>(valuesUnit, [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
-					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, tileRangeData->GetNrTiles()
+					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}
@@ -249,17 +249,17 @@ public:
 	{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		const Arg1Type* arg1 = const_array_cast<Arg1Values>(arg1A);
+		auto arg1 = MakeShared(const_array_cast<Arg1Values>(arg1A));
 		dms_assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 	
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{

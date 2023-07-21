@@ -74,8 +74,7 @@ std::vector<MsgStruct> g_MsgQueue;
 
 SHV_CALL void DMS_CONV DMS_Shv_Load() 
 {
-	DMS_Clc1_Load();
-	DMS_Clc2_Load();
+	DMS_Clc_Load();
 	DMS_Stg_Load();
 	DMS_Geo_Load();
 }
@@ -170,7 +169,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 		StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 		SuspendTrigger::Resume();  // REMOVE
 
 		CheckPtr(dv,            DataView::GetStaticClass(), "SHV_DataView_AddItem");
@@ -288,6 +287,7 @@ void OnDestroyDataView(DataView* self)
 		g_MsgQueue.end()
 	);
 }
+
 /*
 ActorVisitState DataView_Update(DataView* self)
 {
@@ -352,6 +352,8 @@ void DMS_CONV SHV_DataView_SetStatusTextFunc(DataView* self, ClientHandle client
 {
 	DMS_CALL_BEGIN
 
+		assert(self); // Precondition
+
 		CheckPtr(self, DataView::GetStaticClass(), "SHV_DataView_SetStatusTextFunc");
 
 		self->SetStatusTextFunc(clientHandle, stf);
@@ -412,6 +414,7 @@ static UInt32          g_LastViewStyleFlags;
 bool IsMapViewable(const AbstrDataItem* adi)
 {
 	dms_assert(adi);
+	dms_assert(!SuspendTrigger::DidSuspend());
 	if (adi->WasFailed(FR_MetaInfo))
 		return false;
 
@@ -443,6 +446,9 @@ bool IsMapViewable(const AbstrDataItem* adi)
 SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
+
+//		SuspendTrigger::Resume();
+		SuspendTrigger::FencedBlocker blockSuspension;
 
 		dms_assert(item);
 		if (g_LastQueriedItem != item || g_LastAdminMode != HasAdminMode())

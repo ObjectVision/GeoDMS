@@ -56,6 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Cmds.h"
 #include "Clipboard.h"
 #include "CounterStacks.h"
+#include "dataview.h"
 #include "GraphVisitor.h"
 #include "GridCoord.h"
 #include "GridDrawer.h"
@@ -125,8 +126,17 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 	bool changed;
 	if ( IsIncluding(tr.Apply( Convert<CrdRect>(gridRect) ), pnt) )
 	{
+		if (!IsDataReady(GetActiveEntity()->GetCurrRangeItem()))
+		{
+			reportD(SeverityTypeID::ST_MajorTrace, "GridLayer::SelectPoint cancelled... ActiveEntity not ready.");
+			MessageBeep(MB_ICONEXCLAMATION);
+			return;
+		}
+		auto selTheme = CreateSelectionsTheme();
+		if (!selTheme)
+			return;
 		DataWriteLock writeLock(
-			const_cast<AbstrDataItem*>(CreateSelectionsTheme()->GetThemeAttr()),
+			const_cast<AbstrDataItem*>(selTheme->GetThemeAttr()),
 			CompoundWriteType(eventID)
 		);
 		IPoint gridLoc = RoundDown<4>( tr.Reverse(pnt) );
@@ -167,13 +177,14 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 	{
 		DataWriteLock lock(selAttr, CompoundWriteType(eventID));
+		{
+			auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
 
-		auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
-
-		auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
-		UInt32 gridWidth = _Width(gridRect);
-		for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
-			rowProcessor(r, _Left(selectRect),  _Right (selectRect), i, tr);
+			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
+			UInt32 gridWidth = _Width(gridRect);
+			for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
+				rowProcessor(r, _Left(selectRect), _Right(selectRect), i, tr);
+		}
 		lock.Commit();
 	}
 	if (!IsCreateNewEvent(eventID) && !HasEntityIndex())
@@ -367,9 +378,9 @@ void GridLayer::AssignValues(sequence_traits<Bool>::cseq_t selData)
 
 void GridLayer::AssignSelValues()
 {
-	dms_assert(m_Themes[AN_Selections]); // PRECONDITION 
+	assert(m_Themes[AN_Selections]); // PRECONDITION 
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttrSource();
-	dms_assert(selAttr);                // PRECONDITION
+	assert(selAttr);                // PRECONDITION
 
 	PreparedDataReadLock drl(selAttr);
 	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
@@ -526,39 +537,60 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		auto selData = const_array_cast<SelectionID>(selAttr)->GetDataRead();
 
 		IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
+		auto indexCollectorPtr = GetIndexCollector();
 
-		DataArray<SelectionID>::const_iterator 
-			sdb = selData.begin(),
-			sdi = sdb;
+		auto sdb = selData.begin();
 
 		Int32 c      = _Left (gridRect);
 		Int32 cRight = _Right(gridRect);
-		for (Int32 r = _Top (gridRect), re = _Bottom(gridRect); r != re; ++r)
+		if (indexCollectorPtr)
 		{
-			while (c < cRight)
+			SizeT i = 0;
+			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
 			{
-				dms_assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c,r))) == (sdi-sdb));
-				if (sdi.nr_elem() || *sdi.data_begin())
+				while (c < cRight)
 				{
-					if (SelectionID(*sdi))
-					{
-						selectRect |= shp2dms_order(IPoint(c,r));
-						if (c < selectRect.second.Col())
-						{
-							sdi += (selectRect.second.Col() - c);
-							c = selectRect.second.Col();
-						}
-					}
-					++sdi;
+					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
+					SizeT sdIndex = indexCollectorPtr->GetEntityIndex(i);
+					if (SelectionID(sdb[sdIndex]))
+						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+						c = selectRect.second.Col();
 				}
-				else
-				{
-					sdi.skip_full_block();
-					c += sdi.nr_elem_per_block;
-				}
+				assert(c == cRight);
+				c -= _Width(gridRect);
 			}
-			c -= _Width(gridRect);
+		}
+		else
+		{
+			auto sdi = sdb;
+			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
+			{
+				while (c < cRight)
+				{
+					assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))) == sdi - sdb);
+					if (sdi.nr_elem() || *sdi.data_begin())
+					{
+						if (SelectionID(*sdi))
+							selectRect |= shp2dms_order(IPoint(c, r));
+						++sdi;
+						++c;
+					}
+					else
+					{
+						sdi.skip_full_block();
+						c += sdi.nr_elem_per_block;
+					}
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+					{
+						sdi += (selectRect.second.Col() - c);
+						c = selectRect.second.Col();
+					}
+				}
+				assert(c >= cRight);
+				c -= _Width(gridRect);
+			}
 		}
 
 		if (!selectRect.empty())
@@ -601,11 +633,15 @@ CrdRect GridLayer::GetWorldExtents(feature_id featureIndex) const
 	return ::GetWorldExtents(geoCrdUnit->GetRangeAsIRect(), geoCrdUnit->GetProjection(), featureIndex);
 }
 
-void GridLayer::_InvalidateFeature(SizeT featureIndex)
+void GridLayer::InvalidateFeature(SizeT featureIndex)
 {
-	dms_assert(IsDefined(featureIndex));
+	assert(IsDefined(featureIndex));
 
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE1* GetDesktopDIP2pixFactor());
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	Int32 focusSize = FOCUS_BORDER_SIZE1;
 
 	GRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
 	InvalidateWorldRect(GetWorldExtents(featureIndex),	&borderExtents);
@@ -812,7 +848,7 @@ void GridLayer::ClearPaste()
 
 void GridLayer::CopySelValuesToBitmap()
 {
-	ClipBoard clipBoard;
+	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 
@@ -1174,9 +1210,8 @@ GRect GridLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
 	return GRect(-focusSize, -focusSize, focusSize, focusSize);  // max rounding error without considering orientation
 }
 
-void GridLayer::Zoom1To1()
+void GridLayer::Zoom1To1(ViewPort* vp)
 {
-	ViewPort* vp = GetViewPort();
 	dms_assert(vp);
 
 	if (!vp->GetWorldCrdUnit())
@@ -1270,7 +1305,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				"Fill Selected Cells with "+ GetCurrClassLabel(),
-				new MembFuncCmd<GridLayer>( &GridLayer::AssignSelValues),
+				make_MembFuncCmd( &GridLayer::AssignSelValues),
 				this
 			)
 		);	
@@ -1281,7 +1316,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Copy Selected Cells to Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::CopySelValues),
+				make_MembFuncCmd( &GridLayer::CopySelValues),
 				this
 			)
 		);	
@@ -1292,7 +1327,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Paste Selected Cells from Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::PasteSelValues),
+				make_MembFuncCmd( &GridLayer::PasteSelValues),
 				this
 			)
 		);	
@@ -1318,7 +1353,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 	menuData.push_back(
 		MenuItem(
 			SharedStr("Zoom &1 Grid to 1 Pixel"),
-			new MembFuncCmd<GridLayerBase>(&GridLayerBase::Zoom1To1Caller),
+			make_MembFuncCmd(&GridLayerBase::Zoom1To1Caller),
 			this,
 			IsVisible() ? 0 : MFS_GRAYED
 		)
@@ -1328,7 +1363,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 
 void GridLayer::CreateSelCaretInfo()  const
 {
-	dms_assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
+	assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
 	if (m_SelCaret)
 		return;
 

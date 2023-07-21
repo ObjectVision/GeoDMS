@@ -332,7 +332,7 @@ namespace DemandManagement {
 	{
 		if (!g_IncInterestDetectorCount)
 			return;
- 		reportD(SeverityTypeID::ST_MajorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
+ 		reportD(SeverityTypeID::ST_MinorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
 //		dms_assert(0);
 	}
 
@@ -424,7 +424,6 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
-
 		if (IsMetaThread())
 			ProcessMainThreadOpers();
 
@@ -439,7 +438,7 @@ namespace SuspendTrigger {
 
 	void Resume() noexcept
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 //		dms_assert(!s_SuspendLevel); // receipe for trouble later on
 		s_bLastResult  = false;
 		s_ProgressMade = false;

@@ -104,6 +104,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			chlit<> RBRACK(']');
 			chlit<> LPAREN('(');
 			chlit<> RPAREN(')');
+			chlit<> PERCENT('%');
 
 			chlit<> PLUS ('+');
 			chlit<> MINUS('-');
@@ -179,12 +180,13 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					|	epsilon_p[([&](...) { currDBP.SetSign(true);})]
 					)
 				>>	( floatValue
-					| integerValue
+					| unsignedInteger
 					);
 
 			floatValue = strict_ureal_p[([&](Float64 v) { currDBP.DoFloatValue(v);})];
-			integerValue = uint_p[([&](UInt32 v) { currDBP.DoIntegerValue(v);})];
-
+			unsignedInteger = (uint64_p[([&](auto u64) { currDBP.DoUInt64(u64); })])
+				| (PERCENT >> (hex64_p[([&](auto u64) { currDBP.DoUInt64(u64); })]));
+				
 			boolValue
 				= as_lower_d["true" ][([&](...) { currDBP.DoBoolValue(true );})]
 				| as_lower_d["false"][([&](...) { currDBP.DoBoolValue(false);})];
@@ -197,7 +199,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			arrayAssignments, 
 			arrayAssignment, 
 			basicValue, rgbValue, pointValue, parenthesizedPointValue, bracedPointValue,
-			numericValue, floatValue, integerValue, 
+			numericValue, floatValue, unsignedInteger, 
 			boolValue;
 
 		boost::spirit::rule<ScannerT> const& start() const { return main; }

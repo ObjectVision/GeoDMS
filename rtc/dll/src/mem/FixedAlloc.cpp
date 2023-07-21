@@ -62,9 +62,6 @@
 //#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
 
-#define MG_DEBUG_ALLOC true
-#define MG_DEBUG_ALLOC_SMALL false
-
 // =========================================  implementation
 
 // =========================================  types and constants section
@@ -231,12 +228,22 @@ struct VirtualAllocChunkArray
 	}
 };
 
+// =========================================  FreeStackAllocSummary
+
+using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
+
+FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
+{
+	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
+}
+
 // =========================================  FreeStackAllocator definition section
 
 struct FreeStackAllocator
 {
 	VirtualAllocChunkArray inner;
 	std::vector<BYTE_PTR> freeStack;
+	objectstore_count_t objectCount = 0;
 	mutable std::mutex allocSection;
 
 	void Init_log2(alloc_index_t log2ObjectStoreSize) 
@@ -247,7 +254,9 @@ struct FreeStackAllocator
 	std::pair<BYTE_PTR, bool> get_reserved_or_reset_objectstore()
 	{
 		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
-		std::scoped_lock lock(allocSection);
+		std::lock_guard lock(allocSection);
+
+		objectCount++;
 
 		if (freeStack.empty())
 			return { inner.get_reserved_objectstore(), true };
@@ -270,7 +279,8 @@ struct FreeStackAllocator
 
 	void add_to_freestack(BYTE_PTR ptr)
 	{
-		std::scoped_lock lock(allocSection); // critical section here too
+		std::lock_guard lock(allocSection); // critical section here too
+		objectCount--;
 		freeStack.emplace_back(ptr);
 	}
 	void deallocate(BYTE_PTR ptr, object_size_t objectSize)
@@ -281,6 +291,31 @@ struct FreeStackAllocator
 
 		inner.release(ptr, objectSize); // still thread-local ownership during release of object's memory
 		add_to_freestack(ptr); // will sync with other threads
+	}
+
+	FreeStackAllocSummary ReportStatus() const
+	{
+		if (!inner.objectStoreSize)
+			return FreeStackAllocSummary(0, 0, 0, 0);
+
+		SizeT pageCount, totalBytes = 0;
+		SizeT nrAllocated;
+		SizeT nrFreed;
+		SizeT nrUncommitted;
+		SizeT nrAllocatedBytes;
+		{
+			std::scoped_lock lock(allocSection);
+
+			pageCount = inner.chunks.size();
+			totalBytes = 0; for (const auto& page : inner.chunks) totalBytes += page.ChunkSize();
+			nrAllocated = objectCount;
+			nrUncommitted = inner.nrResevedButUncommitedObjectStores;
+			nrFreed = (totalBytes >> inner.log2ObjectStoreSize) - nrAllocated - nrUncommitted;
+			nrAllocatedBytes = inner.objectStoreSize * nrAllocated;
+		}
+		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
+			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize);
 	}
 };
 
@@ -303,10 +338,18 @@ struct FreeStackAllocatorArray
 		sd_FSA_ptr = this;
 #endif
 	}
+
+	SizeT size() const { return NR_FREE_STACK_ALLOCS; }
+
 	FreeStackAllocator& operator [](alloc_index_t i)
 	{ 
 		assert(i < NR_FREE_STACK_ALLOCS);
 		return freeStackAllocators[i]; 
+	}
+	const FreeStackAllocator& operator [](alloc_index_t i) const
+	{
+		assert(i < NR_FREE_STACK_ALLOCS);
+		return freeStackAllocators[i];
 	}
 
 private:
@@ -397,7 +440,7 @@ struct FreeListAllocator
 			}
 
 			// critical section from here: allocate a ObjectStore from freeStackAllocator
-			std::scoped_lock lock(allocSection);
+			std::lock_guard lock(allocSection);
 			// already done ?
 			if (currTaggedNrReservedSosses == taggedNrReservedSosses)
 			{
@@ -545,6 +588,7 @@ void* AllocateFromStock_impl(size_t objectSize)
 		WaitForAvailableMemory(qWordCount * sizeof(UInt64));
 
 	auto result = s_QWordArrayAllocator.allocate(qWordCount);
+	MG_CHECK(result);
 	return result;
 }
 
@@ -613,25 +657,20 @@ std::atomic<bool> s_ReportingRequestPending = false;
 void ReportFixedAllocStatus()
 {
 	s_ReportingRequestPending = false;
-/*
-#if defined(MG_CACHE_ALLOC)
 
-	reportD(SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
 
 	FreeStackAllocSummary cumulBytes;
-	for (const auto& fsa : GetFreeStackAllocatorArray())
-		cumulBytes = cumulBytes + fsa.ReportStatus();
+	const auto& fsaa = GetFreeStackAllocatorArray();
+	for (int i=0; i!=fsaa.size(); ++i)
+		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
 		, std::get<0>(cumulBytes) >> 10
 		, std::get<1>(cumulBytes) >> 10
 		, std::get<2>(cumulBytes) >> 10
 		, std::get<3>(cumulBytes) >> 10
 	);
-
-#endif //defined(MG_CACHE_ALLOC)
-*/
-
 }
 
 //----------------------------------------------------------------------
@@ -719,26 +758,26 @@ auto& GetAllocRegister()
 void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 
-	dms_assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
+	assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
 	reg.map[ptr] = std::pair<CharPtr, size_t>{ srcStr, sz };
 }
 
 void RemoveAlloc(void* ptr, size_t sz)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 
 	auto pos = reg.map.find(ptr);
-	dms_assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
+	assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
 	reg.map.erase(pos);
 }
 
 void ReportAllocs()
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::scoped_lock(reg.mutex);
+	auto lock = std::lock_guard(reg.mutex);
 	objectstore_count_t i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;

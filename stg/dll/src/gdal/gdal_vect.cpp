@@ -356,7 +356,7 @@ GdalVectSM::~GdalVectSM()
 void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	DBG_START("GdalVectSM", "OpenStorage", true);
-	dms_assert(m_hDS == nullptr);
+	assert(m_hDS == nullptr);
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
 		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()
@@ -962,11 +962,11 @@ StorageMetaInfoPtr GdalVectSM::GetMetaInfo(const TreeItem* storageHolder, TreeIt
 	return std::make_unique<GdalVectlMetaInfo>(this, storageHolder, adi);
 }
 
-bool GdalVectSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(&smi), borrowedReadResultHolder, t);
+	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t);
 }
 
 OGRLayer* GetLayerFromDataItem(GDALDatasetHandle& m_hDS, SharedStr layername)
@@ -1215,20 +1215,6 @@ std::vector<TileCRef> ReadableTileHandles(const std::vector<DataReadLock>& drl, 
 	return tileReadLocks;
 }
 
-/* REMOVE
-std::map<SharedStr, TokenT> GetFieldnameTokenTMapping(SharedStr layername, DataItemsWriteStatusInfo& dataItemsStatusInfo)
-{
-	std::map<SharedStr, TokenT> fieldnameTokenTMap;
-	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[GetTokenID_mt(layername.c_str()).GetTokenT()])
-	{
-		if (not writableField.second.doWrite)
-			continue;
-		fieldnameTokenTMap[writableField.second.name] = GetTokenID_mt(writableField.second.name.c_str()).GetTokenT();
-	}
-	return fieldnameTokenTMap;
-}
-*/
-
 SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 {
 	if (!layer)
@@ -1249,7 +1235,7 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 	return count;
 }
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldType DmsType2OGRFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Int32:
@@ -1281,11 +1267,11 @@ OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
 	case VT_SharedStr:
 		return OFTString;
 	default:
-		return OGRFieldType::OFTBinary;
+		return OGRFieldType::OFTMaxType;
 	}
 }
 
-OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id)
 {
 	switch (id) {
 	case VT_Bool:
@@ -1301,7 +1287,7 @@ OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
 	}
 }
 
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc)
+OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 {
 	switch (vc) {
 	case ValueComposition::Single:
@@ -1337,8 +1323,8 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			SharedStr       fieldName = SharedStr(fieldCandidate->GetID());
 			int             bApproxOK = TRUE;
 
-			OGRFieldType    type    = DmsType2OGRFieldType(vci, vc);
-			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci, vc);
+			OGRFieldType    type    = DmsType2OGRFieldType(vci);
+			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
 			OGRFieldDefn    fieldDefn(fieldName.c_str(), type);         error_frame.ThrowUpWhateverCameUp();
 			fieldDefn.SetSubType(subtype);                   error_frame.ThrowUpWhateverCameUp();
 			layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
@@ -1456,6 +1442,10 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
 	if (not m_DataItemsStatusInfo.m_continueWrite)
 	{
+		// disable spatial index in case of GPKG, SQLite
+		//if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
+		//	layerOptionArray.AddString("SPATIAL_INDEX=NO");
+
 		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		m_DataItemsStatusInfo.m_continueWrite = true;
 	}
@@ -1549,6 +1539,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layerTokenT);
 
+
+	//Spatial index explicitly for shapefile 
 	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
 	{
 		if (DataSourceHasNamelessLayer(datasourceName))
@@ -1696,7 +1688,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 		if (m_hDS)
 		{
-			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo())->m_Layer;
+			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo().get())->m_Layer;
 			if (layer)
 				DoUpdateTable(storageHolder, AsUnit(curr), layer);
 		}

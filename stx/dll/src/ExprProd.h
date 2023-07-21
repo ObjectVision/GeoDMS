@@ -48,7 +48,6 @@ struct ExprProd
 
 	void ProdBracketedExpr();
 	void ProdUnaryOper(TokenID id);
-	void ProdNullaryOper(TokenID id);
 	void ProdStringValue();
 	void ProdFunctionCall();
 	void ProdIdentifier(iterator_t first, iterator_t last);
@@ -78,7 +77,7 @@ struct ExprProdBase
 
 	void ProdBracketedExpr() {}
 	void ProdUnaryOper(TokenID id) {}
-	void ProdNullaryOper(TokenID id) {}
+//	void ProdNullaryOper(TokenID id) {}
 	void ProdStringValue() {}
 	void ProdFunctionCall() {}
 	void ProdUInt64(UInt64 n) {}

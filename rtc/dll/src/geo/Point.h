@@ -53,7 +53,7 @@ struct Point: Couple<T>
 	using Couple<T>::second;
 
 //	Constructors (specified)
-	Point() {}
+	Point() {} // default initialisastion results in valid possibly non-zero objects too
 	Point(T first, T second): Couple<T>(first, second) {}
 	Point(Undefined): Couple<T>(Undefined()) {}
 	template <typename U>
@@ -352,7 +352,7 @@ Area(const Point<T>& v)
 //----------------------------------------------------------------------
 
 template <typename ReturnType, typename T, typename U>
-inline ReturnType InProduct(const Point<T>& p1, const Point<U>& p2)
+inline ReturnType InProduct(Point<T> p1, Point<U> p2)
 {
 	return
 		ReturnType(p1.first ) * ReturnType(p2.first )
@@ -360,7 +360,7 @@ inline ReturnType InProduct(const Point<T>& p1, const Point<U>& p2)
 }
 
 template <typename ReturnType, typename U>
-inline ReturnType OutProduct(const Point<U>& p1, const Point<U>& p2)
+inline ReturnType OutProduct(Point<U> p1, Point<U> p2)
 {
 	return
 		ReturnType(p1.Col()) * ReturnType(p2.Row())
@@ -368,13 +368,13 @@ inline ReturnType OutProduct(const Point<U>& p1, const Point<U>& p2)
 }
 
 template <typename ReturnType, typename U>
-inline ReturnType Norm(const Point<U>& point)
+inline ReturnType Norm(Point<U> point)
 {
 	return InProduct<ReturnType>(point, point);
 }
 
 template <typename ReturnType, typename U>
-inline ReturnType SqrDist(const Point<U>& p1, const Point<U>& p2)
+inline ReturnType SqrDist(Point<U> p1, Point<U> p2)
 {
 	return Norm<ReturnType>(p1-p2);
 }

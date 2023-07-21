@@ -72,50 +72,56 @@ SYNTAX_CALL void DMS_CONV DMS_Stx_Load()
 // Returns:           TreeItem*: root of the tree
 // *****************************************************************************
 
+SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
+{
+	//auto current_dir = GetCurrentDir();
+	TreeItem* res = nullptr;
+	try {
+		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
+
+		SharedStr sourceFileNameStr(sourceFilename);
+		sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
+
+		SharedStr configLoadDir = splitFullPath(sourceFileNameStr.begin());
+		CharPtr fileName = sourceFileNameStr.c_str();
+		if (configLoadDir.ssize()) fileName += (configLoadDir.ssize() + 1);
+
+		auto currSession = SessionData::Create(configLoadDir.c_str(), getFileNameBase(fileName).c_str());
+		currSession->SetConfigPointColFirst(GetConfigPointColFirst());
+
+		ConfigurationFilenameContainer filenameContainer(configLoadDir);
+		{
+			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
+			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
+
+			MG_LOCKER_NO_UPDATEMETAINFO
+
+				UpdateMarker::ChangeSourceLock changeAtZeroTime(UpdateMarker::tsBereshit, "CreateTreeFromConfigFile");
+
+#if defined(MG_DEBUG_INTERESTSOURCE)
+			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
+#endif // MG_DEBUG_INTERESTSOURCE
+			res = AppendTreeFromConfiguration(fileName, 0);
+		}
+		currSession->Open(res);
+		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
+		dms_assert(fts > UpdateMarker::tsBereshit);
+		return res;
+	}
+	catch (...)
+	{
+		if (res)
+			res->EnableAutoDelete();
+		throw;
+	}
+	return nullptr;
+}
+
 
 SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
 	DMS_CALL_BEGIN
-
-		TreeItem* res = nullptr;
-		try {
-			CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
-
-			SharedStr sourceFileNameStr( sourceFilename);
-			sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
-
-			SharedStr configLoadDir = splitFullPath(sourceFileNameStr.begin());
-			CharPtr fileName = sourceFileNameStr.c_str();
-			if (configLoadDir.ssize()) fileName += (configLoadDir.ssize()+1);
-
-			SessionData::Create( configLoadDir.c_str(), getFileNameBase(fileName).c_str() );
-			SessionData::Curr()->SetConfigPointColFirst( GetConfigPointColFirst() );
-
-			ConfigurationFilenameContainer filenameContainer(configLoadDir);
-			{
-				StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
-				StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
-
-				MG_LOCKER_NO_UPDATEMETAINFO
-
-				UpdateMarker::ChangeSourceLock changeAtZeroTime(UpdateMarker::tsBereshit, "CreateTreeFromConfigFile");
-
-				#if defined(MG_DEBUG_INTERESTSOURCE)
-					DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
-				#endif // MG_DEBUG_INTERESTSOURCE
-				res = AppendTreeFromConfiguration(fileName, 0);
-			}
-			SessionData::Curr()->Open(res);
-			auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
-			dms_assert(fts > UpdateMarker::tsBereshit);
-			return res;
-		}
-		catch (...)
-		{
-			if (res)
-				res->EnableAutoDelete();
-			throw;
-		}
+		return CreateTreeFromConfiguration(sourceFilename);
 	DMS_CALL_END
 	return nullptr;
 }
@@ -182,9 +188,14 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	SharedStr sourceFileNameStr(sourceFileName);
 	sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
 
-	SharedStr sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
-		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(), 
+ 	SharedStr sourcePathNameStr = AbstrStorageManager::Expand(
+		ConfigurationFilenameLock::GetConfigDir().c_str(),
 		sourceFileNameStr.c_str()
+	);
+
+	sourcePathNameStr = AbstrStorageManager::GetFullStorageName(
+		ConfigurationFilenameLock::GetCurrentDirNameFromConfigLoadDir(),
+		sourcePathNameStr.c_str()
 	);
 
 	CharPtr sourcePathName = sourcePathNameStr.c_str();
@@ -199,7 +210,9 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 
 	if (!stricmp(getFileNameExtension(sourcePathName), "xml"))
 	{
-		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, DSM::GetSafeFileWriterArray(), true);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		MG_CHECK(sfwa);
+		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
 		XmlTreeParser xmlParse(&streamBuff);
 		result =  xmlParse.ReadTree(context);
 
@@ -255,6 +268,32 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 
 #include "act/TriggerOperator.h"
 
+SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
+{
+	SharedStr localUrl = SharedStr(url);
+	SharedStr result;
+	MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
+	CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
+	while (true) {
+		CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
+		result += CharPtrRange(fileCurr, markerPos);
+		if (markerPos == fileEnd)
+			return result;
+		markerPos += 2;
+		fileCurr = Search(CharPtrRange(markerPos, fileEnd), "%>");
+		if (fileCurr == fileEnd)
+			throwErrorD("DMS_ProcessADMS", "unbalanced script markers");
+
+		SharedStr evalRes = AbstrCalculator::EvaluateExpr(const_cast<TreeItem*>(context), CharPtrRange(markerPos, fileCurr), CalcRole::Other, 1);
+		if (!evalRes.IsDefined())
+			evalRes = UNDEFINED_VALUE_STRING;
+		result += evalRes;
+
+		fileCurr += 2;
+	}
+	return {};
+}
+
 IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	DMS_CALL_BEGIN
@@ -262,29 +301,8 @@ IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 		SuspendTrigger::FencedBlocker blockSuspendCheck;  // DEBUG, HELPS?
 		StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
-		CDebugContextHandle checkPtr("STX", "DMS_ProcessADMS", true);
-
-		SharedStr localUrl = SharedStr(url);
-		SharedStr result;
-		MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray(), true, false );
-		CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
-		while (true) {
-			CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
-			result += CharPtrRange(fileCurr, markerPos);
-			if (markerPos == fileEnd)
-				return IString::Create(result.c_str());
-			markerPos += 2;
-			fileCurr = Search( CharPtrRange(markerPos, fileEnd), "%>");
-			if (fileCurr == fileEnd)
-				throwErrorD("DMS_ProcessADMS", "unbalanced script markers");
-
-			SharedStr evalRes = AbstrCalculator::EvaluateExpr(const_cast<TreeItem*>(context), CharPtrRange(markerPos, fileCurr), CalcRole::Other, 1);
-			if (!evalRes.IsDefined())
-				evalRes = UNDEFINED_VALUE_STRING;
-			result += evalRes;
-
-			fileCurr += 2;
-		}
+		auto result = ProcessADMS(context, url);
+		return IString::Create(result.c_str());
 
 	DMS_CALL_END
 	return nullptr;
@@ -322,7 +340,7 @@ bool DMS_ProcessPostData(TreeItem* context, CharPtr postData, UInt32 dataSize)
 		DBG_START("DMS_ProcessPostData", postData, true);
 		TreeItemContextHandle checkPtr(context, "DMS_ProcessPostData");
 
-		dms_assert( (StrLen(postData) + 1) == dataSize );
+		assert( (StrLen(postData) + 1) == dataSize );
 		if (_strnicmp(postData, "DMSPOST=",8))
 			return false;
 

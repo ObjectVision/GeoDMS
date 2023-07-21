@@ -10,7 +10,7 @@
 #include <iostream>
 #include <map>
 
-typedef Big::UInt big_int;
+using big_int = Big::UInt;
 
 /*
 big_int MakeBinAdic(big_int src)
@@ -34,7 +34,7 @@ struct Pow3Cache : std::vector<big_int>
 	}
 };
 
-const big_int& Pow3(UInt32 p)
+const big_int& Pow3(SizeT p)
 {
 	static Pow3Cache cache;
 	if (cache.size() <= p)
@@ -43,13 +43,13 @@ const big_int& Pow3(UInt32 p)
 	if (cache[p].empty())
 	{
 		dms_assert(p > 1); // first two elem were already filled
-		UInt32 q = p /2;
+		SizeT q = p /2;
 		cache[p] = Pow3(q)*Pow3(p-q);
 	}
 	return cache[p];
 }
 
-std::ostream& operator << (std::ostream& os, Big::UInt rhs)
+std::ostream& operator << (std::ostream& os, const big_int& rhs)
 {
 	Big::UInt::const_iterator
 		B = rhs.begin()

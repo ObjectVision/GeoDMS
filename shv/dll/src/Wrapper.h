@@ -52,7 +52,7 @@ class Wrapper: public MovableObject
 protected:
 	Wrapper(MovableObject* owner, DataView* dv, CharPtr caption);
 	
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_PushVisibility|GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::PushVisibility| GraphicClassFlags::ClipExtents; }
 
 public:
 

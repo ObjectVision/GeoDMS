@@ -34,15 +34,14 @@ uses uDmsInterfaceTypes;
 
 const
 
-CLC1_DLL =  'Clc1.dll';
-CLC2_DLL =  'Clc2.dll';
-GEO_DLL  =  'Geo.dll';
-RTC_DLL  =  'Rtc.dll';
-STG_DLL  =  'Stg.dll';
-STX_DLL  =  'Stx.dll';
-TIC_DLL  =  'Tic.dll';
-SYM_DLL  =  'Sym.dll';
-SHV_DLL  =  'Shv.dll';
+CLC_DLL = 'Clc.dll';
+GEO_DLL = 'Geo.dll';
+RTC_DLL = 'Rtc.dll';
+STG_DLL = 'Stg.dll';
+STX_DLL = 'Stx.dll';
+TIC_DLL = 'Tic.dll';
+SYM_DLL = 'Sym.dll';
+SHV_DLL = 'Shv.dll';
 
 {*******************************************************************************
                         Linker functions
@@ -52,8 +51,7 @@ SHV_DLL  =  'Shv.dll';
 *******************************************************************************}
 
 procedure DMS_Tic_Load;                                                            cdecl; external TIC_DLL; // From TicInterface.h:
-procedure DMS_Clc1_Load;                                                           cdecl; external CLC1_DLL; // From ClcInterface.h: TParseResult && operator
-procedure DMS_Clc2_Load;                                                           cdecl; external CLC2_DLL; // From ClcInterface.h: TParseResult && operator
+procedure DMS_Clc_Load;                                                            cdecl; external CLC_DLL; // From ClcInterface.h: TParseResult && operator
 procedure DMS_Geo_Load;                                                            cdecl; external GEO_DLL; // From ClcInterface.h: TParseResult && operator
 procedure DMS_Stg_Load;                                                            cdecl; external STG_DLL; // Storages for gtf, dbf, cfs, xdb, asc, e00, bmp, pal, odbc, shp
 procedure DMS_Shv_Load;                                                            cdecl; external SHV_DLL;
@@ -63,6 +61,7 @@ function DMS_GetVersion: PMsgChar;                                              
 function DMS_GetVersionNumber: Float64;                                            cdecl; external RTC_DLL; // From RtcInterface.h
 
 procedure DMS_VisitVersionComponents(clientHandle: TClientHandle; callBack: TVersionComponentCallbackFunc); cdecl; external RTC_DLL;
+function  SetGlobalMainWindowHandle(hWindow: Pointer): Pointer; cdecl; external RTC_DLL;
 
 {*******************************************************************************
                   Diagnostics functions
@@ -161,9 +160,9 @@ function  DMS_TreeItem_XML_DumpAllProps(this: TTreeItem; xmlStr: TXMLOutStreamHa
 procedure DMS_TreeItem_XML_DumpExplore (this: TTreeItem; xmlStr: TXMLOutStreamHandle; viewHidden: Boolean);  cdecl; external TIC_DLL; // From TicInterface.h
 function  DMS_TreeItem_Dump(this: TTreeItem; fileName: PFileChar): Boolean;     cdecl; external TIC_DLL; // From TicInterface.h
 
-procedure XML_ReportOperator(xmlStr: TXMLOutStreamHandle; oper: COperator);     cdecl; external CLC1_DLL; // From ClcInterface.h
-procedure XML_ReportOperGroup(xmlStr: TXMLOutStreamHandle; gr: COperGroup);     cdecl; external CLC1_DLL; // From ClcInterface.h
-procedure XML_ReportAllOperGroups(xmlStr: TXMLOutStreamHandle);                 cdecl; external CLC1_DLL; // From ClcInterface.h
+procedure XML_ReportOperator(xmlStr: TXMLOutStreamHandle; oper: COperator);     cdecl; external CLC_DLL; // From ClcInterface.h
+procedure XML_ReportOperGroup(xmlStr: TXMLOutStreamHandle; gr: COperGroup);     cdecl; external CLC_DLL; // From ClcInterface.h
+procedure XML_ReportAllOperGroups(xmlStr: TXMLOutStreamHandle);                 cdecl; external CLC_DLL; // From ClcInterface.h
 
 {*******************************************************************************
       C style Interface functions for lement ValueType id retrieval
@@ -437,7 +436,7 @@ function DMS_TreeItem_GetSourceDescr(studyObject: TTreeItem; sdMode: TSourceDesc
 procedure DMS_ExplainValue_Clear;                                                    cdecl; external TIC_DLL;
 function DMS_DataItem_ExplainAttrValueToXML(studyObject: TAbstrDataItem; xmls: TXMLOutStreamHandle; location: SizeT; sExtraInfo: PSourceChar; showHidden: Boolean): Boolean; cdecl; external TIC_DLL;
 function DMS_DataItem_ExplainGridValueToXML(studyObject: TAbstrDataItem; xmls: TXMLOutStreamHandle; row, col: Int32; sExtraInfo: PSourceChar; showHidden: Boolean): Boolean; cdecl; external TIC_DLL;
-function DMS_NumericDataItem_GetStatistics (studyObject: TAbstrDataItem; donePtr: PBool):   PSourceChar; cdecl; external CLC1_DLL;
+function DMS_NumericDataItem_GetStatistics (studyObject: TAbstrDataItem; donePtr: PBool):   PSourceChar; cdecl; external CLC_DLL;
 
 // Param property access
 function DMS_Param_GetValueUnit(this: TAbstrParam): TAbstrUnit;                      cdecl; external TIC_DLL;
@@ -601,15 +600,15 @@ function LispObj_GetRight(this: TLispObj): TLispObj; cdecl; external SYM_DLL;
             C style Interface functions for COperator Info
 *******************************************************************************}
 
-function DMS_OperatorSet_GetNrOperatorGroups(): UInt32;                         cdecl; external CLC1_DLL;
-function DMS_OperatorSet_GetOperatorGroup(i: UInt32): COperGroup;               cdecl; external CLC1_DLL;
-function DMS_OperatorGroup_GetName       (this: COperGroup): PItemChar;         cdecl; external CLC1_DLL;
-function DMS_OperatorGroup_GetFirstMember(this: COperGroup): COperator;         cdecl; external CLC1_DLL;
-function DMS_Operator_GetNextGroupMember (this: COperator):  COperator;         cdecl; external CLC1_DLL;
+function DMS_OperatorSet_GetNrOperatorGroups(): UInt32;                         cdecl; external CLC_DLL;
+function DMS_OperatorSet_GetOperatorGroup(i: UInt32): COperGroup;               cdecl; external CLC_DLL;
+function DMS_OperatorGroup_GetName       (this: COperGroup): PItemChar;         cdecl; external CLC_DLL;
+function DMS_OperatorGroup_GetFirstMember(this: COperGroup): COperator;         cdecl; external CLC_DLL;
+function DMS_Operator_GetNextGroupMember (this: COperator):  COperator;         cdecl; external CLC_DLL;
 
-function  DMS_Operator_GetNrArguments(This: COperator): Integer;                          cdecl; external CLC1_DLL; //TIC_DLL; (AK)
-function  DMS_Operator_GetArgumentClass (This: COperator; argnr: Integer): CRuntimeClass; cdecl; external CLC1_DLL; //TIC_DLL; (AK)
-function  DMS_Operator_GetResultingClass(This: COperator): CRuntimeClass;                 cdecl; external CLC1_DLL; //TIC_DLL; (AK)
+function  DMS_Operator_GetNrArguments(This: COperator): Integer;                          cdecl; external CLC_DLL; //TIC_DLL; (AK)
+function  DMS_Operator_GetArgumentClass (This: COperator; argnr: Integer): CRuntimeClass; cdecl; external CLC_DLL; //TIC_DLL; (AK)
+function  DMS_Operator_GetResultingClass(This: COperator): CRuntimeClass;                 cdecl; external CLC_DLL; //TIC_DLL; (AK)
 
 {*******************************************************************************
       C style Interface functions for ClientOperator registration
@@ -633,9 +632,9 @@ function DMS_ClientDefinedOperator_Create(   name        :  PItemChar;
                                              args        :  CRuntimeClassArray;
                                              createFunc  :  TCreateFunc;
                                              applyFunc   :  TApplyFunc;
-                                             ClientHandle:  Integer): COperator;    cdecl; external CLC1_DLL;
+                                             ClientHandle:  Integer): COperator;    cdecl; external CLC_DLL;
 
-procedure DMS_ClientDefinedOperator_Release(this: COperator);                       cdecl; external CLC1_DLL;
+procedure DMS_ClientDefinedOperator_Release(this: COperator);                       cdecl; external CLC_DLL;
 
 {*******************************************************************************
       IString

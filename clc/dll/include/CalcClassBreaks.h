@@ -1,41 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.h : interface of the DataView class
-//
-/////////////////////////////////////////////////////////////////////////////
+#pragma once
 
 #if !defined(__SHV_CLASSBREAKS_H)
 #define __SHV_CLASSBREAKS_H
-
-#if _MSC_VER >= 1000
-#pragma once
-#endif // _MSC_VER >= 1000
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -54,9 +23,9 @@ granted by an additional written contract for support, assistance and/or develop
 using ClassBreakValueType = Float64;
 using break_array = std::vector<ClassBreakValueType>;
 
-typedef SizeT   CountType;
-typedef std::pair<ClassBreakValueType, CountType> ValueCountPair;
-typedef std::vector<ClassBreakValueType>          LimitsContainer;
+using CountType = SizeT;
+using ValueCountPair = std::pair<ClassBreakValueType, CountType>;
+using LimitsContainer = std::vector<ClassBreakValueType>;
 using ValueCountPairContainerBase = std::vector < ValueCountPair, my_allocator < ValueCountPair> >;
 
 struct ValueCountPairContainer : ValueCountPairContainerBase
@@ -98,27 +67,27 @@ using CountsResultType = std::pair<ValueCountPairContainer, AbstrValuesRangeData
 
 const UInt32 MAX_PAIR_COUNT = 4096;
 
-CLC1_CALL CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
-CLC1_CALL CountsResultType GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
+CLC_CALL CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
+CLC_CALL CountsResultType GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
 
 //----------------------------------------------------------------------
 // class break functions
 //----------------------------------------------------------------------
 
-CLC1_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc);
+CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCountPairContainer& vcpc);
 
-CLC1_CALL break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, bool separateZero);
-CLC1_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData);
+CLC_CALL break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, bool separateZero);
+CLC_CALL void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData);
 
 //----------------------------------------------------------------------
 // breakAttr functions
 //----------------------------------------------------------------------
 
-CLC1_CALL break_array ClassifyUniqueValues (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
-CLC1_CALL break_array ClassifyEqualCount   (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
-CLC1_CALL break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
-CLC1_CALL break_array ClassifyLogInterval  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
-CLC1_CALL break_array ClassifyJenksFisher  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData, bool separateZero);
+CLC_CALL break_array ClassifyUniqueValues (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC_CALL break_array ClassifyEqualCount   (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC_CALL break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC_CALL break_array ClassifyLogInterval  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
+CLC_CALL break_array ClassifyJenksFisher  (AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData, bool separateZero);
 inline break_array ClassifyNZJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData) { return ClassifyJenksFisher(breakAttr, vcpc, abstrValuesRangeData, true ); }
 inline break_array ClassifyCRJenksFisher(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData) { return ClassifyJenksFisher(breakAttr, vcpc, abstrValuesRangeData, false); }
 

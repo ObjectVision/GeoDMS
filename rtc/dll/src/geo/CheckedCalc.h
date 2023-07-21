@@ -89,17 +89,17 @@ inline Int64 CheckedMul<Int64>(Int64 a, Int64 b)
 	return res;
 }
 
-inline UInt64 CheckedMul(UInt64 a, UInt64 b, UInt64* dummy)
+inline UInt64 CheckedMul(UInt64 a, UInt64 b, UInt64*)
 {
 	return CheckedMul<UInt64>(a, b);
 }
 
-inline UInt64 CheckedMul(UInt32 a, UInt32 b, UInt64* dummy)
+inline UInt64 CheckedMul(UInt32 a, UInt32 b, UInt64*)
 {
 	return UInt64(a) * UInt64(b);
 }
 
-inline UInt32 CheckedMul(UInt32 a, UInt32 b, UInt32* dummy)
+inline UInt32 CheckedMul(UInt32 a, UInt32 b, UInt32*)
 {
 	return CheckedMul<UInt32>(a, b);
 }

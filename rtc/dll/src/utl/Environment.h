@@ -63,6 +63,9 @@ template<typename ...Args>
 
 bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry);
 
+extern "C" RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow); // Delphi code also calls this
+extern "C" RTC_CALL void* GetGlobalMainWindowHandle(); // Delphi code could also call this
+
 //  -----------------------------------------------------------------------
 
 // GetCurrentDir()
@@ -79,9 +82,10 @@ RTC_CALL SharedStr GetExeDir();
 RTC_CALL SharedStr GetLocalDataDir();
 RTC_CALL SharedStr GetSourceDataDir();
 RTC_CALL SharedStr ConvertDosFileName(WeakStr fileName);
+RTC_CALL SharedStr GetConvertedGeoDmsRegKey(CharPtr key);
 RTC_CALL SharedStr ConvertDmsFileName(WeakStr path);
 RTC_CALL SharedStr ConvertDmsFileNameAlways(SharedStr&& path); // for updated WinAPI funcs
-
+RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter);
 
 enum RegStatusFlags
 {
@@ -114,7 +118,7 @@ enum RegStatusFlags
 
 RTC_CALL UInt32 GetRegStatusFlags();
 RTC_CALL UInt32 GetRegFlags(std::string key, bool &exists);
-RTC_CALL void SetRegStatusFlag(UInt32 newSF, bool newVal = true);
+RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
 
@@ -127,7 +131,7 @@ enum class RegDWordEnum
 };
 
 extern "C" RTC_CALL UInt32 DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-extern "C" RTC_CALL void   DMS_CONV RTC_SetRegDWord(RegDWordEnum i, DWORD dw);
+extern "C" RTC_CALL void   DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
 extern "C" RTC_CALL bool   DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
 
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
@@ -135,7 +139,8 @@ RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
 RTC_CALL std::vector<std::string> GetGeoDmsRegKeyMultiString(CharPtr key);
 
-RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw);
+RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section = "");
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section = "");
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str);
 RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings);
 
@@ -190,11 +195,19 @@ RTC_CALL bool   HasDosDelimiters(CharPtr source);
 RTC_CALL bool   HasDosDelimiters(CharPtrRange source);
 RTC_CALL bool   IsRelative(CharPtr source);
 
+enum class exe_type
+{
+	unknown_run_or_dephi,
+	geodms_qt_gui,
+};
+
 extern "C" {
 
 RTC_CALL bool   DMS_CONV HasWaitingMessages();
 
 RTC_CALL void   DMS_CONV SetCurrentDir(CharPtr dir);
+RTC_CALL void   DMS_CONV DMS_Appl_SetExeType(exe_type t);
+RTC_CALL exe_type DMS_CONV DMS_Appl_GetExeType();
 RTC_CALL void   DMS_CONV DMS_Appl_SetExeDir(CharPtr exeDir);
 RTC_CALL void   DMS_CONV DMS_Appl_SetRegStatusFlags(UInt32 sf);
 RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();

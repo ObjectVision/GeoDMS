@@ -35,12 +35,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <map>
 
-//#include "ser/MapStream.h"
-
-/*REMOVE
-#include "Explain.h"
-#include "TreeItemSet.h"
-*/
 #include "TreeItem.h"
 #include "TreeItemDualRef.h"
 
@@ -84,7 +78,6 @@ protected:
 	DataController(LispPtr keyExpr);
 	virtual ~DataController();
 public:
-//	TIC_CALL bool MustApplyImpl() const override;
 	TIC_CALL ActorVisitState DoUpdate(ProgressState ps) override;
 
 #if defined(MG_DEBUG_DCDATA)
@@ -107,10 +100,7 @@ TIC_CALL DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
 /********** DataControllerMap **********/
 
-struct DataControllerMap : std::map<DataController::DataControllerKey, const DataController*>
-{
-	~DataControllerMap(); // test that everything was cleaned-up neatly (debug only)
-};
+using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
 
 /********** DcRefListElem **********/
 

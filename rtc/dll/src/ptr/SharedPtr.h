@@ -114,7 +114,7 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 	SharedPtr(SharedPtr&& rhs) noexcept
 		: base_type(std::move(rhs))
 	{ 
-		dms_assert(rhs.m_Ptr == 0); 
+		assert(rhs.m_Ptr == nullptr); 
 	}
 	SharedPtr(const SharedPtr& rhs) = default;
 

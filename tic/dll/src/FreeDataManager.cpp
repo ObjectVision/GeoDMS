@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
+#include "AbstrUnit.h"
 #include "DataStoreManagerCaller.h"
 #include "DataItemClass.h"
 
@@ -46,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 extern "C" TIC_CALL void DMS_CONV DMS_DataStoreManager_SetSwapfileMinSize(UInt32 sz)
 {
-	RTC_SetRegDWord(RegDWordEnum::SwapFileMinSize, sz);
+	RTC_SetCachedDWord(RegDWordEnum::SwapFileMinSize, sz);
 }
 
 extern "C" TIC_CALL UInt32 DMS_CONV GetSwapfileMinSize()

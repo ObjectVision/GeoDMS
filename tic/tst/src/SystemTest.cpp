@@ -9,7 +9,7 @@
 #include "ClcInterface.h"
 #include "dbg/DmsCatch.h"
 
-MG_DEBUGCODE( CLC1_CALL bool ExprCalculatorTest(); )
+MG_DEBUGCODE( CLC_CALL bool ExprCalculatorTest(); )
 
 bool DmsSystemTest()
 {

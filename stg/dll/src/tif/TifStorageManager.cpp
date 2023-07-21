@@ -91,23 +91,26 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	DBG_START("TiffSM", "OpenStorage", true);
 
 	dms_assert(!IsOpen());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode != dms_rw_mode::unspecified);
 
 	DBG_TRACE(("storageName =  %s", GetNameStr().c_str()));
 
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 
 	auto imp = std::make_unique<TifImp>();
 	if (rwMode > dms_rw_mode::read_only)
 	{
 		if (!GetGridData(smi.StorageHolder(), false))
-			smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
-		if (! imp->Open(GetNameStr(), TifFileMode::WRITE, DSM::GetSafeFileWriterArray(smi.StorageHolder())) )
+			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
+				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa|| ! imp->Open(GetNameStr(), TifFileMode::WRITE, sfwa.get()) )
 			throwItemError("Unable to open for Write");
 	}
 	else
 	{
-		bool result = imp->Open(GetNameStr(), TifFileMode::READ, DSM::GetSafeFileWriterArray(smi.StorageHolder()));
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		bool result = sfwa && imp->Open(GetNameStr(), TifFileMode::READ, sfwa.get());
 		MG_CHECK(result); // false after TIFF open error
 	}
 	m_pImp = imp.release();
@@ -120,19 +123,19 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	DBG_START("TiffSM", "DoCloseStorage", true);
 
 	dms_assert(IsOpen());
-	dms_assert(m_pImp.has_ptr());
+	assert(m_pImp.has_ptr());
 
 	DBG_TRACE(("storageName=  %s", GetNameStr().c_str()));
 
 	m_pImp.reset();
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 }
 
 
-bool TiffSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*   adi = smi->CurrWD();
 
 	dms_assert(storageHolder);
 	dms_assert(adi);
@@ -144,7 +147,7 @@ bool TiffSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedR
 		return ReadPalette(*m_pImp, borrowedReadResultHolder);
 
 	// Collect zoom info
-	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
 	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
 
 	vpi.SetWritability(adi);
@@ -160,13 +163,13 @@ void TiffSM::ReadGridCounts(const TifImp& imp, const StgViewPortInfo& vpi, Abstr
 {
 	DBG_START("TiffSM", "ReadGridCounts", true);
 
-	Grid::ReadGridCounts(imp, vpi, ado, t);
+	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 void TiffSM::ReadGridData(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridData", false);
-	Grid::ReadGridData(imp, vpi, ado, t);
+	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
 bool TiffSM::ReadPalette(const TifImp& imp, AbstrDataObject* ado)
@@ -240,7 +243,7 @@ void TiffSM::WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeIt
 
 	WriteGeoRefFile(adi, replaceFileExtension(GetNameStr().c_str(), "tfw"));
 
-	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType);
+	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType, GetNameStr().c_str());
 }
 
 void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi)
@@ -315,7 +318,7 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 	{
 		if (!m_pImp->HasColorTable())
 			return false; // cannot return Range of ValuesUnit if Tiff has no palette (assumed when more bits per pixel)
-		smi.CurrWU()->SetRangeAsFloat64(0, m_pImp->GetClrImportant());
+		smi.CurrWU()->SetRangeAsUInt64(0, m_pImp->GetClrImportant());
 	}
 	return true;
 }

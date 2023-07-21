@@ -56,6 +56,21 @@ Float64 DMS_CONV DMS_GetVersionNumber()
 	return DMS_VERSION_MAJOR + 0.01 * DMS_VERSION_MINOR + DMS_VERSION_PATCH * 0.0001;
 }
 
+UInt32 DMS_CONV DMS_GetMajorVersionNumber()
+{
+	return DMS_VERSION_MAJOR;
+}
+
+UInt32 DMS_CONV DMS_GetMinorVersionNumber()
+{
+	return DMS_VERSION_MINOR;
+}
+
+UInt32 DMS_CONV DMS_GetPatchNumber()
+{
+	return DMS_VERSION_PATCH;
+}
+
 CharPtr DMS_CONV DMS_GetPlatform()
 {
 	return DMS_PLATFORM;
@@ -142,8 +157,13 @@ void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionCompo
 		c->Visit(clientHandle, callBack, 1);
 }
 
-VersionComponent s_Compiler  (BOOST_COMPILER " ( " BOOST_STRINGIZE(_MSC_VER) " ) ");
-VersionComponent s_Platform("Platform  : " BOOST_PLATFORM);
+VersionComponent s_Compiler  (CC_COMPILER_NAME " ( _MSC_VER = " BOOST_STRINGIZE(_MSC_VER) " ) ");
+VersionComponent s_Platform("Platform : " BOOST_PLATFORM);
+static SharedStr s_PtrSizeC = mySSPrintF("ptr size : %d bits", sizeof(void*)*8);
+static SharedStr s_IntSizeC = mySSPrintF("int size : %d bits", sizeof(int  )*8);
+VersionComponent s_PtrSize(s_PtrSizeC.c_str());
+VersionComponent s_IntSize(s_IntSizeC.c_str());
+
 VersionComponent s_StrVersion( BOOST_STDLIB );
 #if defined(__EDG_VERSION__)
 VersionComponent s_EdgVersion("EdgVersion: " BOOST_STRINGIZE(MG_EDG_VERSION));

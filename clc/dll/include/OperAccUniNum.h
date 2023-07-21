@@ -51,35 +51,34 @@ granted by an additional written contract for support, assistance and/or develop
 template <class TAcc1Func> 
 struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 {
-	OperAccTotUniNum(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		: OperAccTotUni<TAcc1Func>(gr, acc1Func)
+	OperAccTotUniNum(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func()) 
+		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
 	{}
 
 	// Override Operator
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		auto arg1 = const_array_cast<typename OperAccTotUniNum::ValueType>(arg1A);
-		dms_assert(arg1);
+		assert(arg1);
 
 		auto result = mutable_array_cast<typename OperAccTotUniNum::ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 
 		typename TAcc1Func::assignee_type value;
 		this->m_Acc1Func.Init(value);
 
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
+
 		// TODO G8: OPTIMIZE, use parallel_for and ThreadLocal container and aggregate afterwards.
+		auto values_fta = (DataReadLock(arg1A), GetFutureTileArray(arg1));
 		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
 		{
-			this->m_Acc1Func(
-				value, 
-				arg1->GetTile(t).get_view(),
-				arg1A->HasUndefinedValues()
-			);
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			this->m_Acc1Func(value, arg1Data.get_view());
 		}
 
 		auto resData = result->GetDataWrite();
-		dms_assert(resData.size() == 1);
+		assert(resData.size() == 1);
 		this->m_Acc1Func.AssignOutput(resData[0], value );
 	}
 };

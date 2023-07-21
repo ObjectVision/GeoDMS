@@ -281,7 +281,7 @@ TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPt
 {
 	assert(context);
 
-	while (*path && !itemNameFirstChar_test(*path))
+	while (*path && *path != '/' && !itemNameFirstChar_test(*path))
 		++path;
 
 	CharPtrRange pathRange = { path, ParseTreeItemPath(path) }; // skip trailing trash
@@ -651,7 +651,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self)
 	DMS_CALL_END
 }
 
-bool ItemUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	CheckPtr(self, TreeItem::GetStaticClass(), context);
 
@@ -670,19 +670,26 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 	DMS_CALL_BEGIN
 
 		SuspendTrigger::FencedBlocker lockSuspend;
-		TreeItemInterestPtr holder;
+		SharedTreeItemInterestPtr holder;
 		ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
 
 	DMS_CALL_END
 }
 
-bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
 			return false;
 
 	return true;
+}
+
+TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
+{
+	SuspendTrigger::FencedBlocker lockSuspend;
+	SharedTreeItemInterestPtr holder;
+	TreeUpdateImpl(self, context, holder);
 }
 
 #include "time.h"
@@ -699,11 +706,12 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 		if (self->InTemplate() || self->IsPassor())
 			return NC2_Committed;
 
-		if (IsDataCurrReady(self->GetCurrRangeItem()))
+		auto treeitem_progress_state = self->m_State.GetProgress();
+		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < PS_Committed && 
 			return NC2_DataReady;
 		
 		self->DetermineState();
-		switch (self->m_State.GetProgress())
+		switch (treeitem_progress_state)//self->m_State.GetProgress())
 		{
 			case PS_Validated: return NC2_Validated;
 			case PS_Committed: return NC2_Committed;
@@ -1005,26 +1013,26 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 		// parent ?
 		auto context = src->GetTreeParent();
-		if (WasInFailed(context))
-			return { context, {} };
-
-		// using refs ?
-		if (context && src->CurrHasUsingCache())
-		{
-			auto usingCache = src->GetUsingCache();
-			assert(usingCache);
-			for (auto usingUrl : usingCache->UsingUrls())
-			{
-				auto usingUrlStr = SharedStr(usingUrl);
-				auto ur = context->FindBestItem(usingUrlStr);
-				if (ur.first && WasInFailed(ur.first))
-					return ur;
-			}
-		}
-
-		// explicit Suppliers ?
 		if (context)
 		{
+			if (WasInFailed(context))
+				return { context, {} };
+
+			// using refs ?
+			if (src->CurrHasUsingCache())
+			{
+				auto usingCache = src->GetUsingCache();
+				assert(usingCache);
+				for (auto usingUrl : usingCache->UsingUrls())
+				{
+					auto usingUrlStr = SharedStr(usingUrl);
+					auto ur = context->FindBestItem(usingUrlStr);
+					if (ur.first && WasInFailed(ur.first))
+						return ur;
+				}
+			}
+
+			// explicit Suppliers ?
 			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
 			if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
 			{
@@ -1114,7 +1122,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	return { nullptr, {} };
 }
 
-BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
+TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 {
 	try {
 		return TreeItem_GetErrorSource(src, true);
@@ -1124,7 +1132,7 @@ BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 		auto fullName = x.AsErrMsg()->m_FullName;
 		if (!fullName.empty())
 		{
-			src = DSM::Curr()->m_ConfigRoot;
+			src = DSM::Curr()->GetConfigRoot();
 			if (src)
 				return src->FindBestItem(fullName);
 		}
