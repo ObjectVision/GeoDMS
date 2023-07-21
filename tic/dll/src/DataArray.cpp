@@ -888,7 +888,7 @@ TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
@@ -912,7 +912,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstr
 		visit<typelists::fields>(valuesUnit, 
 			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
-				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
@@ -923,7 +923,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstr
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
-				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;

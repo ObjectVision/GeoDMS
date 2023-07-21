@@ -45,7 +45,8 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_PTR_SHAREDOBJBASE_H
 
 #include <atomic>
-//#include "dbg/Check.h"
+
+#define MG_DEBUG_REFCOUNT
 
 struct SharedBase
 {
@@ -53,19 +54,34 @@ struct SharedBase
 
 	ref_count_t GetRefCount() const noexcept
 	{
-		return m_RefCount; 
+#if defined(MG_DEBUG_REFCOUNT)
+		MG_ASSERT(m_RefCount != -1);
+#endif
+		return m_RefCount;
 	}
 
 	void IncRef() const noexcept
 	{
+#if defined(MG_DEBUG_REFCOUNT)
+		MG_ASSERT(m_RefCount != -1);
+#endif
 		++m_RefCount;
-		dms_assert(m_RefCount); // POST CONDITION
+		assert(m_RefCount); // POST CONDITION
 	}
 
 	bool DecRef() const noexcept
 	{
-		dms_assert(m_RefCount); // POST CONDITION
-		return --m_RefCount;
+		assert(m_RefCount); // PRE CONDITION
+#if defined(MG_DEBUG_REFCOUNT)
+		MG_ASSERT(m_RefCount !=  0);
+		MG_ASSERT(m_RefCount != -1);
+#endif
+		auto result = --m_RefCount;
+#if defined(MG_DEBUG_REFCOUNT)
+		if (!result) // last ptr, so no longer MT access possible
+			m_RefCount = -1;
+#endif
+		return result;
 	}
 
 // See Notes above for reasons for non-inclusion of Release method.
@@ -78,7 +94,7 @@ protected:
 	SharedBase(const SharedBase&) : m_RefCount(0) {}
 	SharedBase(SharedBase&&) = delete;
 
-   ~SharedBase() noexcept { dms_assert(m_RefCount == 0); }
+   ~SharedBase() noexcept { assert(m_RefCount == 0); }
 
 	SharedBase& operator =(const SharedBase& ) {} // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;

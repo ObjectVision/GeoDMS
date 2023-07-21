@@ -86,16 +86,18 @@ void make_subset_container(ResContainer* resultSub, const DataArray<Bool>* boolA
 {
 	dms_assert(resultSub);
 
-	typedef DataArray<Bool>                ArgType;
-	typedef Unit<typename ResContainer::value_type> ArgDomain;
+	using ArgType = DataArray<Bool>;
+	using org_value_t = typename ResContainer::value_type;
+	using ArgDomain = Unit< org_value_t>;
+	using ArgTileType = range_or_void_data<org_value_t>;
+	auto orgAbstrTiling = boolArray->GetTiledRangeData();
+	auto orgTiling = checked_cast<const ArgTileType*>(orgAbstrTiling.get());
 
-	auto orgEntity = resultSub->GetValueRangeData();
-	
-	tile_write_channel<typename ResContainer::value_type> resDataChannel(resultSub);
-	auto tn = orgEntity->GetNrTiles();
+	tile_write_channel<org_value_t> resDataChannel(resultSub);
+	auto tn = orgTiling->GetNrTiles();
 	for (tile_id t = 0; t!=tn; ++t)
 	{
-		auto resValuesRange = orgEntity->GetTileRange(t);
+		auto resValuesRange = orgTiling->GetTileRange(t);
 		auto boolData = boolArray->GetTile(t);
 
 		dms_assert(!boolData.begin().m_NrElems);
@@ -200,7 +202,7 @@ struct SubsetOperator: public UnaryOperator
 
 		if (resSub)
 		{
-			DataWriteLock resSubLock(resSub);
+			DataWriteLock resSubLock(resSub, dms_rw_mode::write_only_all, arg1Domain->GetTiledRangeData());
 
 			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 
