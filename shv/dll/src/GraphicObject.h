@@ -211,7 +211,7 @@ public:
 	virtual bool OnCommand(ToolButtonID id);
 	virtual CommandStatus OnCommandEnable(ToolButtonID id)  const;
 	virtual std::weak_ptr<DataView> GetDataView() const;
-
+	CrdPoint GetScaleFactors();
 
 	virtual void Sync(TreeItem* viewContext, ShvSyncMode sm);
 	void SyncShowSelOnly(ShvSyncMode sm);

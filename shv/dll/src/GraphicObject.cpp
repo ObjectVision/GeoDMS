@@ -557,6 +557,14 @@ std::weak_ptr<DataView> GraphicObject::GetDataView() const
 	return owner->GetDataView();
 }
 
+CrdPoint GraphicObject::GetScaleFactors() 
+{
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return { 1.0, 1.0 };
+	return dv->GetDIP2pixFactorXY();
+}
+
 ToolButtonID GraphicObject::GetControllerID() const
 { 
 	auto dv = GetDataView().lock(); 

@@ -80,9 +80,12 @@ public:
 	GRect GetDrawnClientAbsRect() const;
 	GRect GetDrawnNettAbsRect() const override;
 
-	TRect GetCurrFullRelRect() const { return GetCurrClientRelRect() + TRect(GetBorderPixelExtents()); }
-	TRect GetCurrFullAbsRect() const { return GetCurrClientAbsRect() + TRect(GetBorderPixelExtents()); }
+	TRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelRect() + TRect(GetBorderPixelExtents()); }
+	TRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsRect() + TRect(GetBorderPixelExtents()); }
 	GRect GetParentClipAbsRect() const;
+
+	TRect GetCurrFullRelDeviceRect() const { auto rect = GetCurrFullRelLogicalRect(); rect *= GetScaleFactors(); return rect; }
+	TRect GetCurrFullAbsDeviceRect() const { auto rect = GetCurrFullAbsLogicalRect(); rect *= GetScaleFactors(); return rect; }
 
 	virtual TPoint GetCurrNettSize()  const { return m_ClientSize; } // for ScrollPorts this is excluding the scrollbar sizes if visible
 	TRect GetCurrNettRelRect() const { return TRect(m_RelPos, m_RelPos+GetCurrNettSize()); }
