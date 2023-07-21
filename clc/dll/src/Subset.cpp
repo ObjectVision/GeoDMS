@@ -202,7 +202,7 @@ struct SubsetOperator: public UnaryOperator
 
 		if (resSub)
 		{
-			DataWriteLock resSubLock(resSub);
+			DataWriteLock resSubLock(resSub, dms_rw_mode::write_only_all, arg1Domain->GetTiledRangeData());
 
 			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 

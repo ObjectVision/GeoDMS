@@ -208,7 +208,7 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	TIC_CALL void SetRange(const range_t& range) override;
 	TIC_CALL void SetMaxRange() override;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override;
+	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;
 
 	bool IsTiled() const override;
 	bool IsCurrTiled() const override;
@@ -301,7 +301,7 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 
 	static const UInt32 elem_count = mpf::exp2<N>::value;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override { return GetCurrSegmInfo(); }
+	auto GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData> override { return GetCurrSegmInfo(); }
 
 	range_t GetRange() const { return range_t(0, elem_count); }
 
@@ -313,11 +313,11 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 	value_t GetValueAtIndex (SizeT   i) const { return i; }
 	SizeT  GetIndexForValue(value_t v) const { return v; }
 
-	auto GetCurrSegmInfo() const -> const range_data_t* {
-		static SharedPtr<range_data_t> s_RangeData = new range_data_t;
+	auto GetCurrSegmInfo() const -> SharedPtr<const range_data_t> {
+		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
 		return s_RangeData;
 	}
-	auto GetSegmInfo() const -> const range_data_t* { return GetCurrSegmInfo(); }
+	auto GetSegmInfo() const -> SharedPtr <const range_data_t> { return GetCurrSegmInfo(); }
 };
 
 //----------------------------------------------------------------------
@@ -328,9 +328,9 @@ struct VoidUnitBase : UnitBase<Void>
 	using value_t = Void;
 	using range_t = Range<UInt32>;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override {
+	auto GetTiledRangeData() const  -> SharedPtr<const AbstrTileRangeData> override {
 		static SharedPtr<FixedRange<0>> s_RangeData = new FixedRange<0>;
-		return s_RangeData;
+		return s_RangeData.get();
 	}
 
 	range_t GetRange() const { return range_t(0, 1); }
