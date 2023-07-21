@@ -418,7 +418,7 @@ auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 	}
 	if (!valuesUnitPtr)
 		valuesUnitPtr = const_unit_cast<E>(Unit<E>::GetStaticClass()->CreateDefault());
-	dms_assert(valuesUnitPtr);
+	assert(valuesUnitPtr);
 	return valuesUnitPtr->m_RangeDataPtr;
 }
 
