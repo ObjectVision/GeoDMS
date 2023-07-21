@@ -56,7 +56,7 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetContextNotification(TContextNotification clientFunc, ClientHandle clientHandle)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_clientFunc  = clientFunc;
 	s_cientHandle = clientHandle;
 }

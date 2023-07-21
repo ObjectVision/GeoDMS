@@ -227,7 +227,7 @@ public:
 
 	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
-	void InvalidateRect(GRect  rect);
+	SHV_CALL void InvalidateRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
 	void ValidateRect  (const GRect& pixRect);
 //	void ValidateRgn   (Region rgn );

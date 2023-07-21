@@ -438,7 +438,8 @@ GraphDrawer::GraphDrawer(
 	,	DataView*      viewPtr
 	,	GdMode         gdMode
 	,	Float32        subPixelFactor
-	)	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(hDC), subPixelFactor)
+	)	:	GraphVisitor
+	( doneGraphics.CurrRegion().BoundingBox(), subPixelFactor)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 		,	m_DoneGraphics(&doneGraphics)
@@ -459,7 +460,7 @@ GraphDrawer::GraphDrawer(
 	,	DataView*      viewPtr
 	,	GdMode         gdMode
 	,	Float32        subPixelFactor
-	)	:	GraphVisitor(rgn.BoundingBox(hDC), subPixelFactor)
+	)	:	GraphVisitor(rgn.BoundingBox(), subPixelFactor)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion( rgn.Clone() )
 		,	m_DoneGraphics(0)

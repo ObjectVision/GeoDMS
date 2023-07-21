@@ -91,18 +91,26 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* mes
 {
     MSG* msg = static_cast<MSG*>(message);
 
-    if (msg->message == WM_APP + 2) {
-        auto mw = MainWindow::TheOne();
-        if (mw)
+    switch (msg->message)
+    {
+    case WM_APP + 2:
+        if (auto mw = MainWindow::TheOne())
         {
             for (auto* sw : mw->m_mdi_area->subWindowList())
             {
                 auto dms_sw = dynamic_cast<QDmsViewArea*>(sw);
                 if (dms_sw)
-                    dms_sw->UpdatePosAndSize();
+                {
+                    dms_sw->on_rescale();
+                }
             }
         }
         return true; // Stop further processing of the message
+
+    case WM_APP + 3:
+        ProcessMainThreadOpers();
+        return true;
+
     }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);

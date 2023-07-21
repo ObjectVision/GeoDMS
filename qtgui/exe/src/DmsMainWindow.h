@@ -160,7 +160,7 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
     bool LoadConfig(CharPtr configFilePath);
-
+    void updateToolbar();
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
@@ -202,6 +202,7 @@ public slots:
     void fileOpen();
     void reOpen();
     void aboutGeoDms();
+    void wiki();
     void createView(ViewStyle viewStyle);
 
     void back();
@@ -235,7 +236,6 @@ private:
     void updateToolsMenu();
     void updateWindowMenu();
     void updateCaption();
-    void updateToolbar();
     void updateTreeItemVisitHistory();
     void createDetailPagesActions();
     void updateDetailPagesToolbar();
@@ -282,7 +282,7 @@ public:
     QPointer<QLineEdit> m_statusbar_coordinates;
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
-    QPointer<DmsTreeView> m_treeview;
+    DmsTreeView* m_treeview;
     QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
 //    QPointer<QToolBar> m_right_side_toolbar;
 //    QPointer<QLabel>   m_StatusWidget;

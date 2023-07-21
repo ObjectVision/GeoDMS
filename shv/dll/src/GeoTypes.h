@@ -56,12 +56,12 @@ struct GPoint : POINT
 	void operator -=(POINT rhs)       { x -= rhs.x; y-=rhs.y; }
 	void operator +=(POINT rhs)       { x += rhs.x; y+=rhs.y; }
 	void operator *=(DPoint scaleFactor) {
-		x = x * scaleFactor.first;
-		y = y * scaleFactor.second;
+		x = Float64(x) * scaleFactor.first;
+		y = Float64(y) * scaleFactor.second;
 	}
 	void operator /=(DPoint scaleFactor) {
-		x = x / scaleFactor.first;
-		y = y / scaleFactor.second;
+		x = Float64(x) / scaleFactor.first;
+		y = Float64(y) / scaleFactor.second;
 	}
 
 	bool operator ==(POINT rhs) const { return x == rhs.x && y == rhs.y; }
@@ -254,17 +254,17 @@ struct GRect : RECT
 	}
 	void operator *= (Point<Float64> scaleFactor)
 	{
-		left  *= scaleFactor.first;
-		right *= scaleFactor.first;
-		top *= scaleFactor.second;
-		bottom *= scaleFactor.second;
+		left   = Float64(left  ) * scaleFactor.first;
+		right  = Float64(right ) * scaleFactor.first;
+		top    = Float64(top   ) * scaleFactor.second;
+		bottom = Float64(bottom) * scaleFactor.second;
 	}
 	void operator /= (Point<Float64> scaleFactor)
 	{
-		left /= scaleFactor.first;
-		right /= scaleFactor.first;
-		top /= scaleFactor.second;
-		bottom /= scaleFactor.second;
+		left   = Float64(left  ) / scaleFactor.first;
+		right  = Float64(right ) / scaleFactor.first;
+		top    = Float64(top   ) / scaleFactor.second;
+		bottom = Float64(bottom) / scaleFactor.second;
 	}
 	void Expand(POINT delta)
 	{

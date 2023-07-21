@@ -294,10 +294,7 @@ void DmsCurrentItemBar::onEditingFinished()
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
     if (found_treeitem)
-    {
         MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
-        auto treeView = MainWindow::TheOne()->m_treeview.get();
-    }
 }
 
 bool MainWindow::IsExisting()
@@ -387,7 +384,11 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
 
 void MainWindow::fileOpen() 
 {
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms");
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms").toLower();
+
+    if (configFileName.isEmpty())
+        return;
+
     LoadConfig(configFileName.toUtf8().data());
 }
 
@@ -431,6 +432,11 @@ void MainWindow::aboutGeoDms()
     auto dms_about_text = getGeoDMSAboutText();
     QMessageBox::about(this, tr("About GeoDms"),
             tr(dms_about_text.c_str()));
+}
+
+void MainWindow::wiki()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
 }
 
 DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
@@ -512,7 +518,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         else
             reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
     }
-    dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    try
+    {
+        dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::TheOne()->error(errMsg);
+    }
     
     if (m_data.icons.size()-1==m_state) // icon roll over
         setIcon(QIcon(m_data.icons[m_state]));
@@ -618,13 +632,16 @@ void MainWindow::createDetailPagesActions()
 
 void MainWindow::updateDetailPagesToolbar()
 {
+    if (m_detail_pages->isHidden())
+        return;
+
     // detail pages buttons
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_toolbar->addWidget(spacer);
     
-    m_toolbar->addAction(m_back_action.get());
-    m_toolbar->addAction(m_forward_action.get());
+    //m_toolbar->addAction(m_back_action.get());
+    //m_toolbar->addAction(m_forward_action.get());
     m_toolbar->addAction(m_general_page_action.get());
     m_toolbar->addAction(m_explore_page_action.get());
     m_toolbar->addAction(m_properties_page_action.get());
@@ -717,7 +734,7 @@ void MainWindow::updateToolbar()
         if (!is_command_enabled)
             action->setDisabled(true);
         
-        m_toolbar->addAction(action);
+        m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
 
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
@@ -850,6 +867,12 @@ void MainWindow::toggle_detailpages()
 {
     bool isVisible = m_detail_pages->isVisible();
     m_detail_pages->setVisible(!isVisible);
+    m_general_page_action->setVisible(!isVisible);
+    m_explore_page_action->setVisible(!isVisible);
+    m_properties_page_action->setVisible(!isVisible);
+    m_configuration_page_action->setVisible(!isVisible);
+    m_sourcedescr_page_action->setVisible(!isVisible);
+    m_metainfo_page_action->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_eventlog()
@@ -1005,6 +1028,7 @@ void MainWindow::tableView()
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 {
+    assert(IsMainThread());
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
     dms_main_window->setStatusMessage(msg);
     return;
@@ -1188,6 +1212,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
 
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
 {
+    assert(IsMainThread());
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
@@ -1423,6 +1448,7 @@ void MainWindow::updateStatusMessage()
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
+    assert(IsMainThread());
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
     switch (notificationCode) {
     case NC_Deleting:
@@ -1455,6 +1481,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach)
 {
+    assert(IsMainThread());
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
 }
@@ -1501,6 +1528,8 @@ void MainWindow::createActions()
 
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
+    m_current_item_bar_container->addAction(m_back_action.get());
+    m_current_item_bar_container->addAction(m_forward_action.get());
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
@@ -1623,7 +1652,7 @@ void MainWindow::createActions()
 
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPage"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
@@ -1730,10 +1759,11 @@ void MainWindow::createActions()
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
     menuBar()->addMenu(m_help_menu.get());
-    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms);
+    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms); // TODO: ownership not transferred using add action likely a memory leaks
     aboutAct->setStatusTip(tr("Show the application's About box"));
     QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
+    QAction* wikiAct = m_help_menu->addAction(tr("&Wiki"), this, &MainWindow::wiki);
 }
 
 void MainWindow::updateFileMenu()

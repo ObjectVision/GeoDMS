@@ -146,30 +146,35 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	// actions
 	const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
 	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
-	m_event_text_filter_toggle->setToolTip(tr("&Eventlog: text filter"));
+	m_event_text_filter_toggle->setToolTip(tr("Text filter"));
+	m_event_text_filter_toggle->setStatusTip("Turn eventlog text-filter on or off");
 	m_event_text_filter_toggle->setCheckable(true);
-	m_event_text_filter_toggle->setFixedSize(32,32);
+	m_event_text_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	
 	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
 
 	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
 	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
-	m_event_type_filter_toggle->setToolTip(tr("&Eventlog: type filter"));
+	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
+	m_event_type_filter_toggle->setStatusTip("Turn eventlog type-filter on or off");
 	m_event_type_filter_toggle->setCheckable(true);
-	m_event_type_filter_toggle->setFixedSize(32, 32);
+	m_event_type_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
-	m_clear->setToolTip(tr("&Eventlog: clear"));
+	m_clear->setToolTip(tr("Clear"));
+	m_clear->setStatusTip("Clear all eventlog messages");
 	m_clear->setDisabled(true);
-	m_clear->setFixedSize(32, 32);
+	m_clear->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_clear.get(), &QPushButton::pressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::clear);
 
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
 	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
-	m_scroll_to_bottom_toggle->setToolTip(tr("&Eventlog: scroll to bottom"));
+	m_scroll_to_bottom_toggle->setToolTip(tr("Scroll to bottom"));
+	m_scroll_to_bottom_toggle->setStatusTip("Scroll content of eventlog to bottom and keep up with new log messages");
 	m_scroll_to_bottom_toggle->setDisabled(true);
-	m_scroll_to_bottom_toggle->setFixedSize(32, 32);
+	m_scroll_to_bottom_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
 	// throttle
@@ -209,6 +214,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
+	QWidget* spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+	eventlog_toolbar->addWidget(spacer);
 	
 	//QWidget* spacer = new QWidget(this);
 	//spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
@@ -307,10 +315,12 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
+//	assert(IsMainThread());
 	if (st == SeverityTypeID::ST_Nothing)
 	{
 		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
-		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
+//		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
+		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
 	}
 	assert(IsMainThread());

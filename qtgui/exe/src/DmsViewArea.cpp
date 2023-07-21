@@ -1,8 +1,10 @@
 #include "RtcBase.h"
 #include "DmsViewArea.h"
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
 
 #include <QMdiArea>
+#include <QMimeData>
 
 #include <windows.h>
 #include <ShellScalingApi.h>
@@ -13,12 +15,7 @@
 #include "ShvDllInterface.h"
 #include "QEvent.h"
 
-LRESULT CALLBACK DataViewWndProc(
-    HWND hWnd,
-    UINT uMsg,
-    WPARAM wParam,
-    LPARAM lParam
-)
+LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     DBG_START("DataViewWndProc", "", MG_DEBUG_WNDPROC);
     DBG_TRACE(("msg: %x(%x, %x)", uMsg, wParam, lParam));
@@ -99,8 +96,35 @@ void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event)
     event->acceptProposedAction(); // TODO: further specify that only treenodes dragged from treeview can be dropped here.
 }
 
+bool processUrlOfDropEvent(QList<QUrl> urls)
+{
+    for (auto& url : urls)
+    {
+        auto local_file = url.toLocalFile();
+        if (QFileInfo(local_file).suffix() != "dms")
+            continue;
+
+        MainWindow::TheOne()->LoadConfig(local_file.toUtf8());
+        return true;
+    }
+    return false;
+}
+
 void QDmsMdiArea::dropEvent(QDropEvent* event)
 {
+    const QMimeData* mimeData = event->mimeData();
+    if (mimeData->hasUrls())
+    {
+        QList<QUrl> urls = mimeData->urls();
+        if (processUrlOfDropEvent(urls))
+            return;
+    }
+
+    auto tree_view = MainWindow::TheOne()->m_treeview;
+    auto source = qobject_cast<DmsTreeView*>(event->source());
+    if (tree_view != source)
+        return;
+
     MainWindow::TheOne()->defaultView();
 }
 
@@ -127,6 +151,9 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
             , viewStyle
             , viewContext->GetFullName().c_str()
         );
+
+    ObjectMsgGenerator thisMsgGenerator(currItem, "CreateDmsView");
+    Waiter showWaitingStatus(&thisMsgGenerator);
 
     CreateDmsView(parent);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
@@ -210,6 +237,18 @@ void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event)
 
 void QDmsViewArea::dropEvent(QDropEvent* event)
 {
+    const QMimeData* mimeData = event->mimeData();
+    if (mimeData->hasUrls())
+    {
+        QList<QUrl> urls = mimeData->urls();
+        if (processUrlOfDropEvent(urls))
+            return;
+    }
+    auto tree_view = MainWindow::TheOne()->m_treeview;
+    auto source = qobject_cast<DmsTreeView*>(event->source());
+    if (tree_view != source)
+        return;
+
     SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
 }
 
@@ -241,7 +280,7 @@ auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
 
 void QDmsViewArea::UpdatePosAndSize()
 {
-    auto rect= contentsRectInPixelUnits();
+    auto rect = contentsRectInPixelUnits();
 
     MoveWindow((HWND)m_DataViewHWnd
         , rect.x(), rect.y()
@@ -250,8 +289,17 @@ void QDmsViewArea::UpdatePosAndSize()
     );
 }
 
+void QDmsViewArea::on_rescale()
+{
+    auto rect = contentsRectInPixelUnits();
+
+    m_DataView->InvalidateRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
+}
+
+/*
 void QDmsViewArea::paintEvent(QPaintEvent* event)
 {
     UpdatePosAndSize();
     return QMdiSubWindow::paintEvent(event);
 }
+*/

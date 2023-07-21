@@ -40,8 +40,12 @@ namespace {
 		auto p = ti->GetTreeParent();
 		if (!p)
 			return 0;
-		//if (p->m_State.GetProgress() < PS_MetaInfo)
-		//	MainWindow::TheOne()->m_treeview->waiter.start();
+
+		SuspendTrigger::Resume();
+		ObjectMsgGenerator thisMsgGenerator(ti, "update TreeView");
+		Waiter showWaitingStatus;
+		if (!p->Is(PS_MetaInfo) && !p->WasFailed())
+			showWaitingStatus.start(&thisMsgGenerator);
 
 		auto si = p->GetFirstSubItem(); // update metainfo
 		int row = 1;
@@ -52,7 +56,6 @@ namespace {
 			++row;
 		}
 		return row;
-
 	}
 }
 
@@ -237,8 +240,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	if (!ti)
 		return QVariant();
-	ti->UpdateMetaInfo();
 
+	SuspendTrigger::Resume();
+	if (!ti->Is(PS_MetaInfo) && !ti->WasFailed())
+	{
+		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");
+		Waiter showWaitingStatus(&thisMsgGenerator);
+
+		ti->UpdateMetaInfo();
+	}
 	switch (role)
 	{
 	case Qt::DecorationRole: 
@@ -349,6 +359,9 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
 		return {};
 
+	ObjectMsgGenerator thisMsgGenerator(new_current_item, "DmsTreeView::expandToCurrentItem");
+	Waiter showWaitingStatus(&thisMsgGenerator);
+
 	auto parent_index = root_node_index;
 	while (true)
 	{
@@ -374,7 +387,7 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)//, waiter(false)
+	: QTreeView(parent)
 {
 	setRootIsDecorated(true);
 	setUniformRowHeights(true);
@@ -408,7 +421,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	auto item_can_be_exported = currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti);
+	auto item_can_be_exported = !ti->InTemplate() && !ti->IsTemplate() && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 

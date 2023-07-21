@@ -184,13 +184,12 @@ Region Region::Clone() const
 	return Region(*this, Region(), RGN_COPY);
 }
 
-GRect Region::BoundingBox(HDC dc) const
+GRect Region::BoundingBox() const
 {
 	assert(m_Rgn!=0);
 
 	GRect result;
 	::GetRgnBox(m_Rgn, &result);
-	result /= GetDcDIP2pixFactorXY(dc);
 	return result;
 }
 
@@ -314,7 +313,7 @@ bool Region::Empty() const
 		return true;
 
 	int result = CombineRgn(m_Rgn, m_Rgn, NULL, RGN_COPY);
-	dms_assert(result != ERROR);
+	assert(result != ERROR);
 	return result == NULLREGION;
 }
 
@@ -381,7 +380,7 @@ void Region::FillRectArray(RectArray& ra) const
 	UInt32 regionDataSize = GetRegionData(m_Rgn, 0, 0);
 	rgnDataBuffer.resize( regionDataSize ); 
 
-	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>( &*rgnDataBuffer.begin() );
+	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>( begin_ptr( rgnDataBuffer ));
 
 	GetRegionData(
 		m_Rgn, 
