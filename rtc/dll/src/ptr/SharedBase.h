@@ -55,7 +55,7 @@ struct SharedBase
 	ref_count_t GetRefCount() const noexcept
 	{
 #if defined(MG_DEBUG_REFCOUNT)
-		MG_CHECK(m_RefCount != -1);
+		MG_ASSERT(m_RefCount != -1);
 #endif
 		return m_RefCount;
 	}
@@ -63,7 +63,7 @@ struct SharedBase
 	void IncRef() const noexcept
 	{
 #if defined(MG_DEBUG_REFCOUNT)
-		MG_CHECK(m_RefCount != -1);
+		MG_ASSERT(m_RefCount != -1);
 #endif
 		++m_RefCount;
 		assert(m_RefCount); // POST CONDITION
@@ -73,7 +73,8 @@ struct SharedBase
 	{
 		assert(m_RefCount); // PRE CONDITION
 #if defined(MG_DEBUG_REFCOUNT)
-		MG_CHECK(m_RefCount != -1); // PRE CONDITION
+		MG_ASSERT(m_RefCount !=  0);
+		MG_ASSERT(m_RefCount != -1);
 #endif
 		auto result = --m_RefCount;
 #if defined(MG_DEBUG_REFCOUNT)
