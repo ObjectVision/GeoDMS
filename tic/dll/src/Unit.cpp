@@ -1050,10 +1050,9 @@ bool CountableUnitBase<V>::IsCurrTiled() const
 }
 
 template <typename V>
-auto CountableUnitBase<V>::GetTiledRangeData() const -> const AbstrTileRangeData* 
+auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData>
 { 
-//	dms_assert(this->m_RangeDataPtr);
-	return this->m_RangeDataPtr;
+	return this->m_RangeDataPtr.get();
 }
 
 template <typename V>

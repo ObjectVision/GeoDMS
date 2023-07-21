@@ -72,7 +72,7 @@ public:
 //	override GraphicObject virtuals for size & display of GraphicObjects
 	void UpdateExtents();
 	void    DoUpdateView() override;
-	GRect   GetBorderPixelExtents(CrdType subPixelFactor) const override;
+	GRect   GetBorderPixelExtents(CrdPoint subPixelFactors) const override;
 	bool Draw(GraphDrawer& d) const override;
 
 	bool MouseEvent(MouseEventDispatcher& med) override;

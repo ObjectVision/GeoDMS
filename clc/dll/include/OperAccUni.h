@@ -97,7 +97,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		{
 			const AbstrUnit* adu = arg1A->GetAbstrDomainUnit();
 			SizeT n = adu->GetCount();
-			MakeMin(n, Explain::MaxNrEntries);
+			MakeMin<SizeT>(n, Explain::MaxNrEntries);
 			for (SizeT i=0; i!=n; ++i)
 				Explain::AddQueueEntry(context->m_CalcExpl, adu, i);
 		}

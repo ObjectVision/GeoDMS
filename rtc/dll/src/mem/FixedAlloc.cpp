@@ -191,7 +191,7 @@ struct VirtualAllocChunkArray
 		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2.
 		nextChunkSize = objectStoreSize;
 		nextChunkSize *= 2;
-		MakeMax(nextChunkSize, MIN_CHUNK_SIZE);
+		MakeMax<SizeT>(nextChunkSize, MIN_CHUNK_SIZE);
 	}
 
 	BYTE_PTR get_reserved_objectstore()

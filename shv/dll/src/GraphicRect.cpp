@@ -215,7 +215,7 @@ void GraphicRect::AdjustTargetVieport()
 	}
 }
 
-GRect GraphicRect::GetBorderPixelExtents(CrdType subPixelFactor) const
+GRect GraphicRect::GetBorderPixelExtents(CrdPoint subPixelFactors) const
 {
 	return GRect(-1, -1, 1, 1);  // max rounding error without considering orientation
 }

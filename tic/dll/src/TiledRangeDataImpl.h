@@ -227,7 +227,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 	{
 		tile_offset result = 0;
 		for (auto& tileRange : m_Ranges)
-			MakeMax(result, Cardinality(tileRange));
+			MakeMax<tile_offset>(result, Cardinality(tileRange));
 		return result;
 	}
 	row_id GetDataSize() const override

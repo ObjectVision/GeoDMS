@@ -136,11 +136,11 @@ Region::Region(HDC hdc, HWND hWnd)
 {
 	DBG_START("Region", "ctor(HDC, HWND)", MG_DEBUG_REGION);
 
-	dms_assert(hWnd); // PRECONDITION
+	assert(hWnd); // PRECONDITION
 
 	GetRandomRgn(hdc, m_Rgn, SYSRGN);
 
-	// The region returned by GetRandomRgn is in screen coordinates (excecpt in the unsuppoerted Windows 95/98/Me and the 16 bit Win 3.1
+	// The region returned by GetRandomRgn is in screen coordinates
 	(*this) += GPoint(0, 0).ScreenToClient(hWnd); // ::OffsetRgn(hRgn, pt.x, pt.y);
 
 	DBG_TRACE(("Region = %s", AsString().c_str()));
@@ -155,8 +155,8 @@ Region::Region(Region&& src) noexcept // Move ctor
 Region::Region(const Region& src1, const Region& src2, int fCombineMode) // Combine
 	:	m_Rgn( CreateRectRgn(0,0,0,0) )
 {
-	dms_assert( src1.m_Rgn!=0 );
-	dms_assert((src2.m_Rgn!=0) == (fCombineMode != RGN_COPY));
+	assert( src1.m_Rgn!=0 );
+	assert((src2.m_Rgn!=0) == (fCombineMode != RGN_COPY));
 
 	if (CombineRgn(m_Rgn, src1.m_Rgn, src2.m_Rgn, fCombineMode) == ERROR)
 		throwLastSystemError("CombineRgn");

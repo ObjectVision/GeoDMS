@@ -61,19 +61,20 @@ class GraphicObject;
 
 class AbstrCaret : public PersistentSharedObj
 {
-	typedef PersistentSharedObj base_type;
+	using base_type = PersistentSharedObj;
 public:
-  	AbstrCaret();
+
   	virtual void Reverse(HDC dc, bool newVisibleState) =0;
 	virtual void Move(const AbstrCaretOperator& caret_operator, HDC dc);
 
 	void SetUsedObject(GraphicObject* givenObject) { m_UsedObject = givenObject; }
 	void SetStartPoint(const GPoint& p)            { m_StartPoint = p; }
 	bool IsVisible() const;
+	auto UsedObject() const { assert(m_UsedObject);  return m_UsedObject; }
 
 protected:
-	GraphicObject* m_UsedObject;
-	GPoint         m_StartPoint;
+	GraphicObject* m_UsedObject = nullptr;
+	GPoint         m_StartPoint = UNDEFINED_VALUE(GPoint);
 
 	DECL_ABSTR(SHV_CALL, Class);
 };

@@ -98,30 +98,32 @@ class GraphVisitor : public AbstrVisitor
 {
 	typedef AbstrVisitor base_type;
 public:
-	GraphVisitState Visit              (GraphicObject* go) override;
+	GraphVisitState Visit(GraphicObject* go) override;
 
-  	GraphVisitState DoLayerSet         (LayerSet*   goc) override;
-	GraphVisitState DoViewPort         (ViewPort*    vp) override;
-	GraphVisitState DoScrollPort       (ScrollPort*  sp) override;
+	GraphVisitState DoLayerSet(LayerSet* goc) override;
+	GraphVisitState DoViewPort(ViewPort* vp) override;
+	GraphVisitState DoScrollPort(ScrollPort* sp) override;
 
-  	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
-	GraphVisitState DoDataItemColumn  (DataItemColumn*   dic) override;
+	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
+	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 
 	const CrdTransformation& GetTransformation() const { return m_Transformation; }
-	const TPoint&            GetClientOffset  () const { return m_ClientOffset;   }
-	const GRect&             GetAbsClipRect   () const { return m_ClipRect;       }
-	CrdRect                  GetWorldClipRect () const;
+	const TPoint& GetClientOffset() const { return m_ClientOffset; }
+	const GRect& GetAbsClipRect() const { return m_ClipRect; }
+	CrdRect                  GetWorldClipRect() const;
 
-	Float64 GetSubPixelFactor() const;
+	CrdPoint GetSubPixelFactors() const;
+	CrdType GetSubPixelFactor() const;
+	TPoint GetDeviceSize(TPoint relPoint) const;
 
 protected:
-	GraphVisitor(const GRect& clipRect, CrdType subPixelFactor = 1.0);
+	GraphVisitor(const GRect& clipRect, CrdPoint scaleFactors);
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
-	TPoint            m_ClientOffset;
-	GRect             m_ClipRect; // in client coordinates 
-	CrdType           m_SubPixelFactor;
+	TPoint            m_ClientOffset; // in client device coordinates
+	GRect             m_ClipRect; // in client device coordinates 
+	CrdPoint          m_SubPixelFactors;
 
 	friend struct AddTransformation;
 	friend struct AddClientOffset;
@@ -136,7 +138,7 @@ class GraphObjLocator : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphObjLocator(GPoint pnt);
+	GraphObjLocator(GPoint pnt, CrdPoint scaleFactor);
 
 	static MovableObject* Locate(DataView* view, GPoint pnt);
 
@@ -164,8 +166,8 @@ class GraphDrawer : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
-	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
+	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
+	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
@@ -238,7 +240,7 @@ public:
 class GraphUpdater: public GraphVisitor
 {
 public:
-	GraphUpdater(const GRect& clipRect, CrdType subPixelFactor = 1.0);
+	GraphUpdater(const GRect& clipRect, CrdPoint subPixelFactors);
 
 	GraphVisitState DoObject(GraphicObject* go) override;
 };

@@ -77,7 +77,7 @@ class ViewPort : public Wrapper
 {
 	typedef Wrapper base_type;
 public:
-	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelfactor = 1.0);
+	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption);
 	~ViewPort();
 
 //	delayed construction
@@ -124,7 +124,7 @@ public:
 	CrdRect CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
 	CrdRect CalcWorldClientRect() const;
 	CrdType GetCurrZoomLevel() const;
-	CrdType GetSubPixelFactor() const;
+//	CrdPoint GetSubPixelFactors() const;
 
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
@@ -192,7 +192,6 @@ private:
 	ScaleBarCaret*             m_ScaleBarCaret;
 	grid_coord_map             m_GridCoordMap;
 	sel_caret_map              m_SelCaretMap;
-	CrdType                    m_SubPixelFactor;
 
 	friend GridCoord;
 	friend SelCaret;

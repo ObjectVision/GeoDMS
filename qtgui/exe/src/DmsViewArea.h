@@ -42,14 +42,16 @@ public:
 //    void paintEvent(QPaintEvent* event);
 
 private:
-    auto contentsRectInPixelUnits() -> QRect;
     void CreateDmsView(QMdiArea* parent);
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+    auto contentsRectInPixelUnits() -> QRect;
 
     DataView* m_DataView = nullptr;
     void* m_DataViewHWnd = nullptr;
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
+    DPoint m_LastScaleFactors;
 };
 
 #endif // DMSVIEWAREA_H

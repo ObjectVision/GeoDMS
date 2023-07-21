@@ -134,11 +134,9 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 GPoint GPoint::ScreenToClient(HWND hWnd) const 
 {
 	GPoint result = *this;
-	CheckedGdiCall( 
-		::ScreenToClient(hWnd, &result),
+	CheckedGdiCall( ::ScreenToClient(hWnd, &result),
 		"ScreenToClient"
 	);
-//	result /= GetWindowDIP2pixFactorXY(hWnd);
 	return result;
 }		
 

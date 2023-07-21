@@ -102,14 +102,13 @@ bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 // class  : ViewPort
 //----------------------------------------------------------------------
 
-ViewPort::ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelFactor) 
+ViewPort::ViewPort(MovableObject* owner, DataView* dv, CharPtr caption) 
 	:	Wrapper(owner, dv, caption)
 	,	m_Orientation(OrientationType::NegateY)
 	,	m_NeedleCaret(nullptr)
 	,	m_ScaleBarCaret(nullptr)
 	,	m_BrushOrg(0, 0)
 	,	m_BkColor(DmsColor2COLORREF( STG_Bmp_GetDefaultColor(CI_BACKGROUND) )) // White, adjustable by tools->options->Current configuration
-	,	m_SubPixelFactor(subPixelFactor)
 {
 	SetViewPortCursor(LoadCursor(NULL, IDC_ARROW));
 	m_State.Set(GOF_IgnoreActivation);
@@ -275,7 +274,7 @@ void ViewPort::ToggleNeedleController()
 void ViewPort::SetNeedle(CrdTransformation* tr, GPoint trackPoint)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
-	dms_assert(tr);
+	assert(tr);
 	dbg_assert(DataViewOK());
 
 	if (IsNeedleVisible())
@@ -315,11 +314,11 @@ const AbstrUnit* ViewPort::GetWorldCrdUnit() const
 	return m_WorldCrdUnit;
 }
 
-CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdType subPixelFactor)
+CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
 {
 	if (!result.empty())
 	{
-		GRect border = go->GetBorderPixelExtents(subPixelFactor);
+		GRect border = go->GetBorderPixelExtents(subPixelFactors);
 
 		if (	border != GRect(GPoint(0,0), GPoint(0,0))
 			&&	IsStrictlyLower(border.Size(), TPoint2GPoint(viewPort.Size())))
@@ -334,23 +333,23 @@ CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const S
 
 static ViewPort* g_CurrVpZoom = nullptr;
 
-CrdRect calcWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdType subPixelFactor)
+CrdRect calcWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
 {
 	auto wcr = go->CalcWorldClientRect();
-	return WorldRect_AddBorderPixels(wcr, viewPort, go, orientation, subPixelFactor);
+	return WorldRect_AddBorderPixels(wcr, viewPort, go, orientation, subPixelFactors);
 }
 
-CrdRect calcSelectedWorldFullRect(const TRect& viewPort, const GraphicLayer* gl, OrientationType orientation, CrdType subPixelFactor)
+CrdRect calcSelectedWorldFullRect(const TRect& viewPort, const GraphicLayer* gl, OrientationType orientation, CrdPoint subPixelFactors)
 {
 	CrdRect selectRect = gl->CalcSelectedFullWorldRect();
 	if (! selectRect.inverted()) 
-		return WorldRect_AddBorderPixels(selectRect, viewPort, gl, orientation, subPixelFactor);
+		return WorldRect_AddBorderPixels(selectRect, viewPort, gl, orientation, subPixelFactors);
 	return selectRect;
 }
 
-CrdRect getCurrWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdType subPixelFactor)
+CrdRect getCurrWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
 {
-	return WorldRect_AddBorderPixels(go->GetCurrWorldClientRect(), viewPort, go, orientation, subPixelFactor);
+	return WorldRect_AddBorderPixels(go->GetCurrWorldClientRect(), viewPort, go, orientation, subPixelFactors);
 }
 
 const LayerSet* ViewPort::GetLayerSet() const
@@ -385,12 +384,17 @@ void ViewPort::ZoomWorldFullRect(const TRect& relClientRect)
 
 	CrdRect roi;
 	
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+	auto scaleFactor = dv->GetDIP2pixFactorXY();
+
 	for (gr_elem_index n = gc->NrEntries(); n--; )
 	{
 		const ScalableObject* go = gc->GetConstEntry(n);
 		if (!go->HasNoExtent())
 		{
-			auto cwfr= calcWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
+			auto cwfr = calcWorldFullRect(relClientRect, go, m_Orientation, scaleFactor);
 			roi |= cwfr;
 		}
 	}
@@ -403,18 +407,21 @@ void ViewPort::ZoomWorldFullRect(const TRect& relClientRect)
 CrdRect ViewPort::GetCurrWorldFullRect() const
 {
 	const ScalableObject* gc = GetContents();
-	dms_assert(gc);
+	assert(gc);
 
 	gr_elem_index n = gc->NrEntries();
-	dms_assert(n);
+	assert(n);
 
 	TRect relClientRect = GetCurrClientRelRect();
 	CrdRect roi;
+	auto dv = GetDataView().lock();
+	assert(dv);
+	auto scaleFactor = dv->GetDIP2pixFactorXY();
 	for (gr_elem_index i = 0; i != n; ++i)
 	{
 		const ScalableObject* go = gc->GetConstEntry(i);
 		if (!go->HasNoExtent())
-			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, GetSubPixelFactor());
+			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, scaleFactor);
 	}
 	return roi;
 }
@@ -441,14 +448,6 @@ CrdType ViewPort::GetCurrZoomLevel() const
 	return m_w2vTr.ZoomLevel();
 }
 
-CrdType ViewPort::GetSubPixelFactor() const
-{
-	auto dv = GetDataView().lock();
-	assert(dv);
-	auto scaleFactor = GetWindowDIP2pixFactor(dv->GetHWnd());
-	return scaleFactor * m_SubPixelFactor;
-}
-
 void ViewPort::ZoomAll()
 {
 	ScalableObject* gc = GetContents();
@@ -464,19 +463,27 @@ void ViewPort::AL_ZoomAll()
 	tmp_swapper<ViewPort*> currVpSetter(g_CurrZoom, this);
 
 	ScalableObject* go = GetActiveLayer();
-	if (go)
-		SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, GetSubPixelFactor()));
+	if (!go)
+		return;
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, dv->GetDIP2pixFactorXY()));
 }
 
 void ViewPort::AL_ZoomSel()
 {
 	GraphicLayer* al = GetActiveLayer();
-	if (al)
-	{
-		CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, GetSubPixelFactor());
-		if (! selectRect.empty())
-			SetROI(selectRect);
-	}
+	if (!al)
+		return;
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, dv->GetDIP2pixFactorXY());
+	if (! selectRect.empty())
+		SetROI(selectRect);
 }
 
 void ViewPort::AL_SelectAllObjects(bool select)
@@ -758,7 +765,7 @@ void ViewPort::Export()
 
 	bool isBmp = true; // false would indicate tiff
 
-	auto tmpVP = std::make_shared<ViewPort>(nullptr, nullptr, "", info.m_SubPixelFactor);
+	auto tmpVP = std::make_shared<ViewPort>(nullptr, nullptr, ""); // , info.m_SubPixelFactor);
 	tmpVP->SetContents(GetContents()->shared_from_this());
 	tmpVP->InitWorldCrdUnit(GetWorldCrdUnit());
 	tmpVP->SetClientSize(Convert<TPoint>(info.GetNrSubDotsPerTile()));

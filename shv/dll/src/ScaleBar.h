@@ -46,13 +46,13 @@ public:
 	~ScaleBarBase();
 
 	bool MustUpdateView() const;
-	bool DoUpdateViewImpl();
+	bool DoUpdateViewImpl(CrdPoint scaleFactor);
 	bool Draw(HDC dc, const GRect& clientAbsRect) const;
 
 	const ViewPort* GetViewPort() const { return m_ViewPort; }
 
 	TPoint GetSize(Float64 subPixelFactor) const;
-	TRect DetermineBoundingBox(const MovableObject* owner, Float64 subPixelFactor) const;
+	TRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
 
 protected: 
 	const ViewPort*  m_ViewPort = nullptr;
@@ -101,14 +101,14 @@ public:
 	ScaleBarCaret(const ViewPort* vp);
 	~ScaleBarCaret();
 
-	bool DoUpdateViewImpl() { return m_Impl.DoUpdateViewImpl(); }
+	bool DoUpdateViewImpl(CrdPoint scaleFactor) { return m_Impl.DoUpdateViewImpl(scaleFactor); }
 
 //	override AbstrCaret
 	void Move(const AbstrCaretOperator& caretOper, HDC dc) override;
 	void Reverse(HDC dc, bool newVisibleState) override;
 
 	GRect GetCurrBoundingBox() const;
-	void  DetermineAndSetBoundingBox();
+	void  DetermineAndSetBoundingBox(CrdPoint scaleFactor);
 
 private:
 	ScaleBarBase m_Impl;

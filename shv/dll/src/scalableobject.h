@@ -67,7 +67,6 @@ public:
 
 	CrdRect GetCurrWorldClientRect() const;
 	CrdRect CalcWorldClientRect   () const; 
-	CrdRect CalcFullWorldRect(const CrdTransformation& tr, CrdType subPixelFactor)  const; 
 
 	void InvalidateWorldRect(const CrdRect& rect, const GRect* borderExtentsPtr) const;
 
@@ -87,7 +86,7 @@ public:
 	void OnVisibilityChanged() override;
 
 //	define new virtuals for size and extents of GraphicObjects
-	virtual GRect GetBorderPixelExtents(CrdType subPixelFactor) const;
+	virtual GRect GetBorderPixelExtents(CrdPoint subPixelFactors) const;
 
 
 //	interface definition for layer control

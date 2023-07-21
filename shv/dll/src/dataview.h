@@ -199,9 +199,11 @@ public:
 	TreeItem*      GetDesktopContext() const;
 
 	SHV_CALL void ResetHWnd(HWND hWnd);
-	HWND  GetHWnd()        const { return m_hWnd; }
+	HWND     GetHWnd()        const { return m_hWnd; }
+	CrdPoint GetDIP2pixFactorXY() const { return GetWindowDIP2pixFactorXY(GetHWnd()); }
 
-	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor = 1.0) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDIP2pixFactorY(GetHWnd())); }
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);

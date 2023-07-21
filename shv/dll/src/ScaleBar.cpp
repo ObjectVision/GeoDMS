@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrUnit.h"
 #include "Metric.h"
 
+#include "DataView.h"
 #include "GraphVisitor.h"
 #include "ShvUtils.h"
 #include "TextControl.h"
@@ -63,7 +64,7 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 	if (clientSize.y < 30)
 		return false;
 
-	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * m_ViewPort->GetSubPixelFactor();
+	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetDcDIP2pixFactorY(dc);
 	CrdType measureGroupSize = m_MeasureSize * m_MeasureGroupCount;
 	UInt32  nrGroups         = clientSize.x / measureGroupSize; if (nrGroups == 0) return false;
 	TType   top              = clientSize.y / 3;
@@ -134,7 +135,7 @@ bool ScaleBarBase::MustUpdateView() const
 	return m_Factor != currFactor || m_CrdUnit != currCrdUnit;
 }
 
-bool ScaleBarBase::DoUpdateViewImpl() 
+bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 {
 	dms_assert(m_ViewPort);
 	CrdType          currFactor  = m_ViewPort->GetCurrZoomLevel();
@@ -176,7 +177,8 @@ bool ScaleBarBase::DoUpdateViewImpl()
 
 	UInt32 measureMantissa   = 1;
 	Int32  measureExponent   = 0;
-	const Float64 minMeasureSize = MIN_MEASURE_SIZE * m_ViewPort->GetSubPixelFactor();
+
+	const Float64 minMeasureSize = MIN_MEASURE_SIZE * scaleFactor.first;
 
 	m_MeasureGroupCount = 5;
 	while (m_MeasureSize >  2.0*minMeasureSize) { m_MeasureSize *= 0.1; --measureExponent; }
@@ -236,8 +238,10 @@ bool ScaleBarObj::Draw(GraphDrawer& d) const
 void ScaleBarObj::DoUpdateView()
 {
 	m_Impl.GetViewPort()->UpdateView();
-	dms_assert(m_Impl.GetViewPort()->IsUpdated());
-	if (m_Impl.DoUpdateViewImpl())
+	assert(m_Impl.GetViewPort()->IsUpdated());
+
+	auto dv = GetDataView().lock();
+	if (dv && m_Impl.DoUpdateViewImpl(dv->GetDIP2pixFactorXY()))
 		InvalidateDraw();
 }
 
@@ -260,7 +264,7 @@ void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
 	if (newVisibleState)
 	{
 		DcMixModeSelector xxxDontXRor(dc, R2_COPYPEN);
-		m_Impl.DoUpdateViewImpl();
+		m_Impl.DoUpdateViewImpl(GetDcDIP2pixFactorXY(dc));
 		m_Impl.Draw(dc, GetCurrBoundingBox());
 	}
 }
@@ -275,10 +279,11 @@ TPoint ScaleBarBase::GetSize(Float64 subPixelFactor) const
 	return TPoint(250 * subPixelFactor, 48 * subPixelFactor);
 }	
 
-TRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, Float64 subPixelFactor) const
+TRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
 {
 	TRect rect = owner->GetCurrClientAbsRect();
-	MakeMax<Point<TType>>(rect.first, rect.second - GetSize(subPixelFactor));
+	MakeMax(rect.first.first , rect.second.first  - subPixelFactors.first );
+	MakeMax(rect.first.second, rect.second.second - subPixelFactors.second);
 	return rect;
 }
 
@@ -288,9 +293,11 @@ void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize,
 	UpdateView();
 }
 
-void ScaleBarCaret::DetermineAndSetBoundingBox()
+void ScaleBarCaret::DetermineAndSetBoundingBox(CrdPoint scaleFactor)
 {
-	m_Rect = TRect2GRect( m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), m_Impl.GetViewPort()->GetSubPixelFactor()) );
+	m_Rect = TRect2GRect( 
+		m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor)
+	);
 }
 
 void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
@@ -302,6 +309,11 @@ void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
 
 void ScaleBarCaretOperator::operator() (AbstrCaret* c) const
 {
-	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox();
+	assert(c);
+	auto dv = c->UsedObject()->GetDataView().lock();
+	if (!dv)
+		return;
+
+	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox(dv->GetDIP2pixFactorXY());
 	c->SetStartPoint(GPoint(0, 0) );
 }

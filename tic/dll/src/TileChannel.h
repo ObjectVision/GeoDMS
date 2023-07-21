@@ -280,7 +280,7 @@ struct tile_write_channel
 			GetNextTile();
 		}
 	}
-
+	
 	template <typename CIter>
 	void Write(CIter first, CIter last)
 	{

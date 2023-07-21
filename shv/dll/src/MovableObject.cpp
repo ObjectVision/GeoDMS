@@ -252,7 +252,8 @@ void MovableObject::InvalidateClientRect(TRect rect) const
 		return;
 
 	auto dv = GetDataView().lock(); if (!dv) return;
-	dv->InvalidateRect( gRect  );
+	gRect *= dv->GetDIP2pixFactorXY();
+	dv->InvalidateRect( gRect );
 }
 
 TPoint MovableObject::CalcClientSize() const
@@ -323,7 +324,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	Region rgn(size);
 
 	SuspendTrigger::FencedBlocker xxx;
-	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), subPixelFactor); 
+	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
 
 	AddClientOffset useZeroBase(&drawer, -m_RelPos);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
@@ -427,18 +428,18 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 			{
 				GRect be = GetBorderPixelExtents(); be.left = 0;
 				oldAbsRect += TRect(be);
-				dms_assert(oldAbsRect.Left() <= oldAbsRect.Right());
-				dms_assert(IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+				assert(oldAbsRect.Left() <= oldAbsRect.Right());
+				assert(IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
 
 				TPoint delta(deltaX, 0);
 
 				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect) & GetDrawnFullAbsRect();
-				dms_assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
+				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
 				if (!oldVisibleAbsRect.empty())
 					dv->Scroll(TPoint2GPoint(delta), oldVisibleAbsRect, clipRect, this);
 				ResizeDrawnRect(clipRect, TPoint2GPoint(delta), GPoint(TType2GType(oldAbsRect.Left()), MaxValue<GType>()));
-				dms_assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
 
 				// DEBUG
 				if (deltaX < 0)

@@ -202,6 +202,7 @@ RTC_CALL void ReportSuspension();
 #define MG_USERCHECK2(Cond, Msg)    if(!(Cond))  { throwDmsErrD(Msg); }
 #define MG_USERCHECK(Cond)          MG_USERCHECK2(Cond, #Cond)
 #define MG_CHECK(Cond)              MG_CHECK2(Cond, #Cond)
+#define MG_ASSERT(Cond)             if(!(Cond)) { abort(); }
 #define MG_CHECK2_OBJ(Cond, Msg)    if(!(Cond)) { throwItemErrorD(Msg); }
 #define MG_CHECK_OBJ(Cond)          MG_CHECK2_OBJ(Cond, #Cond)
 #define MG_PRECONDITION2(Cond, Msg) if(!(Cond)) { throwPreconditionFailed(MG_POS, Msg); }

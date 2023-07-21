@@ -26,7 +26,7 @@ public:
 		MsgCategory GetMsgCategory() const { return MsgCategory(m_MsgCode); }
 	};
 
-	int rowCount(const QModelIndex& parent = QModelIndex()) const override
+	int rowCount(const QModelIndex& /*parent*/ = QModelIndex()) const override
 	{
 		return m_filtered_indices.empty() ? m_Items.size() : m_filtered_indices.size();
 	}

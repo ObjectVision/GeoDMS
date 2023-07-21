@@ -226,7 +226,7 @@ struct AddTransformation : private tmp_swapper<CrdTransformation>
 
 struct AddClientOffset : private tmp_swapper<TPoint>
 {
-	AddClientOffset(GraphVisitor* v, const TPoint& c2p);
+	AddClientOffset(GraphVisitor* v, TPoint c2p);
 };
 
 //----------------------------------------------------------------------

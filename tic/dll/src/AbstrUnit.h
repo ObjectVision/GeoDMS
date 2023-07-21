@@ -110,7 +110,7 @@ public:
 	virtual bool IsCurrTiled() const { return false; }
 
 	virtual bool HasTiledRangeData() const = 0;
-	virtual const AbstrTileRangeData* GetTiledRangeData() const;
+	virtual SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 	TIC_CALL bool HasVarRangeData() const;
 	TIC_CALL void SetSpatialReference(TokenID format);
 

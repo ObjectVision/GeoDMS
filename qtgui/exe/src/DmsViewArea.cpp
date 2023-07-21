@@ -264,18 +264,15 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event)
     UpdatePosAndSize();
 }
 
-auto QDmsViewArea::contentsRectInPixelUnits() -> QRect
+auto QDmsViewArea::contentsRectInPixelUnits()->QRect
 {
     auto wId = winId();
     assert(wId);
-    auto xyFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
+    auto scaleFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
     auto rect = contentsRect();
-    return QRect(
-          rect.x() * xyFactors.first
-        , rect.y() * xyFactors.second
-        , rect.width() * xyFactors.first
-        , rect.height() * xyFactors.second
-    );
+    QPoint topLeft (rect.left () * scaleFactors.first, rect.top   () * scaleFactors.second);
+    QPoint botRight(rect.right() * scaleFactors.first, rect.bottom() * scaleFactors.second);
+    return QRect(topLeft, botRight);
 }
 
 void QDmsViewArea::UpdatePosAndSize()
@@ -296,10 +293,16 @@ void QDmsViewArea::on_rescale()
     m_DataView->InvalidateRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
 
-/*
 void QDmsViewArea::paintEvent(QPaintEvent* event)
 {
-    UpdatePosAndSize();
+    auto wId = winId();
+    assert(wId);
+    auto currScaleFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
+    if (currScaleFactors != m_LastScaleFactors)
+    { 
+        m_LastScaleFactors = currScaleFactors;
+        on_rescale();
+    }
     return QMdiSubWindow::paintEvent(event);
 }
-*/
+

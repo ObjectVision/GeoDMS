@@ -451,10 +451,10 @@ void GraphicObject::InvalidateDraw()
 
 void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delta)
 {
-	dms_assert(IsDrawn());    // callers responsibility
-	dms_assert(AllVisible()); // invariant consequence of IsDrawn
-	dms_assert(!m_DrawnFullAbsRect.empty()); 
-	dms_assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
+	assert(IsDrawn());    // callers responsibility
+	assert(AllVisible()); // invariant consequence of IsDrawn
+	assert(!m_DrawnFullAbsRect.empty()); 
+	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
 	m_DrawnFullAbsRect += delta;
 	m_DrawnFullAbsRect &= clipRect;
@@ -476,8 +476,8 @@ void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delt
 
 void GraphicObject::ClipDrawnRect(const GRect& clipRect)
 {
-	dms_assert(IsDrawn());    // callers responsibility
-	dms_assert(!m_DrawnFullAbsRect.empty() || !HasDefinedExtent()); 
+	assert(IsDrawn());    // callers responsibility
+	assert(!m_DrawnFullAbsRect.empty() || !HasDefinedExtent()); 
 
 	if (IsIncluding(clipRect, m_DrawnFullAbsRect))
 		return;
@@ -510,13 +510,13 @@ void Resize(GRect& drawRect, GPoint delta, GPoint invariantLimit)
 
 void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint invariantLimit)
 {
-	dms_assert(IsDrawn()); // callers responsibility
+	assert(IsDrawn()); // callers responsibility
 	auto owner = GetOwner().lock();
-	dms_assert(!owner || owner->IsDrawn());
+	assert(!owner || owner->IsDrawn());
 
-	dms_assert(AllVisible());                 // invariant consequence of IsDrawn
-	dms_assert(!m_DrawnFullAbsRect.empty());  // invariant consequence of IsDrawn
-	dms_assert(IsIncluding(clipRect, m_DrawnFullAbsRect)); // callers responsibility to provide GetOwner()->GetDrawnFullRect(), invariant IsIncluding relation
+	assert(AllVisible());                 // invariant consequence of IsDrawn
+	assert(!m_DrawnFullAbsRect.empty());  // invariant consequence of IsDrawn
+	assert(IsIncluding(clipRect, m_DrawnFullAbsRect)); // callers responsibility to provide GetOwner()->GetDrawnFullRect(), invariant IsIncluding relation
 
 	if (delta == GPoint(0, 0))
 		return;

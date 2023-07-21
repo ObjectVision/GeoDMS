@@ -41,7 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 // class  : GridLayerBase
 //----------------------------------------------------------------------
 
-struct GridLayerBase : public GraphicLayer
+struct GridLayerBase : GraphicLayer
 {
 	using GraphicLayer::GraphicLayer;
 	typedef GraphicLayer base_type;
