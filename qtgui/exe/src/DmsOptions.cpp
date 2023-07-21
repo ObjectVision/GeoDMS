@@ -380,7 +380,6 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_flush_treshold = new QSlider(Qt::Orientation::Horizontal, this);
     m_flush_treshold->setMinimum(50);
     m_flush_treshold->setMaximum(100);
-    m_flush_treshold->setValue(100);
     connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
 
     m_tracelog = new QCheckBox("Tracelog file", this);
@@ -428,7 +427,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
     restoreOptions();
-
+    onFlushTresholdValueChange(m_flush_treshold->value());
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
 }
