@@ -170,7 +170,7 @@ DataView::DataView(TreeItem* viewContext)
 	:	m_hWnd(0)
 	,	m_ViewContext(viewContext)
 	,	m_CheckedTS(0)
-	,	m_ViewSize(0, 0)
+	,	m_ViewDeviceSize(0, 0)
 	,	m_FocusCaret(new FocusCaret)
 	,	m_ParentView(0)
 	,	m_ScrollEventsReceiver(0)
@@ -754,8 +754,8 @@ void DataView::DoInvalidate() const
 	dbg_assert( md_IsDrawingCount == 0);
 	dbg_assert( md_InvalidateDrawLock == 0);
 
-	if (m_ViewSize.x > 0 && m_ViewSize.y > 0)
-		m_DoneGraphics.Reset( Region(m_ViewSize) );
+	if (m_ViewDeviceSize.x > 0 && m_ViewDeviceSize.y > 0)
+		m_DoneGraphics.Reset( Region(m_ViewDeviceSize) );
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
@@ -770,7 +770,7 @@ void DataView::InvalidateChangedGraphics()
 
 	MG_DEBUG_DATA_CODE( SuspendTrigger::ApplyLock protectSuspend; )
 
-	dms_assert( IsIncluding(ViewRect(), TRect2GRect(go->GetCurrFullRelRect())) );
+	assert( IsIncluding(ViewDeviceRect(), TRect2GRect(go->GetCurrFullRelLogicalRect(), GetScaleFactors()) ));
 
 	if (m_CheckedTS != UpdateMarker::LastTS())
 	{
@@ -812,9 +812,9 @@ GraphVisitState DataView::UpdateView()
 
 	InvalidateChangedGraphics();
 
-	auto scaleFactors = GetDIP2pixFactorXY();
+	auto scaleFactors = GetScaleFactors();
 
-	if (GraphUpdater( ViewRect(), scaleFactors).Visit( GetContents().get() ) == GVS_Break)
+	if (GraphUpdater( ViewDeviceRect(), scaleFactors).Visit( GetContents().get() ) == GVS_Break)
 		return GVS_Break;
 
 	assert(!SuspendTrigger::DidSuspend());
@@ -902,8 +902,8 @@ GraphVisitState DataView::UpdateView()
 	MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
 	CounterStacks updateAllStack;
-//	GPoint viewSize = m_ViewSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
-	updateAllStack.AddDrawRegion(Region(m_ViewSize));
+//	GPoint viewSize = m_ViewDeviceSize; viewSize *= GetWindowDIP2pixFactorXY(GetHWnd());
+	updateAllStack.AddDrawRegion(Region(m_ViewDeviceSize));
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // should have been acted upon, DEBUG, REMOVE
 
@@ -985,7 +985,7 @@ ActorVisitState DataView::UpdateViews()
 }
 */
 
-void DataView::Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
+void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
 {
 	DBG_START("DataView", "Scroll", MG_DEBUG_SCROLL);
 	DBG_TRACE(("dx = %d, dy=%d", delta.x, delta.y));
@@ -993,7 +993,7 @@ void DataView::Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableO
 	DBG_TRACE(("clip = %s", AsString(rcClip  ).c_str()));
 
 	dbg_assert( md_InvalidateDrawLock == 0);
-	auto scaleFactor = GetDIP2pixFactorXY();
+	auto scaleFactor = GetScaleFactors();
 	delta *= scaleFactor;
 	rcScroll *= scaleFactor;
 	rcClip *= scaleFactor;
@@ -1047,13 +1047,13 @@ void DataView::Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableO
 		if (!drawRgn.Empty())
 			InvalidateRgn(drawRgn);
 
-		m_DoneGraphics.Scroll( delta, rcScroll, rcClip );
+		m_DoneGraphics.ScrollDevice( delta, rcScroll, rcClip );
 
 		// Update positions of carets before reappearing
 		dms_assert(!m_State.Get(DVF_CaretsVisible)); // guaranteed by CaretHider
 
 		if (m_SelCaret.IsIntersecting(rcClip))
-			m_SelCaret.Scroll( delta, rcScroll, rgnClip);
+			m_SelCaret.ScrollDevice( delta, rcScroll, rgnClip);
 
 		if (IsIncluding(rcClippedScroll, m_TextCaretPos))
 			m_TextCaretPos += delta;
@@ -1342,12 +1342,12 @@ void DataView::OnPaint()
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
-		GRect rect(GPoint(0, 0), m_ViewSize);
+		GRect rect(GPoint(0, 0), m_ViewDeviceSize);
 		GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(DmsYellow) ) );
 		::FillRect(paintDC, &rect, br1 );
 	}
 #endif
-	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetDIP2pixFactorXY())
+	GraphDrawer( paintDC, rgn, this, GdMode(GD_StoreRect|GD_OnPaint|GD_DrawBackground), GetScaleFactors())
 		.Visit( GetContents().get() );
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
@@ -1379,7 +1379,7 @@ void DataView::OnMouseMove(WPARAM nFlags, const GPoint& point)
 			throwLastSystemError("TrackMouseEvent");
 	}
 //	GPoint dipPoint = point;
-//	dipPoint /= GetDIP2pixFactorXY();
+//	dipPoint /= GetScaleFactors();
 	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
 		DispatchMouseEvent(EID_MOUSEDRAG, nFlags, point);
 	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
@@ -1410,8 +1410,8 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
 	DBG_TRACE(("NewSize=(%d,%d)", point.x, point.y));
 
-	auto dipPoint = point; dipPoint /= GetDIP2pixFactorXY();
-	if (m_ViewSize == point)
+	auto dipPoint = point; dipPoint /= GetScaleFactors();
+	if (m_ViewDeviceSize == point)
 	{
 		if (GetContents()->GetCurrFullSize() == TPoint(dipPoint))
 			return;
@@ -1428,15 +1428,15 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	{
 		DcHandle dc(GetHWnd(), 0);
 
-		GRect rect1(GPoint(m_ViewSize.x, 0), UpperBound(m_ViewSize, point));
-		GRect rect2(GPoint(0, m_ViewSize.y), UpperBound(m_ViewSize, point));
+		GRect rect1(GPoint(m_ViewDeviceSize.x, 0), UpperBound(m_ViewDeviceSize, point));
+		GRect rect2(GPoint(0, m_ViewDeviceSize.y), UpperBound(m_ViewDeviceSize, point));
 
 		::FillRect(dc, &rect1, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsBlue))));
 		::FillRect(dc, &rect2, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsGreen))));
 	}
 #endif
 
-	MakeUpperBound(m_ViewSize, point);
+	MakeUpperBound(m_ViewDeviceSize, point);
 
 
 	if (m_Contents) {
@@ -1446,7 +1446,7 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 			GetContents()->ClipDrawnRect(viewRect);
 		GetContents()->SetFullRelRect(TRect(dipViewRect));
 	}
-	m_ViewSize = point;
+	m_ViewDeviceSize = point;
 
 	dbg_assert( md_InvalidateDrawLock == 0);
 	m_DoneGraphics.LimitDrawRegions(point); // limit rect if window becomes smaller
@@ -1489,12 +1489,12 @@ void DataView::SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf)
 	m_StatusTextCaller.m_Func   = stf;
 }
 
-void DataView::InvalidateRect(GRect rect)
+void DataView::InvalidateDeviceRect(GRect rect)
 {
 #if defined(MG_DEBUG)
 	CheckRgnLimits(rect);
 #endif
-	rect *= GetDIP2pixFactorXY();
+	rect *= GetScaleFactors();
 	::InvalidateRect(m_hWnd, &rect, true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
@@ -1576,7 +1576,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		.caption = caption,
 	};
 	if (m_Contents) 
-		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize()));
+		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
 
 	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
 	if (createStruct.hWnd)

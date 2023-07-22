@@ -664,11 +664,11 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (vp == GetViewPort())
 		m_GridCoord = drawGridCoords; // cache only if vp owns this GridLayer
 
-	drawGridCoords->Update(d.GetSubPixelFactor());
+	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
 
 	GRect bb = d.GetAbsClipRegion().BoundingBox();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
+	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalOffset(), d.GetSubPixelFactors());
 	GRect clippedRelRect = drawGridCoords->GetClippedRelRect();
 	clippedRelRect &= (bb - viewportOffset);
 	if (clippedRelRect.empty())

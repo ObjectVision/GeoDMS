@@ -232,7 +232,8 @@ bool ScaleBarObj::Draw(GraphDrawer& d) const
 {
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
 	dms_assert(IsUpdated());
-	return m_Impl.Draw(d.GetDC(), TRect2GRect(GetCurrClientRelRect() + d.GetClientOffset()));
+	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalOffset();
+	return m_Impl.Draw(d.GetDC(), TRect2GRect(absLogicalRect, GetScaleFactors()));
 }
 
 void ScaleBarObj::DoUpdateView()
@@ -241,7 +242,7 @@ void ScaleBarObj::DoUpdateView()
 	assert(m_Impl.GetViewPort()->IsUpdated());
 
 	auto dv = GetDataView().lock();
-	if (dv && m_Impl.DoUpdateViewImpl(dv->GetDIP2pixFactorXY()))
+	if (dv && m_Impl.DoUpdateViewImpl(dv->GetScaleFactors()))
 		InvalidateDraw();
 }
 
@@ -279,11 +280,12 @@ TPoint ScaleBarBase::GetSize(Float64 subPixelFactor) const
 	return TPoint(250 * subPixelFactor, 48 * subPixelFactor);
 }	
 
-TRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
+GRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
 {
-	TRect rect = owner->GetCurrClientAbsRect();
-	MakeMax(rect.first.first , rect.second.first  - subPixelFactors.first );
-	MakeMax(rect.first.second, rect.second.second - subPixelFactors.second);
+	GRect rect = owner->GetCurrClientAbsDeviceRect();
+	rect *=subPixelFactors;
+	MakeMax(rect.left, rect.right- subPixelFactors.first );
+	MakeMax(rect.top, rect.bottom - subPixelFactors.second);
 	return rect;
 }
 
@@ -295,9 +297,7 @@ void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize,
 
 void ScaleBarCaret::DetermineAndSetBoundingBox(CrdPoint scaleFactor)
 {
-	m_Rect = TRect2GRect( 
-		m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor)
-	);
+	m_Rect = m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor);
 }
 
 void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
@@ -314,6 +314,6 @@ void ScaleBarCaretOperator::operator() (AbstrCaret* c) const
 	if (!dv)
 		return;
 
-	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox(dv->GetDIP2pixFactorXY());
+	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox(dv->GetScaleFactors());
 	c->SetStartPoint(GPoint(0, 0) );
 }

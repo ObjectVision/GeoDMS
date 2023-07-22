@@ -120,7 +120,7 @@ private:
 ColumnHeaderDragger::ColumnHeaderDragger(DataView* owner, ColumnHeaderControl* target, GPoint origin)
 	:	DualPointCaretController(owner, new RectCaret, target, origin
 		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
-	,	m_HooverRect( owner->ViewRect() )
+	,	m_HooverRect( owner->ViewDeviceRect() )
 	,	m_Activated(false)
 {}
 
@@ -146,7 +146,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 		if (m_HooverObj && m_HooverObj != to)
 		{
 			m_Before = (m_HooverObj->ColumnNr() < debug_cast<ColumnHeaderControl*>(to.get())->ColumnNr());
-			m_HooverRect = TRect2GRect( m_HooverObj->GetCurrFullAbsRect() );
+			m_HooverRect = m_HooverObj->GetCurrFullAbsDeviceRect();
 //				m_HooverRect.second.Row() = m_HooverRect.first.Row() +  6;
 			if (m_Before)
 				MakeMin(m_HooverRect.right, m_HooverRect.left  + 12);
@@ -190,7 +190,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
 	{
-		if (GetControlRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
 		{
 			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
 			return true;
@@ -200,7 +200,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
-		if (GetControlRegion(mousePoint.x) != RG_MIDDLE)
+		if (GetControlDeviceRegion(mousePoint.x) != RG_MIDDLE)
 			return m_Dic->MouseEvent(med);
 
 		//	Controls for columnn ordering
@@ -208,7 +208,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		auto owner = GetOwner().lock(); if (!owner) return true;
 		medOwner->InsertController(
 			new TieCursorController(medOwner.get(), owner.get()
-			,	TRect2GRect(owner->GetCurrClientAbsRect())
+			,	owner->GetCurrClientAbsDeviceRect()
 			,	EID_MOUSEDRAG, EID_CLOSE_EVENTS
 			)
 		);
@@ -296,7 +296,7 @@ void TableHeaderControl::DoUpdateView()
 		}
 		columnHeader->SetText(dic->Caption());
 		auto headerSize = TPoint(
-			dic->CalcClientSize().x() + dic->GetBorderPixelExtents().Width() - columnHeader->GetBorderPixelExtents().Width()
+			dic->CalcClientSize().x() + dic->GetBorderLogicalExtents().Width() - columnHeader->GetBorderLogicalExtents().Width()
 			, DEF_TEXT_PIX_HEIGHT);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
@@ -314,12 +314,13 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		TType curX = med.GetEventInfo().m_Point.x;
+		auto sf = med.GetSubPixelFactors();
+		TType curX = med.GetEventInfo().m_Point.x / sf.first;
 		// find child that is left of position
 		for (UInt32 i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsRect().Right();
+			TType x = chc->GetCurrFullAbsLogicalRect().Right();
 			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
 			{
 				auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();

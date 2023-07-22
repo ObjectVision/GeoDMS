@@ -559,35 +559,36 @@ void ShadowRect(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
 	FillRectWithBrush(dc, GRect(rect.left, nextTop,  nextLeft, prevBottom), lightBrush );  // left vertical line
 }
 
-void DrawButtonBorder(HDC dc, GRect& clientRect)
+void DrawButtonBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, lightBrush, blackBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, lightBrush, blackBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, whiteBrush, shadowBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, whiteBrush, shadowBrush);
+	clientDeviceRect.Shrink(1);
 }
 
-void DrawReversedBorder(HDC dc, GRect& clientRect)
+void DrawReversedBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, blackBrush, lightBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, blackBrush, lightBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, shadowBrush, whiteBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, shadowBrush, whiteBrush);
+	clientDeviceRect.Shrink(1);
 }
+
 void DrawRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 {
 	GdiHandle<HBRUSH> brush(

@@ -215,9 +215,9 @@ void GraphicRect::AdjustTargetVieport()
 	}
 }
 
-GRect GraphicRect::GetBorderPixelExtents(CrdPoint subPixelFactors) const
+TRect GraphicRect::GetBorderLogicalExtents() const
 {
-	return GRect(-1, -1, 1, 1);  // max rounding error without considering orientation
+	return TRect(-1, -1, 1, 1);  // max rounding error without considering orientation
 }
 
 bool GraphicRect::MouseEvent(MouseEventDispatcher& med)
@@ -358,14 +358,14 @@ bool GraphicRect::Draw(GraphDrawer& d) const
 	auto wr= CalcWorldClientRect();
 	CrdRect cr = d.GetWorldClipRect();
 
-//	TRect sr = Convert<TRect>( d.GetTransformation().Apply(wr & cr) );
-	GRect clientRect = GetClippedCurrFullAbsRect(d);
+	GRect clientRect = GetClippedCurrFullAbsDeviceRect(d);
 
 	if (!DrawRect(d, wr, cr, clientRect))
 		return false;
-	DrawRect(d, m_ROI, cr, 
-			TRect2GRect( Convert<TRect>(d.GetTransformation().Apply(m_ROI)) + TRect(-1,-1, 1, 1) )
-	); 
+	auto deviceROI = DRect2GRect(m_ROI, d.GetTransformation());
+	deviceROI += TRect2GRect(TRect(-1, -1, 1, 1), d.GetSubPixelFactors());
+
+	DrawRect(d, m_ROI, cr, deviceROI); 
 
 	return false;
 }

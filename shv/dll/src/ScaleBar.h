@@ -52,7 +52,7 @@ public:
 	const ViewPort* GetViewPort() const { return m_ViewPort; }
 
 	TPoint GetSize(Float64 subPixelFactor) const;
-	TRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
+	GRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
 
 protected: 
 	const ViewPort*  m_ViewPort = nullptr;

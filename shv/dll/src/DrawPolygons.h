@@ -58,7 +58,7 @@ void fillPointBuffer(pointBuffer_t& buf, PI ii, PI ie, CrdTransformation transfo
 	pointBuffer_t::iterator 
 		bi = buf.begin();
 	for(;ii!=ie; ++ii, ++bi)
-		*bi = DPoint2GPoint( transformer.Apply(*ii) );
+		*bi = DPoint2GPoint(*ii, transformer);
 }
 
 inline void CorrectHatchStyle(Int32& hatchStyle)

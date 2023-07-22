@@ -92,12 +92,12 @@ struct TPoint : Point<TType> //: POINT
 	TType& x() { return first;  }
 	TType& y() { return second; }
 
-	void operator -=(TPoint rhs)       { first -= rhs.first; second -= rhs.second; }
-	void operator +=(TPoint rhs)       { first += rhs.first; second += rhs.second; }
-	void operator *=(TPoint rhs)       { first *= rhs.first; second *= rhs.second; }
+//	void operator -=(TPoint rhs)       { first -= rhs.first; second -= rhs.second; }
+//	void operator +=(TPoint rhs)       { first += rhs.first; second += rhs.second; }
+//	void operator *=(TPoint rhs)       { first *= rhs.first; second *= rhs.second; }
 
-	bool operator ==(TPoint rhs) const { return first == rhs.first && second == rhs.second; }
-	bool operator !=(TPoint rhs) const { return first != rhs.first || second != rhs.second; }
+//	bool operator ==(TPoint rhs) const { return first == rhs.first && second == rhs.second; }
+//	bool operator !=(TPoint rhs) const { return first != rhs.first || second != rhs.second; }
 	bool IsSingular() const { return !first || !second; }
 };
 
@@ -354,11 +354,12 @@ struct TRect : Range<TPoint>
 	TType  Width () const { return Right () - Left(); }
 	TType  Height() const { return Bottom() - Top (); }
 
-	void operator |=(const TRect& rhs) 
+	void operator |=(const Range<TPoint>& rhs) 
 	{
 		MakeLowerBound(first,  rhs.first );
 		MakeUpperBound(second, rhs.second);
 	}
+
 	void Shrink(const TPoint& delta) 
 	{
 		first  += delta;
@@ -400,27 +401,31 @@ inline void operator &=(GRect& clipRect, const TRect& rhs)
 }
 
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GPoint TPoint2GPoint(const TPoint& src) { return GPoint(TType2GType  (src.first), TType2GType  (src.second)); }
-inline GRect  TRect2GRect  (const TRect & src) { return GRect (TPoint2GPoint(src.first), TPoint2GPoint(src.second)); }
+inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.first)*sf.first, TType2GType(src.second)*sf.second); }
+inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
-template <typename T> inline GPoint Point2GPoint(Point<T> src) { return GPoint(src.X(), src.Y()); }
+template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X()*sf.first, src.Y()*sf.second); }
 template <typename T> inline TPoint Point2TPoint(Point<T> src) { return TPoint(src.X(), src.Y()); }
-template <typename P> inline GRect  Rect2GRect  (Range<P> src) { return GRect(Point2GPoint(src.first), Point2GPoint(src.second)); }
+template <typename P> inline GRect  Rect2GRect  (Range<P> src, CrdPoint sf) { return GRect(Point2GPoint(src.first, sf), Point2GPoint(src.second, sf)); }
 template <typename P> inline TRect  Rect2TRect  (Range<P> src) { return TRect(Point2TPoint(src.first), Point2TPoint(src.second)); }
 
 
-inline GPoint DPoint2GPoint(const DPoint& src) { IPoint tmp = Round<4>(src); return Point2GPoint(tmp); }
-inline GRect  DRect2GRect(const DRect & src) 
+inline GPoint DPoint2GPoint(DPoint src, const CrdTransformation& self) { self.InplApply(src); IPoint tmp = Round<4>(src); return GPoint(tmp.first, tmp.second); }
+inline GRect  DRect2GRect(DRect src, const CrdTransformation& self)
 { 
+	self.InplApply(src);
 	Range<IPoint> tmp = RoundEnclosing<4>(src);
-	return Rect2GRect(tmp);
+	return GRect(GPoint(tmp.first.first, tmp.first.second), GPoint(tmp.second.first, tmp.second.second));
 }
 
-inline TRect  DRect2TRect(const DRect & src) 
-{ 
+inline TRect DRect2TRect(const DRect& src)
+{
 	Range<Point<Int64> > tmp = RoundEnclosing<8>(src);
 	return Rect2TRect(tmp);
 }
+
+inline GPoint Apply(const CrdTransformation& self, TPoint p) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint( dp.first, dp.second ); }
+inline GRect Apply(const CrdTransformation& self, const TRect& r) { return GRect(Apply(self, r.first), Apply(self, r.second)); }
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 GPoint Convert4(const Point<T>& pnt, const GPoint*, const ExceptFunc* ef, const ConvertFunc*)

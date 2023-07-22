@@ -150,7 +150,7 @@ void CounterStacks::LimitDrawRegions(const GPoint& maxSize)
 	dbg_assert(IsOK()); // let op: MustBreak check counter values van NextStack kan wellicht gemist worden wegens scherpere clipping
 }
 
-void CounterStacks::Scroll(GPoint delta, const GRect& scrollRect, const GRect& clipRect)
+void CounterStacks::ScrollDevice(GPoint delta, const GRect& scrollRect, const GRect& clipRect)
 {
 	DBG_START("CounterStacks", "Scroll", MG_DEBUG_COUNTERSTACKS);
 
@@ -175,7 +175,7 @@ void CounterStacks::Scroll(GPoint delta, const GRect& scrollRect, const GRect& c
 			increment_or_remove(stackPtr, stackEnd);
 			break;
 		}
-		drawRegion.Scroll(delta, scrollRect, scrollClipRgn);
+		drawRegion.ScrollDevice(delta, scrollRect, scrollClipRgn);
 		if (drawRegion.Empty())
 		{
 			cutoff_stacks(stackPtr);

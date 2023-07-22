@@ -221,7 +221,7 @@ void EditPaletteControl::Init()
 
 	auto dv = GetDataView().lock();
 	if (dv)
-		SetClientSize(TPoint(dv->ViewRect().Size()));
+		SetClientSize(TPoint(dv->ViewLogicalRect().Size()));
 }
 
 void EditPaletteControl::ProcessSize(TPoint viewClientSize)
@@ -231,10 +231,10 @@ void EditPaletteControl::ProcessSize(TPoint viewClientSize)
 
 	TRect clientRect = TRect(TPoint(0,0), viewClientSize);
 
-	m_txtDomain        ->MoveTo(TPoint(0, BORDERSIZE));
-	m_PaletteButton->MoveTo(TPoint(BORDERSIZE, 0) + m_txtDomain        ->GetCurrClientRelRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
-	m_txtNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelRect().TopRight());
-	m_numNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_txtNrClasses     ->GetCurrClientRelRect().TopRight());
+	m_txtDomain    ->MoveTo(TPoint(0, BORDERSIZE));
+	m_PaletteButton->MoveTo(TPoint(BORDERSIZE, 0) + m_txtDomain        ->GetCurrClientRelLogicalRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
+	m_txtNrClasses ->MoveTo(TPoint(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelLogicalRect().TopRight());
+	m_numNrClasses ->MoveTo(TPoint(BORDERSIZE, 0) + m_txtNrClasses     ->GetCurrClientRelLogicalRect().TopRight());
 
 
 	clientRect.Top   () += editPaletteButtonClientSize.y() + 3*BORDERSIZE;
@@ -246,8 +246,8 @@ void EditPaletteControl::ProcessSize(TPoint viewClientSize)
 	if (clientRect.Left () < clientRect.Right()) ++clientRect.Left ();
 	if (clientRect.Left () < clientRect.Right()) --clientRect.Right();
 
-	m_Line1            ->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
-	m_Line2            ->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
+	m_Line1->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
+	m_Line2->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
 
 	clientRect.Top   () += BORDERSIZE;
 	clientRect.Bottom() -= BORDERSIZE; 
@@ -259,7 +259,7 @@ void EditPaletteControl::ProcessSize(TPoint viewClientSize)
 	if (clientRect.Left () > 0                 ) --clientRect.Left ();
 	if (clientRect.Right() < viewClientSize.x()) ++clientRect.Right();
 
-	m_TableView       ->SetClientRect(clientRect);
+	m_TableView->SetClientRect(clientRect);
 }
 
 void EditPaletteControl::DoUpdateView() 

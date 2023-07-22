@@ -176,13 +176,13 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 }
 
 //----------------------------------------------------------------------
-// AddClientOffset
+// AddClientLogicalOffset
 //----------------------------------------------------------------------
 
 
 
-AddClientOffset::AddClientOffset(GraphVisitor* v, TPoint c2p)
-	:	tmp_swapper<TPoint>(v->m_ClientOffset, v->m_ClientOffset + v->GetDeviceSize(c2p))
+AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, TPoint c2p)
+	:	tmp_swapper<TPoint>(v->m_ClientLogicalOffset, v->m_ClientLogicalOffset + c2p)
 {
 }
 
@@ -190,8 +190,8 @@ AddClientOffset::AddClientOffset(GraphVisitor* v, TPoint c2p)
 // VistorRectSelector
 //----------------------------------------------------------------------
 
-VisitorRectSelector::VisitorRectSelector(GraphVisitor* v, const GRect& objRect)
-	:	ClipRectSelector(v->m_ClipRect, objRect)
+VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, const GRect& objRect)
+	:	ClipDeviceRectSelector(v->m_ClipDeviceRect, objRect)
 {
 }
 

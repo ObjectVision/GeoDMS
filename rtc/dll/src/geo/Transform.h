@@ -134,7 +134,7 @@ public:
 	template <typename P> Range<P> Reverse(const Range<P>& r) const { return Range<P>(Reverse(r.first), Reverse(r.second));}
 
 //	Inplace Apply operators (that modify their arguments)
-	template <typename F> void  InplApply  (Point<F>& p) const { p *= m_Factor; p += m_Offset;   }
+	template <typename F> void  InplApply  (Point<F>& p) const { p *= m_Factor; p += m_Offset; }
 	template <typename F> void  InplReverse(Point<F>& p) const { dms_assert(!IsSingular()); p -= m_Offset; p /= m_Factor; }
 	template <typename P> void  InplApply  (Range<P>& r) const { InplApply  (r.first); InplApply  (r.second); MakeBounds(r.first, r.second); }
 	template <typename P >void  InplReverse(Range<P>& r) const { InplReverse(r.first); InplReverse(r.second); MakeBounds(r.first, r.second); }
@@ -197,7 +197,7 @@ public:
 	area_type         FactorProd()  const { return m_Factor.first * m_Factor.second; }
 	bool              IsSingular()  const { return m_Factor.first == 0 || m_Factor.second == 0; }
 	Float64           ZoomLevel()   const { return Abs(m_Factor.first); }
-	point_type        V2WFactor()   const { dms_assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
+	point_type        V2WFactor()   const { assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
 	const point_type& Offset()      const { return m_Offset; }
 	OrientationType   Orientation() const 
 	{
@@ -227,12 +227,11 @@ FormattedOutStream& operator << (FormattedOutStream& os, const Transformation<T>
 	return os;
 }
 
+using CrdType =  Float64;
+using CrdPoint = Point<CrdType>;
+using CrdRect =  Range<CrdPoint>         ;
+using CrdTransformation = Transformation<CrdType>;
 
-
-typedef Float64                 CrdType;
-typedef Point<CrdType>          CrdPoint;
-typedef Range<CrdPoint>         CrdRect;
-typedef Transformation<CrdType> CrdTransformation;
 inline CrdRect GetDefaultCrdRect() { return CrdRect(0.001*MinValue<CrdPoint>(), 0.001*MaxValue<CrdPoint>()); }
 
 #endif // __RTC_GEO_TRANSFORM_H

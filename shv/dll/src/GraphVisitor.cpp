@@ -132,7 +132,7 @@ GraphVisitState AbstrVisitor::DoVarCols   (GraphicVarCols*   goc) { return DoMov
 GraphVisitState AbstrVisitor::DoScalable  (ScalableObject*   obj) { return DoObject(obj); }
 
 GraphVisitState AbstrVisitor::DoDataItemColumn(DataItemColumn* dic)  { return DoMovable(dic); }
-void  AbstrVisitor::DoElement       (DataItemColumn* dic, SizeT i, const GRect& absElemRect) { }
+void  AbstrVisitor::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) { }
 
 GraphVisitState AbstrVisitor::DoWrapper(Wrapper* obj)
 {
@@ -183,9 +183,9 @@ bool AbstrVisitor::MustBreak() const
 // GraphVisitor members
 //----------------------------------------------------------------------
 
-GraphVisitor::GraphVisitor(const GRect& clipRect, DPoint scaleFactors)
-	:	m_ClipRect(clipRect)
-	,	m_ClientOffset(0, 0)
+GraphVisitor::GraphVisitor(const GRect& clipDeviceRect, DPoint scaleFactors)
+	:	m_ClipDeviceRect(clipDeviceRect)
+	,	m_ClientLogicalOffset(0, 0)
 	,	m_Transformation(CrdPoint(0, 0), scaleFactors)
 	,	m_SubPixelFactors(scaleFactors)
 {}
@@ -194,7 +194,7 @@ GraphVisitState GraphVisitor::Visit(GraphicObject* obj)
 {
 	DBG_START(typeid(*this).name(), "Visit", MG_DEBUG_VIEWINVALIDATE);
 	DBG_TRACE(("%s %x: %x", obj->GetDynamicClass()->GetName().c_str(), obj, &*(obj->GetOwner().lock())));
-	DBG_TRACE(("Cliprect     : %s", AsString(m_ClipRect).c_str()));
+	DBG_TRACE(("Cliprect     : %s", AsString(m_ClipDeviceRect).c_str()));
 
 	assert(obj);
 	assert(obj->AllVisible());
@@ -228,7 +228,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 
 	ResumableCounter counter( GetCounterStacks(), false); if (counter.MustBreakOrSuspend()) return GVS_Break;
 	{
-		AddClientOffset localBase(this, gc->GetCurrClientRelPos());
+		AddClientLogicalOffset localBase(this, gc->GetCurrClientRelPos());
 
 		while (counter < n)
 		{
@@ -238,7 +238,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 				goto nextEntry;
 			else
 			{	
-				if (gEntry->GetClippedCurrFullAbsRect(*this).empty())
+				if (gEntry->GetClippedCurrFullAbsDeviceRect(*this).empty())
 					goto nextEntry;
 			}
 			if (Visit(gEntry))
@@ -279,8 +279,7 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 			goto nextEntry;
 		else
 		{	
-//			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
-			if (gEntry->GetClippedCurrFullAbsRect(*this).empty() && gEntry->HasDefinedExtent())
+			if (gEntry->GetClippedCurrFullAbsDeviceRect(*this).empty() && gEntry->HasDefinedExtent())
 				goto nextEntry;
 		}
 		if (Visit(gEntry) != GVS_Continue)
@@ -306,7 +305,8 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		return GVS_Continue;
 
 	{
-		AddClientOffset localBase(this, dic->GetCurrClientRelPos());
+		auto sf = GetSubPixelFactors();
+		AddClientLogicalOffset localBase(this, dic->GetCurrClientRelPos());
 		GPoint elemSize = dic->ElemSize();
 		if (dic->HasElemBorder())
 		{
@@ -314,38 +314,39 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 			elemSize.y += 2*BORDERSIZE;
 		}
 
-		CrdType rowDelta = (elemSize.y + dic->RowSepHeight()) * GetSubPixelFactors().second;
+		TType rowLogicalDelta = (elemSize.y + dic->RowSepHeight());
+		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
+		CrdType clientDeviceRow = m_ClientLogicalOffset.y() * sf.second;
 
-		SizeT firstRecNo = (m_ClipRect.Top() > m_ClientOffset.y())
-			?	(m_ClipRect.Top() - m_ClientOffset.y()) / rowDelta
+		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
+			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
 			:	0;
 
 		dms_assert(!SuspendTrigger::DidSuspend());
 		ResumableCounter counter(GetCounterStacks(), true);
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
-			currRow    = recNo * rowDelta + dic->RowSepHeight() * GetSubPixelFactors().second,
-			clipEndRow = m_ClipRect.Bottom() - m_ClientOffset.y(); // in device pixel units
+			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
+			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalOffset.y(); // in device pixel units
 
 		while ( recNo < n && currRow < clipEndRow)
 		{
 			dms_assert(!SuspendTrigger::DidSuspend());
-			AddClientOffset localRowBase(this, TPoint(0, currRow));
+			AddClientLogicalOffset localRowBase(this, TPoint(0, currRow));
 
-			GRect absElemRect = GRect(TPoint2GPoint(m_ClientOffset), TPoint2GPoint(m_ClientOffset + TPoint(elemSize)) );
-			absElemRect *= GetSubPixelFactors();
-			VisitorRectSelector clipper(this, absElemRect );
+			auto  absElemDeviceRect = GRect(TPoint2GPoint(m_ClientLogicalOffset, sf), TPoint2GPoint(m_ClientLogicalOffset + TPoint(elemSize), sf) );
+			VisitorDeviceRectSelector clipper(this, absElemDeviceRect );
 
 			assert(!SuspendTrigger::DidSuspend());
 			if (!clipper.empty())
-				DoElement(dic, recNo, absElemRect);
+				DoElement(dic, recNo, absElemDeviceRect);
 			if (SuspendTrigger::DidSuspend())
 				return GraphVisitState::GVS_Break;
 
 			++recNo;
 			++counter; 
 
-			currRow += rowDelta;
+			currRow += rowLogicalDelta;
 		}
 		counter.Close();
 	}
@@ -357,16 +358,16 @@ GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 	dms_assert(vp);
 	if (vp->GetWorldCrdUnit())
 	{
-		auto vpRect = TRect2GRect( m_Transformation.Apply(vp->GetCurrClientRelRect() + m_ClientOffset) );
-		VisitorRectSelector clipper(this, vpRect);
+		auto vpRect = Apply(m_Transformation, vp->GetCurrClientRelLogicalRect() );
+		VisitorDeviceRectSelector clipper(this, vpRect);
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientOffset viewportOffset(this, vp->GetCurrClientRelPos());
+		AddClientLogicalOffset viewportOffset(this, vp->GetCurrClientRelPos());
 		assert(!HasCounterStacks() || vp->IsUpdated());
 		AddTransformation transformHolder(
 			this
-		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientOffset)
+		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientLogicalOffset)
 		);
 
 		if (Visit(vp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
@@ -381,13 +382,13 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 	{
 		DBG_START("GraphVisitor", "DoScrollPort", MG_DEBUG_VIEWINVALIDATE);
 
-		VisitorRectSelector clipper( this, TRect2GRect( sp->GetCurrNettAbsRect(*this) ) );
+		VisitorDeviceRectSelector clipper( this, Apply(m_Transformation, sp->GetCurrNettRelLogicalRect()) );
 		DBG_TRACE(("clipperEmpty: %d", clipper.empty()));
 
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientOffset localOffset(this, sp->GetCurrClientRelPos());
+		AddClientLogicalOffset localOffset(this, sp->GetCurrClientRelPos());
 
 		if (Visit(sp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
 			return GVS_Handled;
@@ -397,12 +398,17 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 
 CrdRect GraphVisitor::GetWorldClipRect() const
 {
-	return m_Transformation.Reverse(Convert<CrdRect>( GetAbsClipRect() ) ); 
+	return m_Transformation.Reverse(Convert<CrdRect>( GetAbsClipDeviceRect() ) ); 
 }
 
-TPoint GraphVisitor::GetDeviceSize(TPoint relPoint) const
+GPoint GraphVisitor::GetDeviceSize(TPoint relPoint) const
 {
-	return TPoint(relPoint.first * m_SubPixelFactors.first, relPoint.second * m_SubPixelFactors.second );
+	return GPoint(relPoint.first * m_SubPixelFactors.first, relPoint.second * m_SubPixelFactors.second );
+}
+
+TPoint GraphVisitor::GetLogicalSize(GPoint devicePoint) const
+{
+	return TPoint(devicePoint.x / m_SubPixelFactors.first, devicePoint.y / m_SubPixelFactors.second);
 }
 
 CrdPoint GraphVisitor::GetSubPixelFactors() const
@@ -426,7 +432,7 @@ GraphObjLocator::GraphObjLocator(GPoint pnt, CrdPoint scaleFactor)
 MovableObject* GraphObjLocator::Locate(DataView* dv, GPoint pnt)
 {
 	assert(dv);
-	GraphObjLocator locator(pnt, dv->GetDIP2pixFactorXY());
+	GraphObjLocator locator(pnt, dv->GetScaleFactors());
 	locator.Visit(dv->GetContents().get());
 	return locator.m_TheOne.lock().get();
 }
@@ -479,7 +485,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 {
 	DBG_START("GraphDrawer", "Visit", MG_DEBUG_VIEWINVALIDATE);
 	DBG_TRACE(("%s %x: %x", go->GetDynamicClass()->GetName().c_str(), go, &*(go->GetOwner().lock())));
-	DBG_TRACE(("ClipRect     : %s", AsString(m_ClipRect).c_str()));
+	DBG_TRACE(("ClipRect     : %s", AsString(m_ClipDeviceRect).c_str()));
 
 	bool suspendible = IsSuspendible();
 
@@ -504,15 +510,15 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	GRect absFullRect = TRect2GRect(go->GetCurrFullAbsRect(*this));
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
+	GRect absFullRect = TRect2GRect(go->CalcFullAbsLogicalRect(*this), GetSubPixelFactors());
+	assert(!SuspendTrigger::DidSuspend());
+	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
 
 	bool hasDefinedExtent = go->HasDefinedExtent();
 	if (absFullRect.empty() && hasDefinedExtent)
 		return GVS_Continue;
 
-	VisitorRectSelector clipper(this, absFullRect);
+	VisitorDeviceRectSelector clipper(this, absFullRect);
 	if (clipper.empty() && hasDefinedExtent)
 		return GVS_Continue;
 
@@ -522,7 +528,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 		dms_assert(!owner || owner->IsDrawn());
 
 		// CLIP ON ANCHESTORS BOUNDARIES, BUT NOT ON OnPaint Areas. 
-		GRect ownerRect = owner ? owner->GetDrawnNettAbsRect() : m_ViewPtr->ViewRect();
+		GRect ownerRect = owner ? owner->GetDrawnNettAbsDeviceRect() : m_ViewPtr->ViewDeviceRect();
 		if (hasDefinedExtent)
 			ownerRect &= absFullRect;
 
@@ -533,11 +539,11 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 
 	if ( (DoDrawData() && go->MustClip()) || (DoDrawBackground() && go->MustFill()))
 	{
-		dms_assert(hasDefinedExtent); // implied by go->MustClip() ?
+		assert(hasDefinedExtent); // implied by go->MustClip() ?
 		if (clipper.empty())
 			return GVS_Continue;
 
-		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipRect);
+		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipDeviceRect);
 
 		if (clipRegionSelector.empty())
 			return GVS_Continue; // processing completed
@@ -580,9 +586,8 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 
 	if (obj->HasBorder() && DoDrawBackground())
 	{
-		auto extents = obj->GetCurrFullAbsRect(*this);
-		extents *= m_Transformation.Factor();
-		auto gExtents = TRect2GRect(extents);
+		auto extents = obj->GetCurrFullRelLogicalRect();
+		auto gExtents = Apply(m_Transformation, extents);
 
 		DrawBorder(GetDC(), gExtents, obj->RevBorder());
 	}
@@ -662,10 +667,10 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	return base_type::DoDataItemColumn(dic);
 }
 
-void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemRect)
+void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)
 {
 	dms_assert(DoDrawData());
-	dic->DrawElement(*this, i, absElemRect, m_TileLocks);
+	dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 
 GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
@@ -707,8 +712,8 @@ GraphVisitState GraphInvalidator::Visit(GraphicObject* go)
 // class  : GraphUpdater
 //----------------------------------------------------------------------
 
-GraphUpdater::GraphUpdater(const GRect& clipRect, CrdPoint subPixelFactors)
-	:	GraphVisitor(clipRect, subPixelFactors) 
+GraphUpdater::GraphUpdater(const GRect& clipDeviceRect, CrdPoint subPixelFactors)
+	:	GraphVisitor(clipDeviceRect, subPixelFactors) 
 {}
 
 GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
@@ -787,7 +792,7 @@ revisit:
 #include "MouseEventDispatcher.h"
 
 MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
-:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), owner->GetDIP2pixFactorXY() )
+:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), owner->GetScaleFactors() )
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {

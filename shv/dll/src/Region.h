@@ -55,7 +55,7 @@ struct Region
 	explicit Region(HWND hWnd);
 	explicit Region(GPoint size);
 	explicit Region(const GRect&  rect);
-	explicit Region(HDC hdc, const TRect& rect);
+	explicit Region(HDC hdc, const GRect& rect);
 	explicit Region(HDC hdc, HWND hWnd);
 
 	Region(Region&& src) noexcept; // Move ctor
@@ -91,7 +91,7 @@ struct Region
 	bool operator !=(const Region& rhs) const { return !operator ==(rhs); }
 	bool Empty() const;
 
-	void Scroll(GPoint delta, const GRect& scrollRect, const Region& scrollClipRgn);
+	void ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& scrollClipRgn);
 
 	void FillRectArray(RectArray& ra) const;
 	SharedStr AsString() const;

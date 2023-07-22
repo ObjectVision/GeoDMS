@@ -96,8 +96,8 @@ void TableViewControl::ProcessSize(TPoint newSize)
 
 	m_TableHeaderPort->SetClientRect( TRect( TPoint(0, 0), TPoint(newSize.x(), headerHeight)) );
 	m_TableScrollPort->SetClientRect( TRect( TPoint(0, headerHeight), newSize) );
-	dms_assert(IsIncluding(GetCurrFullAbsRect(),  m_TableHeaderPort->GetCurrFullAbsRect()));
-	dms_assert(IsIncluding(GetCurrFullAbsRect(),  m_TableScrollPort->GetCurrFullAbsRect()));
+	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableHeaderPort->GetCurrFullAbsLogicalRect()));
+	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableScrollPort->GetCurrFullAbsLogicalRect()));
 
 	if (m_TableControl)
 		m_TableControl->ShowActiveCell();
@@ -131,7 +131,7 @@ TPoint TableViewControl::CalcMaxSize() const
 	return ConcatVertical(
 		m_TableHeaderPort->CalcMaxSize(),
 		m_TableScrollPort->CalcMaxSize()
-	)	+	TPoint(GetBorderPixelExtents().Size())
+	)	+	GetBorderLogicalExtents().Size()
 	;
 }
 
@@ -139,12 +139,12 @@ void TableViewControl::OnTableScrolled()
 {
 	m_TableHeaderPort->SetClientSize(
 		TPoint(
-			m_TableScrollPort->GetCurrNettSize().x(),
+			m_TableScrollPort->GetCurrNettLogicalSize().x(),
 			m_TableHeaderPort->GetCurrClientSize().y()
 		)
 	);
 
-	m_TableHeaderPort->ScrollTo(TPoint(m_TableControl->GetCurrClientRelPos().x(), 0) );
+	m_TableHeaderPort->ScrollLogicalTo(TPoint(m_TableControl->GetCurrClientRelPos().x(), 0) );
 }
 
 IMPL_RTTI_CLASS(TableViewControl)

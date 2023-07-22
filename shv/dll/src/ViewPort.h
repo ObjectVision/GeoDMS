@@ -102,8 +102,9 @@ public:
 	void ZoomOut1();
 	ExportInfo GetExportInfo();
 	void Export();
-	void Scroll(const GPoint& delta);
-	void InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const;
+	void ScrollDevice(GPoint delta);
+	void ScrollLogical(TPoint delta) { ScrollDevice(TPoint2GPoint(delta, GetScaleFactors())); }
+	void InvalidateWorldRect(const CrdRect& rect, const TRect& borderExtents) const;
 
 	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);

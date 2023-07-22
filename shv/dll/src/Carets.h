@@ -168,13 +168,13 @@ class MovableRectCaret : public InvertRgnCaret
 	typedef InvertRgnCaret base_type;
 
 public:
-	MovableRectCaret(const TRect& objRect);
+	MovableRectCaret(const GRect& objRect);
 
 	void GetRgn(Region& rgn, HDC dc) const override;
 
 private:
-	TRect m_ObjRect;
-	TRect m_SubRect;
+	GRect m_ObjRect;
+	GRect m_SubRect;
 };
 
 //----------------------------------------------------------------------

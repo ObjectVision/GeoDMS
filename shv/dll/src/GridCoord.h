@@ -40,9 +40,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/Pair.h"
 #include "ptr/SharedBase.h"
 
-typedef UInt32 grid_rowcol_id;
-typedef UInt32 view_rowcol_id;
-typedef std::vector<grid_rowcol_id> grid_coord_array;
+using grid_rowcol_id = UInt32 ;
+using view_rowcol_id = UInt32;
+using grid_coord_array = std::vector<grid_rowcol_id>;
 
 //----------------------------------------------------------------------
 // class  : GridCoordInfo
@@ -56,7 +56,8 @@ struct GridCoord : public std::enable_shared_from_this<GridCoord>
 	void Init(GPoint clientSize, const CrdTransformation& w2vTr);
 
 	void OnScroll(const GPoint& delta);
-	void Update(Float64 subPixelFactor);
+	void UpdateToScale(CrdPoint subPixelFactors);
+	void UpdateUnscaled() { UpdateToScale(CrdPoint(1.0, 1.0)); }
 
 	bool Empty  () const;
 	bool IsDirty() const { return m_IsDirty; }
@@ -96,7 +97,7 @@ private:
 	CrdPoint                   m_GridOrigin;
 	CrdPoint                   m_GridCellSize;
 	OrientationType            m_Orientation;
-	CrdType                    m_SubPixelFactor;
+	CrdPoint                   m_SubPixelFactors;
 	grid_coord_array           m_GridRows,  m_GridCols;
 	grid_coord_array           m_LinedRows, m_LinedCols;
 

@@ -279,18 +279,18 @@ void RectCaret::GetRgn(Region& rgn, HDC dc) const
 // class  : MovableRectCaret
 //----------------------------------------------------------------------
 
-MovableRectCaret::MovableRectCaret(const TRect& objRect)
+MovableRectCaret::MovableRectCaret(const GRect& objRect)
 	:	m_ObjRect(objRect)
 {
 	if (m_ObjRect.Width() > 4 && m_ObjRect.Height() > 4)
-		m_SubRect = TRect(m_ObjRect.Left()+2, m_ObjRect.Top()+2, m_ObjRect.Right()-2, m_ObjRect.Bottom()-2);
+		m_SubRect = GRect(m_ObjRect.Left()+2, m_ObjRect.Top()+2, m_ObjRect.Right()-2, m_ObjRect.Bottom()-2);
 }
 
 void MovableRectCaret::GetRgn(Region& rgn, HDC dc) const
 {
 	if (m_StartPoint != m_EndPoint)
 	{
-		TPoint diff = TPoint(m_EndPoint) - TPoint(m_StartPoint);
+		GPoint diff = GPoint(m_EndPoint) - GPoint(m_StartPoint);
 		rgn = Region(dc, m_ObjRect + diff );
 		if (!m_SubRect.empty())
 			rgn ^= Region(dc, m_SubRect + diff );
@@ -304,7 +304,7 @@ void MovableRectCaret::GetRgn(Region& rgn, HDC dc) const
 #include "MovableObject.h"
 
 BoundaryCaret::BoundaryCaret(MovableObject* obj)
-	:	MovableRectCaret(obj->GetCurrClientAbsRect())
+	:	MovableRectCaret(obj->GetCurrClientAbsDeviceRect())
 {}
 
 //----------------------------------------------------------------------

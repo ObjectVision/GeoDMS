@@ -93,7 +93,7 @@ public:
 
 	const GPoint& ElemSize()     const { return m_ElemSize; }
 	UInt32        RowSepHeight() const;
-	void          DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemRect, GuiReadLockPair& locks) const;
+	void          DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemDeviceRect, GuiReadLockPair& locks) const;
 
 	void  SetActiveRow(SizeT row);
 	SizeT GetActiveRow() const { return m_ActiveRow; }
@@ -164,7 +164,7 @@ private:
 
 	void UpdateTheme();
 
-	TRect GetElemFullRelRect  ( SizeT rowNr) const;
+	TRect GetElemFullRelLogicalRect( SizeT rowNr) const;
 	void  SetFocusRect();
 	DataItemColumn* GetPrevControl();
 

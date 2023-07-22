@@ -160,9 +160,15 @@ public:
 					auto arg1Data = const_array_cast<T>(arg1A)->GetTile(at);
 					typename Unit<E>::range_t arg1TileRange = inviter->GetTileRange(at);
 					typename Unit<T>::range_t valueRange;
-					if (rt_n > 1)
+					if constexpr (is_bitvalue_v<T>)
 					{
-						valueRange = Unit<T>::range_t(arg1Data.begin(), arg1Data.end(), dcm != DCM_None, true);
+						assert(rt_n == 1);
+//						valueRange = Unit<T>::range_t(0, 1 << nrbits_of<T>);
+					}
+					else
+					{
+						if (rt_n > 1)
+							valueRange = Unit<T>::range_t(arg1Data.begin(), arg1Data.end(), dcm != DCM_None, true);
 					}
 					DataCheckMode dcm2 = IsIncluding(arg1TileRange, entityRange) ? dcm: DCM_CheckRange;
 

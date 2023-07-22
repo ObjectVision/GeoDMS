@@ -350,7 +350,7 @@ void DataItemColumn::MakeVisibleRow()
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
 
-	TRect elemRect = GetElemFullRelRect(GetActiveRow());
+	TRect elemRect = GetElemFullRelLogicalRect(GetActiveRow());
 	TPoint border  = TPoint(tc->ColSepWidth(), RowSepHeight());
 	std::shared_ptr<MovableObject> obj = shared_from_this();
 	do
@@ -360,11 +360,11 @@ void DataItemColumn::MakeVisibleRow()
 		ScrollPort* sp = dynamic_cast< ScrollPort* > ( obj.get());
 		if (sp)
 		{
-			sp->MakeVisible(elemRect, border);
+			sp->MakeLogicalRectVisible(elemRect, border);
 			break;
 		}
 		elemRect += obj->GetCurrClientRelPos();
-		dms_assert( IsIncluding(obj->GetCurrClientRelRect(), elemRect));
+		dms_assert( IsIncluding(obj->GetCurrClientRelLogicalRect(), elemRect));
 
 		obj = obj->GetOwner().lock();
 	} while (obj);
@@ -481,17 +481,18 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 
-	GRect  absFullRect = GetClippedCurrFullAbsRect(d); 
+	GRect  absFullRect = GetClippedCurrFullAbsDeviceRect(d); 
 	absFullRect.left = absFullRect.left * scaleFactor.first;
 	absFullRect.right = absFullRect.right * scaleFactor.first;
 	GType  rowDelta    = ElemSize().y + rowSep;
 	if (HasElemBorder())
 		rowDelta += 2*BORDERSIZE;
 
-	TType clientOffsetRow = d.GetClientOffset().y();
-	GType pageClipRectRow = d.GetAbsClipRect().Top();
-	SizeT recNo = (pageClipRectRow > clientOffsetRow)
-		?	(pageClipRectRow - clientOffsetRow) / rowDelta
+	TType clientLogicalOffsetRow = d.GetClientLogicalOffset().y();
+	CrdType clientDeviceOffsetRow = clientLogicalOffsetRow * scaleFactor.second;
+	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
+	SizeT recNo = (pageClipRectRow > clientDeviceOffsetRow)
+		?	(pageClipRectRow - clientDeviceOffsetRow) / (rowDelta * scaleFactor.second)
 		:	0;
 
 	if (recNo > n)
@@ -505,8 +506,8 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, n-1)))));
 	}
-	TType currRow    = TType(recNo) * rowDelta + d.GetClientOffset().y();
-	GType clipEndRow = d.GetAbsClipRect().Bottom();
+	TType currRow    = TType(recNo) * rowDelta + d.GetClientLogicalOffset().y();
+	GType clipEndRow = d.GetAbsClipDeviceRect().Bottom();
 
 	// draw horizontal borders
 	while ( recNo < n)
@@ -531,10 +532,10 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 }
 
 
-TRect DataItemColumn::GetElemFullRelRect( SizeT rowNr) const
+TRect DataItemColumn::GetElemFullRelLogicalRect( SizeT rowNr) const
 {
 	if (!IsDefined(rowNr))
-		return GetCurrFullRelRect();
+		return GetCurrFullRelLogicalRect();
 
 	GPoint size = m_ElemSize;
 	if (HasElemBorder())
@@ -553,10 +554,10 @@ TRect DataItemColumn::GetElemFullRelRect( SizeT rowNr) const
 void DataItemColumn::InvalidateRelRect(TRect rect)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
-	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsPos () );
-	screenRect &= GetDrawnClientAbsRect();
+	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsLogicalPos(), GetScaleFactors() );
+	screenRect &= GetDrawnClientAbsDeviceRect();
 	if (!screenRect.empty())
-		dv->InvalidateRect(screenRect);
+		dv->InvalidateDeviceRect(screenRect);
 }
 
 void DataItemColumn::InvalidateDrawnActiveElement()
@@ -564,10 +565,10 @@ void DataItemColumn::InvalidateDrawnActiveElement()
 	if (!IsDrawn())
 		return;
 
-	InvalidateRelRect( GetElemFullRelRect(m_ActiveRow) );
+	InvalidateRelRect( GetElemFullRelLogicalRect(m_ActiveRow) );
 }
 
-void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents, GuiReadLockPair& locks) const
+void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceExtents, GuiReadLockPair& locks) const
 {
 	assert(!SuspendTrigger::DidSuspend());
 	assert(d.DoDrawData()); // PRECONDITION
@@ -577,10 +578,10 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 //	CrdPoint base = d.GetTransformation().GetOffset();
 //	dms_assert(base == d.GetTransformation().Apply(CrdPoint(0, 0) ) );
 
-//	GRect elemExtents = absElemRect; //TRect( d.GetClientOffset(), d.GetClientOffset() + TPoint(elemSize) );
+//	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalOffset(), d.GetClientLogicalOffset() + TPoint(elemSize) );
 
 	if (HasElemBorder())
-		DrawButtonBorder(d.GetDC(), elemExtents);
+		DrawButtonBorder(d.GetDC(), elemDeviceExtents);
 
 	bool isSymbol = GetEnabledTheme(AN_SymbolIndex).get();
 	bool isActive = IsActive() && rowNr == GetActiveRow();
@@ -613,7 +614,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 			bkClr = GetFocusClr();
 		DrawSymbol(
 			d.GetDC(), 
-			elemExtents,
+			elemDeviceExtents,
 			hFont,
 			GetColor(recNo, AN_LabelTextColor),
 			bkClr,
@@ -625,7 +626,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 		auto textInfo = GetText(recNo, MAX_TEXTOUT_SIZE, locks);
 		DrawEditText(
 			d.GetDC(),
-			elemExtents,
+			elemDeviceExtents,
 			GetFont(recNo, FR_Label, d.GetSubPixelFactor()),
 			textInfo.m_Grayed ? RGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor),
 			bkClr,
@@ -637,19 +638,19 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemExtents,
 	{
 		if (HasElemBorder())
 		{
-			elemExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemExtents ); 
-			elemExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemExtents );
+			elemDeviceExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemDeviceExtents);
+			elemDeviceExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemDeviceExtents);
 		}
 	}
 	else
 	{
 		if (tc->InSelRange(rowNr, m_ColumnNr) )
 		{
-			InvertRect(d.GetDC(), &elemExtents );
+			InvertRect(d.GetDC(), &elemDeviceExtents);
 			if (HasElemBorder())
 			{
-				elemExtents.Expand(BORDERSIZE);
-				InvertRect(d.GetDC(), &elemExtents );
+				elemDeviceExtents.Expand(BORDERSIZE);
+				InvertRect(d.GetDC(), &elemDeviceExtents);
 			}
 		}
 	}
@@ -1027,7 +1028,7 @@ void DataItemColumn::SetFocusRect()
 	auto dv = GetDataView().lock();
 	if (IsActive())
 	{
-		GRect elemAbsRect = TRect2GRect( TRect(GetElemFullRelRect(GetActiveRow()) + GetCurrClientAbsPos()).Expand(1) );
+		GRect elemAbsRect = TRect2GRect( TRect(GetElemFullRelLogicalRect(GetActiveRow()) + GetCurrClientAbsLogicalPos()).Expand(1), GetScaleFactors() );
 		dv->SetFocusRect( elemAbsRect );
 	}
 	else
@@ -1069,7 +1070,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 	}
 	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
 	{
-		switch( GetControlRegion(med.GetEventInfo().m_Point.x) ) 
+		switch( GetControlDeviceRegion(med.GetEventInfo().m_Point.x) ) 
 		{
 			case RG_LEFT:
 				{
@@ -1088,7 +1089,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
 	{
-		if (GetControlRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
 		{
 			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
 			return true;
@@ -1105,7 +1106,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 	{
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
-		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
+		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos());
 		GType height = m_ElemSize.y + RowSepHeight();
 		if (HasElemBorder()) height += (2*BORDERSIZE);
 		SizeT rowNr = relClientPos.y() / height;
@@ -1245,7 +1246,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 //	Explain Value
 	if (tc)
 	{
-		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
+		TPoint relClientPos = TPoint(med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos()));
 		GType height = m_ElemSize.y + RowSepHeight();
 		if (HasElemBorder()) height += (2 * BORDERSIZE);
 		SizeT rowNr = relClientPos.y() / height;
@@ -1468,9 +1469,9 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 {
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	DataItemColumn* target = debug_cast<DataItemColumn*>(to.get());
-	dms_assert(target);
-	TPoint clientPos = target->GetCurrClientAbsPos();
-	TType newWidth = eventInfo.m_Point.x - clientPos.x();
+	assert(target);
+	TPoint clientPos = target->GetCurrClientAbsLogicalPos();
+	TType newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.x();
 	if (target->HasElemBorder())
 		newWidth -= DOUBLE_BORDERSIZE;
 	MakeMax(newWidth, 6);
@@ -1495,7 +1496,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 	auto dv = GetDataView().lock(); if (!dv) return;
 	auto owner = GetOwner().lock(); if (!owner) return;
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
-	TRect   currAbsRect = GetCurrFullAbsRect();
+	GRect   currAbsRect = TRect2GRect(GetCurrFullAbsLogicalRect(), med.GetSubPixelFactors());
 	GPoint& mousePoint  = med.GetEventInfo().m_Point;
 
 	mousePoint.x = currAbsRect.Right();
@@ -1505,14 +1506,14 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 
 	medOwner->InsertController(
 		new TieCursorController(medOwner.get(), owner.get()
-		,	TRect2GRect(TRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<TType>(), TType(mousePoint.y)+1))
+		,	GRect(currAbsRect.Left()+6, mousePoint.y, MaxValue<GType>(), mousePoint.y+1)
 		,	EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		)
 	);
 
 	medOwner->InsertController(
 		new DualPointCaretController(medOwner.get()
-		,	new MovableRectCaret( TRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) )
+		,	new MovableRectCaret( GRect(currAbsRect.Right()-4, currAbsRect.Top(), currAbsRect.Right()+5, currAbsRect.Bottom()) )
 		,	this, mousePoint
 		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		,	ToolButtonID::TB_Undefined
@@ -1521,7 +1522,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 
 	medOwner->InsertController(
 		new DualPointCaretController(medOwner.get()
-		,	new MovableRectCaret( TRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) )
+		,	new MovableRectCaret( GRect(currAbsRect.Right()-2, currAbsRect.Top(), currAbsRect.Right()+3, currAbsRect.Bottom()) )
 		,	this, mousePoint
 		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
 		,	ToolButtonID::TB_Undefined

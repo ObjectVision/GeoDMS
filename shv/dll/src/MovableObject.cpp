@@ -51,7 +51,7 @@ granted by an additional written contract for support, assistance and/or develop
 MovableObject::MovableObject(MovableObject* owner)
 	:	GraphicObject(owner)
 	,	m_RelPos(0, 0)
-	,	m_ClientSize(0, 0)
+	,	m_ClientLogicalSize(0, 0)
 	,	m_Cursor(nullptr)
 {
 }
@@ -59,7 +59,7 @@ MovableObject::MovableObject(MovableObject* owner)
 MovableObject::MovableObject(const MovableObject& src)
 	:	GraphicObject(0)
 	,	m_RelPos(0, 0)
-	,	m_ClientSize(src.m_ClientSize)
+	,	m_ClientLogicalSize(src.m_ClientLogicalSize)
 	,	m_Cursor(nullptr)
 {
 }
@@ -71,7 +71,7 @@ void MovableObject::SetBorder(bool hasBorder)
 	auto owner = GetOwner().lock();
 	if (hasBorder)
 	{
-		TPoint bottRight = m_ClientSize + m_RelPos;
+		TPoint bottRight = m_ClientLogicalSize + m_RelPos;
 		if (owner)
 		{
 			owner->GrowHor(BORDERSIZE*2, bottRight.x(), this);
@@ -79,15 +79,15 @@ void MovableObject::SetBorder(bool hasBorder)
 		}
 		MoveTo(m_RelPos + TPoint(  BORDERSIZE,   BORDERSIZE));
 
-		dms_assert(m_ClientSize.x() >= 0);
-		dms_assert(m_ClientSize.y() >= 0);
+		dms_assert(m_ClientLogicalSize.x() >= 0);
+		dms_assert(m_ClientLogicalSize.y() >= 0);
 		m_State.Set(MOF_HasBorder);
 	}
 	else
 	{
 		m_State.Clear(MOF_HasBorder);
 		MoveTo(m_RelPos - TPoint(  BORDERSIZE,   BORDERSIZE));
-		TPoint bottRight = m_ClientSize + m_RelPos + TPoint(2*BORDERSIZE, 2*BORDERSIZE);
+		TPoint bottRight = m_ClientLogicalSize + m_RelPos + TPoint(2*BORDERSIZE, 2*BORDERSIZE);
 		if (owner)
 		{
 			owner->GrowHor(-BORDERSIZE*2, bottRight.x(), this);
@@ -103,7 +103,7 @@ void MovableObject::SetRevBorder(bool revBorder)
 	m_State.Set(MOF_RevBorder, revBorder);
 	if (!HasBorder() || !IsDrawn())
 		return;
-	GRect rect = TRect2GRect(GetCurrFullAbsRect());
+	GRect rect = TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors());
 	auto dv = GetDataView().lock(); if (!dv) return;
 	DirectDC dc(dv.get(), Region(rect));
 	if (!dc.IsEmpty())
@@ -115,7 +115,7 @@ void MovableObject::SetIsVisible(bool value)
 	if (value == IsVisible())
 		return;
 
-	TRect relFullRect = GetCurrFullRelRect();
+	TRect relFullRect = GetCurrFullRelLogicalRect();
 
 	auto owner = GetOwner().lock();
 	if (value && owner)
@@ -141,18 +141,18 @@ void MovableObject::SetDisconnected()
 	base_type::SetDisconnected();
 }
 
-GRect MovableObject::GetBorderPixelExtents() const
+TRect MovableObject::GetBorderLogicalExtents() const
 {
 	return (HasBorder())
-		?	GRect(-BORDERSIZE, -BORDERSIZE, BORDERSIZE, BORDERSIZE)
-		:	GRect(0, 0, 0, 0);
+		?	TRect(-BORDERSIZE, -BORDERSIZE, BORDERSIZE, BORDERSIZE)
+		:	TRect(0, 0, 0, 0);
 }
 
-GPoint MovableObject::GetBorderPixelSize   () const
+TPoint MovableObject::GetBorderLogicalSize() const
 {
 	return (HasBorder())
-		?	GPoint(2*BORDERSIZE, 2*BORDERSIZE)
-		:	GPoint(0, 0);
+		?	TPoint(2*BORDERSIZE, 2*BORDERSIZE)
+		:	TPoint(0, 0);
 }
 
 void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
@@ -165,15 +165,16 @@ void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
 		if (IsChildCovered() || !IsTransparent())
 		{
 //			GRect  oldAbsFullRect = TRect2GRect(GetCurrFullAbsRect());
-			GPoint delta    = TPoint2GPoint(newClientRelPos - m_RelPos);
+			TPoint logDelta = newClientRelPos - m_RelPos;
+			GPoint devDelta = TPoint2GPoint(logDelta, GetScaleFactors());
 			GRect  clipRect = GetParentClipAbsRect();
 			GRect  scrollRect = clipRect;
-			scrollRect &= GetCurrFullAbsRect();
+			scrollRect &= GetCurrFullAbsDeviceRect();
 			if (!scrollRect.empty())
 			{
 				auto dv = GetDataView().lock(); if (!dv) return;
-				dv->Scroll(delta, scrollRect, clipRect, this);
-				TranslateDrawnRect(clipRect, delta);
+				dv->ScrollDevice(devDelta, scrollRect, clipRect, this);
+				TranslateDrawnRect(clipRect, devDelta);
 			}
 		}
 		else
@@ -184,30 +185,30 @@ void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
 
 	auto owner = GetOwner().lock();
 	if (!IsDrawn() && owner)
-		owner->InvalidateClientRect(GetCurrFullRelRect() );
+		owner->InvalidateClientRect(GetCurrFullRelLogicalRect() );
 
 	MG_DEBUGCODE( CheckSubStates(); )
 }
 
-GRect MovableObject::GetDrawnClientAbsRect() const
+GRect MovableObject::GetDrawnClientAbsDeviceRect() const
 {
-	dms_assert(IsDrawn());
-	return m_DrawnFullAbsRect & TRect2GRect(GetCurrClientAbsRect());
+	assert(IsDrawn());
+	return m_DrawnFullAbsRect & GetCurrClientAbsDeviceRect();
 }
 
-GRect MovableObject::GetDrawnNettAbsRect() const
+GRect MovableObject::GetDrawnNettAbsDeviceRect() const
 {
-	dms_assert(IsDrawn());
-	return m_DrawnFullAbsRect & TRect2GRect(GetCurrNettAbsRect());
+	assert(IsDrawn());
+	return m_DrawnFullAbsRect & TRect2GRect(GetCurrNettAbsLogicalRect(), GetScaleFactors());
 }
 
 GRect MovableObject::GetParentClipAbsRect() const
 {
 	auto owner = GetOwner().lock();
 	if (owner)
-		return owner->GetDrawnNettAbsRect();
+		return owner->GetDrawnNettAbsDeviceRect();
 	auto dv = GetDataView().lock(); if (!dv) return GRect();
-	return dv->ViewRect();
+	return dv->ViewDeviceRect();
 }
 
 
@@ -216,14 +217,14 @@ void MovableObject::SetClientSize(TPoint newSize)
 	assert(newSize.x() >= 0);
 	assert(newSize.y() >= 0);
 
-	if (m_ClientSize == newSize)
+	if (m_ClientLogicalSize == newSize)
 		return;
 
 //	InvalidateDraw();
-	GrowHor(newSize.x()  - m_ClientSize.x(), m_ClientSize.x(), 0 );
-	GrowVer(newSize.y()  - m_ClientSize.y(), m_ClientSize.y(), 0 );
+	GrowHor(newSize.x()  - m_ClientLogicalSize.x(), m_ClientLogicalSize.x(), 0 );
+	GrowVer(newSize.y()  - m_ClientLogicalSize.y(), m_ClientLogicalSize.y(), 0 );
 
-	assert(m_ClientSize == newSize);
+	assert(m_ClientLogicalSize == newSize);
 }
 
 void MovableObject::SetClientRect(const TRect& r)
@@ -246,28 +247,27 @@ void MovableObject::InvalidateClientRect(TRect rect) const
 	if (!IsDrawn())
 		return;
 
-	GRect gRect = TRect2GRect( rect + GetCurrClientAbsPos() );
-	gRect &= GetDrawnNettAbsRect();
+	GRect gRect = TRect2GRect( rect + GetCurrClientAbsLogicalPos(), GetScaleFactors() );
+	gRect &= GetDrawnNettAbsDeviceRect();
 	if (gRect.empty())
 		return;
 
 	auto dv = GetDataView().lock(); if (!dv) return;
-	gRect *= dv->GetDIP2pixFactorXY();
-	dv->InvalidateRect( gRect );
+	dv->InvalidateDeviceRect( gRect );
 }
 
 TPoint MovableObject::CalcClientSize() const
 {
 	UpdateView();
-	return m_ClientSize;
+	return m_ClientLogicalSize;
 }
 
 TPoint MovableObject::CalcMaxSize() const
 {
-	return CalcClientSize() + TPoint(GetBorderPixelExtents().Size());
+	return CalcClientSize() + GetBorderLogicalExtents().Size();
 }
 
-TPoint MovableObject::GetCurrClientAbsPos() const
+TPoint MovableObject::GetCurrClientAbsLogicalPos() const
 {
 	TPoint result = m_RelPos;
 	auto owner = GetOwner().lock();
@@ -279,19 +279,51 @@ TPoint MovableObject::GetCurrClientAbsPos() const
 	return result;
 }
 
-TRect MovableObject::CalcFullAbsRect(const GraphVisitor& v) const
+TPoint MovableObject::GetCurrClientAbsLogicalPos(const GraphVisitor& v) const
 {
-	return CalcFullRelRect() + v.GetClientOffset();
+	TPoint result = m_RelPos;
+	auto owner = GetOwner().lock();
+	while (owner)
+	{
+		result += owner->m_RelPos;
+		owner = owner->GetOwner().lock();
+	}
+	return result;
 }
 
-TRect MovableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
-{
-	return GetCurrFullRelRect() + v.GetClientOffset();
+GPoint MovableObject::GetCurrClientAbsDevicePos(const GraphVisitor& v) const
+{ 
+	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors()); 
 }
 
-TRect MovableObject::GetCurrNettAbsRect(const GraphVisitor& v) const
+TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const 
 {
-	return GetCurrNettRelRect() + v.GetClientOffset();
+	TPoint pos = GetCurrClientAbsLogicalPos(v); return TRect(pos, pos + m_ClientLogicalSize);
+}
+
+GRect  MovableObject::GetCurrClientAbsDeviceRect(const GraphVisitor& v) const 
+{
+	return TRect2GRect(GetCurrClientAbsLogicalRect(v), v.GetSubPixelFactors());
+}
+
+TRect MovableObject::CalcFullAbsLogicalRect(const GraphVisitor& v) const
+{
+	return CalcFullRelRect() + v.GetClientLogicalOffset();
+}
+
+TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
+{
+	return GetCurrNettRelLogicalRect() + v.GetClientLogicalOffset();
+}
+
+GRect MovableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const 
+{ 
+	return TRect2GRect(GetCurrFullAbsLogicalRect(v), v.GetSubPixelFactors()); 
+}
+
+TRect MovableObject::GetCurrNettAbsLogicalRect() const
+{
+	return GetCurrNettRelLogicalRect() + (GetCurrClientAbsLogicalPos() - m_RelPos);
 }
 
 GraphVisitState MovableObject::InviteGraphVistor(AbstrVisitor& v)
@@ -302,7 +334,7 @@ GraphVisitState MovableObject::InviteGraphVistor(AbstrVisitor& v)
 
 HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, MovableObject* extraObj)
 {
-	GPoint size = TPoint2GPoint(CalcClientSize());
+	GPoint size = TPoint2GPoint(CalcClientSize(), GetScaleFactors());
 	SharedStrContextHandle context(mySSPrintF("while Copying %d x % u pixels to a Device Dependent Bitmap (DDB)", size.x, size.y));
 
 	if (size.x >= 0x8000 || size.y >= 0x8000)
@@ -326,7 +358,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	SuspendTrigger::FencedBlocker xxx;
 	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
 
-	AddClientOffset useZeroBase(&drawer, -m_RelPos);
+	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
 	dms_assert(!suspended); 
 	if (extraObj)
@@ -375,12 +407,14 @@ void MovableObject::CopyToClipboard(DataView* dv)
 	clipBoard.SetBitmap(hBmp);
 }
 
-ControlRegion MovableObject::GetControlRegion(TType absX) const
+ControlRegion MovableObject::GetControlDeviceRegion(GType absX) const
 {
-	TRect currAbsRect = GetCurrClientAbsRect();
-	if (absX >= currAbsRect.Right()-4)
+	TRect currAbsRect = GetCurrClientAbsLogicalRect();
+	TType logicalX = absX / GetScaleFactors().first;
+	auto margin = 4;
+	if (logicalX >= currAbsRect.Right() - margin)
 		return RG_RIGHT;
-	else if (absX <= currAbsRect.Left()+4)
+	else if (logicalX <= currAbsRect.Left() + margin)
 		return RG_LEFT;
 	return RG_MIDDLE;
 
@@ -391,55 +425,57 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 	auto dv = GetDataView().lock();
 	auto owner = GetOwner().lock();
 
-//	MakeMin(relPosX, m_ClientSize.x);
+//	MakeMin(relPosX, m_ClientLogicalSize.x);
 
 	if(sourceItem)
 		return;
 
-	dms_assert(relPosX <= m_ClientSize.x());
+	auto sf = GetScaleFactors();
+
+	assert(relPosX <= m_ClientLogicalSize.x());
 
 //	dms_assert(GetOwner()); // Grow stops at ScrollPort, but not when resizing a viewControl
 	if (!deltaX)
 		return;
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
-	TType  oldFullRelRight  = GetCurrFullRelRect().Right();
+	TType  oldFullRelRight  = GetCurrFullRelLogicalRect().Right();
 	TPoint oldClientSize    = GetCurrClientSize();
 
-	dms_assert(relPosX >= 0 );
-	dms_assert(relPosX + GetCurrClientRelPos().x() <= oldFullRelRight);
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(relPosX >= 0 );
+	assert(relPosX + GetCurrClientRelPos().x() <= oldFullRelRight);
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
 	if (deltaX > 0)
 	{
 		if (owner && IsVisible()) 
 			owner->GrowHor(deltaX, oldFullRelRight, this);
-		m_ClientSize.x() += deltaX;
+		m_ClientLogicalSize.x() += deltaX;
 	}
 
 	if (dv && (!owner || owner->IsDrawn()) && IsVisible())
 	{
-		TRect oldAbsRect = TRect(TPoint(relPosX, 0), oldClientSize) + GetCurrClientAbsPos();
+		TRect oldAbsRect = TRect(TPoint(relPosX, 0), oldClientSize) + GetCurrClientAbsLogicalPos();
 		GRect clipRect   = GetParentClipAbsRect();
 		if (IsDrawn())
 		{
 			if (IsChildCovered() || !IsTransparent())
 			{
-				GRect be = GetBorderPixelExtents(); be.left = 0;
+				TRect be = GetBorderLogicalExtents(); be.Left() = 0;
 				oldAbsRect += TRect(be);
 				assert(oldAbsRect.Left() <= oldAbsRect.Right());
-				assert(IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+				assert(IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				TPoint delta(deltaX, 0);
 
-				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect) & GetDrawnFullAbsRect();
+				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect, sf) & GetDrawnFullAbsDeviceRect();
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
 				if (!oldVisibleAbsRect.empty())
-					dv->Scroll(TPoint2GPoint(delta), oldVisibleAbsRect, clipRect, this);
-				ResizeDrawnRect(clipRect, TPoint2GPoint(delta), GPoint(TType2GType(oldAbsRect.Left()), MaxValue<GType>()));
-				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+					dv->ScrollDevice(TPoint2GPoint(delta, sf), oldVisibleAbsRect, clipRect, this);
+				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, sf), GPoint(TType2GType(oldAbsRect.Left()), MaxValue<GType>()));
+				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG
 				if (deltaX < 0)
@@ -448,7 +484,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 					oldAbsRect.Right() = oldAbsRect.Left() + deltaX;
 				oldAbsRect &= TRect(clipRect);
 				if (!oldAbsRect.empty())
-					dv->InvalidateRect(TRect2GRect(oldAbsRect));
+					dv->InvalidateDeviceRect(TRect2GRect(oldAbsRect, sf));
 			}
 			else
 				InvalidateDraw();
@@ -457,16 +493,16 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 		{
 			oldAbsRect.Left () = oldAbsRect.Right();
 			oldAbsRect.Right() = oldAbsRect.Left() + deltaX;
-			clipRect &= TRect2GRect(oldAbsRect);
+			clipRect &= TRect2GRect(oldAbsRect, sf);
 			if (!clipRect.empty())
-				dv->InvalidateRect(clipRect);
+				dv->InvalidateDeviceRect(clipRect);
 		}
 	}
 
 	if (deltaX < 0)
-		m_ClientSize.x() += deltaX;
+		m_ClientLogicalSize.x() += deltaX;
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
 	if (owner && IsVisible()) 
 	{
@@ -476,7 +512,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 //			GetOwner()->GrowHor(0, oldFullRelRight + deltaX, this);
 	}
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 }
 
 void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
@@ -484,56 +520,57 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 	auto dv = GetDataView().lock();
 	auto owner = GetOwner().lock();
 
-//	MakeMin(relPosY, m_ClientSize.y);
+//	MakeMin(relPosY, m_ClientLogicalSize.y);
 
 	if(sourceItem)
 		return;
 
-	dms_assert(relPosY <= m_ClientSize.y());
+	auto sf = GetScaleFactors();
+	assert(relPosY <= m_ClientLogicalSize.y());
 
 //	dms_assert(GetOwner()); // Grow stops at ScrollPort, but not when resizing a viewControl
 	if (!deltaY)
 		return;
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
-	TType  oldFullRelBottom = GetCurrFullRelRect().Bottom();
+	TType  oldFullRelBottom = GetCurrFullRelLogicalRect().Bottom();
 	TPoint oldClientSize    = GetCurrClientSize();
 
-	dms_assert(relPosY >= 0 );
-	dms_assert(relPosY + GetCurrClientRelPos().y() <= oldFullRelBottom);
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(relPosY >= 0 );
+	assert(relPosY + GetCurrClientRelPos().y() <= oldFullRelBottom);
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
 	if (deltaY > 0)
 	{
 		if (owner && IsVisible()) 
 			owner->GrowVer(deltaY, oldFullRelBottom, this);
-		m_ClientSize.y() += deltaY;
+		m_ClientLogicalSize.y() += deltaY;
 	}
 
 
 	if (dv && ( !owner || owner->IsDrawn()) && IsVisible())
 	{
-		TRect oldAbsRect = TRect(TPoint(0, relPosY), oldClientSize) + GetCurrClientAbsPos();
+		TRect oldAbsRect = TRect(TPoint(0, relPosY), oldClientSize) + GetCurrClientAbsLogicalPos();
 		GRect clipRect   = GetParentClipAbsRect();
 		if (IsDrawn())
 		{
 			if (IsChildCovered() || !IsTransparent())
 			{
-				GRect be = GetBorderPixelExtents(); be.top = 0;
+				TRect be = GetBorderLogicalExtents(); be.Top() = 0;
 				oldAbsRect += TRect(be);
-				dms_assert(oldAbsRect.Top() <= oldAbsRect.Bottom());
-				dms_assert(IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+				assert(oldAbsRect.Top() <= oldAbsRect.Bottom());
+				assert(IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				TPoint delta(0, deltaY);
 
-				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect) & GetDrawnFullAbsRect();
-				dms_assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
+				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect, sf) & GetDrawnFullAbsDeviceRect();
+				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
 				if (!oldVisibleAbsRect.empty())
-					dv->Scroll(TPoint2GPoint(delta), oldVisibleAbsRect, clipRect, this);
-				ResizeDrawnRect(clipRect, TPoint2GPoint(delta), GPoint(MaxValue<GType>(), TType2GType(oldAbsRect.Top())));
-				dms_assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsRect())); // invariant IsIncluding relation
+					dv->ScrollDevice(TPoint2GPoint(delta, GetScaleFactors()), oldVisibleAbsRect, clipRect, this);
+				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, GetScaleFactors()), GPoint(MaxValue<GType>(), TType2GType(oldAbsRect.Top())));
+				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG
 				if (deltaY < 0)
@@ -542,7 +579,7 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 					oldAbsRect.Bottom() = oldAbsRect.Top()    + deltaY;
 				oldAbsRect &= TRect(clipRect);
 				if (!oldAbsRect.empty())
-					dv->InvalidateRect(TRect2GRect(oldAbsRect));
+					dv->InvalidateDeviceRect(TRect2GRect(oldAbsRect, sf));
 			}
 			else
 				InvalidateDraw();
@@ -553,15 +590,15 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 			oldAbsRect.Bottom() = oldAbsRect.Top()     + deltaY;
 			oldAbsRect &= TRect(clipRect);
 			if (!oldAbsRect.empty())
-				dv->InvalidateRect(TRect2GRect(oldAbsRect));
+				dv->InvalidateDeviceRect(TRect2GRect(oldAbsRect, sf));
 		}
 
 	}
 
 	if (deltaY < 0)
-		m_ClientSize.y() += deltaY;
+		m_ClientLogicalSize.y() += deltaY;
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 
 	if (owner && IsVisible())
 	{
@@ -571,14 +608,15 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 //			GetOwner()->GrowVer(0, oldFullRelBottom + deltaY, this);
 	}
 
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ));
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ));
 }
 
 #if defined(MG_DEBUG)
 void MovableObject::CheckState() const
 {
 	base_type::CheckState();
-	dms_assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsRect()), GetDrawnFullAbsRect() ) );
+	auto sf = GetScaleFactors();
+	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ) );
 }
 #endif
 

@@ -86,7 +86,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 
 	if (counter.Value() == 0)
 	{
-		GRect sr = TRect2GRect(Convert<TRect>(d.GetTransformation().Apply(wr)));
+		GRect sr = Convert<GRect>(d.GetTransformation().Apply(wr));
 		FillRect(dc, &sr, m_Brush);
 	}
 	++counter;
@@ -94,23 +94,23 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 		return true;
 
 	wr = Convert<CrdRect>(Convert<SRect>(wr)); // round-off to integers;
-	TRect sr = Convert<TRect>(d.GetTransformation().Apply(wr));
+	GRect sr = Convert<GRect>(d.GetTransformation().Apply(wr));
 
 	CrdPoint factor = Abs( d.GetTransformation().Factor() );
-	dms_assert(factor.first  > 0);
-	dms_assert(factor.second > 0);
+	assert(factor.first  > 0);
+	assert(factor.second > 0);
 	MakeMax(factor, CrdPoint(1, 1));
 
 	GdiObjectSelector<HPEN> penHolder(dc, m_Pen);
 
-	CrdType right  = sr.second.first  + factor.first;
-	CrdType bottom = sr.second.second + factor.second;
+	CrdType right  = sr.right  + factor.first;
+	CrdType bottom = sr.bottom + factor.second;
 	if (counter.Value() == 1)
 	{
-		for (CrdType i=sr.first.second;  i <= bottom; i += factor.first)
+		for (CrdType i=sr.top;  i <= bottom; i += factor.second)
 		{
-			MoveToEx(dc, TType2GType(sr.first.first), TType2GType(i), NULL);
-			LineTo  (dc, TType2GType(right),   TType2GType(i));
+			MoveToEx(dc, sr.left, i, NULL);
+			LineTo  (dc,right,   i);
 		}
 		++counter;
 		if (counter.MustBreakOrSuspend()) 
@@ -118,10 +118,10 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 	}
 	if (counter.Value() == 2)
 	{
-		for (CrdType j=sr.first.second; j <= right;  j += factor.second)
+		for (CrdType j=sr.left; j <= right;  j += factor.first)
 		{
-			MoveToEx(dc, TType2GType(j), TType2GType(sr.first.second), NULL);
-			LineTo  (dc, TType2GType(j), TType2GType(bottom));
+			MoveToEx(dc, j, sr.top, NULL);
+			LineTo  (dc, j, bottom);
 		}
 	}
 	counter.Close();

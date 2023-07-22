@@ -371,7 +371,7 @@ bool PanController::Exec(EventInfo& eventInfo)
 		return m_DidDrag;
 
 	m_DidDrag = true;
-	view->Scroll(eventInfo.m_Point - m_Origin);
+	view->ScrollDevice(eventInfo.m_Point - m_Origin);
 	m_Origin = eventInfo.m_Point;
 
 	return true;

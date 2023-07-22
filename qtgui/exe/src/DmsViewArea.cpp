@@ -290,7 +290,7 @@ void QDmsViewArea::on_rescale()
 {
     auto rect = contentsRectInPixelUnits();
 
-    m_DataView->InvalidateRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
+    m_DataView->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
 
 void QDmsViewArea::paintEvent(QPaintEvent* event)

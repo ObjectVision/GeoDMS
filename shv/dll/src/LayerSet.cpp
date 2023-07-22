@@ -163,17 +163,17 @@ void LayerSet::DoUpdateView()
 	SetWorldClientRect( resRect );
 }
 
-GRect LayerSet::GetBorderPixelExtents(CrdPoint subPixelFactors) const
+TRect LayerSet::GetBorderLogicalExtents() const
 {
 	SizeT n = NrEntries();
 	if (!n) 
-		return GRect(0, 0, 0, 0);
+		return TRect(0, 0, 0, 0);
 
-	GRect resRect = GetConstEntry(--n)->GetBorderPixelExtents(subPixelFactors);
+	TRect resRect = GetConstEntry(--n)->GetBorderLogicalExtents();
 	while (n)
-		resRect |= GetConstEntry(--n)->GetBorderPixelExtents(subPixelFactors);
+		resRect |= GetConstEntry(--n)->GetBorderLogicalExtents();
 
-	return resRect	+ base_type::GetBorderPixelExtents(subPixelFactors);
+	return resRect	+ base_type::GetBorderLogicalExtents();
 }
 
 bool LayerSet::HasDefinedExtent() const

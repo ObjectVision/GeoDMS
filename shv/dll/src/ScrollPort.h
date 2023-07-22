@@ -49,15 +49,15 @@ public:
 	ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool disableScrollbars);
 
 //	nieuwe functions
-	void Scroll  (TPoint delta);
-	void ScrollTo(TPoint delta);
+	void ScrollLogical  (TPoint delta);
+	void ScrollLogicalTo(TPoint delta);
 
 	void OnHScroll(UInt16 scollCmd);
 	void OnVScroll(UInt16 scollCmd);
 
 	void ScrollHome();
 	void ScrollEnd ();
-	void MakeVisible(TRect rect, const TPoint& border);
+	void MakeLogicalRectVisible(TRect rect, const TPoint& border);
 	void Export();
 	 
 	      MovableObject* GetContents();
@@ -66,7 +66,7 @@ public:
 	void CalcNettSize();
 
 	TPoint CalcMaxSize() const override;
-	TPoint GetCurrNettSize() const override { return m_NettSize; }
+	TPoint GetCurrNettLogicalSize() const override { return m_NettSize; }
 
 private:
 //	Override virtuals of GraphicObject

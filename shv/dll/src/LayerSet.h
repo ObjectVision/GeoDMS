@@ -55,7 +55,7 @@ public:
 	SharedStr         GetCaption()                                       const override;
 
 //	override ScalableObject --- size and posiitioning
-	GRect   GetBorderPixelExtents(CrdPoint subPixelFactors) const override;
+	TRect GetBorderLogicalExtents() const override;
 	bool HasDefinedExtent() const override;
 
 //	override GraphicObject interface

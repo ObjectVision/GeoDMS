@@ -71,7 +71,7 @@ ScrollPort::ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool
 void ScrollPort::ScrollHome()
 {
 	// up is positive, 
-	ScrollTo (TPoint(0, 0) );
+	ScrollLogicalTo (TPoint(0, 0) );
 }
 
 void ScrollPort::ScrollEnd()
@@ -79,7 +79,7 @@ void ScrollPort::ScrollEnd()
 	// down = negative
 	TPoint topLeft( 0, GetCurrClientSize().y() - GetContents()->CalcClientSize().y() );
 
-	ScrollTo( topLeft );
+	ScrollLogicalTo( topLeft );
 }
 
 // TODO: MOVE TO RANGES
@@ -94,14 +94,14 @@ T CalcDelta(Range<T> obj, Range<T> window, T borderSize)
 }
 
 
-void ScrollPort::MakeVisible(TRect rect, const TPoint& border)
+void ScrollPort::MakeLogicalRectVisible(TRect rect, const TPoint& border)
 {
 #if defined(MG_DEBUG)
-	TRect contentsClientRect = GetContents()->GetCurrClientRelRect();
+	TRect contentsClientRect = GetContents()->GetCurrClientRelLogicalRect();
 	dms_assert( IsIncluding(contentsClientRect, rect));
 #endif
 
-	TRect scrollRect = GetCurrNettRelRect();
+	TRect scrollRect = GetCurrNettRelLogicalRect();
 	rect += scrollRect.TopLeft();
 
 	TPoint delta(
@@ -109,7 +109,7 @@ void ScrollPort::MakeVisible(TRect rect, const TPoint& border)
 		CalcDelta(rect.VerRange(), scrollRect.VerRange(), border.y())
 	);
 
-	Scroll(delta);
+	ScrollLogical(delta);
 }
 
 void ScrollPort::Export()
@@ -124,7 +124,7 @@ void ScrollPort::DoUpdateView()
 	base_type::DoUpdateView();
 
 	CalcNettSize();
-	Scroll(TPoint(0, 0));
+	ScrollLogical(TPoint(0, 0));
 }
 
 const UInt32 SCROLLBAR_WIDTH = 16;
@@ -153,12 +153,13 @@ void ScrollPort::CalcNettSize()
 	}
 	MakeUpperBound(newNettSize, TPoint(0, 0));
 
+	auto sf = GetScaleFactors();
 	TPoint smallestSize = LowerBound(m_NettSize, newNettSize);
 	if (GetContents()->IsDrawn())
 		GetContents()->ResizeDrawnRect(
-			GetDrawnNettAbsRect(),
-			TPoint2GPoint(smallestSize - m_NettSize),
-			TPoint2GPoint(GetCurrClientAbsPos() + m_NettSize)
+			GetDrawnNettAbsDeviceRect(),
+			TPoint2GPoint(smallestSize - m_NettSize, sf),
+			TPoint2GPoint(GetCurrClientAbsLogicalPos() + m_NettSize, sf)
 		);
 
 	omni::swap(m_NettSize, newNettSize);
@@ -169,9 +170,9 @@ void ScrollPort::CalcNettSize()
 	
 	if (GetContents()->IsDrawn())
 		GetContents()->ResizeDrawnRect(
-			GetDrawnNettAbsRect(),
-			TPoint2GPoint(m_NettSize - smallestSize),
-			TPoint2GPoint(GetCurrClientAbsPos() + smallestSize) // Resize from curr size, which bas set by previous IsDrawn m_NettSize
+			GetDrawnNettAbsDeviceRect(),
+			TPoint2GPoint(m_NettSize - smallestSize, sf),
+			TPoint2GPoint(GetCurrClientAbsLogicalPos() + smallestSize, sf) // Resize from curr size, which bas set by previous IsDrawn m_NettSize
 		);
 
 	if (!(newNettSize == m_NettSize))
@@ -223,9 +224,6 @@ void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourc
 		MakeMax(m_NettSize.y(), TType());
 		SetScrollBars();
 
-//		AdjustSizeChange(LowerBound(m_NettSize.y, m_NettSize.y + deltaY) );
-//		AdjustSizeChange(m_NettSize.y);
-
 		if (deltaY < 0)
 			base_type::GrowVer(deltaY, relPosY, 0);                  // maakt ruimte buiten kleiner en clipt DrawnFullSize
 
@@ -238,23 +236,25 @@ void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourc
 	InvalidateView();
 }
 
-void RePosScrollBar(HWND hScroll, const TPoint& absPos, TType nettWidth, TType nettHeight)
+void RePosScrollBar(HWND hScroll, const TPoint& absPos, TType nettWidth, TType nettHeight, CrdPoint sf)
 {
 	SetWindowPos(
 		hScroll,
 		HWND_TOP, 
-		absPos.x(),                          // horizontal position 
-		absPos.y(),                          // vertical position 
-		nettWidth,                         // width of the scroll bar 
-		nettHeight,                        // default height 
+		absPos.x() * sf.first,      // horizontal position 
+		absPos.y() * sf.second,     // vertical position 
+		nettWidth * sf.first,    // width of the scroll bar 
+		nettHeight* sf.second,   // default height 
 		SWP_NOACTIVATE|SWP_NOREPOSITION|SWP_SHOWWINDOW|SWP_NOSENDCHANGING
 	);
 }
 
 void ScrollPort::SetScrollX(bool horScroll)
 {
-	TPoint absBase = GetCurrClientAbsPos();
+	TPoint absBase = GetCurrClientAbsLogicalPos();
+//	absBase *= GetScaleFactors();
 
+	auto sf = GetScaleFactors();
 	if (horScroll)
 	{
 		absBase.y() += m_NettSize.y();
@@ -269,21 +269,20 @@ void ScrollPort::SetScrollX(bool horScroll)
 				"SCROLLBAR",                              // scroll bar control class 
 				(LPSTR) NULL,                             // text for window title bar 
 				WS_CHILD | SBS_HORZ,                      // scroll bar styles 
-				absBase.x(),                              // horizontal position 
-				absBase.y(),                              // vertical position 
-				m_NettSize.x(),                           // width of the scroll bar 
-				GetCurrClientSize().y() - m_NettSize.y(), // default height 
-				hWnd,                                     // handle to main window 
-				(HMENU) NULL,                             // no menu for a scroll bar 
-				GetInstance(hWnd),                        // instance owning this window 
-				(LPVOID) NULL                             // pointer not needed 
+				absBase.x() * sf.first,                              // horizontal position 
+				absBase.y() * sf.second,                              // vertical position 
+				m_NettSize.x() * sf.first,                           // width of the scroll bar 
+				GType(GetCurrClientSize().y() * sf.second) - GType(m_NettSize.y() * sf.second) , // default height 
+				hWnd,                                                   // handle to main window 
+				(HMENU) NULL,                                           // no menu for a scroll bar 
+				GetInstance(hWnd),                                      // instance owning this window 
+				(LPVOID) NULL                                           // pointer not needed 
 			);
 		}
-		RePosScrollBar(
-			m_HorScroll,
-			absBase,
-			m_NettSize.x(),                           // width of the scroll bar 
-			GetCurrClientSize().y() - m_NettSize.y()  // default height 
+		RePosScrollBar(m_HorScroll, absBase
+		,	m_NettSize.x()                             // width of the scroll bar 
+		,	GetCurrClientSize().y() - m_NettSize.y()  // default height 
+		,	GetScaleFactors()
 		);
 	}
 	else
@@ -298,7 +297,7 @@ void ScrollPort::SetScrollX(bool horScroll)
 
 void ScrollPort::SetScrollY(bool verScroll)
 {
-	TPoint absBase = GetCurrClientAbsPos();
+	TPoint absBase = GetCurrClientAbsLogicalPos();
 
 	if (verScroll)
 	{
@@ -323,11 +322,10 @@ void ScrollPort::SetScrollY(bool verScroll)
 				(LPVOID) NULL                       // pointer not needed 
 			); 
 		}
-		RePosScrollBar(
-			m_VerScroll,
-			absBase,
-			GetCurrClientSize().x() - m_NettSize.x(), // default width
-			m_NettSize.y()                            // height of the scroll bar
+		RePosScrollBar(m_VerScroll, absBase
+		,	GetCurrClientSize().x() - m_NettSize.x() // default width
+		,	m_NettSize.y()                          // height of the scroll bar
+		,	GetScaleFactors()
 		);
 	}
 	else
@@ -391,7 +389,7 @@ void ScrollPort::OnHScroll(UInt16 scollCmd)
 
 	TType newPos = CalcNewPos(m_HorScroll, scollCmd, m_NrTPointsPerGPoint.x);
 	if (newPos >= 0)
-		Scroll(TPoint(-(newPos + GetContents()->GetCurrClientRelPos().x()), 0) );
+		ScrollLogical(TPoint(-(newPos + GetContents()->GetCurrClientRelPos().x()), 0) );
 }
 
 void ScrollPort::OnVScroll(UInt16 scollCmd)
@@ -401,15 +399,15 @@ void ScrollPort::OnVScroll(UInt16 scollCmd)
 
 	TType newPos = CalcNewPos(m_VerScroll, scollCmd, m_NrTPointsPerGPoint.y);
 	if (newPos >= 0)
-		Scroll(TPoint(0, -(newPos + GetContents()->GetCurrClientRelPos().y())) );
+		ScrollLogical(TPoint(0, -(newPos + GetContents()->GetCurrClientRelPos().y())) );
 }
 
-void ScrollPort::ScrollTo(TPoint newClientPos)
+void ScrollPort::ScrollLogicalTo(TPoint newClientPos)
 {
-	Scroll(newClientPos - GetContents()->GetCurrClientRelPos() );
+	ScrollLogical(newClientPos - GetContents()->GetCurrClientRelPos() );
 }
 
-void ScrollPort::Scroll(TPoint delta)
+void ScrollPort::ScrollLogical(TPoint delta)
 {
 	DBG_START("ScrollPort", "Scroll", MG_DEBUG_SCROLL);
 	DBG_TRACE(("org delta = %s", AsString(delta).c_str()));
@@ -421,12 +419,12 @@ void ScrollPort::Scroll(TPoint delta)
 	{
 		MG_DEBUGCODE( DynamicIncrementalLock<> xxx(md_ScrollRecursionCount); )
 
-		TPoint viewBase = GetCurrClientAbsPos();
+		TPoint viewBase = GetCurrClientAbsLogicalPos();
 		TPoint viewSize = m_NettSize;
 		TRect viewExtents = TRect(viewBase, viewBase + viewSize );
 		DBG_TRACE(("viewExtents = %s", AsString(viewExtents).c_str()));
 
-		TRect contentExtents = GetContents()->GetCurrClientRelRect();
+		TRect contentExtents = GetContents()->GetCurrClientRelLogicalRect();
 		DBG_TRACE(("contentExtents = %s", AsString(contentExtents).c_str()));
 
 		// positive delta increases contentBase, thus scrols towards left/up.
@@ -484,7 +482,7 @@ bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);
 
-		Scroll(TPoint(0, (wheelDelta * 37) / WHEEL_DELTA));
+		ScrollLogical(TPoint(0, (wheelDelta * 37) / WHEEL_DELTA));
 		return true;
 	}
 	return Wrapper::MouseEvent(med); // returns false
@@ -517,17 +515,17 @@ bool ScrollPort::OnKeyDown(UInt32 virtKey)
 		switch (KeyInfo::CharOf(virtKey)) {
 			case VK_HOME:     ScrollHome();                         return true;
 			case VK_END:      ScrollEnd ();                         return true;
-			case VK_RIGHT:    Scroll(TPoint(-PAGE_SCROLL_STEP, 0)); return true;
-			case VK_LEFT:     Scroll(TPoint( PAGE_SCROLL_STEP, 0)); return true;
-			case VK_UP:       Scroll(TPoint(0,  PAGE_SCROLL_STEP)); return true;
-			case VK_DOWN:     Scroll(TPoint(0, -PAGE_SCROLL_STEP)); return true;
+			case VK_RIGHT:    ScrollLogical(TPoint(-PAGE_SCROLL_STEP, 0)); return true;
+			case VK_LEFT:     ScrollLogical(TPoint( PAGE_SCROLL_STEP, 0)); return true;
+			case VK_UP:       ScrollLogical(TPoint(0,  PAGE_SCROLL_STEP)); return true;
+			case VK_DOWN:     ScrollLogical(TPoint(0, -PAGE_SCROLL_STEP)); return true;
 		}
 	return base_type::OnKeyDown(virtKey);
 }
 
 TPoint ScrollPort::CalcMaxSize() const
 {
-	return GetContents()->CalcMaxSize() + TPoint(GetBorderPixelExtents().Size());
+	return GetContents()->CalcMaxSize() + GetBorderLogicalExtents().Size();
 }
 
 

@@ -200,8 +200,8 @@ public:
 
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND     GetHWnd()        const { return m_hWnd; }
-	CrdPoint GetDIP2pixFactorXY() const { return GetWindowDIP2pixFactorXY(GetHWnd()); }
-
+	CrdPoint GetScaleFactors() const { return GetWindowDIP2pixFactorXY(GetHWnd()); }
+	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
 	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDIP2pixFactorY(GetHWnd())); }
 
@@ -229,18 +229,19 @@ public:
 
 	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
-	SHV_CALL void InvalidateRect(GRect  rect);
+	SHV_CALL void InvalidateDeviceRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
 	void ValidateRect  (const GRect& pixRect);
 //	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();
-	void Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
+	void ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
 	void SetCursorPos(GPoint clientPoint);
 
-	GRect ViewRect() const { return GRect(GPoint(0, 0), m_ViewSize); }
+	GRect ViewDeviceRect() const { return GRect(GPoint(0, 0), m_ViewDeviceSize); }
+	TRect ViewLogicalRect() const { auto rect = TRect(ViewDeviceRect()); rect *= GetReverseFactors(); return rect; }
 
 	void ShowPopupMenu(const GPoint& point, const MenuData& menuData) const;
 	void SetFocusRect(const GRect& focusRect);
@@ -295,7 +296,7 @@ protected:
 
 	controller_vector             m_ControllerVector;
 
-	GPoint                        m_ViewSize;
+	GPoint                        m_ViewDeviceSize;
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
 	HWND                          m_hWnd;

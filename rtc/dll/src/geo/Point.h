@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_POINT_H)
@@ -56,14 +28,18 @@ struct Point: Couple<T>
 	Point() {} // default initialisastion results in valid possibly non-zero objects too
 	Point(T first, T second): Couple<T>(first, second) {}
 	Point(Undefined): Couple<T>(Undefined()) {}
-	template <typename U>
+
+	template <std::convertible_to<T> U>
 	Point(const Point<U>& rhs): Couple<T>(rhs.first, rhs.second) {}
 
-	template <typename U>
+	template <std::convertible_to<T> U>
 	void operator =(const Point<U>& rhs) { first = rhs.first; second = rhs.second; }
 
-	template <typename U>
-	void operator *=(const Point<U>& rhs) { first *= rhs.first; second *= rhs.second; }
+	template <std::convertible_to<T> U>
+	void operator *=(Point<U> rhs) { first = first * rhs.first; second = second * rhs.second; }
+
+	template <std::convertible_to<T> U>
+	void operator *=(U rhs) { first = first * rhs; second = second * rhs; }
 
 #if defined(DMS_POINT_ROWCOL)
 	const T& Row() const { return first;  }
@@ -236,7 +212,6 @@ const Point<T>& operator X(Point<T>& self, T other)                  \
 
 DEFINE_ASSIGNMENT_OPERATOR(+=)
 DEFINE_ASSIGNMENT_OPERATOR(-=)
-DEFINE_ASSIGNMENT_OPERATOR(*=)
 DEFINE_ASSIGNMENT_OPERATOR(/=)
 DEFINE_ASSIGNMENT_OPERATOR(%=)
 DEFINE_ASSIGNMENT_OPERATOR(^=)

@@ -71,7 +71,7 @@ public:
 
 	virtual GraphVisitState DoMapControl(MapControl* mc);
 
-	virtual void DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemRect);
+	virtual void DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect);
 	virtual WeakPtr<CounterStacks> GetCounterStacks() const;
 
 	bool HasCounterStacks() const { return ! GetCounterStacks().is_null(); }
@@ -108,26 +108,28 @@ public:
 	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 
 	const CrdTransformation& GetTransformation() const { return m_Transformation; }
-	const TPoint& GetClientOffset() const { return m_ClientOffset; }
-	const GRect& GetAbsClipRect() const { return m_ClipRect; }
-	CrdRect                  GetWorldClipRect() const;
+	CrdTransformation GetLogicalTransformation() const { return m_Transformation / CrdTransformation(CrdPoint(0.0, 0.0), GetSubPixelFactors()); }
+	const TPoint& GetClientLogicalOffset() const { return m_ClientLogicalOffset; }
+	const GRect&  GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
+	CrdRect       GetWorldClipRect() const;
 
 	CrdPoint GetSubPixelFactors() const;
 	CrdType GetSubPixelFactor() const;
-	TPoint GetDeviceSize(TPoint relPoint) const;
+	GPoint GetDeviceSize(TPoint relPoint) const;
+	TPoint GetLogicalSize(GPoint devicePoint) const;
 
 protected:
 	GraphVisitor(const GRect& clipRect, CrdPoint scaleFactors);
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
-	TPoint            m_ClientOffset; // in client device coordinates
-	GRect             m_ClipRect; // in client device coordinates 
+	TPoint            m_ClientLogicalOffset; 
+	GRect             m_ClipDeviceRect;
 	CrdPoint          m_SubPixelFactors;
 
 	friend struct AddTransformation;
-	friend struct AddClientOffset;
-	friend struct VisitorRectSelector;
+	friend struct AddClientLogicalOffset;
+	friend struct VisitorDeviceRectSelector;
 };
 
 //----------------------------------------------------------------------
@@ -178,7 +180,7 @@ public:
 	GraphVisitState DoLayer           (GraphicLayer*    gl) override;
 	GraphVisitState DoDataItemColumn  (DataItemColumn* dic) override;
 
-	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemRect) override;
+	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) override;
 	WeakPtr<CounterStacks> GetCounterStacks() const override;
 
 	HDC GetDC() const { return m_hDC; }
@@ -214,8 +216,7 @@ public:
 
 class GraphInvalidator : public AbstrVisitor
 {
-//	typedef GraphVisitor base_type;
-	typedef AbstrVisitor base_type;
+	using base_type = AbstrVisitor ;
 public:
   	GraphInvalidator();
 

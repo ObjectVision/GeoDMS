@@ -219,9 +219,9 @@ void ViewPort::DoUpdateView()
 
 	InvalidateDraw();
 	UpdateScaleBar();
-
+	auto sf = GetScaleFactors();
 	for (auto& gc: m_GridCoordMap)
-		gc.second.lock()->Init(TPoint2GPoint(GetCurrClientSize()), m_w2vTr);
+		gc.second.lock()->Init(TPoint2GPoint(GetCurrClientSize(), sf), m_w2vTr);
 
 	for (auto& sc: m_SelCaretMap)
 		sc.second.lock()->OnZoom();
@@ -258,7 +258,7 @@ void ViewPort::InvalidateOverlapped()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
 	if (m_ScaleBarCaret)
-		dv->InvalidateRect(m_ScaleBarCaret->GetCurrBoundingBox());
+		dv->InvalidateDeviceRect(m_ScaleBarCaret->GetCurrBoundingBox());
 }
 
 void ViewPort::OnChildSizeChanged()
@@ -282,11 +282,7 @@ void ViewPort::SetNeedle(CrdTransformation* tr, GPoint trackPoint)
 		if (!m_NeedleCaret)
 			dv->InsertCaret(m_NeedleCaret = new NeedleCaret);
 
-		NeedleCaretOperator co(
-			trackPoint,
-			TRect2GRect(GetCurrClientAbsRect()),
-			this
-		);
+		NeedleCaretOperator co(trackPoint, GetCurrClientAbsDeviceRect(), this);
 		dv->MoveCaret(m_NeedleCaret, co);
 	}
 	else
@@ -314,14 +310,14 @@ const AbstrUnit* ViewPort::GetWorldCrdUnit() const
 	return m_WorldCrdUnit;
 }
 
-CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
+CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const ScalableObject* go, OrientationType orientation)
 {
 	if (!result.empty())
 	{
-		GRect border = go->GetBorderPixelExtents(subPixelFactors);
+		TRect border = go->GetBorderLogicalExtents();
 
-		if (	border != GRect(GPoint(0,0), GPoint(0,0))
-			&&	IsStrictlyLower(border.Size(), TPoint2GPoint(viewPort.Size())))
+		if (	not border.empty()
+			&&	IsStrictlyLower(border.Size(), viewPort.Size()))
 		{
 			CrdRect crdBorder = Convert<CrdRect>(border);
 			result +=
@@ -333,23 +329,23 @@ CrdRect WorldRect_AddBorderPixels(CrdRect result, const TRect& viewPort, const S
 
 static ViewPort* g_CurrVpZoom = nullptr;
 
-CrdRect calcWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
+CrdRect calcWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation)
 {
 	auto wcr = go->CalcWorldClientRect();
-	return WorldRect_AddBorderPixels(wcr, viewPort, go, orientation, subPixelFactors);
+	return WorldRect_AddBorderPixels(wcr, viewPort, go, orientation);
 }
 
-CrdRect calcSelectedWorldFullRect(const TRect& viewPort, const GraphicLayer* gl, OrientationType orientation, CrdPoint subPixelFactors)
+CrdRect calcSelectedWorldFullRect(const TRect& viewPort, const GraphicLayer* gl, OrientationType orientation)
 {
 	CrdRect selectRect = gl->CalcSelectedFullWorldRect();
 	if (! selectRect.inverted()) 
-		return WorldRect_AddBorderPixels(selectRect, viewPort, gl, orientation, subPixelFactors);
+		return WorldRect_AddBorderPixels(selectRect, viewPort, gl, orientation);
 	return selectRect;
 }
 
-CrdRect getCurrWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation, CrdPoint subPixelFactors)
+CrdRect getCurrWorldFullRect(const TRect& viewPort, const ScalableObject* go, OrientationType orientation)
 {
-	return WorldRect_AddBorderPixels(go->GetCurrWorldClientRect(), viewPort, go, orientation, subPixelFactors);
+	return WorldRect_AddBorderPixels(go->GetCurrWorldClientRect(), viewPort, go, orientation);
 }
 
 const LayerSet* ViewPort::GetLayerSet() const
@@ -384,17 +380,12 @@ void ViewPort::ZoomWorldFullRect(const TRect& relClientRect)
 
 	CrdRect roi;
 	
-	auto dv = GetDataView().lock();
-	if (!dv)
-		return;
-	auto scaleFactor = dv->GetDIP2pixFactorXY();
-
 	for (gr_elem_index n = gc->NrEntries(); n--; )
 	{
 		const ScalableObject* go = gc->GetConstEntry(n);
 		if (!go->HasNoExtent())
 		{
-			auto cwfr = calcWorldFullRect(relClientRect, go, m_Orientation, scaleFactor);
+			auto cwfr = calcWorldFullRect(relClientRect, go, m_Orientation);
 			roi |= cwfr;
 		}
 	}
@@ -412,16 +403,13 @@ CrdRect ViewPort::GetCurrWorldFullRect() const
 	gr_elem_index n = gc->NrEntries();
 	assert(n);
 
-	TRect relClientRect = GetCurrClientRelRect();
+	TRect relClientRect = GetCurrClientRelLogicalRect();
 	CrdRect roi;
-	auto dv = GetDataView().lock();
-	assert(dv);
-	auto scaleFactor = dv->GetDIP2pixFactorXY();
 	for (gr_elem_index i = 0; i != n; ++i)
 	{
 		const ScalableObject* go = gc->GetConstEntry(i);
 		if (!go->HasNoExtent())
-			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation, scaleFactor);
+			roi |= getCurrWorldFullRect(relClientRect, go, m_Orientation);
 	}
 	return roi;
 }
@@ -453,7 +441,7 @@ void ViewPort::ZoomAll()
 	ScalableObject* gc = GetContents();
 	if (!gc || !gc->NrEntries()) 
 		return;
-	ZoomWorldFullRect(GetCurrClientRelRect());
+	ZoomWorldFullRect(GetCurrClientRelLogicalRect());
 }
 
 ViewPort* ViewPort::g_CurrZoom = nullptr;
@@ -469,7 +457,7 @@ void ViewPort::AL_ZoomAll()
 	if (!dv)
 		return;
 
-	SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation, dv->GetDIP2pixFactorXY()));
+	SetROI(calcWorldFullRect(CalcClientRelRect(), go, m_Orientation));
 }
 
 void ViewPort::AL_ZoomSel()
@@ -477,11 +465,8 @@ void ViewPort::AL_ZoomSel()
 	GraphicLayer* al = GetActiveLayer();
 	if (!al)
 		return;
-	auto dv = GetDataView().lock();
-	if (!dv)
-		return;
 
-	CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation, dv->GetDIP2pixFactorXY());
+	CrdRect selectRect = calcSelectedWorldFullRect(CalcClientRelRect(), al, m_Orientation);
 	if (! selectRect.empty())
 		SetROI(selectRect);
 }
@@ -638,8 +623,8 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	}
 	if (eventID & (EID_LBUTTONDOWN | EID_LBUTTONUP | EID_LBUTTONDBLCLK) )
 	{
-		AddClientOffset  viewportOffset(&med, GetCurrClientRelPos());
-		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientOffset()));
+		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
+		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalOffset()));
 
 		InfoController::SelectFocusElem(GetLayerSet(), tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)), eventID);
 
@@ -683,7 +668,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 
 			case TB_SelectDistrict:
 				medOwner->InsertController(
-					new SelectDistrictController(medOwner.get(), this, CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientOffset() ) 
+					new SelectDistrictController(medOwner.get(), this, CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalOffset() )
 					)
 				);
 				return true;
@@ -831,10 +816,10 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case VK_ADD:      return OnCommand(TB_ZoomIn1);
 			case VK_SUBTRACT: return OnCommand(TB_ZoomOut1);			
 
-			case VK_RIGHT:    Scroll(GPoint(-ScrollStepSize(), 0)); return true;
-			case VK_LEFT:     Scroll(GPoint( ScrollStepSize(), 0)); return true;
-			case VK_UP:       Scroll(GPoint(0,  ScrollStepSize())); return true;
-			case VK_DOWN:     Scroll(GPoint(0, -ScrollStepSize())); return true;
+			case VK_RIGHT:    ScrollLogical(TPoint(-ScrollStepSize(), 0)); return true;
+			case VK_LEFT:     ScrollLogical(TPoint( ScrollStepSize(), 0)); return true;
+			case VK_UP:       ScrollLogical(TPoint(0,  ScrollStepSize())); return true;
+			case VK_DOWN:     ScrollLogical(TPoint(0, -ScrollStepSize())); return true;
 		}
 	} else if (KeyInfo::IsCtrl(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {
@@ -1043,7 +1028,7 @@ public:
 protected:
 	bool Move (EventInfo& eventInfo) override
 	{
-		m_GridCoords->Update(1.0);
+		m_GridCoords->UpdateUnscaled();
 		IPoint gridNewBase = (IsDefined(eventInfo.m_Point))			
 			?	m_GridCoords->GetExtGridCoordFromAbs(eventInfo.m_Point)
 			:	UNDEFINED_VALUE(IPoint); 
@@ -1088,7 +1073,7 @@ void ViewPort::PasteGrid(SelValuesData* svd, GridLayer* gl)
 	pasteController->m_OrgCursor = SetViewPortCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_PAN)));
 }
 
-void ViewPort::Scroll(const GPoint& delta)
+void ViewPort::ScrollDevice(GPoint delta)
 {
 	DBG_START("ViewPort", "Scroll", MG_DEBUG_SCROLL);
 
@@ -1106,11 +1091,11 @@ void ViewPort::Scroll(const GPoint& delta)
 		SetROI(GetROI() - w2v.WorldScale(Convert<CrdPoint>(delta)) );
 	}
 	m_w2vTr = CalcCurrWorldToClientTransformation();
-	GRect viewExtents = TRect2GRect( CalcClientRelRect() );
+	GRect viewExtents = TRect2GRect( CalcClientRelRect(), GetScaleFactors() );
 
 	InvalidateOverlapped();
 
-	dv->Scroll(delta, viewExtents, viewExtents, this);
+	dv->ScrollDevice(delta, viewExtents, viewExtents, this);
 
 	m_BrushOrg += delta;
 
@@ -1124,12 +1109,12 @@ void ViewPort::Scroll(const GPoint& delta)
 		sc.second.lock()->OnScroll(delta);
 }
 
-void ViewPort::InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const
+void ViewPort::InvalidateWorldRect(const CrdRect& rect, const TRect& borderExtents) const
 {
 	if (IsDefined(rect) && !rect.inverted())
 		InvalidateClientRect(
 			DRect2TRect( GetCurrWorldToClientTransformation().Apply(rect) )
-		+	TRect(borderExtents)
+		+	borderExtents
 		);
 }
 
@@ -1304,7 +1289,7 @@ GridCoordPtr ViewPort::GetOrCreateGridCoord(const grid_coord_key& key)
 	if (pos != m_GridCoordMap.end() && pos->first == key)
 		return pos->second.lock();
 
-	auto result = std::make_shared<GridCoord>(this, key, TPoint2GPoint(GetCurrClientSize()), m_w2vTr);
+	auto result = std::make_shared<GridCoord>(this, key, TPoint2GPoint(GetCurrClientSize(), GetScaleFactors()), m_w2vTr);
 	m_GridCoordMap.insert(pos, grid_coord_map::value_type(key, result) );
 	return result;
 }

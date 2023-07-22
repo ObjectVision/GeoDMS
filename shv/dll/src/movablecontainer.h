@@ -118,8 +118,8 @@ public:
 	void SetMaxRowHeight(TType  maxRowHeight);
 	void SetColSepWidth (UInt32 colSepWidth);
 
-	TType   MaxElemHeight() const { return m_MaxRowHeight; }
-	UInt32  ColSepWidth  () const { return m_ColSepWidth;  }
+	TType   MaxElemHeight() const { return m_MaxRowHeight; } // in logical coordinates
+	UInt32  ColSepWidth  () const { return m_ColSepWidth;  } // in logical coordinates
 
 private:
 	TType  m_MaxRowHeight;

@@ -111,12 +111,10 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 		TRect newSelRect = GetSelRect();
 		if (m_OldSelRect != newSelRect)
 		{
-			auto scaleFactor = dv->GetDIP2pixFactorXY();
-			auto gRect = TRect2GRect(m_OldSelRect);
-			gRect *= scaleFactor;
+			auto sf = dv->GetScaleFactors();
+			auto gRect = TRect2GRect(m_OldSelRect, sf);
 			Region selChange( gRect );
-			gRect = TRect2GRect(newSelRect);
-			gRect *= scaleFactor;
+			gRect = TRect2GRect(newSelRect, sf);
 			selChange ^= Region( gRect );
 			dv->InvalidateRgn(selChange);
 		}
@@ -145,8 +143,7 @@ TRect SelChangeInvalidatorBase::GetSelRect() const
 
 	// topleft corner
 	const DataItemColumn* dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_Begin);
-	TRect 
-		result  = dic->GetElemFullRelRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
+	TRect result  = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
 
 	// expand to bottom right corner if any direction is a strict range (aka open)
 	if (!m_TableControl->m_Cols.IsClosed() || !m_TableControl->m_Rows.IsClosed())
@@ -155,13 +152,13 @@ TRect SelChangeInvalidatorBase::GetSelRect() const
 		gr_elem_index DEBUG2 = DEBUG;
 
 		dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_End  );
-		result |= TRect(dic->GetElemFullRelRect(m_TableControl->m_Rows.m_End  ) + dic->GetCurrClientRelPos());
+		auto elemFullAbsLogicalRect = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_End) + dic->GetCurrClientRelPos();
+		result |= elemFullAbsLogicalRect;
 	}
 
 	// clip
 	result &= TRect(TPoint(0,0), m_TableControl->GetCurrClientSize());
-	result += m_TableControl->GetCurrClientAbsPos();
-	result &= TRect(m_TableControl->GetDrawnFullAbsRect());
+	result += m_TableControl->GetCurrClientAbsLogicalPos();
 	if (result.empty())
 		return TRect(0, 0, 0, 0);
 	
@@ -1358,12 +1355,12 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		GType curX = med.GetEventInfo().m_Point.x;
+		GType curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position
 		for (SizeT i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsRect().Right();
+			TType x = chc->GetCurrFullAbsLogicalRect().Right();
 			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
 			{
 				debug_cast<DataItemColumn*>(chc)->StartResize(med);

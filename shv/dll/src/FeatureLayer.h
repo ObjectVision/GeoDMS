@@ -112,15 +112,15 @@ public:
 	CrdRect CalcSelectedFullWorldRect  () const override;
 
 //	override virtual of GraphicObject
-	GRect   GetBorderPixelExtents    (CrdPoint subPixelFactors) const override;
+	TRect   GetBorderLogicalExtents() const override;
 	bool    OnCommand(ToolButtonID id)        override;
 	void    FillLcMenu(MenuData& menuData) override;
 
 	virtual  CrdRect GetFeatureWorldExtents   () const;
-	virtual  GRect   GetFeaturePixelExtents   (CrdPoint subPixelFactors) const;
+	virtual  TRect   GetFeatureLogicalExtents() const;
 	virtual  CrdRect CalcSelectedClientWorldRect() const;
 
-  	CrdRect GetExtentsInflator(const CrdTransformation& tr, CrdPoint subPixelFactors) const;
+  	CrdRect GetExtentsInflator(const CrdTransformation& tr) const;
   	CrdRect GetWorldClipRect  (const GraphDrawer& d) const;
 
 protected: friend FeatureDrawer; friend struct LabelDrawer;
@@ -173,7 +173,7 @@ class GraphicPointLayer : public FeatureLayer
 public:
 	GraphicPointLayer(GraphicObject* owner, const LayerClass* cls = GetStaticClass());
 
-	GRect   GetFeaturePixelExtents(CrdPoint subPixelFactors) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:
@@ -222,7 +222,7 @@ class GraphicArcLayer : public FeatureLayer
 public:
 	GraphicArcLayer(GraphicObject* owner);
 
-	GRect   GetFeaturePixelExtents(CrdPoint subPixelFactors) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:
@@ -251,7 +251,7 @@ class GraphicPolygonLayer : public FeatureLayer
 public:
 	GraphicPolygonLayer(GraphicObject* owner);
 
-	GRect   GetFeaturePixelExtents(CrdPoint subPixelFactors) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:

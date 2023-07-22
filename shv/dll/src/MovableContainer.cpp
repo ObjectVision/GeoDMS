@@ -68,11 +68,11 @@ void AutoSizeContainer::ProcessCollectionChange()
 		if (entry && entry->IsVisible())
 		{
 			TPoint entrySize = entry->GetCurrClientSize();
-			assert(entry->GetCurrClientRelPos().x() + entry->GetBorderPixelExtents().Left() >= 0);
-			assert(entry->GetCurrClientRelPos().y() + entry->GetBorderPixelExtents().Top () >= 0);
+			assert(entry->GetCurrClientRelPos().x() + entry->GetBorderLogicalExtents().Left() >= 0);
+			assert(entry->GetCurrClientRelPos().y() + entry->GetBorderLogicalExtents().Top () >= 0);
 
 			MakeUpperBound( clientSize
-			,	entrySize + entry->GetCurrClientRelPos() + TPoint(entry->GetBorderPixelExtents().BottomRight())
+			,	entrySize + entry->GetCurrClientRelPos() + TPoint(entry->GetBorderLogicalExtents().BottomRight())
 			);
 		}
 	}
@@ -99,12 +99,12 @@ void GraphicVarRows::ProcessCollectionChange()
 	{
 		MovableObject* entry = GetEntry(i);
 
-		GRect pixelExtents = entry->GetBorderPixelExtents();
+		TRect extents = entry->GetBorderLogicalExtents();
 		TType entryTop     = resSize.y();
 
 		if (entry->IsVisible()) 
 		{
-			TPoint entrySize = entry->GetCurrClientSize() + TPoint(pixelExtents.Size());
+			TPoint entrySize = entry->GetCurrClientSize() + extents.Size();
 			resSize.y() += entrySize.y();
 			resSize.y() += m_RowSepHeight;
 
@@ -112,7 +112,7 @@ void GraphicVarRows::ProcessCollectionChange()
 				MakeMax(resSize.x(), entrySize.x());
 			SetClientSize( UpperBound(GetCurrClientSize(), resSize) );
 		}
-		entry->MoveTo( TPoint(0, entryTop) - TPoint(pixelExtents.TopLeft()) );
+		entry->MoveTo( TPoint(0, entryTop) - extents.TopLeft() );
 	}
 
 	SetClientSize( resSize );
@@ -129,20 +129,20 @@ void GraphicVarRows::DrawBackground(const GraphDrawer& d) const
 
 	SizeT n = NrEntries(); 
 
-	GRect  absFullRect  = GetClippedCurrFullAbsRect(d);
-	GType  clipStartRow = d.GetAbsClipRect().Top   ();
-	TType  clipEndRow   = d.GetAbsClipRect().Bottom();
+	GRect  absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
+	GType  clipStartRow = d.GetAbsClipDeviceRect().Top   ();
+	TType  clipEndRow   = d.GetAbsClipDeviceRect().Bottom();
 	SizeT  recNo        = 0;
 
-	AddClientOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
 
-	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsRect(d).Top() <= clipStartRow)
+	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Top() <= clipStartRow)
 		++recNo;
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	while (recNo < n)
 	{
-		absFullRect.Top   () = GetConstEntry(recNo)->GetCurrFullAbsRect(d).Top();
+		absFullRect.Top   () = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Top();
 		absFullRect.Bottom() = absFullRect.Bottom() - rowSep;
 		dms_assert(absFullRect.Bottom() > clipStartRow); // follows from previous while condition, recNo < n, and the ascending order of Entries
 		if (absFullRect.Top() >= clipEndRow)
@@ -153,7 +153,7 @@ void GraphicVarRows::DrawBackground(const GraphDrawer& d) const
 	}
 	dms_assert(recNo == n);
 	absFullRect.Top() = (recNo)
-		?	GetConstEntry(--recNo)->GetCurrFullAbsRect(d).Bottom()
+		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).Bottom()
 		:	0;
 	if (absFullRect.Top() >= clipEndRow)
 		return;
@@ -205,12 +205,12 @@ void GraphicVarCols::ProcessCollectionChange()
 	{
 		MovableObject* entry = GetEntry(i);
 
-		GRect pixelExtents = entry->GetBorderPixelExtents();
+		TRect extents = entry->GetBorderLogicalExtents();
 		TType entryLeft    = resSize.x();
 
 		if (entry->IsVisible()) 
 		{
-			TPoint entrySize = entry->GetCurrClientSize() + TPoint(pixelExtents.Size());
+			TPoint entrySize = entry->GetCurrClientSize() + extents.Size();
 
 			resSize.x() += entrySize.x();
 			resSize.x() += m_ColSepWidth;
@@ -220,7 +220,7 @@ void GraphicVarCols::ProcessCollectionChange()
 
 			SetClientSize(UpperBound(GetCurrClientSize(), resSize));
 		}
-		entry->MoveTo( TPoint(entryLeft, 0) - TPoint(pixelExtents.TopLeft()) );
+		entry->MoveTo( TPoint(entryLeft, 0) - extents.TopLeft() );
 	}
 
 	SetClientSize( resSize );
@@ -237,20 +237,20 @@ void GraphicVarCols::DrawBackground(const GraphDrawer& d) const
 
 	SizeT n = NrEntries(); 
 
-	GRect  absFullRect  = GetClippedCurrFullAbsRect(d);
-	GType  clipStartCol = d.GetAbsClipRect().Left ();
-	GType  clipEndCol   = d.GetAbsClipRect().Right();
+	GRect  absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
+	GType  clipStartCol = d.GetAbsClipDeviceRect().Left ();
+	GType  clipEndCol   = d.GetAbsClipDeviceRect().Right();
 	UInt32 recNo        = 0;
 
-	AddClientOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
 
-	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsRect(d).Left() <= clipStartCol)
+	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Left() <= clipStartCol)
 		++recNo;
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	while (recNo < n)
 	{
-		absFullRect.Right() = GetConstEntry(recNo)->GetCurrFullAbsRect(d).Left();
+		absFullRect.Right() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Left();
 		absFullRect.Left () = absFullRect.Right() - colSep;
 		dms_assert(absFullRect.Right() > clipStartCol); // follows from previous while condition, recNo < n, and the ascending order of Entries
 		if (absFullRect.Left () >= clipEndCol)
@@ -261,7 +261,7 @@ void GraphicVarCols::DrawBackground(const GraphDrawer& d) const
 	}
 	dms_assert(recNo == n);
 	absFullRect.Left() = (recNo)
-		?	GetConstEntry(--recNo)->GetCurrFullAbsRect(d).Right()
+		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).Right()
 		:	0;
 	if (absFullRect.Left() >= clipEndCol)
 		return;
@@ -299,7 +299,7 @@ void GraphicVarCols::SetColSepWidth(UInt32 colSepWidth)
 
 void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
 {
-	dms_assert(relPosX <= m_ClientSize.x());
+	dms_assert(relPosX <= m_ClientLogicalSize.x());
 	if (deltaX > 0)
 		base_type::GrowHor(deltaX, relPosX, 0);
 
@@ -322,7 +322,7 @@ void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 
 void GraphicVarRows::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
 {
-	dms_assert(relPosY <= m_ClientSize.y());
+	dms_assert(relPosY <= m_ClientLogicalSize.y());
 	if (deltaY > 0)
 		base_type::GrowVer(deltaY, relPosY, 0);
 
@@ -347,31 +347,31 @@ void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 {
 	if (deltaY > 0)
 	{
-		TType excess = relPosY + deltaY - m_ClientSize.y();
+		TType excess = relPosY + deltaY - m_ClientLogicalSize.y();
 		if (excess > 0)
-			base_type::GrowVer(excess, m_ClientSize.y(), 0);
+			base_type::GrowVer(excess, m_ClientLogicalSize.y(), 0);
 	}
 	if (deltaY < 0)
 	{
 		// recalculate max elem width
 		TType height = 0;
 		SizeT n=NrEntries();
-		while (n) 
-			MakeMax(height, GetEntry(--n)->GetCurrFullSize().y());
-		dms_assert(height <= m_ClientSize.y());
-		if (height < m_ClientSize.y())
-			base_type::GrowVer(height - m_ClientSize.y(), m_ClientSize.y(), 0);
+		while (n)
+			MakeMax(height, GetEntry(--n)->GetCurrFullSize().second);
+		assert(height <= m_ClientLogicalSize.second);
+		if (height < m_ClientLogicalSize.second)
+			base_type::GrowVer(height - m_ClientLogicalSize.second, m_ClientLogicalSize.second, 0);
 	}
 }
 
 void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
 {
-	dms_assert(relPosX <= m_ClientSize.x());
+	dms_assert(relPosX <= m_ClientLogicalSize.x());
 	if (deltaX > 0)
 	{
-		TType excess = relPosX + deltaX - m_ClientSize.x();
+		TType excess = relPosX + deltaX - m_ClientLogicalSize.x();
 		if (excess > 0)
-			base_type::GrowHor(excess, m_ClientSize.x(), 0);
+			base_type::GrowHor(excess, m_ClientLogicalSize.x(), 0);
 	}
 	if (deltaX < 0)
 	{
@@ -379,9 +379,9 @@ void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 		TType width = 0;
 		SizeT n=NrEntries();
 		while (n) 
-			MakeMax(width, GetEntry(--n)->GetCurrFullSize().x());
-		dms_assert(width <= m_ClientSize.x());
-		if (width < m_ClientSize.x())
-			base_type::GrowHor(width - m_ClientSize.x(), m_ClientSize.x(), 0);
+			MakeMax(width, GetEntry(--n)->GetCurrFullSize().first);
+		dms_assert(width <= m_ClientLogicalSize.first);
+		if (width < m_ClientLogicalSize.first)
+			base_type::GrowHor(width - m_ClientLogicalSize.first, m_ClientLogicalSize.first, 0);
 	}
 }
