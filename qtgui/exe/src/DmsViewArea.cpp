@@ -249,7 +249,11 @@ void QDmsViewArea::dropEvent(QDropEvent* event)
     if (tree_view != source)
         return;
 
-    SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
+    auto current_ti = MainWindow::TheOne()->getCurrentTreeItem();
+    if (m_DataView->CanContain(current_ti))
+        SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
+    else
+        MainWindow::TheOne()->defaultView();
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)

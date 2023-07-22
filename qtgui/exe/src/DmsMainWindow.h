@@ -173,6 +173,7 @@ signals:
     void currentItemChanged();
 
 public slots:
+    void defaultViewOrAddItemToCurrentView();
     void defaultView();
     void tableView();
     void mapView();
