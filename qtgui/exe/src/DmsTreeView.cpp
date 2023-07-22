@@ -509,7 +509,7 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 	auto ti = GetTreeItem(index);
 	assert(ti);
 
-	MainWindow::TheOne()->defaultView();
+	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
