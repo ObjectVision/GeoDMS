@@ -251,8 +251,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 	eventlog_toolbar->addWidget(spacer);
 	
-	QWidget* type_spacer = new QWidget(this);
-	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+	//QWidget* type_spacer = new QWidget(this);
+	//spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
 	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 2);
 	type_filter_layout->addWidget(m_minor_trace_filter.get());
@@ -265,7 +265,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	type_filter_layout->addWidget(m_category_filter_progress.get());
 	type_filter_layout->addWidget(m_category_filter_memory.get());
 	type_filter_layout->addWidget(m_category_filter_commands.get());
-	type_filter_layout->addWidget(type_spacer);
+	//type_filter_layout->addWidget(type_spacer);
 	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 1);
 
 	grid_layout->addWidget(m_log.get(), 2, 0);
