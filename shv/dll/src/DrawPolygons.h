@@ -489,7 +489,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					}
 					if (selectedOnly && !(selectionsArray && SelectionID(selectionsArray[entityIndex])))
 						goto nextLabel;
-					ld.DrawLabel(entityIndex, Convert<GPoint>(d.GetTransformation().Apply(centroid)));
+					auto dp = d.GetTransformation().Apply(centroid);
+					ld.DrawLabel(entityIndex, GPoint(dp.X(), dp.Y()));
 				}
 			nextLabel:
 				++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;

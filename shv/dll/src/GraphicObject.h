@@ -220,7 +220,7 @@ public:
 	virtual void FillMenu(MouseEventDispatcher& med);
 
 //	Size and Position
-	virtual TRect CalcFullAbsLogicalRect   (const GraphVisitor&) const=0;
+//REMOVE	virtual TRect CalcFullAbsLogicalRect   (const GraphVisitor&) const=0;
 	virtual GRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const=0;
 
 	GRect GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const;

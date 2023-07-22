@@ -83,11 +83,13 @@ ScalableObject::ScalableObject(GraphicObject* owner)
 // class: ScalableObject --- size and positioning
 //----------------------------------------------------------------------
 
+/* //REMOVE
 TRect ScalableObject::CalcFullAbsLogicalRect(const GraphVisitor& v) const
 {
 	auto wr = CalcWorldClientRect();
 	return DRect2TRect( v.GetLogicalTransformation().Apply( wr ) ) + GetBorderLogicalExtents();
 }
+*/
 
 GRect ScalableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const
 {

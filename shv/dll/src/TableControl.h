@@ -119,7 +119,7 @@ public:
 	void GoEnd  (bool shift);
 	void GoRow(SizeT row, bool mustSetFocusElemIndex);
 
-	void SetRowHeight(UInt32 height);
+	void SetRowHeight(UInt16 height);
 
 	void HideSortOptions(bool value = true) { m_State.Set(TCF_HideSortOptions, value);   }
 	bool HasSortOptions() const             { return ! m_State.Get(TCF_HideSortOptions); }

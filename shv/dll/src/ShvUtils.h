@@ -267,6 +267,7 @@ SHV_CALL Float64 GetWindowDIP2pixFactor(HWND hWnd);
 SHV_CALL Float64 GetDcDIP2pixFactorX(HDC dc);
 SHV_CALL Float64 GetDcDIP2pixFactorY(HDC dc);
 SHV_CALL Point<Float64> GetDcDIP2pixFactorXY(HDC dc);
+SHV_CALL Point<Float64> GetDcPix2DipxFactors(HDC dc);
 SHV_CALL Float64 GetDcDIP2pixFactor(HDC dc);
 
 //----------------------------------------------------------------------

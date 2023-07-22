@@ -83,17 +83,17 @@ public:
 	const AbstrDataItem* GetSrcAttr() const;
 
 	SharedStr Caption() const;
-	void SetElemWidth(GType width);
-	void SetElemSize(const GPoint& size);
+	void SetElemWidth(UInt16 width);
+	void SetElemSize(WPoint size);
 	void SetElemBorder(bool hasBorder) { m_State.Set(DIC_HasElemBorder, hasBorder); }
 	bool HasElemBorder() const         { return m_State.Get(DIC_HasElemBorder); }
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
 	void SetColumnNr(SizeT nr) { dms_assert(IsDefined(nr)); m_ColumnNr = nr; }
 
-	const GPoint& ElemSize()     const { return m_ElemSize; }
-	UInt32        RowSepHeight() const;
-	void          DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemDeviceRect, GuiReadLockPair& locks) const;
+	WPoint ElemSize()     const { return m_ElemSize; }
+	UInt32 RowSepHeight() const;
+	void   DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemDeviceRect, GuiReadLockPair& locks) const;
 
 	void  SetActiveRow(SizeT row);
 	SizeT GetActiveRow() const { return m_ActiveRow; }
@@ -183,7 +183,7 @@ private:
 
 	SharedDataItemInterestPtr m_FutureSrcAttr, m_FutureAggrAttr;
 
-	GPoint m_ElemSize;
+	WPoint m_ElemSize;
 	SizeT m_ColumnNr;
 	SizeT m_ActiveRow;
 

@@ -867,12 +867,13 @@ void GridLayer::CopySelValuesToBitmap()
 	if (featureTheme)
 		readLocks.push_back(featureTheme, DrlType::Certain);
 
-	GRect selectRect = Convert<GRect>( CalcSelectedGeoRect() );
+	auto selectIRect = CalcSelectedGeoRect();
+	GRect selectGRect = GRect(_Left(selectIRect), _Top(selectIRect), _Right(selectIRect), _Bottom(selectIRect));
 
 	GridCoord mapping(nullptr,
 		GetGridCoordKey(GetGeoCrdUnit()), 
-		selectRect.Size(), 
-		CrdTransformation(-Convert<CrdPoint>(selectRect.TopLeft()), shp2dms_order(CrdPoint(1,1)) ) 
+		selectGRect.Size(), 
+		CrdTransformation(-Convert<CrdPoint>(selectIRect.first), GetScaleFactors() )
 	);
 	mapping.UpdateUnscaled();
 
@@ -886,18 +887,12 @@ void GridLayer::CopySelValuesToBitmap()
 	,	&colorPalette
 	,	nullptr	// selValues
 	,	0	// HDC hDC
-	,	GRect(GPoint(0,0), GPoint(selectRect.Size())) // viewExtents
+	,	GRect(GPoint(0,0), selectGRect.Size()) // viewExtents
 	);
 
 	GdiHandle<HBITMAP> 
 		hPaletteBitmap = drawer.Apply(),
-		hCompatibleBitmap(
-			CreateCompatibleBitmap(
-				DcHandleBase(dv->GetHWnd()), // memDC,
-				selectRect.Width(), 
-				selectRect.Height()
-			)
-		);
+		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height())); // memDC,
 
 	CompatibleDcHandle 
 		memPaletteDC(NULL, 0),
@@ -907,12 +902,7 @@ void GridLayer::CopySelValuesToBitmap()
 		selectBitmap1(memPaletteDC,    hPaletteBitmap),
 		selectBitmap2(memCompatibleDC, hCompatibleBitmap);
 
-	BitBlt(memCompatibleDC, 
-		0, 
-		0, 
-		selectRect.Width(), selectRect.Height(), 
-		memPaletteDC, 0, 0, SRCCOPY
-	);
+	BitBlt(memCompatibleDC, 0, 0, selectGRect.Width(), selectGRect.Height(), memPaletteDC, 0, 0, SRCCOPY);
 
 	clipBoard.SetBitmap( hCompatibleBitmap );
 }

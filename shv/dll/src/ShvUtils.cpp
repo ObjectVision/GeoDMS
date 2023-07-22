@@ -145,12 +145,12 @@ GPoint GPoint::ScreenToClient(HWND hWnd) const
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GRect& rect)
 {
-	return os << Convert<IRect>(rect);
+	return os << g2dms_order<TType>(rect);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GPoint& point)
 {
-	return os << Convert<IPoint>(point);
+	return os << g2dms_order<TType>(point);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point)
@@ -648,7 +648,12 @@ Float64 GetDcDIP2pixFactorY(HDC dc)
 
 Point<Float64> GetDcDIP2pixFactorXY(HDC dc)
 {
-	return { GetDeviceCaps(dc, LOGPIXELSX) / 96.0 , GetDeviceCaps(dc, LOGPIXELSY) / 96.0 };
+	return shp2dms_order<Float64>( GetDeviceCaps(dc, LOGPIXELSX) / 96.0 , GetDeviceCaps(dc, LOGPIXELSY) / 96.0 );
+}
+
+Point<Float64> GetDcPix2DipxFactors(HDC dc)
+{
+	return shp2dms_order<Float64>( 96.0 / GetDeviceCaps(dc, LOGPIXELSX), 96.0 / GetDeviceCaps(dc, LOGPIXELSY) );
 }
 
 Float64 GetDcDIP2pixFactor(HDC dc)
@@ -669,19 +674,19 @@ Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 
 	auto result = GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
 	assert(result == S_OK);
-	return { dpiX, dpiY };
+	return shp2dms_order<UINT>( dpiX, dpiY );
 }
 
 Float64 GetWindowDIP2pixFactorX(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
-	return dpi.first / 96.0;
+	return dpi.X() / 96.0;
 }
 
 Float64 GetWindowDIP2pixFactorY(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
-	return dpi.second / 96.0;
+	return dpi.Y() / 96.0;
 }
 
 Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd)

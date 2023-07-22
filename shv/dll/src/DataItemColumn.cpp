@@ -285,7 +285,7 @@ void DataItemColumn::UpdateTheme()
 	InvalidateDraw();
 }
 
-void DataItemColumn::SetElemSize(const GPoint& size)
+void DataItemColumn::SetElemSize(WPoint size)
 {
 	if (m_ElemSize == size)
 		return;
@@ -300,26 +300,26 @@ void DataItemColumn::SetElemSize(const GPoint& size)
 	InvalidateDraw();
 }
 
-void DataItemColumn::SetElemWidth(GType width)
+void DataItemColumn::SetElemWidth(UInt16 width)
 {
-	if (width == m_ElemSize.x)
+	if (width == m_ElemSize.X())
 		return;
 
-	GType colWidth = width; if (HasElemBorder()) colWidth += (2*BORDERSIZE);
+	TType colWidth = width; if (HasElemBorder()) colWidth += (2*BORDERSIZE);
 
 	if (GetEnabledTheme(AN_SymbolIndex))
 		InvalidateDraw();
 
-	TType currClientWidth = GetCurrClientSize().x();
-	assert(m_ElemSize.x + (colWidth-width) == currClientWidth);
-	GType relPosX = m_ElemSize.x; if (HasElemBorder()) relPosX += BORDERSIZE;
+	TType currClientWidth = GetCurrClientSize().X();
+	assert(m_ElemSize.X() + (colWidth-width) == currClientWidth);
+	GType relPosX = m_ElemSize.X(); if (HasElemBorder()) relPosX += BORDERSIZE;
 
-	MakeMin(m_ElemSize.x, width);
+	MakeMin(m_ElemSize.X(), width);
 	GrowHor(colWidth - currClientWidth, relPosX, 0);
-	MakeMax(m_ElemSize.x, width);
+	MakeMax(m_ElemSize.X(), width);
 
-	assert(GetCurrClientSize().x() == colWidth);
-	assert(m_ElemSize.x            == width);
+	assert(GetCurrClientSize().X() == colWidth);
+	assert(m_ElemSize.X()          == width);
 }
 
 void DataItemColumn::SetActiveRow(SizeT row)
@@ -351,7 +351,7 @@ void DataItemColumn::MakeVisibleRow()
 	auto tc = GetTableControl().lock(); if (!tc) return;
 
 	TRect elemRect = GetElemFullRelLogicalRect(GetActiveRow());
-	TPoint border  = TPoint(tc->ColSepWidth(), RowSepHeight());
+	TPoint border  = shp2dms_order<TType>(tc->ColSepWidth(), RowSepHeight());
 	std::shared_ptr<MovableObject> obj = shared_from_this();
 	do
 	{
@@ -382,7 +382,7 @@ void DataItemColumn::Sync(TreeItem* viewContext, ShvSyncMode sm)
 	{
 		SPoint elemSize;
 		SyncValue<SPoint>(viewContext, GetTokenID_mt("ElemSize"), elemSize, Convert<SPoint>(ElemSize()), SM_Load);
-		SetElemSize(Convert<GPoint>(elemSize));
+		SetElemSize(Convert<WPoint>(elemSize));
 	}
 	else
 	{
@@ -441,24 +441,24 @@ void DataItemColumn::DoUpdateView()
 		PrepareDataOrUpdateViewLater(tc->GetRowEntity());
 	}
 
-	TPoint size( m_ElemSize.x, m_ElemSize.y);
+	auto size = Convert<TPoint>( m_ElemSize );
 
 	if (HasElemBorder())
 	{
-		size.x() += DOUBLE_BORDERSIZE;
-		size.y() += DOUBLE_BORDERSIZE;
+		size.X() += DOUBLE_BORDERSIZE;
+		size.Y() += DOUBLE_BORDERSIZE;
 	}
 	UInt32 rowSepHeight = RowSepHeight();
-	size.y() += rowSepHeight;
+	size.Y() += rowSepHeight;
 
-	MakeMin<SizeT>(n, MaxValue<TType>() / size.y());
-	size.y() *= n;
-	MakeMin<TType>(size.y(), MaxValue<TType>() - rowSepHeight);
-	size.y() += rowSepHeight;
+	MakeMin<SizeT>(n, MaxValue<TType>() / size.Y());
+	size.Y() *= n;
+	MakeMin<TType>(size.Y(), MaxValue<TType>() - rowSepHeight);
+	size.Y() += rowSepHeight;
 
 	SetClientSize(size);
 
-	dbg_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 }
 
 void DataItemColumn::DrawBackground(const GraphDrawer& d) const
@@ -484,11 +484,11 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	GRect  absFullRect = GetClippedCurrFullAbsDeviceRect(d); 
 	absFullRect.left = absFullRect.left * scaleFactor.first;
 	absFullRect.right = absFullRect.right * scaleFactor.first;
-	GType  rowDelta    = ElemSize().y + rowSep;
+	GType  rowDelta    = ElemSize().Y() + rowSep;
 	if (HasElemBorder())
 		rowDelta += 2*BORDERSIZE;
 
-	TType clientLogicalOffsetRow = d.GetClientLogicalOffset().y();
+	TType clientLogicalOffsetRow = d.GetClientLogicalOffset().Y();
 	CrdType clientDeviceOffsetRow = clientLogicalOffsetRow * scaleFactor.second;
 	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
 	SizeT recNo = (pageClipRectRow > clientDeviceOffsetRow)
@@ -506,7 +506,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, n-1)))));
 	}
-	TType currRow    = TType(recNo) * rowDelta + d.GetClientLogicalOffset().y();
+	TType currRow    = TType(recNo) * rowDelta + d.GetClientLogicalOffset().Y();
 	GType clipEndRow = d.GetAbsClipDeviceRect().Bottom();
 
 	// draw horizontal borders
@@ -537,18 +537,18 @@ TRect DataItemColumn::GetElemFullRelLogicalRect( SizeT rowNr) const
 	if (!IsDefined(rowNr))
 		return GetCurrFullRelLogicalRect();
 
-	GPoint size = m_ElemSize;
+	auto size = Convert<TPoint>(m_ElemSize);
 	if (HasElemBorder())
 	{
-		size.x += 2*BORDERSIZE;
-		size.y += 2*BORDERSIZE;
+		size.X() += 2*BORDERSIZE;
+		size.Y() += 2*BORDERSIZE;
 	}
 
 	UInt32 rowSepHeight = RowSepHeight();
 
-	TType startRow = (TType(size.y) + rowSepHeight) * rowNr + rowSepHeight;
+	TType startRow = (size.Y() + rowSepHeight) * rowNr + rowSepHeight;
 
-	return TRect(TPoint(0, startRow), TPoint(size.x, startRow + size.y));
+	return TRect(shp2dms_order<TType>(0, startRow), shp2dms_order<TType>(size.X(), startRow + size.Y()));
 }
 
 void DataItemColumn::InvalidateRelRect(TRect rect)
@@ -825,7 +825,7 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 
 	if (! m_FontArray || m_FontIndexCache->GetLastSubPixelFactor() != subPixelFactor)
 	{
-		UInt32 cellHeight = m_ElemSize.y;
+		UInt32 cellHeight = m_ElemSize.Y();
 		if (HasBorder())
 			cellHeight -= 2*BORDERSIZE;
 
@@ -1107,20 +1107,20 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
 		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos());
-		GType height = m_ElemSize.y + RowSepHeight();
+		auto height = m_ElemSize.Y() + RowSepHeight();
 		if (HasElemBorder()) height += (2*BORDERSIZE);
-		SizeT rowNr = relClientPos.y() / height;
+		SizeT rowNr = relClientPos.Y() / height;
 		if (rowNr >= tc->NrRows()) goto skip;
 
-		relClientPos.y() %= height;
+		relClientPos.Y() %= height;
 		if (HasElemBorder())
 		{
-			if (relClientPos.x() < BORDERSIZE) goto skip;
-			if (relClientPos.y() < BORDERSIZE) goto skip;
-			relClientPos.x() -= BORDERSIZE;
-			relClientPos.y() -= BORDERSIZE;
+			if (relClientPos.X() < BORDERSIZE) goto skip;
+			if (relClientPos.Y() < BORDERSIZE) goto skip;
+			relClientPos.X() -= BORDERSIZE;
+			relClientPos.Y() -= BORDERSIZE;
 		}
-		if (!IsStrictlyLower(relClientPos, TPoint(m_ElemSize))) goto skip;
+		if (!IsStrictlyLower(relClientPos, Convert<TPoint>(m_ElemSize))) goto skip;
 
 		{
 			SelChangeInvalidator sci(tc.get());
@@ -1247,9 +1247,9 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	if (tc)
 	{
 		TPoint relClientPos = TPoint(med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos()));
-		GType height = m_ElemSize.y + RowSepHeight();
+		GType height = m_ElemSize.Y() + RowSepHeight();
 		if (HasElemBorder()) height += (2 * BORDERSIZE);
-		SizeT rowNr = relClientPos.y() / height;
+		SizeT rowNr = relClientPos.Y() / height;
 		if (rowNr <= tc->NrRows())
 		{
 			med.m_MenuData.emplace_back(mySSPrintF("&Value info for row %d of '%s'", rowNr, caption.c_str())
@@ -1471,7 +1471,7 @@ bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
 	DataItemColumn* target = debug_cast<DataItemColumn*>(to.get());
 	assert(target);
 	TPoint clientPos = target->GetCurrClientAbsLogicalPos();
-	TType newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.x();
+	TType newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.X();
 	if (target->HasElemBorder())
 		newWidth -= DOUBLE_BORDERSIZE;
 	MakeMax(newWidth, 6);

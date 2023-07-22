@@ -86,7 +86,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 
 	if (counter.Value() == 0)
 	{
-		GRect sr = Convert<GRect>(d.GetTransformation().Apply(wr));
+		GRect sr = DRect2GRect(wr, d.GetTransformation());
 		FillRect(dc, &sr, m_Brush);
 	}
 	++counter;
@@ -94,7 +94,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 		return true;
 
 	wr = Convert<CrdRect>(Convert<SRect>(wr)); // round-off to integers;
-	GRect sr = Convert<GRect>(d.GetTransformation().Apply(wr));
+	GRect sr = DRect2GRect(wr, d.GetTransformation());
 
 	CrdPoint factor = Abs( d.GetTransformation().Factor() );
 	assert(factor.first  > 0);

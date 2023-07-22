@@ -55,7 +55,7 @@ struct GridCoord : public std::enable_shared_from_this<GridCoord>
 
 	void Init(GPoint clientSize, const CrdTransformation& w2vTr);
 
-	void OnScroll(const GPoint& delta);
+	void OnDeviceScroll(const GPoint& delta);
 	void UpdateToScale(CrdPoint subPixelFactors);
 	void UpdateUnscaled() { UpdateToScale(CrdPoint(1.0, 1.0)); }
 
@@ -87,7 +87,7 @@ private:
 	std::weak_ptr<ViewPort>    m_Owner;
 	grid_coord_key             m_Key;
 
-	GPoint                     m_ClientSize;     // m_ClientRect
+	GPoint                     m_ClientSize;     // in device coordinates
 	CrdTransformation          m_World2ClientTr; // m_w2vTr;
 	bool                       m_IsDirty;
 

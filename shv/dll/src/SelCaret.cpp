@@ -98,7 +98,7 @@ void SelCaret::OnZoom()
 	m_Ready = false;
 }
 
-void SelCaret::OnScroll(const GPoint& delta)
+void SelCaret::OnDeviceScroll(const GPoint& delta)
 {
 	if (!m_Ready)
 		return;

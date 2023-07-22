@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "ShvDllPch.h"
 
 #include "GraphVisitor.h"
@@ -185,7 +156,7 @@ bool AbstrVisitor::MustBreak() const
 
 GraphVisitor::GraphVisitor(const GRect& clipDeviceRect, DPoint scaleFactors)
 	:	m_ClipDeviceRect(clipDeviceRect)
-	,	m_ClientLogicalOffset(0, 0)
+	,	m_ClientLogicalOffset(Point<TType>(0, 0))
 	,	m_Transformation(CrdPoint(0, 0), scaleFactors)
 	,	m_SubPixelFactors(scaleFactors)
 {}
@@ -307,16 +278,16 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 	{
 		auto sf = GetSubPixelFactors();
 		AddClientLogicalOffset localBase(this, dic->GetCurrClientRelPos());
-		GPoint elemSize = dic->ElemSize();
+		TPoint elemSize = Convert<TPoint>(dic->ElemSize());
 		if (dic->HasElemBorder())
 		{
-			elemSize.x += 2*BORDERSIZE;
-			elemSize.y += 2*BORDERSIZE;
+			elemSize.X() += 2*BORDERSIZE;
+			elemSize.Y() += 2*BORDERSIZE;
 		}
 
-		TType rowLogicalDelta = (elemSize.y + dic->RowSepHeight());
+		TType rowLogicalDelta = (elemSize.Y() + dic->RowSepHeight());
 		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
-		CrdType clientDeviceRow = m_ClientLogicalOffset.y() * sf.second;
+		CrdType clientDeviceRow = m_ClientLogicalOffset.Y() * sf.second;
 
 		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
 			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
@@ -327,14 +298,14 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
 			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
-			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalOffset.y(); // in device pixel units
+			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalOffset.Y(); // in device pixel units
 
 		while ( recNo < n && currRow < clipEndRow)
 		{
 			dms_assert(!SuspendTrigger::DidSuspend());
-			AddClientLogicalOffset localRowBase(this, TPoint(0, currRow));
+			AddClientLogicalOffset localRowBase(this, shp2dms_order<TType>(0, currRow));
 
-			auto  absElemDeviceRect = GRect(TPoint2GPoint(m_ClientLogicalOffset, sf), TPoint2GPoint(m_ClientLogicalOffset + TPoint(elemSize), sf) );
+			auto  absElemDeviceRect = TRect2GRect(TRect(m_ClientLogicalOffset, m_ClientLogicalOffset + elemSize), sf);
 			VisitorDeviceRectSelector clipper(this, absElemDeviceRect );
 
 			assert(!SuspendTrigger::DidSuspend());
@@ -398,17 +369,17 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 
 CrdRect GraphVisitor::GetWorldClipRect() const
 {
-	return m_Transformation.Reverse(Convert<CrdRect>( GetAbsClipDeviceRect() ) ); 
+	return m_Transformation.Reverse(g2dms_order<CrdType>( GetAbsClipDeviceRect() ) ); 
 }
 
 GPoint GraphVisitor::GetDeviceSize(TPoint relPoint) const
 {
-	return GPoint(relPoint.first * m_SubPixelFactors.first, relPoint.second * m_SubPixelFactors.second );
+	return GPoint(relPoint.X() * m_SubPixelFactors.first, relPoint.Y() * m_SubPixelFactors.second );
 }
 
 TPoint GraphVisitor::GetLogicalSize(GPoint devicePoint) const
 {
-	return TPoint(devicePoint.x / m_SubPixelFactors.first, devicePoint.y / m_SubPixelFactors.second);
+	return shp2dms_order<TType>(devicePoint.x / m_SubPixelFactors.first, devicePoint.y / m_SubPixelFactors.second);
 }
 
 CrdPoint GraphVisitor::GetSubPixelFactors() const
@@ -510,7 +481,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	GRect absFullRect = TRect2GRect(go->CalcFullAbsLogicalRect(*this), GetSubPixelFactors());
+	GRect absFullRect = go->GetCurrFullAbsDeviceRect(*this);
 	assert(!SuspendTrigger::DidSuspend());
 	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
 
@@ -809,7 +780,7 @@ GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 {
 	if ((r_EventInfo.m_EventID & EID_OBJECTFOUND) == 0)
 	{
-		m_WorldCrd    = m_Transformation.Reverse(Convert<CrdPoint>(r_EventInfo.m_Point));
+		m_WorldCrd    = m_Transformation.Reverse(g2dms_order<CrdType>(r_EventInfo.m_Point));
 		m_FoundObject = go->shared_from_this();
 		r_EventInfo.m_EventID |= EID_OBJECTFOUND;
 

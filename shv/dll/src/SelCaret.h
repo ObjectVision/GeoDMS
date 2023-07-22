@@ -55,7 +55,7 @@ struct SelCaret : std::enable_shared_from_this<SelCaret>
 	const Region& GetSelCaretRgn() const { return m_SelCaretRgn; }
 
 	void OnZoom();
-	void OnScroll(const GPoint& delta);
+	void OnDeviceScroll(const GPoint& delta);
 
 	std::weak_ptr<ViewPort> GetOwner() const;
 

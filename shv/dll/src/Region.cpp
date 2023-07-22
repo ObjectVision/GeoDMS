@@ -58,7 +58,7 @@ GRect ClipSize(GPoint size)
 	dms_assert(size.x >= 0);
 	dms_assert(size.y >= 0);
 
-	MakeLowerBound(size, s_WindowClipRect.BottomRight());
+	MakeLowerBound(size, s_WindowClipRect.RightBottom());
 	return GRect(GPoint(0,0), size);
 }
 
@@ -205,10 +205,7 @@ bool Region::IsBoundedBy(const GRect& rect) const
 	
 	return 
 		GetRgnBox(m_Rgn, &bbox) == NULLREGION 
-	||	::IsIncluding(
-			Convert<IRect>(rect),
-			Convert<IRect>(bbox)
-		);
+	||	::IsIncluding(g2dms_order<Int32>(rect), g2dms_order<Int32>(bbox));
 }
 
 void Region::operator ^=(const Region&  src)

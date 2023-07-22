@@ -229,7 +229,7 @@ protected:
 			else 
 				m_HooverRect = GRect(0,0,0,0);
 
-			dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.TopLeft(), m_HooverRect.BottomRight(), m_HooverObj.get()));
+			dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.LeftTop(), m_HooverRect.RightBottom(), m_HooverObj.get()));
 		}
 		return true;
 	}

@@ -25,9 +25,9 @@ struct Point: Couple<T>
 	using Couple<T>::second;
 
 //	Constructors (specified)
-	Point() {} // default initialisastion results in valid possibly non-zero objects too
-	Point(T first, T second): Couple<T>(first, second) {}
-	Point(Undefined): Couple<T>(Undefined()) {}
+	constexpr Point() {} // default initialisastion results in valid possibly non-zero objects too
+	constexpr Point(T first, T second): Couple<T>(first, second) {}
+	constexpr Point(Undefined): Couple<T>(Undefined()) {}
 
 	template <std::convertible_to<T> U>
 	Point(const Point<U>& rhs): Couple<T>(rhs.first, rhs.second) {}
@@ -42,27 +42,32 @@ struct Point: Couple<T>
 	void operator *=(U rhs) { first = first * rhs; second = second * rhs; }
 
 #if defined(DMS_POINT_ROWCOL)
-	const T& Row() const { return first;  }
-	const T& Col() const { return second; }
-	      T& Row()       { return first;  }
-	      T& Col()       { return second; }
+	T Row() const { return first;  }
+	T Col() const { return second; }
+	T& Row()       { return first;  }
+	T& Col()       { return second; }
 
-	const T& Y() const { return first;  }
-	const T& X() const { return second; }
-	      T& Y()       { return first;  }
-	      T& X()       { return second; }
+	T Y() const { return first;  }
+	T X() const { return second; }
+	T& Y()       { return first;  }
+	T& X()       { return second; }
 #else
-	const T& Row() const { return second;  }
-	const T& Col() const { return first; }
-	      T& Row()       { return second;  }
-	      T& Col()       { return first; }
+	T Row() const { return second;  }
+	T Col() const { return first; }
+	T& Row()       { return second;  }
+	T& Col()       { return first; }
 
-	const T& X() const { return first;  }
-	const T& Y() const { return second; }
-	      T& X()       { return first;  }
-	      T& Y()       { return second; }
+	T X() const { return first;  }
+	T Y() const { return second; }
+	T& X()       { return first;  }
+	T& Y()       { return second; }
 #endif
 };
+
+template<class T> inline auto get_x(Point<T>&& p) noexcept -> T { return p.X(); }
+template<class T> inline auto get_y(Point<T>&& p) noexcept -> T { return p.Y(); }
+template<class T> inline auto get_x(Point<T>& p) noexcept-> T& { return p.X(); }
+template<class T> inline auto get_y(Point<T>& p) noexcept-> T& { return p.Y(); }
 
 //----------------------------------------------------------------------
 // Main Section   PointBounds
@@ -329,12 +334,12 @@ Area(const Point<T>& v)
 // Section      : Distance Measures
 //----------------------------------------------------------------------
 
-template <typename ReturnType, typename T, typename U>
-inline ReturnType InProduct(Point<T> p1, Point<U> p2)
+template <typename ReturnType, typename PU>
+inline ReturnType InProduct(PU p1, PU p2)
 {
 	return
-		ReturnType(p1.first ) * ReturnType(p2.first )
-	+	ReturnType(p1.second) * ReturnType(p2.second);
+		ReturnType(get_x(p1)) * ReturnType(get_x(p2))
+	+	ReturnType(get_y(p1)) * ReturnType(get_y(p2));
 }
 
 template <typename ReturnType, typename U>
@@ -345,14 +350,14 @@ inline ReturnType OutProduct(Point<U> p1, Point<U> p2)
 	-	ReturnType(p1.Row()) * ReturnType(p2.Col());
 }
 
-template <typename ReturnType, typename U>
-inline ReturnType Norm(Point<U> point)
+template <typename ReturnType, typename PU>
+inline ReturnType Norm(PU point)
 {
 	return InProduct<ReturnType>(point, point);
 }
 
-template <typename ReturnType, typename U>
-inline ReturnType SqrDist(Point<U> p1, Point<U> p2)
+template <typename ReturnType, typename PU>
+inline ReturnType SqrDist(PU p1, PU p2)
 {
 	return Norm<ReturnType>(p1-p2);
 }

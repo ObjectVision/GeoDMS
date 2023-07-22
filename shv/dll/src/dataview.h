@@ -202,6 +202,8 @@ public:
 	HWND     GetHWnd()        const { return m_hWnd; }
 	CrdPoint GetScaleFactors() const { return GetWindowDIP2pixFactorXY(GetHWnd()); }
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
+	CrdPoint Reverse(GPoint pnt) const { auto res = shp2dms_order<CrdType>(pnt.x, pnt.y); res *= GetReverseFactors(); return res; }
+	CrdRect  Reverse(GRect rect) const { return CrdRect(Reverse(rect.LeftTop()), Reverse(rect.RightBottom())); }
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
 	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDIP2pixFactorY(GetHWnd())); }
 
@@ -241,7 +243,7 @@ public:
 	void SetCursorPos(GPoint clientPoint);
 
 	GRect ViewDeviceRect() const { return GRect(GPoint(0, 0), m_ViewDeviceSize); }
-	TRect ViewLogicalRect() const { auto rect = TRect(ViewDeviceRect()); rect *= GetReverseFactors(); return rect; }
+	TRect ViewLogicalRect() const { return Convert<TRect>(Reverse(ViewDeviceRect())); }
 
 	void ShowPopupMenu(const GPoint& point, const MenuData& menuData) const;
 	void SetFocusRect(const GRect& focusRect);

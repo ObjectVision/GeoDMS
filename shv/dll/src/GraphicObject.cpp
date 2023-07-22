@@ -536,9 +536,9 @@ void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint 
 			GraphicObject* subObj = GetEntry(--n);
 			if (subObj->IsDrawn())
 			{
-				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.BottomRight(), invariantLimit))
+				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.RightBottom(), invariantLimit))
 				{
-					dms_assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.TopLeft(), invariantLimit));
+					dms_assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.LeftTop(), invariantLimit));
 					subObj->TranslateDrawnRect(clipRect, delta);
 				}
 				else

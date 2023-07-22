@@ -62,7 +62,7 @@ public:
 	bool HasDefinedExtent() const override { return !HasNoExtent(); }
 
 //	override GraphicObject: Size and Position
-	TRect CalcFullAbsLogicalRect  (const GraphVisitor& v) const override;
+//REMOVE	TRect CalcFullAbsLogicalRect  (const GraphVisitor& v) const override;
 	GRect GetCurrFullAbsDeviceRect(const GraphVisitor& v) const override;
 
 	CrdRect GetCurrWorldClientRect() const;

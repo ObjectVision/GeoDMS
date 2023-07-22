@@ -101,29 +101,29 @@ void MapControl::ProcessSize(TPoint mapControlSize)
 	TPoint viewPortSize = mapControlSize;
 
 	if (m_ScrollPort->IsVisible())
-		viewPortSize.x() -= mapControlSize.x() / 4L;
+		viewPortSize.X() -= mapControlSize.X() / 4L;
 
-	bool viewPortSmaller = (viewPortSize.x() < m_ViewPort->GetCurrClientSize().x());
+	bool viewPortSmaller = (viewPortSize.X() < m_ViewPort->GetCurrClientSize().X());
 	if (viewPortSmaller)
-		m_ViewPort->SetClientRect( TRect( TPoint(0, 0), viewPortSize ) );
+		m_ViewPort->SetClientRect( TRect( Point<TType>(0, 0), viewPortSize ) );
 
-	TType layerControlStartRow = m_OvViewPort->IsVisible() ? Min<TType>(TType(250), TType(mapControlSize.y() / 3) ) : 0;
-	TType layerControlEndRow   = mapControlSize.y();
+	TType layerControlStartRow = m_OvViewPort->IsVisible() ? Min<TType>(TType(250), TType(mapControlSize.Y() / 3) ) : 0;
+	TType layerControlEndRow   = mapControlSize.Y();
 
-	bool overviewSmaller = (layerControlStartRow < m_OvViewPort->GetCurrClientSize().y());
+	bool overviewSmaller = (layerControlStartRow < m_OvViewPort->GetCurrClientSize().Y());
 	if (overviewSmaller)
-		m_OvViewPort->SetClientRect( TRect( viewPortSize.x(), 0, mapControlSize.x(), layerControlStartRow) );
+		m_OvViewPort->SetClientRect( TRect( shp2dms_order<TType>(viewPortSize.X(), 0), shp2dms_order<TType>(mapControlSize.X(), layerControlStartRow)) );
 
 	m_ScrollPort->SetClientRect(
 		TRect(
-			TPoint(viewPortSize  .x(), layerControlStartRow),
-			TPoint(mapControlSize.x(), layerControlEndRow)
+			shp2dms_order<TType>(viewPortSize  .X(), layerControlStartRow),
+			shp2dms_order<TType>(mapControlSize.X(), layerControlEndRow)
 		)
 	);
 	if (!overviewSmaller)
-		m_OvViewPort->SetClientRect( TRect( viewPortSize.x(), 0, mapControlSize.x(), layerControlStartRow) );
+		m_OvViewPort->SetClientRect( TRect(shp2dms_order<TType>(viewPortSize.X(), 0), shp2dms_order<TType>(mapControlSize.X(), layerControlStartRow)) );
 	if (!viewPortSmaller)
-		m_ViewPort->SetClientRect( TRect( TPoint(0, 0), viewPortSize ) );
+		m_ViewPort->SetClientRect( TRect( Point<TType>(0, 0), viewPortSize ) );
 }
 
 void MapControl::OnChildSizeChanged()

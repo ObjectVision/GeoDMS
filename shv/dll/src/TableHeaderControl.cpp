@@ -156,7 +156,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 		else 
 			m_HooverRect = GRect(0, 0, 0, 0);
 
-		dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.TopLeft(), m_HooverRect.BottomRight(), m_HooverObj.get()));
+		dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.RightBottom(), m_HooverRect.RightBottom(), m_HooverObj.get()));
 	}
 	return true;
 }
@@ -295,9 +295,8 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		auto headerSize = TPoint(
-			dic->CalcClientSize().x() + dic->GetBorderLogicalExtents().Width() - columnHeader->GetBorderLogicalExtents().Width()
-			, DEF_TEXT_PIX_HEIGHT);
+		auto headerWidth = dic->CalcClientSize().X() + dic->GetBorderLogicalExtents().Width() - columnHeader->GetBorderLogicalExtents().Width();
+		auto headerSize = shp2dms_order<TType>(headerWidth, DEF_TEXT_PIX_HEIGHT);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)

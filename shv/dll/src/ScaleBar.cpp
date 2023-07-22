@@ -79,7 +79,7 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 	GdiHandle<HBRUSH> brw( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0xFF, 0xFF)) ) );
 	GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	GdiHandle<HBRUSH> br2( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0, 0)) ) );
-	GPoint topLeft = clientAbsRect.TopLeft();
+	GPoint topLeft = clientAbsRect.LeftTop();
 	for (; nrGroups; --nrGroups)
 	{
 		{
@@ -277,7 +277,7 @@ GRect ScaleBarCaret::GetCurrBoundingBox() const
 
 TPoint ScaleBarBase::GetSize(Float64 subPixelFactor) const
 {
-	return TPoint(250 * subPixelFactor, 48 * subPixelFactor);
+	return shp2dms_order<TType>(250 * subPixelFactor, 48 * subPixelFactor);
 }	
 
 GRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const

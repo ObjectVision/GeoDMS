@@ -322,17 +322,19 @@ void RoiCaret::GetRgn(Region& rgn, HDC dc) const
 
 	if (m_StartPoint != m_EndPoint)
 	{
-		const ViewPort* view = debug_cast<const ViewPort*>(m_UsedObject);
-		CrdRect vp  = CrdRect(CrdPoint(0, 0), Convert<CrdPoint>(view->GetCurrClientSize()));
-		CrdRect dvp = 
-			CrdTransformation(
-				Convert<CrdRect>(GRect(m_StartPoint, m_EndPoint)), 
-				vp, OrientationType::Default
-			).Reverse(vp);
+		const ViewPort* vp = dynamic_cast<const ViewPort*>(m_UsedObject);
+		MG_CHECK(vp);
 
-		SRect viewPortRect = Inflate(Convert<SRect>(dvp),SPoint(1, 1));
+		auto rubberBandDRect = DRect(shp2dms_order(m_StartPoint.x, m_StartPoint.y), shp2dms_order(m_EndPoint.x, m_EndPoint.y));
 
-		rgn ^= Region(Convert<GRect>(viewPortRect) );
+		CrdRect vpLogicalSize  = CrdRect(CrdPoint(0, 0), Convert<CrdPoint>(vp->GetCurrClientSize()));
+		auto vpDeviceSize = DRect2GRect(vpLogicalSize, CrdTransformation(CrdPoint(0.0, 0.0), GetDcDIP2pixFactorXY(dc)));
+		auto vpDeviceSizeAsDRect = DRect(shp2dms_order(vpDeviceSize.left, vpDeviceSize.top), shp2dms_order(vpDeviceSize.right, vpDeviceSize.bottom));
+		auto dvp = CrdTransformation(rubberBandDRect, vpDeviceSizeAsDRect, OrientationType::Default).Reverse(vpLogicalSize);
+
+		auto viewPortTRect = Inflate<TPoint>(Convert<TRect>(dvp), Point<TType>(1, 1));
+		auto viewPortGRect = TRect2GRect(viewPortTRect, CrdPoint(1.0, 1.0));
+		rgn ^= Region(viewPortGRect);
 	}
 }
 
@@ -340,20 +342,16 @@ void RoiCaret::GetRgn(Region& rgn, HDC dc) const
 // class  : CircleCaret
 //----------------------------------------------------------------------
 
-CrdType CircleCaret::Radius() const
+GType CircleCaret::Radius() const
 {
-	return sqrt( 
-		SqrDist<CrdType>(
-			Convert<CrdPoint>(m_EndPoint  ), 
-			Convert<CrdPoint>(m_StartPoint)
-		)
-	);
+	auto sqrDist = SqrDist<GType>(m_EndPoint, m_StartPoint);
+	return sqrt(sqrDist);
 }
 
 // override InvertRgnCaret interface
 void CircleCaret::GetRgn(Region& rgn, HDC dc) const
 {
-	UInt32 radius = Radius();
+	auto radius = Radius();
 
 	rgn = 
 		Region(

@@ -193,18 +193,18 @@ TextControl::TextControl(MovableObject* owner,
 	,	m_BkColor  ( bkColor )
 	, m_IsInverted(false)
 {
-	SetClientSize(TPoint(ctrlWidth, ctrlHeight));
+	SetClientSize(shp2dms_order<TType>(ctrlWidth, ctrlHeight));
 }
 
 
 void TextControl::SetWidth (UInt32 width)
 {
-	SetClientSize(TPoint(width, GetCurrClientSize().y()));
+	SetClientSize(shp2dms_order<TType>(width, GetCurrClientSize().Y()));
 }
 
 void TextControl::SetHeight(UInt32 height)
 {
-	SetClientSize(TPoint(GetCurrClientSize().x(), height));
+	SetClientSize(shp2dms_order<TType>(GetCurrClientSize().X(), height));
 }
 
 void TextControl::SetText(WeakStr caption)
@@ -384,11 +384,11 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos());
 		if (HasBorder())
 		{
-			if (relClientPos.x() < 0) goto skip;
-			if (relClientPos.y() < 0) goto skip;
+			if (relClientPos.X() < 0) goto skip;
+			if (relClientPos.Y() < 0) goto skip;
 		}
-		dms_assert(relClientPos.x() >= 0);
-		dms_assert(relClientPos.y() >= 0);
+		dms_assert(relClientPos.X() >= 0);
+		dms_assert(relClientPos.Y() >= 0);
 		if (!IsStrictlyLower(relClientPos, GetCurrClientSize())) goto skip;
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )

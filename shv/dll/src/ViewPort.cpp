@@ -190,7 +190,7 @@ CrdTransformation ViewPort::CalcCurrWorldToClientTransformation() const
 {
 	return CrdTransformation(
 		const_cast<ViewPort*>(this)->GetROI(), 
-		Convert<CrdRect>( TRect(TPoint(0, 0), GetCurrClientSize() ) ), 
+		Convert<CrdRect>( TRect(Point<TType>(0, 0), GetCurrClientSize() ) ),
 		m_Orientation
 	);
 }
@@ -417,12 +417,12 @@ CrdRect ViewPort::GetCurrWorldFullRect() const
 
 CrdRect ViewPort::GetCurrWorldClientRect() const
 {
-	return m_w2vTr.Reverse( Convert<CrdRect>( TRect(TPoint(0, 0), GetCurrClientSize()) ) ); 
+	return m_w2vTr.Reverse( Convert<CrdRect>( TRect(Point<TType>(0, 0), GetCurrClientSize()) ) );
 }
 
 CrdRect ViewPort::CalcCurrWorldClientRect() const
 {
-	return CalcCurrWorldToClientTransformation().Reverse( Convert<CrdRect>( TRect(TPoint(0, 0), GetCurrClientSize()) ) ); 
+	return CalcCurrWorldToClientTransformation().Reverse( Convert<CrdRect>( TRect(Point<TType>(0, 0), GetCurrClientSize()) ) );
 }
 
 CrdRect ViewPort::CalcWorldClientRect() const
@@ -602,7 +602,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 		wheelDelta /= WHEEL_DELTA;
 		if (wheelDelta)
 		{
-			CrdPoint oldWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+			CrdPoint oldWorldPoint = CalcWorldToClientTransformation().Reverse(g2dms_order<CrdType>(eventInfo.m_Point)); // curr World location of click location
 			if (wheelDelta > 0)
 			{
 				MakeMin<int>(wheelDelta, 5);
@@ -616,7 +616,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 				while (wheelDelta++)
 					ZoomOut1();
 			}
-			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+			CrdPoint newWorldPoint = CalcWorldToClientTransformation().Reverse(g2dms_order<CrdType>(eventInfo.m_Point)); // new World location of click location
 			Pan(oldWorldPoint - newWorldPoint);
 			return true;
 		}
@@ -626,7 +626,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
 		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalOffset()));
 
-		InfoController::SelectFocusElem(GetLayerSet(), tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)), eventID);
+		InfoController::SelectFocusElem(GetLayerSet(), tr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
 		if (eventID & EID_LBUTTONDOWN) switch (medOwner->m_ControllerID)
 		{
@@ -775,7 +775,7 @@ void ViewPort::Export()
 			tmpVP->SetROI( tileRoi );
 			if (optionalScaleBar)
 				optionalScaleBar->DetermineAndSetBoundingBox(
-					Point2TPoint(info.GetNrSubDotsPerTile()) * TPoint(col, rowFromTop), 
+					Point2TPoint(info.GetNrSubDotsPerTile()) * shp2dms_order<TType>(col, rowFromTop),
 					Point2TPoint(info.GetNrSubDotsPerPage()), 
 					info.m_SubPixelFactor
 				);
@@ -816,10 +816,10 @@ bool ViewPort::OnKeyDown(UInt32 virtKey)
 			case VK_ADD:      return OnCommand(TB_ZoomIn1);
 			case VK_SUBTRACT: return OnCommand(TB_ZoomOut1);			
 
-			case VK_RIGHT:    ScrollLogical(TPoint(-ScrollStepSize(), 0)); return true;
-			case VK_LEFT:     ScrollLogical(TPoint( ScrollStepSize(), 0)); return true;
-			case VK_UP:       ScrollLogical(TPoint(0,  ScrollStepSize())); return true;
-			case VK_DOWN:     ScrollLogical(TPoint(0, -ScrollStepSize())); return true;
+			case VK_RIGHT:    ScrollLogical(shp2dms_order<TType>(-ScrollStepSize(), 0)); return true;
+			case VK_LEFT:     ScrollLogical(shp2dms_order<TType>( ScrollStepSize(), 0)); return true;
+			case VK_UP:       ScrollLogical(shp2dms_order<TType>(0,  ScrollStepSize())); return true;
+			case VK_DOWN:     ScrollLogical(shp2dms_order<TType>(0, -ScrollStepSize())); return true;
 		}
 	} else if (KeyInfo::IsCtrl(virtKey)) {
 		switch (KeyInfo::CharOf(virtKey)) {
@@ -1088,7 +1088,7 @@ void ViewPort::ScrollDevice(GPoint delta)
 //	m_w2vTr = w2v + Convert<CrdPoint>(delta);
 	{
 		InvalidationBlock lock(this);
-		SetROI(GetROI() - w2v.WorldScale(Convert<CrdPoint>(delta)) );
+		SetROI(GetROI() - w2v.WorldScale(g2dms_order<CrdType>(delta)) );
 	}
 	m_w2vTr = CalcCurrWorldToClientTransformation();
 	GRect viewExtents = TRect2GRect( CalcClientRelRect(), GetScaleFactors() );
@@ -1103,10 +1103,10 @@ void ViewPort::ScrollDevice(GPoint delta)
 	DBG_TRACE(("viewExtents %s", AsString(viewExtents).c_str()));
 
 	for (auto& gc: m_GridCoordMap)
-		gc.second.lock()->OnScroll(delta);
+		gc.second.lock()->OnDeviceScroll(delta);
 
 	for (auto& sc: m_SelCaretMap)
-		sc.second.lock()->OnScroll(delta);
+		sc.second.lock()->OnDeviceScroll(delta);
 }
 
 void ViewPort::InvalidateWorldRect(const CrdRect& rect, const TRect& borderExtents) const

@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #include "ShvDllPch.h"
@@ -172,7 +144,7 @@ void GridCoord::Recalc()
 	CrdRect gridCRect = Deflate(Convert<CrdRect>(m_Key.second), CrdPoint(GRID_EXTENTS_MARGIN, GRID_EXTENTS_MARGIN));
 	CrdRect viewCRect = grid2ClientTr.Apply(gridCRect); // reduced grid in client coordinates
 
-	CrdRect clientRect = CrdRect(CrdPoint(0,0), Convert<CrdPoint>(m_ClientSize) );
+	CrdRect clientRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_ClientSize) );
 
 	CrdRect gridClipRect = gridCRect &  grid2ClientTr.Reverse(clientRect); // (viewport & reduced grid) in grid coords
 
@@ -276,9 +248,9 @@ void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, 
 	}
 }
 
-void GridCoord::OnScroll(const GPoint& delta)
+void GridCoord::OnDeviceScroll(const GPoint& delta)
 {
-	m_World2ClientTr += Convert<CrdPoint>(delta);
+	m_World2ClientTr += g2dms_order<CrdType>(delta);
 
 	if (m_IsDirty)
 		return;
@@ -390,8 +362,8 @@ IRect GridCoord::GetClippedGridRect(const GRect& viewRelRect) const
 		return IRect();
 
 	IRect result = IRect(
-		GetGridCoord(viewRelRect.TopLeft())
-	,	GetGridCoord(viewRelRect.BottomRight()-GPoint(1,1))
+		GetGridCoord(viewRelRect.LeftTop())
+	,	GetGridCoord(viewRelRect.RightBottom()-GPoint(1,1))
 	);
 	result.second += IPoint(1,1);
 	return result;
@@ -409,42 +381,43 @@ GRect GridCoord::GetClippedRelRect(const IRect& selRect) const
 	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); dms_assert(result.top <= result.bottom); 
 	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); dms_assert(result.left<= result.right ); 
 	
-	result += m_ClippedRelRect.TopLeft();
+	result += m_ClippedRelRect.LeftTop();
 	result &= m_ClippedRelRect;
 
 	return result;
 } 
 
-IPoint GridCoord::GetGridCoord(const GPoint& clientRelPoint) const
+IPoint GridCoord::GetGridCoord(const GPoint& deviceRelPoint) const
 {
 	dms_assert(!IsDirty()); 
 	dms_assert(!Empty());
-	dms_assert(IsIncluding(m_ClippedRelRect, clientRelPoint));
+	dms_assert(IsIncluding(m_ClippedRelRect, deviceRelPoint));
 	// END OF PRECONDITIONS
 
 	return 
 		shp2dms_order(
 			IPoint(
-				*GetGridColPtr(clientRelPoint.x, false), 
-				*GetGridRowPtr(clientRelPoint.y, false)
+				*GetGridColPtr(deviceRelPoint.x, false),
+				*GetGridRowPtr(deviceRelPoint.y, false)
 			) 
 		)	
 	+	GetGridRect().first;
 }
 
-IPoint GridCoord::GetExtGridCoord(GPoint clientRelPoint) const
+IPoint GridCoord::GetExtGridCoord(GPoint deviceRelPoint) const
 {
 	dms_assert(!IsDirty()); 
 //	if (Empty())
 //		return Undefined();
 
-	if (!IsIncluding(m_ClippedRelRect, clientRelPoint))
-		return RoundDown<4>(
-			m_GridOrigin 
-		+	m_GridCellSize * Convert<CrdPoint>(clientRelPoint - m_ClippedRelRect.TopLeft())
-		) + GetGridRect().first;
+	if (!IsIncluding(m_ClippedRelRect, deviceRelPoint))
+	{
+		auto deviceOffset = deviceRelPoint - m_ClippedRelRect.LeftTop();
+		auto gridPos = m_GridOrigin + m_GridCellSize * shp2dms_order<CrdType>(deviceOffset.x, deviceOffset.y);
+		return RoundDown<4>(gridPos) + GetGridRect().first;
+	}
 
-	return GetGridCoord(clientRelPoint);
+	return GetGridCoord(deviceRelPoint);
 }
 
 IPoint GridCoord::GetExtGridCoordFromAbs(GPoint clientAbsPoint) const

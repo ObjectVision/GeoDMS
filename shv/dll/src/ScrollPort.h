@@ -91,9 +91,9 @@ public:
 	CmdSignal  m_cmdOnScrolled;
 
 private:
-	TPoint m_NettSize;
+	TPoint m_NettSize = Point<TType>(0, 0);
 	GPoint m_NrTPointsPerGPoint;
-	HWND   m_HorScroll, m_VerScroll;
+	HWND   m_HorScroll =0, m_VerScroll =0;
 
 	DECL_RTTI(SHV_CALL, Class);
 };

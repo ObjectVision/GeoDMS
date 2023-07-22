@@ -87,7 +87,7 @@ AbstrDataItem::AbstrDataItem()
 AbstrDataItem::~AbstrDataItem() noexcept
 {
 	assert(!GetInterestCount());
-	assert(!GetRefCount());
+	assert(!IsOwned());
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);

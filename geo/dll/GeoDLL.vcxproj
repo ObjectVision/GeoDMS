@@ -46,8 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../stgimpl/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">

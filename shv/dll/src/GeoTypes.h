@@ -69,6 +69,11 @@ struct GPoint : POINT
 	bool IsSingular() const { return !x || !y; }
 };
 
+inline GType& get_x(GPoint& p) noexcept { return p.x; }
+inline GType& get_y(GPoint& p) noexcept { return p.y; }
+inline GType get_x(const GPoint& p) noexcept { return p.x; }
+inline GType get_y(const GPoint& p) noexcept { return p.y; }
+
 #if defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 typedef Int64 TType;
 #else
@@ -83,21 +88,8 @@ inline GPoint operator - (POINT b) { return GPoint(-b.x, -b.y); }
 struct TPoint : Point<TType> //: POINT
 {
 	TPoint() : Point(-1, -1) {}
-	TPoint(TType x, TType y) : Point(x, y) {}
+	TPoint(const Point<TType>& pnt) : Point<TType>(pnt.first, pnt.second) {}
 
-	explicit TPoint(const GPoint& src): Point(src.x, src.y) {}
-
-	TType x() const { return first;  }
-	TType y() const { return second; }
-	TType& x() { return first;  }
-	TType& y() { return second; }
-
-//	void operator -=(TPoint rhs)       { first -= rhs.first; second -= rhs.second; }
-//	void operator +=(TPoint rhs)       { first += rhs.first; second += rhs.second; }
-//	void operator *=(TPoint rhs)       { first *= rhs.first; second *= rhs.second; }
-
-//	bool operator ==(TPoint rhs) const { return first == rhs.first && second == rhs.second; }
-//	bool operator !=(TPoint rhs) const { return first != rhs.first || second != rhs.second; }
 	bool IsSingular() const { return !first || !second; }
 };
 
@@ -113,12 +105,12 @@ inline GPoint LowerBound(POINT lhs, POINT rhs)
 
 inline TPoint UpperBound(TPoint lhs, TPoint rhs) 
 {
-	return TPoint(Max<TType>(lhs.first, rhs.first), Max<TType>(lhs.second, rhs.second));
+	return Point<TType>(Max<TType>(lhs.first, rhs.first), Max<TType>(lhs.second, rhs.second));
 }
 
 inline TPoint LowerBound(TPoint lhs, TPoint rhs) 
 {
-	return TPoint(Min<TType>(lhs.first, rhs.first), Min<TType>(lhs.second, rhs.second));
+	return Point<TType>(Min<TType>(lhs.first, rhs.first), Min<TType>(lhs.second, rhs.second));
 }
 
 inline void MakeUpperBound(POINT& lhs, POINT rhs) 
@@ -133,10 +125,10 @@ inline void MakeLowerBound(POINT& lhs, POINT rhs)
 	MakeMin(lhs.y, rhs.y);
 }
 
-inline TPoint operator + (TPoint a, TPoint b) { a += b; return a; }
-inline TPoint operator * (TPoint a, TPoint b) { a *= b; return a; }
-inline TPoint operator - (TPoint a, TPoint b) { a -= b; return a; }
-inline TPoint operator - (TPoint b) { return TPoint(-b.first, -b.second); }
+//inline TPoint operator + (TPoint a, TPoint b) { a += b; return a; }
+//inline TPoint operator * (TPoint a, TPoint b) { a *= b; return a; }
+//inline TPoint operator - (TPoint a, TPoint b) { a -= b; return a; }
+inline TPoint operator - (TPoint b) { return Point<TType>(-b.first, -b.second); }
 
 inline bool IsLowerBound(POINT a, POINT b)
 { 
@@ -150,12 +142,12 @@ inline bool IsStrictlyLower(POINT a, POINT b)
 
 inline TPoint ConcatVertical(TPoint a, TPoint b)
 {
-	return TPoint(Max<TType>(a.first, b.first), a.second + b.second);
+	return shp2dms_order<TType>(Max<TType>(a.X(), b.X()), a.Y()+ b.Y());
 }
 
 inline TPoint ConcatHorizontal(TPoint a, TPoint b)
 {
-	return TPoint(a.first+b.first, Max<TType>(a.second, b.second));
+	return shp2dms_order<TType>(a.X() +b.X(), Max<TType>(a.Y(), b.Y()));
 }
 
 
@@ -163,12 +155,12 @@ struct GRect : RECT
 {
 	GRect() { left = top = right = bottom = -1; }
 
-	GRect(GType _left, GType _top, GType _right, GType _bottom)
+	GRect(GType left_, GType top_, GType right_, GType bottom_)
 	{
-		left   = _left;
-		top    = _top;
-		right  = _right;
-		bottom = _bottom;
+		left   = left_;
+		top    = top_;
+		right  = right_;
+		bottom = bottom_;
 	}
 	GRect(GPoint topLeft, GPoint bottomRight)
 	{
@@ -189,11 +181,11 @@ struct GRect : RECT
 	GType&  Top   () { return top; }
 	GType&  Right () { return right; }
 	GType&  Bottom() { return bottom; }
-	GPoint TopLeft    () const { return GPoint(left,  top   ); }
-	GPoint BottomRight() const { return GPoint(right, bottom); }
-	GPoint TopRight   () const { return GPoint(right, top   ); }
-	GPoint BottomLeft () const { return GPoint(left,  bottom); }
-	GPoint Size  () const { return BottomRight() - TopLeft(); }
+	GPoint LeftTop    () const { return GPoint(left,  top   ); }
+	GPoint RightBottom() const { return GPoint(right, bottom); }
+	GPoint RightTop   () const { return GPoint(right, top   ); }
+	GPoint LeftBottom () const { return GPoint(left,  bottom); }
+	GPoint Size  () const { return RightBottom() - LeftTop(); }
 	GType  Width () const { return right - left; }
 	GType  Height() const { return bottom - top; }
 
@@ -306,6 +298,18 @@ struct GRect : RECT
 	}
 };
 
+template <typename  F>
+inline Point<F> g2dms_order(GPoint p)
+{
+	return shp2dms_order<F>(p.x, p.y);
+}
+
+template <typename  F>
+inline auto g2dms_order(GRect p)
+{
+	return Range<Point<F>>(g2dms_order<F>(p.LeftTop()), g2dms_order<F>(p.RightBottom()));
+}
+
 inline GRect operator + (GRect a, POINT b) { a += b; return a; }
 inline GRect operator - (GRect a, POINT b) { a -= b; return a; }
 inline GRect operator + (GRect a, RECT  b) { a += b; return a; }
@@ -314,42 +318,41 @@ inline GRect operator & (GRect a, RECT  b) { a &= b; return a; }
 
 inline bool IsIncluding(GRect a, POINT p)
 {
-	return IsLowerBound(a.TopLeft(), p) && IsStrictlyLower(p, a.BottomRight());
+	return IsLowerBound(a.LeftTop(), p) && IsStrictlyLower(p, a.RightBottom());
 }
 
 inline bool IsIncluding(GRect a, GRect b)
 {
-	return IsLowerBound(a.TopLeft(), b.TopLeft()) && IsLowerBound(b.BottomRight(), a.BottomRight());
+	return IsLowerBound(a.LeftTop(), b.LeftTop()) && IsLowerBound(b.RightBottom(), a.RightBottom());
 }
 
 inline bool IsIntersecting(GRect a, GRect b)
 {
-	return IsStrictlyLower(b.TopLeft(), a.BottomRight()) 
-		&& IsStrictlyLower(a.TopLeft(), b.BottomRight());
+	return IsStrictlyLower(b.LeftTop(), a.RightBottom())
+		&& IsStrictlyLower(a.LeftTop(), b.RightBottom());
 }
 
 struct TRect : Range<TPoint>
 {
 	TRect() : Range(TPoint(), TPoint()) {}
-	TRect(TType _left, TType _top, TType _right, TType _bottom) : Range(TPoint(_left, _top), TPoint(_right, _bottom)) {}
-	TRect(const TPoint& topLeft, const TPoint& bottomRight)     : Range(topLeft, bottomRight) {}
+	TRect(TType left, TType top, TType right, TType bottom) : Range(shp2dms_order<TType>(left, top), shp2dms_order<TType>(right, bottom)) {}
+	TRect(const TPoint& topLeft, const TPoint& bottomRight) : Range(topLeft, bottomRight) {}
 	TRect(const Range& src): Range(src.first, src.second) {}
-	explicit TRect(const GRect& src): Range(TPoint(src.TopLeft()), TPoint(src.BottomRight())) {}
 
-	TType  Left  () const { return TopLeft().x(); }
-	TType  Top   () const { return TopLeft().y(); }
-	TType  Right () const { return BottomRight().x(); }
-	TType  Bottom() const { return BottomRight().y(); }
-	TType&  Left  () { return TopLeft().x(); }
-	TType&  Top   () { return TopLeft().y(); }
-	TType&  Right () { return BottomRight().x(); }
-	TType&  Bottom() { return BottomRight().y(); }
+	TType  Left  () const { return TopLeft().X(); }
+	TType  Top   () const { return TopLeft().Y(); }
+	TType  Right () const { return BottomRight().X(); }
+	TType  Bottom() const { return BottomRight().Y(); }
+	TType&  Left  () { return TopLeft().X(); }
+	TType&  Top   () { return TopLeft().Y(); }
+	TType&  Right () { return BottomRight().X(); }
+	TType&  Bottom() { return BottomRight().Y(); }
 	TPoint  TopLeft      () const { return first; }
 	TPoint  BottomRight  () const { return second; }
 	TPoint& TopLeft      () { return first; }
 	TPoint& BottomRight  () { return second; }
-	TPoint TopRight     () const { return TPoint(Right(), Top()); }
-	TPoint BottomLeft   () const { return TPoint(Left(),  Bottom()); }
+	TPoint TopRight     () const { return shp2dms_order<TType>(Right(), Top()); }
+	TPoint BottomLeft   () const { return shp2dms_order<TType>(Left(),  Bottom()); }
 	TPoint Size  () const { return BottomRight() - TopLeft(); }
 	TType  Width () const { return Right () - Left(); }
 	TType  Height() const { return Bottom() - Top (); }
@@ -392,30 +395,27 @@ struct TRect : Range<TPoint>
 	Range<TType> VerRange() const { return Range<TType>(Top (), Bottom() ); }
 };
 
-inline void operator &=(GRect& clipRect, const TRect& rhs)
-{
-	if (clipRect.left   < rhs.Left  ()) clipRect.left   = rhs.Left  ();
-	if (clipRect.right  > rhs.Right ()) clipRect.right  = rhs.Right ();
-	if (clipRect.top    < rhs.Top   ()) clipRect.top    = rhs.Top   ();
-	if (clipRect.bottom > rhs.Bottom()) clipRect.bottom = rhs.Bottom();
-}
-
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.first)*sf.first, TType2GType(src.second)*sf.second); }
+inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X()) * sf.first, TType2GType(src.Y()) * sf.second); }
 inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
-template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X()*sf.first, src.Y()*sf.second); }
-template <typename T> inline TPoint Point2TPoint(Point<T> src) { return TPoint(src.X(), src.Y()); }
+template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X() * sf.first, src.Y() * sf.second); }
+template <typename T> inline TPoint Point2TPoint(Point<T> src) { return Point<TType>(src.first, src.second); }
 template <typename P> inline GRect  Rect2GRect  (Range<P> src, CrdPoint sf) { return GRect(Point2GPoint(src.first, sf), Point2GPoint(src.second, sf)); }
 template <typename P> inline TRect  Rect2TRect  (Range<P> src) { return TRect(Point2TPoint(src.first), Point2TPoint(src.second)); }
 
-
-inline GPoint DPoint2GPoint(DPoint src, const CrdTransformation& self) { self.InplApply(src); IPoint tmp = Round<4>(src); return GPoint(tmp.first, tmp.second); }
+inline GPoint DPoint2GPoint(DPoint src, const CrdTransformation& self) { self.InplApply(src); IPoint tmp = Round<4>(src); return GPoint(tmp.X(), tmp.Y()); }
 inline GRect  DRect2GRect(DRect src, const CrdTransformation& self)
 { 
 	self.InplApply(src);
 	Range<IPoint> tmp = RoundEnclosing<4>(src);
-	return GRect(GPoint(tmp.first.first, tmp.first.second), GPoint(tmp.second.first, tmp.second.second));
+	return GRect(GPoint(tmp.first.X(), tmp.first.Y()), GPoint(tmp.second.X(), tmp.second.Y()));
+}
+
+inline DPoint GPoint2DPoint(GPoint src, const CrdTransformation& self) { auto res = shp2dms_order<Float64>(src.x, src.y); self.InplReverse(res); return res; }
+inline DRect  GRect2DRect(GRect src, const CrdTransformation& self)
+{
+	return { GPoint2DPoint(src.LeftTop(), self), GPoint2DPoint(src.RightBottom(), self) };
 }
 
 inline TRect DRect2TRect(const DRect& src)
@@ -427,34 +427,25 @@ inline TRect DRect2TRect(const DRect& src)
 inline GPoint Apply(const CrdTransformation& self, TPoint p) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint( dp.first, dp.second ); }
 inline GRect Apply(const CrdTransformation& self, const TRect& r) { return GRect(Apply(self, r.first), Apply(self, r.second)); }
 
+/* REMOVE
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 GPoint Convert4(const Point<T>& pnt, const GPoint*, const ExceptFunc* ef, const ConvertFunc*)
 {
 	using scalar_result_type = typename ConvertFunc::template rebind<TType>::type;
 	return GPoint(
-		Convert4<GType>(pnt.Col(), TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4<GType>(pnt.Row(), TYPEID(T), ef, TYPEID(scalar_result_type))
+		Convert4<GType>(pnt.X(), TYPEID(T), ef, TYPEID(scalar_result_type))
+	,	Convert4<GType>(pnt.Y(), TYPEID(T), ef, TYPEID(scalar_result_type))
 	);
 }
+*/
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 TPoint Convert4(const Point<T>& pnt, const TPoint*, const ExceptFunc* ef, const ConvertFunc*)
 {
 	using scalar_result_type = typename ConvertFunc::template rebind<TType>::type;
-	return TPoint(
-		Convert4<TType>(pnt.Col(), TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4<TType>(pnt.Row(), TYPEID(T), ef, TYPEID(scalar_result_type))
-	);
-}
-
-template <typename T, typename ExceptFunc, typename ConvertFunc>
-GRect Convert4(const Range<T>& rect, const GRect*, const ExceptFunc* ef, const ConvertFunc*)
-{
-	using round_dn_type = typename ConvertFunc::template RoundDnFunc<TPoint>::type;
-	using round_up_type = typename ConvertFunc::template RoundUpFunc<TPoint>::type;
-	return GRect(
-		Convert4(rect.first , TYPEID(GPoint), ef, TYPEID(round_dn_type)),
-		Convert4(rect.second, TYPEID(GPoint), ef, TYPEID(round_up_type))
+	return Point<TType>(
+		Convert4<TType>(pnt.first , TYPEID(T), ef, TYPEID(scalar_result_type))
+	,	Convert4<TType>(pnt.second, TYPEID(T), ef, TYPEID(scalar_result_type))
 	);
 }
 
@@ -470,11 +461,11 @@ TRect Convert4(const Range<T>& rect, const TRect*, const ExceptFunc* ef, const C
 }
 
 inline GPoint UndefinedValue(const GPoint*)   { return GPoint(-1, -1); }
-inline TPoint UndefinedValue(const TPoint*)   { return TPoint(-1, -1); }
+inline TPoint UndefinedValue(const TPoint*)   { return Point<TType>(-1, -1); }
 inline bool   IsDefined     (const GPoint& p) { return p.x != -1 || p.y != -1; }
 inline bool   IsDefined     (const TPoint& p) { return p.first != -1 || p.second != -1; }
 
-
+/* REMOVE
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Point<T> Convert4(const GPoint& pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
 {
@@ -491,24 +482,19 @@ Point<T> Convert4(const GPoint& pnt, const Point<T>*, const ExceptFunc* ef, cons
 	);
 #endif
 }
+*/
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
-Point<T> Convert4(const TPoint& pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
+Point<T> Convert4(TPoint pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
 {
 	using scalar_result_type = typename ConvertFunc::template rebind<T>::type;
-#if defined(DMS_POINT_ROWCOL)
-	return Point<T>(
-		Convert4(pnt.second, TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4(pnt.first , TYPEID(T), ef, TYPEID(scalar_result_type))
-	);
-#else
 	return Point<T>(
 		Convert4(pnt.first , TYPEID(T), ef, TYPEID(scalar_result_type))
 	,	Convert4(pnt.second, TYPEID(T), ef, TYPEID(scalar_result_type))
 	);
-#endif
 }
 
+/* REMOVE
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Range<T> Convert4(const GRect& rect, const Range<T>*, const ExceptFunc* ef, const ConvertFunc* cf)
 {
@@ -518,6 +504,7 @@ Range<T> Convert4(const GRect& rect, const Range<T>*, const ExceptFunc* ef, cons
 		Convert4(rect.BottomRight(), TYPEID(T), ef, TYPEID(point_result_type))
 	);
 }
+*/
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Range<T> Convert4(const TRect& rect, const Range<T>*, const ExceptFunc* ef, const ConvertFunc* cf)

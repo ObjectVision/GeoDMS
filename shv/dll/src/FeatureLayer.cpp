@@ -45,6 +45,7 @@
 #include "ThemeReadLocks.h"
 #include "ThemeValueGetter.h"
 
+
 //----------------------------------------------------------------------
 // struct  : FeatureDrawer
 //----------------------------------------------------------------------
@@ -488,7 +489,7 @@ CrdRect FeatureLayer::GetExtentsInflator(const CrdTransformation& tr) const
 {
 	CrdRect symbRect = 
 		tr.WorldScale(
-			Convert<CrdRect>(TRect2GRect(GetBorderLogicalExtents(), GetScaleFactors()))
+			g2dms_order<CrdType>(TRect2GRect(GetBorderLogicalExtents(), GetScaleFactors()))
 		);
 
 	symbRect += GetFeatureWorldExtents();
@@ -1212,12 +1213,12 @@ bool DrawPoints(
 						if (symbolIdGetter)
 							defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
 
-						TPoint viewPoint = Convert<TPoint>(transformer.Apply(*i));	
+						auto viewPoint = Convert<TPoint>(transformer.Apply(*i));	
 					
 						CheckedGdiCall(
 							TextOutW(
 								d.GetDC(), 
-								viewPoint.x(), viewPoint.y(),
+								viewPoint.X(), viewPoint.Y(),
 								&defaultSymbol, 1
 							) 
 						,	"DrawPoint");
@@ -1251,7 +1252,8 @@ bool DrawPoints(
 			{
 				if (IsIncluding(geoRect, *i ))
 				{
-					GPoint viewPoint = Convert<GPoint>(transformer.Apply(*i));
+					auto viewDPoint = transformer.Apply(*i);
+					GPoint viewPoint(viewDPoint.X(), viewDPoint.Y());
 
 					SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
 					if (indexCollector)
@@ -1404,8 +1406,9 @@ bool DrawNetwork(
 				PointType p2 = pointDataBegin[f2i];
 				if (IsIntersecting(clipRect, RangeType(p1, p2) ))
 				{
-					pointBuffer[0] = Convert<GPoint>(transformer.Apply(p1));
-					pointBuffer[1] = Convert<GPoint>(transformer.Apply(p2));
+					auto dp1 = transformer.Apply(p1), dp2 = transformer.Apply(p2);
+					pointBuffer[0] = GPoint(dp1.X(), dp1.Y());
+					pointBuffer[1] = GPoint(dp2.X(), dp2.Y());
 					if (penIndices)
 					{
 						auto entityIndex = i;
@@ -1727,7 +1730,10 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 							auto bi = pointBuffer.begin();
 
 							for (auto pnt : *arcCPtr)
-								*bi++ = Convert<GPoint>(transformer.Apply(pnt));
+							{
+								auto deviceDPoint = transformer.Apply(pnt);
+								*bi++ = GPoint(deviceDPoint.X(), deviceDPoint.Y());
+							}
 
 							// remove duplicates
 							pointBuffer.erase(
@@ -1834,7 +1840,10 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 				}
 
 				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
-					ld.DrawLabel(entityIndex, Convert<GPoint>(DynamicPoint(data[itemCounter], 0.5) ));
+				{
+					auto dp = DynamicPoint(data[itemCounter], 0.5);
+					ld.DrawLabel(entityIndex, GPoint(dp.X(), dp.Y()));
+				}
 
 				++itemCounter;
 				if (itemCounter.MustBreakOrSuspend100())

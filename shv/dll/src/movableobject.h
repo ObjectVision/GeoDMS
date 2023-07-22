@@ -120,7 +120,7 @@ public:
 	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem);
 
 //	override GraphicObject
-	TRect CalcFullAbsLogicalRect(const GraphVisitor& v) const override;
+//REMOVE	TRect CalcFullAbsLogicalRect(const GraphVisitor& v) const override;
 	void SetIsVisible(bool value) override;
 	void SetDisconnected() override;
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -139,8 +139,8 @@ protected:
 private:
 	bool UpdateCursor() const;
 
-	TPoint m_RelPos;     // position of clients (0,0) in parents coordinate system, managed by container
-	TPoint m_ClientLogicalSize; // should be determined by DoUpdateView
+	TPoint m_RelPos            = Point<TType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
+	TPoint m_ClientLogicalSize = Point<TType>(0, 0); // should be determined by DoUpdateView
 	HCURSOR m_Cursor;
 };
 

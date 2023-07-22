@@ -1273,11 +1273,7 @@ void DataView::SetFocusRect(const GRect& focusRect)
 
 		MoveCaret(
 			m_FocusCaret,
-			DualPointCaretOperator(
-				focusRect.TopLeft(),
-				focusRect.BottomRight(),
-				0
-			)
+			DualPointCaretOperator(focusRect.LeftTop(), focusRect.RightBottom(), 0)
 		);	
 	}
 }
@@ -1413,7 +1409,7 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	auto dipPoint = point; dipPoint /= GetScaleFactors();
 	if (m_ViewDeviceSize == point)
 	{
-		if (GetContents()->GetCurrFullSize() == TPoint(dipPoint))
+		if (GetContents()->GetCurrFullSize() == Convert<TPoint>(Reverse(dipPoint)))
 			return;
 	}
 
@@ -1444,7 +1440,7 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 		GRect dipViewRect = GRect(GPoint(0, 0), dipPoint);
 		if (GetContents()->IsDrawn())
 			GetContents()->ClipDrawnRect(viewRect);
-		GetContents()->SetFullRelRect(TRect(dipViewRect));
+		GetContents()->SetFullRelRect(Convert<TRect>(Reverse(dipViewRect)));
 	}
 	m_ViewDeviceSize = point;
 

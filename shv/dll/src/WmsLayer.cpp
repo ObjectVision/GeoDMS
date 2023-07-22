@@ -674,8 +674,8 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (clippedRelRect.empty())
 		return GVS_Continue;
 
-	auto tlPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.TopLeft());
-	auto brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.BottomRight()-GPoint(1,1));
+	auto tlPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.LeftTop());
+	auto brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.RightBottom()-GPoint(1,1));
 
 	auto tileSizeAsIPoint = Convert<IPoint>(tm.m_TileSize);
 	wms::tile_pos tlTile = tlPixel / tileSizeAsIPoint;

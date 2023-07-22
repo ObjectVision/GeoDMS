@@ -210,7 +210,7 @@ class CircleCaret : public InvertRgnCaret
 	typedef InvertRgnCaret base_type;
 
 public:	
-	CrdType Radius() const;
+	GType Radius() const;
 
 //	override AbstrCaret interface
 	void GetRgn(Region& rgn, HDC dc) const override;

@@ -157,10 +157,10 @@ TRect SelChangeInvalidatorBase::GetSelRect() const
 	}
 
 	// clip
-	result &= TRect(TPoint(0,0), m_TableControl->GetCurrClientSize());
+	result &= TRect(Point<TType>(0,0), m_TableControl->GetCurrClientSize());
 	result += m_TableControl->GetCurrClientAbsLogicalPos();
 	if (result.empty())
-		return TRect(0, 0, 0, 0);
+		return TRect(Point<TType>(0, 0), Point<TType>(0, 0));
 	
 	return result;
 }
@@ -1041,7 +1041,7 @@ void TableControl::Export()
 	SaveTo(&buff);
 }
 
-void TableControl::SetRowHeight(UInt32 height)
+void TableControl::SetRowHeight(UInt16 height)
 {
 	SizeT n = NrEntries(); 
 	while (n)
@@ -1052,9 +1052,9 @@ void TableControl::SetRowHeight(UInt32 height)
 		if (dic->HasElemBorder())
 			elemHeight -= 2*BORDERSIZE;
 
-		GPoint elemSize(elemHeight, elemHeight);
+		WPoint elemSize(elemHeight, elemHeight);
 		if (dic->GetTheme(AN_LabelText))
-			elemSize.x= dic->ElemSize().x;
+			elemSize.X() = dic->ElemSize().X();
 		dic->SetElemSize(elemSize);
 	}
 }
