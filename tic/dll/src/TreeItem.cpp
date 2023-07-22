@@ -1298,14 +1298,14 @@ const UsingCache* TreeItem::GetUsingCache() const
 
 void TreeItem::RemoveFromConfig() const
 {
-	dms_assert(!IsCacheItem());
+	assert(!IsCacheItem());
 	auto self = const_cast<TreeItem*>(this);
-	dms_assert(self);
-	dms_assert(m_RefCount > 0); // Disabled Auto Delete results in at least one refCount
+	assert(self);
+	assert(IsOwned()); // Disabled Auto Delete results in at least one refCount
 	SharedPtr<TreeItem> holder(self);
-	dms_assert(m_RefCount > 1);
+	assert(GetRefCount() > 1);
 	self->EnableAutoDelete();
-	dms_assert(m_RefCount > 0); // holder counts as well
+	assert(IsOwned() > 0); // holder counts as well
 
 	auto tp = GetTreeParent();
 	if (!tp)

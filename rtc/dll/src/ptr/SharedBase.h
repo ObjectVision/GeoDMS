@@ -51,19 +51,32 @@ granted by an additional written contract for support, assistance and/or develop
 struct SharedBase
 {
 	using ref_count_t = UInt32;
+#if defined(MG_DEBUG_REFCOUNT)
+	static const ref_count_t dangling_object_indicator = -1;
+#endif
 
 	ref_count_t GetRefCount() const noexcept
 	{
 #if defined(MG_DEBUG_REFCOUNT)
-		MG_ASSERT(m_RefCount != -1);
+		MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 		return m_RefCount;
+	}
+	bool IsOwned() const noexcept
+	{
+		if (m_RefCount == 0)
+			return false;
+#if defined(MG_DEBUG_REFCOUNT)
+		if (m_RefCount == dangling_object_indicator)
+			return false;
+#endif
+		return true;
 	}
 
 	void IncRef() const noexcept
 	{
 #if defined(MG_DEBUG_REFCOUNT)
-		MG_ASSERT(m_RefCount != -1);
+		MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 		++m_RefCount;
 		assert(m_RefCount); // POST CONDITION
@@ -74,12 +87,15 @@ struct SharedBase
 		assert(m_RefCount); // PRE CONDITION
 #if defined(MG_DEBUG_REFCOUNT)
 		MG_ASSERT(m_RefCount !=  0);
-		MG_ASSERT(m_RefCount != -1);
+		MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 		auto result = --m_RefCount;
 #if defined(MG_DEBUG_REFCOUNT)
-		if (!result) // last ptr, so no longer MT access possible
-			m_RefCount = -1;
+		if (!result) // last ptr, so no longer MT access possible, only set dangling pointer detector once
+		{
+			result = m_RefCount.exchange(dangling_object_indicator);
+			MG_ASSERT(!result);
+		}
 #endif
 		return result;
 	}
@@ -94,14 +110,14 @@ protected:
 	SharedBase(const SharedBase&) : m_RefCount(0) {}
 	SharedBase(SharedBase&&) = delete;
 
-   ~SharedBase() noexcept { assert(m_RefCount == 0); }
+   ~SharedBase() { assert(!IsOwned()); }
 
 	SharedBase& operator =(const SharedBase& ) {} // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;
 
-	ref_count_t GetCount() const { return m_RefCount; }
+	ref_count_t GetCount() const noexcept { return m_RefCount; }
 
-public: // TODO G8: Make Private and only use accessor GetCount()
+private:
 	mutable std::atomic<ref_count_t> m_RefCount = 0;
 };
 
