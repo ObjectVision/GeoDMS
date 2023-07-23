@@ -233,16 +233,12 @@ void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourc
 	InvalidateView();
 }
 
-void RePosScrollBar(HWND hScroll, const TPoint& absPos, TType nettWidth, TType nettHeight, CrdPoint sf)
+void RePosScrollBar(HWND hScroll, GPoint& devPos, GType nettWidth, GType nettHeight)
 {
-	SetWindowPos(
-		hScroll,
-		HWND_TOP, 
-		absPos.X() * sf.first,      // horizontal position 
-		absPos.Y() * sf.second,     // vertical position 
-		nettWidth * sf.first,    // width of the scroll bar 
-		nettHeight* sf.second,   // default height 
-		SWP_NOACTIVATE|SWP_NOREPOSITION|SWP_SHOWWINDOW|SWP_NOSENDCHANGING
+	SetWindowPos(hScroll, HWND_TOP
+	,	devPos.x, devPos.y  // vertical position 
+	,	nettWidth, nettHeight    // size of the scroll bar 
+	,	SWP_NOACTIVATE|SWP_NOREPOSITION|SWP_SHOWWINDOW|SWP_NOSENDCHANGING
 	);
 }
 
@@ -251,10 +247,13 @@ void ScrollPort::SetScrollX(bool horScroll)
 	TPoint absBase = GetCurrClientAbsLogicalPos();
 //	absBase *= GetScaleFactors();
 
-	auto sf = GetScaleFactors();
 	if (horScroll)
 	{
+		auto sf = GetScaleFactors();
 		absBase.Y() += m_NettSize.Y();
+		auto absDeviceBase = TPoint2GPoint(absBase, sf);
+		auto nettDeviceSize = TPoint2GPoint(m_NettSize, sf);
+		auto deviceHeight = GType(GetCurrClientSize().Y() * sf.second) - nettDeviceSize.y;
 		if (!m_HorScroll)
 		{
 			auto dv = GetDataView().lock(); if (!dv) return;
@@ -266,21 +265,17 @@ void ScrollPort::SetScrollX(bool horScroll)
 				"SCROLLBAR",                              // scroll bar control class 
 				(LPSTR) NULL,                             // text for window title bar 
 				WS_CHILD | SBS_HORZ,                      // scroll bar styles 
-				absBase.X() * sf.first,                              // horizontal position 
-				absBase.Y() * sf.second,                              // vertical position 
-				m_NettSize.X() * sf.first,                           // width of the scroll bar 
-				GType(GetCurrClientSize().Y() * sf.second) - GType(m_NettSize.Y() * sf.second) , // default height 
-				hWnd,                                                   // handle to main window 
-				(HMENU) NULL,                                           // no menu for a scroll bar 
-				GetInstance(hWnd),                                      // instance owning this window 
-				(LPVOID) NULL                                           // pointer not needed 
+				absDeviceBase.x,                          // horizontal position 
+				absDeviceBase.y,                          // vertical position 
+				nettDeviceSize.x,                         // width of the scroll bar 
+				deviceHeight,                             // default height 
+				hWnd,                                     // handle to main window 
+				(HMENU) NULL,                             // no menu for a scroll bar 
+				GetInstance(hWnd),                        // instance owning this window 
+				(LPVOID) NULL                             // pointer not needed 
 			);
 		}
-		RePosScrollBar(m_HorScroll, absBase
-		,	m_NettSize.X()                             // width of the scroll bar 
-		,	GetCurrClientSize().Y() - m_NettSize.Y()  // default height 
-		,	GetScaleFactors()
-		);
+		RePosScrollBar(m_HorScroll, absDeviceBase, nettDeviceSize.x, deviceHeight);
 	}
 	else
 	{
@@ -298,7 +293,11 @@ void ScrollPort::SetScrollY(bool verScroll)
 
 	if (verScroll)
 	{
+		auto sf = GetScaleFactors();
 		absBase.X() += m_NettSize.X();
+		auto absDeviceBase = TPoint2GPoint(absBase, sf);
+		auto nettDeviceSize = TPoint2GPoint(m_NettSize, sf);
+		auto deviceWidth = GType(GetCurrClientSize().X() * sf.first) - nettDeviceSize.x;
 		if (!m_VerScroll)
 		{
 			auto dv = GetDataView().lock();
@@ -309,21 +308,16 @@ void ScrollPort::SetScrollY(bool verScroll)
 				"SCROLLBAR",                        // scroll bar control class 
 				(LPSTR) NULL,                       // text for window title bar 
 				WS_CHILD | SBS_VERT,                // scroll bar styles 
-				absBase.X(),                        // horizontal position 
-				absBase.Y(),                        // vertical position 
-				GetCurrClientSize().X() - m_NettSize.X(),   // default width
-				m_NettSize.Y(),                     // height of the scroll bar
+				absDeviceBase.x,                    // horizontal position 
+				absDeviceBase.y,                    // vertical position 
+				deviceWidth, nettDeviceSize.y,      // size of the scroll bar
 				hWnd,                               // handle to main window 
 				(HMENU) NULL,                       // no menu for a scroll bar 
 				GetInstance(hWnd),                  // instance owning this window 
 				(LPVOID) NULL                       // pointer not needed 
 			); 
 		}
-		RePosScrollBar(m_VerScroll, absBase
-		,	GetCurrClientSize().X() - m_NettSize.X() // default width
-		,	m_NettSize.Y()                          // height of the scroll bar
-		,	GetScaleFactors()
-		);
+		RePosScrollBar(m_VerScroll, absDeviceBase, deviceWidth, nettDeviceSize.y);
 	}
 	else
 	{

@@ -473,7 +473,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(TPoint2GPoint(delta, sf), oldVisibleAbsRect, clipRect, this);
-				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, sf), GPoint(TType2GType(oldAbsRect.Left()), MaxValue<GType>()));
+				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, sf), GPoint(TType2GType(oldAbsRect.Left()*sf.first), MaxValue<GType>()));
 				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG
@@ -564,7 +564,7 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(TPoint2GPoint(delta, GetScaleFactors()), oldVisibleAbsRect, clipRect, this);
-				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, GetScaleFactors()), GPoint(MaxValue<GType>(), TType2GType(oldAbsRect.Top())));
+				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, GetScaleFactors()), GPoint(MaxValue<GType>(), TType2GType(oldAbsRect.Top() * sf.second)));
 				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG

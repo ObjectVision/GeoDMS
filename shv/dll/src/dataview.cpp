@@ -1231,19 +1231,19 @@ void DataView::SetCursorPos(GPoint clientPoint)
 // MK_RBUTTON	Set if the right mouse button is down.
 // MK_SHIFT	  Set if the SHIFT key is down.
 
-bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, const GPoint& point)
+bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoint)
 {
 	if (nFlags & MK_CONTROL) event |= EID_CTRLKEY;
 	if (nFlags & MK_SHIFT  ) event |= EID_SHIFTKEY;
 
-	EventInfo eventInfo(EventID(event), nFlags, point );
+	EventInfo eventInfo(EventID(event), nFlags, devicePoint);
 
 	m_ControllerVector(eventInfo);
 
 	if (eventInfo.m_EventID & EID_HANDLED)
 		return true;
 
-	if (!IsDefined(point))
+	if (!IsDefined(devicePoint))
 		return false;
 	if (eventInfo.m_EventID & EID_RBUTTONUP)
 		m_TextEditController.CloseCurr();
@@ -1362,9 +1362,9 @@ void DataView::SetUpdateTimer()
 }
 // ============   Mouse Handling
 
-void DataView::OnMouseMove(WPARAM nFlags, const GPoint& point) 
+void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint) 
 {
-	if (IsDefined(point))
+	if (IsDefined(devicePoint))
 	{
 		TRACKMOUSEEVENT tme;
 		tme.cbSize      = sizeof(TRACKMOUSEEVENT);
@@ -1374,12 +1374,10 @@ void DataView::OnMouseMove(WPARAM nFlags, const GPoint& point)
 		if (!_TrackMouseEvent(&tme))
 			throwLastSystemError("TrackMouseEvent");
 	}
-//	GPoint dipPoint = point;
-//	dipPoint /= GetScaleFactors();
 	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
-		DispatchMouseEvent(EID_MOUSEDRAG, nFlags, point);
+		DispatchMouseEvent(EID_MOUSEDRAG, nFlags, devicePoint);
 	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
-		DispatchMouseEvent(EID_MOUSEMOVE, nFlags, point);
+		DispatchMouseEvent(EID_MOUSEMOVE, nFlags, devicePoint);
 }
 
 void DataView::OnCaptureChanged(HWND hWnd) 
@@ -1401,19 +1399,19 @@ void DataView::OnActivate(bool becomeActive)
 	}
 }
 
-void DataView::OnSize(WPARAM nType, const GPoint& point) 
+void DataView::OnSize(WPARAM nType, GPoint deviceSize) 
 {
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
-	DBG_TRACE(("NewSize=(%d,%d)", point.x, point.y));
+	DBG_TRACE(("NewSize=(%d,%d)", deviceSize.x, deviceSize.y));
 
-	auto dipPoint = point; dipPoint /= GetScaleFactors();
-	if (m_ViewDeviceSize == point)
+	auto logicalSize = Convert<TPoint>(Reverse(deviceSize));
+	if (m_ViewDeviceSize == deviceSize)
 	{
-		if (GetContents()->GetCurrFullSize() == Convert<TPoint>(Reverse(dipPoint)))
+		if (GetContents()->GetCurrFullSize() == logicalSize)
 			return;
 	}
 
-	if (point.x <= 0 || point.y <= 0)
+	if (deviceSize.x <= 0 || deviceSize.y <= 0)
 	{
 		GetContents()->InvalidateDraw();
 		return;
@@ -1424,28 +1422,28 @@ void DataView::OnSize(WPARAM nType, const GPoint& point)
 	{
 		DcHandle dc(GetHWnd(), 0);
 
-		GRect rect1(GPoint(m_ViewDeviceSize.x, 0), UpperBound(m_ViewDeviceSize, point));
-		GRect rect2(GPoint(0, m_ViewDeviceSize.y), UpperBound(m_ViewDeviceSize, point));
+		GRect rect1(GPoint(m_ViewDeviceSize.x, 0), UpperBound(m_ViewDeviceSize, deviceSize));
+		GRect rect2(GPoint(0, m_ViewDeviceSize.y), UpperBound(m_ViewDeviceSize, deviceSize));
 
 		::FillRect(dc, &rect1, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsBlue))));
 		::FillRect(dc, &rect2, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsGreen))));
 	}
 #endif
 
-	MakeUpperBound(m_ViewDeviceSize, point);
+	MakeUpperBound(m_ViewDeviceSize, deviceSize);
 
 
 	if (m_Contents) {
-		GRect viewRect = GRect(GPoint(0, 0), point);
-		GRect dipViewRect = GRect(GPoint(0, 0), dipPoint);
+		auto deviceRect = GRect(GPoint(0, 0), deviceSize);
+		auto logicalRect = TRect(Point<TType>(0, 0), logicalSize);
 		if (GetContents()->IsDrawn())
-			GetContents()->ClipDrawnRect(viewRect);
-		GetContents()->SetFullRelRect(Convert<TRect>(Reverse(dipViewRect)));
+			GetContents()->ClipDrawnRect(deviceRect);
+		GetContents()->SetFullRelRect(logicalRect);
 	}
-	m_ViewDeviceSize = point;
+	m_ViewDeviceSize = deviceSize;
 
 	dbg_assert( md_InvalidateDrawLock == 0);
-	m_DoneGraphics.LimitDrawRegions(point); // limit rect if window becomes smaller
+	m_DoneGraphics.LimitDrawRegions(deviceSize); // limit rect if window becomes smaller
 }
 
 TreeItem* DataView::GetDesktopContext() const

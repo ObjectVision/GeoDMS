@@ -538,12 +538,12 @@ void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint 
 			{
 				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.RightBottom(), invariantLimit))
 				{
-					dms_assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.LeftTop(), invariantLimit));
+					assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.LeftTop(), invariantLimit));
 					subObj->TranslateDrawnRect(clipRect, delta);
 				}
 				else
 					subObj->ClipDrawnRect( GetDrawnNettAbsDeviceRect() );
-				dms_assert(!subObj->IsDrawn() || IsIncluding(GetDrawnNettAbsDeviceRect(), subObj->GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
+				assert(!subObj->IsDrawn() || IsIncluding(GetDrawnNettAbsDeviceRect(), subObj->GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
 			}
 		}
 	}

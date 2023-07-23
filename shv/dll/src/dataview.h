@@ -269,15 +269,15 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState); // creates a new tmp dc if pdc==0
 	void ReverseCaretsImpl(HDC  dc, bool newVisibleState);
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
-	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, const GPoint& point);
+	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
 	void SetUpdateTimer();
 
-	void OnMouseMove(WPARAM nFlags, const GPoint& point);
-	void OnSize     (WPARAM nType,  const GPoint& point);
+	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);
+	void OnSize     (WPARAM nType,  GPoint deviceSize);
 	void OnCaptureChanged(HWND hWnd);
 	void OnActivate(bool becomeActive);
 	void ProcessGuiOpers();
