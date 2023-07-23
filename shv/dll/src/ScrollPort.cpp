@@ -215,14 +215,14 @@ void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourc
 		MakeMin(relPosY, m_NettSize.Y());
 
 		if (deltaY > 0)
-			base_type::GrowVer(deltaY, relPosY, 0);                  // maakt ruimte buiten groter
+			base_type::GrowVer(deltaY, relPosY);  // maakt ruimte buiten groter
 
-		m_NettSize.Y() += deltaY;                                      // maakt DrawnNettRect groter
+		m_NettSize.Y() += deltaY;                               // maakt DrawnNettRect groter
 		MakeMax(m_NettSize.Y(), TType());
 		SetScrollBars();
 
 		if (deltaY < 0)
-			base_type::GrowVer(deltaY, relPosY, 0);                  // maakt ruimte buiten kleiner en clipt DrawnFullSize
+			base_type::GrowVer(deltaY, relPosY);  // maakt ruimte buiten kleiner en clipt DrawnFullSize
 
 		if ((m_VerScroll)
 			?	deltaY <= 0

@@ -77,8 +77,8 @@ private:
 	void MoveTo(TPoint newRelPos) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem = nullptr) override;
+	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem = nullptr) override;
 
 private:
 	void SetScrollX(bool horScroll);

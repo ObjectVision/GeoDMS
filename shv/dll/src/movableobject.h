@@ -116,8 +116,8 @@ public:
 	std::weak_ptr<const MovableObject> GetOwner() const { return std::static_pointer_cast<const MovableObject>(base_type::GetOwner().lock()); }
 
 	void InvalidateClientRect(TRect rect) const;
-	virtual void GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem);
-	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem);
+	virtual void GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
+	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
 
 //	override GraphicObject
 //REMOVE	TRect CalcFullAbsLogicalRect(const GraphVisitor& v) const override;

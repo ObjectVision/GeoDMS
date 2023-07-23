@@ -272,7 +272,7 @@ void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 {
 	assert(relPosX <= m_ClientLogicalSize.X());
 	if (deltaX > 0)
-		base_type::GrowHor(deltaX, relPosX, 0);
+		base_type::GrowHor(deltaX, relPosX);
 
 	SizeT n = NrEntries(); 
 	while(n)
@@ -284,7 +284,7 @@ void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 	}
 
 	if (deltaX < 0)
-		base_type::GrowHor(deltaX, relPosX, 0);
+		base_type::GrowHor(deltaX, relPosX);
 
 	MG_DEBUGCODE( CheckSubStates() );
 
@@ -295,7 +295,7 @@ void GraphicVarRows::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 {
 	assert(relPosY <= m_ClientLogicalSize.Y());
 	if (deltaY > 0)
-		base_type::GrowVer(deltaY, relPosY, 0);
+		base_type::GrowVer(deltaY, relPosY);
 
 	SizeT n = NrEntries(); 
 	while(n)
@@ -307,7 +307,7 @@ void GraphicVarRows::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 	}
 
 	if (deltaY < 0)
-		base_type::GrowVer(deltaY, relPosY, 0);
+		base_type::GrowVer(deltaY, relPosY);
 
 	MG_DEBUGCODE( CheckSubStates() );
 
@@ -320,7 +320,7 @@ void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 	{
 		TType excess = relPosY + deltaY - m_ClientLogicalSize.Y();
 		if (excess > 0)
-			base_type::GrowVer(excess, m_ClientLogicalSize.Y(), 0);
+			base_type::GrowVer(excess, m_ClientLogicalSize.Y());
 	}
 	if (deltaY < 0)
 	{
@@ -331,7 +331,7 @@ void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 			MakeMax(height, GetEntry(--n)->GetCurrFullSize().second);
 		assert(height <= m_ClientLogicalSize.second);
 		if (height < m_ClientLogicalSize.second)
-			base_type::GrowVer(height - m_ClientLogicalSize.second, m_ClientLogicalSize.second, 0);
+			base_type::GrowVer(height - m_ClientLogicalSize.second, m_ClientLogicalSize.second);
 	}
 }
 
@@ -342,7 +342,7 @@ void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 	{
 		TType excess = relPosX + deltaX - m_ClientLogicalSize.X();
 		if (excess > 0)
-			base_type::GrowHor(excess, m_ClientLogicalSize.X(), 0);
+			base_type::GrowHor(excess, m_ClientLogicalSize.X());
 	}
 	if (deltaX < 0)
 	{
@@ -353,6 +353,6 @@ void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 			MakeMax(width, GetEntry(--n)->GetCurrFullSize().first);
 		dms_assert(width <= m_ClientLogicalSize.first);
 		if (width < m_ClientLogicalSize.first)
-			base_type::GrowHor(width - m_ClientLogicalSize.first, m_ClientLogicalSize.first, 0);
+			base_type::GrowHor(width - m_ClientLogicalSize.first, m_ClientLogicalSize.first);
 	}
 }

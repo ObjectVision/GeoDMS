@@ -217,8 +217,8 @@ void MovableObject::SetClientSize(TPoint newSize)
 		return;
 
 //	InvalidateDraw();
-	GrowHor(newSize.X()  - m_ClientLogicalSize.X(), m_ClientLogicalSize.X(), 0 );
-	GrowVer(newSize.Y()  - m_ClientLogicalSize.Y(), m_ClientLogicalSize.Y(), 0 );
+	GrowHor(newSize.X()  - m_ClientLogicalSize.X(), m_ClientLogicalSize.X());
+	GrowVer(newSize.Y()  - m_ClientLogicalSize.Y(), m_ClientLogicalSize.Y());
 
 	assert(m_ClientLogicalSize == newSize);
 }

@@ -285,7 +285,7 @@ void DataItemColumn::SetElemWidth(UInt16 width)
 	GType relPosX = m_ElemSize.X(); if (HasElemBorder()) relPosX += BORDERSIZE;
 
 	MakeMin(m_ElemSize.X(), width);
-	GrowHor(colWidth - currClientWidth, relPosX, 0);
+	GrowHor(colWidth - currClientWidth, relPosX);
 	MakeMax(m_ElemSize.X(), width);
 
 	assert(GetCurrClientSize().X() == colWidth);
@@ -333,9 +333,9 @@ void DataItemColumn::MakeVisibleRow()
 			sp->MakeLogicalRectVisible(elemRect, border);
 			break;
 		}
-		elemRect += obj->GetCurrClientRelPos();
-		dms_assert( IsIncluding(obj->GetCurrClientRelLogicalRect(), elemRect));
 
+		elemRect += obj->GetCurrClientRelPos();
+		assert( IsIncluding(obj->GetCurrClientRelLogicalRect(), elemRect));
 		obj = obj->GetOwner().lock();
 	} while (obj);
 	SetFocusRect();
