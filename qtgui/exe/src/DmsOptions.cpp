@@ -378,6 +378,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     auto ft_text = new QLabel("Flush treshold:", this);
     m_flush_treshold_text = new QLabel("100%", this);
     m_flush_treshold = new QSlider(Qt::Orientation::Horizontal, this);
+    m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
     m_flush_treshold->setMinimum(50);
     m_flush_treshold->setMaximum(100);
     connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
