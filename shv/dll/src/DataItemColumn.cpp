@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "ShvDllPch.h"
 
 
@@ -81,7 +52,6 @@ UInt32 GetDefaultColumnWidth(const AbstrDataItem* adi)
 {
 //	if (adi && adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric())
 //	{
-//		dms_assert(adi->GetAbstrValuesUnit()->GetValueType()->GetValueComposition() == ValueComposition::Single);
 //		return DEF_TEXT_PIX_WIDTH / 2;
 //	}
 	return DEF_TEXT_PIX_WIDTH / 2;
@@ -95,7 +65,7 @@ DataItemColumn::DataItemColumn(
 )	:	MovableObject(owner)
 	,	ThemeSet(possibleAspects, activeTheme)
 	,	m_FutureSrcAttr(adi)
-	,	m_ElemSize(GetDefaultColumnWidth(adi), DEF_TEXT_PIX_HEIGHT)
+	,	m_ElemSize(shp2dms_order(GetDefaultColumnWidth(adi), DEF_TEXT_PIX_HEIGHT))
 	,	m_ColumnNr(UNDEFINED_VALUE(UInt32))	
 	,	m_ActiveRow(0)
 {

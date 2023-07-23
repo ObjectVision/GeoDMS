@@ -424,8 +424,8 @@ inline TRect DRect2TRect(const DRect& src)
 	return Rect2TRect(tmp);
 }
 
-inline GPoint Apply(const CrdTransformation& self, TPoint p) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint( dp.first, dp.second ); }
-inline GRect Apply(const CrdTransformation& self, const TRect& r) { return GRect(Apply(self, r.first), Apply(self, r.second)); }
+inline GPoint TPoint2GPoint(TPoint p, const CrdTransformation& self) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint( dp.X(), dp.Y()); }
+inline GRect TRect2GRect(const TRect& r, const CrdTransformation& self) { return GRect(TPoint2GPoint(r.first, self), TPoint2GPoint(r.second, self)); }
 
 /* REMOVE
 template <typename T, typename ExceptFunc, typename ConvertFunc>

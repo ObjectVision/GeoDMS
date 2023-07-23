@@ -326,10 +326,10 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 
 GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 {
-	dms_assert(vp);
+	assert(vp);
 	if (vp->GetWorldCrdUnit())
 	{
-		auto vpRect = Apply(m_Transformation, vp->GetCurrClientRelLogicalRect() );
+		auto vpRect = TRect2GRect(vp->GetCurrClientRelLogicalRect(), m_Transformation);
 		VisitorDeviceRectSelector clipper(this, vpRect);
 		if (clipper.empty()) 
 			return GVS_UnHandled;
@@ -353,7 +353,9 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 	{
 		DBG_START("GraphVisitor", "DoScrollPort", MG_DEBUG_VIEWINVALIDATE);
 
-		VisitorDeviceRectSelector clipper( this, Apply(m_Transformation, sp->GetCurrNettRelLogicalRect()) );
+		auto absNettLogicalRect = sp->GetCurrNettAbsLogicalRect(*this);
+		auto absNettDeviceRect = TRect2GRect(absNettLogicalRect, m_Transformation);
+		VisitorDeviceRectSelector clipper( this, absNettDeviceRect);
 		DBG_TRACE(("clipperEmpty: %d", clipper.empty()));
 
 		if (clipper.empty()) 
@@ -557,8 +559,8 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 
 	if (obj->HasBorder() && DoDrawBackground())
 	{
-		auto extents = obj->GetCurrFullRelLogicalRect();
-		auto gExtents = Apply(m_Transformation, extents);
+		auto extents = obj->GetCurrFullAbsLogicalRect(*this);
+		auto gExtents = TRect2GRect(extents, m_Transformation);
 
 		DrawBorder(GetDC(), gExtents, obj->RevBorder());
 	}
