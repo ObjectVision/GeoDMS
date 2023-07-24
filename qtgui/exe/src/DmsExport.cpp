@@ -52,6 +52,10 @@ const AbstrUnit* CommonDomain(const TreeItem* item)
     }
 
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+    {
+        if (subItem->WasFailed())
+            continue;
+
         if (IsDataItem(subItem))
         {
             auto adu = AsDataItem(subItem)->GetAbstrDomainUnit();
@@ -65,6 +69,7 @@ const AbstrUnit* CommonDomain(const TreeItem* item)
                 domainCandidate = adu;
             foundSomeAttr = true;
         }
+    }
 
     return foundSomeAttr ? domainCandidate : nullptr;
 }
@@ -79,8 +84,13 @@ bool CurrentItemCanBeExportedAsDatabase(const TreeItem* item)
 {
     // category Table-b: container with data-items as direct sub-items that all have a compatible domain
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+    {
+        if (subItem->WasFailed())
+            continue;
+
         if (CommonDomain(subItem))
             return true;
+    }
     return false;
 }
 
@@ -319,9 +329,13 @@ bool currentItemCanBeExportedToVector(const TreeItem* item)
 
     // category Database: container with tables.
     for (auto subItem = item->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+    {
+        if (subItem->WasFailed())
+            continue;
+
         if (CurrentItemCanBeExportedAsTable(subItem))
             return true;
-
+    }
     return false;
 }
 

@@ -582,14 +582,14 @@ void MainWindow::createDetailPagesActions()
 {
     const QIcon backward_icon = QIcon::fromTheme("backward", QIcon(":/res/images/DP_back.bmp"));
     m_back_action = std::make_unique<QAction>(backward_icon, tr("&Back"));
-    m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    m_back_action->setShortcutContext(Qt::ApplicationShortcut);
+    //m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_back_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_back_action.get(), &QAction::triggered, this, &MainWindow::back);
 
     const QIcon forward_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_forward.bmp"));
     m_forward_action = std::make_unique<QAction>(forward_icon, tr("&Forward"));
-    m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
+    //m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_forward_action.get(), &QAction::triggered, this, &MainWindow::forward);
 
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
@@ -800,7 +800,7 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
             open_config_source_command = AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
         assert(!open_config_source_command.empty());
-        reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
         WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative, resolve spaces properly.
         //QProcess process;
         //process.setProgram();
@@ -821,6 +821,9 @@ void MainWindow::stepToFailReason()
 {
     auto ti = getCurrentTreeItem();
     if (!ti)
+        return;
+
+    if (!ti->WasFailed())
         return;
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
@@ -1201,6 +1204,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
                 "QTreeView::branch:open:hover:has-children {"
                 "           border-image: none;"
                 "           image: url(:/res/images/down_arrow_hover.png);"
+                "}"
+                "QTreeView {"
+                "           padding-top: 5px;"
+                "           background: white;"
                 "}");
 
         }
@@ -1590,55 +1597,64 @@ void MainWindow::createActions()
 
     // step to failreason
     m_step_to_failreason_action = std::make_unique<QAction>(tr("&Step up to FailReason"));
-    m_step_to_failreason_action->setShortcut(QKeySequence(tr("F2")));
+    auto step_to_failreason_shortcut = new QShortcut(QKeySequence(tr("F2")), this);
+    connect(step_to_failreason_shortcut, &QShortcut::activated, this, &MainWindow::stepToFailReason);
     connect(m_step_to_failreason_action.get(), &QAction::triggered, this, &MainWindow::stepToFailReason);
 
     // go to causa prima
     m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima (i.e. repeated Step up)"));
-    m_go_to_causa_prima_action->setShortcut(QKeySequence(tr("Shift+F2")));
+    auto go_to_causa_prima_shortcut = new QShortcut(QKeySequence(tr("Shift+F2")), this);
+    connect(go_to_causa_prima_shortcut, &QShortcut::activated, this, &MainWindow::runToFailReason);
     connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, &MainWindow::runToFailReason);
     
     // open config source
     m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));
-    m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
+    auto edit_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E")), this);
+    connect(edit_config_source_shortcut, &QShortcut::activated, this, &MainWindow::openConfigSource);
     connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
     m_edit_menu->addAction(m_edit_config_source_action.get());
 
     // update treeitem
     m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
-    m_update_treeitem_action->setShortcut(QKeySequence(tr("Ctrl+U")));
+    auto update_treeitem_shortcut = new QShortcut(QKeySequence(tr("Ctrl+U")), this);
+    connect(update_treeitem_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_treeitem);
     connect(m_update_treeitem_action.get(), &QAction::triggered, this, &MainWindow::visual_update_treeitem);
 
     // update subtree
     m_update_subtree_action = std::make_unique<QAction>(tr("&Update Subtree"));
-    m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
+    auto update_subtree_shortcut = new QShortcut(QKeySequence(tr("Ctrl+T")), this);
+    connect(update_subtree_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_subtree);
     connect(m_update_subtree_action.get(), &QAction::triggered, this, &MainWindow::visual_update_subtree);
     
     // invalidate action
     m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));
     m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
+    m_invalidate_action->setShortcutContext(Qt::ApplicationShortcut);
     //connect(m_invalidate_action.get(), &QAction::triggered, this, & #TODO);
 
     m_view_menu = std::make_unique<QMenu>(tr("&View"));
     menuBar()->addMenu(m_view_menu.get());
 
     m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
-    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
+    auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
+    connect(defaultview_shortcut, &QShortcut::activated, this, &MainWindow::defaultView);
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
     m_view_menu->addAction(m_defaultview_action.get());
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
-    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
+    connect(tableview_shortcut, &QShortcut::activated, this, &MainWindow::tableView);
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
     m_view_menu->addAction(m_tableview_action.get());
 
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
-    m_mapview_action->setShortcut(QKeySequence(tr("Ctrl+M")));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
+    connect(mapview_shortcut, &QShortcut::activated, this, &MainWindow::mapView);
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     m_view_menu->addAction(m_mapview_action.get());
 
@@ -1750,8 +1766,10 @@ void MainWindow::createActions()
     connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
-    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    //win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
+    connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
     connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
 
     auto win5_action = new QAction(tr("&Close All"), this);
@@ -1976,11 +1994,20 @@ void MainWindow::createDmsHelperWindowDocks()
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
+    // connections below need constructed treeview and filters to work
+    // TODO: refactor action/pushbutton logic
     connect(m_eventlog->m_text_filter.get(), &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
     connect(m_eventlog->m_minor_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_major_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_warning_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_error_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    
+    connect(m_eventlog->m_category_filter_system.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_progress.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_commands.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_wms.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_memory.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    //connect(m_eventlog->m_category_filter_disposable.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 }
 
 void MainWindow::back()

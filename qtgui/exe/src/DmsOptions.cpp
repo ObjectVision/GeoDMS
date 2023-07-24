@@ -376,25 +376,41 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
 
     // flush treshold
     auto ft_text = new QLabel("Flush treshold:", this);
+    auto flush_treshold_min_label = new QLabel("50%", this);
+    auto flush_treshold_max_label = new QLabel("100%", this);
     m_flush_treshold_text = new QLabel("100%", this);
     m_flush_treshold = new QSlider(Qt::Orientation::Horizontal, this);
+    m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
     m_flush_treshold->setMinimum(50);
     m_flush_treshold->setMaximum(100);
     connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
 
     m_tracelog = new QCheckBox("Tracelog file", this);
 
-    grid_layout->addWidget(ft_text, 11, 0);
+    grid_layout->addWidget(flush_treshold_min_label, 11, 0);
     grid_layout->addWidget(m_flush_treshold, 11, 1);
-    grid_layout->addWidget(m_flush_treshold_text, 11, 2);
-    grid_layout->addWidget(m_tracelog, 12, 0);
+    grid_layout->addWidget(flush_treshold_max_label, 11, 2);
+
+    grid_layout->addWidget(ft_text, 12, 0);
+    grid_layout->addWidget(m_flush_treshold_text, 12, 1);
+
+
+    // add separator
+    auto pp_line_tracelog_separator = new QFrame(this);
+    pp_line_tracelog_separator->setFrameShape(QFrame::HLine);
+    pp_line_tracelog_separator->setFrameShadow(QFrame::Plain);
+    pp_line_tracelog_separator->setLineWidth(1);
+    pp_line_tracelog_separator->setMidLineWidth(1);
+    grid_layout->addWidget(pp_line_tracelog_separator, 13, 0, 1, 3);
+
+    grid_layout->addWidget(m_tracelog, 14, 0);
 
     auto ft_line = new QFrame(this);
     ft_line->setFrameShape(QFrame::HLine);
     ft_line->setFrameShadow(QFrame::Plain);
     ft_line->setLineWidth(1);
     ft_line->setMidLineWidth(1);
-    grid_layout->addWidget(ft_line, 13, 0, 1, 3);
+    grid_layout->addWidget(ft_line, 15, 0, 1, 3);
 
     // change connections
     connect(m_pp0, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
@@ -424,7 +440,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, 14, 0, 1, 3);
+    grid_layout->addLayout(box_layout, 16, 0, 1, 3);
 
     restoreOptions();
     onFlushTresholdValueChange(m_flush_treshold->value());
