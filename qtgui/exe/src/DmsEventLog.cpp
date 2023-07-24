@@ -215,9 +215,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_category_filter_system = std::make_unique<QCheckBox>("System");
 	m_category_filter_system->setCheckable(true);
 	m_category_filter_system->setChecked(true);
-	m_category_filter_disposable = std::make_unique<QCheckBox>("Disposable");
-	m_category_filter_disposable->setCheckable(true);
-	m_category_filter_disposable->setChecked(false);
+	// m_category_filter_disposable = std::make_unique<QCheckBox>("Disposable");
+	//m_category_filter_disposable->setCheckable(true);
+	//m_category_filter_disposable->setChecked(false);
 	m_category_filter_wms = std::make_unique<QCheckBox>("Wms");
 	m_category_filter_wms->setCheckable(true);
 	m_category_filter_wms->setChecked(false);
@@ -348,7 +348,7 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 	toggled ? m_error_filter->show() : m_error_filter->hide();
 
 	toggled ? m_category_filter_system->show() : m_category_filter_system->hide();
-	toggled ? m_category_filter_disposable->show() : m_category_filter_disposable->hide();
+	//	toggled ? m_category_filter_disposable->show() : m_category_filter_disposable->hide();
 	toggled ? m_category_filter_wms->show() : m_category_filter_wms->hide();
 	toggled ? m_category_filter_progress->show() : m_category_filter_progress->hide();
 	toggled ? m_category_filter_memory->show() : m_category_filter_memory->hide();
