@@ -128,8 +128,8 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 
 bool ScaleBarBase::MustUpdateView() const
 {
-	dms_assert(m_ViewPort);
-	CrdType          currFactor  = m_ViewPort->GetCurrZoomLevel();
+	assert(m_ViewPort);
+	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
 	return m_Factor != currFactor || m_CrdUnit != currCrdUnit;
@@ -137,14 +137,14 @@ bool ScaleBarBase::MustUpdateView() const
 
 bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 {
-	dms_assert(m_ViewPort);
-	CrdType          currFactor  = m_ViewPort->GetCurrZoomLevel();
+	assert(m_ViewPort);
+	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
 	if (m_Factor == currFactor && m_CrdUnit == currCrdUnit)
 		return false;
-	m_Factor  = currFactor;  dms_assert(IsDefined(m_Factor));
-	m_CrdUnit = currCrdUnit; dms_assert(m_CrdUnit);
+	m_Factor  = currFactor;  assert(IsDefined(m_Factor));
+	m_CrdUnit = currCrdUnit; assert(m_CrdUnit);
 
 	m_MeasureSize = m_Factor;
 
@@ -232,7 +232,7 @@ bool ScaleBarObj::Draw(GraphDrawer& d) const
 {
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
 	dms_assert(IsUpdated());
-	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalOffset();
+	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos();
 	return m_Impl.Draw(d.GetDC(), TRect2GRect(absLogicalRect, GetScaleFactors()));
 }
 

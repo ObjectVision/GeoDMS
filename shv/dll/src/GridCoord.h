@@ -62,12 +62,12 @@ struct GridCoord : public std::enable_shared_from_this<GridCoord>
 	bool Empty  () const;
 	bool IsDirty() const { return m_IsDirty; }
 
-	const GRect& GetClippedRelRect() const { dms_assert(!IsDirty()); return m_ClippedRelRect; } 
+	const GRect& GetClippedRelDeviceRect() const { dms_assert(!IsDirty()); return m_ClippedRelDeviceRect; } 
 	const IRect& GetGridRect      () const { return m_Key.second; }
 
 	IRect GetClippedGridRect       (const GRect& viewRelRect) const;
 
-	GRect GetClippedRelRect (const IRect& selRect ) const;
+	GRect GetClippedRelDeviceRect (const IRect& selRect ) const;
 	IPoint GetExtGridCoord       (GPoint clientRelPoint) const;
 	IPoint GetExtGridCoordFromAbs(GPoint clientAbsPoint) const;
 
@@ -93,7 +93,7 @@ private:
 
 	// ========== calculated results
 
-	GRect                      m_ClippedRelRect; // m_ViewExtents;
+	GRect                      m_ClippedRelDeviceRect; // m_ViewExtents;
 	CrdPoint                   m_GridOrigin;
 	CrdPoint                   m_GridCellSize;
 	OrientationType            m_Orientation;

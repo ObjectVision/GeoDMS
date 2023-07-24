@@ -431,9 +431,14 @@ CrdRect ViewPort::CalcWorldClientRect() const
 	return GetCurrWorldClientRect();
 }
 
-CrdType ViewPort::GetCurrZoomLevel() const
+CrdType ViewPort::GetCurrLogicalZoomLevel() const
 {
 	return m_w2vTr.ZoomLevel();
+}
+
+CrdPoint ViewPort::GetCurrLogicalZoomFactors() const
+{
+	return m_w2vTr.Factor();
 }
 
 void ViewPort::ZoomAll()
@@ -580,8 +585,8 @@ void ViewPort::CopyLocationAndZoomlevelToClipboard()
 {
 	auto roi = GetROI();
 	auto center = Center(roi);
-	auto zoomLevel = GetCurrZoomLevel();
-	auto viewPoint = ViewPoint(center, GetCurrZoomLevel(), {});
+	auto zoomLevel = GetCurrLogicalZoomLevel();
+	auto viewPoint = ViewPoint(center, zoomLevel, {});
 	char buffer[201];;
 	if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
 	{
@@ -624,7 +629,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	if (eventID & (EID_LBUTTONDOWN | EID_LBUTTONUP | EID_LBUTTONDBLCLK) )
 	{
 		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
-		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalOffset()));
+		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos()));
 
 		InfoController::SelectFocusElem(GetLayerSet(), tr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
@@ -668,7 +673,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 
 			case TB_SelectDistrict:
 				medOwner->InsertController(
-					new SelectDistrictController(medOwner.get(), this, CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalOffset() )
+					new SelectDistrictController(medOwner.get(), this, CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos() )
 					)
 				);
 				return true;

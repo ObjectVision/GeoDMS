@@ -156,7 +156,7 @@ bool AbstrVisitor::MustBreak() const
 
 GraphVisitor::GraphVisitor(const GRect& clipDeviceRect, DPoint scaleFactors)
 	:	m_ClipDeviceRect(clipDeviceRect)
-	,	m_ClientLogicalOffset(Point<TType>(0, 0))
+	,	m_ClientLogicalAbsPos(Point<TType>(0, 0))
 	,	m_Transformation(CrdPoint(0, 0), scaleFactors)
 	,	m_SubPixelFactors(scaleFactors)
 {}
@@ -287,7 +287,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 
 		TType rowLogicalDelta = (elemSize.Y() + dic->RowSepHeight());
 		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
-		CrdType clientDeviceRow = m_ClientLogicalOffset.Y() * sf.second;
+		CrdType clientDeviceRow = m_ClientLogicalAbsPos.Y() * sf.second;
 
 		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
 			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
@@ -298,14 +298,14 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
 			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
-			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalOffset.Y(); // in device pixel units
+			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalAbsPos.Y(); // in device pixel units
 
 		while ( recNo < n && currRow < clipEndRow)
 		{
 			dms_assert(!SuspendTrigger::DidSuspend());
 			AddClientLogicalOffset localRowBase(this, shp2dms_order<TType>(0, currRow));
 
-			auto  absElemDeviceRect = TRect2GRect(TRect(m_ClientLogicalOffset, m_ClientLogicalOffset + elemSize), sf);
+			auto  absElemDeviceRect = TRect2GRect(TRect(m_ClientLogicalAbsPos, m_ClientLogicalAbsPos + elemSize), sf);
 			VisitorDeviceRectSelector clipper(this, absElemDeviceRect );
 
 			assert(!SuspendTrigger::DidSuspend());
@@ -338,7 +338,7 @@ GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 		assert(!HasCounterStacks() || vp->IsUpdated());
 		AddTransformation transformHolder(
 			this
-		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientLogicalOffset)
+		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientLogicalAbsPos)
 		);
 
 		if (Visit(vp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
@@ -823,8 +823,8 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	assert(IsMainThread());
 
-	auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrZoomLevel(), {});
-	char buffer[201];;
+	auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
+	char buffer[201];
 
 	if (auto dv = m_Owner.lock())
 	{

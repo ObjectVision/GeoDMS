@@ -770,7 +770,7 @@ void DataView::InvalidateChangedGraphics()
 
 	MG_DEBUG_DATA_CODE( SuspendTrigger::ApplyLock protectSuspend; )
 
-	assert( IsIncluding(ViewDeviceRect(), TRect2GRect(go->GetCurrFullRelLogicalRect(), GetScaleFactors()) ));
+	assert( !go->IsDrawn() || IsIncluding(ViewDeviceRect(), go->GetDrawnFullAbsDeviceRect()));
 
 	if (m_CheckedTS != UpdateMarker::LastTS())
 	{
@@ -782,7 +782,7 @@ void DataView::InvalidateChangedGraphics()
 
 	// make sure the m_DoneGraphics is updated according to invalidated rgn before scrolling; can result in UpdateView
 	UpdateWindow(GetHWnd()); // may Send WM_PAINT or WM_ERASEBKGND to SHV_DataView_DispatchMessage
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 }
 
 #include "act/TriggerOperator.h"
@@ -1403,7 +1403,15 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 {
 	DBG_START(GetClsName().c_str(), "OnSize", MG_DEBUG_CARET || MG_DEBUG_REGION || MG_DEBUG_SIZE);
 	DBG_TRACE(("NewSize=(%d,%d)", deviceSize.x, deviceSize.y));
-
+	auto hWnd = GetHWnd();
+	assert(hWnd);
+	auto currScaleFactors = GetWindowDIP2pixFactorXY(hWnd);
+	if (m_CurrScaleFactors != currScaleFactors)
+	{
+		m_CurrScaleFactors = currScaleFactors;
+		GetContents()->InvalidateDraw();
+	}
+		 
 	auto logicalSize = Convert<TPoint>(Reverse(deviceSize));
 	if (m_ViewDeviceSize == deviceSize)
 	{

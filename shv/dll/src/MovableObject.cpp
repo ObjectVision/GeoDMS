@@ -277,7 +277,7 @@ TPoint MovableObject::GetCurrClientAbsLogicalPos() const
 
 TPoint MovableObject::GetCurrClientAbsLogicalPos(const GraphVisitor& v) const
 {
-	return m_RelPos + v.GetClientLogicalOffset();
+	return m_RelPos + v.GetClientLogicalAbsPos();
 /*
 	TPoint result = m_RelPos;
 	auto owner = GetOwner().lock();
@@ -309,13 +309,13 @@ GRect  MovableObject::GetCurrClientAbsDeviceRect(const GraphVisitor& v) const
 //REMOVE
 TRect MovableObject::CalcFullAbsLogicalRect(const GraphVisitor& v) const
 {
-	return CalcFullRelRect() + v.GetClientLogicalOffset();
+	return CalcFullRelRect() + v.GetClientLogicalAbsPos();
 }
 */
 
 TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
 {
-	return GetCurrNettRelLogicalRect() + v.GetClientLogicalOffset();
+	return GetCurrNettRelLogicalRect() + v.GetClientLogicalAbsPos();
 }
 
 GRect MovableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const 
@@ -422,6 +422,20 @@ ControlRegion MovableObject::GetControlDeviceRegion(GType absX) const
 
 }
 
+void CheckDrawnRect(const MovableObject* self)
+{
+#if defined(MG_DEBUG)
+	if (self->IsDrawn())
+	{
+		auto absLogicalRect = self->GetCurrFullAbsLogicalRect();
+		auto sf = self->GetScaleFactors();
+		auto absDeviceRect = TRect2GRect(absLogicalRect, sf);
+		auto absDeviceDrawnRect = self->GetDrawnFullAbsDeviceRect();
+		assert(IsIncluding(absDeviceRect, absDeviceDrawnRect));
+	}
+#endif
+}
+
 void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
 {
 	auto dv = GetDataView().lock();
@@ -435,14 +449,15 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 	if (!deltaX)
 		return;
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 
 	TType  oldFullRelRight  = GetCurrFullRelLogicalRect().Right();
 	TPoint oldClientSize    = GetCurrClientSize();
 
 	assert(relPosX >= 0 );
 	assert(relPosX + GetCurrClientRelPos().X() <= oldFullRelRight);
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+
+	CheckDrawnRect(this);
 
 	if (deltaX > 0)
 	{
@@ -501,7 +516,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 	if (deltaX < 0)
 		m_ClientLogicalSize.X() += deltaX;
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 
 	if (owner && IsVisible()) 
 	{
@@ -509,7 +524,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 			owner->GrowHor(deltaX, oldFullRelRight, this);
 	}
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 }
 
 void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
@@ -525,14 +540,15 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 	if (!deltaY)
 		return;
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 
 	TType  oldFullRelBottom = GetCurrFullRelLogicalRect().Bottom();
 	TPoint oldClientSize    = GetCurrClientSize();
 
 	assert(relPosY >= 0 );
 	assert(relPosY + GetCurrClientRelPos().Y() <= oldFullRelBottom);
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+
+	CheckDrawnRect(this);
 
 	if (deltaY > 0)
 	{
@@ -593,7 +609,7 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 	if (deltaY < 0)
 		m_ClientLogicalSize.Y() += deltaY;
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 
 	if (owner && IsVisible())
 	{
@@ -601,17 +617,14 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 			owner->GrowVer(deltaY, oldFullRelBottom, this);
 	}
 
-	assert(!IsDrawn() || IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), GetScaleFactors()), GetDrawnFullAbsDeviceRect() ));
+	CheckDrawnRect(this);
 }
 
 #if defined(MG_DEBUG)
 void MovableObject::CheckState() const
 {
 	base_type::CheckState();
-	if (!IsDrawn())
-		return;
-	auto sf = GetScaleFactors();
-	assert(IsIncluding(TRect2GRect(GetCurrFullAbsLogicalRect(), sf), GetDrawnFullAbsDeviceRect() ) );
+	CheckDrawnRect(this);
 }
 #endif
 

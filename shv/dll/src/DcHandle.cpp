@@ -182,7 +182,7 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 
 
 AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, TPoint c2p)
-	:	tmp_swapper<TPoint>(v->m_ClientLogicalOffset, v->m_ClientLogicalOffset + c2p)
+	:	tmp_swapper<TPoint>(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
 {
 }
 

@@ -198,7 +198,7 @@ bool MapControl::OnCommand(ToolButtonID id)
 		case TB_SyncScale:
 			VisitSiblingViewPorts(this, [] (const MapControl* self, ViewPort* vp)->void
 				{
-					vp->SetCurrZoomLevel(self->GetViewPort()->GetCurrZoomLevel());
+					vp->SetCurrZoomLevel(self->GetViewPort()->GetCurrLogicalZoomLevel());
 				}
 			);
 			return true;

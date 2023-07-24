@@ -96,7 +96,7 @@ public:
 	void AL_ZoomAll();
 	void ZoomIn1();
 	void ZoomFactor(CrdType factor);
-	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrZoomLevel() / scale); }
+	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrLogicalZoomLevel() / scale); }
 	void AL_ZoomSel();
 
 	void ZoomOut1();
@@ -120,12 +120,13 @@ public:
 
 	// props
 	void ZoomWorldFullRect(const TRect& relClientRect) ;
-	CrdRect GetCurrWorldFullRect() const;
-	CrdRect GetCurrWorldClientRect() const;
-	CrdRect CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
-	CrdRect CalcWorldClientRect() const;
-	CrdType GetCurrZoomLevel() const;
-//	CrdPoint GetSubPixelFactors() const;
+	CrdRect  GetCurrWorldFullRect() const;
+	CrdRect  GetCurrWorldClientRect() const;
+	CrdRect  CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
+	CrdRect  CalcWorldClientRect() const;
+	CrdType  GetCurrLogicalZoomLevel() const;
+	CrdPoint GetCurrLogicalZoomFactors() const;
+	//	CrdPoint GetSubPixelFactors() const;
 
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
@@ -145,6 +146,10 @@ public:
 	CrdTransformation CalcWorldToClientTransformation() const; // calls DoUpdateView -> AdjustTargetViewport
 	CrdTransformation CalcCurrWorldToClientTransformation() const; // called by DoUpdateView and GraphicRect::AdjustTargetViewport, uses m_ROI and GetCurrClientSize()
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
+	CrdPoint          CalcCurrWorldToDeviceFactors() const { return CalcCurrWorldToClientTransformation().Factor() * GetScaleFactors(); }
+	CrdPoint          GetCurrWorldToDeviceFactors() const { return m_w2vTr.Factor() * GetScaleFactors(); }
+	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return Abs(CalcCurrWorldToDeviceFactors().first); }
+	CrdType           GetCurrWorldToDeviceZoomLevel() const { return Abs(GetCurrWorldToDeviceFactors().first); }
 
 //	override other virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;

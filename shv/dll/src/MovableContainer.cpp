@@ -328,10 +328,11 @@ void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 		TType height = 0;
 		SizeT n=NrEntries();
 		while (n)
-			MakeMax(height, GetEntry(--n)->GetCurrFullSize().second);
-		assert(height <= m_ClientLogicalSize.second);
-		if (height < m_ClientLogicalSize.second)
-			base_type::GrowVer(height - m_ClientLogicalSize.second, m_ClientLogicalSize.second);
+			MakeMax(height, GetEntry(--n)->GetCurrFullSize().Y());
+		auto currHeight = m_ClientLogicalSize.Y();
+		assert(height <= currHeight);
+		if (height < currHeight)
+			base_type::GrowVer(height - currHeight, currHeight);
 	}
 }
 
@@ -350,9 +351,10 @@ void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 		TType width = 0;
 		SizeT n=NrEntries();
 		while (n) 
-			MakeMax(width, GetEntry(--n)->GetCurrFullSize().first);
-		dms_assert(width <= m_ClientLogicalSize.first);
-		if (width < m_ClientLogicalSize.first)
-			base_type::GrowHor(width - m_ClientLogicalSize.first, m_ClientLogicalSize.first);
+			MakeMax(width, GetEntry(--n)->GetCurrFullSize().X());
+		auto currWidth = m_ClientLogicalSize.X();
+		assert(width <= currWidth);
+		if (width < currWidth)
+			base_type::GrowHor(width - currWidth, currWidth);
 	}
 }

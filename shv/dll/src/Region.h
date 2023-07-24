@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DcHandle.h"
 #include "ShvUtils.h"
 
-typedef std::vector<GRect> RectArray;
+using RectArray = std::vector<GRect>;
 
 #if defined(MG_DEBUG)
 void CheckRgnLimits(const GRect& rect);

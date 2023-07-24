@@ -109,7 +109,7 @@ public:
 
 	const CrdTransformation& GetTransformation() const { return m_Transformation; }
 	CrdTransformation GetLogicalTransformation() const { return m_Transformation / CrdTransformation(CrdPoint(0.0, 0.0), GetSubPixelFactors()); }
-	const TPoint& GetClientLogicalOffset() const { return m_ClientLogicalOffset; }
+	const TPoint& GetClientLogicalAbsPos() const { return m_ClientLogicalAbsPos; }
 	const GRect&  GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
 	CrdRect       GetWorldClipRect() const;
 
@@ -123,7 +123,7 @@ protected:
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
-	TPoint            m_ClientLogicalOffset; 
+	TPoint            m_ClientLogicalAbsPos; 
 	GRect             m_ClipDeviceRect;
 	CrdPoint          m_SubPixelFactors;
 

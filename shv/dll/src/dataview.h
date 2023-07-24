@@ -200,7 +200,7 @@ public:
 
 	SHV_CALL void ResetHWnd(HWND hWnd);
 	HWND     GetHWnd()        const { return m_hWnd; }
-	CrdPoint GetScaleFactors() const { return GetWindowDIP2pixFactorXY(GetHWnd()); }
+	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
 	CrdPoint Reverse(GPoint pnt) const { auto res = shp2dms_order<CrdType>(pnt.x, pnt.y); res *= GetReverseFactors(); return res; }
 	CrdRect  Reverse(GRect rect) const { return CrdRect(Reverse(rect.LeftTop()), Reverse(rect.RightBottom())); }
@@ -298,7 +298,8 @@ protected:
 
 	controller_vector             m_ControllerVector;
 
-	GPoint                        m_ViewDeviceSize;
+	CrdPoint                      m_CurrScaleFactors = CrdPoint(-1.0, -1.0);
+	GPoint                        m_ViewDeviceSize = GPoint(0, 0);
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
 	HWND                          m_hWnd;

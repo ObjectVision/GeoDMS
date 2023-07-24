@@ -957,22 +957,22 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	const AbstrUnit* gridDomain = grid->GetAbstrDomainUnit();
 	dms_assert(gridDomain->GetValueType()->GetNrDims() == 2);
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalOffset(), d.GetSubPixelFactors());
-	GRect clippedAbsRect = drawGridCoords->GetClippedRelRect() + viewportOffset;
+	GPoint viewportDeviceOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+	GRect clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect() + viewportDeviceOffset;
 
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
 	for (tile_id t=tileCounter.Value(), tn=gridDomain->GetNrTiles(); t!=tn; ++t)
 	{
 		bool doneAnything = false;
 		IRect tileGridRect = gridDomain->GetTileRangeAsIRect(t);
-		GRect tileViewRect = drawGridCoords->GetClippedRelRect(tileGridRect);
+		GRect tileViewRect = drawGridCoords->GetClippedRelDeviceRect(tileGridRect);
 		for (RectArray::iterator rectPtr = ra.begin(), rectEnd = ra.end(); rectPtr != rectEnd; ++rectPtr)
 		{
 			*rectPtr &= clippedAbsRect;
 			if (rectPtr->empty())
 				continue;
 
-			GRect viewRelRect = *rectPtr - viewportOffset;
+			GRect viewRelRect = *rectPtr - viewportDeviceOffset;
 			GRect tileRelRect = viewRelRect & tileViewRect;
 			if (tileRelRect.empty())
 				continue;
@@ -995,7 +995,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 			,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
 			);
 			if (!drawer.empty())
-				drawer.CopyDIBSection( drawer.Apply(), viewportOffset, SRCAND );
+				drawer.CopyDIBSection( drawer.Apply(), viewportDeviceOffset, SRCAND );
 		}
 		++tileCounter; 
 		if (tileCounter.MustBreak()) return true;
@@ -1035,8 +1035,8 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 
 	auto sf = GetScaleFactors();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalOffset(), sf);
-	GRect  clippedAbsRect = drawGridCoords->GetClippedRelRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
+	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), sf);
+	GRect  clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
 
 	if (clippedAbsRect.empty())
 		return;

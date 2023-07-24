@@ -335,7 +335,12 @@ void DataItemColumn::MakeVisibleRow()
 		}
 
 		elemRect += obj->GetCurrClientRelPos();
-		assert( IsIncluding(obj->GetCurrClientRelLogicalRect(), elemRect));
+
+#if defined(MG_DEBUG)
+		auto objCurrRelLogicalRect = obj->GetCurrClientRelLogicalRect();
+		assert( IsIncluding(objCurrRelLogicalRect, elemRect));
+#endif //defined(MG_DEBUG)
+
 		obj = obj->GetOwner().lock();
 	} while (obj);
 	SetFocusRect();
@@ -438,34 +443,36 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	assert(IsMainThread());
 	base_type::DrawBackground(d);
 
-	auto scaleFactor = GetDcDIP2pixFactorXY(d.GetDC());
+	auto scaleFactors = d.GetSubPixelFactors();
 
-	GType rowSep = RowSepHeight();
+	TType rowSep = RowSepHeight();
 	if (!rowSep)
 		return;
 
+	auto deviceRowSep = rowSep * scaleFactors.second;
+
+	auto logicalRowHeight = m_ElemSize.Y() + rowSep;
+	if (HasElemBorder())
+		logicalRowHeight += (2 * BORDERSIZE);
+	auto deviceRowHeight = logicalRowHeight * scaleFactors.second;
+
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	SizeT n = tc->NrRows(); if (!IsDefined(n)) n = 8;
+	SizeT nrRows = tc->NrRows(); if (!IsDefined(nrRows)) nrRows = 8;
 
 	auto penTheme = GetEnabledTheme(AN_PenColor);
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 
-	GRect  absFullRect = GetClippedCurrFullAbsDeviceRect(d); 
-	absFullRect.left = absFullRect.left * scaleFactor.first;
-	absFullRect.right = absFullRect.right * scaleFactor.first;
-	GType  rowDelta    = ElemSize().Y() + rowSep;
-	if (HasElemBorder())
-		rowDelta += 2*BORDERSIZE;
+	GRect  absFullDeviceRect = GetClippedCurrFullAbsDeviceRect(d); 
 
-	TType clientLogicalOffsetRow = d.GetClientLogicalOffset().Y();
-	CrdType clientDeviceOffsetRow = clientLogicalOffsetRow * scaleFactor.second;
+	TType clientLogicalAbsPosRow = d.GetClientLogicalAbsPos().Y();
+	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second;
 	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
-	SizeT recNo = (pageClipRectRow > clientDeviceOffsetRow)
-		?	(pageClipRectRow - clientDeviceOffsetRow) / (rowDelta * scaleFactor.second)
+	SizeT recNo = (pageClipRectRow > clientDeviceAbsPosRow)
+		?	(pageClipRectRow - clientDeviceAbsPosRow) / deviceRowHeight
 		:	0;
 
-	if (recNo > n)
+	if (recNo >= nrRows)
 		return;
 
 	if (penTheme)
@@ -474,31 +481,31 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 		SuspendTrigger::BlockerBase block;
 		trl.push_back(penTheme.get(), DrlType::Certain);
 
-		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, n-1)))));
+		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));
 	}
-	TType currRow    = TType(recNo) * rowDelta + d.GetClientLogicalOffset().Y();
+//	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
+	GType currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
 	GType clipEndRow = d.GetAbsClipDeviceRect().Bottom();
 
 	// draw horizontal borders
-	while ( recNo < n)
+	while ( recNo < nrRows)
 	{
-		if (currRow >= clipEndRow)
+		if (currRowDeviceY >= clipEndRow)
 			return;
-		absFullRect.Top() = currRow * scaleFactor.second;
-		absFullRect.Bottom() = (currRow+rowSep) * scaleFactor.second;
-//		absFullRect *= GetDcDIP2pixFactorXY(d.GetDC());
-		FillRect(d.GetDC(), &absFullRect, br);
+		absFullDeviceRect.Top() = currRowDeviceY;
+		absFullDeviceRect.Bottom() = currRowDeviceY + deviceRowSep;
+		FillRect(d.GetDC(), &absFullDeviceRect, br);
 
 		++recNo;
-		currRow += rowDelta;
+		currRowDeviceY += deviceRowHeight;
 	}
-	assert(recNo == n);
+	assert(recNo == nrRows);
 
-	if (currRow >= clipEndRow)
+	if (currRowDeviceY >= clipEndRow)
 		return;
-	absFullRect.Top() = currRow * scaleFactor.second;
-	absFullRect.Bottom() = (currRow + rowSep) * scaleFactor.second;
-	FillRect(d.GetDC(), &absFullRect, br);
+	absFullDeviceRect.Top() = currRowDeviceY;
+	absFullDeviceRect.Bottom() = currRowDeviceY + deviceRowSep;
+	FillRect(d.GetDC(), &absFullDeviceRect, br);
 }
 
 
@@ -548,7 +555,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 //	CrdPoint base = d.GetTransformation().GetOffset();
 //	dms_assert(base == d.GetTransformation().Apply(CrdPoint(0, 0) ) );
 
-//	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalOffset(), d.GetClientLogicalOffset() + TPoint(elemSize) );
+//	GRect elemExtents = absElemRect; //TRect( d.GetClientLogicalAbsPos(), d.GetClientLogicalAbsPos() + TPoint(elemSize) );
 
 	if (HasElemBorder())
 		DrawButtonBorder(d.GetDC(), elemDeviceExtents);
@@ -1076,13 +1083,14 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 	{
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
-		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos());
-		auto height = m_ElemSize.Y() + RowSepHeight();
-		if (HasElemBorder()) height += (2*BORDERSIZE);
-		SizeT rowNr = relClientPos.Y() / height;
+		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
+		auto logicalHeight = m_ElemSize.Y() + RowSepHeight();
+		if (HasElemBorder()) 
+			logicalHeight += (2*BORDERSIZE);
+		SizeT rowNr = relClientPos.Y() / logicalHeight;
 		if (rowNr >= tc->NrRows()) goto skip;
 
-		relClientPos.Y() %= height;
+		relClientPos.Y() %= logicalHeight;
 		if (HasElemBorder())
 		{
 			if (relClientPos.X() < BORDERSIZE) goto skip;
@@ -1216,7 +1224,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 //	Explain Value
 	if (tc)
 	{
-		TPoint relClientPos = TPoint(med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos()));
+		TPoint relClientPos = TPoint(med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos()));
 		GType height = m_ElemSize.Y() + RowSepHeight();
 		if (HasElemBorder()) height += (2 * BORDERSIZE);
 		SizeT rowNr = relClientPos.Y() / height;

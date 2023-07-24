@@ -651,7 +651,9 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 	if (!d.GetDC())
 		return GVS_Continue;
 
-	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 /d.GetTransformation().ZoomLevel());
+	auto transZoomLevel = d.GetTransformation().ZoomLevel();
+	auto worldSizeOfDevicePixel = 1.0 / transZoomLevel;
+	m_ZoomLevel = ChooseTileMatrix(m_TMS, worldSizeOfDevicePixel);
 	if (!IsDefined(m_ZoomLevel))
 		return GVS_Continue;
 
@@ -668,9 +670,9 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 	GRect bb = d.GetAbsClipRegion().BoundingBox();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalOffset(), d.GetSubPixelFactors());
-	GRect clippedRelRect = drawGridCoords->GetClippedRelRect();
-	clippedRelRect &= (bb - viewportOffset);
+	GPoint viewportDeviceOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+	GRect clippedRelRect = drawGridCoords->GetClippedRelDeviceRect();
+	clippedRelRect &= (bb - viewportDeviceOffset);
 	if (clippedRelRect.empty())
 		return GVS_Continue;
 
@@ -695,7 +697,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 		{
 			wms::tile_pos tp = shp2dms_order(c, r);
 			auto tileGridRect = tm.RasterExtents(tp);
-			GRect tileRelRect = drawGridCoords->GetClippedRelRect(Convert<IRect>(tileGridRect));
+			GRect tileRelRect = drawGridCoords->GetClippedRelDeviceRect(Convert<IRect>(tileGridRect));
 			if (tileRelRect.empty())
 				continue;
 
@@ -735,7 +737,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				if (!drawer.empty()) {
 					GdiHandle<HBITMAP> hBitmap(drawer.CreateDIBSectionFromPalette());
 					drawer.FillDirect(&rasterBuffer.combinedBands[0], true);
-					drawer.CopyDIBSection(hBitmap, viewportOffset, SRCAND);
+					drawer.CopyDIBSection(hBitmap, viewportDeviceOffset, SRCAND);
 				}
 			}
 			catch (...) 
@@ -749,7 +751,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 void WmsLayer::Zoom1To1(ViewPort* vp)
 {
-	dms_assert(vp);
+	assert(vp);
 
 	if (!vp->GetWorldCrdUnit())
 		return;
@@ -762,15 +764,19 @@ void WmsLayer::Zoom1To1(ViewPort* vp)
 	}
 
 	CrdPoint p = Center(vp->GetROI());
-	CrdPoint s = m_TMS[zoomLevel].m_Raster2World.Factor() * Convert<CrdPoint>(vp->GetCurrClientSize()) * 0.5;
+
+	CrdPoint r2wFactor = m_TMS[zoomLevel].m_Raster2World.Factor();
+	CrdPoint currClientSize = Convert<CrdPoint>(vp->GetCurrClientSize());
+	CrdPoint sf = GetScaleFactors();
+	CrdPoint s = r2wFactor * currClientSize * 0.5 * sf;
 	vp->SetROI(CrdRect(p - s, p + s));
 }
 
 bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 {
-	dms_assert(vp);
+	assert(vp);
 
-	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
+	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
 	if (!m_ZoomLevel)
 		return false;
@@ -778,7 +784,7 @@ bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 	--m_ZoomLevel;
 	Zoom1To1(vp);
 //	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor < 0.99 || justClickIsOK)
+	if (!zoomFactor || vp->CalcCurrWorldToDeviceZoomLevel() / zoomFactor < 0.99 || justClickIsOK)
 		return true;
 	if (!m_ZoomLevel)
 		return false;
@@ -789,16 +795,19 @@ bool WmsLayer::ZoomOut(ViewPort* vp, bool justClickIsOK)
 
 bool WmsLayer::ZoomIn(ViewPort* vp)
 {
-	dms_assert(vp);
+	assert(vp);
 
-	auto zoomFactor = vp->CalcCurrWorldToClientTransformation().ZoomLevel();
+	auto zoomFactor = vp->CalcCurrWorldToDeviceZoomLevel();
 	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomFactor);
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;
 //	++m_ZoomLevel;
 	Zoom1To1(vp);
 	//	m_ZoomLevel = ChooseTileMatrix(m_TMS, 1.0 / zoomLevel);
-	if (!zoomFactor || vp->CalcCurrWorldToClientTransformation().ZoomLevel() / zoomFactor >  1.01)
+	if (!zoomFactor)
+		return true;
+	auto currW2DevZL= vp->CalcCurrWorldToDeviceZoomLevel();
+	if (currW2DevZL / zoomFactor > 1.01)
 		return true;
 	if (m_ZoomLevel >= m_TMS.size() - 1)
 		return false;

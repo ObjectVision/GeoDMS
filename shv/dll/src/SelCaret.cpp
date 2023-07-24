@@ -204,12 +204,12 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	PreparedDataReadLock readLock(m_SelAttr);
 
 	m_GridCoords->UpdateUnscaled();
-	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelRect() );
+	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );
 	clippedUpdateRgn &= updateRgn;
 	if (clippedUpdateRgn.Empty())
 		return;
 
-	dms_assert(IsMainThread()); // licensed to use statics ?
+	assert(IsMainThread()); // licensed to use statics ?
 
 	static RectArray ra;
 	clippedUpdateRgn.FillRectArray(ra);

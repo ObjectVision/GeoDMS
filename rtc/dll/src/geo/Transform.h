@@ -193,13 +193,13 @@ public:
 
 	bool operator == (const Transformation& rhs) const { return m_Factor == rhs.Factor() && m_Offset == rhs.Offset(); }
 
-	const point_type& Factor()      const { return m_Factor; }
-	area_type         FactorProd()  const { return m_Factor.first * m_Factor.second; }
-	bool              IsSingular()  const { return m_Factor.first == 0 || m_Factor.second == 0; }
-	Float64           ZoomLevel()   const { return Abs(m_Factor.first); }
-	point_type        V2WFactor()   const { assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
-	const point_type& Offset()      const { return m_Offset; }
-	OrientationType   Orientation() const 
+	point_type      Factor()      const { return m_Factor; }
+	area_type       FactorProd()  const { return m_Factor.first * m_Factor.second; }
+	bool            IsSingular()  const { return m_Factor.first == 0 || m_Factor.second == 0; }
+	Float64         ZoomLevel()   const { return Abs(m_Factor.first); }
+	point_type      V2WFactor()   const { assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
+	point_type      Offset()      const { return m_Offset; }
+	OrientationType Orientation() const 
 	{
 		return OrientationType(
 			int((m_Factor.Y()>=0) ? OrientationType::Default : OrientationType::NegateY)

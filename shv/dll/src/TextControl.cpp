@@ -259,7 +259,7 @@ bool TextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalOffset(), d.GetSubPixelFactors());
+		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
 		DrawText(
 			d.GetDC(),
 			clientAbsRect,
@@ -343,7 +343,7 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalOffset(), GetScaleFactors() );
+		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), GetScaleFactors() );
 		DrawEditText(
 			d.GetDC(), 
 			clientAbsRect,
@@ -381,7 +381,7 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 	}
 	if(med.GetEventInfo().m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONDBLCLK) )
 	{
-		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalOffset() + GetCurrClientRelPos());
+		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		if (HasBorder())
 		{
 			if (relClientPos.X() < 0) goto skip;

@@ -115,12 +115,20 @@ void GraphicObject::CheckState() const
 		m_State.Get(GOF_IsVisible)        //    IsVisible
 	&&	(!owner || owner->AllVisible());  // && m_Owner->AllVisible
 
-	dms_assert(m_State.Get(GOF_AllVisible) == allVisible);
-	dms_assert(allVisible || !IsDrawn());
-	dms_assert( m_State.Get(GOF_IsUpdated) || WasFailed(FR_Data) || !m_State.Get(GOF_AllUpdated));
-	dms_assert(!IsDrawn() || !owner || owner->IsDrawn());
+	assert(m_State.Get(GOF_AllVisible) == allVisible);
+	assert(allVisible || !IsDrawn());
+	assert( m_State.Get(GOF_IsUpdated) || WasFailed(FR_Data) || !m_State.Get(GOF_AllUpdated));
 
-	dms_assert(!IsDrawn() || !owner || IsIncluding( owner->GetDrawnNettAbsDeviceRect(), GetDrawnFullAbsDeviceRect() ) );
+	if (!IsDrawn())
+		return;
+	if (!owner)
+		return;
+	assert(owner->IsDrawn());
+
+	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect();
+	auto drawnFullAbsDeviceRect = GetDrawnFullAbsDeviceRect();
+
+	assert( IsIncluding(drawnNettOwnerAbsDeviceRect, drawnFullAbsDeviceRect) );
 }
 
 void GraphicObject::CheckSubStates() const
@@ -426,7 +434,7 @@ void GraphicObject::SetIsDrawn()
 
 GRect GraphicObject::GetDrawnFullAbsDeviceRect() const
 {
-	dms_assert(IsDrawn());
+	assert(IsDrawn());
 	return m_DrawnFullAbsRect;
 }
 
