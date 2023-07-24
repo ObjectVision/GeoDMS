@@ -1204,6 +1204,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
                 "QTreeView::branch:open:hover:has-children {"
                 "           border-image: none;"
                 "           image: url(:/res/images/down_arrow_hover.png);"
+                "}"
+                "QTreeView {"
+                "           padding-top: 5px;"
+                "           background: white;"
                 "}");
 
         }
