@@ -993,11 +993,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	DBG_TRACE(("clip = %s", AsString(rcClip  ).c_str()));
 
 	dbg_assert( md_InvalidateDrawLock == 0);
-	auto scaleFactor = GetScaleFactors();
-	delta *= scaleFactor;
-	rcScroll *= scaleFactor;
-	rcClip *= scaleFactor;
-	dms_assert(src);
+	assert(src);
 	{
 		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL)); // we could clip on the rcScroll|rcClip region
 		Region   rgnClip(rcClip);

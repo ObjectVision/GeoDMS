@@ -92,7 +92,7 @@ public:
 
 private:
 	TPoint m_NettSize = Point<TType>(0, 0);
-	GPoint m_NrTPointsPerGPoint;
+	GPoint m_NrLogicalUnitsPerTumpnailTick;
 	HWND   m_HorScroll =0, m_VerScroll =0;
 
 	DECL_RTTI(SHV_CALL, Class);

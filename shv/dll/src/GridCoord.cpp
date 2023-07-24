@@ -58,16 +58,16 @@ void GridCoord::Init(GPoint clientSize, const CrdTransformation& w2vTr)
 
 bool GridCoord::Empty() const
 {
-	dms_assert(!m_IsDirty);
+	assert(!m_IsDirty);
 	return m_ClippedRelDeviceRect.empty(); 
 }
 
 void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, CrdType deltaGridCrd, CrdType subPixelFactor, UInt32 nrGridPos, UInt32 nrViewPos)
 {
-	dms_assert(nrViewPos);
+	assert(nrViewPos);
 
-	dms_assert(currGridCrd <  nrGridPos);
-	dms_assert(currGridCrd >= 0);
+	assert(currGridCrd <  nrGridPos);
+	assert(currGridCrd >= 0);
 	UInt32 currGridPos = RoundDownPositive<4>( currGridCrd ), prevGridPos = currGridPos;
 
 	// if (lineCoords) go back (subPixelFactor) cells to determine showLinesNow
@@ -125,7 +125,7 @@ void CalcGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Cr
 	if (nrViewPos)
 		CalcGridNrs(
 			&*gridCoords.begin()
-		,	showLines ? &*linedCoords.begin() : 0
+		,	showLines ? &*linedCoords.begin() : nullptr
 		,	firstGridCrd
 		,	deltaGridCrd, subPixelFactor
 		,	nrGridPos, nrViewPos
@@ -135,30 +135,32 @@ void CalcGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Cr
 void GridCoord::Recalc()
 {
 	// determine transformation and cliprect
-	CrdTransformation grid2ClientTr = m_Key.first * m_World2ClientTr;
+	CrdTransformation grid2LogicalTr = m_Key.first * m_World2ClientTr;
+	CrdTransformation grid2DeviceTr = grid2LogicalTr * CrdTransformation(CrdPoint(0.0, 0.0), m_SubPixelFactors);
+
 	auto vp = m_Owner.lock();
-	if (!vp)
-		grid2ClientTr = m_World2ClientTr;
-	m_Orientation = grid2ClientTr.Orientation();
+//	if (!vp)
+///		grid2ClientTr = m_World2ClientTr;
+	m_Orientation = grid2LogicalTr.Orientation();
 
 	CrdRect gridCRect = Deflate(Convert<CrdRect>(m_Key.second), CrdPoint(GRID_EXTENTS_MARGIN, GRID_EXTENTS_MARGIN));
-	CrdRect viewCRect = grid2ClientTr.Apply(gridCRect); // reduced grid in client coordinates
+	CrdRect viewDRect = grid2DeviceTr.Apply(gridCRect); // grid in device coordinates
 
-	CrdRect clientRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_ClientSize) );
+	CrdRect clientDeviceRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_ClientSize) );
 
-	CrdRect gridClipRect = gridCRect &  grid2ClientTr.Reverse(clientRect); // (viewport & reduced grid) in grid coords
+	CrdRect gridClipRect = gridCRect & grid2DeviceTr.Reverse(clientDeviceRect); // (viewport & reduced grid) in grid coords
 
 	m_GridOrigin.Col() = IsRightLeft(m_Orientation) ? gridClipRect.second.Col() : gridClipRect.first.Col();
 	m_GridOrigin.Row() = IsBottomTop(m_Orientation) ? gridClipRect.second.Row() : gridClipRect.first.Row();
 	m_GridOrigin -= Convert<CrdPoint>( GetGridRect().first ); // make row & col nrs zero based; Roworder is usually reversed (O_BottomTop)
-	m_GridCellSize = grid2ClientTr.V2WFactor();
+	m_GridCellSize = grid2DeviceTr.V2WFactor();
 
-	clientRect &= viewCRect;                                               // (viewport & grid) in client coords
-	if (clientRect.empty())
+	clientDeviceRect &= viewDRect;                                          // (viewport & grid) in device coords
+	if (clientDeviceRect.empty())
 		m_ClippedRelDeviceRect = GRect();
 	else
 	{
-		m_ClippedRelDeviceRect = Rect2GRect( RoundUp<4>(clientRect), CrdPoint(1.0, 1.0) ); 
+		m_ClippedRelDeviceRect = Rect2GRect( RoundUp<4>(clientDeviceRect), CrdPoint(1.0, 1.0) ); 
 		assert(m_GridOrigin.Row() >= 0);
 		assert(m_GridOrigin.Col() >= 0);
 		assert(m_ClippedRelDeviceRect.Size().x >= 0);

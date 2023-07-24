@@ -55,7 +55,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 ScrollPort::ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool disableScrollbars)
 	:	Wrapper(owner, dv, caption)
-	,	m_NrTPointsPerGPoint(1, 1)
+	,	m_NrLogicalUnitsPerTumpnailTick(1, 1)
 #if defined(MG_DEBUG)
 	,	md_ScrollRecursionCount(0)
 #endif
@@ -378,7 +378,7 @@ void ScrollPort::OnHScroll(UInt16 scollCmd)
 	if (!m_HorScroll)
 		return;
 
-	TType newPos = CalcNewPos(m_HorScroll, scollCmd, m_NrTPointsPerGPoint.x);
+	TType newPos = CalcNewPos(m_HorScroll, scollCmd, m_NrLogicalUnitsPerTumpnailTick.x);
 	if (newPos >= 0)
 		ScrollLogical(shp2dms_order<TType>(-(newPos + GetContents()->GetCurrClientRelPos().X()), 0) );
 }
@@ -388,7 +388,7 @@ void ScrollPort::OnVScroll(UInt16 scollCmd)
 	if (!m_VerScroll)
 		return;
 
-	TType newPos = CalcNewPos(m_VerScroll, scollCmd, m_NrTPointsPerGPoint.y);
+	TType newPos = CalcNewPos(m_VerScroll, scollCmd, m_NrLogicalUnitsPerTumpnailTick.y);
 	if (newPos >= 0)
 		ScrollLogical(shp2dms_order<TType>(0, -(newPos + GetContents()->GetCurrClientRelPos().Y())) );
 }
@@ -434,8 +434,8 @@ void ScrollPort::ScrollLogical(TPoint delta)
 		if (!(delta == Point<TType>(0,0)))
 			GetContents()->MoveTo(GetContents()->GetCurrClientRelPos() + delta);
 
-		m_NrTPointsPerGPoint.x = 1 + contentExtents.Width () / MaxValue<GType>();
-		m_NrTPointsPerGPoint.y = 1 + contentExtents.Height() / MaxValue<GType>();
+		m_NrLogicalUnitsPerTumpnailTick.x = 1 + contentExtents.Width () / MaxValue<GType>();
+		m_NrLogicalUnitsPerTumpnailTick.y = 1 + contentExtents.Height() / MaxValue<GType>();
 
 		if (m_HorScroll)
 		{
@@ -443,9 +443,9 @@ void ScrollPort::ScrollLogical(TPoint delta)
 			scrollInfo.cbSize = sizeof(SCROLLINFO);
 			scrollInfo.fMask  = SIF_PAGE|SIF_POS|SIF_RANGE;
 			scrollInfo.nMin   = 0;
-			scrollInfo.nMax   = (contentExtents.Width() - 1) / m_NrTPointsPerGPoint.x;
+			scrollInfo.nMax   = (contentExtents.Width() - 1) / m_NrLogicalUnitsPerTumpnailTick.x;
 			scrollInfo.nPage  = viewSize.X();
-			scrollInfo.nPos   = - GetContents()->GetCurrClientRelPos().X() / m_NrTPointsPerGPoint.x;
+			scrollInfo.nPos   = - GetContents()->GetCurrClientRelPos().X() / m_NrLogicalUnitsPerTumpnailTick.x;
 	//		scrollInfo.nTrackPos; 
 			SetScrollInfo(m_HorScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
 		}
@@ -455,9 +455,9 @@ void ScrollPort::ScrollLogical(TPoint delta)
 			scrollInfo.cbSize = sizeof(SCROLLINFO);
 			scrollInfo.fMask  = SIF_PAGE|SIF_POS|SIF_RANGE;
 			scrollInfo.nMin   = 0;
-			scrollInfo.nMax   = (contentExtents.Height() - 1) / m_NrTPointsPerGPoint.y;
+			scrollInfo.nMax   = (contentExtents.Height() - 1) / m_NrLogicalUnitsPerTumpnailTick.y;
 			scrollInfo.nPage  = viewSize.Y();
-			scrollInfo.nPos   = -GetContents()->GetCurrClientRelPos().Y() / m_NrTPointsPerGPoint.y;
+			scrollInfo.nPos   = -GetContents()->GetCurrClientRelPos().Y() / m_NrLogicalUnitsPerTumpnailTick.y;
 	//		scrollInfo.nTrackPos; 
 			SetScrollInfo(m_VerScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
 		}

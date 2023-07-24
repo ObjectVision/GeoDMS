@@ -166,13 +166,13 @@ void GridFill(
 	dms_assert(!gridDrawer->m_SelValues || IsDefined( gridDrawer->m_SelValues->m_Rect.first.Row() ) );
 
 	const IndexCollector* entityIndex = gridDrawer->m_EntityIndex;
-	dms_assert(!tileIndexRange.inverted() || !entityIndex);
+	assert(!tileIndexRange.inverted() || !entityIndex);
 	SizeT tileIndexRangeSize = Cardinality(tileIndexRange);
 
 //	Prepare loop
 	GType viewColBegin = gridDrawer->m_sViewRect.left;
 	GType viewColEnd   = gridDrawer->m_sViewRect.right;
-	dms_assert(viewColBegin < viewColEnd);
+	assert(viewColBegin < viewColEnd);
 
 	UInt32 viewColSize = GetAligned4Size(resultingClassIds, viewColEnd - viewColBegin);
 
@@ -183,8 +183,8 @@ void GridFill(
 	IPoint gridSize = gridDrawer->m_SelValues 
 		?	Size(gridDrawer->m_SelValues->m_Rect)
 		:	Size(gridDrawer->m_TileRect);
-	dms_assert(gridSize.first  >= 0);
-	dms_assert(gridSize.second >= 0);
+	assert(gridSize.first  >= 0);
+	assert(gridSize.second >= 0);
 
 	const grid_rowcol_id* currGridRowPtr = gridDrawer->m_GridCoords->GetGridRowPtr(currViewRow, true);
 	MG_DEBUGCODE(const grid_rowcol_id* gridRowBeginPtr = currGridRowPtr; )
@@ -199,7 +199,7 @@ void GridFill(
 	{
 		grid_rowcol_id currGridRow = *--currGridRowPtr;
 		--currViewRow;
-		dbg_assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
+		assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
 
 		if (IsDefined(currGridRow))
 		{

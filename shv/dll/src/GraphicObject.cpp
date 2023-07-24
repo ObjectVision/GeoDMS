@@ -125,7 +125,7 @@ void GraphicObject::CheckState() const
 		return;
 	assert(owner->IsDrawn());
 
-	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect();
+	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect(); drawnNettOwnerAbsDeviceRect.Expand(1);
 	auto drawnFullAbsDeviceRect = GetDrawnFullAbsDeviceRect();
 
 	assert( IsIncluding(drawnNettOwnerAbsDeviceRect, drawnFullAbsDeviceRect) );
