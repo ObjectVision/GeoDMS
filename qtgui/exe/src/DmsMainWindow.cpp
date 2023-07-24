@@ -582,14 +582,14 @@ void MainWindow::createDetailPagesActions()
 {
     const QIcon backward_icon = QIcon::fromTheme("backward", QIcon(":/res/images/DP_back.bmp"));
     m_back_action = std::make_unique<QAction>(backward_icon, tr("&Back"));
-    m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    m_back_action->setShortcutContext(Qt::ApplicationShortcut);
+    //m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_back_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_back_action.get(), &QAction::triggered, this, &MainWindow::back);
 
     const QIcon forward_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_forward.bmp"));
     m_forward_action = std::make_unique<QAction>(forward_icon, tr("&Forward"));
-    m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
+    //m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_forward_action.get(), &QAction::triggered, this, &MainWindow::forward);
 
     const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
@@ -800,7 +800,7 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
             open_config_source_command = AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
         assert(!open_config_source_command.empty());
-        reportF(SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
+        reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
         WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative, resolve spaces properly.
         //QProcess process;
         //process.setProgram();
@@ -1762,8 +1762,10 @@ void MainWindow::createActions()
     connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
-    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    //win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
+    connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
     connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
 
     auto win5_action = new QAction(tr("&Close All"), this);
@@ -1988,11 +1990,20 @@ void MainWindow::createDmsHelperWindowDocks()
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
+    // connections below need constructed treeview and filters to work
+    // TODO: refactor action/pushbutton logic
     connect(m_eventlog->m_text_filter.get(), &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
     connect(m_eventlog->m_minor_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_major_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_warning_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
     connect(m_eventlog->m_error_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    
+    connect(m_eventlog->m_category_filter_system.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_progress.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_commands.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_wms.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    connect(m_eventlog->m_category_filter_memory.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+    //connect(m_eventlog->m_category_filter_disposable.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 }
 
 void MainWindow::back()
