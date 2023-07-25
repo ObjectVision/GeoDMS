@@ -130,9 +130,9 @@ enum class RegDWordEnum
 	SwapFileMinSize   = 1,
 };
 
-extern "C" RTC_CALL UInt32 DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-extern "C" RTC_CALL void   DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
-extern "C" RTC_CALL bool   DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
+extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
+extern "C" RTC_CALL void  DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
+extern "C" RTC_CALL bool  DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
 
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 

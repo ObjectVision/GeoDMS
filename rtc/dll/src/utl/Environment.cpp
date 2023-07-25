@@ -572,7 +572,7 @@ RegDWordAttr s_RegDWordAttrs[] =
 	{ "SwapFileMinSize", 0, false },
 };
 
-extern "C" RTC_CALL UInt32 RTC_GetRegDWord(RegDWordEnum i)
+extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
 {
 	auto ui = UInt32(i);
 	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
@@ -615,12 +615,6 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
 	regAttr.wasRead = true;
 	regAttr.value   = dw;
-}
-
-// TODO: REMOVE
-extern "C" RTC_CALL void RTC_SetRegDWord(RegDWordEnum i, DWORD dw)
-{
-	RTC_SetCachedDWord(i, dw);
 }
 
 void MakeDir(WeakStr dirName)

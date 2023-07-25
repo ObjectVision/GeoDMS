@@ -508,7 +508,7 @@ end;
 
 procedure TConfiguration.SetFlushThreshold(percent: UInt32);
 begin
-  RTC_SetRegDWord(0, percent);
+  RTC_SetCachedDWord(0, percent);
   WriteUserUInt32('', 'MemoryFlushThreshold', percent);
 end;
 
@@ -519,7 +519,7 @@ end;
 
 procedure TConfiguration.SetSwapfileMinSize(sz: UInt32);
 begin
-  RTC_SetRegDWord(1, sz);
+  RTC_SetCachedDWord(1, sz);
   WriteUserUInt32('', 'SwapfileMinSize', sz);
 end;
 

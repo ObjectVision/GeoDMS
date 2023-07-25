@@ -72,7 +72,7 @@ function  DMS_GetLastErrorMsg : PMsgChar;                                       
 procedure DMS_ReportError(msg: PMsgChar);                                          cdecl; external RTC_DLL;
 function  RTC_GetRegDWord(regID:UInt32): UInt32;                                   cdecl; external RTC_DLL;
 function  RTC_GetRegStatusFlags: UInt32;                                           cdecl; external RTC_DLL;
-procedure RTC_SetRegDWord(regID:UInt32; value: UInt32);                            cdecl; external RTC_DLL;
+procedure RTC_SetCachedDWord(regID:UInt32; value: UInt32);                         cdecl; external RTC_DLL;
 function RTC_ParseRegStatusFlag(argv: PSourceChar): Boolean;                       cdecl; external RTC_DLL;
 
 {*******************************************************************************
