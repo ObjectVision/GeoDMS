@@ -25,6 +25,8 @@ struct ExportInfo
 	ExportInfo(ViewPort* vp);
 	ExportInfo()	:	m_SubPixelFactor(0) {}
 
+	IPoint GetNrDotsPerTile() const { return m_DotsPerTile; }
+	IPoint GetNrDotsPerPage() const { return m_DotsPerTile * m_NrTiles; }
 	IPoint GetNrSubDotsPerTile() const { return m_SubDotsPerDot * m_DotsPerTile; }
 	IPoint GetNrSubDotsPerPage() const { return m_SubDotsPerDot * m_DotsPerTile * m_NrTiles; }
 

@@ -779,9 +779,9 @@ void ViewPort::Export()
 		{
 			tmpVP->SetROI( tileRoi );
 			if (optionalScaleBar)
-				optionalScaleBar->DetermineAndSetBoundingBox(
-					Point2TPoint(info.GetNrSubDotsPerTile()) * shp2dms_order<TType>(col, rowFromTop),
-					Point2TPoint(info.GetNrSubDotsPerPage())
+				optionalScaleBar->DetermineAndSetLogicalBoundingBox(
+					Convert<TPoint>(info.GetNrDotsPerTile()) * shp2dms_order<TType>(col, rowFromTop),
+					Convert<TPoint>(info.GetNrDotsPerPage())
 				);
 
 			GdiHandle<HBITMAP> bitmap( tmpVP->GetAsDDBitmap(dv.get(), info.m_SubPixelFactor, optionalScaleBar.get()) );

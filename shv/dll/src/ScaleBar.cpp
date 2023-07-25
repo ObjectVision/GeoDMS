@@ -290,7 +290,7 @@ GRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint su
 	return rect;
 }
 
-void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize)
+void ScaleBarObj::DetermineAndSetLogicalBoundingBox(TPoint currTL, TPoint currPageSize)
 {
 	SetClientRect( TRect(currPageSize - m_Impl.GetLogicalSize(), currPageSize) - currTL );
 	UpdateView();
