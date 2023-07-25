@@ -247,7 +247,13 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         if (!cmdLineSettings.m_ConfigFileName.empty())
-            LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); // TODO: return value unhandled
+        {
+            QTimer::singleShot(1000, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
+            // QTimer::singleShot(1000, [cmdLineSettings.m_ConfigFileName](auto a) {
+             // TODO: return value unhandled
+            // });
+        }
+            
     }
 
     updateCaption();
@@ -1944,7 +1950,7 @@ void MainWindow::createDetailPagesDock()
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detailpages_dock->setWidget(m_detail_pages);
-    m_detail_pages->minimumSizeHint() = QSize(20,20);
+    //m_detail_pages->minimumSizeHint() = QSize(20,20);
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
 }

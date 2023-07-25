@@ -41,7 +41,8 @@ public slots:
 	void leaveThisConfig();
 	void scheduleDrawPage();
 	void onTreeItemStateChange();
-
+protected:
+	//bool event(QEvent* event) override;
 public slots:
 	void onAnchorClicked(const QUrl& link);
 
