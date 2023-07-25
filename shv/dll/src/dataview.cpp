@@ -1401,7 +1401,7 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 	DBG_TRACE(("NewSize=(%d,%d)", deviceSize.x, deviceSize.y));
 	auto hWnd = GetHWnd();
 	assert(hWnd);
-	auto currScaleFactors = GetWindowDIP2pixFactorXY(hWnd);
+	auto currScaleFactors = GetWindowDip2PixFactors(hWnd);
 	if (m_CurrScaleFactors != currScaleFactors)
 	{
 		m_CurrScaleFactors = currScaleFactors;

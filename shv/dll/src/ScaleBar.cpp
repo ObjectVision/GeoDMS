@@ -64,11 +64,11 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 	if (clientSize.y < 30)
 		return false;
 
-	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetDcDIP2pixFactorY(dc);
+	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetWindowDip2PixFactorY(WindowFromDC(dc));
 	CrdType measureGroupSize = m_MeasureSize * m_MeasureGroupCount;
 	UInt32  nrGroups         = clientSize.x / measureGroupSize; if (nrGroups == 0) return false;
 	GType   top              = clientSize.y / 3;
-	GType   textTop          = Max<GType>(top - GType(maxTextHeight +2), GType(0));
+	GType   textTop          = Max<GType>(top - GType(maxTextHeight+2), GType(0));
 	GType   bottom           = clientSize.y - top;
 	GType   textBottom       = Min<GType>(bottom + GType(maxTextHeight +2), clientSize.y);
 	GType   mid              = (top+bottom)/2;
@@ -265,7 +265,7 @@ void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
 	if (newVisibleState)
 	{
 		DcMixModeSelector xxxDontXRor(dc, R2_COPYPEN);
-		m_Impl.DoUpdateViewImpl(GetDcDIP2pixFactorXY(dc));
+		m_Impl.DoUpdateViewImpl(GetWindowDip2PixFactors(WindowFromDC(dc)));
 		m_Impl.Draw(dc, GetCurrBoundingBox());
 	}
 }

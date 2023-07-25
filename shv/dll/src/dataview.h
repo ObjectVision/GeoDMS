@@ -205,7 +205,7 @@ public:
 	CrdPoint Reverse(GPoint pnt) const { auto res = shp2dms_order<CrdType>(pnt.x, pnt.y); res *= GetReverseFactors(); return res; }
 	CrdRect  Reverse(GRect rect) const { return CrdRect(Reverse(rect.LeftTop()), Reverse(rect.RightBottom())); }
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
-	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDIP2pixFactorY(GetHWnd())); }
+	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDip2PixFactorY(GetHWnd())); }
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);

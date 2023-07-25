@@ -328,7 +328,7 @@ void RoiCaret::GetRgn(Region& rgn, HDC dc) const
 		auto rubberBandDRect = DRect(shp2dms_order(m_StartPoint.x, m_StartPoint.y), shp2dms_order(m_EndPoint.x, m_EndPoint.y));
 
 		CrdRect vpLogicalSize  = CrdRect(CrdPoint(0, 0), Convert<CrdPoint>(vp->GetCurrClientSize()));
-		auto vpDeviceSize = DRect2GRect(vpLogicalSize, CrdTransformation(CrdPoint(0.0, 0.0), GetDcDIP2pixFactorXY(dc)));
+		auto vpDeviceSize = DRect2GRect(vpLogicalSize, CrdTransformation(CrdPoint(0.0, 0.0), GetWindowDip2PixFactors(WindowFromDC(dc))));
 		auto vpDeviceSizeAsDRect = DRect(shp2dms_order(vpDeviceSize.left, vpDeviceSize.top), shp2dms_order(vpDeviceSize.right, vpDeviceSize.bottom));
 		auto dvp = CrdTransformation(rubberBandDRect, vpDeviceSizeAsDRect, OrientationType::Default).Reverse(vpLogicalSize);
 
