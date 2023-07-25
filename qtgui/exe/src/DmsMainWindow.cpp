@@ -1539,15 +1539,6 @@ void MainWindow::createActions()
     //fileToolBar->addAction(reOpenAct);
 
     m_file_menu->addSeparator();
-    auto epdm = m_file_menu->addMenu(tr("Export Primary Data"));
-    auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)")); // TODO: memory leak, QAction will not transfer ownership from addAction
-    auto epdmDbf = new QAction(tr("Table (*.dbf with a *.shp and *.shx if Feature data can be related)"));
-    auto epdmCsv = new QAction(tr("Text Table (*.csv with semiColon Separated Values"));
-    epdm->addAction(epdmBmp);
-    epdm->addAction(epdmDbf);
-    epdm->addAction(epdmCsv);
-
-    m_file_menu->addSeparator();
     m_quit_action = std::make_unique<QAction>(tr("&Quit"));
     connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
     m_file_menu->addAction(m_quit_action.get());
