@@ -515,6 +515,9 @@ netCDFSubdatasetInfo GetNetCDFSubdatasetInfo(std::string subDatasetItem)
 // Property description for Tif
 void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
+	if (dynamic_cast<const GdalWritableGridSM*>(this))
+		return;
+
 	AbstrGridStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
