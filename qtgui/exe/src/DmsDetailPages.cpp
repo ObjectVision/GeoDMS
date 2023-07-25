@@ -354,6 +354,16 @@ auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
     return ActiveDetailPage::NONE;
 }
 
+/*bool DmsDetailPages::event(QEvent* event)
+{
+    if (event->type() == QEvent::Resize)
+    {
+        int i = 0;
+    }
+
+    return QTextBrowser::event(event);
+}*/
+
 DmsDetailPages::DmsDetailPages(QWidget* parent)
     : QTextBrowser(parent)
 {}
