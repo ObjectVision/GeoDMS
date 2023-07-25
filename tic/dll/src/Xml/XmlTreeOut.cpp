@@ -313,15 +313,14 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 	if (errSrc.first && errSrc.first != self)
 	{
 		Row row(*this);
-		Row::Cell xmlElemTD(row);
-		xmlElemTD.OutStream().WriteAttr("colspan", "2");
-		
-		OutStream() << "see ";
 		{
-			XML_hRef xmlElemA(OutStream(), ItemUrl(errSrc.first).c_str());
-			OutStream() << errSrc.first->GetFullName().c_str();
+			Row::Cell xmlElemTD(row);
+			row.WriteCellData("Also failed");
+			NewLine(OutStream());
+			row.WriteCellData("(F2 target)");
 		}
-		OutStream() << " or press F2";
+//		row.ValueCell("Also Failed (F2 target)");
+		row.ItemCell(errSrc.first);
 	}
 }
 
