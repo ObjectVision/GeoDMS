@@ -67,11 +67,11 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetDcDIP2pixFactorY(dc);
 	CrdType measureGroupSize = m_MeasureSize * m_MeasureGroupCount;
 	UInt32  nrGroups         = clientSize.x / measureGroupSize; if (nrGroups == 0) return false;
-	TType   top              = clientSize.y / 3;
-	TType   textTop          = Max<TType>(top - TType(maxTextHeight +2), TType(0));
-	TType   bottom           = clientSize.y - top;
-	TType   textBottom       = Min<TType>(bottom + TType(maxTextHeight +2), clientSize.y);
-	TType   mid              = (top+bottom)/2;
+	GType   top              = clientSize.y / 3;
+	GType   textTop          = Max<GType>(top - GType(maxTextHeight +2), GType(0));
+	GType   bottom           = clientSize.y - top;
+	GType   textBottom       = Min<GType>(bottom + GType(maxTextHeight +2), clientSize.y);
+	GType   mid              = (top+bottom)/2;
 	CrdType left             = 0.5*(clientSize.x - measureGroupSize * nrGroups);
 	Float64 topVal           = 0.0;
 	Float64 botVal           = 0.0;
@@ -231,7 +231,7 @@ ActorVisitState ScaleBarObj::VisitSuppliers(SupplierVisitFlag svf, const ActorVi
 bool ScaleBarObj::Draw(GraphDrawer& d) const
 {
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
-	dms_assert(IsUpdated());
+	assert(IsUpdated());
 	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos();
 	return m_Impl.Draw(d.GetDC(), TRect2GRect(absLogicalRect, GetScaleFactors()));
 }
