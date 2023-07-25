@@ -1665,6 +1665,9 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
+	if (dynamic_cast<const GdalWritableVectSM*>(this))
+		return;
+
 	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
