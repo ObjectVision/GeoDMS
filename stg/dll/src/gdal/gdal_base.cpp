@@ -1148,7 +1148,7 @@ auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> std::st
 
 bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDALDriver* driver)
 {
-	if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
+	if (gdalOpenFlags & GDAL_OF_RASTER)
 	{
 		if (GDALGetMetadataItem(driver, GDAL_DCAP_RASTER, nullptr) == nullptr) // this driver does not support raster
 			return false;
@@ -1219,7 +1219,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDALDataType eType = GDT_Unknown;
 	auto optionArray = GetOptionArray(gmi.m_OptionsItem);
 	auto driverArray = GetOptionArray(gmi.m_DriverItem);
-	auto layerOptionArray = GetOptionArray(gmi.m_LayerCreationOptions);
+	//auto layerOptionArray = GetOptionArray(gmi.m_LayerCreationOptions);
 	//auto configurationOptionsArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions);
 
 	if (!gmi.m_Options.empty())
@@ -1269,7 +1269,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nBands = 1;
 			
 			eType = gdalRasterDataType(valuesTypeID);
-			if (valuesTypeID == VT_Bool) optionArray.AddString("NBITS=1");
+			if (valuesTypeID == VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
 			if (valuesTypeID == VT_UInt2) optionArray.AddString("NBITS=2");
 			if (valuesTypeID == VT_UInt4) optionArray.AddString("NBITS=3");
 			optionArray.AddString("COMPRESS=LZW");
