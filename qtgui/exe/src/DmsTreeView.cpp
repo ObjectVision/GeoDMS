@@ -421,7 +421,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	auto item_can_be_exported = !ti->InTemplate() && !ti->IsTemplate() && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
+	auto item_can_be_exported = !ti->WasFailed() && !ti->InTemplate() && !ti->IsTemplate() && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
