@@ -1246,7 +1246,7 @@ bool TreeItem::IsLoadable() const
 
 bool TreeItem::IsCurrLoadable() const
 {
-	dms_assert(!m_Parent || m_Parent->Was(PS_MetaInfo));
+	assert(!m_Parent || m_Parent->Was(PS_MetaInfo) || m_Parent->WasFailed());
 	return (IsDataItem(this) || IsUnit(this))
 		&& GetCurrStorageParent(false);
 }
