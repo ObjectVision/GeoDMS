@@ -260,15 +260,19 @@ UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent 
 
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 
-SHV_CALL Float64 GetWindowDIP2pixFactorX(HWND hWnd);
-SHV_CALL Float64 GetWindowDIP2pixFactorY(HWND hWnd);
-SHV_CALL Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd);
-SHV_CALL Float64 GetWindowDIP2pixFactor(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
+
+/* REMOVE
 SHV_CALL Float64 GetDcDIP2pixFactorX(HDC dc);
 SHV_CALL Float64 GetDcDIP2pixFactorY(HDC dc);
 SHV_CALL Point<Float64> GetDcDIP2pixFactorXY(HDC dc);
 SHV_CALL Point<Float64> GetDcPix2DipxFactors(HDC dc);
 SHV_CALL Float64 GetDcDIP2pixFactor(HDC dc);
+*/
 
 //----------------------------------------------------------------------
 // desktop data section

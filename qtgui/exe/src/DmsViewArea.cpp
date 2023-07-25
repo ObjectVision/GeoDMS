@@ -272,7 +272,7 @@ auto QDmsViewArea::contentsRectInPixelUnits()->QRect
 {
     auto wId = winId();
     assert(wId);
-    auto scaleFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
+    auto scaleFactors = GetWindowDip2PixFactors(reinterpret_cast<HWND>(wId));
     auto rect = contentsRect();
     QPoint topLeft (rect.left () * scaleFactors.first, rect.top   () * scaleFactors.second);
     QPoint botRight(rect.right() * scaleFactors.first, rect.bottom() * scaleFactors.second);
@@ -301,7 +301,7 @@ void QDmsViewArea::paintEvent(QPaintEvent* event)
 {
     auto wId = winId();
     assert(wId);
-    auto currScaleFactors = GetWindowDIP2pixFactorXY(reinterpret_cast<HWND>(wId));
+    auto currScaleFactors = GetWindowDip2PixFactors(reinterpret_cast<HWND>(wId));
     if (currScaleFactors != m_LastScaleFactors)
     { 
         m_LastScaleFactors = currScaleFactors;

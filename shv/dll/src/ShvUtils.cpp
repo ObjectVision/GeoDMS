@@ -635,34 +635,6 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 	return g_DefaultFontHDIP[static_cast<int>(fid)];
 }
 
-
-Float64 GetDcDIP2pixFactorX(HDC dc)
-{
-	return GetDeviceCaps(dc, LOGPIXELSX) / 96.0;
-}
-
-Float64 GetDcDIP2pixFactorY(HDC dc)
-{
-	return GetDeviceCaps(dc, LOGPIXELSY) / 96.0;
-}
-
-Point<Float64> GetDcDIP2pixFactorXY(HDC dc)
-{
-	return shp2dms_order<Float64>( GetDeviceCaps(dc, LOGPIXELSX) / 96.0 , GetDeviceCaps(dc, LOGPIXELSY) / 96.0 );
-}
-
-Point<Float64> GetDcPix2DipxFactors(HDC dc)
-{
-	return shp2dms_order<Float64>( 96.0 / GetDeviceCaps(dc, LOGPIXELSX), 96.0 / GetDeviceCaps(dc, LOGPIXELSY) );
-}
-
-Float64 GetDcDIP2pixFactor(HDC dc)
-{
-	auto xyFactors = GetDcDIP2pixFactorXY(dc);
-	Float64 dip2PixFactor = (xyFactors.first + xyFactors.second) / 2;
-	return dip2PixFactor;
-}
-
 Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 {
 	assert(hWnd);
@@ -677,28 +649,34 @@ Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 	return shp2dms_order<UINT>( dpiX, dpiY );
 }
 
-Float64 GetWindowDIP2pixFactorX(HWND hWnd)
+Float64 GetWindowDip2PixFactorX(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return dpi.X() / 96.0;
 }
 
-Float64 GetWindowDIP2pixFactorY(HWND hWnd)
+Float64 GetWindowDip2PixFactorY(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return dpi.Y() / 96.0;
 }
 
-Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd)
+Point<Float64> GetWindowDip2PixFactors(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return { dpi.first / 96.0, dpi.second / 96.0 };
 }
 
-Float64 GetWindowDIP2pixFactor(HWND hWnd)
+Float64 GetWindowDip2PixFactor(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return (dpi.first + dpi.second) / (2.0*96.0);
+}
+
+Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return shp2dms_order<Float64>(96.0 / dpi.first, 96.0 / dpi.second);
 }
 
 //----------------------------------------------------------------------
