@@ -46,8 +46,8 @@ void DmsFileChangedWindow::ignore()
 
 void DmsFileChangedWindow::reopen()
 {
-    MainWindow::TheOne()->reOpen();
     done(QDialog::Accepted);
+    MainWindow::TheOne()->reOpen();
 }
 
 void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
@@ -107,17 +107,18 @@ void DmsErrorWindow::ignore()
 {
     done(QDialog::Rejected);
 }
+
 void DmsErrorWindow::terminate()
-{
-    
-    QCoreApplication::exit(EXIT_FAILURE);
+{    
     done(QDialog::Rejected);
+    std::terminate();
 }
 
 void DmsErrorWindow::reopen()
 {
-    MainWindow::TheOne()->reOpen();
     done(QDialog::Accepted);
+    // don't call now: MainWindow::TheOne()->reOpen();
+    // but let the execution caller call it, after modal message pumping ended
 }
 
 struct link_info
@@ -392,12 +393,20 @@ void MainWindow::fileOpen()
     LoadConfig(configFileName.toUtf8().data());
 }
 
-void MainWindow::reOpen()
+void MainWindow::reopen()
+{
+    reOpen();
+}
+
+bool MainWindow::reOpen()
 {
     auto cip = m_current_item_bar->text();
 
-    LoadConfig(m_currConfigFileName.c_str());
+    bool result = LoadConfig(m_currConfigFileName.c_str());
+    if (!result)
+        return false;
     m_current_item_bar->setPath(cip.toUtf8());
+    return true;
 }
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
@@ -521,15 +530,14 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     try
     {
         dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+        if (m_data.icons.size() - 1 == m_state) // icon roll over
+            setIcon(QIcon(m_data.icons[m_state]));
     }
     catch (...)
     {
         auto errMsg = catchException(false);
-        MainWindow::TheOne()->error(errMsg);
-    }
-    
-    if (m_data.icons.size()-1==m_state) // icon roll over
-        setIcon(QIcon(m_data.icons[m_state]));
+        MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
+    }    
 }
 
 auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
@@ -941,7 +949,7 @@ void MainWindow::code_analysis_clr_targets()
 }
 
 
-void MainWindow::error(ErrMsgPtr error_message_ptr)
+bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
 {
     std::string error_message_markdown = "";
     auto error_message = std::string(error_message_ptr->GetAsText().c_str());
@@ -959,7 +967,12 @@ void MainWindow::error(ErrMsgPtr error_message_ptr)
     error_message_markdown += error_message.substr(curr_pos);
 
     TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
-    TheOne()->m_error_window->exec();
+    auto dialogResult = TheOne()->m_error_window->exec();
+    if (dialogResult == QDialog::DialogCode::Rejected)
+        return false;
+    assert(dialogResult == QDialog::DialogCode::Accepted);
+    bool reloadResult = TheOne()->reOpen();
+    return reloadResult;
 }
 
 void MainWindow::exportPrimaryData()
@@ -975,7 +988,6 @@ void MainWindow::createView(ViewStyle viewStyle)
 {
     try
     {
-        //auto test = QScreen::devicePixelRatio();
         static UInt32 s_ViewCounter = 0;
 
         auto currItem = getCurrentTreeItem();
@@ -985,32 +997,15 @@ void MainWindow::createView(ViewStyle viewStyle)
         auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
         auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
-        //auto dataViewDockWidget = new ads::CDockWidget("DefaultView");
         SuspendTrigger::Resume();
-        auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
-        m_mdi_area->addSubWindow(dms_mdi_subwindow);
-//        m_mdi_area->show();
-
-        //mdiSubWindow->setMinimumSize(200, 150);
-        //mdiSubWindow->showMaximized();
-
-        //    m_dms_views.emplace_back(name, vs, dv);
-        //    m_dms_view_it = --m_dms_views.end();
-        //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
-
-        //m_mdi_area->
-
-        /*dataViewDockWidget->setWidget(dmsControl);
-        dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-        dataViewDockWidget->resize(250, 150);
-        dataViewDockWidget->setMinimumSize(200, 150);
-        m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);*/
+        auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
+        dms_mdi_subwindow.release();
     }
     catch (...)
     {
         auto errMsg = catchException(false);
-        error(errMsg);
-        //MainWindow::EventLog(SeverityTypeID::ST_Error, errMsg->Why().c_str());
+        reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -1176,48 +1171,15 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
 
             connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
             m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
-
-            m_treeview->setStyleSheet(
-                "QTreeView::branch:has-siblings:!adjoins-item {\n"
-                "    border-image: url(:/res/images/TV_vline.png) 0;\n"
-                "}\n"
-                "QTreeView::branch:!has-children:!has-siblings:adjoins-item {\n"
-                "    border-image: url(:/res/images/TV_branch_end.png) 0;\n"
-                "}\n"
-                "QTreeView::branch:has-siblings:adjoins-item {\n"
-                "    border-image: url(:/res/images/TV_branch_more.png) 0;\n"
-                "}\n"
-                "QTreeView::branch:has-children:!has-siblings:closed,"
-                "QTreeView::branch:closed:has-children:has-siblings {"
-                "        border-image: none;"
-                "        image: url(:/res/images/right_arrow.png);"
-                "}"
-                "QTreeView::branch:closed:hover:has-children {"
-                "        border-image: none;"
-                "        image: url(:/res/images/right_arrow_hover.png);"
-                "}"
-                "QTreeView::branch:open:has-children:!has-siblings,"
-                "QTreeView::branch:open:has-children:has-siblings {"
-                "           border-image: none;"
-                "           image: url(:/res/images/down_arrow.png);"
-                "}"
-                "QTreeView::branch:open:hover:has-children {"
-                "           border-image: none;"
-                "           image: url(:/res/images/down_arrow_hover.png);"
-                "}"
-                "QTreeView {"
-                "           padding-top: 5px;"
-                "           background: white;"
-                "}");
-
         }
     }
     catch (...)
     {
         m_dms_model->setRoot(nullptr);
         setCurrentTreeItem(nullptr);
-        error(catchException(false));
-        return false;
+        auto x = catchException(false);
+        bool reloadSucceeded = reportErrorAndTryReload(x);
+        return reloadSucceeded;
     }
     m_dms_model->setRoot(m_root);
     clearActionsForEmptyCurrentItem();
