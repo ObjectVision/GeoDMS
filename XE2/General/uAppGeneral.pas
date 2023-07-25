@@ -407,6 +407,8 @@ end;
 
 procedure LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; longMsg: PMsgChar); cdecl;
 begin
+  if s = ST_Nothing then exit;
+
   if (s in [ST_Error, ST_Fatal]) and Assigned(g_frmMain) then
     INC(frmMain.m_nErrorCount);
 

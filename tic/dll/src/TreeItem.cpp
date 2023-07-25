@@ -2102,7 +2102,7 @@ LispRef TreeItem::GetBaseKeyExpr() const
 //	dms_assert(metaInfo.index() != 0);
 	if (metaInfo.index() == 0)
 		return {};
-	return std::get<1>(metaInfo);
+	return std::get<LispRef>(metaInfo);
 }
 
 LispRef TreeItem::GetKeyExprImpl() const
