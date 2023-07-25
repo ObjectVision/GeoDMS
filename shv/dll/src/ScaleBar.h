@@ -51,7 +51,7 @@ public:
 
 	const ViewPort* GetViewPort() const { return m_ViewPort; }
 
-	TPoint GetSize(Float64 subPixelFactor) const;
+	TPoint GetLogicalSize() const;
 	GRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
 
 protected: 
@@ -74,7 +74,7 @@ public:
 	ScaleBarObj(MovableObject* owner, const ViewPort* vp);
 	~ScaleBarObj();
 
-	void DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize, Float64 subPixelFactor);
+	void DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize);
 
 protected:
 //	override Actor interface
@@ -109,6 +109,7 @@ public:
 
 	GRect GetCurrBoundingBox() const;
 	void  DetermineAndSetBoundingBox(CrdPoint scaleFactor);
+	const ViewPort* GetViewPort() const { return m_Impl.GetViewPort(); }
 
 private:
 	ScaleBarBase m_Impl;

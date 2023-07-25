@@ -336,7 +336,7 @@ void DataView::MoveCaret(AbstrCaret* caret, const AbstrCaretOperator& caretOpera
 {
 	DBG_START("DataView", "MoveCaret", MG_DEBUG_CARET);
 
-	dms_assert(caret);
+	assert(caret);
 
 	if (m_State.Get(DVF_CaretsVisible))
 		caret->Move(

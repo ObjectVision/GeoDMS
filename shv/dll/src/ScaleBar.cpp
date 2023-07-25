@@ -275,23 +275,24 @@ GRect ScaleBarCaret::GetCurrBoundingBox() const
 	return m_Rect;
 }
 
-TPoint ScaleBarBase::GetSize(Float64 subPixelFactor) const
+TPoint ScaleBarBase::GetLogicalSize() const
 {
-	return shp2dms_order<TType>(250 * subPixelFactor, 48 * subPixelFactor);
-}	
+	return shp2dms_order<TType>(250, 48);
+}
 
 GRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
 {
-	GRect rect = owner->GetCurrClientAbsDeviceRect();
-	rect *=subPixelFactors;
-	MakeMax(rect.left, rect.right- subPixelFactors.first );
-	MakeMax(rect.top, rect.bottom - subPixelFactors.second);
+	auto rect = owner->GetCurrClientAbsDeviceRect();
+	auto logicalSize = GetLogicalSize();
+	auto scaleBarSize = TPoint2GPoint(logicalSize, subPixelFactors);
+	MakeMax(rect.left, rect.right - scaleBarSize.x);
+	MakeMax(rect.top, rect.bottom - scaleBarSize.y);
 	return rect;
 }
 
-void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize, Float64 subPixelFactor)
+void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize)
 {
-	SetClientRect( TRect(currPageSize - m_Impl.GetSize(subPixelFactor), currPageSize) - currTL );
+	SetClientRect( TRect(currPageSize - m_Impl.GetLogicalSize(), currPageSize) - currTL );
 	UpdateView();
 }
 
@@ -310,9 +311,13 @@ void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
 void ScaleBarCaretOperator::operator() (AbstrCaret* c) const
 {
 	assert(c);
-	auto obj = c->UsedObject(); if (!obj) return;
-	auto dv = obj->GetDataView().lock(); if (!dv) return;
+	auto sbc = dynamic_cast<ScaleBarCaret*>(c);
+	assert(sbc); if (!sbc) return;
+	auto vp = sbc->GetViewPort();
+	assert(vp); if (!vp) return;
 
-	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox(dv->GetScaleFactors());
-	c->SetStartPoint(GPoint(0, 0) );
+	auto dv = vp->GetDataView().lock(); if (!dv) return;
+
+	sbc->DetermineAndSetBoundingBox(dv->GetScaleFactors());
+	sbc->SetStartPoint(GPoint(0, 0) );
 }

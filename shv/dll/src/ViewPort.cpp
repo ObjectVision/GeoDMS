@@ -781,8 +781,7 @@ void ViewPort::Export()
 			if (optionalScaleBar)
 				optionalScaleBar->DetermineAndSetBoundingBox(
 					Point2TPoint(info.GetNrSubDotsPerTile()) * shp2dms_order<TType>(col, rowFromTop),
-					Point2TPoint(info.GetNrSubDotsPerPage()), 
-					info.m_SubPixelFactor
+					Point2TPoint(info.GetNrSubDotsPerPage())
 				);
 
 			GdiHandle<HBITMAP> bitmap( tmpVP->GetAsDDBitmap(dv.get(), info.m_SubPixelFactor, optionalScaleBar.get()) );
