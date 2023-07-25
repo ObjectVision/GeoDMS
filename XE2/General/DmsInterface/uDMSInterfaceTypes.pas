@@ -304,7 +304,8 @@ TUpdateState =  (
                               ST_Warning,
                               ST_Error,
                               ST_Fatal,
-                              ST_DispError
+                              ST_DispError,
+                              ST_Nothing
                            );
    TMsgCategory          = (
                               MC_nonspecific,

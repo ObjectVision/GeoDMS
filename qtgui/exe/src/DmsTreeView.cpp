@@ -116,7 +116,7 @@ void DmsModel::reset()
 	endResetModel();
 }
 
-QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant DmsModel::headerData(int /*section*/, Qt::Orientation orientation, int role) const
 {
 	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
 		return data({}, role);
