@@ -41,6 +41,12 @@ LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
     }
     if (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST)
     {
+        if (uMsg == WM_KEYDOWN && wParam == 'W')
+            if (GetKeyState(VK_CONTROL) & 0x8000) 
+                if (not (GetKeyState(VK_SHIFT) & 0x8000))
+                    if (not (GetKeyState(VK_MENU) & 0x8000))
+                        wParam = VK_F4;
+
         HWND parent = (HWND)GetWindowLongPtr(hWnd, GWLP_HWNDPARENT);
         if (parent)
             return SendMessage(parent, uMsg, wParam, lParam);
