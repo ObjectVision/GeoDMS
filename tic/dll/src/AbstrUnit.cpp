@@ -126,7 +126,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 	return *m_DataItemsAssocPtr;
 }
 
-const AbstrTileRangeData* AbstrUnit::GetTiledRangeData() const
+SharedPtr<const AbstrTileRangeData> AbstrUnit::GetTiledRangeData() const
 {
 	return nullptr;
 }

@@ -211,7 +211,7 @@ public:
 	virtual bool OnCommand(ToolButtonID id);
 	virtual CommandStatus OnCommandEnable(ToolButtonID id)  const;
 	virtual std::weak_ptr<DataView> GetDataView() const;
-
+	CrdPoint GetScaleFactors() const;
 
 	virtual void Sync(TreeItem* viewContext, ShvSyncMode sm);
 	void SyncShowSelOnly(ShvSyncMode sm);
@@ -220,13 +220,13 @@ public:
 	virtual void FillMenu(MouseEventDispatcher& med);
 
 //	Size and Position
-	virtual TRect CalcFullAbsRect   (const GraphVisitor&) const=0;
-	virtual TRect GetCurrFullAbsRect(const GraphVisitor&) const=0;
+//REMOVE	virtual TRect CalcFullAbsLogicalRect   (const GraphVisitor&) const=0;
+	virtual GRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const=0;
 
-	GRect GetClippedCurrFullAbsRect(const GraphVisitor& v) const;
-	GRect GetDrawnFullAbsRect  () const;
+	GRect GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const;
+	GRect GetDrawnFullAbsDeviceRect  () const;
 
-	virtual GRect GetDrawnNettAbsRect() const { return GetDrawnFullAbsRect(); }
+	virtual GRect GetDrawnNettAbsDeviceRect() const { return GetDrawnFullAbsDeviceRect(); }
 	virtual bool HasDefinedExtent() const { return true; }
 
 	void SetOwner(GraphicObject* owner);

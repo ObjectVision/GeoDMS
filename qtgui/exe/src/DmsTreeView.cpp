@@ -399,6 +399,39 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
+
+	setStyleSheet(
+		"QTreeView::branch:has-siblings:!adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_vline.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:!has-children:!has-siblings:adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_branch_end.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:has-siblings:adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_branch_more.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:has-children:!has-siblings:closed,"
+		"QTreeView::branch:closed:has-children:has-siblings {"
+		"        border-image: none;"
+		"        image: url(:/res/images/right_arrow.png);"
+		"}"
+		"QTreeView::branch:closed:hover:has-children {"
+		"        border-image: none;"
+		"        image: url(:/res/images/right_arrow_hover.png);"
+		"}"
+		"QTreeView::branch:open:has-children:!has-siblings,"
+		"QTreeView::branch:open:has-children:has-siblings {"
+		"           border-image: none;"
+		"           image: url(:/res/images/down_arrow.png);"
+		"}"
+		"QTreeView::branch:open:hover:has-children {"
+		"           border-image: none;"
+		"           image: url(:/res/images/down_arrow_hover.png);"
+		"}"
+		"QTreeView {"
+		"           padding-top: 5px;"
+		"           background: white;"
+		"}");
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)

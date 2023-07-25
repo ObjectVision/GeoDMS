@@ -189,7 +189,7 @@ public slots:
     void code_analysis_add_target();
     void code_analysis_clr_targets();
 
-    static void error(ErrMsgPtr error_message_ptr);
+    static bool reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
     void runToFailReason();
 
@@ -201,7 +201,9 @@ public slots:
 
 public slots:
     void fileOpen();
-    void reOpen();
+    void reopen();
+    bool reOpen();
+
     void aboutGeoDms();
     void wiki();
     void createView(ViewStyle viewStyle);

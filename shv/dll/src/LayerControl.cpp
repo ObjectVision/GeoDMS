@@ -195,7 +195,7 @@ public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
 		:	DualPointCaretController(owner, new RectCaret, target, origin
 			,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
-		,	m_HooverRect( owner->ViewRect() )
+		,	m_HooverRect( owner->ViewDeviceRect() )
 	{}
 protected:
 	bool Move(EventInfo& eventInfo) override
@@ -219,7 +219,7 @@ protected:
 
 			if (m_HooverObj && m_HooverObj != GetTargetObject().lock())
 			{
-				m_HooverRect = TRect2GRect( m_HooverObj->GetCurrFullAbsRect() );
+				m_HooverRect = m_HooverObj->GetCurrFullAbsDeviceRect();
 				m_Above = (m_HooverRect.top < m_Origin.y);
 				if (m_Above)
 					MakeMin(m_HooverRect.bottom, TType(m_HooverRect.top    + 6));
@@ -229,7 +229,7 @@ protected:
 			else 
 				m_HooverRect = GRect(0,0,0,0);
 
-			dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.TopLeft(), m_HooverRect.BottomRight(), m_HooverObj.get()));
+			dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.LeftTop(), m_HooverRect.RightBottom(), m_HooverObj.get()));
 		}
 		return true;
 	}

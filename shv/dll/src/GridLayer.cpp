@@ -191,7 +191,7 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	{
 		dataChangeLock.ProcessChange();
 		viewChangeLock.ProcessChange();
-		GRect borderExtents(-1, -1, 1, 1);
+		TRect borderExtents(-1, -1, 1, 1);
 		InvalidateWorldRect(tr.Apply(Convert<CrdRect>(selectRect)), &borderExtents);
 	}
 }
@@ -518,7 +518,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		InvalidateDraw();
 	else if (!changedRect.empty())
 	{
-		GRect borderExtents(-1, -1, 1, 1);
+		TRect borderExtents(-1, -1, 1, 1);
 		InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(changedRect)), &borderExtents);
 	}
 }
@@ -643,7 +643,7 @@ void GridLayer::InvalidateFeature(SizeT featureIndex)
 
 	Int32 focusSize = FOCUS_BORDER_SIZE1;
 
-	GRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
+	TRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
 	InvalidateWorldRect(GetWorldExtents(featureIndex),	&borderExtents);
 }
 
@@ -777,7 +777,7 @@ void GridLayer::InvalidatePasteArea()
 		return;
 
 	IRect rect = m_PasteHandler->GetSelValues()->m_Rect;
-	GRect borderExtents(-1, -1, 1, 1);
+	TRect borderExtents(-1, -1, 1, 1);
 	InvalidateWorldRect(
 		AsWorldExtents(
 			Convert<CrdRect>( rect ),
@@ -835,7 +835,7 @@ void GridLayer::PasteNow()
 	}
 	lock.Commit();
 	dataChangeLock.ProcessChange();
-	GRect borderExtents(-1, -1, 1, 1);
+	TRect borderExtents(-1, -1, 1, 1);
 	InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(copyRect)), &borderExtents);
 	viewChangeLock.ProcessChange();
 }
@@ -867,14 +867,15 @@ void GridLayer::CopySelValuesToBitmap()
 	if (featureTheme)
 		readLocks.push_back(featureTheme, DrlType::Certain);
 
-	GRect selectRect = Convert<GRect>( CalcSelectedGeoRect() );
+	auto selectIRect = CalcSelectedGeoRect();
+	GRect selectGRect = GRect(_Left(selectIRect), _Top(selectIRect), _Right(selectIRect), _Bottom(selectIRect));
 
 	GridCoord mapping(nullptr,
 		GetGridCoordKey(GetGeoCrdUnit()), 
-		selectRect.Size(), 
-		CrdTransformation(-Convert<CrdPoint>(selectRect.TopLeft()), shp2dms_order(CrdPoint(1,1)) ) 
+		selectGRect.Size(), 
+		CrdTransformation(-Convert<CrdPoint>(selectIRect.first), GetScaleFactors() )
 	);
-	mapping.Update(1.0);
+	mapping.UpdateUnscaled();
 
 	GridColorPalette colorPalette(colorTheme);
 	dms_assert(colorPalette.IsReady());
@@ -886,18 +887,12 @@ void GridLayer::CopySelValuesToBitmap()
 	,	&colorPalette
 	,	nullptr	// selValues
 	,	0	// HDC hDC
-	,	GRect(GPoint(0,0), GPoint(selectRect.Size())) // viewExtents
+	,	GRect(GPoint(0,0), selectGRect.Size()) // viewExtents
 	);
 
 	GdiHandle<HBITMAP> 
 		hPaletteBitmap = drawer.Apply(),
-		hCompatibleBitmap(
-			CreateCompatibleBitmap(
-				DcHandleBase(dv->GetHWnd()), // memDC,
-				selectRect.Width(), 
-				selectRect.Height()
-			)
-		);
+		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height())); // memDC,
 
 	CompatibleDcHandle 
 		memPaletteDC(NULL, 0),
@@ -907,12 +902,7 @@ void GridLayer::CopySelValuesToBitmap()
 		selectBitmap1(memPaletteDC,    hPaletteBitmap),
 		selectBitmap2(memCompatibleDC, hCompatibleBitmap);
 
-	BitBlt(memCompatibleDC, 
-		0, 
-		0, 
-		selectRect.Width(), selectRect.Height(), 
-		memPaletteDC, 0, 0, SRCCOPY
-	);
+	BitBlt(memCompatibleDC, 0, 0, selectGRect.Width(), selectGRect.Height(), memPaletteDC, 0, 0, SRCCOPY);
 
 	clipBoard.SetBitmap( hCompatibleBitmap );
 }
@@ -955,7 +945,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	DBG_TRACE(("Region  : %s", d.GetAbsClipRegion().AsString().c_str()));
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
-	drawGridCoords->Update(d.GetSubPixelFactor());
+	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
 	if (!d.GetDC())
 		return false;
 
@@ -967,22 +957,22 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	const AbstrUnit* gridDomain = grid->GetAbstrDomainUnit();
 	dms_assert(gridDomain->GetValueType()->GetNrDims() == 2);
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
-	GRect clippedAbsRect = drawGridCoords->GetClippedRelRect() + viewportOffset;
+	GPoint viewportDeviceOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+	GRect clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect() + viewportDeviceOffset;
 
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
 	for (tile_id t=tileCounter.Value(), tn=gridDomain->GetNrTiles(); t!=tn; ++t)
 	{
 		bool doneAnything = false;
 		IRect tileGridRect = gridDomain->GetTileRangeAsIRect(t);
-		GRect tileViewRect = drawGridCoords->GetClippedRelRect(tileGridRect);
+		GRect tileViewRect = drawGridCoords->GetClippedRelDeviceRect(tileGridRect);
 		for (RectArray::iterator rectPtr = ra.begin(), rectEnd = ra.end(); rectPtr != rectEnd; ++rectPtr)
 		{
 			*rectPtr &= clippedAbsRect;
 			if (rectPtr->empty())
 				continue;
 
-			GRect viewRelRect = *rectPtr - viewportOffset;
+			GRect viewRelRect = *rectPtr - viewportDeviceOffset;
 			GRect tileRelRect = viewRelRect & tileViewRect;
 			if (tileRelRect.empty())
 				continue;
@@ -1005,7 +995,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 			,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
 			);
 			if (!drawer.empty())
-				drawer.CopyDIBSection( drawer.Apply(), viewportOffset, SRCAND );
+				drawer.CopyDIBSection( drawer.Apply(), viewportDeviceOffset, SRCAND );
 		}
 		++tileCounter; 
 		if (tileCounter.MustBreak()) return true;
@@ -1034,7 +1024,7 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 	// =========== Get Data
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
-	drawGridCoords->Update(1.0);
+	drawGridCoords->UpdateUnscaled();
 
 	static RectArray ra;
 	d.GetAbsClipRegion().FillRectArray(ra);
@@ -1043,8 +1033,10 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		rectPtr = ra.begin(),
 		rectEnd = ra.end();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
-	GRect  clippedAbsRect = drawGridCoords->GetClippedRelRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
+	auto sf = GetScaleFactors();
+
+	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), sf);
+	GRect  clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
 
 	if (clippedAbsRect.empty())
 		return;
@@ -1116,20 +1108,11 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				IRect tileRect = geoCrdUnit->GetTileRangeAsIRect(t); 
 
 				// SKIP tiles that don't intersect with view area
-				GRect clipRect = d.GetAbsClipRect();
+				GRect clipRect = d.GetAbsClipDeviceRect();
 				clipRect.Expand(focusSize);
-				if (!IsIntersecting(
-						DRect2GRect( 
-							d.GetTransformation().Apply(
-								AsWorldExtents(
-									Convert<CrdRect>(tileRect)
-								,	proj
-								)
-							)
-						)
-					,	clipRect
-					)
-				)
+				auto tileWorldExtents = AsWorldExtents(Convert<CrdRect>(tileRect), proj);
+				auto tileAsDeviceExtents = DRect2GRect(tileWorldExtents, d.GetTransformation());
+				if (!IsIntersecting(tileAsDeviceExtents, clipRect))
 					continue;
 
 				LockedIndexCollectorPtr indexCollector(GetIndexCollector(), t);
@@ -1150,9 +1133,9 @@ bool GridLayer::Draw(GraphDrawer& d) const
 							++minFE;							
 						}
 
-						GRect focusViewRect = DRect2GRect( d.GetTransformation().Apply(focusWorldRect) );
+						GRect focusViewRect = DRect2GRect(focusWorldRect, d.GetTransformation() );
 						GRect focusBordRect = focusViewRect; focusBordRect.Expand(focusSize);
-						if (IsIntersecting(focusBordRect, d.GetAbsClipRect()))
+						if (IsIntersecting(focusBordRect, d.GetAbsClipDeviceRect()))
 						{
 							focusViewRgnTower.Add( Region( focusViewRect ) );
 							focusBordRgnTower.Add( Region( focusBordRect ) );
@@ -1169,10 +1152,10 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				goto skipDrawFocus;
 
 			CrdRect focusWorldRect = ::GetWorldExtents(geoCrdRect, proj, fe);
-			GRect focusViewRect = DRect2GRect( d.GetTransformation().Apply(focusWorldRect) );
+			GRect focusViewRect = DRect2GRect(focusWorldRect, d.GetTransformation());
 			GRect focusBordRect = focusViewRect; focusBordRect.Expand(focusSize);
 
-			if (!IsIntersecting(focusBordRect, d.GetAbsClipRect()))
+			if (!IsIntersecting(focusBordRect, d.GetAbsClipDeviceRect()))
 				goto skipDrawFocus;
 			focusViewRgn = Region( focusViewRect );
 			focusBordRgn = Region( focusBordRect );
@@ -1203,11 +1186,9 @@ void GridLayer::DoUpdateView()
 	}
 }
 
-GRect GridLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
+TRect GridLayer::GetBorderLogicalExtents() const
 {
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE* subPixelFactor);
-
-	return GRect(-focusSize, -focusSize, focusSize, focusSize);  // max rounding error without considering orientation
+	return TRect(-int(FOCUS_BORDER_SIZE), -int(FOCUS_BORDER_SIZE), FOCUS_BORDER_SIZE, FOCUS_BORDER_SIZE);  // max rounding error without considering orientation
 }
 
 void GridLayer::Zoom1To1(ViewPort* vp)

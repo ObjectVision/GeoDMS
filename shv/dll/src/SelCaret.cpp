@@ -98,21 +98,21 @@ void SelCaret::OnZoom()
 	m_Ready = false;
 }
 
-void SelCaret::OnScroll(const GPoint& delta)
+void SelCaret::OnDeviceScroll(const GPoint& delta)
 {
 	if (!m_Ready)
 		return;
 	auto owner = m_Owner.lock(); if (!owner) return;
 
-	GRect  clipRect = TRect2GRect( owner->GetCurrClientAbsRect() );
+	GRect  clipRect = owner->GetCurrClientAbsDeviceRect();
 	Region clipRgn(clipRect);
 
 	// Scroll m_SelCaretRgn but don't Set since this is done by DataView::Scroll
 	if (m_SelCaretRgn.IsIntersecting(clipRgn))
-		m_SelCaretRgn.Scroll(delta, clipRect, clipRgn);
+		m_SelCaretRgn.ScrollDevice(delta, clipRect, clipRgn);
 
 	// Add scrolled-in stuff to SelCaret
-	UpdateRgn(clipRgn - Region( TRect2GRect( owner->GetCurrClientAbsRect() + TPoint(delta) ) ));
+	UpdateRgn(clipRgn - Region( owner->GetCurrClientAbsDeviceRect() + delta ));
 }
 
 Region SelCaret::UpdateRectImpl(const GRect& updateRect)
@@ -203,13 +203,13 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	// =========== Get DataReadLocks
 	PreparedDataReadLock readLock(m_SelAttr);
 
-	m_GridCoords->Update(1.0);
-	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelRect() );
+	m_GridCoords->UpdateUnscaled();
+	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );
 	clippedUpdateRgn &= updateRgn;
 	if (clippedUpdateRgn.Empty())
 		return;
 
-	dms_assert(IsMainThread()); // licensed to use statics ?
+	assert(IsMainThread()); // licensed to use statics ?
 
 	static RectArray ra;
 	clippedUpdateRgn.FillRectArray(ra);

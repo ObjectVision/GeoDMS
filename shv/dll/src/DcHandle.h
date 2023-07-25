@@ -221,21 +221,21 @@ struct AddTransformation : private tmp_swapper<CrdTransformation>
 };
 
 //----------------------------------------------------------------------
-// AddClientOffset
+// AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-struct AddClientOffset : private tmp_swapper<TPoint>
+struct AddClientLogicalOffset : private tmp_swapper<TPoint>
 {
-	AddClientOffset(GraphVisitor* v, const TPoint& c2p);
+	AddClientLogicalOffset(GraphVisitor* v, TPoint c2p);
 };
 
 //----------------------------------------------------------------------
 // ClipRectSelector
 //----------------------------------------------------------------------
 
-struct ClipRectSelector : private tmp_swapper<GRect>
+struct ClipDeviceRectSelector : private tmp_swapper<GRect>
 {
-	ClipRectSelector(GRect& clipRect, const GRect& newClip)
+	ClipDeviceRectSelector(GRect& clipRect, const GRect& newClip)
 		:	tmp_swapper<GRect>(clipRect, newClip)
 	{
 		m_ResourceHandleRef &= m_ResourceHandleCopy; // newClip &= clipRect
@@ -251,9 +251,9 @@ struct ClipRectSelector : private tmp_swapper<GRect>
 // VistorRectSelector
 //----------------------------------------------------------------------
 
-struct VisitorRectSelector : ClipRectSelector
+struct VisitorDeviceRectSelector : ClipDeviceRectSelector
 {
-	VisitorRectSelector(GraphVisitor* v, const GRect& objRect);
+	VisitorDeviceRectSelector(GraphVisitor* v, const GRect& objRect);
 };
 
 

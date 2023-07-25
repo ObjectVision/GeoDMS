@@ -71,7 +71,7 @@ public:
 
 	virtual GraphVisitState DoMapControl(MapControl* mc);
 
-	virtual void DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemRect);
+	virtual void DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect);
 	virtual WeakPtr<CounterStacks> GetCounterStacks() const;
 
 	bool HasCounterStacks() const { return ! GetCounterStacks().is_null(); }
@@ -98,34 +98,38 @@ class GraphVisitor : public AbstrVisitor
 {
 	typedef AbstrVisitor base_type;
 public:
-	GraphVisitState Visit              (GraphicObject* go) override;
+	GraphVisitState Visit(GraphicObject* go) override;
 
-  	GraphVisitState DoLayerSet         (LayerSet*   goc) override;
-	GraphVisitState DoViewPort         (ViewPort*    vp) override;
-	GraphVisitState DoScrollPort       (ScrollPort*  sp) override;
+	GraphVisitState DoLayerSet(LayerSet* goc) override;
+	GraphVisitState DoViewPort(ViewPort* vp) override;
+	GraphVisitState DoScrollPort(ScrollPort* sp) override;
 
-  	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
-	GraphVisitState DoDataItemColumn  (DataItemColumn*   dic) override;
+	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
+	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 
 	const CrdTransformation& GetTransformation() const { return m_Transformation; }
-	const TPoint&            GetClientOffset  () const { return m_ClientOffset;   }
-	const GRect&             GetAbsClipRect   () const { return m_ClipRect;       }
-	CrdRect                  GetWorldClipRect () const;
+	CrdTransformation GetLogicalTransformation() const { return m_Transformation / CrdTransformation(CrdPoint(0.0, 0.0), GetSubPixelFactors()); }
+	const TPoint& GetClientLogicalAbsPos() const { return m_ClientLogicalAbsPos; }
+	const GRect&  GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
+	CrdRect       GetWorldClipRect() const;
 
-	Float64 GetSubPixelFactor() const;
+	CrdPoint GetSubPixelFactors() const;
+	CrdType GetSubPixelFactor() const;
+	GPoint GetDeviceSize(TPoint relPoint) const;
+	TPoint GetLogicalSize(GPoint devicePoint) const;
 
 protected:
-	GraphVisitor(const GRect& clipRect, CrdType subPixelFactor = 1.0);
+	GraphVisitor(const GRect& clipRect, CrdPoint scaleFactors);
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
-	TPoint            m_ClientOffset;
-	GRect             m_ClipRect; // in client coordinates 
-	CrdType           m_SubPixelFactor;
+	TPoint            m_ClientLogicalAbsPos; 
+	GRect             m_ClipDeviceRect;
+	CrdPoint          m_SubPixelFactors;
 
 	friend struct AddTransformation;
-	friend struct AddClientOffset;
-	friend struct VisitorRectSelector;
+	friend struct AddClientLogicalOffset;
+	friend struct VisitorDeviceRectSelector;
 };
 
 //----------------------------------------------------------------------
@@ -136,7 +140,7 @@ class GraphObjLocator : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphObjLocator(GPoint pnt);
+	GraphObjLocator(GPoint pnt, CrdPoint scaleFactor);
 
 	static MovableObject* Locate(DataView* view, GPoint pnt);
 
@@ -164,8 +168,8 @@ class GraphDrawer : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
-	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, Float32 subPixelFactor = 1.0);
+	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
+	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
@@ -176,7 +180,7 @@ public:
 	GraphVisitState DoLayer           (GraphicLayer*    gl) override;
 	GraphVisitState DoDataItemColumn  (DataItemColumn* dic) override;
 
-	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemRect) override;
+	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) override;
 	WeakPtr<CounterStacks> GetCounterStacks() const override;
 
 	HDC GetDC() const { return m_hDC; }
@@ -212,8 +216,7 @@ public:
 
 class GraphInvalidator : public AbstrVisitor
 {
-//	typedef GraphVisitor base_type;
-	typedef AbstrVisitor base_type;
+	using base_type = AbstrVisitor ;
 public:
   	GraphInvalidator();
 
@@ -238,7 +241,7 @@ public:
 class GraphUpdater: public GraphVisitor
 {
 public:
-	GraphUpdater(const GRect& clipRect, CrdType subPixelFactor = 1.0);
+	GraphUpdater(const GRect& clipRect, CrdPoint subPixelFactors);
 
 	GraphVisitState DoObject(GraphicObject* go) override;
 };

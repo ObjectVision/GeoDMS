@@ -115,12 +115,20 @@ void GraphicObject::CheckState() const
 		m_State.Get(GOF_IsVisible)        //    IsVisible
 	&&	(!owner || owner->AllVisible());  // && m_Owner->AllVisible
 
-	dms_assert(m_State.Get(GOF_AllVisible) == allVisible);
-	dms_assert(allVisible || !IsDrawn());
-	dms_assert( m_State.Get(GOF_IsUpdated) || WasFailed(FR_Data) || !m_State.Get(GOF_AllUpdated));
-	dms_assert(!IsDrawn() || !owner || owner->IsDrawn());
+	assert(m_State.Get(GOF_AllVisible) == allVisible);
+	assert(allVisible || !IsDrawn());
+	assert( m_State.Get(GOF_IsUpdated) || WasFailed(FR_Data) || !m_State.Get(GOF_AllUpdated));
 
-	dms_assert(!IsDrawn() || !owner || IsIncluding( owner->GetDrawnNettAbsRect(), GetDrawnFullAbsRect() ) );
+	if (!IsDrawn())
+		return;
+	if (!owner)
+		return;
+	assert(owner->IsDrawn());
+
+	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect(); drawnNettOwnerAbsDeviceRect.Expand(1);
+	auto drawnFullAbsDeviceRect = GetDrawnFullAbsDeviceRect();
+
+	assert( IsIncluding(drawnNettOwnerAbsDeviceRect, drawnFullAbsDeviceRect) );
 }
 
 void GraphicObject::CheckSubStates() const
@@ -424,15 +432,15 @@ void GraphicObject::SetIsDrawn()
 #endif
 }
 
-GRect GraphicObject::GetDrawnFullAbsRect() const
+GRect GraphicObject::GetDrawnFullAbsDeviceRect() const
 {
-	dms_assert(IsDrawn());
+	assert(IsDrawn());
 	return m_DrawnFullAbsRect;
 }
 
-GRect GraphicObject::GetClippedCurrFullAbsRect(const GraphVisitor& v) const
+GRect GraphicObject::GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const
 {
-	return TRect2GRect(GetCurrFullAbsRect(v)) & v.GetAbsClipRect();
+	return GetCurrFullAbsDeviceRect(v) & v.GetAbsClipDeviceRect();
 }
 
 
@@ -446,15 +454,15 @@ void GraphicObject::InvalidateDraw()
 
 	ClearDrawFlag();
 
-	dv->InvalidateRect( m_DrawnFullAbsRect );
+	dv->InvalidateDeviceRect( m_DrawnFullAbsRect );
 }
 
 void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delta)
 {
-	dms_assert(IsDrawn());    // callers responsibility
-	dms_assert(AllVisible()); // invariant consequence of IsDrawn
-	dms_assert(!m_DrawnFullAbsRect.empty()); 
-	dms_assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
+	assert(IsDrawn());    // callers responsibility
+	assert(AllVisible()); // invariant consequence of IsDrawn
+	assert(!m_DrawnFullAbsRect.empty()); 
+	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
 	m_DrawnFullAbsRect += delta;
 	m_DrawnFullAbsRect &= clipRect;
@@ -463,7 +471,7 @@ void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delt
 	else
 	{
 		auto owner = GetOwner().lock();
-		dms_assert(!owner || IsIncluding(owner->GetDrawnFullAbsRect(), GetDrawnFullAbsRect())); // invariant IsIncluding relation restored ater this TranslateDrawnRect of children
+		dms_assert(!owner || IsIncluding(owner->GetDrawnFullAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this TranslateDrawnRect of children
 		SizeT n = NrEntries();
 		while (n)
 		{
@@ -476,8 +484,8 @@ void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delt
 
 void GraphicObject::ClipDrawnRect(const GRect& clipRect)
 {
-	dms_assert(IsDrawn());    // callers responsibility
-	dms_assert(!m_DrawnFullAbsRect.empty() || !HasDefinedExtent()); 
+	assert(IsDrawn());    // callers responsibility
+	assert(!m_DrawnFullAbsRect.empty() || !HasDefinedExtent()); 
 
 	if (IsIncluding(clipRect, m_DrawnFullAbsRect))
 		return;
@@ -488,7 +496,7 @@ void GraphicObject::ClipDrawnRect(const GRect& clipRect)
 	else
 	{
 		auto owner = GetOwner().lock();
-		dms_assert(!owner || IsIncluding(owner->GetDrawnFullAbsRect(), GetDrawnFullAbsRect())); // invariant IsIncluding relation restored ater this clipping
+		dms_assert(!owner || IsIncluding(owner->GetDrawnFullAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this clipping
 		SizeT n = NrEntries();
 		while (n)
 		{
@@ -510,13 +518,13 @@ void Resize(GRect& drawRect, GPoint delta, GPoint invariantLimit)
 
 void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint invariantLimit)
 {
-	dms_assert(IsDrawn()); // callers responsibility
+	assert(IsDrawn()); // callers responsibility
 	auto owner = GetOwner().lock();
-	dms_assert(!owner || owner->IsDrawn());
+	assert(!owner || owner->IsDrawn());
 
-	dms_assert(AllVisible());                 // invariant consequence of IsDrawn
-	dms_assert(!m_DrawnFullAbsRect.empty());  // invariant consequence of IsDrawn
-	dms_assert(IsIncluding(clipRect, m_DrawnFullAbsRect)); // callers responsibility to provide GetOwner()->GetDrawnFullRect(), invariant IsIncluding relation
+	assert(AllVisible());                 // invariant consequence of IsDrawn
+	assert(!m_DrawnFullAbsRect.empty());  // invariant consequence of IsDrawn
+	assert(IsIncluding(clipRect, m_DrawnFullAbsRect)); // callers responsibility to provide GetOwner()->GetDrawnFullRect(), invariant IsIncluding relation
 
 	if (delta == GPoint(0, 0))
 		return;
@@ -528,7 +536,7 @@ void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint 
 		ClearDrawFlag();
 	else
 	{
-		dms_assert(!owner || IsIncluding(owner->GetDrawnNettAbsRect(), GetDrawnFullAbsRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
+		dms_assert(!owner || IsIncluding(owner->GetDrawnNettAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
 
 		SizeT n = NrEntries();
 		while (n)
@@ -536,14 +544,14 @@ void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint 
 			GraphicObject* subObj = GetEntry(--n);
 			if (subObj->IsDrawn())
 			{
-				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.BottomRight(), invariantLimit))
+				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.RightBottom(), invariantLimit))
 				{
-					dms_assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.TopLeft(), invariantLimit));
+					assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.LeftTop(), invariantLimit));
 					subObj->TranslateDrawnRect(clipRect, delta);
 				}
 				else
-					subObj->ClipDrawnRect( GetDrawnNettAbsRect() );
-				dms_assert(!subObj->IsDrawn() || IsIncluding(GetDrawnNettAbsRect(), subObj->GetDrawnFullAbsRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
+					subObj->ClipDrawnRect( GetDrawnNettAbsDeviceRect() );
+				assert(!subObj->IsDrawn() || IsIncluding(GetDrawnNettAbsDeviceRect(), subObj->GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
 			}
 		}
 	}
@@ -555,6 +563,14 @@ std::weak_ptr<DataView> GraphicObject::GetDataView() const
 	if (!owner)
 		return std::weak_ptr<DataView>();
 	return owner->GetDataView();
+}
+
+CrdPoint GraphicObject::GetScaleFactors() const
+{
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return { 1.0, 1.0 };
+	return dv->GetScaleFactors();
 }
 
 ToolButtonID GraphicObject::GetControllerID() const

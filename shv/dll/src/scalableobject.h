@@ -62,14 +62,13 @@ public:
 	bool HasDefinedExtent() const override { return !HasNoExtent(); }
 
 //	override GraphicObject: Size and Position
-	TRect CalcFullAbsRect   (const GraphVisitor& v) const override;
-	TRect GetCurrFullAbsRect(const GraphVisitor& v) const override;
+//REMOVE	TRect CalcFullAbsLogicalRect  (const GraphVisitor& v) const override;
+	GRect GetCurrFullAbsDeviceRect(const GraphVisitor& v) const override;
 
 	CrdRect GetCurrWorldClientRect() const;
 	CrdRect CalcWorldClientRect   () const; 
-	CrdRect CalcFullWorldRect(const CrdTransformation& tr, CrdType subPixelFactor)  const; 
 
-	void InvalidateWorldRect(const CrdRect& rect, const GRect* borderExtentsPtr) const;
+	void InvalidateWorldRect(const CrdRect& rect, const TRect* borderExtentsPtr) const;
 
 //	accessing related-entries
 	const ViewPort* GetViewPort() const;
@@ -87,7 +86,7 @@ public:
 	void OnVisibilityChanged() override;
 
 //	define new virtuals for size and extents of GraphicObjects
-	virtual GRect GetBorderPixelExtents(CrdType subPixelFactor) const;
+	virtual TRect GetBorderLogicalExtents() const;
 
 
 //	interface definition for layer control

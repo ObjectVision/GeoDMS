@@ -401,7 +401,7 @@ TokenID GraphicLayer::GetID() const
 
 bool GraphicLayer::VisibleLevel(GraphDrawer& d) const
 {
-	Float64 currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
+	auto currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
 	return VisibleLevel(currNrPixelsPerUnit);
 }
 

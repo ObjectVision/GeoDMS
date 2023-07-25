@@ -49,15 +49,15 @@ public:
 	ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool disableScrollbars);
 
 //	nieuwe functions
-	void Scroll  (TPoint delta);
-	void ScrollTo(TPoint delta);
+	void ScrollLogical  (TPoint delta);
+	void ScrollLogicalTo(TPoint delta);
 
 	void OnHScroll(UInt16 scollCmd);
 	void OnVScroll(UInt16 scollCmd);
 
 	void ScrollHome();
 	void ScrollEnd ();
-	void MakeVisible(TRect rect, const TPoint& border);
+	void MakeLogicalRectVisible(TRect rect, const TPoint& border);
 	void Export();
 	 
 	      MovableObject* GetContents();
@@ -66,7 +66,7 @@ public:
 	void CalcNettSize();
 
 	TPoint CalcMaxSize() const override;
-	TPoint GetCurrNettSize() const override { return m_NettSize; }
+	TPoint GetCurrNettLogicalSize() const override { return m_NettSize; }
 
 private:
 //	Override virtuals of GraphicObject
@@ -77,8 +77,8 @@ private:
 	void MoveTo(TPoint newRelPos) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem = nullptr) override;
+	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem = nullptr) override;
 
 private:
 	void SetScrollX(bool horScroll);
@@ -91,9 +91,9 @@ public:
 	CmdSignal  m_cmdOnScrolled;
 
 private:
-	TPoint m_NettSize;
-	GPoint m_NrTPointsPerGPoint;
-	HWND   m_HorScroll, m_VerScroll;
+	TPoint m_NettSize = Point<TType>(0, 0);
+	GPoint m_NrLogicalUnitsPerTumpnailTick;
+	HWND   m_HorScroll =0, m_VerScroll =0;
 
 	DECL_RTTI(SHV_CALL, Class);
 };

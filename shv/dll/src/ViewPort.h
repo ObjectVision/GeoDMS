@@ -77,7 +77,7 @@ class ViewPort : public Wrapper
 {
 	typedef Wrapper base_type;
 public:
-	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelfactor = 1.0);
+	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption);
 	~ViewPort();
 
 //	delayed construction
@@ -96,14 +96,15 @@ public:
 	void AL_ZoomAll();
 	void ZoomIn1();
 	void ZoomFactor(CrdType factor);
-	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrZoomLevel() / scale); }
+	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrLogicalZoomLevel() / scale); }
 	void AL_ZoomSel();
 
 	void ZoomOut1();
 	ExportInfo GetExportInfo();
 	void Export();
-	void Scroll(const GPoint& delta);
-	void InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const;
+	void ScrollDevice(GPoint delta);
+	void ScrollLogical(TPoint delta) { ScrollDevice(TPoint2GPoint(delta, GetScaleFactors())); }
+	void InvalidateWorldRect(const CrdRect& rect, const TRect& borderExtents) const;
 
 	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
@@ -119,12 +120,13 @@ public:
 
 	// props
 	void ZoomWorldFullRect(const TRect& relClientRect) ;
-	CrdRect GetCurrWorldFullRect() const;
-	CrdRect GetCurrWorldClientRect() const;
-	CrdRect CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
-	CrdRect CalcWorldClientRect() const;
-	CrdType GetCurrZoomLevel() const;
-	CrdType GetSubPixelFactor() const;
+	CrdRect  GetCurrWorldFullRect() const;
+	CrdRect  GetCurrWorldClientRect() const;
+	CrdRect  CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
+	CrdRect  CalcWorldClientRect() const;
+	CrdType  GetCurrLogicalZoomLevel() const;
+	CrdPoint GetCurrLogicalZoomFactors() const;
+	//	CrdPoint GetSubPixelFactors() const;
 
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
@@ -144,6 +146,10 @@ public:
 	CrdTransformation CalcWorldToClientTransformation() const; // calls DoUpdateView -> AdjustTargetViewport
 	CrdTransformation CalcCurrWorldToClientTransformation() const; // called by DoUpdateView and GraphicRect::AdjustTargetViewport, uses m_ROI and GetCurrClientSize()
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
+	CrdPoint          CalcCurrWorldToDeviceFactors() const { return CalcCurrWorldToClientTransformation().Factor() * GetScaleFactors(); }
+	CrdPoint          GetCurrWorldToDeviceFactors() const { return m_w2vTr.Factor() * GetScaleFactors(); }
+	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return Abs(CalcCurrWorldToDeviceFactors().first); }
+	CrdType           GetCurrWorldToDeviceZoomLevel() const { return Abs(GetCurrWorldToDeviceFactors().first); }
 
 //	override other virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -192,7 +198,6 @@ private:
 	ScaleBarCaret*             m_ScaleBarCaret;
 	grid_coord_map             m_GridCoordMap;
 	sel_caret_map              m_SelCaretMap;
-	CrdType                    m_SubPixelFactor;
 
 	friend GridCoord;
 	friend SelCaret;

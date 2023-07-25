@@ -1,33 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ShvDllPch.h"
 
 #include "EditPalette.h"
@@ -116,10 +86,10 @@ Float64 NumericEditControl::GetValue() const
 //----------------------------------------------------------------------
 
 
-const TPoint editPaletteButtonClientSize(DEF_TEXT_PIX_WIDTH*2, DEF_TEXT_PIX_HEIGHT);
+const TPoint editPaletteButtonClientSize = shp2dms_order<TType>(DEF_TEXT_PIX_WIDTH*2, DEF_TEXT_PIX_HEIGHT);
 
 PaletteButton::PaletteButton(MovableObject* owner,const AbstrUnit* paletteDomain)
-	:	TextControl(owner, editPaletteButtonClientSize.x(), editPaletteButtonClientSize.y(),  "")
+	:	TextControl(owner, editPaletteButtonClientSize.X(), editPaletteButtonClientSize.Y(),  "")
 	,	m_PaletteDomain(nullptr)
 {
 	if(paletteDomain)
@@ -221,7 +191,7 @@ void EditPaletteControl::Init()
 
 	auto dv = GetDataView().lock();
 	if (dv)
-		SetClientSize(TPoint(dv->ViewRect().Size()));
+		SetClientSize(TPoint(dv->ViewLogicalRect().Size()));
 }
 
 void EditPaletteControl::ProcessSize(TPoint viewClientSize)
@@ -229,37 +199,36 @@ void EditPaletteControl::ProcessSize(TPoint viewClientSize)
 	if (!m_PaletteButton)
 		return;
 
-	TRect clientRect = TRect(TPoint(0,0), viewClientSize);
+	TRect clientRect = TRect(Point<TType>(0,0), viewClientSize);
 
-	m_txtDomain        ->MoveTo(TPoint(0, BORDERSIZE));
-	m_PaletteButton->MoveTo(TPoint(BORDERSIZE, 0) + m_txtDomain        ->GetCurrClientRelRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
-	m_txtNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelRect().TopRight());
-	m_numNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_txtNrClasses     ->GetCurrClientRelRect().TopRight());
+	m_txtDomain    ->MoveTo(shp2dms_order<TType>(0, BORDERSIZE));
+	m_PaletteButton->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_txtDomain    ->GetCurrClientRelLogicalRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
+	m_txtNrClasses ->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelLogicalRect().TopRight());
+	m_numNrClasses ->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_txtNrClasses ->GetCurrClientRelLogicalRect().TopRight());
 
 
-	clientRect.Top   () += editPaletteButtonClientSize.y() + 3*BORDERSIZE;
-	clientRect.Bottom() -= editPaletteButtonClientSize.y() + 3*BORDERSIZE; 
+	clientRect.Top   () += editPaletteButtonClientSize.Y() + 3*BORDERSIZE;
+	clientRect.Bottom() -= editPaletteButtonClientSize.Y() + 3*BORDERSIZE; 
 
-	MakeMin(clientRect.Bottom(), viewClientSize.y());
+	MakeMin(clientRect.Bottom(), viewClientSize.Y());
 	MakeMin(clientRect.Top   (), clientRect.Bottom());
 
 	if (clientRect.Left () < clientRect.Right()) ++clientRect.Left ();
 	if (clientRect.Left () < clientRect.Right()) --clientRect.Right();
 
-	m_Line1            ->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
-	m_Line2            ->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
+	m_Line1->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
+	m_Line2->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
 
 	clientRect.Top   () += BORDERSIZE;
 	clientRect.Bottom() -= BORDERSIZE; 
 
-
-	MakeMin(clientRect.Bottom(), viewClientSize.y());
+	MakeMin(clientRect.Bottom(), viewClientSize.Y());
 	MakeMin(clientRect.Top   (), clientRect.Bottom());
 
 	if (clientRect.Left () > 0                 ) --clientRect.Left ();
-	if (clientRect.Right() < viewClientSize.x()) ++clientRect.Right();
+	if (clientRect.Right() < viewClientSize.X()) ++clientRect.Right();
 
-	m_TableView       ->SetClientRect(clientRect);
+	m_TableView->SetClientRect(clientRect);
 }
 
 void EditPaletteControl::DoUpdateView() 
@@ -372,8 +341,8 @@ TPoint EditPaletteControl::CalcMaxSize() const
 	TPoint buttonSize    = ConcatHorizontal(m_txtDomain   ->CalcMaxSize(), m_PaletteButton->CalcMaxSize());
 	TPoint nrClassesSize = ConcatHorizontal(m_txtNrClasses->CalcMaxSize(), m_numNrClasses     ->CalcMaxSize());
 	buttonSize = ConcatHorizontal(buttonSize, nrClassesSize);
-	buttonSize.y() *= 2;
-	buttonSize.y() += 4*BORDERSIZE;
+	buttonSize.Y() *= 2;
+	buttonSize.Y() += 4*BORDERSIZE;
 	return ConcatVertical(
 		buttonSize,
 		m_TableView->CalcMaxSize()

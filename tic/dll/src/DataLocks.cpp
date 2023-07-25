@@ -262,7 +262,7 @@ auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWrit
 
 DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedObj* abstrValuesRangeData) // was lockTile 
 {
-	dms_assert(std::uncaught_exceptions() == 0);
+	assert(std::uncaught_exceptions() == 0);
 
 	DBG_START("DataWriteLock", "CreateFromItem", MG_DEBUG_DATALOCKS);
 	DBG_TRACE(("adi = %s", adi ? adi->GetFullName().c_str() : "<null>" ));

@@ -83,20 +83,14 @@ ScalableObject::ScalableObject(GraphicObject* owner)
 // class: ScalableObject --- size and positioning
 //----------------------------------------------------------------------
 
-TRect ScalableObject::CalcFullAbsRect(const GraphVisitor& v) const
-{
-	auto wr = CalcWorldClientRect();
-	return DRect2TRect( v.GetTransformation().Apply( wr ) ) + TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
-}
-
-TRect ScalableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
+GRect ScalableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const
 {
 	auto cwcr = GetCurrWorldClientRect();
 	if (cwcr.empty())
-		return TRect();
+		return GRect();
 
-	return DRect2TRect( v.GetTransformation().Apply( cwcr ) ) 
-		+ TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
+	return DRect2GRect(cwcr, v.GetTransformation()) 
+		+ TRect2GRect(GetBorderLogicalExtents(), v.GetSubPixelFactors());
 }
 
 CrdRect ScalableObject::CalcWorldClientRect() const
@@ -124,17 +118,9 @@ CrdRect ScalableObject::GetCurrWorldClientRect() const
 	return m_WorldClientRect;
 }
 
-GRect ScalableObject::GetBorderPixelExtents(CrdType subPixelFactor) const
+TRect ScalableObject::GetBorderLogicalExtents() const
 {
-	return GRect(0, 0, 0, 0);
-}
-
-CrdRect ScalableObject::CalcFullWorldRect(const CrdTransformation& tr, CrdType subPixelFactor) const
-{
-	CrdRect result = CalcWorldClientRect();
-	result += tr.WorldScale(Convert<CrdRect>(GetBorderPixelExtents(subPixelFactor)));
-
-	return result;
+	return TRect(0, 0, 0, 0);
 }
 
 //----------------------------------------------------------------------
@@ -156,16 +142,18 @@ const ViewPort* ScalableObject::GetViewPort() const
 	return nullptr;
 }
 
-void ScalableObject::InvalidateWorldRect(const CrdRect& rect, const GRect* borderExtentsPtr) const 
+void ScalableObject::InvalidateWorldRect(const CrdRect& rect, const TRect* borderExtentsPtr) const 
 {
 	const ViewPort* vp = GetViewPort();
-	if (vp)
-		vp->InvalidateWorldRect(
-			rect
-		,	borderExtentsPtr
-			?	*borderExtentsPtr
-			:	GetBorderPixelExtents(vp->GetSubPixelFactor())
-		);
+	if (!vp)
+		return;
+
+	vp->InvalidateWorldRect(
+		rect
+	,	borderExtentsPtr
+		?	*borderExtentsPtr
+		: GetBorderLogicalExtents()
+	);
 }
 
 ScalableObject* ScalableObject::GetEntry(SizeT i)

@@ -1,33 +1,3 @@
-
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "ShvDllPch.h"
 
 #include "Region.h"
@@ -88,7 +58,7 @@ GRect ClipSize(GPoint size)
 	dms_assert(size.x >= 0);
 	dms_assert(size.y >= 0);
 
-	MakeLowerBound(size, s_WindowClipRect.BottomRight());
+	MakeLowerBound(size, s_WindowClipRect.RightBottom());
 	return GRect(GPoint(0,0), size);
 }
 
@@ -113,7 +83,7 @@ Region::Region(HWND hWnd)
 	GetUpdateRgn(hWnd, m_Rgn, false);
 }
 
-Region::Region(HDC hdc, const TRect& rect)
+Region::Region(HDC hdc, const GRect& rect)
 {
 	GRect clipRect;
 	switch (GetClipBox(hdc, &clipRect))
@@ -136,11 +106,11 @@ Region::Region(HDC hdc, HWND hWnd)
 {
 	DBG_START("Region", "ctor(HDC, HWND)", MG_DEBUG_REGION);
 
-	dms_assert(hWnd); // PRECONDITION
+	assert(hWnd); // PRECONDITION
 
 	GetRandomRgn(hdc, m_Rgn, SYSRGN);
 
-	// The region returned by GetRandomRgn is in screen coordinates (excecpt in the unsuppoerted Windows 95/98/Me and the 16 bit Win 3.1
+	// The region returned by GetRandomRgn is in screen coordinates
 	(*this) += GPoint(0, 0).ScreenToClient(hWnd); // ::OffsetRgn(hRgn, pt.x, pt.y);
 
 	DBG_TRACE(("Region = %s", AsString().c_str()));
@@ -155,8 +125,8 @@ Region::Region(Region&& src) noexcept // Move ctor
 Region::Region(const Region& src1, const Region& src2, int fCombineMode) // Combine
 	:	m_Rgn( CreateRectRgn(0,0,0,0) )
 {
-	dms_assert( src1.m_Rgn!=0 );
-	dms_assert((src2.m_Rgn!=0) == (fCombineMode != RGN_COPY));
+	assert( src1.m_Rgn!=0 );
+	assert((src2.m_Rgn!=0) == (fCombineMode != RGN_COPY));
 
 	if (CombineRgn(m_Rgn, src1.m_Rgn, src2.m_Rgn, fCombineMode) == ERROR)
 		throwLastSystemError("CombineRgn");
@@ -235,10 +205,7 @@ bool Region::IsBoundedBy(const GRect& rect) const
 	
 	return 
 		GetRgnBox(m_Rgn, &bbox) == NULLREGION 
-	||	::IsIncluding(
-			Convert<IRect>(rect),
-			Convert<IRect>(bbox)
-		);
+	||	::IsIncluding(g2dms_order<Int32>(rect), g2dms_order<Int32>(bbox));
 }
 
 void Region::operator ^=(const Region&  src)
@@ -317,12 +284,12 @@ bool Region::Empty() const
 	return result == NULLREGION;
 }
 
-//	Scroll(delta, scrollRect, clipRgn)[pict]:
+//	ScrollDevice(delta, scrollRect, clipRgn)[pict]:
 //	 resPict:= pict[scrollRect & clipRgn] + delta | pict[(~scrollRect & ~scrollRect+delta)| ~clipRgn]
 //	 invReg := ((scrollRect & clipRgn) / (scrollRect+delta & clipRgn)) | (((scrollRect & !clipRgn) + delta) & clipRgn)
 //	         = ((scrollRect / (scrollRect+delta)) & clipRgn) | (((scrollRect & !clipRgn) + delta) & clipRgn)
 //	         = ((scrollRect / (scrollRect+delta)) | ((scrollRect & !clipRgn) + delta)) & clipRgn
-void Region::Scroll(GPoint delta, const GRect& scrollRect, const Region& clipRgn)
+void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& clipRgn)
 {
 	DBG_START("Region", "Scroll", MG_DEBUG_SCROLL);
 
@@ -379,24 +346,29 @@ void Region::FillRectArray(RectArray& ra) const
 	static std::vector<BYTE> rgnDataBuffer;
 	UInt32 regionDataSize = GetRegionData(m_Rgn, 0, 0);
 	rgnDataBuffer.resize( regionDataSize ); 
-
-	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>( begin_ptr( rgnDataBuffer ));
+	if (!regionDataSize)
+	{
+		ra.clear();
+		return;
+	}
+	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>(begin_ptr(rgnDataBuffer));
 
 	GetRegionData(
-		m_Rgn, 
-		regionDataSize, 
+		m_Rgn,
+		regionDataSize,
 		rgnData
-	); 
-	dms_assert(rgnData->rdh.iType  == RDH_RECTANGLES);
-	dms_assert(rgnData->rdh.dwSize >= 32);
+	);
+	assert(rgnData->rdh.iType == RDH_RECTANGLES);
+	assert(rgnData->rdh.dwSize >= 32);
 
-//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
-	RECT*  rects = reinterpret_cast<RECT*>( &(rgnData->Buffer[0]) );
+	//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
+	RECT* rects = reinterpret_cast<RECT*>(&(rgnData->Buffer[0]));
 
 	UInt32 n = rgnData->rdh.nCount;
 
-	ra.assign(rects, rects+n);
+	ra.assign(rects, rects + n);
 }
+
 
 SharedStr Region::AsString() const
 {

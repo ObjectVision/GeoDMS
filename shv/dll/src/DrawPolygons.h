@@ -58,7 +58,7 @@ void fillPointBuffer(pointBuffer_t& buf, PI ii, PI ie, CrdTransformation transfo
 	pointBuffer_t::iterator 
 		bi = buf.begin();
 	for(;ii!=ie; ++ii, ++bi)
-		*bi = DPoint2GPoint( transformer.Apply(*ii) );
+		*bi = DPoint2GPoint(*ii, transformer);
 }
 
 inline void CorrectHatchStyle(Int32& hatchStyle)
@@ -489,7 +489,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					}
 					if (selectedOnly && !(selectionsArray && SelectionID(selectionsArray[entityIndex])))
 						goto nextLabel;
-					ld.DrawLabel(entityIndex, Convert<GPoint>(d.GetTransformation().Apply(centroid)));
+					auto dp = d.GetTransformation().Apply(centroid);
+					ld.DrawLabel(entityIndex, GPoint(dp.X(), dp.Y()));
 				}
 			nextLabel:
 				++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;

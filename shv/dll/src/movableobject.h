@@ -65,50 +65,62 @@ public:
 	void SetFullRelRect(TRect r);
 
 	TPoint GetCurrClientRelPos () const { return m_RelPos; }
-	TPoint GetCurrClientSize   () const { return m_ClientSize; }
-	TPoint GetCurrFullSize     () const { return m_ClientSize + TPoint(GetBorderPixelSize()); }
-	TRect  GetCurrClientRelRect() const { return TRect(m_RelPos, m_RelPos+m_ClientSize); }
+	TPoint GetCurrClientSize   () const { return m_ClientLogicalSize; }
+	TPoint GetCurrFullSize     () const { return m_ClientLogicalSize + GetBorderLogicalSize(); }
+	TRect  GetCurrClientRelLogicalRect() const { return TRect(m_RelPos, m_RelPos+m_ClientLogicalSize); }
 
 	TPoint CalcClientSize() const;
 	virtual TPoint CalcMaxSize() const;
 	TRect  CalcClientRelRect() const { return TRect(m_RelPos, m_RelPos + CalcClientSize()); }
-	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + TRect(GetBorderPixelExtents()); }
+	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + GetBorderLogicalExtents(); }
 
-	TPoint GetCurrClientAbsPos () const;
-	TRect  GetCurrClientAbsRect() const { TPoint pos = GetCurrClientAbsPos(); return TRect(pos, pos + m_ClientSize); }
+	TPoint GetCurrClientAbsLogicalPos () const;
+	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors()); }
+	TRect  GetCurrClientAbsLogicalRect() const { TPoint pos = GetCurrClientAbsLogicalPos(); return TRect(pos, pos + m_ClientLogicalSize); }
+	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors()); }
 
-	GRect GetDrawnClientAbsRect() const;
-	GRect GetDrawnNettAbsRect() const override;
+	TPoint GetCurrClientAbsLogicalPos(const GraphVisitor& v) const;
+	GPoint GetCurrClientAbsDevicePos(const GraphVisitor& v) const;
+	TRect  GetCurrClientAbsLogicalRect(const GraphVisitor& v) const;
+	GRect  GetCurrClientAbsDeviceRect(const GraphVisitor& v) const;
 
-	TRect GetCurrFullRelRect() const { return GetCurrClientRelRect() + TRect(GetBorderPixelExtents()); }
-	TRect GetCurrFullAbsRect() const { return GetCurrClientAbsRect() + TRect(GetBorderPixelExtents()); }
+	GRect GetDrawnClientAbsDeviceRect() const;
+	GRect GetDrawnNettAbsDeviceRect() const override;
+
+	TRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelLogicalRect() + GetBorderLogicalExtents(); }
+	TRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsLogicalRect() + GetBorderLogicalExtents(); }
+
+	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors()); }
+	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors()); }
+
 	GRect GetParentClipAbsRect() const;
 
-	virtual TPoint GetCurrNettSize()  const { return m_ClientSize; } // for ScrollPorts this is excluding the scrollbar sizes if visible
-	TRect GetCurrNettRelRect() const { return TRect(m_RelPos, m_RelPos+GetCurrNettSize()); }
-	TRect GetCurrNettAbsRect() const { TPoint pos = GetCurrClientAbsPos(); return TRect(pos, pos + GetCurrNettSize()); }
+	virtual TPoint GetCurrNettLogicalSize()  const { return m_ClientLogicalSize; } // for ScrollPorts this is excluding the scrollbar sizes if visible
+	TRect GetCurrNettRelLogicalRect() const { return TRect(m_RelPos, m_RelPos+GetCurrNettLogicalSize()); }
 
-	TRect GetCurrNettAbsRect(const GraphVisitor& v) const;
-	TRect GetCurrFullAbsRect(const GraphVisitor& v) const override;
+	TRect GetCurrNettAbsLogicalRect() const;
+	TRect GetCurrNettAbsLogicalRect(const GraphVisitor& v) const;
+	TRect GetCurrFullAbsLogicalRect(const GraphVisitor& v) const { return GetCurrClientAbsLogicalRect(v) + GetBorderLogicalExtents(); }
+	GRect GetCurrFullAbsDeviceRect(const GraphVisitor& v) const override;
 
-	GRect  GetBorderPixelExtents() const;
-	GPoint GetBorderPixelSize   () const;
+	TRect  GetBorderLogicalExtents() const;
+	TPoint GetBorderLogicalSize   () const;
 
 	void CopyToClipboard(DataView* dv);
 	HBITMAP GetAsDDBitmap(DataView* dv, CrdType subPixelFactor = 1.0, MovableObject* extraObj= nullptr);
 
-	ControlRegion GetControlRegion(TType absX) const;
+	ControlRegion GetControlDeviceRegion(GType absX) const;
 
 //	non-virtual override of GetOwner
 	std::weak_ptr<MovableObject> GetOwner()             { return std::static_pointer_cast<MovableObject>(base_type::GetOwner().lock());	}
 	std::weak_ptr<const MovableObject> GetOwner() const { return std::static_pointer_cast<const MovableObject>(base_type::GetOwner().lock()); }
 
 	void InvalidateClientRect(TRect rect) const;
-	virtual void GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem);
-	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem);
+	virtual void GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
+	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
 
 //	override GraphicObject
-	TRect CalcFullAbsRect(const GraphVisitor& v) const override;
+//REMOVE	TRect CalcFullAbsLogicalRect(const GraphVisitor& v) const override;
 	void SetIsVisible(bool value) override;
 	void SetDisconnected() override;
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -127,8 +139,8 @@ protected:
 private:
 	bool UpdateCursor() const;
 
-	TPoint m_RelPos;     // position of clients (0,0) in parents coordinate system, managed by container
-	TPoint m_ClientSize; // should be determined by DoUpdateView
+	TPoint m_RelPos            = Point<TType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
+	TPoint m_ClientLogicalSize = Point<TType>(0, 0); // should be determined by DoUpdateView
 	HCURSOR m_Cursor;
 };
 

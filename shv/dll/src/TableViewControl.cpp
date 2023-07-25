@@ -89,15 +89,14 @@ TableViewControl::~TableViewControl()
 
 void TableViewControl::ProcessSize(TPoint newSize) 
 {
-//	TPoint clientSize   = GetCurrClientSize();              //MakeLowerBound(clientSize, CalcMaxSize());
-	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().y() : 0; 
+	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().Y() : 0; 
 		MakeMax(headerHeight, TType(DEF_TEXT_PIX_HEIGHT + 2*BORDERSIZE)); 
-		MakeMin(headerHeight, newSize.y());
+		MakeMin(headerHeight, newSize.Y());
 
-	m_TableHeaderPort->SetClientRect( TRect( TPoint(0, 0), TPoint(newSize.x(), headerHeight)) );
-	m_TableScrollPort->SetClientRect( TRect( TPoint(0, headerHeight), newSize) );
-	dms_assert(IsIncluding(GetCurrFullAbsRect(),  m_TableHeaderPort->GetCurrFullAbsRect()));
-	dms_assert(IsIncluding(GetCurrFullAbsRect(),  m_TableScrollPort->GetCurrFullAbsRect()));
+	m_TableHeaderPort->SetClientRect( TRect( Point<TType>(0, 0), shp2dms_order<TType>(newSize.X(), headerHeight)) );
+	m_TableScrollPort->SetClientRect( TRect( shp2dms_order<TType>(0, headerHeight), newSize) );
+	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableHeaderPort->GetCurrFullAbsLogicalRect()));
+	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableScrollPort->GetCurrFullAbsLogicalRect()));
 
 	if (m_TableControl)
 		m_TableControl->ShowActiveCell();
@@ -131,20 +130,17 @@ TPoint TableViewControl::CalcMaxSize() const
 	return ConcatVertical(
 		m_TableHeaderPort->CalcMaxSize(),
 		m_TableScrollPort->CalcMaxSize()
-	)	+	TPoint(GetBorderPixelExtents().Size())
+	)	+	GetBorderLogicalExtents().Size()
 	;
 }
 
 void TableViewControl::OnTableScrolled()
 {
-	m_TableHeaderPort->SetClientSize(
-		TPoint(
-			m_TableScrollPort->GetCurrNettSize().x(),
-			m_TableHeaderPort->GetCurrClientSize().y()
-		)
-	);
+	auto clientSize = shp2dms_order<TType>(m_TableScrollPort->GetCurrNettLogicalSize().X(), m_TableHeaderPort->GetCurrClientSize().Y());
+	m_TableHeaderPort->SetClientSize(clientSize);
 
-	m_TableHeaderPort->ScrollTo(TPoint(m_TableControl->GetCurrClientRelPos().x(), 0) );
+	auto delta = shp2dms_order<TType>(m_TableControl->GetCurrClientRelPos().X(), 0);
+	m_TableHeaderPort->ScrollLogicalTo( delta);
 }
 
 IMPL_RTTI_CLASS(TableViewControl)

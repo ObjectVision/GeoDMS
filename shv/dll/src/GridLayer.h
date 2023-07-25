@@ -60,7 +60,7 @@ public:
 protected:
 //	override virtuals of GraphicObject
 	void  DoUpdateView() override;
-	GRect GetBorderPixelExtents(CrdType subPixelFactor) const override;
+	TRect GetBorderLogicalExtents() const override;
 	bool  Draw(GraphDrawer& d) const override;
 	GraphVisitState InviteGraphVistor(class AbstrVisitor&) override;
 	bool OnCommand(ToolButtonID id) override;

@@ -145,7 +145,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		AspectNrSet(as|ASE_LabelTextColor | ASE_LabelBackColor|ASE_LabelText),
 		AN_LabelTextColor //m_Layer->GetLayerClass()->GetMainAspect()
 	)();
-	column->SetElemSize(GPoint( COLOR_PIX_WIDTH * 2, DEF_TEXT_PIX_HEIGHT));
+	column->SetElemSize(shp2dms_order<UInt16>( COLOR_PIX_WIDTH * 2, DEF_TEXT_PIX_HEIGHT));
 
 	as = AspectNrSet(as & column->GetPossibleAspects());
 

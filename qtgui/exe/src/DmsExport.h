@@ -28,23 +28,22 @@ inline driver_characteristics operator |(driver_characteristics lhs, driver_char
 
 struct gdal_driver_id
 {
-public:
     CharPtr shortname = nullptr;
     CharPtr name = nullptr;
     CharPtr nativeName = nullptr;
     std::vector<CharPtr> exts;
     driver_characteristics driver_characteristics = driver_characteristics::none;
 
-    CharPtr Caption()
+    CharPtr Caption() const
     {
         if (name)
             return name;
         return shortname;
     }
 
-    bool HasNativeVersion() { return nativeName; }
+    bool HasNativeVersion() const { return nativeName; }
 
-    bool IsEmpty()
+    bool IsEmpty() const
     {
         return shortname == nullptr;
     }

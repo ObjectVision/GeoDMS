@@ -52,14 +52,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 // TODO: scaled Font size, Set TextAlignMode
-void DrawSymbol(
-	HDC dc, 
-	GRect rect,
-	HFONT hFont,
-	DmsColor color,
-	DmsColor bkClr,
-	WCHAR   symbolIndex
-)
+void DrawSymbol(HDC dc, GRect rect, HFONT hFont, DmsColor color, DmsColor bkClr, WCHAR   symbolIndex)
 {
 	bool isSymbol = (symbolIndex != UNDEFINED_WCHAR);
 
@@ -89,13 +82,7 @@ void DrawSymbol(
 	,	"DrawSymbol");
 }
 
-void TextOutLimited(
-	HDC     dc,
-	int     x, 
-	int     y, 
-	CharPtr txt, 
-	SizeT   strLen
-)
+void TextOutLimited(HDC dc, int x, int y, CharPtr txt, SizeT strLen)
 {
 	SizeT textLen = Min<SizeT>(strLen, MAX_TEXTOUT_SIZE);
 	bool result;
@@ -115,24 +102,12 @@ void TextOutLimited(
 
 
 // TODO: scaled Font size, Set TextAlignMode
-UInt32 DrawTextWithCursor(
-	HDC      dc, 
-	GRect    rect,
-	HFONT    hFont,
-	DmsColor color,
-	DmsColor bkClr,
-	CharPtr  txt,
-	UInt32   selPosBegin,
-	UInt32   selPosCurr,
-	UInt32   selPosEnd,
-	UInt32   strLen
-)
+UInt32 DrawTextWithCursor(HDC dc, GRect rect, HFONT hFont, DmsColor color, DmsColor bkClr, CharPtr txt, const SelRange& sp, UInt32 strLen)
 {
-
-	dms_assert(selPosBegin <= selPosCurr);
-	dms_assert(selPosCurr  <= selPosEnd );
-	dms_assert(selPosEnd   <= strLen);
-	dms_assert(strLen      <= StrLen(txt) );
+	assert(sp.m_Begin <= sp.m_Curr);
+	assert(sp.m_Curr  <= sp.m_End );
+	assert(sp.m_End   <= strLen);
+	assert(strLen      <= StrLen(txt) );
 
 	if (IsDefined(bkClr) ) // Draw Color Block filled with background color
 	{
@@ -147,13 +122,13 @@ UInt32 DrawTextWithCursor(
 	DcTextAlignSelector selectCenterAlignment(dc, TA_TOP|TA_LEFT|TA_UPDATECP);
 	::MoveToEx(dc, rect.left, rect.top, 0);
 
-	if (selPosBegin)
-		TextOutLimited( dc, 0, 0, txt, selPosBegin);
+	if (sp.m_Begin)
+		TextOutLimited( dc, 0, 0, txt, sp.m_Begin);
 	GPoint ptBegin; ::GetCurrentPositionEx(dc, &ptBegin);
 	UInt32 result = ptBegin.x;
-	if (selPosBegin < selPosEnd)
+	if (sp.m_Begin < sp.m_End)
 	{
-		TextOutLimited( dc, 0, 0, txt+selPosBegin, selPosEnd-selPosBegin);
+		TextOutLimited( dc, 0, 0, txt+sp.m_Begin, sp.m_End-sp.m_Begin);
 		GPoint ptEnd; ::GetCurrentPositionEx(dc, &ptEnd);
 		GRect selRect(ptBegin.x, rect.top, ptEnd.x, rect.bottom);
 		FillRect(dc, &selRect, (HBRUSH) (COLOR_HIGHLIGHT+1) );
@@ -161,15 +136,15 @@ UInt32 DrawTextWithCursor(
 		::MoveToEx(dc, ptBegin.x, ptBegin.y, 0);
 
 		DcTextColorSelector selColorSelector(dc, COLORREF2DmsColor( ::GetSysColor(COLOR_HIGHLIGHTTEXT) ) );
-		if (selPosBegin < selPosCurr)
-			TextOutLimited( dc, 0, 0, txt+selPosBegin, selPosCurr-selPosBegin);
+		if (sp.m_Begin < sp.m_Curr)
+			TextOutLimited( dc, 0, 0, txt+sp.m_Begin, sp.m_Curr-sp.m_Begin);
 		::GetCurrentPositionEx(dc, &ptEnd);
 		result = ptEnd.x;
-		if (selPosCurr  < selPosEnd)
-			TextOutLimited( dc, 0, 0, txt+selPosCurr,  selPosEnd -selPosCurr );
+		if (sp.m_Curr  < sp.m_End)
+			TextOutLimited( dc, 0, 0, txt+sp.m_Curr,  sp.m_End -sp.m_Curr );
 	}
-	if (selPosEnd < strLen)
-		TextOutLimited( dc, 0, 0, txt+selPosEnd, strLen-selPosEnd);
+	if (sp.m_End < strLen)
+		TextOutLimited( dc, 0, 0, txt+sp.m_End, strLen-sp.m_End);
 
 	return result;
 }
@@ -218,18 +193,18 @@ TextControl::TextControl(MovableObject* owner,
 	,	m_BkColor  ( bkColor )
 	, m_IsInverted(false)
 {
-	SetClientSize(TPoint(ctrlWidth, ctrlHeight));
+	SetClientSize(shp2dms_order<TType>(ctrlWidth, ctrlHeight));
 }
 
 
 void TextControl::SetWidth (UInt32 width)
 {
-	SetClientSize(TPoint(width, GetCurrClientSize().y()));
+	SetClientSize(shp2dms_order<TType>(width, GetCurrClientSize().Y()));
 }
 
 void TextControl::SetHeight(UInt32 height)
 {
-	SetClientSize(TPoint(GetCurrClientSize().x(), height));
+	SetClientSize(shp2dms_order<TType>(GetCurrClientSize().X(), height));
 }
 
 void TextControl::SetText(WeakStr caption)
@@ -284,7 +259,7 @@ bool TextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect(GetCurrClientRelRect() + d.GetClientOffset());
+		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
 		DrawText(
 			d.GetDC(),
 			clientAbsRect,
@@ -321,47 +296,18 @@ void AbstrTextEditControl::DrawEditText(
 		TextEditController& tec = dv->m_TextEditController;
 		if (tec.IsEditing())
 		{
-			UInt32 caretX =
-				DrawTextWithCursor(
-					dc, 
-					rect,
-					hFont,
-					color,
-					bkClr,
-					tec.GetCurrText(),
-					tec.GetCurrSelBegin(),
-					tec.GetCurrSel(),
-					tec.GetCurrSelEnd(),
-					tec.GetCurrSize()
-				);
+			auto caretX =
+				DrawTextWithCursor(dc, rect, hFont, color, bkClr, tec.GetCurrText(), tec.GetCurrSelRange(), tec.GetCurrSize());
 			dv->SetTextCaret(GPoint(caretX, rect.top) );
 		}
 		else
 		{
-			UInt32  currTextLen = StrLen(txt);
-			DrawTextWithCursor(
-				dc, 
-				rect,
-				hFont,
-				color,
-				bkClr,
-				txt,
-				0,           // selBegin
-				currTextLen, // caretPos
-				currTextLen, // selEnd
-				currTextLen  // strLen
-			);
+			auto currTextLen = StrLen(txt);
+			DrawTextWithCursor(dc, rect, hFont, color, bkClr, txt, SelRange{ 0, currTextLen, currTextLen }, currTextLen);
 		}
 	}
 	else
-		DrawText(
-			dc, 
-			rect,
-			hFont,
-			color,
-			bkClr,
-			txt
-		);
+		DrawText(dc, rect, hFont, color, bkClr, txt);
 }
 
 //----------------------------------------------------------------------
@@ -397,7 +343,7 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect( GetCurrClientRelRect() + d.GetClientOffset() );
+		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), GetScaleFactors() );
 		DrawEditText(
 			d.GetDC(), 
 			clientAbsRect,
@@ -435,14 +381,14 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 	}
 	if(med.GetEventInfo().m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONDBLCLK) )
 	{
-		TPoint relClientPos = TPoint(med.GetEventInfo().m_Point) - (med.GetClientOffset() + GetCurrClientRelPos());
+		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		if (HasBorder())
 		{
-			if (relClientPos.x() < 0) goto skip;
-			if (relClientPos.y() < 0) goto skip;
+			if (relClientPos.X() < 0) goto skip;
+			if (relClientPos.Y() < 0) goto skip;
 		}
-		dms_assert(relClientPos.x() >= 0);
-		dms_assert(relClientPos.y() >= 0);
+		dms_assert(relClientPos.X() >= 0);
+		dms_assert(relClientPos.Y() >= 0);
 		if (!IsStrictlyLower(relClientPos, GetCurrClientSize())) goto skip;
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )

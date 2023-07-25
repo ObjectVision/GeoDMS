@@ -264,8 +264,8 @@ TieCursorController::TieCursorController(DataView* owner, GraphicObject* target
 
 bool TieCursorController::Move (EventInfo& eventInfo)
 {
-	MakeUpperBound( eventInfo.m_Point, m_TieRect.TopLeft    ());
-	MakeLowerBound( eventInfo.m_Point, m_TieRect.BottomRight());
+	MakeUpperBound( eventInfo.m_Point, m_TieRect.LeftTop());
+	MakeLowerBound( eventInfo.m_Point, m_TieRect.RightBottom());
 	GPoint mousePoint = eventInfo.m_Point;
 	auto dv = GetOwner().lock();
 	if (dv)
@@ -302,21 +302,15 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 	GPoint size = Abs(eventInfo.m_Point - m_Origin);
 	if (size == GPoint(0, 0))
 	{
-		CrdPoint oldWorldPoint = m_Transformation.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+		CrdPoint oldWorldPoint = m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point)); // curr World location of click location
 		view->ZoomIn1();
 		auto tr = view->CalcWorldToClientTransformation();
-		CrdPoint newWorldPoint = tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+		CrdPoint newWorldPoint = tr.Reverse(g2dms_order<Float64>(eventInfo.m_Point)); // new World location of click location
 		view->Pan(oldWorldPoint - newWorldPoint);
 		return true;
 	}
-	CrdRect worldRect = m_Transformation.Reverse(
-			Convert<CrdRect>(
-				GRect(
-					m_Origin, 
-					eventInfo.m_Point
-				)
-			)
-		);
+	auto deviceRect = CrdRect(g2dms_order<Float64>(m_Origin), g2dms_order<Float64>(eventInfo.m_Point));
+	auto worldRect = m_Transformation.Reverse(deviceRect);
 	view->SetROI(worldRect);
 	return true;
 }
@@ -339,10 +333,10 @@ bool ZoomOutController::Exec(EventInfo& eventInfo)
 	ViewPort* view = debug_cast<ViewPort*>(to.get()); 
 	dms_assert(view);
 
-	CrdPoint oldWorldPoint = m_Transformation.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // curr World location of click location
+	CrdPoint oldWorldPoint = m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point)); // curr World location of click location
 	view->ZoomOut1();
 	auto tr = view->CalcWorldToClientTransformation();
-	CrdPoint newWorldPoint = tr.Reverse(Convert<CrdPoint>(eventInfo.m_Point)); // new World location of click location
+	CrdPoint newWorldPoint = tr.Reverse(g2dms_order<Float64>(eventInfo.m_Point)); // new World location of click location
 	view->Pan(oldWorldPoint - newWorldPoint);
 	return true;
 }
@@ -371,7 +365,7 @@ bool PanController::Exec(EventInfo& eventInfo)
 		return m_DidDrag;
 
 	m_DidDrag = true;
-	view->Scroll(eventInfo.m_Point - m_Origin);
+	view->ScrollDevice(eventInfo.m_Point - m_Origin);
 	m_Origin = eventInfo.m_Point;
 
 	return true;
@@ -388,9 +382,8 @@ RectPanController::RectPanController(DataView* owner, GraphicRect* target
 	:	DualPointController(owner, target, origin
 		, 0, EID_LBUTTONUP|EID_MOUSEDRAG, EID_CLOSE_EVENTS, ToolButtonID::OBSOLETE_TB_Pan)
 	,	m_Transformation(transformation)
-	,	m_OrgWP (transformation.Reverse( Convert<CrdPoint>(origin) ) )
-{
-}
+	,	m_OrgWP (transformation.Reverse(g2dms_order<Float64>(origin)) )
+{}
 
 // override DualPointController callback
 bool RectPanController::Exec(EventInfo& eventInfo)
@@ -399,9 +392,7 @@ bool RectPanController::Exec(EventInfo& eventInfo)
 	GraphicRect* view = debug_cast<GraphicRect*>(to.get());
 	dms_assert(view);
 
-	CrdPoint worldPoint = m_Transformation.Reverse(
-		Convert<CrdPoint>(eventInfo.m_Point)
-	);
+	CrdPoint worldPoint = m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point));
 	if (worldPoint == m_OrgWP)
 		return false;
 
@@ -514,9 +505,7 @@ bool SelectObjectController::Exec(EventInfo& eventInfo)
 		return false;
 
 	layer	->	SelectPoint(
-					m_Transformation.Reverse(
-						Convert<CrdPoint>(eventInfo.m_Point)
-					),
+					m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point)),
 					EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL))
 				);
 	return true;
@@ -545,12 +534,10 @@ bool SelectRectController::Exec(EventInfo& eventInfo)
 	if (!layer)
 		return false;
 
-	layer	->	SelectRect(
-					m_Transformation.Reverse(
-						Convert<CrdRect>( GRect(eventInfo.m_Point, m_Origin) )
-					),
-					EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL))
-				);
+	auto deviceRect = CrdRect(g2dms_order<Float64>(eventInfo.m_Point), g2dms_order<Float64>(m_Origin));
+	auto worldRect = m_Transformation.Reverse(deviceRect);
+	layer->SelectRect(worldRect, EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
+
 	return true;
 }
 
@@ -579,18 +566,10 @@ bool SelectCircleController::Exec(EventInfo& eventInfo)
 	GraphicLayer* layer = ls->GetActiveLayer();
 	if (!layer)
 		return false;
-	CrdPoint orgPoint = m_Transformation.Reverse( Convert<CrdPoint>(m_Origin         ) );
-	CrdPoint dstPoint = m_Transformation.Reverse( Convert<CrdPoint>(eventInfo.m_Point) );
-	layer	->	SelectCircle(
-					orgPoint,
-					sqrt( 
-						SqrDist<CrdType>(
-							Convert<CrdPoint>(orgPoint), 
-							Convert<CrdPoint>(dstPoint)
-						)
-					),
-					EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL))
-				);
+	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin         ) );
+	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point) );
+	auto dist = sqrt(SqrDist<CrdType>(orgPoint, dstPoint));
+	layer	->	SelectCircle(orgPoint, dist, EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
 	return true;
 }
 
@@ -617,12 +596,8 @@ bool SelectDistrictController::Exec(EventInfo& eventInfo)
 	GraphicLayer* layer = ls->GetActiveLayer();
 	if (!layer)
 		return false;
-	layer	->	SelectDistrict(
-					m_Transformation.Reverse(
-						Convert<CrdPoint>(eventInfo.m_Point)
-					),
-					EventID(eventInfo.m_EventID)
-				);
+	auto worldPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point));
+	layer	->	SelectDistrict(worldPoint, EventID(eventInfo.m_EventID));
 	return true;
 }
 
@@ -719,13 +694,9 @@ bool DrawPolygonController::Exec(EventInfo& eventInfo)
 	worldPoints.reserve(m_Points.size());
 
 	while (i!=e)
-		worldPoints.push_back(m_Transformation.Reverse( Convert<CrdPoint>(*i++) ) );
+		worldPoints.emplace_back(m_Transformation.Reverse(g2dms_order<CrdType>(*i++) ) );
 
-	layer	->	SelectPolygon(
-					begin_ptr(worldPoints),
-					end_ptr  (worldPoints),
-					EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL))
-				);
+	layer	->	SelectPolygon(begin_ptr(worldPoints), end_ptr  (worldPoints), EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
 	return true;
 }
 
