@@ -989,22 +989,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = new QDmsViewArea(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         m_mdi_area->addSubWindow(dms_mdi_subwindow);
-//        m_mdi_area->show();
-
-        //mdiSubWindow->setMinimumSize(200, 150);
-        //mdiSubWindow->showMaximized();
-
-        //    m_dms_views.emplace_back(name, vs, dv);
-        //    m_dms_view_it = --m_dms_views.end();
-        //    dvm_dms_view_it->UpdateParentWindow(); // m_Views.back().UpdateParentWindow(); // Needed before InitWindow
-
-        //m_mdi_area->
-
-        /*dataViewDockWidget->setWidget(dmsControl);
-        dataViewDockWidget->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-        dataViewDockWidget->resize(250, 150);
-        dataViewDockWidget->setMinimumSize(200, 150);
-        m_DockManager->addDockWidget(ads::DockWidgetArea::CenterDockWidgetArea, dataViewDockWidget, centralDockArea);*/
     }
     catch (...)
     {
@@ -1982,7 +1966,7 @@ void MainWindow::createDetailPagesDock()
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detailpages_dock->setWidget(m_detail_pages);
-    m_detail_pages->minimumSizeHint() = QSize(20,20);
+    //m_detail_pages->minimumSizeHint() = QSize(20,20);
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
 }
