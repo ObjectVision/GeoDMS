@@ -379,6 +379,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
     m_treeview->setNewCurrentItem(new_current_item);
     m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Selected new current item %s", m_current_item->GetFullName());
 }
 
 #include <QFileDialog>
@@ -1026,16 +1027,19 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
 
 void MainWindow::defaultView()
 {
-    createView(SHV_GetDefaultViewStyle(getCurrentTreeItem()));
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
+    createView(SHV_GetDefaultViewStyle(m_current_item));
 }
 
 void MainWindow::mapView()
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Mapview for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
 void MainWindow::tableView()
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Tableview for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 
