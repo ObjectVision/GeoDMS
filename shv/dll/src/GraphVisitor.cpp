@@ -304,7 +304,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 			auto clientLogicalAbsPos = m_ClientLogicalAbsPos;
 			auto clientLogicalEnd = clientLogicalAbsPos.Y() + clipEndRow;
 			clientLogicalAbsPos.Y() += currRow;
-			MakeMin(n, recNo + (clipEndRow - currRow));
+			MakeMin(n, recNo + (clipEndRow - currRow)/ rowLogicalDelta);
 			while (recNo < n)
 			{
 				assert(!SuspendTrigger::DidSuspend());
