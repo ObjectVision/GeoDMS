@@ -1440,7 +1440,6 @@ void MainWindow::updateStatusMessage()
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
-    assert(IsMainThread());
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
     switch (notificationCode) {
     case NC_Deleting:
@@ -1448,23 +1447,30 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         break;
     case CC_CreateMdiChild:
     {
+        assert(IsMainThread());
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
         auto va = new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
         return;
     }
     case CC_Activate:
+        assert(IsMainThread());
         mainWindow->setCurrentTreeItem(const_cast<TreeItem*>(self));
         return;
 
     case CC_ShowStatistics:
+        assert(IsMainThread());
         mainWindow->showStatisticsDirectly(self);
     }
     // MainWindow could have been destroyed
     if (s_CurrMainWindow)
     {
         assert(s_CurrMainWindow == mainWindow);
-        mainWindow->m_treeview->update(); // this actually only invalidates any drawn area and causes repaint later
+        auto tv = mainWindow->m_treeview;
+        if (IsMainThread())
+            tv->update(); // this actually only invalidates any drawn area and causes repaint later
+        else
+            QTimer::singleShot(0, tv, [tv]() { tv->update(); });
         mainWindow->m_detail_pages->onTreeItemStateChange();
     }
 }

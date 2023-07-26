@@ -212,8 +212,8 @@ bool InterestRetainContextBase::IsActive()
 
 void InterestRetainContextBase::Add(const Actor* actor)
 {
-	dms_assert(IsActive()); // PRECONDITION
-	if (IsActive()) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
+//	assert(IsActive()); // PRECONDITION
+	if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
 		push_front(GetRetainContext(), actor);
 }
 
