@@ -247,13 +247,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         if (!cmdLineSettings.m_ConfigFileName.empty())
-        {
-            QTimer::singleShot(1000, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
-            // QTimer::singleShot(1000, [cmdLineSettings.m_ConfigFileName](auto a) {
-             // TODO: return value unhandled
-            // });
-        }
-            
+            QTimer::singleShot(0, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
     }
 
     updateCaption();
@@ -761,13 +755,16 @@ bool MainWindow::event(QEvent* event)
 {
     if (event->type() == QEvent::WindowActivate)
     {
-        auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
-        if (vos.CurrPos())
-        {
-            auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
-            m_file_changed_window->setFileChangedMessage(changed_files);
-            m_file_changed_window->show();
-        }
+        QTimer::singleShot(500, this, [=]() 
+            { 
+                auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
+                if (vos.CurrPos())
+                {
+                    auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
+                    m_file_changed_window->setFileChangedMessage(changed_files);
+                    m_file_changed_window->show();
+                }
+            });
     }
 
     return QMainWindow::event(event);
