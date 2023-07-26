@@ -299,25 +299,29 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		TType
 			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
 			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalAbsPos.Y(); // in device pixel units
-
-		while ( recNo < n && currRow < clipEndRow)
+		if (currRow < clipEndRow)
 		{
-			dms_assert(!SuspendTrigger::DidSuspend());
-			AddClientLogicalOffset localRowBase(this, shp2dms_order<TType>(0, currRow));
+			auto clientLogicalAbsPos = m_ClientLogicalAbsPos;
+			auto clientLogicalEnd = clientLogicalAbsPos.Y() + clipEndRow;
+			clientLogicalAbsPos.Y() += currRow;
+			MakeMin(n, recNo + (clipEndRow - currRow));
+			while (recNo < n)
+			{
+				assert(!SuspendTrigger::DidSuspend());
+				auto  absElemDeviceRect = TRect2GRect(TRect(clientLogicalAbsPos, clientLogicalAbsPos + elemSize), sf);
+				VisitorDeviceRectSelector clipper(this, absElemDeviceRect);
 
-			auto  absElemDeviceRect = TRect2GRect(TRect(m_ClientLogicalAbsPos, m_ClientLogicalAbsPos + elemSize), sf);
-			VisitorDeviceRectSelector clipper(this, absElemDeviceRect );
+				assert(!SuspendTrigger::DidSuspend());
+				if (!clipper.empty())
+					DoElement(dic, recNo, absElemDeviceRect);
+				if (SuspendTrigger::DidSuspend())
+					return GraphVisitState::GVS_Break;
 
-			assert(!SuspendTrigger::DidSuspend());
-			if (!clipper.empty())
-				DoElement(dic, recNo, absElemDeviceRect);
-			if (SuspendTrigger::DidSuspend())
-				return GraphVisitState::GVS_Break;
+				++recNo;
+				++counter;
 
-			++recNo;
-			++counter; 
-
-			currRow += rowLogicalDelta;
+				clientLogicalAbsPos.Y() += rowLogicalDelta;
+			}
 		}
 		counter.Close();
 	}

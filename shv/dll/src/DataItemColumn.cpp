@@ -484,8 +484,8 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));
 	}
 //	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
-	GType currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
-	GType clipEndRow = d.GetAbsClipDeviceRect().Bottom();
+	auto currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
+	auto clipEndRow = d.GetAbsClipDeviceRect().Bottom();
 
 	// draw horizontal borders
 	while ( recNo < nrRows)
