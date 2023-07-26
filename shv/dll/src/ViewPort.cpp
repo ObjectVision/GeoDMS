@@ -1176,7 +1176,7 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	DBG_TRACE(("NewRect : %s", AsString(r).c_str() ));
 
-	if (r.inverted() || m_ROI == r)
+	if (r.inverted() || m_ROI == r || !IsDefined(r.first) || !IsDefined(r.second))
 		return;
     
 	InitWorldCrdUnit(0);
