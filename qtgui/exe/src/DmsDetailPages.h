@@ -52,7 +52,7 @@ private:
 	void drawPage();
 	void scheduleDrawPageImpl(int milliseconds);
 
-	bool m_DrawPageRequestPending = false;
+	std::atomic<bool> m_DrawPageRequestPending = false;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
