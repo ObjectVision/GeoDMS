@@ -880,8 +880,11 @@ void MainWindow::toggle_treeview()
 
 void MainWindow::toggle_detailpages()
 {
-    bool isVisible = m_detail_pages->isVisible();
-    m_detail_pages->setVisible(!isVisible);
+    //bool isVisible = m_detail_pages->isVisible();
+    //m_detail_pages->setVisible(!isVisible);
+    bool isVisible = m_detailpages_dock->isVisible();
+    m_detailpages_dock->setVisible(!isVisible);
+
     m_general_page_action->setVisible(!isVisible);
     m_explore_page_action->setVisible(!isVisible);
     m_properties_page_action->setVisible(!isVisible);
@@ -1726,16 +1729,16 @@ void MainWindow::createActions()
     connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
-    //win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
-    auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
-    connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
-    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
+    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    //auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
+    //connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
+    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
 
     auto win5_action = new QAction(tr("&Close All"), this);
     win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
     win5_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeAllSubWindows);
+    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
 
     auto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
