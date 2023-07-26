@@ -1060,7 +1060,9 @@ void MainWindow::CloseConfig()
     if (m_mdi_area)
     {
         for (auto* sw : m_mdi_area->subWindowList())
-            sw->close();
+        {
+            delete sw;
+        }
         scheduleUpdateToolbar();
     }
 
@@ -1737,7 +1739,7 @@ void MainWindow::createActions()
 
     auto win4_action = new QAction(tr("&Close"), this);
     win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
     //auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
     //connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
     connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
