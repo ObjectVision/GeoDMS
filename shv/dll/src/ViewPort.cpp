@@ -220,8 +220,12 @@ void ViewPort::DoUpdateView()
 	InvalidateDraw();
 	UpdateScaleBar();
 	auto sf = GetScaleFactors();
+	auto deviceSize = TPoint2GPoint(GetCurrClientSize(), sf);
+	auto w2dTr = m_w2vTr;
+	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), CrdPoint(1.0 / sf.first, 1.0 / sf.second));
+
 	for (auto& gc: m_GridCoordMap)
-		gc.second.lock()->Init(TPoint2GPoint(GetCurrClientSize(), sf), m_w2vTr);
+		gc.second.lock()->Init(deviceSize, w2dTr);
 
 	for (auto& sc: m_SelCaretMap)
 		sc.second.lock()->OnZoom();
@@ -258,7 +262,7 @@ void ViewPort::InvalidateOverlapped()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
 	if (m_ScaleBarCaret)
-		dv->InvalidateDeviceRect(m_ScaleBarCaret->GetCurrBoundingBox());
+		dv->InvalidateDeviceRect(m_ScaleBarCaret->GetCurrDeviceExtents());
 }
 
 void ViewPort::OnChildSizeChanged()
@@ -1088,23 +1092,24 @@ void ViewPort::ScrollDevice(GPoint delta)
 	if (delta == GPoint(0, 0) )
 		return;
 
-	CrdTransformation w2v = CalcWorldToClientTransformation();
-//	m_w2vTr = w2v + Convert<CrdPoint>(delta);
+	UpdateView();
+
+	CrdTransformation w2d(CrdPoint(0.0, 0.0), CalcCurrWorldToDeviceFactors());
 	{
 		InvalidationBlock lock(this);
-		SetROI(GetROI() - w2v.WorldScale(g2dms_order<CrdType>(delta)) );
+		SetROI(GetROI() - w2d.WorldScale(g2dms_order<CrdType>(delta)));
 	}
 	m_w2vTr = CalcCurrWorldToClientTransformation();
-	GRect viewExtents = TRect2GRect( CalcClientRelRect(), GetScaleFactors() );
+	GRect deviceExtents = TRect2GRect( CalcClientRelRect(), GetScaleFactors() );
 
 	InvalidateOverlapped();
 
-	dv->ScrollDevice(delta, viewExtents, viewExtents, this);
+	dv->ScrollDevice(delta, deviceExtents, deviceExtents, this);
 
 	m_BrushOrg += delta;
 
 	DBG_TRACE(("delta %s",       AsString(delta).c_str()));
-	DBG_TRACE(("viewExtents %s", AsString(viewExtents).c_str()));
+	DBG_TRACE(("viewExtents %s", AsString(deviceExtents).c_str()));
 
 	for (auto& gc: m_GridCoordMap)
 		gc.second.lock()->OnDeviceScroll(delta);
@@ -1293,7 +1298,10 @@ GridCoordPtr ViewPort::GetOrCreateGridCoord(const grid_coord_key& key)
 	if (pos != m_GridCoordMap.end() && pos->first == key)
 		return pos->second.lock();
 
-	auto result = std::make_shared<GridCoord>(this, key, TPoint2GPoint(GetCurrClientSize(), GetScaleFactors()), m_w2vTr);
+	auto w2dTr = m_w2vTr;
+	auto sf = GetScaleFactors();
+	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), sf);
+	auto result = std::make_shared<GridCoord>(this, key, TPoint2GPoint(GetCurrClientSize(), GetScaleFactors()), w2dTr);
 	m_GridCoordMap.insert(pos, grid_coord_map::value_type(key, result) );
 	return result;
 }

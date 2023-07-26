@@ -59,8 +59,8 @@ private:
 	std::weak_ptr<ViewPort>    m_Owner;
 	grid_coord_key             m_Key;
 
-	GPoint                     m_ClientSize;     // in device coordinates
-	CrdTransformation          m_World2ClientTr; // m_w2vTr;
+	GPoint                     m_DeviceSize;
+	CrdTransformation          m_World2DeviceTr; // m_w2vTr;
 	bool                       m_IsDirty;
 
 	// ========== calculated results

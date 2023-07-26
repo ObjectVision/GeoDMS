@@ -153,7 +153,7 @@ void PostProcessLine(bit_iterator<4, Block> b, bit_iterator<4, Block> e)
 template <typename ClassIdType, typename PixelType, typename ValuesFunctor>
 void GridFill(
 		const GridDrawer*                                    gridDrawer
-	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	,	const ValuesFunctor&                                 applicator
 	,	Range<SizeT>                                         tileIndexRange
 	,   bool                                                 isLastRun
@@ -201,99 +201,103 @@ void GridFill(
 		--currViewRow;
 		assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
 
-		if (IsDefined(currGridRow))
+		if (IsDefined(currGridRow) && currGridRow >= rowOffset)
 		{
 			typename sequence_traits<PixelType>::pointer resultingClassIdRowBegin = resultingClassIds;
-			dms_assert(currGridRow >= rowOffset);
 			currGridRow -= rowOffset;
 
-			dms_assert(currGridRow < grid_rowcol_id(gridSize.Row()) );
-
-			const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
-
-			SizeT currGridRowBegin =  CheckedMul<SizeT>(currGridRow, gridSize.Col());
-
-			GType currViewCol = viewColBegin;
-			PixelType result;
-
-			while ( true )
+			if (currGridRow < grid_rowcol_id(gridSize.Row()) )
 			{
-				dms_assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr );
 
-				grid_rowcol_id currGridCol = *currGridColPtr;
-				if (IsDefined(currGridCol))
+				const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
+
+				SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col());
+
+				GType currViewCol = viewColBegin;
+				PixelType result;
+
+				while (true)
 				{
-					grid_rowcol_id colOffset = (gridDrawer->m_SelValues) 
-						?	gridDrawer->m_SelValues->m_Rect.first.Col()
-						:	gridDrawer->m_TileRect.first.Col();
-					dms_assert(currGridCol >= colOffset);
-					currGridCol -= colOffset;
+					assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr);
 
-					dms_assert(currGridCol < grid_rowcol_id(gridSize.Col()) || !IsDefined(currGridCol));
-					SizeT currGridNr = currGridRowBegin+currGridCol;
-					if (entityIndex)
+					grid_rowcol_id currGridCol = *currGridColPtr;
+					if (IsDefined(currGridCol))
 					{
-						entity_id e = entityIndex->GetEntityIndex( currGridNr );
-						if (!IsDefined(e))
-							goto assignUndefined;
-						currGridNr = e - tileIndexRange.first;
-						if (currGridNr >= tileIndexRangeSize)
-							goto skipResult;
+						grid_rowcol_id colOffset = (gridDrawer->m_SelValues)
+							? gridDrawer->m_SelValues->m_Rect.first.Col()
+							: gridDrawer->m_TileRect.first.Col();
+						if (currGridCol >= colOffset)
+						{
+							currGridCol -= colOffset;
+							if (currGridCol < grid_rowcol_id(gridSize.Col()))
+							{
+								SizeT currGridNr = currGridRowBegin + currGridCol;
+								if (entityIndex)
+								{
+									entity_id e = entityIndex->GetEntityIndex(currGridNr);
+									if (!IsDefined(e))
+										goto assignUndefined;
+									currGridNr = e - tileIndexRange.first;
+									if (currGridNr >= tileIndexRangeSize)
+										goto skipResult;
+								}
+								assert(classIdArray);
+								assert(currGridNr < classIdArraySize);
+								result = Convert<PixelType>(applicator(classIdArray[currGridNr]));
+								valueAdjuster(result);
+								goto applyResult;
+							}
+						}
 					}
-					dms_assert(classIdArray);
-					result = Convert<PixelType>( applicator( classIdArray[ currGridNr ] ) );
-					valueAdjuster(result);
-					goto applyResult;
+				assignUndefined:
+					Assign(result, valueAdjuster.GetUndefValue());
+
+				applyResult:
+					// copy duplicate columns
+					do {
+						*resultingClassIds = result; ++resultingClassIds;
+						++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
+					} while (currGridCol == *++currGridColPtr);
+					continue; // go to nextGridCol
+				skipResult:
+					// skip duplicate columns
+					do {
+						++resultingClassIds;
+						++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
+					} while (currGridCol == *++currGridColPtr);
 				}
-			assignUndefined:
-				Assign(result, valueAdjuster.GetUndefValue() );
 
-			applyResult:
-				// copy duplicate columns
-				do {
-					*resultingClassIds = result; ++resultingClassIds;
-					++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
-				} while (currGridCol == *++currGridColPtr);
-				continue; // go to nextGridCol
-			skipResult:
-				// skip duplicate columns
-				do {
-					++resultingClassIds;
-					++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
-				} while (currGridCol == *++currGridColPtr);
-			}
+			end_of_line:
+				resultingClassIds = resultingClassIdRowBegin + viewColSize;
 
-		end_of_line:
-			resultingClassIds = resultingClassIdRowBegin + viewColSize;
+				typename sequence_traits<PixelType>::pointer
+					resultingClassIdRowEnd = resultingClassIds;
 
-			typename sequence_traits<PixelType>::pointer
-				resultingClassIdRowEnd = resultingClassIds;
-
-			if (isLastRun)
-				PostProcessLine(resultingClassIdRowBegin, resultingClassIdRowEnd);
-
-			// copy duplicate lines
-			while (true)
-			{
-				if (currViewRow == viewRowBegin)
-					return;
-				if (currGridRow != currGridRowPtr[-1])
-					break;
-		
 				if (isLastRun)
-					fast_copy(
-						resultingClassIdRowBegin,
-						resultingClassIdRowEnd,
-						resultingClassIds
-					);
-				resultingClassIds += (resultingClassIdRowEnd - resultingClassIdRowBegin);
+					PostProcessLine(resultingClassIdRowBegin, resultingClassIdRowEnd);
 
-				--currViewRow;
-				--currGridRowPtr;
+				// copy duplicate lines
+				while (true)
+				{
+					if (currViewRow == viewRowBegin)
+						return;
+					if (currGridRow != currGridRowPtr[-1])
+						break;
+
+					if (isLastRun)
+						fast_copy(
+							resultingClassIdRowBegin,
+							resultingClassIdRowEnd,
+							resultingClassIds
+						);
+					resultingClassIds += (resultingClassIdRowEnd - resultingClassIdRowBegin);
+
+					--currViewRow;
+					--currGridRowPtr;
+				}
+				continue;
 			}
-		}
-		else
-		{
+
 			typename sequence_traits<PixelType>::pointer currResultingClassIds = resultingClassIds;
 			resultingClassIds += viewColSize;
 			if (isLastRun)

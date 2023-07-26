@@ -266,13 +266,13 @@ void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
 	{
 		DcMixModeSelector xxxDontXRor(dc, R2_COPYPEN);
 		m_Impl.DoUpdateViewImpl(GetWindowDip2PixFactors(WindowFromDC(dc)));
-		m_Impl.Draw(dc, GetCurrBoundingBox());
+		m_Impl.Draw(dc, GetCurrDeviceExtents());
 	}
 }
 
-GRect ScaleBarCaret::GetCurrBoundingBox() const
+GRect ScaleBarCaret::GetCurrDeviceExtents() const
 {
-	return m_Rect;
+	return m_DeviceExtents;
 }
 
 TPoint ScaleBarBase::GetLogicalSize() const
@@ -298,7 +298,7 @@ void ScaleBarObj::DetermineAndSetLogicalBoundingBox(TPoint currTL, TPoint currPa
 
 void ScaleBarCaret::DetermineAndSetBoundingBox(CrdPoint scaleFactor)
 {
-	m_Rect = m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor);
+	m_DeviceExtents = m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor);
 }
 
 void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)

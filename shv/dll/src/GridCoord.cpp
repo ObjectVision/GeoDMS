@@ -49,10 +49,10 @@ GridCoord::~GridCoord()
 		owner->m_GridCoordMap.erase(m_Key);
 }
 
-void GridCoord::Init(GPoint clientSize, const CrdTransformation& w2vTr)
+void GridCoord::Init(GPoint deviceSize, const CrdTransformation& w2dTr)
 {
-	m_ClientSize     = clientSize;
-	m_World2ClientTr = w2vTr;
+	m_DeviceSize     = deviceSize;
+	m_World2DeviceTr = w2dTr;
 	m_IsDirty        = true;
 }
 
@@ -81,7 +81,7 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 	}
 	while (true)
 	{
-		dms_assert(currGridPos <= currGridCrd );
+		assert(currGridPos <= currGridCrd );
 
 		*gridCoords++ = currGridPos;
 
@@ -104,8 +104,8 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 			return;
 
 		currGridCrd += deltaGridCrd;
-		dms_assert(currGridCrd >= 0);
-		dms_assert(currGridCrd <  nrGridPos);
+		assert(currGridCrd >= 0);
+		assert(currGridCrd <  nrGridPos);
 
 		prevGridPos = currGridPos;
 		currGridPos = RoundDownPositive<4>( currGridCrd );
@@ -135,18 +135,17 @@ void CalcGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Cr
 void GridCoord::Recalc()
 {
 	// determine transformation and cliprect
-	CrdTransformation grid2LogicalTr = m_Key.first * m_World2ClientTr;
-	CrdTransformation grid2DeviceTr = grid2LogicalTr * CrdTransformation(CrdPoint(0.0, 0.0), m_SubPixelFactors);
+	CrdTransformation grid2DeviceTr = m_Key.first;
+	grid2DeviceTr *= m_World2DeviceTr;
 
 	auto vp = m_Owner.lock();
-//	if (!vp)
-///		grid2ClientTr = m_World2ClientTr;
-	m_Orientation = grid2LogicalTr.Orientation();
+
+	m_Orientation = grid2DeviceTr.Orientation();
 
 	CrdRect gridCRect = Deflate(Convert<CrdRect>(m_Key.second), CrdPoint(GRID_EXTENTS_MARGIN, GRID_EXTENTS_MARGIN));
 	CrdRect viewDRect = grid2DeviceTr.Apply(gridCRect); // grid in device coordinates
 
-	CrdRect clientDeviceRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_ClientSize) );
+	CrdRect clientDeviceRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_DeviceSize) );
 
 	CrdRect gridClipRect = gridCRect & grid2DeviceTr.Reverse(clientDeviceRect); // (viewport & reduced grid) in grid coords
 
@@ -201,10 +200,10 @@ void GridCoord::UpdateToScale(DPoint subPixelFactors)
 
 void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Int32 deltaBegin, Int32 deltaSecond, CrdType gridOriginCrd, CrdType gridCellSize, CrdType subPixelFactor, UInt32 nrGridPos)
 {
-	dms_assert(subPixelFactor > 0.0); // Update was called before
+	assert(subPixelFactor > 0.0); // Update was called before
 	bool showLines = MustShowLines(gridCellSize, subPixelFactor);
 
-	dms_assert(linedCoords.size() == (showLines ? gridCoords.size() : 0));
+	assert(linedCoords.size() == (showLines ? gridCoords.size() : 0));
 	if (deltaBegin > 0) 
 	{
 		gridCoords.erase (gridCoords.begin(),  gridCoords.begin() + deltaBegin);
@@ -252,7 +251,7 @@ void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, 
 
 void GridCoord::OnDeviceScroll(const GPoint& delta)
 {
-	m_World2ClientTr += g2dms_order<CrdType>(delta);
+	m_World2DeviceTr += g2dms_order<CrdType>(delta);
 
 	if (m_IsDirty)
 		return;
@@ -350,7 +349,7 @@ UInt32 FindViewPos(const grid_coord_array& coords, Int32 gridCrd, bool reversedO
 
 GType GridCoord::FirstViewCol(Int32 col) const 
 {
-	return FindViewPos(m_GridCols,col - GetGridRect().first.Col(),  IsRightLeft(m_Orientation));
+	return FindViewPos(m_GridCols, col - GetGridRect().first.Col(), IsRightLeft(m_Orientation));
 }
 
 GType GridCoord::FirstViewRow(Int32 row) const 
@@ -373,15 +372,15 @@ IRect GridCoord::GetClippedGridRect(const GRect& viewRelRect) const
 
 GRect GridCoord::GetClippedRelDeviceRect(const IRect& selRect) const 
 { 
-	dms_assert(!IsDirty()); 
+	assert(!IsDirty()); 
 	GRect result(
 		FirstViewCol(selRect.first .Col() ),
 		FirstViewRow(selRect.first .Row() ),
 		FirstViewCol(selRect.second.Col() ),
 		FirstViewRow(selRect.second.Row() )
 	);
-	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); dms_assert(result.top <= result.bottom); 
-	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); dms_assert(result.left<= result.right ); 
+	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); assert(result.top <= result.bottom); 
+	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); assert(result.left<= result.right ); 
 	
 	result += m_ClippedRelDeviceRect.LeftTop();
 	result &= m_ClippedRelDeviceRect;
@@ -391,9 +390,9 @@ GRect GridCoord::GetClippedRelDeviceRect(const IRect& selRect) const
 
 IPoint GridCoord::GetGridCoord(const GPoint& deviceRelPoint) const
 {
-	dms_assert(!IsDirty()); 
-	dms_assert(!Empty());
-	dms_assert(IsIncluding(m_ClippedRelDeviceRect, deviceRelPoint));
+	assert(!IsDirty()); 
+	assert(!Empty());
+	assert(IsIncluding(m_ClippedRelDeviceRect, deviceRelPoint));
 	// END OF PRECONDITIONS
 
 	return 

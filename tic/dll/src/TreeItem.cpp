@@ -934,24 +934,18 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 const TreeItem* TreeItem::GetCurrRefItem() const
 {
-	dms_assert(Was(PS_MetaInfo) || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
+	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem;
 }
 
 const TreeItem* TreeItem::GetReferredItem() const
 {
-//	UpdateMetaInfo();
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 	if (m_Parent) 
 		m_Parent->UpdateMetaInfo();
 
 	if (!mc_RefItem && HasCalculator())
-	{
 		MakeCalculator();
-//		if (!WasFailed(FR_Determine) && mc_Calculator)
-//			if (mc_Calculator->DelayDataControllerAccess())
-//				SetReferredItem(DetermineReferredItem(mc_Calculator));
-	}
 
 	return mc_RefItem;
 }

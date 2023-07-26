@@ -1492,7 +1492,6 @@ void DataView::InvalidateDeviceRect(GRect rect)
 #if defined(MG_DEBUG)
 	CheckRgnLimits(rect);
 #endif
-	rect *= GetScaleFactors();
 	::InvalidateRect(m_hWnd, &rect, true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)

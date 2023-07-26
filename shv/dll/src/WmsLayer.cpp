@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "RtcInterface.h"
 
 #include <boost/asio/io_service.hpp>
@@ -67,8 +38,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "gdal/gdal_base.h"
 #include "gdal/gdal_grid.h"
-
-
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_WMS
@@ -677,7 +646,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 		return GVS_Continue;
 
 	auto tlPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.LeftTop());
-	auto brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.RightBottom()-GPoint(1,1));
+	auto brPixel = drawGridCoords->GetExtGridCoord(clippedRelRect.RightBottom() - GPoint(1,1) );
 
 	auto tileSizeAsIPoint = Convert<IPoint>(tm.m_TileSize);
 	wms::tile_pos tlTile = tlPixel / tileSizeAsIPoint;
@@ -736,7 +705,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 				if (!drawer.empty()) {
 					GdiHandle<HBITMAP> hBitmap(drawer.CreateDIBSectionFromPalette());
-					drawer.FillDirect(&rasterBuffer.combinedBands[0], true);
+					drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
 					drawer.CopyDIBSection(hBitmap, viewportDeviceOffset, SRCAND);
 				}
 			}
@@ -768,7 +737,7 @@ void WmsLayer::Zoom1To1(ViewPort* vp)
 	CrdPoint r2wFactor = m_TMS[zoomLevel].m_Raster2World.Factor();
 	CrdPoint currClientSize = Convert<CrdPoint>(vp->GetCurrClientSize());
 	CrdPoint sf = GetScaleFactors();
-	CrdPoint s = r2wFactor * currClientSize * 0.5 * sf;
+	CrdPoint s = r2wFactor * currClientSize * sf * 0.5;
 	vp->SetROI(CrdRect(p - s, p + s));
 }
 

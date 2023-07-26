@@ -76,13 +76,13 @@ public:
 	void Move(const AbstrCaretOperator& caretOper, HDC dc) override;
 	void Reverse(HDC dc, bool newVisibleState) override;
 
-	GRect GetCurrBoundingBox() const;
+	GRect GetCurrDeviceExtents() const;
 	void  DetermineAndSetBoundingBox(CrdPoint scaleFactor);
 	const ViewPort* GetViewPort() const { return m_Impl.GetViewPort(); }
 
 private:
 	ScaleBarBase m_Impl;
-	GRect        m_Rect;
+	GRect        m_DeviceExtents;
 };
 
 #include "CaretOperators.h"
