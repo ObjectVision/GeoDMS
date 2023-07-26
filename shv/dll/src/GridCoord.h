@@ -22,10 +22,10 @@ using grid_coord_array = std::vector<grid_rowcol_id>;
 
 struct GridCoord : public std::enable_shared_from_this<GridCoord>
 {
-	GridCoord(ViewPort* owner, const grid_coord_key&, GPoint clientSize, const CrdTransformation& w2vTr);
+	GridCoord(ViewPort* owner, const grid_coord_key&); //, GPoint clientSize, const CrdTransformation& w2vTr);
 	~GridCoord();
 
-	void Init(GPoint clientSize, const CrdTransformation& w2vTr);
+	void Init(GPoint deviceSize, const CrdTransformation& w2dTr);
 
 	void OnDeviceScroll(const GPoint& delta);
 	void UpdateToScale(CrdPoint subPixelFactors);
