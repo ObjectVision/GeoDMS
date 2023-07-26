@@ -224,9 +224,13 @@ struct AddTransformation : private tmp_swapper<CrdTransformation>
 // AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-struct AddClientLogicalOffset : private tmp_swapper<TPoint>
+struct AddClientLogicalOffset
 {
-	AddClientLogicalOffset(GraphVisitor* v, TPoint c2p);
+	AddClientLogicalOffset(GraphVisitor* v, TPoint c2p, CrdPoint scaleSlack);
+
+private:
+	tmp_swapper<TPoint> clientSwapper;
+	tmp_swapper<CrdPoint> slackSwapper;
 };
 
 //----------------------------------------------------------------------

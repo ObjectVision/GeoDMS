@@ -105,7 +105,7 @@ void GraphicVarRows::DrawBackground(const GraphDrawer& d) const
 	TType  clipEndRow   = d.GetAbsClipDeviceRect().Bottom();
 	SizeT  recNo        = 0;
 
-	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos(), m_ScrollSlack);
 
 	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Top() <= clipStartRow)
 		++recNo;
@@ -213,7 +213,7 @@ void GraphicVarCols::DrawBackground(const GraphDrawer& d) const
 	GType  clipEndCol   = d.GetAbsClipDeviceRect().Right();
 	UInt32 recNo        = 0;
 
-	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos(), m_ScrollSlack);
 
 	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Left() <= clipStartCol)
 		++recNo;

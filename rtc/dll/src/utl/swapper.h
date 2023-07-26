@@ -87,7 +87,12 @@ struct tmp_swapper  : private boost::noncopyable
 	 { 
 		m_ResourceHandleRef = m_ResourceHandleCopy;
 	 }
-	typename param_type<T>::type PreviousValue() const { return m_ResourceHandleCopy; }
+
+	using param_t = typename param_type<T>::type;
+
+	param_t PreviousValue() const { return m_ResourceHandleCopy; }
+
+	T& GetRef() { return m_ResourceHandleRef; }
 
 protected:
 	T& m_ResourceHandleRef;

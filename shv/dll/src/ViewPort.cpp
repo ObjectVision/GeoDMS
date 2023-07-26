@@ -633,9 +633,9 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	}
 	if (eventID & (EID_LBUTTONDOWN | EID_LBUTTONUP | EID_LBUTTONDBLCLK) )
 	{
-		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
+		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos(), m_ScrollSlack);
 		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
-		w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), med.GetSubPixelFactors());
+		w2dTr *= CrdTransformation(med.m_ScrollSlack, med.GetSubPixelFactors());
 
 		InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 

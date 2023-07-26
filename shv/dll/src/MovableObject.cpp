@@ -162,9 +162,10 @@ void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
 		{
 //			GRect  oldAbsFullRect = TRect2GRect(GetCurrFullAbsRect());
 			TPoint logDelta = newClientRelPos - m_RelPos;
-			GPoint devDelta = TPoint2GPoint(logDelta, GetScaleFactors());
-			GRect  clipRect = GetParentClipAbsRect();
-			GRect  scrollRect = clipRect;
+			auto [devDelta, newScrollSlack] = TPoint2GPoint(logDelta, GetScaleFactors(), m_ScrollSlack);
+			m_ScrollSlack = newScrollSlack;
+			GRect clipRect = GetParentClipAbsRect();
+			GRect scrollRect = clipRect;
 			scrollRect &= GetCurrFullAbsDeviceRect();
 			if (!scrollRect.empty())
 			{
@@ -360,7 +361,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	SuspendTrigger::FencedBlocker xxx;
 	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
 
-	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
+	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos, -m_ScrollSlack);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
 	dms_assert(!suspended); 
 	if (extraObj)

@@ -466,7 +466,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	GRect  absFullDeviceRect = GetClippedCurrFullAbsDeviceRect(d); 
 
 	TType clientLogicalAbsPosRow = d.GetClientLogicalAbsPos().Y();
-	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second;
+	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second + d.m_ScrollSlack.second;
 	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
 	SizeT recNo = (pageClipRectRow > clientDeviceAbsPosRow)
 		?	(pageClipRectRow - clientDeviceAbsPosRow) / deviceRowHeight
