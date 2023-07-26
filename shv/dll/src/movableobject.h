@@ -75,9 +75,9 @@ public:
 	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + GetBorderLogicalExtents(); }
 
 	TPoint GetCurrClientAbsLogicalPos () const;
-	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors()); }
+	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack()).first; }
 	TRect  GetCurrClientAbsLogicalRect() const { TPoint pos = GetCurrClientAbsLogicalPos(); return TRect(pos, pos + m_ClientLogicalSize); }
-	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors()); }
+	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
 
 	TPoint GetCurrClientAbsLogicalPos(const GraphVisitor& v) const;
 	GPoint GetCurrClientAbsDevicePos(const GraphVisitor& v) const;
@@ -90,8 +90,9 @@ public:
 	TRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelLogicalRect() + GetBorderLogicalExtents(); }
 	TRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsLogicalRect() + GetBorderLogicalExtents(); }
 
-	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors()); }
-	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors()); }
+	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
+	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
+	CrdPoint GetCumulativeScrollSlack() const;
 
 	GRect GetParentClipAbsRect() const;
 

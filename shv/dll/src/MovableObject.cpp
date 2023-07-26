@@ -193,6 +193,16 @@ GRect MovableObject::GetDrawnClientAbsDeviceRect() const
 	return m_DrawnFullAbsRect & GetCurrClientAbsDeviceRect();
 }
 
+CrdPoint MovableObject::GetCumulativeScrollSlack() const
+{
+	auto owner = GetOwner().lock();
+	auto result = m_ScrollSlack;
+	if (owner)
+		result = owner->GetCumulativeScrollSlack() + result;
+	return result;
+}
+
+
 GRect MovableObject::GetDrawnNettAbsDeviceRect() const
 {
 	assert(IsDrawn());
@@ -293,7 +303,7 @@ TPoint MovableObject::GetCurrClientAbsLogicalPos(const GraphVisitor& v) const
 
 GPoint MovableObject::GetCurrClientAbsDevicePos(const GraphVisitor& v) const
 { 
-	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors()); 
+	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack).first;
 }
 
 TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const 
@@ -303,16 +313,8 @@ TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const
 
 GRect  MovableObject::GetCurrClientAbsDeviceRect(const GraphVisitor& v) const 
 {
-	return TRect2GRect(GetCurrClientAbsLogicalRect(v), v.GetSubPixelFactors());
+	return TRect2GRect(GetCurrClientAbsLogicalRect(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack);
 }
-
-/*
-//REMOVE
-TRect MovableObject::CalcFullAbsLogicalRect(const GraphVisitor& v) const
-{
-	return CalcFullRelRect() + v.GetClientLogicalAbsPos();
-}
-*/
 
 TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
 {
@@ -321,7 +323,7 @@ TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
 
 GRect MovableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const 
 { 
-	return TRect2GRect(GetCurrFullAbsLogicalRect(v), v.GetSubPixelFactors()); 
+	return TRect2GRect(GetCurrFullAbsLogicalRect(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack);
 }
 
 TRect MovableObject::GetCurrNettAbsLogicalRect() const
