@@ -547,11 +547,11 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
-    auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
-	dock->setTitleBarWidget(new QWidget(dock));
-	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
-    dock->setWidget(dms_eventlog_widget_pointer);
-	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
+    MainWindow::TheOne()->m_treeview_dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
+	MainWindow::TheOne()->m_treeview_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_treeview_dock));
+	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(MainWindow::TheOne()->m_treeview_dock);
+	MainWindow::TheOne()->m_treeview_dock->setWidget(dms_eventlog_widget_pointer);
+	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, MainWindow::TheOne()->m_treeview_dock);
 //	dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
 
 	//auto box_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom);

@@ -875,8 +875,8 @@ void MainWindow::visual_update_subtree()
 
 void MainWindow::toggle_treeview()
 {
-    bool isVisible = m_treeview->isVisible();
-    m_treeview->setVisible(!isVisible);
+    bool isVisible = m_treeview_dock->isVisible();
+    m_treeview_dock->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_detailpages()

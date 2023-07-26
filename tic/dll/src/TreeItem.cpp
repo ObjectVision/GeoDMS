@@ -212,7 +212,7 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	dms_assert(s_TreeItems);
 	Report();
 
-	dms_assert(!s_TreeItems->size());
+	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
 }
 
