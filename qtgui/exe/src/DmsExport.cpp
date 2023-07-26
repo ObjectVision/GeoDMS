@@ -11,6 +11,8 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "Unit.h"
+#include "UnitClass.h"
+
 
 #include "ItemUpdate.h"
 #include "dbg/DmsCatch.h"
@@ -258,7 +260,18 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
         return nullptr;
 
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
+    //TreeItem* context,
+    //    TokenID          nameID,
+    //    const AbstrUnit* domainUnit,
+    //    const AbstrUnit* valuesUnit,
+    //    ValueComposition vc)
+    TokenID t_gdal_grid_driver_options = GetTokenID_st("GDAL_Options");
+    auto gdal_driver_options = CreateDataItem(avd, UniqueName(avd, t_gdal_grid_driver_options), Unit<Void>::GetStaticClass()->CreateDefault(), Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::Void);
+    SharedStr gdal_driver_options_expr("'TFW=YES'");// mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
+    gdal_driver_options->SetExpr(gdal_driver_options_expr);
+    
     auto subContainer = avd->CreateItem(UniqueName(avd, rasterID));
+
 
     auto adu = IsUnit(rasterItemOrDomain) ? AsUnit(rasterItemOrDomain) : AsDataItem(rasterItemOrDomain)->GetAbstrDomainUnit();
     assert(CanBeRasterDomain(adu));
@@ -272,6 +285,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
 
     auto storeData = [=](const AbstrDataItem* adi)
     {
+
         assert(adi->GetValueComposition() == ValueComposition::Single);
         auto vda = CreateDataItem(subContainer, UniqueName(subContainer, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
         auto expr = adi->GetFullName();
@@ -384,7 +398,7 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
     available_drivers.emplace_back("DBF", "DBF", nullptr, std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder);
 
-    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif", ".tfw"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
     available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, std::vector<CharPtr>{".cdf"}, driver_characteristics::is_raster);
     //available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);

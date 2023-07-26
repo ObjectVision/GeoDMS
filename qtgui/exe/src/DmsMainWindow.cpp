@@ -247,13 +247,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         if (!cmdLineSettings.m_ConfigFileName.empty())
-        {
-            QTimer::singleShot(1000, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
-            // QTimer::singleShot(1000, [cmdLineSettings.m_ConfigFileName](auto a) {
-             // TODO: return value unhandled
-            // });
-        }
-            
+            QTimer::singleShot(0, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
     }
 
     updateCaption();
@@ -385,6 +379,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
     m_treeview->setNewCurrentItem(new_current_item);
     m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Selected new current item %s", m_current_item->GetFullName());
 }
 
 #include <QFileDialog>
@@ -762,13 +757,16 @@ bool MainWindow::event(QEvent* event)
 {
     if (event->type() == QEvent::WindowActivate)
     {
-        auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
-        if (vos.CurrPos())
-        {
-            auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
-            m_file_changed_window->setFileChangedMessage(changed_files);
-            m_file_changed_window->show();
-        }
+        QTimer::singleShot(500, this, [=]() 
+            { 
+                auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
+                if (vos.CurrPos())
+                {
+                    auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
+                    m_file_changed_window->setFileChangedMessage(changed_files);
+                    m_file_changed_window->show();
+                }
+            });
     }
 
     return QMainWindow::event(event);
@@ -883,8 +881,11 @@ void MainWindow::toggle_treeview()
 
 void MainWindow::toggle_detailpages()
 {
-    bool isVisible = m_detail_pages->isVisible();
-    m_detail_pages->setVisible(!isVisible);
+    //bool isVisible = m_detail_pages->isVisible();
+    //m_detail_pages->setVisible(!isVisible);
+    bool isVisible = m_detailpages_dock->isVisible();
+    m_detailpages_dock->setVisible(!isVisible);
+
     m_general_page_action->setVisible(!isVisible);
     m_explore_page_action->setVisible(!isVisible);
     m_properties_page_action->setVisible(!isVisible);
@@ -1030,16 +1031,19 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
 
 void MainWindow::defaultView()
 {
-    createView(SHV_GetDefaultViewStyle(getCurrentTreeItem()));
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
+    createView(SHV_GetDefaultViewStyle(m_current_item));
 }
 
 void MainWindow::mapView()
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Mapview for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
 void MainWindow::tableView()
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Tableview for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 
@@ -1540,15 +1544,6 @@ void MainWindow::createActions()
     //fileToolBar->addAction(reOpenAct);
 
     m_file_menu->addSeparator();
-    auto epdm = m_file_menu->addMenu(tr("Export Primary Data"));
-    auto epdmBmp = new QAction(tr("Bitmap (*.tif or *.bmp)")); // TODO: memory leak, QAction will not transfer ownership from addAction
-    auto epdmDbf = new QAction(tr("Table (*.dbf with a *.shp and *.shx if Feature data can be related)"));
-    auto epdmCsv = new QAction(tr("Text Table (*.csv with semiColon Separated Values"));
-    epdm->addAction(epdmBmp);
-    epdm->addAction(epdmDbf);
-    epdm->addAction(epdmCsv);
-
-    m_file_menu->addSeparator();
     m_quit_action = std::make_unique<QAction>(tr("&Quit"));
     connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
     m_file_menu->addAction(m_quit_action.get());
@@ -1735,16 +1730,16 @@ void MainWindow::createActions()
     connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
-    //win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
-    auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
-    connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
-    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeActiveSubWindow);
+    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    //auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
+    //connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
+    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
 
     auto win5_action = new QAction(tr("&Close All"), this);
     win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
     win5_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::closeAllSubWindows);
+    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
 
     auto win6_action = new QAction(tr("&Close All But This"), this);
     win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
