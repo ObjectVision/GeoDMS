@@ -513,7 +513,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	// process scheme
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
 	m_context_menu->addAction(process_scheme);
-	m_context_menu->exec(viewport()->mapToGlobal(pos));
+	//m_context_menu->exec(viewport()->mapToGlobal(pos));
+	m_context_menu->popup(viewport()->mapToGlobal(pos));
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
