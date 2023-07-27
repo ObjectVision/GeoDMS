@@ -36,16 +36,12 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 // class  : FutureTileFunctor
 //----------------------------------------------------------------------
-#if defined(MG_DEBUG)
-#define MG_DEBUG_LAZYTILEFUNCTOR
-#else // defined(MG_DEBUG)
-#define MG_DEBUG_LAZYTILEFUNCTOR
-#endif //defined(MG_DEBUG)
 
 #include "DataLocks.h"
 #include "dbg/DebugCast.h"
 #include "dbg/SeverityType.h"
 #include "mem/TileData.h"
+#include "ptr/OwningPtrReservedArray.h"
 #include "ser/VectorStream.h"
 
 template <typename V>
@@ -148,8 +144,25 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
-auto make_unique_FutureTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_FutureTileFunctor(bool lazy, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+-> std::unique_ptr<TileFunctor<V>>
 { 
+	if (lazy)
+	{
+		auto tn = tiledDomainRangeData->GetNrTiles();
+		auto preparedStates = OwningPtrReservedArray<PrepareState>(tn);
+		for (tile_id t = 0; t != tn; ++t)
+			preparedStates.emplace_back(pFunc(t));
+
+		auto lazyApplyFunc = [aFunc, preparedStates = std::move(preparedStates)](AbstrDataObject* ado, tile_id t)
+		{
+			auto rwMode = MustZero ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all;
+			aFunc(mutable_array_cast<V>(ado)->GetWritableTile(t, rwMode), preparedStates[t]);
+		};
+
+		return make_unique_LazyTileFunctor<V>(tiledDomainRangeData, valueRangePtr, std::move(lazyApplyFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	}
+
 	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(
 		tiledDomainRangeData, valueRangePtr, 
 		std::forward<PrepareFunc>(pFunc), 

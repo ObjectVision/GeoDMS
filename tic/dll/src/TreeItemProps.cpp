@@ -231,7 +231,7 @@ namespace { // local defs
 		void SetValueAsCharArray(Object* self, CharPtr value) override
 		{
 			TreeItem* ti = debug_cast<TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			ti->SetExpr( SharedStr(value) );
 		}
 	};
@@ -245,19 +245,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->IsDisabledStorage();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(DISABLESTORAGE_NAME);
 			ti->DisableStorage(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			return GetValue(ti) && ! ti->HasConfigData();
 		}
 	};
@@ -271,23 +271,52 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetKeepDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(KEEPDATA_NAME);
 			ti->SetKeepDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
 				:  GetValue(ti);
+		}
+	};
+	 
+	struct LazyCalculatedPropDef : PropDef<TreeItem, PropBool>
+	{
+		LazyCalculatedPropDef()
+			: PropDef<TreeItem, PropBool>(LAZYCALC_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr)
+		{}
+
+		// override base class
+		ApiType GetValue(TreeItem const* ti) const override
+		{
+			assert(ti);
+			return ti->GetlazyCalculatedState();
+		}
+		void SetValue(TreeItem* ti, ParamType value) override
+		{
+			assert(ti);
+			ti->AssertPropChangeRights(KEEPDATA_NAME);
+			ti->SetLazyCalculatedState(value);
+		}
+		bool HasNonDefaultValue(const Object* self) const
+		{
+			const TreeItem* ti = debug_cast<const TreeItem*>(self);
+			assert(ti);
+			const TreeItem* parent = ti->GetTreeParent();
+			return parent
+				? (GetValue(ti) != GetValue(parent))
+				: GetValue(ti);
 		}
 	};
 
@@ -300,19 +329,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetFreeDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(FREEDATA_NAME);
 			ti->SetFreeDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
@@ -329,19 +358,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetStoreDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(STOREDATA_NAME);
 			ti->SetStoreDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
@@ -638,7 +667,7 @@ namespace { // local defs
 		}
 		void SetValue(TreeItem* ti, ParamType val) override 
 		{ 
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(USING_NAME);
 			ti->ClearNamespaceUsage();
 			if (!val.empty())
@@ -660,7 +689,7 @@ namespace { // local defs
 		}
 		void SetValue(TreeItem* ti, ParamType val) override 
 		{ 
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(EXPLICITSUPPLIERS_NAME);
 			ti->GetOrCreateSupplCache()->SetSupplString(val);
 			ti->TriggerEvaluation();
@@ -680,6 +709,7 @@ namespace {
 	static ExprPropDef calcRulePropDef(false);
 	static DisableStoragePropDef disableStoragePropDef;
 	static KeepDataPropDef keepDataPropDef;
+	static LazyCalculatedPropDef lazyCalculatedPropDef;
 	static FreeDataPropDef freeDataPropDef;
 	static StoreDataPropDef storeDataPropDef;
 	static NrSubItemsPropDef nrSubItemsPropDef;

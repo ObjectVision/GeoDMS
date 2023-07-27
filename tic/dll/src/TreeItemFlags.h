@@ -90,7 +90,7 @@ const TreeItemStatusFlags TSF_IsTemplate                  = 0x00040000;
 const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 
 const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
-const TreeItemStatusFlags TSF_XXXXXXXXXXX                 = 0x00200000;
+const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
 

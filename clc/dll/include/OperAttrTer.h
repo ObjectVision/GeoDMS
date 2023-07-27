@@ -102,13 +102,13 @@ struct AbstrTernaryAttrOper : TernaryOperator
 				|	(arg3A->HasUndefinedValues() ? AF3_HASUNDEFINED : 0 );
 
 			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
-			dms_assert(res);
-			dms_assert(res->GetAbstrDomainUnit() == e);
+			assert(res);
+			assert(res->GetAbstrDomainUnit() == e);
 			auto tn = e->GetNrTiles();
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) + LTF_ElementWeight(arg3A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, arg2A, arg3A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res->GetlazyCalculatedState(), valuesUnitA, arg1A, arg2A, arg3A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -124,7 +124,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		}
 		return true;
 	}
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle,	const AbstrDataItem* arg1A,	const AbstrDataItem* arg2A,	const AbstrDataItem* arg3A,	ArgFlags af, tile_id t) const =0;
 
 private:
@@ -146,7 +146,7 @@ public:
 		: AbstrTernaryAttrOper(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass(), ucp, vc, needsUndefInfo)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto rangedArg = (af & AF1_ISPARAM) ? (af & AF2_ISPARAM) ? arg3A : arg2A : arg1A;
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -157,7 +157,7 @@ public:
 		auto arg3 = MakeShared(const_array_cast<Arg3ValueType>(arg3A)); assert(arg3);
 
 		using prepare_data = std::tuple<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>, SharedPtr<typename Arg3Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, arg3, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t), arg3->GetFutureTile(af & AF3_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

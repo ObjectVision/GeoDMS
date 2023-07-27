@@ -80,7 +80,7 @@ public:
 			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res)))
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res->GetlazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
 			}
 			else
 			{
@@ -103,7 +103,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileCaster(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -249,17 +249,17 @@ public:
 	{}
 
 	// Override Operator
-	auto CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
 		auto arg1 = MakeShared(const_array_cast<Arg1Values>(arg1A));
-		dms_assert(arg1);
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 	
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{

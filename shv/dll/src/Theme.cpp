@@ -88,8 +88,6 @@ Theme::Theme(AspectNr aNr, const AbstrDataItem* themeAttr, const AbstrDataItem* 
 	,	m_PaletteAttr(palette)
 	,	m_MaxValue(UNDEFINED_VALUE(Float64))
 {
-	if (themeAttr)
-		themeAttr->SetTSF(TSF_KeepData);
 	if (classBreaks)
 		classBreaks->SetTSF(TSF_KeepData);
 	if (palette)

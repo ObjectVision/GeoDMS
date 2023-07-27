@@ -853,7 +853,7 @@ public:
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -863,7 +863,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
@@ -909,7 +909,7 @@ public:
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -920,7 +920,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{

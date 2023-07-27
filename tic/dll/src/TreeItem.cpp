@@ -1171,6 +1171,19 @@ void TreeItem::SetKeepDataState(bool value)
 			const_cast<TreeItem*>(mc_RefItem.get())->SetKeepDataState(true);
 }
 
+void TreeItem::SetLazyCalculatedState(bool value)
+{
+	if (GetTSF(TSF_LazyCalculated) != value)
+	{
+		SetTSF(TSF_LazyCalculated, value);
+		for (TreeItem* subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+			subItem->SetLazyCalculatedState(value);
+	}
+	if (value)
+		if (mc_RefItem)
+			const_cast<TreeItem*>(mc_RefItem.get())->SetLazyCalculatedState(true);
+}
+
 void TreeItem::SetStoreDataState(bool value)
 { 
 	if (GetStoreDataState() != value)

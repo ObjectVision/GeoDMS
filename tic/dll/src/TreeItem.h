@@ -331,7 +331,11 @@ public:
 
 	TIC_CALL void SetKeepDataState(bool value);
 	         bool GetKeepDataState () const { return GetTSF(TSF_KeepData); }
-	         bool HasRepetitiveUsers() const { return GetTSF(TSF_KeepData|TSF_THA_Keep); }
+
+	TIC_CALL void SetLazyCalculatedState(bool value);
+	         bool GetlazyCalculatedState() const { return GetTSF(TSF_LazyCalculated); }
+
+			bool HasRepetitiveUsers() const { return GetTSF(TSF_KeepData|TSF_THA_Keep); }
 	TIC_CALL void SetStoreDataState(bool value);
 	         bool GetStoreDataState() const { return GetTSF(TSF_StoreData); }
 	TIC_CALL void SetFreeDataState(bool value);

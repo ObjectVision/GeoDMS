@@ -274,20 +274,6 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 					).release();
 				});
 			}
-			else
-			{
-				throwNYI(MG_POS, "AbstrDataItem::DoReadItem of random read-once tiles");
-				/* TODO, NYI
-								struct prepare_data {};
-				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>* valuesUnit) {
-					this->m_DataObject = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
-						, [](tile_id t) { return prepare_data{}; }
-						, std::move(tileGenerator)
-						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random read-once tiles")
-					).release();
-				});
-				*/
-			}
 		}
 		else
 		{
