@@ -399,7 +399,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
-
+	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	setStyleSheet(
 		"QTreeView::branch:has-siblings:!adjoins-item {\n"
 		"    border-image: url(:/res/images/TV_vline.png) 0;\n"

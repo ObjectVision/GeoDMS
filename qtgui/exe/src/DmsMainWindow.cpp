@@ -1178,11 +1178,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
-
             m_treeview->setModel(m_dms_model.get());
             m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
-
-            connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
             m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
         }
     }
