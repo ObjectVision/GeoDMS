@@ -1103,7 +1103,7 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
 
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
     {
-        if (!std::filesystem::exists(*it_rf) || it_rf->empty())
+        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0) && !std::filesystem::exists(*it_rf) || it_rf->empty())
             it_rf = recent_files_from_registry.erase(it_rf);
         else
             ++it_rf;
