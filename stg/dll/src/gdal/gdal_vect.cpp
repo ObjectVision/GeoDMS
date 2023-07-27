@@ -853,7 +853,7 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 		auto adi = br->CurrWD();
 		br->m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi); // only set once
 		if (br->m_CurrFieldIndex == -1)
-			throwErrorF("GdalVectSM::ReadAttrData", "No column index provided");
+			throwErrorF("GdalVectSM::ReadAttrData", "No column '%s' available in datasource", br->m_RelativeName);
 	}
 	dms_assert(br->m_CurrFieldIndex != -1); 
 
