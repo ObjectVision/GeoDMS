@@ -374,14 +374,14 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory
 
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 {
-    auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
+    MainWindow::TheOne()->m_eventlog_dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
 	dms_main_window->m_eventlog_model = std::make_unique<EventLogModel>();
-	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(dock);
+	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(MainWindow::TheOne()->m_eventlog_dock);
 	
-    dock->setWidget(dms_eventlog_pointer.get());
-    dock->setTitleBarWidget(new QWidget(dock));
+	MainWindow::TheOne()->m_eventlog_dock->setWidget(dms_eventlog_pointer.get());
+	MainWindow::TheOne()->m_eventlog_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_eventlog_dock));
 //    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, dock);
+    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);
 
     //viewMenu->addAction(dock->toggleViewAction());
 
