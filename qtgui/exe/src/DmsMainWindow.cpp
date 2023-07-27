@@ -170,9 +170,13 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
 
 void DmsErrorWindow::onAnchorClicked(const QUrl& link)
 {
-    auto clicked_error_link = link.toString().toStdString();
-    auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-    MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+
+    MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
+    //TODO: continue
+
+    //auto clicked_error_link = link.toString().toStdString();
+    //auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
+    //MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
 }
 
 DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
@@ -314,7 +318,7 @@ MainWindow* MainWindow::TheOne()
 bool MainWindow::openErrorOnFailedCurrentItem()
 {
     auto currItem = getCurrentTreeItem();
-    if (currItem->IsFailed())
+    if (currItem->WasFailed() || currItem->IsFailed())
     {
         auto fail_reason = currItem->GetFailReason();
         reportErrorAndTryReload(fail_reason);
@@ -970,25 +974,33 @@ void MainWindow::code_analysis_clr_targets()
 }
 
 
+
 bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
 {
-    std::string error_message_markdown = "";
-    auto error_message = std::string(error_message_ptr->GetAsText().c_str());
-    
+    VectorOutStreamBuff buffer;
+    auto streamType = OutStreamBase::ST_HTM;
+    auto msgOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
+
+    *msgOut << *error_message_ptr;
+    buffer.WriteByte(0);
+
+    /*std::string error_message_html = "";
+    //auto error_message = std::string(error_message_ptr->GetAsText().c_str());
+    auto html_encoded_error_buffer = std::string(buffer.GetData());
     std::size_t curr_pos = 0;
     while (true)
     {
-        auto link = getLinkFromErrorMessage(std::string_view(&error_message[curr_pos]));
+        auto link = getLinkFromErrorMessage(std::string_view(&html_encoded_error_buffer[curr_pos]));
         if (!link.is_valid)
             break;
         auto full_link = link.filename + "(" + link.line + "," + link.col + ")";
-        error_message_markdown += (error_message.substr(curr_pos, link.start) + "["+ full_link +"]("+ full_link +")");
+        error_message_html += (html_encoded_error_buffer.substr(curr_pos, link.start) + "["+ full_link +"]("+ full_link +")");
         curr_pos = curr_pos + link.stop + 1;
     }
-    error_message_markdown += error_message.substr(curr_pos);
-    auto final_error_message_markdown = std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n");
-
-    TheOne()->m_error_window->setErrorMessage(final_error_message_markdown.c_str());
+    error_message_html += html_encoded_error_buffer.substr(curr_pos);
+    //auto final_error_message_markdown = std::regex_replace(error_message_html, std::regex("\n"), "\n\n");
+    */
+    TheOne()->m_error_window->setErrorMessageHtml(buffer.GetData()); // final_error_message_markdown.c_str());
     auto dialogResult = TheOne()->m_error_window->exec();
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
