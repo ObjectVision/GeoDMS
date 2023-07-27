@@ -122,61 +122,9 @@ void DmsErrorWindow::reopen()
     // but let the execution caller call it, after modal message pumping ended
 }
 
-struct link_info
-{
-    bool is_valid = false;
-    size_t start = 0;
-    size_t stop = 0;
-    size_t endline = 0;
-    std::string filename = "";
-    std::string line = "";
-    std::string col = "";
-};
-
-auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info
-{
-    std::string html_error_message = "";
-    //auto error_message_text = std::string(error_message->Why().c_str());
-    std::size_t currPos = 0, currLineNumber = 0;
-    link_info lastFoundLink;
-    while (currPos < error_message.size())
-    {
-        auto currLineEnd = error_message.find_first_of('\n', currPos);
-        if (currLineEnd == std::string::npos)
-            currLineEnd = error_message.size();
-
-        auto lineView = std::string_view(&error_message[currPos], currLineEnd - currPos);
-        auto round_bracked_open_pos = lineView.find_first_of('(');
-        auto comma_pos = lineView.find_first_of(',');
-        auto round_bracked_close_pos = lineView.find_first_of(')');
-
-        if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
-        {
-            auto filename = lineView.substr(0, round_bracked_open_pos);
-            auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
-            auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
-
-            lastFoundLink = link_info(true, currPos, currPos + round_bracked_close_pos, currLineEnd, std::string(filename), std::string(line_number), std::string(col_number));
-        }
-        if (lineNumber <= currLineNumber && lastFoundLink.is_valid)
-            break;
-
-        currPos = currLineEnd + 1;
-        currLineNumber++;
-    }
-
-    return lastFoundLink;
-}
-
 void DmsErrorWindow::onAnchorClicked(const QUrl& link)
 {
-
     MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
-    //TODO: continue
-
-    //auto clicked_error_link = link.toString().toStdString();
-    //auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-    //MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
 }
 
 DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
@@ -984,23 +932,7 @@ bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
     *msgOut << *error_message_ptr;
     buffer.WriteByte(0);
 
-    /*std::string error_message_html = "";
-    //auto error_message = std::string(error_message_ptr->GetAsText().c_str());
-    auto html_encoded_error_buffer = std::string(buffer.GetData());
-    std::size_t curr_pos = 0;
-    while (true)
-    {
-        auto link = getLinkFromErrorMessage(std::string_view(&html_encoded_error_buffer[curr_pos]));
-        if (!link.is_valid)
-            break;
-        auto full_link = link.filename + "(" + link.line + "," + link.col + ")";
-        error_message_html += (html_encoded_error_buffer.substr(curr_pos, link.start) + "["+ full_link +"]("+ full_link +")");
-        curr_pos = curr_pos + link.stop + 1;
-    }
-    error_message_html += html_encoded_error_buffer.substr(curr_pos);
-    //auto final_error_message_markdown = std::regex_replace(error_message_html, std::regex("\n"), "\n\n");
-    */
-    TheOne()->m_error_window->setErrorMessageHtml(buffer.GetData()); // final_error_message_markdown.c_str());
+    TheOne()->m_error_window->setErrorMessageHtml(buffer.GetData());
     auto dialogResult = TheOne()->m_error_window->exec();
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;

@@ -278,16 +278,19 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 
 		if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
 		{
-			auto filename = lineView.substr(0, round_bracked_open_pos);
-			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
-			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
-		
-			auto ecsURL = mySSPrintF("editConfigSource:%s"
-				, CharPtrRange(data + currPos, data + round_bracked_close_pos + 1)
-			);
+//			auto filename = lineView.substr(0, round_bracked_open_pos);
+//			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+//			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
+
+			auto currEnd = currPos + round_bracked_close_pos + 1;
+			auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
+			auto ecsURL = mySSPrintF("editConfigSource:%s", ecfRef);
 
 			XML_hRef hRef(*this, ecsURL.AsRange());
-			currPos = round_bracked_close_pos + 1;
+			CloseAttrList();
+
+			OutStream_XmlBase_WriteEncoded(this, ecfRef.first, ecfRef.second);
+			currPos = currEnd;
 		}
 
 		OutStream_XmlBase_WriteEncoded(this, data+currPos, data + currLineEnd + 1);

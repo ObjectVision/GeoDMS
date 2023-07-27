@@ -132,7 +132,6 @@ class DmsErrorWindow : public QDialog
 
 public:
     DmsErrorWindow(QWidget* parent);
-    void setErrorMessageMarkdown(QString message) { m_message->setMarkdown(message); };
     void setErrorMessageHtml(QString message) { m_message->setHtml(message); };
 
 private slots:
