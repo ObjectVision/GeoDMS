@@ -35,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/PropDef.h"
 #include "mci/PropDefEnums.h"
 #include "xml/XmlConst.h"
+#include "utl/mySPrintF.h"
 #include "utl/Quotes.h"
 
 //----------------------------------------------------------------------
@@ -56,6 +57,11 @@ void OutStreamBase::ItemEnd()
 
 void OutStreamBase::EndSubItems()
 {}
+
+void OutStreamBase::WriteValueWithConfigSourceDecorations(CharPtr data)
+{
+	WriteValue(data);
+}
 
 void OutStreamBase::DumpPropList(const Object* self, const Class* cls)
 {
@@ -167,6 +173,27 @@ OutStream_XmlBase::~OutStream_XmlBase()
 }
 
 
+//=============== private pseudo members
+
+bool OutStream_XmlBase_IsSpecialChar(char ch)
+{
+	return (!ch) || CharGetSymbol(ch) || (ch == '\n');
+}
+
+inline void OutStream_XmlBase_WriteChar(OutStream_XmlBase* self, char ch)
+{
+	CharPtr symb = CharGetSymbol(ch);
+	if (symb)
+		self->FormattingStream() << '&' << symb << ';';
+	else if (ch == '\n')
+	{
+		self->FormattingStream() << "<BR/>";
+		self->NewLine();
+	}
+	else
+		self->FormattingStream() << ch;
+}
+
 //=============== public members
 
 void OutStream_XmlBase::WriteName(XML_OutElement& elem, CharPtr itemName)
@@ -193,19 +220,80 @@ void OutStream_XmlBase::DumpSubTagDelim()
 }
 
 
-void OutStream_XmlBase::WriteValue(CharPtr data)
+void OutStream_XmlBase_WriteEncoded(OutStream_XmlBase* self, CharPtr data)
 {
-	CloseAttrList();
+	auto& buffer = self->FormattingStream().Buffer();
 	while (true)
 	{
 		SizeT i = 0;
-		while (!IsSpecialChar(data[i]))
+		while (!OutStream_XmlBase_IsSpecialChar(data[i]))
 			++i;
-		m_OutStream.Buffer().WriteBytes(data, i);
+		buffer.WriteBytes(data, i);
 		data += i;
 		if (!*data)
 			return;
-		WriteChar(*data++);
+		OutStream_XmlBase_WriteChar(self, *data++);
+	}
+}
+
+void OutStream_XmlBase_WriteEncoded(OutStream_XmlBase* self, CharPtr data, CharPtr dataEnd)
+{
+	auto& buffer = self->FormattingStream().Buffer();
+	while (true)
+	{
+		SizeT i = 0;
+		while ((data+i) != dataEnd && !OutStream_XmlBase_IsSpecialChar(data[i]))
+			++i;
+		buffer.WriteBytes(data, i);
+		data += i;
+		if (data == dataEnd || !*data)
+			return;
+		OutStream_XmlBase_WriteChar(self, *data++);
+	}
+}
+
+
+void OutStream_XmlBase::WriteValue(CharPtr data)
+{
+	CloseAttrList();
+	OutStream_XmlBase_WriteEncoded(this, data);
+}
+
+
+void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
+{
+	CloseAttrList();
+
+	std::size_t dataSize = StrLen(data);
+	std::size_t currPos = 0, currLineNumber = 0;
+
+	while (currPos < dataSize)
+	{
+		auto currLineEnd = std::find(data+currPos, data+dataSize, '\n')-data;
+
+		auto lineView = std::string_view(data + currPos, data+currLineEnd);
+		auto round_bracked_open_pos = lineView.find_first_of('(');
+		auto comma_pos = lineView.find_first_of(',');
+		auto round_bracked_close_pos = lineView.find_first_of(')');
+
+		if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
+		{
+			auto filename = lineView.substr(0, round_bracked_open_pos);
+			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
+		
+			auto ecsURL = mySSPrintF("editConfigSource:%s"
+				, CharPtrRange(data + currPos, data + round_bracked_close_pos + 1)
+			);
+
+			XML_hRef hRef(*this, ecsURL.AsRange());
+			currPos = round_bracked_close_pos + 1;
+		}
+
+		OutStream_XmlBase_WriteEncoded(this, data+currPos, data + currLineEnd + 1);
+		currPos = currLineEnd + 1;
+
+		currLineNumber++;
 	}
 }
 
@@ -215,7 +303,7 @@ void OutStream_XmlBase::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIn
 	while (true)
 	{
 		SizeT i = 0; 
-		while (maxSize && !IsSpecialChar(data[i]))
+		while (maxSize && !OutStream_XmlBase_IsSpecialChar(data[i]))
 			++i, --maxSize;
 		m_OutStream.Buffer().WriteBytes(data, i);
 		data += i;
@@ -226,7 +314,7 @@ void OutStream_XmlBase::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIn
 			(*this) << moreIndicationStr;
 			break;
 		}
-		WriteChar(*data++);
+		OutStream_XmlBase_WriteChar(this, *data++);
 	}
 }
 
@@ -239,7 +327,7 @@ void OutStream_XmlBase::WriteAttr(CharPtr name, CharPtr value)
 
 	m_OutStream << " " << name << "=\"";
 	while (*value != 0)
-		WriteChar(*value++);
+		OutStream_XmlBase_WriteChar(this, *value++);
 	m_OutStream << "\"";
 }
 
@@ -301,25 +389,6 @@ void OutStream_XmlBase::CloseAttrList()
 	m_OutStream << ">";
 
 	m_CurrElem = 0;
-}
-
-inline bool OutStream_XmlBase::IsSpecialChar(char ch) 
-{
-	return (!ch) || CharGetSymbol(ch) || (ch == '\n');
-}
-
-inline void OutStream_XmlBase::WriteChar(char ch) 
-{
-	CharPtr symb = CharGetSymbol(ch);
-	if (symb) 
-		m_OutStream << '&' << symb << ';';
-	else if (ch == '\n')
-	{
-		m_OutStream << "<BR/>";
-		NewLine();
-	}
-	else
-		m_OutStream << ch;
 }
 
 //----------------------------------------------------------------------
@@ -864,6 +933,13 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtr url)
 :	XML_OutElement(xmlStream, "A")
 {
 	xmlStream.WriteAttr("href", url);
+}
+
+XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtrRange url)
+	: XML_OutElement(xmlStream, "A")
+{
+	SharedStr urlStr(url); // TODO: make progres with CharPtrRange as primary string-in type.
+	xmlStream.WriteAttr("href", urlStr.c_str());
 }
 
 //----------------------------------------------------------------------

@@ -154,7 +154,7 @@ SharedStr ErrMsg::GetAsText() const
 
 OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 {
-	osb.WriteValue(obj.m_Why.c_str());
+	osb.WriteValueWithConfigSourceDecorations(obj.m_Why.c_str());
 	osb.WriteValue("\n");
 	if (!obj.m_FullName.empty())
 	{
@@ -164,7 +164,7 @@ OutStreamBase& operator << (OutStreamBase& osb, const ErrMsg& obj)
 	if (!obj.m_Context.empty())
 	{
 		osb.WriteValue("\n\n");
-		osb.WriteValue(obj.m_Context.c_str());
+		osb.WriteValueWithConfigSourceDecorations(obj.m_Context.c_str());
 	}
 	return osb;
 }

@@ -79,6 +79,7 @@ struct OutStreamBase {
 	OutStreamBase& operator << (CharPtr data) { WriteValue(data); return *this; }
 
 	virtual void WriteValue (CharPtr data) = 0;
+	RTC_CALL virtual void WriteValueWithConfigSourceDecorations(CharPtr data);
 	virtual void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) = 0;
 	void WriteTrimmed(CharPtr data) { WriteValueN(data, MAX_TEXTOUT_SIZE - 3, "..."); }
 	void WriteRange(CharPtr first, CharPtr last) { WriteValueN(first, last - first, ""); }
@@ -104,7 +105,6 @@ struct OutStreamBase {
 	auto&           FormattingStream() { return m_OutStream; }
 	FormattingFlags GetFormattingFlags() const { return m_OutStream.GetFormattingFlags();  }
 
-protected:
 	void NewLine();
 
 private:
@@ -152,6 +152,7 @@ public:
 
 	RTC_CALL void WriteValue (CharPtr data) override;
 	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
+	RTC_CALL void WriteValueWithConfigSourceDecorations(CharPtr data) override;
 
 	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
 	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
@@ -165,9 +166,6 @@ private:
 
 	RTC_CALL void AttrDelim    () override;
 	RTC_CALL void CloseAttrList() override;
-
-	bool IsSpecialChar(char);
-	void WriteChar(char);
 
 private:
 	XML_OutElement* m_RootElem;
@@ -301,6 +299,7 @@ struct XML_OutElement
 struct XML_hRef : XML_OutElement
 {
 	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtr url);
+	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtrRange url);
 };
 
 struct XML_DataBracket
