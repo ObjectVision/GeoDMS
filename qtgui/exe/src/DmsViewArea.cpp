@@ -5,6 +5,7 @@
 
 #include <QMdiArea>
 #include <QMimeData>
+#include <QTimer>
 
 #include <windows.h>
 #include <ShellScalingApi.h>
@@ -185,13 +186,13 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
 void QDmsViewArea::CreateDmsView(QMdiArea* parent)
 {
     setAttribute(Qt::WA_DeleteOnClose);
-//    setAttribute(Qt::WA_Mapped);
-//    setAttribute(Qt::WA_PaintOnScreen);
-//    setAttribute(Qt::WA_NoSystemBackground);
-//    setAttribute(Qt::WA_OpaquePaintEvent);
+    //    setAttribute(Qt::WA_Mapped);
+    //    setAttribute(Qt::WA_PaintOnScreen);
+    //    setAttribute(Qt::WA_NoSystemBackground);
+    //    setAttribute(Qt::WA_OpaquePaintEvent);
 
     HWND hWndMain = (HWND)MainWindow::TheOne()->winId();
-    
+
     HINSTANCE instance = GetInstance(hWndMain);
     auto parent_hwnd = (HWND)winId();
     auto rect = contentsRectInPixelUnits();
@@ -228,6 +229,8 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
     show();
 
     RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, WM_APP + 2, &m_cookie);
+
+    QTimer::singleShot(0, this, [dv_hWnd] { SetFocus(dv_hWnd); });
 }
 
 QDmsViewArea::~QDmsViewArea()

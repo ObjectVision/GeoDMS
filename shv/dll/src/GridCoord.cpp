@@ -28,7 +28,7 @@ const UInt32  MIN_GRIDLINE_SIZE = 25;
 // class  : GridCoord
 //----------------------------------------------------------------------
 
-GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key, GPoint clientSize, const CrdTransformation& w2vTr)
+GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key) //, GPoint clientSize, const CrdTransformation& w2vTr)
 	:	m_Owner(owner->shared_from_base<ViewPort>())
 		,	m_Key(key)
 		,	m_SubPixelFactors(-1.0, -1.0)
@@ -36,7 +36,7 @@ GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key, GPoint clientSi
 #if defined(MG_DEBUG_COORD)
 	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::GridCoord(%s)", AsString(key).c_str());
 #endif
-	Init(clientSize, w2vTr);
+//	Init(clientSize, w2vTr);
 }
 
 GridCoord::~GridCoord()

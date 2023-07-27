@@ -219,10 +219,11 @@ void ViewPort::DoUpdateView()
 
 	InvalidateDraw();
 	UpdateScaleBar();
+
 	auto sf = GetScaleFactors();
 	auto deviceSize = TPoint2GPoint(GetCurrClientSize(), sf);
 	auto w2dTr = m_w2vTr;
-	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), CrdPoint(1.0 / sf.first, 1.0 / sf.second));
+	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), sf);
 
 	for (auto& gc: m_GridCoordMap)
 		gc.second.lock()->Init(deviceSize, w2dTr);
@@ -632,46 +633,47 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	}
 	if (eventID & (EID_LBUTTONDOWN | EID_LBUTTONUP | EID_LBUTTONDBLCLK) )
 	{
-		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
-		Transformation tr = (CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos()));
+		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos(), m_ScrollSlack);
+		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
+		w2dTr *= CrdTransformation(med.m_ScrollSlack, med.GetSubPixelFactors());
 
-		InfoController::SelectFocusElem(GetLayerSet(), tr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
+		InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
 		if (eventID & EID_LBUTTONDOWN) switch (medOwner->m_ControllerID)
 		{
 			case TB_ZoomIn2:
 			{
 				medOwner->InsertController(
-					new ZoomInController(medOwner.get(), this, tr,  eventInfo.m_Point)
+					new ZoomInController(medOwner.get(), this, w2dTr,  eventInfo.m_Point)
 				);
 				return true;
 			}
 			case TB_ZoomOut2:
 				medOwner->InsertController(
-					new ZoomOutController(medOwner.get(), this, tr)
+					new ZoomOutController(medOwner.get(), this, w2dTr)
 				);
 				return true;
 
 			case TB_SelectObject:
 				medOwner->InsertController(
-					new SelectObjectController(medOwner.get(), this, tr)
+					new SelectObjectController(medOwner.get(), this, w2dTr)
 				);
 				return true;
 			case TB_SelectRect:
 				medOwner->InsertController(
-					new SelectRectController(medOwner.get(), this, tr,  eventInfo.m_Point)
+					new SelectRectController(medOwner.get(), this, w2dTr,  eventInfo.m_Point)
 				);
 				return true;
 
 			case TB_SelectCircle:
 				medOwner->InsertController(
-					new SelectCircleController(medOwner.get(), this, tr, eventInfo.m_Point)
+					new SelectCircleController(medOwner.get(), this, w2dTr, eventInfo.m_Point)
 				);
 				return true;
 
 			case TB_SelectPolygon:
 				medOwner->InsertController(
-					new DrawPolygonController(medOwner.get(), this, tr, eventInfo.m_Point)
+					new DrawPolygonController(medOwner.get(), this, w2dTr, eventInfo.m_Point)
 				);
 				return true;
 
@@ -1176,7 +1178,7 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	DBG_TRACE(("NewRect : %s", AsString(r).c_str() ));
 
-	if (r.inverted() || m_ROI == r)
+	if (r.inverted() || m_ROI == r || !IsDefined(r.first) || !IsDefined(r.second))
 		return;
     
 	InitWorldCrdUnit(0);
@@ -1298,11 +1300,16 @@ GridCoordPtr ViewPort::GetOrCreateGridCoord(const grid_coord_key& key)
 	if (pos != m_GridCoordMap.end() && pos->first == key)
 		return pos->second.lock();
 
-	auto w2dTr = m_w2vTr;
-	auto sf = GetScaleFactors();
-	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), sf);
-	auto result = std::make_shared<GridCoord>(this, key, TPoint2GPoint(GetCurrClientSize(), GetScaleFactors()), w2dTr);
+	auto result = std::make_shared<GridCoord>(this, key);
 	m_GridCoordMap.insert(pos, grid_coord_map::value_type(key, result) );
+
+	auto sf = GetScaleFactors();
+	auto deviceSize = TPoint2GPoint(GetCurrClientSize(), sf);
+	auto w2dTr = m_w2vTr;
+	w2dTr *= CrdTransformation(CrdPoint(0.0, 0.0), sf);
+
+	result->Init(deviceSize, w2dTr);
+
 	return result;
 }
 

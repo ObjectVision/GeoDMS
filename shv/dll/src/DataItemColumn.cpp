@@ -466,7 +466,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	GRect  absFullDeviceRect = GetClippedCurrFullAbsDeviceRect(d); 
 
 	TType clientLogicalAbsPosRow = d.GetClientLogicalAbsPos().Y();
-	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second;
+	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second + d.m_ScrollSlack.second;
 	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
 	SizeT recNo = (pageClipRectRow > clientDeviceAbsPosRow)
 		?	(pageClipRectRow - clientDeviceAbsPosRow) / deviceRowHeight
@@ -484,8 +484,8 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));
 	}
 //	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
-	GType currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
-	GType clipEndRow = d.GetAbsClipDeviceRect().Bottom();
+	auto currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
+	auto clipEndRow = d.GetAbsClipDeviceRect().Bottom();
 
 	// draw horizontal borders
 	while ( recNo < nrRows)

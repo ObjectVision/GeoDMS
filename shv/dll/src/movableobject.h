@@ -75,9 +75,9 @@ public:
 	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + GetBorderLogicalExtents(); }
 
 	TPoint GetCurrClientAbsLogicalPos () const;
-	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors()); }
+	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack()).first; }
 	TRect  GetCurrClientAbsLogicalRect() const { TPoint pos = GetCurrClientAbsLogicalPos(); return TRect(pos, pos + m_ClientLogicalSize); }
-	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors()); }
+	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
 
 	TPoint GetCurrClientAbsLogicalPos(const GraphVisitor& v) const;
 	GPoint GetCurrClientAbsDevicePos(const GraphVisitor& v) const;
@@ -90,8 +90,9 @@ public:
 	TRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelLogicalRect() + GetBorderLogicalExtents(); }
 	TRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsLogicalRect() + GetBorderLogicalExtents(); }
 
-	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors()); }
-	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors()); }
+	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
+	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
+	CrdPoint GetCumulativeScrollSlack() const;
 
 	GRect GetParentClipAbsRect() const;
 
@@ -120,7 +121,6 @@ public:
 	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
 
 //	override GraphicObject
-//REMOVE	TRect CalcFullAbsLogicalRect(const GraphVisitor& v) const override;
 	void SetIsVisible(bool value) override;
 	void SetDisconnected() override;
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -139,6 +139,9 @@ protected:
 private:
 	bool UpdateCursor() const;
 
+public:
+	CrdPoint m_ScrollSlack = { 0.0, 0.0 };
+private:
 	TPoint m_RelPos            = Point<TType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
 	TPoint m_ClientLogicalSize = Point<TType>(0, 0); // should be determined by DoUpdateView
 	HCURSOR m_Cursor;

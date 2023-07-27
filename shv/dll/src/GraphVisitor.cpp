@@ -199,7 +199,7 @@ GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 
 	ResumableCounter counter( GetCounterStacks(), false); if (counter.MustBreakOrSuspend()) return GVS_Break;
 	{
-		AddClientLogicalOffset localBase(this, gc->GetCurrClientRelPos());
+		AddClientLogicalOffset localBase(this, gc->GetCurrClientRelPos(), gc->m_ScrollSlack);
 
 		while (counter < n)
 		{
@@ -277,7 +277,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 
 	{
 		auto sf = GetSubPixelFactors();
-		AddClientLogicalOffset localBase(this, dic->GetCurrClientRelPos());
+		AddClientLogicalOffset localBase(this, dic->GetCurrClientRelPos(), dic->m_ScrollSlack);
 		TPoint elemSize = Convert<TPoint>(dic->ElemSize());
 		if (dic->HasElemBorder())
 		{
@@ -287,7 +287,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 
 		TType rowLogicalDelta = (elemSize.Y() + dic->RowSepHeight());
 		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
-		CrdType clientDeviceRow = m_ClientLogicalAbsPos.Y() * sf.second;
+		CrdType clientDeviceRow = m_ClientLogicalAbsPos.Y() * sf.second + m_ScrollSlack.second;
 
 		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
 			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
@@ -299,25 +299,29 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		TType
 			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
 			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalAbsPos.Y(); // in device pixel units
-
-		while ( recNo < n && currRow < clipEndRow)
+		if (currRow < clipEndRow)
 		{
-			dms_assert(!SuspendTrigger::DidSuspend());
-			AddClientLogicalOffset localRowBase(this, shp2dms_order<TType>(0, currRow));
+			auto clientLogicalAbsPos = m_ClientLogicalAbsPos;
+			auto clientLogicalEnd = clientLogicalAbsPos.Y() + clipEndRow;
+			clientLogicalAbsPos.Y() += currRow;
+			MakeMin(n, recNo + (clipEndRow - currRow)/ rowLogicalDelta + 1);
+			while (recNo < n)
+			{
+				assert(!SuspendTrigger::DidSuspend());
+				auto  absElemDeviceRect = TRect2GRect(TRect(clientLogicalAbsPos, clientLogicalAbsPos + elemSize), sf, m_ScrollSlack);
+				VisitorDeviceRectSelector clipper(this, absElemDeviceRect);
 
-			auto  absElemDeviceRect = TRect2GRect(TRect(m_ClientLogicalAbsPos, m_ClientLogicalAbsPos + elemSize), sf);
-			VisitorDeviceRectSelector clipper(this, absElemDeviceRect );
+				assert(!SuspendTrigger::DidSuspend());
+				if (!clipper.empty())
+					DoElement(dic, recNo, absElemDeviceRect);
+				if (SuspendTrigger::DidSuspend())
+					return GraphVisitState::GVS_Break;
 
-			assert(!SuspendTrigger::DidSuspend());
-			if (!clipper.empty())
-				DoElement(dic, recNo, absElemDeviceRect);
-			if (SuspendTrigger::DidSuspend())
-				return GraphVisitState::GVS_Break;
+				++recNo;
+				++counter;
 
-			++recNo;
-			++counter; 
-
-			currRow += rowLogicalDelta;
+				clientLogicalAbsPos.Y() += rowLogicalDelta;
+			}
 		}
 		counter.Close();
 	}
@@ -334,7 +338,7 @@ GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientLogicalOffset viewportOffset(this, vp->GetCurrClientRelPos());
+		AddClientLogicalOffset viewportOffset(this, vp->GetCurrClientRelPos(), vp->m_ScrollSlack);
 		assert(!HasCounterStacks() || vp->IsUpdated());
 		AddTransformation transformHolder(
 			this
@@ -361,7 +365,7 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientLogicalOffset localOffset(this, sp->GetCurrClientRelPos());
+		AddClientLogicalOffset localOffset(this, sp->GetCurrClientRelPos(), sp->m_ScrollSlack);
 
 		if (Visit(sp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
 			return GVS_Handled;

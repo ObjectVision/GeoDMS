@@ -867,14 +867,13 @@ void GridLayer::CopySelValuesToBitmap()
 	if (featureTheme)
 		readLocks.push_back(featureTheme, DrlType::Certain);
 
+
+	GridCoord mapping(nullptr, GetGridCoordKey(GetGeoCrdUnit()));
+
 	auto selectIRect = CalcSelectedGeoRect();
 	GRect selectGRect = GRect(_Left(selectIRect), _Top(selectIRect), _Right(selectIRect), _Bottom(selectIRect));
 
-	GridCoord mapping(nullptr,
-		GetGridCoordKey(GetGeoCrdUnit()), 
-		selectGRect.Size(), 
-		CrdTransformation(-Convert<CrdPoint>(selectIRect.first), GetScaleFactors() )
-	);
+	mapping.Init(selectGRect.Size(), CrdTransformation(-Convert<CrdPoint>(selectIRect.first), CrdPoint(1.0, 1.0)));
 	mapping.UpdateUnscaled();
 
 	GridColorPalette colorPalette(colorTheme);

@@ -399,6 +399,36 @@ inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinV
 inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X()) * sf.first, TType2GType(src.Y()) * sf.second); }
 inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
+inline std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack) 
+{ 
+	assert(slack >= 0.0);
+	auto target = src * scale + slack;
+	auto roundedTarget = TType2GType(target);
+	while (CrdType(roundedTarget) > target)
+	{
+		assert(target < 0.0);
+		assert(slack < 0.0);
+		roundedTarget--;
+		slack += 1.0;
+		MG_CHECK(roundedTarget > MIN_VALUE(GType));
+	}
+	assert(roundedTarget <= target);
+	assert(slack >= 0.0);
+	return { roundedTarget, target - roundedTarget };
+}
+
+inline std::pair<GPoint, CrdPoint>  TPoint2GPoint(TPoint src, CrdPoint sf, CrdPoint slack)
+{
+	auto xs = TType2GType(src.X(), sf.first, slack.first);
+	auto ys = TType2GType(src.Y(), sf.second, slack.second);
+	return { {xs.first, ys.first},  {xs.second, ys.second} };
+}
+
+inline GRect TRect2GRect(TRect src, CrdPoint sf, CrdPoint slack)
+{
+	return GRect(TPoint2GPoint(src.first, sf, slack).first, TPoint2GPoint(src.second, sf, slack).first);
+}
+
 template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X() * sf.first, src.Y() * sf.second); }
 template <typename T> inline TPoint Point2TPoint(Point<T> src) { return Point<TType>(src.first, src.second); }
 template <typename P> inline GRect  Rect2GRect  (Range<P> src, CrdPoint sf) { return GRect(Point2GPoint(src.first, sf), Point2GPoint(src.second, sf)); }
@@ -424,20 +454,8 @@ inline TRect DRect2TRect(const DRect& src)
 	return Rect2TRect(tmp);
 }
 
-inline GPoint TPoint2GPoint(TPoint p, const CrdTransformation& self) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint( dp.X(), dp.Y()); }
+inline GPoint TPoint2GPoint(TPoint p, const CrdTransformation& self) { auto dp = DPoint(p) * self.Factor() + self.Offset(); return GPoint(dp.X(), dp.Y()); }
 inline GRect TRect2GRect(const TRect& r, const CrdTransformation& self) { return GRect(TPoint2GPoint(r.first, self), TPoint2GPoint(r.second, self)); }
-
-/* REMOVE
-template <typename T, typename ExceptFunc, typename ConvertFunc>
-GPoint Convert4(const Point<T>& pnt, const GPoint*, const ExceptFunc* ef, const ConvertFunc*)
-{
-	using scalar_result_type = typename ConvertFunc::template rebind<TType>::type;
-	return GPoint(
-		Convert4<GType>(pnt.X(), TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4<GType>(pnt.Y(), TYPEID(T), ef, TYPEID(scalar_result_type))
-	);
-}
-*/
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 TPoint Convert4(const Point<T>& pnt, const TPoint*, const ExceptFunc* ef, const ConvertFunc*)

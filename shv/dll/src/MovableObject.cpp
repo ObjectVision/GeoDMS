@@ -162,9 +162,10 @@ void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
 		{
 //			GRect  oldAbsFullRect = TRect2GRect(GetCurrFullAbsRect());
 			TPoint logDelta = newClientRelPos - m_RelPos;
-			GPoint devDelta = TPoint2GPoint(logDelta, GetScaleFactors());
-			GRect  clipRect = GetParentClipAbsRect();
-			GRect  scrollRect = clipRect;
+			auto [devDelta, newScrollSlack] = TPoint2GPoint(logDelta, GetScaleFactors(), m_ScrollSlack);
+			m_ScrollSlack = newScrollSlack;
+			GRect clipRect = GetParentClipAbsRect();
+			GRect scrollRect = clipRect;
 			scrollRect &= GetCurrFullAbsDeviceRect();
 			if (!scrollRect.empty())
 			{
@@ -191,6 +192,16 @@ GRect MovableObject::GetDrawnClientAbsDeviceRect() const
 	assert(IsDrawn());
 	return m_DrawnFullAbsRect & GetCurrClientAbsDeviceRect();
 }
+
+CrdPoint MovableObject::GetCumulativeScrollSlack() const
+{
+	auto owner = GetOwner().lock();
+	auto result = m_ScrollSlack;
+	if (owner)
+		result = owner->GetCumulativeScrollSlack() + result;
+	return result;
+}
+
 
 GRect MovableObject::GetDrawnNettAbsDeviceRect() const
 {
@@ -292,7 +303,7 @@ TPoint MovableObject::GetCurrClientAbsLogicalPos(const GraphVisitor& v) const
 
 GPoint MovableObject::GetCurrClientAbsDevicePos(const GraphVisitor& v) const
 { 
-	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors()); 
+	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack).first;
 }
 
 TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const 
@@ -302,16 +313,8 @@ TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const
 
 GRect  MovableObject::GetCurrClientAbsDeviceRect(const GraphVisitor& v) const 
 {
-	return TRect2GRect(GetCurrClientAbsLogicalRect(v), v.GetSubPixelFactors());
+	return TRect2GRect(GetCurrClientAbsLogicalRect(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack);
 }
-
-/*
-//REMOVE
-TRect MovableObject::CalcFullAbsLogicalRect(const GraphVisitor& v) const
-{
-	return CalcFullRelRect() + v.GetClientLogicalAbsPos();
-}
-*/
 
 TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
 {
@@ -320,7 +323,7 @@ TRect MovableObject::GetCurrNettAbsLogicalRect(const GraphVisitor& v) const
 
 GRect MovableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const 
 { 
-	return TRect2GRect(GetCurrFullAbsLogicalRect(v), v.GetSubPixelFactors()); 
+	return TRect2GRect(GetCurrFullAbsLogicalRect(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack);
 }
 
 TRect MovableObject::GetCurrNettAbsLogicalRect() const
@@ -360,7 +363,7 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	SuspendTrigger::FencedBlocker xxx;
 	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
 
-	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
+	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos, -m_ScrollSlack);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
 	dms_assert(!suspended); 
 	if (extraObj)

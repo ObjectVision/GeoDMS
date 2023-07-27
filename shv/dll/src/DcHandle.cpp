@@ -179,11 +179,25 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 // AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-
-
-AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, TPoint c2p)
-	:	tmp_swapper<TPoint>(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
+void AdjustSlack(TType& clientCrd, CrdType& slack, CrdType factor)
 {
+	assert(factor > 0);
+	assert(slack > 0);
+	while (slack > factor)
+	{
+		TType div = slack / factor;
+		clientCrd += div;
+		slack += div * factor;
+		assert(slack >= 0);
+	}
+}
+
+AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, TPoint c2p, CrdPoint srollSlack)
+	: clientSwapper(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
+	, slackSwapper (v->m_ScrollSlack, v->m_ScrollSlack + srollSlack)
+{
+	AdjustSlack(clientSwapper.GetRef().X(), slackSwapper.GetRef().X(), v->m_SubPixelFactors.first);
+	AdjustSlack(clientSwapper.GetRef().Y(), slackSwapper.GetRef().Y(), v->m_SubPixelFactors.second);
 }
 
 //----------------------------------------------------------------------

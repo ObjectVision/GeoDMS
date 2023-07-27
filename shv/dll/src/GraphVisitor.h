@@ -126,6 +126,8 @@ protected:
 	TPoint            m_ClientLogicalAbsPos; 
 	GRect             m_ClipDeviceRect;
 	CrdPoint          m_SubPixelFactors;
+public:
+	CrdPoint          m_ScrollSlack = { 0.0, 0.0 };
 
 	friend struct AddTransformation;
 	friend struct AddClientLogicalOffset;
