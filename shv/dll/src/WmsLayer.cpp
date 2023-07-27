@@ -265,15 +265,15 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
+		MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-			MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
+			MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		MG_DEBUGCODE(reportD(SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
+		MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
