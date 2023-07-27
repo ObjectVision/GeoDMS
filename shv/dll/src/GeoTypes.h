@@ -467,25 +467,6 @@ inline TPoint UndefinedValue(const TPoint*)   { return Point<TType>(-1, -1); }
 inline bool   IsDefined     (const GPoint& p) { return p.x != -1 || p.y != -1; }
 inline bool   IsDefined     (const TPoint& p) { return p.first != -1 || p.second != -1; }
 
-/* REMOVE
-template <typename T, typename ExceptFunc, typename ConvertFunc>
-Point<T> Convert4(const GPoint& pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
-{
-	using scalar_result_type = typename ConvertFunc::template rebind<T>::type;
-#if defined(DMS_POINT_ROWCOL)
-	return Point<T>(
-		Convert4(pnt.y, TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4(pnt.x, TYPEID(T), ef, TYPEID(scalar_result_type))
-	);
-#else
-	return Point<T>(
-		Convert4(pnt.x, TYPEID(T), ef, TYPEID(scalar_result_type))
-	,	Convert4(pnt.y, TYPEID(T), ef, TYPEID(scalar_result_type))
-	);
-#endif
-}
-*/
-
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Point<T> Convert4(TPoint pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
 {
@@ -495,18 +476,6 @@ Point<T> Convert4(TPoint pnt, const Point<T>*, const ExceptFunc* ef, const Conve
 	,	Convert4(pnt.second, TYPEID(T), ef, TYPEID(scalar_result_type))
 	);
 }
-
-/* REMOVE
-template <typename T, typename ExceptFunc, typename ConvertFunc>
-Range<T> Convert4(const GRect& rect, const Range<T>*, const ExceptFunc* ef, const ConvertFunc* cf)
-{
-	using point_result_type = typename ConvertFunc::template rebind<T>::type;
-	return Range<T>(
-		Convert4(rect.TopLeft()    , TYPEID(T), ef, TYPEID(point_result_type)),
-		Convert4(rect.BottomRight(), TYPEID(T), ef, TYPEID(point_result_type))
-	);
-}
-*/
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Range<T> Convert4(const TRect& rect, const Range<T>*, const ExceptFunc* ef, const ConvertFunc* cf)
