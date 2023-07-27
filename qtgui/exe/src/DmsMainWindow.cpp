@@ -1119,29 +1119,14 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     try
     {
         CloseConfig();
-/*
-        auto fileNameCharPtr = configFilePath + StrLen(configFilePath);
-        while (fileNameCharPtr != configFilePath)
-        {
-            char delimCandidate = *--fileNameCharPtr;
-            if (delimCandidate == '\\' || delimCandidate == '/')
-            {
-                auto dirName = SharedStr(configFilePath, fileNameCharPtr);
-                SetCurrentDir(ConvertDmsFileNameAlways(std::move(dirName)).c_str());
-                ++fileNameCharPtr;
-                
-                //auto current_dir = GetCurrentDir() + "/stam";
 
-                //auto config_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%configDir%"); 
-                //auto proj_dir = AbstrStorageManager::GetFullStorageName(current_dir.c_str(), "%projDir%" );
-                
-                break;
-            }
-        }
-        m_currConfigFileName = fileNameCharPtr;
-        */
-
-        m_currConfigFileName = configFilePath;
+        auto orgConfigFilePath = SharedStr(configFilePath);
+        m_currConfigFileName = ConvertDosFileName(orgConfigFilePath); // replace back-slashes to linux/dms style separators and prefix //SYSTEM/path with 'file:'
+        
+        auto fileName = getFileName(m_currConfigFileName.c_str());
+        auto folderName = splitFullPath(m_currConfigFileName.c_str());
+        if (strncmp(folderName.c_str(), "file://",7) == 0)
+            SetCurrentDir(ConvertDmsFileNameAlways(std::move(folderName)).c_str());
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
 
@@ -1819,27 +1804,41 @@ void MainWindow::updateWindowMenu()
     m_window_menu->addActions(m_CurrWindowActions);
 }
 
+bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName)
+{
+    if (fileName.size() < 4)
+        return false;
+    if (fileName.size() != rootName.size() + 4)
+        return false;
+    if (strnicmp(fileName.begin(), rootName.begin(), rootName.size()))
+        return false;
+    if (strnicmp(fileName.begin() + rootName.size(), ".dms", 4))
+        return false;
+    return true;
+}
+
 void MainWindow::updateCaption()
 {
     VectorOutStreamBuff buff;
     FormattedOutStream out(&buff, FormattingFlags());
     if (!m_currConfigFileName.empty())
     {
-        out << m_currConfigFileName;
+        auto fileName = getFileName(m_currConfigFileName.c_str());
+        out << fileName;
         if (m_root)
         {
-            auto name = m_root->GetName();
-            CharPtr nameCStr = name.c_str();
-            if (*nameCStr)
+            auto rootName = m_root->GetName();
+            CharPtr rootNameCStr = rootName.c_str();
+            if (rootNameCStr && *rootNameCStr)
             {
-                auto configNameLen = m_currConfigFileName.ssize(); // assume ending on ".dms"
-                if ((configNameLen <= 4) || (StrLen(nameCStr) > configNameLen  - 4) || (strnicmp(nameCStr, m_currConfigFileName.c_str(), configNameLen - 4)))
-                    out << "(" << nameCStr << ")";
+                if (!is_filenameBase_eq_rootname(fileName, rootNameCStr))
+                    out << " (aka " << rootNameCStr << ")";
             }
         }
         out << " in ";
+        auto folderName = splitFullPath(m_currConfigFileName.c_str());
+        out << folderName;
     }
-    out << GetCurrentDir();
 
     if (!(GetRegStatusFlags() & RSF_AdminMode)) out << "[Hiding]";
     if (!(GetRegStatusFlags() & RSF_ShowStateColors)) out << "[HSC]";
