@@ -1147,7 +1147,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     try
     {
         CloseConfig();
-
+/*
         auto fileNameCharPtr = configFilePath + StrLen(configFilePath);
         while (fileNameCharPtr != configFilePath)
         {
@@ -1167,6 +1167,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             }
         }
         m_currConfigFileName = fileNameCharPtr;
+        */
+
+        m_currConfigFileName = configFilePath;
+
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
 
         m_root = newRoot;
