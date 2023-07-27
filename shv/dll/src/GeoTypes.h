@@ -399,23 +399,7 @@ inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinV
 inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X()) * sf.first, TType2GType(src.Y()) * sf.second); }
 inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
-inline std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack) 
-{ 
-	assert(slack >= 0.0);
-	auto target = src * scale + slack;
-	auto roundedTarget = TType2GType(target);
-	while (CrdType(roundedTarget) > target)
-	{
-		assert(target < 0.0);
-		assert(slack < 0.0);
-		roundedTarget--;
-		slack += 1.0;
-		MG_CHECK(roundedTarget > MIN_VALUE(GType));
-	}
-	assert(roundedTarget <= target);
-	assert(slack >= 0.0);
-	return { roundedTarget, target - roundedTarget };
-}
+std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack);
 
 inline std::pair<GPoint, CrdPoint>  TPoint2GPoint(TPoint src, CrdPoint sf, CrdPoint slack)
 {
