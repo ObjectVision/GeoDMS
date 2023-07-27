@@ -40,9 +40,6 @@ class DmsDetailPages;
 class DmsTreeView;
 class DmsEventLog;
 class DmsModel;
-//class DmsGuiOptionsWindow;
-//class DmsAdvancedOptionsWindow;
-//class DmsConfigOptionsWindow;
 class DmsExportWindow;
 class EventLogModel;
 

@@ -1530,21 +1530,6 @@ void DataView::ValidateRect(const GRect& pixRect)
 #endif
 }
 
-/*
-void DataView::ValidateRgn(Region rgn )
-{
-	::ValidateRgn(m_hWnd, rgn.GetHandle());
-#if defined(MG_DEBUG)
-	if (MG_DEBUG_INVALIDATE && false)
-	{
-		DcHandle dc(GetHWnd(), 0);
-		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsGreen) ) );
-		::FillRgn(dc, rgn.GetHandle(), br );
-	}
-#endif
-}
-*/
-
 DmsColor DataView::GetNextDmsColor() const
 {
 	auto currIndex = m_PaletteIndex++;
@@ -1592,7 +1577,7 @@ leveled_critical_section s_QueueSection(item_level_type(0), ord_level_type::Data
 void DataView::AddGuiOper(std::function<void()>&& func)
 {
 	leveled_critical_section::scoped_lock lock(s_QueueSection);
-//	dms_assert(m_hWnd);
+
 	bool wasEmpty = m_GuiOperQueue.empty();
 	m_GuiOperQueue.emplace_back(std::move(func));
 	if (wasEmpty && m_hWnd)
@@ -1750,18 +1735,6 @@ void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 	case 1: OnPopupMenuActivate(this, first, last); break;
 	}
 
-	/*
-	AddGuiOper(
-		[cmd, intArray, this] ()
-		{
-			reportF(ST_MajorTrace, "OnCopyDataReceive with cmd %d", cmd);
-			switch (cmd)
-			{
-				case 0: OnControlActivate(this, begin_ptr(intArray), end_ptr(intArray)); break;
-				case 1: OnPopupMenuActivate(this, begin_ptr(intArray), end_ptr(intArray)); break;
-			}
-		}
-	);*/
 }
 
 // ContextHandling
