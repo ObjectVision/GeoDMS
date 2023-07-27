@@ -22,6 +22,7 @@
 #include <QtWidgets>
 #include <QCompleter>
 #include <QMdiArea>
+#include <QPixmap>
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
@@ -994,11 +995,17 @@ void MainWindow::exportPrimaryData()
 
 void MainWindow::createView(ViewStyle viewStyle)
 {
+    auto currItem = getCurrentTreeItem();
+    if (currItem->IsFailed())
+    {
+        auto fail_reason = currItem->GetFailReason();
+        reportErrorAndTryReload(fail_reason);
+        return;
+    }
+
     try
     {
         static UInt32 s_ViewCounter = 0;
-
-        auto currItem = getCurrentTreeItem();
         if (!currItem)
             return;
 
@@ -1007,8 +1014,20 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        
+        auto dms_view_window_icon = QIcon();
+        switch (viewStyle)
+        {
+        case (ViewStyle::tvsTableView): {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
+        case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
+        default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
+        }
+        dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
+
+
+
     }
     catch (...)
     {
@@ -1266,8 +1285,9 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);
 
-    SharedStr title = "Statistics of " + tiContext->GetFullName();
+    SharedStr title = "Statistics View of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_statistics.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
@@ -1439,6 +1459,8 @@ void MainWindow::updateStatusMessage()
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
+    // TODO: notificationCode failed can reach here from worker thread, for instance when field in shapefile does not exist
+    // /EsriShape/point/read/pointset/test
     assert(IsMainThread());
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
     switch (notificationCode) {
