@@ -1179,8 +1179,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
             m_treeview->setModel(m_dms_model.get());
-            m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
-            m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
+            m_treeview->setRootIndex(m_treeview->rootIndex().parent());
+            m_treeview->scrollTo({});
         }
     }
     catch (...)
