@@ -169,7 +169,7 @@ SharedStr GraphicLayer::GetCaption() const
 
 	const AbstrUnit* domain = GetActiveEntity();
 	if (!domain)
-		return mgFormat2SharedStr("MapView %s", GetThemeDisplayName(this));
+		return mgFormat2SharedStr("Map View %s", GetThemeDisplayName(this));
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
 	SharedStr domainName = SharedStr(domain->GetID());

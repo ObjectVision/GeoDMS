@@ -22,6 +22,7 @@
 #include <QtWidgets>
 #include <QCompleter>
 #include <QMdiArea>
+#include <QPixmap>
 
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
@@ -308,6 +309,18 @@ MainWindow* MainWindow::TheOne()
     assert(IsMainThread()); // or use a mutex to guard access to TheOne.
     assert(s_CurrMainWindow);
     return s_CurrMainWindow;
+}
+
+bool MainWindow::openErrorOnFailedCurrentItem()
+{
+    auto currItem = getCurrentTreeItem();
+    if (currItem->IsFailed())
+    {
+        auto fail_reason = currItem->GetFailReason();
+        reportErrorAndTryReload(fail_reason);
+        return true;
+    }
+    return false;
 }
 
 void MainWindow::clearActionsForEmptyCurrentItem()
@@ -973,8 +986,9 @@ bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
         curr_pos = curr_pos + link.stop + 1;
     }
     error_message_markdown += error_message.substr(curr_pos);
+    auto final_error_message_markdown = std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n");
 
-    TheOne()->m_error_window->setErrorMessage(std::regex_replace(error_message_markdown, std::regex("\n"), "\n\n").c_str());
+    TheOne()->m_error_window->setErrorMessage(final_error_message_markdown.c_str());
     auto dialogResult = TheOne()->m_error_window->exec();
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
@@ -994,11 +1008,13 @@ void MainWindow::exportPrimaryData()
 
 void MainWindow::createView(ViewStyle viewStyle)
 {
+    if (openErrorOnFailedCurrentItem())
+        return;
+
     try
     {
-        static UInt32 s_ViewCounter = 0;
-
         auto currItem = getCurrentTreeItem();
+        static UInt32 s_ViewCounter = 0;
         if (!currItem)
             return;
 
@@ -1007,8 +1023,20 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        
+        auto dms_view_window_icon = QIcon();
+        switch (viewStyle)
+        {
+        case (ViewStyle::tvsTableView): {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
+        case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
+        default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
+        }
+        dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
+
+
+
     }
     catch (...)
     {
@@ -1182,12 +1210,9 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
             m_treeview->setItemDelegate(new TreeItemDelegate());
-
             m_treeview->setModel(m_dms_model.get());
-            m_treeview->setRootIndex(m_treeview->rootIndex().parent());// m_treeview->model()->index(0, 0));
-
-            connect(m_treeview, &DmsTreeView::customContextMenuRequested, m_treeview, &DmsTreeView::showTreeviewContextMenu);
-            m_treeview->scrollTo({}); // :/res/images/TV_branch_closed_selected.png
+            m_treeview->setRootIndex(m_treeview->rootIndex().parent());
+            m_treeview->scrollTo({});
         }
     }
     catch (...)
@@ -1267,14 +1292,18 @@ struct StatisticsBrowser : QUpdatableTextBrowser
 
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 {
+    if (openErrorOnFailedCurrentItem())
+        return;
+
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
     auto* textWidget = new StatisticsBrowser(mdiSubWindow);
     textWidget->m_Context = tiContext;
     tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);
 
-    SharedStr title = "Statistics of " + tiContext->GetFullName();
+    SharedStr title = "Statistics View of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_statistics.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();

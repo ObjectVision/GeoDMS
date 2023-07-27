@@ -225,6 +225,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
     void CloseConfig();

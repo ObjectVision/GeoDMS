@@ -399,7 +399,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
-
+	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	setStyleSheet(
 		"QTreeView::branch:has-siblings:!adjoins-item {\n"
 		"    border-image: url(:/res/images/TV_vline.png) 0;\n"
@@ -513,7 +513,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	// process scheme
 	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
 	m_context_menu->addAction(process_scheme);
-	m_context_menu->exec(viewport()->mapToGlobal(pos));
+	//m_context_menu->exec(viewport()->mapToGlobal(pos));
+	m_context_menu->popup(viewport()->mapToGlobal(pos));
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)

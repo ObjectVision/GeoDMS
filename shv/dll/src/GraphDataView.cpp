@@ -414,9 +414,9 @@ SharedStr GraphDataView::GetCaption() const
 		if (wcu)
 			spatialRefStr = wcu->GetSpatialReference();
 		if (spatialRefStr.empty())
-			spatialRefStr = "MapView";
+			spatialRefStr = "Map View";
 		else
-			spatialRefStr = "MapView with " + spatialRefStr;
+			spatialRefStr = "Map View with " + spatialRefStr;
 		auto ls = mapContents->GetLayerSet();
 		if (ls)
 		{
@@ -428,7 +428,7 @@ SharedStr GraphDataView::GetCaption() const
 		}
 		return spatialRefStr;
 	}
-	return SharedStr("MapView");
+	return SharedStr("Map View");
 }
 
 LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const
