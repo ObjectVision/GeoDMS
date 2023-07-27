@@ -370,7 +370,7 @@ void ThemeSet::ConnectSelectionsTheme(DataView* dv)
 	auto mdv = m_DataView.lock();
 	if (mdv)
 	{
-		dms_assert(mdv.get() == dv);
+		assert(mdv.get() == dv);
 		return;
 	}
 
@@ -387,7 +387,7 @@ void ThemeSet::ConnectSelectionsTheme(DataView* dv)
 		if (m_Themes[AN_Selections])
 			return;
 
-		// subscribe to OnSelectionThemeCreated notifycation
+		// subscribe to OnSelectionThemeCreated notification
  	    SelThemeCreator::RegisterThemeSet(dv, this);
 	}
 	m_DataView = dv->shared_from_this();

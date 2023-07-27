@@ -234,8 +234,9 @@ ChangeSourceLock::~ChangeSourceLock()
 		if (impl::bCommitted)
 		{
 			++impl::tsLast;
-			dms_assert(impl::tsLast); // we assume no overflow
+			assert(impl::tsLast); // we assume no overflow
 			impl::bCommitted = false;
+
 			MG_DEBUG_TS_SOURCE_CODE(
 				s_ChangeSources[impl::tsLast] = cause;
 				reportF(SeverityTypeID::ST_MinorTrace, "ts %d is caused by %s", impl::tsLast.load(), cause);
@@ -245,10 +246,10 @@ ChangeSourceLock::~ChangeSourceLock()
 
 	TimeStamp GetFreshTS(MG_DEBUG_TS_SOURCE_CODE(CharPtr cause))
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 
-		dms_assert(! IsInActiveState()    );
-		dms_assert(! IsInDetermineState() );
+		assert(! IsInActiveState()    );
+		assert(! IsInDetermineState() );
 		TriggerFreshTS(MG_DEBUG_TS_SOURCE_CODE(cause));
 		return impl::tsLast;
 	}
