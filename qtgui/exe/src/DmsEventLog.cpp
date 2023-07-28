@@ -68,6 +68,17 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
+bool itemIsError(item_t& item)
+{
+	switch (item.GetSeverityType())
+	{
+	case SeverityTypeID::ST_Warning: [fallthrough]
+	case SeverityTypeID::ST_Error:
+		return true;
+	}
+	return false;
+}
+
 bool EventLogModel::itemPassesTypeFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
@@ -107,7 +118,9 @@ bool EventLogModel::itemPassesTextFilter(item_t& item)
 
 bool EventLogModel::itemPassesFilter(item_t& item)
 {
-	return (itemPassesTypeFilter(item) || itemPassesCategoryFilter(item)) && itemPassesTextFilter(item);
+	if (itemIsError(item))
+		return true;
+	return (itemPassesTypeFilter(item) && itemPassesCategoryFilter(item)) && itemPassesTextFilter(item);
 }
 
 void EventLogModel::refilter()
