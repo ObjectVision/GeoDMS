@@ -333,7 +333,7 @@ public:
 	         bool GetKeepDataState () const { return GetTSF(TSF_KeepData); }
 
 	TIC_CALL void SetLazyCalculatedState(bool value);
-	         bool GetlazyCalculatedState() const { return GetTSF(TSF_LazyCalculated); }
+	         bool GetLazyCalculatedState() const { return GetTSF(TSF_LazyCalculated); }
 
 			bool HasRepetitiveUsers() const { return GetTSF(TSF_KeepData|TSF_THA_Keep); }
 	TIC_CALL void SetStoreDataState(bool value);

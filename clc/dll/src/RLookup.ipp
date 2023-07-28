@@ -74,7 +74,7 @@ public:
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
 			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
 			if (IsMultiThreaded3() && (nrTiles > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res->GetlazyCalculatedState(), arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, arg2DomainRange, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, arg2DomainRange, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
 			else
 			{
 				DataWriteLock resLock(res);

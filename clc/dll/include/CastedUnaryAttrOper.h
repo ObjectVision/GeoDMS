@@ -80,7 +80,7 @@ public:
 			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res)))
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res->GetlazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res->GetLazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
 			}
 			else
 			{

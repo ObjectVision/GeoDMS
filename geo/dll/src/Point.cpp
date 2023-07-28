@@ -120,7 +120,7 @@ public:
 		auto tn = entity1->GetNrTiles();
 
 		if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-			res->m_DataObject = CreateFutureTileFunctor(res->GetlazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A);
+			res->m_DataObject = CreateFutureTileFunctor(res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A);
 		else
 		{
 			DataWriteLock resLock(res);

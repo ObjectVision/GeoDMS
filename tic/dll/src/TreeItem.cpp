@@ -452,6 +452,8 @@ void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 			SetPassor();
 		if (parent->GetKeepDataState())
 			SetKeepDataState(true);
+		if (parent->GetLazyCalculatedState())
+			SetLazyCalculatedState(true);
 		if (parent->GetFreeDataState())
 			SetFreeDataState(true); 
 		if (parent->GetStoreDataState())
@@ -1041,12 +1043,12 @@ void TreeItem_RemoveInheritedSubItems(TreeItem* self)
 
 void TreeItem::SetReferredItem(const TreeItem* refItem) const
 {
-	dms_assert(IsMetaThread() || !refItem);
+	assert(IsMetaThread() || !refItem);
 
-	dms_assert(!IsDataItem(this) || AsDataItem(this)->GetDataObjLockCount() <= 0); // DON'T MESS WITH SHARED-LOCKED ITEMS
+	assert(!IsDataItem(this) || AsDataItem(this)->GetDataObjLockCount() <= 0); // DON'T MESS WITH SHARED-LOCKED ITEMS
 
-	dms_assert(refItem != this);
-	dms_assert(!refItem || !refItem->InTemplate());
+	assert(refItem != this);
+	assert(!refItem || !refItem->InTemplate());
 	if (mc_RefItem == refItem)
 		return;
 
@@ -1099,6 +1101,8 @@ retry:
 	mc_RefItem->DetermineState();
 	if (GetKeepDataState()) 
 		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+	if (GetLazyCalculatedState())
+		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
 
 	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
 	m_StatusFlags.SetBits(inheritedFlags, mc_RefItem->m_StatusFlags.GetBits(inheritedFlags));
@@ -3669,8 +3673,6 @@ afterSubItems:
 //----------------------------------------------------------------------
 // TreeItem SetStorageManger Functions
 //----------------------------------------------------------------------
-
-//#include "stg/StorageInterface.h"
 
 void TreeItem::SetStorageManager(AbstrStorageManager* storageManager)
 {

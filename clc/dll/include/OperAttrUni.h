@@ -93,7 +93,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res->GetlazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);

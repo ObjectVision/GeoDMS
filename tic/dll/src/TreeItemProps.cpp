@@ -301,7 +301,7 @@ namespace { // local defs
 		ApiType GetValue(TreeItem const* ti) const override
 		{
 			assert(ti);
-			return ti->GetlazyCalculatedState();
+			return ti->GetLazyCalculatedState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
