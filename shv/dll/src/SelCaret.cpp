@@ -123,7 +123,8 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 	dms_assert(allRows.Empty());
 	dms_assert(allCols.Empty());
 
-	auto selData = const_array_cast<Bool>( m_SelAttr )->GetDataRead();
+	// TODO: MT1 support and merge resulting Regions from worker-threads.
+	auto selData = const_array_cast<Bool>( m_SelAttr )->GetDataRead(); 
 
 	IPoint gridSize = Size(m_GridCoords->GetGridRect());
 	if (gridSize.first <= 0 || gridSize.second <= 0)
