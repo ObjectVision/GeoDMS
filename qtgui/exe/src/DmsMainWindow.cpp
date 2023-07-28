@@ -861,8 +861,8 @@ void MainWindow::toggle_detailpages()
 
 void MainWindow::toggle_eventlog()
 {
-    bool isVisible = m_eventlog->isVisible();
-    m_eventlog->setVisible(!isVisible);
+    bool isVisible = m_eventlog_dock->isVisible();
+    m_eventlog_dock->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_toolbar()
@@ -1917,6 +1917,7 @@ void MainWindow::view_calculation_times()
     textWidget->setText(vosb.GetData());
 
     mdiSubWindow->setWindowTitle("Calculation time overview");
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();

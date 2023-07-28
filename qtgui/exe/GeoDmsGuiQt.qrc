@@ -69,5 +69,6 @@
         <file>res/images/TV_palette_bw.bmp</file>
         <file>res/images/TV_table_bw.bmp</file>
         <file>res/images/TV_unit_transparant_bw.bmp</file>
+        <file>res/images/IconCalculationTimeOverview.bmp</file>
     </qresource>
 </RCC>
