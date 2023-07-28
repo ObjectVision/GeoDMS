@@ -396,7 +396,7 @@ struct TRect : Range<TPoint>
 };
 
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X()) * sf.first, TType2GType(src.Y()) * sf.second); }
+inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X() * sf.first), TType2GType(src.Y() * sf.second)); }
 inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
 std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack);

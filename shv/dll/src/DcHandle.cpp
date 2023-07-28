@@ -184,13 +184,12 @@ std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack)
 	assert(slack >= 0.0);
 	auto target = src * scale + slack;
 	auto roundedTarget = TType2GType(target);
-	while (CrdType(roundedTarget) > target)
+	if (CrdType(roundedTarget) > target)
 	{
 		assert(target < 0.0);
-		assert(slack < 0.0);
 		roundedTarget--;
-		slack += 1.0;
 		MG_CHECK(roundedTarget > MIN_VALUE(GType));
+		slack += 1.0;
 	}
 	assert(roundedTarget <= target);
 	assert(slack >= 0.0);
