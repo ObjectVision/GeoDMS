@@ -68,11 +68,11 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
-bool itemIsError(item_t& item)
+bool itemIsError(EventLogModel::item_t& item)
 {
 	switch (item.GetSeverityType())
 	{
-	case SeverityTypeID::ST_Warning: [fallthrough]
+	case SeverityTypeID::ST_Warning:
 	case SeverityTypeID::ST_Error:
 		return true;
 	}
