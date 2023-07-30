@@ -9,7 +9,7 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
-class Waiter;
+struct Waiter;
 
 struct InvisibleRootTreeItem
 {

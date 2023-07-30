@@ -779,7 +779,7 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
 
         assert(!open_config_source_command.empty());
         reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
-        WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative, resolve spaces properly.
+        WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative: CreateProcess?; resolve spaces properly.
         //QProcess process;
         //process.setProgram();
         //process.startDetached(open_config_source_command.c_str());
@@ -1071,7 +1071,6 @@ auto removeDuplicateStringsFromVector(std::vector<std::string>& strings)
 void MainWindow::cleanRecentFilesThatDoNotExist()
 {
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
-    auto it_rf = recent_files_from_registry.begin();
 
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
     {
@@ -1123,9 +1122,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         auto orgConfigFilePath = SharedStr(configFilePath);
         m_currConfigFileName = ConvertDosFileName(orgConfigFilePath); // replace back-slashes to linux/dms style separators and prefix //SYSTEM/path with 'file:'
         
-        auto fileName = getFileName(m_currConfigFileName.c_str());
         auto folderName = splitFullPath(m_currConfigFileName.c_str());
-        if (strncmp(folderName.c_str(), "file://",7) == 0)
+        if (strnicmp(folderName.c_str(), "file:",5) == 0)
             SetCurrentDir(ConvertDmsFileNameAlways(std::move(folderName)).c_str());
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
@@ -1162,7 +1160,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
     return true;
 }
 
-void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage)
+// TODO: clean-up specification of unused parameters at the calling sites, or do use them.
+void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 /*nCode*/, Int32 /*x*/, Int32 /*y*/, bool /*doAddHistory*/, bool /*isUrl*/, bool /*mustOpenDetailsPage*/)
 {
     assert(IsMainThread());
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
@@ -1319,7 +1318,7 @@ void MainWindow::setStatusMessage(CharPtr msg)
 static bool s_IsTiming = false;
 static std::time_t s_BeginTime = 0;
 
-void MainWindow::begin_timing(AbstrMsgGenerator* ach)
+void MainWindow::begin_timing(AbstrMsgGenerator* /*ach*/)
 {
     if (s_IsTiming)
         return;
@@ -1414,7 +1413,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         assert(IsMainThread());
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
-        auto va = new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
+        new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
         return;
     }
     case CC_Activate:
@@ -1728,6 +1727,7 @@ void MainWindow::createActions()
     QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
     QAction* wikiAct = m_help_menu->addAction(tr("&Wiki"), this, &MainWindow::wiki);
+    wikiAct->setStatusTip(tr("Open the GeoDms wiki in a browser"));
 }
 
 void MainWindow::updateFileMenu()

@@ -142,7 +142,7 @@ void EventLogModel::refilter()
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
-void EventLogModel::refilterOnToggle(bool checked)
+void EventLogModel::refilterOnToggle(bool /*checked*/)
 {
 	refilter();
 }

@@ -87,13 +87,13 @@ public:
 };
 
 
-bool CustomEventFilter::nativeEventFilter(const QByteArray& eventType, void* message, qintptr* /*result*/ )
+bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
 {
     MSG* msg = static_cast<MSG*>(message);
 
     switch (msg->message)
     {
-    case WM_APP + 2:
+    case WM_APP + 2:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
         if (auto mw = MainWindow::TheOne())
         {
             for (auto* sw : mw->m_mdi_area->subWindowList())

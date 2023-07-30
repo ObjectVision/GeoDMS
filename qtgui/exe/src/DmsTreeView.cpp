@@ -178,7 +178,7 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 	return row;
 }
 
-int DmsModel::columnCount(const QModelIndex& parent) const
+int DmsModel::columnCount(const QModelIndex& /*parent*/) const
 {
 	return 1;
 }
@@ -450,7 +450,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 
-	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
+//REMOVE	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();

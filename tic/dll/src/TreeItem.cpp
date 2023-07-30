@@ -1316,7 +1316,7 @@ void TreeItem::RemoveFromConfig() const
 	SharedPtr<TreeItem> holder(self);
 	assert(GetRefCount() > 1);
 	self->EnableAutoDelete();
-	assert(IsOwned() > 0); // holder counts as well
+	assert(IsOwned()); // holder counts as well
 
 	auto tp = GetTreeParent();
 	if (!tp)
