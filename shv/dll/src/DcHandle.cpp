@@ -179,7 +179,24 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 // AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack)
+GType TType2GType1(TType src, CrdType scale, CrdType slack)
+{
+	assert(slack >= 0.0);
+	auto target = src * scale + slack;
+	auto roundedTarget = TType2GType(target);
+	if (CrdType(roundedTarget) > target)
+	{
+		MG_CHECK(target < 0.0);
+		roundedTarget--;
+		MG_CHECK(roundedTarget > MIN_VALUE(GType));
+		slack += 1.0;
+	}
+	assert(roundedTarget <= target);
+	MG_CHECK(slack >= 0.0);
+	return roundedTarget;
+}
+
+std::pair<GType, CrdType> TType2GType2(TType src, CrdType scale, CrdType slack)
 {
 	assert(slack >= 0.0);
 	auto target = src * scale + slack;
@@ -192,7 +209,7 @@ std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack)
 		slack += 1.0;
 	}
 	assert(roundedTarget <= target);
-	assert(slack >= 0.0);
+	MG_CHECK(slack >= 0.0);
 	return { roundedTarget, target - roundedTarget };
 }
 

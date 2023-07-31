@@ -162,16 +162,16 @@ void MovableObject::MoveTo(TPoint newClientRelPos) // SetClientRelPos
 		{
 //			GRect  oldAbsFullRect = TRect2GRect(GetCurrFullAbsRect());
 			TPoint logDelta = newClientRelPos - m_RelPos;
-			auto [devDelta, newScrollSlack] = TPoint2GPoint(logDelta, GetScaleFactors(), m_ScrollSlack);
-			m_ScrollSlack = newScrollSlack;
+			auto scrollInfo = TPoint2GPoint2(logDelta, GetScaleFactors(), m_ScrollSlack);
+			m_ScrollSlack = scrollInfo.second;
 			GRect clipRect = GetParentClipAbsRect();
 			GRect scrollRect = clipRect;
 			scrollRect &= GetCurrFullAbsDeviceRect();
 			if (!scrollRect.empty())
 			{
 				auto dv = GetDataView().lock(); if (!dv) return;
-				dv->ScrollDevice(devDelta, scrollRect, clipRect, this);
-				TranslateDrawnRect(clipRect, devDelta);
+				dv->ScrollDevice(scrollInfo.first, scrollRect, clipRect, this);
+				TranslateDrawnRect(clipRect, scrollInfo.first);
 			}
 		}
 		else
@@ -303,7 +303,7 @@ TPoint MovableObject::GetCurrClientAbsLogicalPos(const GraphVisitor& v) const
 
 GPoint MovableObject::GetCurrClientAbsDevicePos(const GraphVisitor& v) const
 { 
-	return TPoint2GPoint(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack).first;
+	return TPoint2GPoint1(GetCurrClientAbsLogicalPos(v), v.GetSubPixelFactors(), v.m_ScrollSlack + m_ScrollSlack);
 }
 
 TRect  MovableObject::GetCurrClientAbsLogicalRect(const GraphVisitor& v) const 
@@ -486,12 +486,18 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 
 				TPoint delta = shp2dms_order<TType>(deltaX, 0);
 
-				GRect oldVisibleAbsRect = TRect2GRect(oldAbsRect, sf) & GetDrawnFullAbsDeviceRect();
+				CrdPoint scrollSlack = GetCumulativeScrollSlack();
+				GRect oldAbsGRect = TRect2GRect(oldAbsRect, sf, scrollSlack);
+				GRect oldVisibleAbsRect = oldAbsGRect & GetDrawnFullAbsDeviceRect();
+
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
+				auto scrollInfo = TPoint2GPoint2(delta, sf, scrollSlack);
+				m_ScrollSlack = scrollInfo.second;
 				if (!oldVisibleAbsRect.empty())
-					dv->ScrollDevice(TPoint2GPoint(delta, sf), oldVisibleAbsRect, clipRect, this);
-				ResizeDrawnRect(clipRect, TPoint2GPoint(delta, sf), GPoint(TType2GType(oldAbsRect.Left()*sf.first), MaxValue<GType>()));
+					dv->ScrollDevice(scrollInfo.first, oldVisibleAbsRect, clipRect, this);
+				ResizeDrawnRect(clipRect, scrollInfo.first, GPoint(oldAbsGRect.Left(), MaxValue<GType>()));
+
 				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG
@@ -578,19 +584,18 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 
 				TPoint delta = shp2dms_order<TType>(0, deltaY);
 
-				auto scrollSlack = GetCumulativeScrollSlack();
-				auto oldVisibleAbsRect = TRect2GRect(oldAbsRect, sf, scrollSlack) & GetDrawnFullAbsDeviceRect();
+				CrdPoint scrollSlack = GetCumulativeScrollSlack();
+				GRect oldAbsGRect = TRect2GRect(oldAbsRect, sf, scrollSlack);
+				GRect oldVisibleAbsRect = oldAbsGRect & GetDrawnFullAbsDeviceRect();
 
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
-				auto scrollInfo = TPoint2GPoint(delta, GetScaleFactors(), scrollSlack);
+				auto scrollInfo = TPoint2GPoint2(delta, sf, scrollSlack);
 				m_ScrollSlack = scrollInfo.second;
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(scrollInfo.first, oldVisibleAbsRect, clipRect, this);
+				ResizeDrawnRect(clipRect, scrollInfo.first, GPoint(MaxValue<GType>(), oldAbsGRect.Top()));
 
-				ResizeDrawnRect(clipRect, scrollInfo.first
-					, GPoint(MaxValue<GType>(), TType2GType(oldAbsRect.Top() * sf.second + scrollSlack.second))
-				);
 				assert(!IsDrawn() || IsIncluding(clipRect, GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation
 
 				// DEBUG

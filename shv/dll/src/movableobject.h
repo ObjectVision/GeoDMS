@@ -75,7 +75,7 @@ public:
 	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + GetBorderLogicalExtents(); }
 
 	TPoint GetCurrClientAbsLogicalPos () const;
-	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack()).first; }
+	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint1(GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack()); }
 	TRect  GetCurrClientAbsLogicalRect() const { TPoint pos = GetCurrClientAbsLogicalPos(); return TRect(pos, pos + m_ClientLogicalSize); }
 	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
 

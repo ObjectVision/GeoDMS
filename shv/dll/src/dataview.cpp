@@ -530,10 +530,15 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			if (msg.m_wParam == UPDATE_TIMER_ID)
 			{
 				auto status = UpdateView();
-				if (status == GraphVisitState::GVS_Break)
-					SetUpdateTimer();
-				else
+				if (status != GraphVisitState::GVS_Break)
+				{
+					KillTimer(m_hWnd, UPDATE_TIMER_ID);
 					m_Waiter.end();
+				}
+/*
+				else
+					SetUpdateTimer();
+*/
 				goto completed;
 			}
 			goto defaultProcessing;

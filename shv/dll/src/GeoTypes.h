@@ -399,18 +399,26 @@ inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinV
 inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X() * sf.first), TType2GType(src.Y() * sf.second)); }
 inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
-std::pair<GType, CrdType> TType2GType(TType src, CrdType scale, CrdType slack);
+GType TType2GType1(TType src, CrdType scale, CrdType slack);
+std::pair<GType, CrdType> TType2GType2(TType src, CrdType scale, CrdType slack);
 
-inline std::pair<GPoint, CrdPoint>  TPoint2GPoint(TPoint src, CrdPoint sf, CrdPoint slack)
+inline GPoint TPoint2GPoint1(TPoint src, CrdPoint sf, CrdPoint slack)
 {
-	auto xs = TType2GType(src.X(), sf.first, slack.first);
-	auto ys = TType2GType(src.Y(), sf.second, slack.second);
-	return { {xs.first, ys.first},  {xs.second, ys.second} };
+	auto xs = TType2GType1(src.X(), sf.first, slack.first);
+	auto ys = TType2GType1(src.Y(), sf.second, slack.second);
+	return {xs, ys};
 }
 
 inline GRect TRect2GRect(TRect src, CrdPoint sf, CrdPoint slack)
 {
-	return GRect(TPoint2GPoint(src.first, sf, slack).first, TPoint2GPoint(src.second, sf, slack).first);
+	return GRect(TPoint2GPoint1(src.first, sf, slack), TPoint2GPoint1(src.second, sf, slack));
+}
+
+inline std::pair<GPoint, CrdPoint>  TPoint2GPoint2(TPoint src, CrdPoint sf, CrdPoint slack)
+{
+	auto xs = TType2GType2(src.X(), sf.first, slack.first);
+	auto ys = TType2GType2(src.Y(), sf.second, slack.second);
+	return { {xs.first, ys.first},  {xs.second, ys.second} };
 }
 
 template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X() * sf.first, src.Y() * sf.second); }
