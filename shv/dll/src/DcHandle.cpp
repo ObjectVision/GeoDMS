@@ -203,9 +203,10 @@ void AdjustSlack(TType& clientCrd, CrdType& slack, CrdType factor)
 	while (slack > factor)
 	{
 		TType div = slack / factor;
+		MG_CHECK(div > 0);
 		clientCrd += div;
-		slack += div * factor;
-		assert(slack >= 0);
+		slack -= div * factor;
+		MG_CHECK(slack >= 0);
 	}
 }
 
