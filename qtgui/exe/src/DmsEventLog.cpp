@@ -151,7 +151,8 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-	MainWindow::TheOne()->m_eventlog->m_clear->setEnabled(true);
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	eventlog->m_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
 	if (!new_item_passes_filter)
@@ -166,6 +167,7 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 	index = this->index(rowCount_, 0, QModelIndex());
 
 	emit dataChanged(index, index);
+	//eventlog->repaint(); // TODO: also repaints treeview.
 }
 
 DmsEventLog::DmsEventLog(QWidget* parent)

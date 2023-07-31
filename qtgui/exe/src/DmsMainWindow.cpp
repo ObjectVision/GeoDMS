@@ -371,6 +371,10 @@ bool MainWindow::reOpen()
     bool result = LoadConfig(m_currConfigFileName.c_str());
     if (!result)
         return false;
+
+    if (cip.isEmpty())
+        return true;
+
     m_current_item_bar->setPath(cip.toUtf8());
     return true;
 }
@@ -627,6 +631,7 @@ void MainWindow::updateDetailPagesToolbar()
 
 void MainWindow::updateToolbar()
 {
+    // TODO: #387 separate variable for wanted toolbar state: mapview, tableview
     if (!m_toolbar)
     {
         addToolBarBreak();
@@ -1031,10 +1036,14 @@ void MainWindow::CloseConfig()
 {
     if (m_mdi_area)
     {
+        bool has_active_dms_views = m_mdi_area->subWindowList().size();
         for (auto* sw : m_mdi_area->subWindowList())
         {
             delete sw;
         }
+        if (has_active_dms_views)
+            m_mdi_area->repaint();
+
         scheduleUpdateToolbar();
     }
 
