@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>LocalMachine options</string>
   </property>
   <widget class="QLabel" name="lbl_title">
    <property name="geometry">
@@ -473,9 +473,9 @@
   <widget class="QLabel" name="m_flush_treshold_text">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>140</x>
      <y>420</y>
-     <width>145</width>
+     <width>35</width>
      <height>21</height>
     </rect>
    </property>
@@ -486,7 +486,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Current value: 80%</string>
+    <string>80%</string>
    </property>
   </widget>
   <widget class="QLabel" name="lbl_memory_flushing">
@@ -662,6 +662,25 @@
     </rect>
    </property>
   </widget>
+  <widget class="QLabel" name="lbl_current_flush_value">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>420</y>
+     <width>107</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>MS Shell Dlg 2</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Current Value:</string>
+   </property>
+  </widget>
   <zorder>line</zorder>
   <zorder>lbl_title</zorder>
   <zorder>lbl_paths</zorder>
@@ -693,6 +712,7 @@
   <zorder>m_ld_input</zorder>
   <zorder>m_sd_input</zorder>
   <zorder>m_editor_input</zorder>
+  <zorder>lbl_current_flush_value</zorder>
  </widget>
  <resources/>
  <connections/>
