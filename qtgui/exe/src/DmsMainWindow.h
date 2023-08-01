@@ -55,6 +55,7 @@ public:
     void setPath(CharPtr itemPath);
 
 public slots:
+    void setPathDirectly(QString path);
     void onEditingFinished();
 };
 

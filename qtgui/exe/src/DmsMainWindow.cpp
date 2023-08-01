@@ -239,6 +239,20 @@ void DmsCurrentItemBar::setPath(CharPtr itemPath)
     onEditingFinished();
 }
 
+void DmsCurrentItemBar::setPathDirectly(QString path)
+{
+    setText(path);
+    auto root = MainWindow::TheOne()->getRootTreeItem();
+    if (!root)
+        return;
+
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, path.toUtf8());
+    auto found_treeitem = best_item_ref.first;
+    if (!found_treeitem)
+        return;
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
+}
+
 void DmsCurrentItemBar::onEditingFinished()
 {
     auto root = MainWindow::TheOne()->getRootTreeItem();
@@ -247,8 +261,9 @@ void DmsCurrentItemBar::onEditingFinished()
 
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
-    if (found_treeitem)
-        MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
+    if (!found_treeitem)
+        return;
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
 }
 
 bool MainWindow::IsExisting()
@@ -310,7 +325,7 @@ void MainWindow::updateActionsForNewCurrentItem()
 void MainWindow::updateTreeItemVisitHistory()
 {
     auto current_index = m_treeitem_visit_history->currentIndex();
-    if (m_treeitem_visit_history->currentIndex() < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
+    if (current_index < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
     {
         for (int i=m_treeitem_visit_history->count() - 1; i > current_index; i--)
             m_treeitem_visit_history->removeItem(i);
@@ -1510,7 +1525,15 @@ void MainWindow::createActions()
     m_treeitem_visit_history = std::make_unique<QComboBox>();
     m_treeitem_visit_history->setFixedWidth(21);
 
-    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {min-width:400px;}");
+    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {min-width:400px;}\n"
+                                            "QComboBox::down-arrow {image: url(:/res/images/DP_history.bmp);"
+                                            "width: 32px;"
+                                            "height: 32px;"
+                                            "padding: 0px;"
+                                            "border: 0px;"
+                                            "color: #FFFFFF;"
+                                            "}");
+
     m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
 
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
@@ -1520,6 +1543,7 @@ void MainWindow::createActions()
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
+    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_current_item_bar.get(), &DmsCurrentItemBar::setPathDirectly);
 
     addToolBarBreak();
 
