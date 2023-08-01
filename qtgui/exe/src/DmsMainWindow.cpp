@@ -1327,6 +1327,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
     mdiSubWindow->setWindowTitle(title.c_str());
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
