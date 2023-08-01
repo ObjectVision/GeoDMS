@@ -1508,10 +1508,10 @@ void MainWindow::createActions()
     m_current_item_bar_container = addToolBar(tr("Current item bar"));
 
     m_treeitem_visit_history = std::make_unique<QComboBox>();
-    //m_treeitem_visit_history->setFixedWidth(25);
+    m_treeitem_visit_history->setFixedWidth(21);
 
-    //m_treeitem_visit_history->setStyleSheet("QComboBox::drop-down{width:200px;}");
-    //m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
+    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {min-width:400px;}");
+    m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
 
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
