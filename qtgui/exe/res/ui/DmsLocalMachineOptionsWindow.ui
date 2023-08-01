@@ -57,28 +57,6 @@
     <enum>Qt::Horizontal</enum>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="m_ld_input">
-   <property name="geometry">
-    <rect>
-     <x>110</x>
-     <y>70</y>
-     <width>521</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="plainText">
-    <string>D:\LocalData
-</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="lbl_paths">
    <property name="geometry">
     <rect>
@@ -125,7 +103,7 @@
     <string>Local Data: </string>
    </property>
   </widget>
-  <widget class="QToolButton" name="m_ld_folder_dialog">
+  <widget class="QPushButton" name="m_ld_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -167,29 +145,7 @@
     <string>Source Data: </string>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="m_sd_input">
-   <property name="geometry">
-    <rect>
-     <x>110</x>
-     <y>100</y>
-     <width>521</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="plainText">
-    <string>C:\SourceData
-</string>
-   </property>
-  </widget>
-  <widget class="QToolButton" name="m_sd_folder_dialog">
+  <widget class="QPushButton" name="m_sd_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -264,29 +220,7 @@
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="m_editor_input">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>180</y>
-     <width>621</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="plainText">
-    <string>&quot;%env:ProgramFiles%\Notepad++\Notepad++.exe&quot; &quot;%F&quot; -n%L
-</string>
-   </property>
-  </widget>
-  <widget class="QToolButton" name="m_editor_folder_dialog">
+  <widget class="QPushButton" name="m_editor_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -698,18 +632,45 @@
     <string>Undo</string>
    </property>
   </widget>
+  <widget class="QLineEdit" name="m_ld_input">
+   <property name="geometry">
+    <rect>
+     <x>110</x>
+     <y>70</y>
+     <width>521</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="m_sd_input">
+   <property name="geometry">
+    <rect>
+     <x>110</x>
+     <y>100</y>
+     <width>521</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="m_editor_input">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>180</y>
+     <width>621</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
   <zorder>line</zorder>
   <zorder>lbl_title</zorder>
-  <zorder>m_ld_input</zorder>
   <zorder>lbl_paths</zorder>
   <zorder>lbl_localdata</zorder>
   <zorder>m_ld_folder_dialog</zorder>
   <zorder>lbl_sourcedata</zorder>
-  <zorder>m_sd_input</zorder>
   <zorder>m_sd_folder_dialog</zorder>
   <zorder>line_2</zorder>
   <zorder>lbl_script</zorder>
-  <zorder>m_editor_input</zorder>
   <zorder>m_editor_folder_dialog</zorder>
   <zorder>line_3</zorder>
   <zorder>lbl_parallel_processing</zorder>
@@ -729,6 +690,9 @@
   <zorder>m_ok</zorder>
   <zorder>m_cancel</zorder>
   <zorder>m_undo</zorder>
+  <zorder>m_ld_input</zorder>
+  <zorder>m_sd_input</zorder>
+  <zorder>m_editor_input</zorder>
  </widget>
  <resources/>
  <connections/>

@@ -58,30 +58,6 @@
     <enum>Qt::Horizontal</enum>
    </property>
   </widget>
-  <widget class="QCheckBox" name="m_override_1">
-   <property name="geometry">
-    <rect>
-     <x>8</x>
-     <y>124</y>
-     <width>132</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="layoutDirection">
-    <enum>Qt::RightToLeft</enum>
-   </property>
-   <property name="text">
-    <string>CityCoDataDir</string>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-  </widget>
   <widget class="QLabel" name="lbl_option">
    <property name="geometry">
     <rect>
@@ -137,27 +113,6 @@
    </property>
    <property name="text">
     <string>Configured or overriden value</string>
-   </property>
-  </widget>
-  <widget class="QPlainTextEdit" name="m_value_1">
-   <property name="geometry">
-    <rect>
-     <x>220</x>
-     <y>120</y>
-     <width>421</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAlwaysOff</enum>
-   </property>
-   <property name="plainText">
-    <string>C:/SourceData/CityCo</string>
    </property>
   </widget>
   <widget class="QPushButton" name="m_ok">
