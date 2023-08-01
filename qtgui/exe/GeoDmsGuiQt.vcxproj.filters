@@ -211,6 +211,15 @@
     <ClInclude Include="src\forms\DmsLocalMachineOptionsWindow.h">
       <Filter>Forms</Filter>
     </ClInclude>
+    <ClInclude Include="src\forms\DmsConfigOptionsWindow.h">
+      <Filter>Forms</Filter>
+    </ClInclude>
+    <ClInclude Include="src\forms\DmsEventLogTypeSelection.h">
+      <Filter>Forms</Filter>
+    </ClInclude>
+    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h">
+      <Filter>Forms</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GeoDmsGuiQt.rc" />

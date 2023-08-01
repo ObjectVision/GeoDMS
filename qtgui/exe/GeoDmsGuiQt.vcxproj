@@ -178,6 +178,9 @@
     <QtMoc Include="src\DmsViewArea.h" />
     <QtMoc Include="src\DmsOptions.h" />
     <QtMoc Include="src\DmsExport.h" />
+    <ClInclude Include="src\forms\DmsConfigOptionsWindow.h" />
+    <ClInclude Include="src\forms\DmsEventLogTypeSelection.h" />
+    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h" />
     <ClInclude Include="src\forms\DmsLocalMachineOptionsWindow.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />

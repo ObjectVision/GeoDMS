@@ -166,7 +166,8 @@ void DmsGuiOptionsWindow::changeClassificationEndColor()
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QString("Gui options"));
+    setupUi(this);
+    /*setWindowTitle(QString("Gui options"));
     setMinimumSize(800, 400);
 
     auto grid_layout = new QGridLayout(this);
@@ -177,12 +178,12 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     m_show_state_colors_in_treeview = new QCheckBox("Show state colors in treeview", this);
     grid_layout->addWidget(m_show_hidden_items, 0, 0, 1, 3);
     grid_layout->addWidget(m_show_thousand_separator, 1, 0, 1, 3);
-    grid_layout->addWidget(m_show_state_colors_in_treeview, 2, 0, 1, 3);
+    grid_layout->addWidget(m_show_state_colors_in_treeview, 2, 0, 1, 3);*/
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
 
-    auto valid_color_text_ti = new QLabel("    Valid:", this);
+    /*auto valid_color_text_ti = new QLabel("    Valid:", this);
     auto not_calculated_color_text_ti = new QLabel("    NotCalculated:", this);
     auto failed_color_text_ti = new QLabel("    Failed:", this);
     m_valid_color_ti_button = new QPushButton(this);
@@ -193,20 +194,20 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     grid_layout->addWidget(not_calculated_color_text_ti, 4, 0);
     grid_layout->addWidget(m_not_calculated_color_ti_button, 4, 1);
     grid_layout->addWidget(failed_color_text_ti, 5, 0);
-    grid_layout->addWidget(m_failed_color_ti_button, 5, 1);
+    grid_layout->addWidget(m_failed_color_ti_button, 5, 1);*/
     connect(m_valid_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeValidTreeItemColor);
     connect(m_not_calculated_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor);
     connect(m_failed_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeFailedTreeItemColor);
 
-    auto map_view_color_settings = new QLabel("Mapview color settings", this);
+    /*auto map_view_color_settings = new QLabel("Mapview color settings", this);
     auto background_color_text = new QLabel("    Background:", this);
     m_background_color_button = new QPushButton(this);
     grid_layout->addWidget(map_view_color_settings, 6, 0, 1, 3);
     grid_layout->addWidget(background_color_text, 7, 0);
-    grid_layout->addWidget(m_background_color_button, 7, 1);
+    grid_layout->addWidget(m_background_color_button, 7, 1);*/
     connect(m_background_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeMapviewBackgroundColor);
 
-    auto default_classification_text = new QLabel("Default classification ramp colors", this);
+    /*auto default_classification_text = new QLabel("Default classification ramp colors", this);
     auto start_color_text = new QLabel("    Start:", this);
     m_start_color_button = new QPushButton(this);
     auto end_color_text = new QLabel("    End:", this);
@@ -215,32 +216,32 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     grid_layout->addWidget(start_color_text, 9, 0);
     grid_layout->addWidget(m_start_color_button, 9, 1);
     grid_layout->addWidget(end_color_text, 10, 0);
-    grid_layout->addWidget(m_end_color_button, 10, 1);
+    grid_layout->addWidget(m_end_color_button, 10, 1);*/
     connect(m_start_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationStartColor);
     connect(m_end_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationEndColor);
 
-    QWidget* spacer = new QWidget(this);
+    /*QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid_layout->addWidget(spacer, 11, 0, 1, 3);
+    grid_layout->addWidget(spacer, 11, 0, 1, 3);*/
 
     // ok/apply/cancel buttons
-    auto box_layout = new QHBoxLayout(this);
+    /*auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok", this);
     m_ok->setMaximumSize(75, 30);
     m_ok->setAutoDefault(true);
     m_apply = new QPushButton("Apply", this);
     m_apply->setMaximumSize(75, 30);
     m_undo = new QPushButton("Undo", this);
-    m_undo->setMaximumSize(75, 30);
+    m_undo->setMaximumSize(75, 30);*/
 
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
-    connect(m_apply, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
+    connect(m_cancel, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
     connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::restoreOptions);
 
-    box_layout->addWidget(m_ok);
+    /*box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, 12, 0, 1, 3);
+    grid_layout->addLayout(box_layout, 12, 0, 1, 3);*/
 
     restoreOptions();
 
@@ -251,7 +252,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_apply->setEnabled(isChanged);
+    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -297,6 +298,12 @@ void DmsGuiOptionsWindow::ok()
     if (m_changed)
         apply();
     done(QDialog::Accepted);
+}
+
+void DmsGuiOptionsWindow::cancel()
+{
+    restoreOptions();
+    done(QDialog::Rejected);
 }
 
 //======== BEGIN GUI OPTIONS WINDOW ========
