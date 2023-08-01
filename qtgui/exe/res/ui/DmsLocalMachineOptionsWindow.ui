@@ -125,7 +125,7 @@
     <string>Local Data: </string>
    </property>
   </widget>
-  <widget class="QToolButton" name="m_folder_dialog">
+  <widget class="QToolButton" name="m_ld_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -189,7 +189,7 @@
 </string>
    </property>
   </widget>
-  <widget class="QToolButton" name="m_folder_dialog_2">
+  <widget class="QToolButton" name="m_sd_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -286,7 +286,7 @@
 </string>
    </property>
   </widget>
-  <widget class="QToolButton" name="m_folder_dialog_3">
+  <widget class="QToolButton" name="m_editor_folder_dialog">
    <property name="geometry">
     <rect>
      <x>640</x>
@@ -703,14 +703,14 @@
   <zorder>m_ld_input</zorder>
   <zorder>lbl_paths</zorder>
   <zorder>lbl_localdata</zorder>
-  <zorder>m_folder_dialog</zorder>
+  <zorder>m_ld_folder_dialog</zorder>
   <zorder>lbl_sourcedata</zorder>
   <zorder>m_sd_input</zorder>
-  <zorder>m_folder_dialog_2</zorder>
+  <zorder>m_sd_folder_dialog</zorder>
   <zorder>line_2</zorder>
   <zorder>lbl_script</zorder>
   <zorder>m_editor_input</zorder>
-  <zorder>m_folder_dialog_3</zorder>
+  <zorder>m_editor_folder_dialog</zorder>
   <zorder>line_3</zorder>
   <zorder>lbl_parallel_processing</zorder>
   <zorder>m_pp0</zorder>
