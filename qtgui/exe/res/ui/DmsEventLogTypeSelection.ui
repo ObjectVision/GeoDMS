@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>DmsEventLogTypeSelection</class>
- <widget class="QDialog" name="DmsEventLogTypeSelection">
+ <widget class="QWidget" name="DmsEventLogTypeSelection">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Eventlog type selection</string>
   </property>
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
@@ -244,102 +244,102 @@
      <bool>true</bool>
     </property>
    </widget>
-  </widget>
-  <widget class="QCheckBox" name="m_read_filter">
-   <property name="geometry">
-    <rect>
-     <x>220</x>
-     <y>60</y>
-     <width>60</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">color: blue;</string>
-   </property>
-   <property name="text">
-    <string>read</string>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-  </widget>
-  <widget class="QCheckBox" name="m_write_filter">
-   <property name="geometry">
-    <rect>
-     <x>220</x>
-     <y>90</y>
-     <width>65</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">color: navy;</string>
-   </property>
-   <property name="text">
-    <string>write</string>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-  </widget>
-  <widget class="QCheckBox" name="m_connection_filter">
-   <property name="geometry">
-    <rect>
-     <x>380</x>
-     <y>60</y>
-     <width>107</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">color: fuchsia;</string>
-   </property>
-   <property name="text">
-    <string>connection</string>
-   </property>
-   <property name="checked">
-    <bool>false</bool>
-   </property>
-  </widget>
-  <widget class="QCheckBox" name="m_request_filter">
-   <property name="geometry">
-    <rect>
-     <x>380</x>
-     <y>90</y>
-     <width>83</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>10</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">color: purple;</string>
-   </property>
-   <property name="text">
-    <string>request</string>
-   </property>
-   <property name="checked">
-    <bool>false</bool>
-   </property>
+   <widget class="QCheckBox" name="m_read_filter">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>40</y>
+      <width>60</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: blue;</string>
+    </property>
+    <property name="text">
+     <string>read</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="m_write_filter">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>70</y>
+      <width>65</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: navy;</string>
+    </property>
+    <property name="text">
+     <string>write</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="m_connection_filter">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>40</y>
+      <width>107</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: fuchsia;</string>
+    </property>
+    <property name="text">
+     <string>connection</string>
+    </property>
+    <property name="checked">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="m_request_filter">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>70</y>
+      <width>83</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: purple;</string>
+    </property>
+    <property name="text">
+     <string>request</string>
+    </property>
+    <property name="checked">
+     <bool>false</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QCheckBox" name="m_category_filter_commands">
    <property name="geometry">
