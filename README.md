@@ -1,5 +1,5 @@
 # GeoDMS
-Geographic  Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
+Geographic Data & Model Software (GeoDMS) is a platform for developing Geographic Planning Support Systems.
 Where fast generic, landuse modeling and routing algorithms are implemented in C++ and exposed through the GeoDMS scripting language.
 
 # Getting started
@@ -32,4 +32,3 @@ Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)
 Phone:    +31-20-598.9083  
 Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room F538  
 Website:  [https://objectvision.nl](https://objectvision.nl)  
-Wiki:     [https://github.com/ObjectVision/GeoDMS/wiki](https://github.com/ObjectVision/GeoDMS/wiki) 
