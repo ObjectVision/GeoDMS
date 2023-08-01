@@ -305,7 +305,59 @@ void DmsGuiOptionsWindow::ok()
 DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QString("Advanced options"));
+    setupUi(this);
+
+    m_folder_dialog = new QFileDialog(this);
+    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
+
+    m_file_dialog = new QFileDialog(this);
+    m_file_dialog->setFileMode(QFileDialog::FileMode::ExistingFile);
+
+    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+
+    connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog);
+    connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
+    connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
+    m_ld_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_ld_folder_dialog->setText("");
+    m_sd_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_sd_folder_dialog->setText("");
+    m_editor_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_editor_folder_dialog->setText("");
+
+    // parallel processing
+    m_pp0->setChecked(IsMultiThreaded0());
+    m_pp1->setChecked(IsMultiThreaded1());
+    m_pp2->setChecked(IsMultiThreaded2());
+    m_pp3->setChecked(IsMultiThreaded3());
+    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+
+    // flush treshold
+    m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
+    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
+
+    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+
+    // ok/apply/cancel buttons
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
+    m_cancel->setDisabled(true);
+    m_undo->setDisabled(true);
+    connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
+    connect(m_cancel, &QPushButton::released, this, &DmsAdvancedOptionsWindow::cancel);
+    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::restoreOptions);
+
+    restoreOptions();
+    onFlushTresholdValueChange(m_flush_treshold->value());
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
+    setChanged(false);
+
+    /*setWindowTitle(QString("Advanced options"));
     setMinimumSize(800, 400);
 
     m_folder_dialog = new QFileDialog(this);
@@ -442,11 +494,11 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 16, 0, 1, 3);
-
+    
     restoreOptions();
     onFlushTresholdValueChange(m_flush_treshold->value());
     setWindowModality(Qt::ApplicationModal);
-    setAttribute(Qt::WA_DeleteOnClose);
+    setAttribute(Qt::WA_DeleteOnClose);*/
 }
 
 struct string_option_attr {
@@ -520,11 +572,17 @@ void DmsAdvancedOptionsWindow::restoreOptions()
     setChanged(false);
 }
 
+void DmsAdvancedOptionsWindow::cancel()
+{
+    restoreOptions();
+    done(QDialog::Accepted);
+}
+
 void DmsAdvancedOptionsWindow::apply()
 {
-    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
+    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString());
+    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString());
+    SetGeoDmsRegKeyString("DmsEditor", m_editor_input->text().toStdString());
 
     auto dms_reg_status_flags = GetRegStatusFlags();
     setSF(m_pp0->isChecked(), dms_reg_status_flags, RSF_SuspendForGUI);
@@ -545,7 +603,7 @@ void DmsAdvancedOptionsWindow::apply()
 void DmsAdvancedOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_apply->setEnabled(isChanged);
+    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 

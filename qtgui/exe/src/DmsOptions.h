@@ -4,6 +4,7 @@
 #include <QDialog>
 #include "geo/color.h"
 #include "ptr/SharedStr.h"
+#include "DmsLocalMachineOptionsWindow.h"
 struct TreeItem;
 
 enum string_option
@@ -78,7 +79,7 @@ private:
     QPointer<QPushButton> m_undo;
 };
 
-class DmsAdvancedOptionsWindow : public QDialog
+class DmsAdvancedOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
 {
     Q_OBJECT
 public:
@@ -88,6 +89,7 @@ private slots:
     void onFlushTresholdValueChange(int value);
     void restoreOptions();
     void ok();
+    void cancel();
     void apply();
     void onStateChange();
     void onTextChange();
@@ -102,7 +104,9 @@ private:
     void setChanged(bool isChanged);
 
     bool m_changed = false;
-
+    QPointer<QFileDialog> m_folder_dialog;
+    QPointer<QFileDialog> m_file_dialog;
+    /*
     QPointer<QFileDialog> m_folder_dialog;
     QPointer<QLabel> m_flush_treshold_text;
     QPointer<QCheckBox> m_pp0;
@@ -116,7 +120,7 @@ private:
     QPointer<QSlider>   m_flush_treshold;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
+    QPointer<QPushButton> m_undo;*/
 };
 
 //======== CONFIG OPTIONS WINDOW ========
