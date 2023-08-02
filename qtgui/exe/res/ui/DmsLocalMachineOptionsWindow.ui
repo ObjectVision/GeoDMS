@@ -473,7 +473,7 @@
   <widget class="QLabel" name="m_flush_treshold_text">
    <property name="geometry">
     <rect>
-     <x>140</x>
+     <x>130</x>
      <y>420</y>
      <width>35</width>
      <height>21</height>
@@ -494,7 +494,7 @@
     <rect>
      <x>10</x>
      <y>340</y>
-     <width>401</width>
+     <width>388</width>
      <height>21</height>
     </rect>
    </property>
