@@ -322,6 +322,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
 
     connect(m_ld_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
     connect(m_sd_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+    connect(m_editor_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
 
     connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog);
     connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
