@@ -1523,16 +1523,20 @@ void MainWindow::createActions()
     m_current_item_bar_container = addToolBar(tr("Current item bar"));
 
     m_treeitem_visit_history = std::make_unique<QComboBox>();
-    m_treeitem_visit_history->setFixedWidth(21);
-
-    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {min-width:400px;}\n"
-                                            "QComboBox::down-arrow {image: url(:/res/images/DP_history.bmp);"
-                                            "width: 32px;"
-                                            "height: 32px;"
-                                            "padding: 0px;"
-                                            "border: 0px;"
-                                            "color: #FFFFFF;"
-                                            "}");
+    m_treeitem_visit_history->setFixedWidth(18);
+    m_treeitem_visit_history->setFixedHeight(18);
+    m_treeitem_visit_history->setFrame(false);
+    //m_treeitem_visit_history->setMinimumSize(QSize(0, 0));
+    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {\n"
+                                                "min-width:400px;"
+                                            "}\n"
+                                            "QComboBox::drop-down:button{\n"
+                                                "background-color: transparant;\n"
+                                            "}\n"
+                                            "QComboBox::down-arrow {\n"
+                                                "image: url(:/res/images/arrow_down.png);\n"
+                                            "}\n");
+   
 
     m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
 
@@ -1980,18 +1984,7 @@ void MainWindow::createDmsHelperWindowDocks()
     m_eventlog = createEventLog(this);
     // connections below need constructed treeview and filters to work
     // TODO: refactor action/pushbutton logic
-    connect(m_eventlog->m_text_filter.get(), &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
-    connect(m_eventlog->m_minor_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_major_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_warning_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_error_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    
-    connect(m_eventlog->m_category_filter_system.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_progress.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_commands.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_wms.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_memory.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    //connect(m_eventlog->m_category_filter_disposable.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+
 }
 
 void MainWindow::back()
