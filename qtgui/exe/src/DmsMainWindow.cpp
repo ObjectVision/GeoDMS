@@ -778,12 +778,11 @@ std::string fillOpenConfigSourceCommand(const std::string command, const std::st
 void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line)
 {
     std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
-    std::string command = GetGeoDmsRegKey("DmsEditor").c_str(); // TODO: replace with Qt application persistent data 
+    std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
     std::string unexpanded_open_config_source_command = "";
     std::string open_config_source_command = "";
     if (!filename.empty() && !line.empty() && !command.empty())
     {
-
         unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, std::string(filename), std::string(line));
         const TreeItem* ti = getCurrentTreeItem();
         if (!ti)
@@ -794,26 +793,19 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
         else
             open_config_source_command = AbstrStorageManager::Expand(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();//AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
-        //auto final_open_config_source_command = ConvertDmsFileNameAlways(SharedStr(open_config_source_command));
         assert(!open_config_source_command.empty());
-        reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
-        //WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative, resolve spaces properly.
+
         QProcess process;
-        //process.setProgram();
-        //open_config_source_command = //(ConvertDosFileName(SharedStr(open_config_source_command))).c_str();
-        //QString test_command = "\"C:\\Program Files (x86)\\Crimson Editor\\cedt.exe\"";
-        
         QStringList args = QProcess::splitCommand(QString(open_config_source_command.c_str()));
         process.setProgram(args.takeFirst());
         process.setArguments(args);
-        process.startDetached();
-        //process.startCommand(open_config_source_command.c_str());//open_config_source_command.c_str());//startDetached(open_config_source_command.c_str());
+        if (process.startDetached())
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
     }
 }
 
 void MainWindow::openConfigSource()
 {
-    //auto dms_filename = getCurrentTreeItem()->GetConfigFileName();
     auto filename =  ConvertDmsFileNameAlways(getCurrentTreeItem()->GetConfigFileName());
     std::string line = std::to_string(getCurrentTreeItem()->GetConfigFileLineNr());
     openConfigSourceDirectly(filename.c_str(), line);
