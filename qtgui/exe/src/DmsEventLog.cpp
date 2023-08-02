@@ -172,23 +172,21 @@ QSize DmsTypeFilter::sizeHint() const
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
-	// actions
-	const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
-	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
-	m_event_text_filter_toggle->setToolTip(tr("Text filter"));
-	m_event_text_filter_toggle->setStatusTip("Turn eventlog text-filter on or off");
-	m_event_text_filter_toggle->setCheckable(true);
-	m_event_text_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	
-	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
+	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
+	m_event_filter_toggle = std::make_unique<QPushButton>(event_filter_icon, "");
+	m_event_filter_toggle->setToolTip(tr("Filters"));
+	m_event_filter_toggle->setStatusTip("Turn eventlog filter dialog on or off");
+	m_event_filter_toggle->setCheckable(true);
+	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
 
-	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
+	/*const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
 	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
 	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
 	m_event_type_filter_toggle->setStatusTip("Turn eventlog type-filter on or off");
 	m_event_type_filter_toggle->setCheckable(true);
 	m_event_type_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
+	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);*/
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
@@ -239,8 +237,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	auto grid_layout = new QGridLayout();
 
 	auto eventlog_toolbar = new QVBoxLayout();
-	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
-	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
+	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
+	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	QWidget* spacer = new QWidget(this);

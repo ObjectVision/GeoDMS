@@ -71,5 +71,7 @@
         <file>res/images/TV_unit_transparant_bw.bmp</file>
         <file>res/images/IconCalculationTimeOverview.bmp</file>
         <file>res/images/DP_history.bmp</file>
+        <file>res/images/arrow_down.png</file>
+        <file>res/images/EL_selection.bmp</file>
     </qresource>
 </RCC>
