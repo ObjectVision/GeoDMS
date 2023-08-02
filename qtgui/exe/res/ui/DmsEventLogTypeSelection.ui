@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>781</width>
-    <height>196</height>
+    <width>650</width>
+    <height>120</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,10 +16,10 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>20</y>
-     <width>521</width>
-     <height>161</height>
+     <x>0</x>
+     <y>0</y>
+     <width>520</width>
+     <height>110</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -32,7 +32,7 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>100</y>
+      <y>70</y>
       <width>521</width>
       <height>16</height>
      </rect>
@@ -57,9 +57,9 @@
     <property name="geometry">
      <rect>
       <x>180</x>
-      <y>1</y>
+      <y>0</y>
       <width>20</width>
-      <height>105</height>
+      <height>77</height>
      </rect>
     </property>
     <property name="frameShadow">
@@ -135,7 +135,7 @@
       <x>340</x>
       <y>0</y>
       <width>20</width>
-      <height>105</height>
+      <height>77</height>
      </rect>
     </property>
     <property name="frameShadow">
@@ -152,7 +152,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>70</y>
+      <y>50</y>
       <width>70</width>
       <height>25</height>
      </rect>
@@ -176,7 +176,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>40</y>
+      <y>30</y>
       <width>69</width>
       <height>25</height>
      </rect>
@@ -200,7 +200,7 @@
     <property name="geometry">
      <rect>
       <x>140</x>
-      <y>120</y>
+      <y>80</y>
       <width>86</width>
       <height>25</height>
      </rect>
@@ -224,7 +224,7 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>120</y>
+      <y>80</y>
       <width>63</width>
       <height>25</height>
      </rect>
@@ -248,7 +248,7 @@
     <property name="geometry">
      <rect>
       <x>210</x>
-      <y>40</y>
+      <y>30</y>
       <width>60</width>
       <height>25</height>
      </rect>
@@ -272,7 +272,7 @@
     <property name="geometry">
      <rect>
       <x>210</x>
-      <y>70</y>
+      <y>50</y>
       <width>65</width>
       <height>25</height>
      </rect>
@@ -296,7 +296,7 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>40</y>
+      <y>30</y>
       <width>107</width>
       <height>25</height>
      </rect>
@@ -320,7 +320,7 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>70</y>
+      <y>50</y>
       <width>83</width>
       <height>25</height>
      </rect>
@@ -344,8 +344,8 @@
   <widget class="QCheckBox" name="m_category_filter_commands">
    <property name="geometry">
     <rect>
-     <x>560</x>
-     <y>60</y>
+     <x>530</x>
+     <y>10</y>
      <width>107</width>
      <height>25</height>
     </rect>
@@ -368,8 +368,8 @@
   <widget class="QCheckBox" name="m_category_filter_other">
    <property name="geometry">
     <rect>
-     <x>560</x>
-     <y>90</y>
+     <x>530</x>
+     <y>30</y>
      <width>66</width>
      <height>25</height>
     </rect>
