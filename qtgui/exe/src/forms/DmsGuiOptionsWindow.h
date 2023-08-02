@@ -302,7 +302,7 @@ public:
 
     void retranslateUi(QDialog *DmsGuiOptionsWindow)
     {
-        DmsGuiOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsGuiOptionsWindow", "Dialog", nullptr));
+        DmsGuiOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsGuiOptionsWindow", "GUI options", nullptr));
         lbl_title->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Settings for the GeoDMS GUI ", nullptr));
         lbl_treeview->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">TreeView</span></p></body></html>", nullptr));
         lbl_show_hidden_items->setText(QString());

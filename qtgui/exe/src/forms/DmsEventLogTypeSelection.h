@@ -12,10 +12,10 @@
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QCheckBox>
-#include <QtWidgets/QDialog>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLabel>
+#include <QtWidgets/QWidget>
 
 QT_BEGIN_NAMESPACE
 
@@ -40,14 +40,14 @@ public:
     QCheckBox *m_category_filter_commands;
     QCheckBox *m_category_filter_other;
 
-    void setupUi(QDialog *DmsEventLogTypeSelection)
+    void setupUi(QWidget *DmsEventLogTypeSelection)
     {
         if (DmsEventLogTypeSelection->objectName().isEmpty())
             DmsEventLogTypeSelection->setObjectName("DmsEventLogTypeSelection");
         DmsEventLogTypeSelection->resize(781, 196);
         groupBox = new QGroupBox(DmsEventLogTypeSelection);
         groupBox->setObjectName("groupBox");
-        groupBox->setGeometry(QRect(10, 20, 521, 161));
+        groupBox->setGeometry(QRect(0, 0, 521, 161));
         groupBox->setAutoFillBackground(false);
         line = new QFrame(groupBox);
         line->setObjectName("line");
@@ -113,27 +113,27 @@ public:
         m_error_filter->setFont(font1);
         m_error_filter->setStyleSheet(QString::fromUtf8("color: red;"));
         m_error_filter->setChecked(true);
-        m_read_filter = new QCheckBox(DmsEventLogTypeSelection);
+        m_read_filter = new QCheckBox(groupBox);
         m_read_filter->setObjectName("m_read_filter");
-        m_read_filter->setGeometry(QRect(220, 60, 60, 25));
+        m_read_filter->setGeometry(QRect(210, 40, 60, 25));
         m_read_filter->setFont(font1);
         m_read_filter->setStyleSheet(QString::fromUtf8("color: blue;"));
         m_read_filter->setChecked(true);
-        m_write_filter = new QCheckBox(DmsEventLogTypeSelection);
+        m_write_filter = new QCheckBox(groupBox);
         m_write_filter->setObjectName("m_write_filter");
-        m_write_filter->setGeometry(QRect(220, 90, 65, 25));
+        m_write_filter->setGeometry(QRect(210, 70, 65, 25));
         m_write_filter->setFont(font1);
         m_write_filter->setStyleSheet(QString::fromUtf8("color: navy;"));
         m_write_filter->setChecked(true);
-        m_connection_filter = new QCheckBox(DmsEventLogTypeSelection);
+        m_connection_filter = new QCheckBox(groupBox);
         m_connection_filter->setObjectName("m_connection_filter");
-        m_connection_filter->setGeometry(QRect(380, 60, 107, 25));
+        m_connection_filter->setGeometry(QRect(370, 40, 107, 25));
         m_connection_filter->setFont(font1);
         m_connection_filter->setStyleSheet(QString::fromUtf8("color: fuchsia;"));
         m_connection_filter->setChecked(false);
-        m_request_filter = new QCheckBox(DmsEventLogTypeSelection);
+        m_request_filter = new QCheckBox(groupBox);
         m_request_filter->setObjectName("m_request_filter");
-        m_request_filter->setGeometry(QRect(380, 90, 83, 25));
+        m_request_filter->setGeometry(QRect(370, 70, 83, 25));
         m_request_filter->setFont(font1);
         m_request_filter->setStyleSheet(QString::fromUtf8("color: purple;"));
         m_request_filter->setChecked(false);
@@ -155,9 +155,9 @@ public:
         QMetaObject::connectSlotsByName(DmsEventLogTypeSelection);
     } // setupUi
 
-    void retranslateUi(QDialog *DmsEventLogTypeSelection)
+    void retranslateUi(QWidget *DmsEventLogTypeSelection)
     {
-        DmsEventLogTypeSelection->setWindowTitle(QCoreApplication::translate("DmsEventLogTypeSelection", "Dialog", nullptr));
+        DmsEventLogTypeSelection->setWindowTitle(QCoreApplication::translate("DmsEventLogTypeSelection", "Eventlog type selection", nullptr));
         groupBox->setTitle(QString());
         lbl_calculation_progress->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Calculation Progress", nullptr));
         lbl_storage->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Storage", nullptr));

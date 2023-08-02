@@ -56,6 +56,7 @@ public:
     QLineEdit *m_ld_input;
     QLineEdit *m_sd_input;
     QLineEdit *m_editor_input;
+    QLabel *lbl_current_flush_value;
 
     void setupUi(QDialog *DmsLocalMachineOptionsWindow)
     {
@@ -191,7 +192,7 @@ public:
         lbl_max->setFont(font);
         m_flush_treshold_text = new QLabel(DmsLocalMachineOptionsWindow);
         m_flush_treshold_text->setObjectName("m_flush_treshold_text");
-        m_flush_treshold_text->setGeometry(QRect(10, 420, 145, 21));
+        m_flush_treshold_text->setGeometry(QRect(140, 420, 35, 21));
         m_flush_treshold_text->setFont(font);
         lbl_memory_flushing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_memory_flushing->setObjectName("lbl_memory_flushing");
@@ -241,6 +242,10 @@ public:
         m_editor_input = new QLineEdit(DmsLocalMachineOptionsWindow);
         m_editor_input->setObjectName("m_editor_input");
         m_editor_input->setGeometry(QRect(10, 180, 621, 25));
+        lbl_current_flush_value = new QLabel(DmsLocalMachineOptionsWindow);
+        lbl_current_flush_value->setObjectName("lbl_current_flush_value");
+        lbl_current_flush_value->setGeometry(QRect(10, 420, 107, 21));
+        lbl_current_flush_value->setFont(font);
         line->raise();
         lbl_title->raise();
         lbl_paths->raise();
@@ -272,6 +277,7 @@ public:
         m_ld_input->raise();
         m_sd_input->raise();
         m_editor_input->raise();
+        lbl_current_flush_value->raise();
 
         retranslateUi(DmsLocalMachineOptionsWindow);
 
@@ -280,7 +286,7 @@ public:
 
     void retranslateUi(QDialog *DmsLocalMachineOptionsWindow)
     {
-        DmsLocalMachineOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Dialog", nullptr));
+        DmsLocalMachineOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "LocalMachine options", nullptr));
         lbl_title->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Settings for your local machine", nullptr));
         lbl_paths->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Paths</span></p></body></html>", nullptr));
         lbl_localdata->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Local Data: ", nullptr));
@@ -296,13 +302,14 @@ public:
         m_pp3->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "3: Pipelined tile operations", nullptr));
         lbl_min->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "50 %", nullptr));
         lbl_max->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "100 %", nullptr));
-        m_flush_treshold_text->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Current value: 80%", nullptr));
+        m_flush_treshold_text->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "80%", nullptr));
         lbl_memory_flushing->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Treshold for memory flushing wait procedure</p></body></html>", nullptr));
         lbl_logging->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Logging</p></body></html>", nullptr));
         m_tracelog->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", " Write TraceLog file", nullptr));
         m_ok->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Ok", nullptr));
         m_cancel->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Cancel", nullptr));
         m_undo->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Undo", nullptr));
+        lbl_current_flush_value->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Current Value:", nullptr));
     } // retranslateUi
 
 };

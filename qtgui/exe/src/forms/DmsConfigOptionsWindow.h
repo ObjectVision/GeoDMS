@@ -82,7 +82,7 @@ public:
 
     void retranslateUi(QDialog *DmsConfigOptionsWindow)
     {
-        DmsConfigOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsConfigOptionsWindow", "Dialog", nullptr));
+        DmsConfigOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsConfigOptionsWindow", "Config options", nullptr));
         lbl_title->setText(QCoreApplication::translate("DmsConfigOptionsWindow", "Settings for user and local machine specific overriden values\n"
 "", nullptr));
         lbl_option->setText(QCoreApplication::translate("DmsConfigOptionsWindow", "Option", nullptr));
