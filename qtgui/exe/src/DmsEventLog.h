@@ -1,5 +1,6 @@
 #include "RtcBase.h"
 #include "dbg/SeverityType.h"
+#include "DmsEventLogTypeSelection.h"
 
 #include <QPointer>
 #include <QAbstractListModel>
@@ -52,13 +53,21 @@ private:
 	bool m_filter_active = true;
 };
 
+class DmsTypeFilter : public QWidget, public Ui::DmsEventLogTypeSelection
+{
+public:
+	DmsTypeFilter(QWidget* parent = nullptr);
+	QSize sizeHint() const override;
+};
+
 class DmsEventLog : public QWidget
 {
 	Q_OBJECT
 public:
 	DmsEventLog(QWidget* parent);
+	std::unique_ptr<DmsTypeFilter> m_dms_type_filter;
 	std::unique_ptr<QLineEdit> m_text_filter;
-	std::unique_ptr<QCheckBox> m_minor_trace_filter;
+	/*std::unique_ptr<QCheckBox> m_minor_trace_filter;
 	std::unique_ptr<QCheckBox> m_major_trace_filter;
 	std::unique_ptr<QCheckBox> m_warning_filter;
 	std::unique_ptr<QCheckBox> m_error_filter;
@@ -68,7 +77,7 @@ public:
 	std::unique_ptr<QCheckBox> m_category_filter_wms;
 	std::unique_ptr<QCheckBox> m_category_filter_progress;
 	std::unique_ptr<QCheckBox> m_category_filter_memory;
-	std::unique_ptr<QCheckBox> m_category_filter_commands;
+	std::unique_ptr<QCheckBox> m_category_filter_commands;*/
 
 	std::unique_ptr<QListView> m_log;
 	std::unique_ptr<QPushButton> m_scroll_to_bottom_toggle, m_event_text_filter_toggle, m_event_type_filter_toggle, m_clear;

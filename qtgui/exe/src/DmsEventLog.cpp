@@ -73,10 +73,10 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	switch (item.GetSeverityType())
 	{
-	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_minor_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_major_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_Warning: {return eventlog->m_warning_filter->isChecked(); };
-	case SeverityTypeID::ST_Error: {return eventlog->m_error_filter->isChecked(); };
+	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_dms_type_filter->m_minor_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_dms_type_filter->m_major_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_Warning: {return eventlog->m_dms_type_filter->m_warning_filter->isChecked(); };
+	case SeverityTypeID::ST_Error: {return eventlog->m_dms_type_filter->m_error_filter->isChecked(); };
 	default: return true;
 	}
 }
@@ -86,12 +86,12 @@ bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	switch (item.GetMsgCategory())
 	{
-	case MsgCategory::system: {return eventlog->m_category_filter_system->isChecked(); }
-	case MsgCategory::disposable: {return eventlog->m_category_filter_disposable->isChecked(); }
-	case MsgCategory::wms: {return eventlog->m_category_filter_wms->isChecked(); }
-	case MsgCategory::progress: {return eventlog->m_category_filter_progress->isChecked(); }
-	case MsgCategory::memory: {return eventlog->m_category_filter_memory->isChecked(); }
-	case MsgCategory::commands: {return eventlog->m_category_filter_commands->isChecked(); }
+	//case MsgCategory::system: {return eventlog->m_dms_type_filter->m_category_filter_system->isChecked(); }
+	//case MsgCategory::disposable: {return eventlog->m_dms_type_filter->m_category_filter_disposable->isChecked(); }
+	case MsgCategory::wms: {return eventlog->m_dms_type_filter->m_connection_filter->isChecked(); }
+	//case MsgCategory::progress: {return eventlog->m_dms_type_filter->m_category_filter_progress->isChecked(); }
+	//case MsgCategory::memory: {return eventlog->m_dms_type_filter->m_category_filter_memory->isChecked(); }
+	case MsgCategory::commands: {return eventlog->m_dms_type_filter->m_category_filter_commands->isChecked(); }
 	}
 	return false;
 }
@@ -157,6 +157,18 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 	//eventlog->repaint(); // TODO: also repaints treeview.
 }
 
+DmsTypeFilter::DmsTypeFilter(QWidget* parent)
+	: QWidget(parent)
+{
+	setupUi(this);
+}
+
+QSize DmsTypeFilter::sizeHint() const
+{
+	auto type_filter_size_hint = groupBox->size();
+	return type_filter_size_hint;
+}
+
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
@@ -201,7 +213,34 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	// filters
 	m_text_filter = std::make_unique<QLineEdit>();
-	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor");
+	m_dms_type_filter = std::make_unique<DmsTypeFilter>();
+
+	/*m_major_trace_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "major", nullptr));
+	m_minor_trace_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "minor", nullptr));
+	m_warning_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "warning", nullptr));
+	m_error_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "error", nullptr));
+	m_read_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "read", nullptr));
+	m_write_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "write", nullptr));
+	m_connection_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "connection", nullptr));
+	m_request_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "request", nullptr));
+	m_category_filter_commands->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "commands", nullptr));
+	m_category_filter_other*/
+
+	//connect(m_dms_type_filter.get()->m_major_trace_filter, &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
+	connect(m_dms_type_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_dms_type_filter.get()->m_major_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_dms_type_filter.get()->m_warning_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_dms_type_filter.get()->m_error_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+
+	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_dms_type_filter.get()->m_category_filter_commands, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_dms_type_filter.get()->m_connection_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+
+
+
+	/*m_minor_trace_filter = std::make_unique<QCheckBox>("Minor");
 	m_minor_trace_filter->setCheckable(true);
 	m_minor_trace_filter->setChecked(false);
 	m_major_trace_filter = std::make_unique<QCheckBox>("Major");
@@ -217,9 +256,6 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_category_filter_system = std::make_unique<QCheckBox>("System");
 	m_category_filter_system->setCheckable(true);
 	m_category_filter_system->setChecked(true);
-	// m_category_filter_disposable = std::make_unique<QCheckBox>("Disposable");
-	//m_category_filter_disposable->setCheckable(true);
-	//m_category_filter_disposable->setChecked(false);
 	m_category_filter_wms = std::make_unique<QCheckBox>("Wms");
 	m_category_filter_wms->setCheckable(true);
 	m_category_filter_wms->setChecked(false);
@@ -231,7 +267,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_category_filter_memory->setChecked(false);
 	m_category_filter_commands = std::make_unique<QCheckBox>("Commands");
 	m_category_filter_commands->setCheckable(true);
-	m_category_filter_commands->setChecked(false);
+	m_category_filter_commands->setChecked(false);*/
 
 	// eventlog
 	m_log = std::make_unique<QListView>();
@@ -240,11 +276,13 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
+	auto vertical_layout = new QVBoxLayout();
+
+
+
 	auto grid_layout = new QGridLayout();
+
 	auto eventlog_toolbar = new QVBoxLayout();
-
-	auto type_filter_layout = new QHBoxLayout();
-
 	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
@@ -256,7 +294,12 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	//QWidget* type_spacer = new QWidget(this);
 	//spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 
-	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 2);
+	vertical_layout->addWidget(m_text_filter.get(), 0);//, 0, 1, 2);
+	vertical_layout->addWidget(m_dms_type_filter.get(), 0);//, 0, 3, 2);//, 2, 2);//, 3, 2);
+	//m_dms_type_filter_holder->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	//m_dms_type_filter->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	//m_dms_type_filter->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+	/*auto type_filter_layout = new QHBoxLayout();
 	type_filter_layout->addWidget(m_minor_trace_filter.get());
 	type_filter_layout->addWidget(m_major_trace_filter.get());
 	type_filter_layout->addWidget(m_warning_filter.get());
@@ -267,14 +310,15 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	type_filter_layout->addWidget(m_category_filter_progress.get());
 	type_filter_layout->addWidget(m_category_filter_memory.get());
 	type_filter_layout->addWidget(m_category_filter_commands.get());
-	//type_filter_layout->addWidget(type_spacer);
-	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 1);
+	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 1);*/
 
-	grid_layout->addWidget(m_log.get(), 2, 0);
-	m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	grid_layout->addLayout(eventlog_toolbar, 2, 1); // , Qt::AlignmentFlag::AlignRight
-	setLayout(grid_layout);
-
+	grid_layout->addWidget(m_log.get(), 0, 0);
+	//m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
+	grid_layout->addLayout(eventlog_toolbar, 0, 1); // , Qt::AlignmentFlag::AlignRight
+	vertical_layout->addLayout(grid_layout);
+	//vertical_layout->setSizeConstraint(QLayout::SizeConstraint::SetNoConstraint);
+	setLayout(vertical_layout);
+	//m_dms_type_filter->show();
 	toggleTextFilter(false);
 	toggleTypeFilter(false);
 }
@@ -339,12 +383,15 @@ void DmsEventLog::scrollToBottomThrottled()
 
 void DmsEventLog::toggleTextFilter(bool toggled)
 {
-	toggled ? m_text_filter->show() : m_text_filter->hide();
+	m_text_filter->setVisible(toggled);
+	//toggled ? m_text_filter->show() : m_text_filter->hide();
 }
 
 void DmsEventLog::toggleTypeFilter(bool toggled)
 {
-	toggled ? m_minor_trace_filter->show() : m_minor_trace_filter->hide();
+	//toggled ? m_dms_type_filter->show() : m_dms_type_filter->hide();
+	m_dms_type_filter->setVisible(toggled);
+	/*toggled ? m_minor_trace_filter->show() : m_minor_trace_filter->hide();
 	toggled ? m_major_trace_filter->show() : m_major_trace_filter->hide();
 	toggled ? m_warning_filter->show() : m_warning_filter->hide();
 	toggled ? m_error_filter->show() : m_error_filter->hide();
@@ -354,7 +401,7 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 	toggled ? m_category_filter_wms->show() : m_category_filter_wms->hide();
 	toggled ? m_category_filter_progress->show() : m_category_filter_progress->hide();
 	toggled ? m_category_filter_memory->show() : m_category_filter_memory->hide();
-	toggled ? m_category_filter_commands->show() : m_category_filter_commands->hide();
+	toggled ? m_category_filter_commands->show() : m_category_filter_commands->hide();*/
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
