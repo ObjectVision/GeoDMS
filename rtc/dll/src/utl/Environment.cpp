@@ -684,7 +684,10 @@ SharedStr ConvertDmsFileNameAlways(SharedStr&& path)
 
 SharedStr ConvertDmsFileName(WeakStr path) // replaces '/' by '\' iff prefixed by ' file:' to prevent misinterpretation of  file://SYSTEM/path
 {
-	if (path.empty() || strncmp(path.begin(), "file:", 5))
+	if (path.empty())
+		return path;
+
+	if (strncmp(path.begin(), "file:", 5))
 		return path;
 
 	return ConvertDmsFileNameAlways(SharedStr(path.begin()+5, path.send()));
