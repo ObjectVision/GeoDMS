@@ -224,12 +224,12 @@ public:
         lbl_add_to_each_trace->setFont(font);
         m_opening_new_configuration = new QCheckBox(DmsGuiOptionsWindow);
         m_opening_new_configuration->setObjectName("m_opening_new_configuration");
-        m_opening_new_configuration->setGeometry(QRect(190, 452, 222, 25));
+        m_opening_new_configuration->setGeometry(QRect(190, 450, 222, 25));
         m_opening_new_configuration->setFont(font1);
         m_opening_new_configuration->setChecked(true);
         m_reopening_current_configuration = new QCheckBox(DmsGuiOptionsWindow);
         m_reopening_current_configuration->setObjectName("m_reopening_current_configuration");
-        m_reopening_current_configuration->setGeometry(QRect(430, 452, 237, 25));
+        m_reopening_current_configuration->setGeometry(QRect(430, 450, 237, 25));
         m_reopening_current_configuration->setFont(font1);
         m_reopening_current_configuration->setChecked(false);
         m_date_time = new QCheckBox(DmsGuiOptionsWindow);
@@ -253,10 +253,10 @@ public:
         m_ok->setGeometry(QRect(380, 560, 93, 28));
         groupBox = new QGroupBox(DmsGuiOptionsWindow);
         groupBox->setObjectName("groupBox");
-        groupBox->setGeometry(QRect(10, 495, 671, 35));
+        groupBox->setGeometry(QRect(10, 495, 670, 35));
         groupBox_2 = new QGroupBox(DmsGuiOptionsWindow);
         groupBox_2->setObjectName("groupBox_2");
-        groupBox_2->setGeometry(QRect(10, 445, 671, 35));
+        groupBox_2->setGeometry(QRect(10, 445, 670, 35));
         groupBox_2->raise();
         groupBox->raise();
         line_2->raise();

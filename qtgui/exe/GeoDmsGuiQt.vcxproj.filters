@@ -214,10 +214,10 @@
     <ClInclude Include="src\forms\DmsConfigOptionsWindow.h">
       <Filter>Forms</Filter>
     </ClInclude>
-    <ClInclude Include="src\forms\DmsEventLogTypeSelection.h">
+    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h">
       <Filter>Forms</Filter>
     </ClInclude>
-    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h">
+    <ClInclude Include="src\forms\DmsEventLogSelection.h">
       <Filter>Forms</Filter>
     </ClInclude>
   </ItemGroup>

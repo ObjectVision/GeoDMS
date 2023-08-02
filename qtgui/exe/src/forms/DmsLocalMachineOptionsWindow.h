@@ -192,11 +192,11 @@ public:
         lbl_max->setFont(font);
         m_flush_treshold_text = new QLabel(DmsLocalMachineOptionsWindow);
         m_flush_treshold_text->setObjectName("m_flush_treshold_text");
-        m_flush_treshold_text->setGeometry(QRect(140, 420, 35, 21));
+        m_flush_treshold_text->setGeometry(QRect(130, 420, 35, 21));
         m_flush_treshold_text->setFont(font);
         lbl_memory_flushing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_memory_flushing->setObjectName("lbl_memory_flushing");
-        lbl_memory_flushing->setGeometry(QRect(10, 340, 401, 21));
+        lbl_memory_flushing->setGeometry(QRect(10, 340, 388, 21));
         QFont font2;
         font2.setPointSize(10);
         font2.setBold(true);
