@@ -111,13 +111,18 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
 
     if (IsDataItem(tableItem))
         columnSpecs.emplace_back().m_DataItem = AsDataItem(tableItem);
-    else for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem->GetNextItem())
-        if (IsDataItem(attrItem))
+    else
+    {
+        for (auto attrItem = tableItem->GetFirstSubItem(); attrItem; attrItem = attrItem->GetNextItem())
         {
-            auto adi = AsDataItem(attrItem);
-            if (adi->GetAbstrDomainUnit()->UnifyDomain(domain)) // adi could also be a skippable parameter
-                columnSpecs.emplace_back().m_DataItem = adi;
+            if (IsDataItem(attrItem))
+            {
+                auto adi = AsDataItem(attrItem);
+                if (adi->GetAbstrDomainUnit()->UnifyDomain(domain)) // adi could also be a skippable parameter
+                    columnSpecs.emplace_back().m_DataItem = adi;
+            }
         }
+    }
 
     auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), nullptr, true);
 
