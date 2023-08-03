@@ -481,8 +481,6 @@ void ExportTab::onFilenameEntryTextChanged(const QString& new_filename)
     m_final_filename->setMarkdown(markdown_text);
 }
 
-
-
 ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 	: QWidget(nullptr)
 {
