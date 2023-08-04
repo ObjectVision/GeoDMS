@@ -46,12 +46,13 @@ public:
     QLabel *lbl_background_layer_2;
     QPushButton *m_activate_text_filter;
     QPushButton *m_clear_text_filter;
+    QCheckBox *m_category_filter_memory;
 
     void setupUi(QWidget *DmsEventLogTypeSelection)
     {
         if (DmsEventLogTypeSelection->objectName().isEmpty())
             DmsEventLogTypeSelection->setObjectName("DmsEventLogTypeSelection");
-        DmsEventLogTypeSelection->resize(1184, 120);
+        DmsEventLogTypeSelection->resize(1184, 127);
         groupBox = new QGroupBox(DmsEventLogTypeSelection);
         groupBox->setObjectName("groupBox");
         groupBox->setGeometry(QRect(0, 0, 520, 110));
@@ -70,28 +71,28 @@ public:
         line_2 = new QFrame(groupBox);
         line_2->setObjectName("line_2");
         line_2->setGeometry(QRect(180, 0, 20, 77));
-        line_2->setFrameShadow(QFrame::Plain);
+        line_2->setFrameShadow(QFrame::Sunken);
         line_2->setLineWidth(2);
         line_2->setFrameShape(QFrame::VLine);
         lbl_calculation_progress = new QLabel(groupBox);
         lbl_calculation_progress->setObjectName("lbl_calculation_progress");
-        lbl_calculation_progress->setGeometry(QRect(20, 10, 150, 21));
+        lbl_calculation_progress->setGeometry(QRect(20, 7, 150, 21));
         QFont font;
         font.setFamilies({QString::fromUtf8("MS Shell Dlg 2")});
         font.setPointSize(10);
         lbl_calculation_progress->setFont(font);
         lbl_storage = new QLabel(groupBox);
         lbl_storage->setObjectName("lbl_storage");
-        lbl_storage->setGeometry(QRect(210, 10, 57, 21));
+        lbl_storage->setGeometry(QRect(210, 7, 57, 21));
         lbl_storage->setFont(font);
         lbl_background_layer = new QLabel(groupBox);
         lbl_background_layer->setObjectName("lbl_background_layer");
-        lbl_background_layer->setGeometry(QRect(370, 10, 131, 21));
+        lbl_background_layer->setGeometry(QRect(370, 7, 131, 21));
         lbl_background_layer->setFont(font);
         line_3 = new QFrame(groupBox);
         line_3->setObjectName("line_3");
         line_3->setGeometry(QRect(340, 0, 20, 77));
-        line_3->setFrameShadow(QFrame::Plain);
+        line_3->setFrameShadow(QFrame::Sunken);
         line_3->setLineWidth(2);
         line_3->setFrameShape(QFrame::VLine);
         m_major_trace_filter = new QCheckBox(groupBox);
@@ -106,17 +107,17 @@ public:
         m_minor_trace_filter->setObjectName("m_minor_trace_filter");
         m_minor_trace_filter->setGeometry(QRect(20, 30, 69, 25));
         m_minor_trace_filter->setFont(font1);
-        m_minor_trace_filter->setStyleSheet(QString::fromUtf8("color: green;"));
+        m_minor_trace_filter->setStyleSheet(QString::fromUtf8("color: ForestGreen;"));
         m_minor_trace_filter->setChecked(true);
         m_warning_filter = new QCheckBox(groupBox);
         m_warning_filter->setObjectName("m_warning_filter");
-        m_warning_filter->setGeometry(QRect(140, 80, 86, 25));
+        m_warning_filter->setGeometry(QRect(140, 81, 86, 25));
         m_warning_filter->setFont(font1);
         m_warning_filter->setStyleSheet(QString::fromUtf8("color: darkorange;"));
         m_warning_filter->setChecked(true);
         m_error_filter = new QCheckBox(groupBox);
         m_error_filter->setObjectName("m_error_filter");
-        m_error_filter->setGeometry(QRect(320, 80, 63, 25));
+        m_error_filter->setGeometry(QRect(320, 81, 63, 25));
         m_error_filter->setFont(font1);
         m_error_filter->setStyleSheet(QString::fromUtf8("color: red;"));
         m_error_filter->setChecked(true);
@@ -152,7 +153,7 @@ public:
         m_category_filter_commands->setChecked(true);
         m_category_filter_other = new QCheckBox(DmsEventLogTypeSelection);
         m_category_filter_other->setObjectName("m_category_filter_other");
-        m_category_filter_other->setGeometry(QRect(530, 30, 66, 25));
+        m_category_filter_other->setGeometry(QRect(530, 70, 66, 25));
         m_category_filter_other->setFont(font1);
         m_category_filter_other->setStyleSheet(QString::fromUtf8("color: grey;"));
         m_category_filter_other->setChecked(true);
@@ -163,11 +164,11 @@ public:
         line_4->setObjectName("line_4");
         line_4->setGeometry(QRect(640, 0, 20, 121));
         line_4->setFrameShadow(QFrame::Sunken);
-        line_4->setLineWidth(3);
+        line_4->setLineWidth(2);
         line_4->setFrameShape(QFrame::VLine);
         lbl_background_layer_2 = new QLabel(DmsEventLogTypeSelection);
         lbl_background_layer_2->setObjectName("lbl_background_layer_2");
-        lbl_background_layer_2->setGeometry(QRect(670, 10, 131, 21));
+        lbl_background_layer_2->setGeometry(QRect(670, 7, 131, 21));
         lbl_background_layer_2->setFont(font);
         m_activate_text_filter = new QPushButton(DmsEventLogTypeSelection);
         m_activate_text_filter->setObjectName("m_activate_text_filter");
@@ -177,6 +178,12 @@ public:
         m_clear_text_filter->setObjectName("m_clear_text_filter");
         m_clear_text_filter->setGeometry(QRect(780, 80, 93, 28));
         m_clear_text_filter->setFont(font1);
+        m_category_filter_memory = new QCheckBox(DmsEventLogTypeSelection);
+        m_category_filter_memory->setObjectName("m_category_filter_memory");
+        m_category_filter_memory->setGeometry(QRect(530, 40, 87, 25));
+        m_category_filter_memory->setFont(font1);
+        m_category_filter_memory->setStyleSheet(QString::fromUtf8("color: brown;"));
+        m_category_filter_memory->setChecked(true);
 
         retranslateUi(DmsEventLogTypeSelection);
 
@@ -203,6 +210,7 @@ public:
         lbl_background_layer_2->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Filter on text:", nullptr));
         m_activate_text_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Filter", nullptr));
         m_clear_text_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Clear ", nullptr));
+        m_category_filter_memory->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "memory", nullptr));
     } // retranslateUi
 
 };
