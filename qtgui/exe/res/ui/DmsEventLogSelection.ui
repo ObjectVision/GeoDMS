@@ -369,7 +369,7 @@
    <property name="geometry">
     <rect>
      <x>530</x>
-     <y>30</y>
+     <y>70</y>
      <width>66</width>
      <height>25</height>
     </rect>
@@ -471,6 +471,30 @@
    </property>
    <property name="text">
     <string>Clear </string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_category_filter_memory">
+   <property name="geometry">
+    <rect>
+     <x>530</x>
+     <y>40</y>
+     <width>87</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color: brown;</string>
+   </property>
+   <property name="text">
+    <string>memory</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>
