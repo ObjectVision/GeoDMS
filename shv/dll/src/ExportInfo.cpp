@@ -99,9 +99,15 @@ SharedStr GetFullFileNameBase(const TreeItem* context)
 	,	LoadValue<SharedStr>(exportSettingsContext, GetTokenID_mt("FullFileNameBase"), DelimitedConcat(dirName.c_str(), fileNameBase.c_str()))
 	);*/
 
-	auto local_datadir_folder = AbstrStorageManager::GetFullStorageName("", "%localDataProjDir%");
+	auto local_datadir_folder = AbstrStorageManager::GetFullStorageName(context, SharedStr("%localDataProjDir%"));
 	auto filename = MakeFileName(context->GetFullName().c_str());
 	return local_datadir_folder + "/" + filename;
+}
+
+SHV_CALL SharedStr GetFullFolderNameBase(const TreeItem* context)
+{
+	auto local_datadir_folder = AbstrStorageManager::GetFullStorageName(context, SharedStr("%localDataProjDir%"));
+	return local_datadir_folder;
 }
 
 //===================================== struct ExportInfo impl

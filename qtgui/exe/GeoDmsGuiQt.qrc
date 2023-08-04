@@ -73,5 +73,6 @@
         <file>res/images/DP_history.bmp</file>
         <file>res/images/arrow_down.png</file>
         <file>res/images/EL_selection.bmp</file>
+        <file>res/images/GeoDmsGuiQt.png</file>
     </qresource>
 </RCC>

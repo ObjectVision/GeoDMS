@@ -79,7 +79,7 @@ namespace {
 			while (i!=e)
 			{
 				const TreeItem* ti = *i++;
-				reportF(SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
+				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
 					m_ObjName,
 					ti->GetDynamicClass()->GetName(), 
 					ti->GetRefCount(), 

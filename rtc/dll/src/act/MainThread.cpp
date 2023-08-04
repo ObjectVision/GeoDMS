@@ -120,8 +120,8 @@ void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 	bool wasEmpty = s_OperQueue.empty();
 	s_OperQueue.emplace_back(std::move(func));
 	SuspendTrigger::DoSuspend();
-	if (wasEmpty)
-		MsgDispatch(SeverityTypeID::ST_Nothing, MsgCategory::disposable, "");
+	//if (wasEmpty)
+	//	MsgDispatch(SeverityTypeID::ST_Nothing, MsgCategory::disposable, "");
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;

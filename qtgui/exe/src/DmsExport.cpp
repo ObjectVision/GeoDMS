@@ -452,14 +452,17 @@ void ExportTab::onComboBoxItemActivate(int index)
 {
     auto driver = m_available_drivers.at(index);
     setNativeDriverCheckbox();
-    resetFilenameExtension();
+    //resetFilenameExtension();
     onFilenameEntryTextChanged(QString());
 }
 
-void ExportTab::setFilenameUsingFileDialog()
+void ExportTab::setFoldernameUsingFileDialog()
 {
-    QString filename = QFileDialog::getSaveFileName(this, tr("Set export filename"), m_filename_entry->text());
-    m_filename_entry->setText(filename);
+    auto new_export_folder = QFileDialog::getExistingDirectory(this, tr("Open LocalData Directory"), m_foldername_entry->text(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (new_export_folder.isEmpty())
+        return;
+    
+    m_foldername_entry->setText(new_export_folder);
 }
 
 auto ExportTab::createFinalFileNameText() -> QString
@@ -492,17 +495,22 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 
 
     auto filename = new QLabel("Filename (no extension):", this);
+    auto foldername = new QLabel("Foldername:", this);
 
-
+    m_foldername_entry = new QLineEdit(this);
     m_filename_entry = new QLineEdit(this);
 
     connect(m_filename_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
 
-    auto filename_button = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
-    connect(filename_button, &QPushButton::clicked, this, &ExportTab::setFilenameUsingFileDialog);
-    grid_layout_box->addWidget(filename, 0, 0);
-    grid_layout_box->addWidget(m_filename_entry, 0, 1);
-    grid_layout_box->addWidget(filename_button, 0, 2);
+    auto folder_browser_button = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
+    connect(folder_browser_button, &QPushButton::clicked, this, &ExportTab::setFoldernameUsingFileDialog);
+    grid_layout_box->addWidget(foldername, 0, 0);
+    grid_layout_box->addWidget(m_foldername_entry, 0, 1);
+    grid_layout_box->addWidget(folder_browser_button, 0, 2);
+
+    grid_layout_box->addWidget(filename, 1, 0);
+    grid_layout_box->addWidget(m_filename_entry, 1, 1);
+
 
     m_driver_selection = new QComboBox(this);
     repopulateDriverSelection();
@@ -510,9 +518,9 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     connect(m_driver_selection, &QComboBox::currentIndexChanged, exportWindow, &DmsExportWindow::resetExportButton);
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
-    grid_layout_box->addWidget(format_label, 1, 0);
-    grid_layout_box->addWidget(m_driver_selection, 1, 1);
-    grid_layout_box->addWidget(m_native_driver_checkbox, 1, 2);
+    grid_layout_box->addWidget(format_label, 2, 0);
+    grid_layout_box->addWidget(m_driver_selection, 2, 1);
+    grid_layout_box->addWidget(m_native_driver_checkbox, 2, 2);
     setNativeDriverCheckbox();
 
     auto line_editor = new QFrame(this);
@@ -520,19 +528,19 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     line_editor->setFrameShadow(QFrame::Plain);
     line_editor->setLineWidth(1);
     line_editor->setMidLineWidth(1);
-    grid_layout_box->addWidget(line_editor, 2, 0, 1, 3);
+    grid_layout_box->addWidget(line_editor, 3, 0, 1, 3);
 
     auto final_filename = new QLabel("Resulting filename(s):", this);
     m_final_filename = new QTextBrowser(this);
     m_final_filename->setReadOnly(true);
 
-    grid_layout_box->addWidget(final_filename, 3, 0);
-    grid_layout_box->addWidget(m_final_filename, 3, 1);
+    grid_layout_box->addWidget(final_filename, 4, 0);
+    grid_layout_box->addWidget(m_final_filename, 4, 1);
 
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid_layout_box->addWidget(spacer, 4, 0, 1, 3);
+    grid_layout_box->addWidget(spacer, 5, 0, 1, 3);
 }
 
 bool isCurrentItemOrItsSubItemsMappable()
@@ -560,21 +568,15 @@ bool isCurrentItemOrItsSubItemsMappable()
 void ExportTab::showEvent(QShowEvent* event)
 {
     const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
-    if (currDriver.HasNativeVersion())
-    {
-        m_native_driver_checkbox->setEnabled(true);
-        m_native_driver_checkbox->setChecked(true);
-    }
-    else
-    {
-        m_native_driver_checkbox->setEnabled(false);
-        m_native_driver_checkbox->setChecked(false);
-    }
+    m_native_driver_checkbox->setEnabled(currDriver.HasNativeVersion());
+    m_native_driver_checkbox->setChecked(currDriver.HasNativeVersion());
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    auto full_filename_base = GetFullFileNameBase(current_item);
-
-    m_filename_entry->setText(QString(full_filename_base.c_str()));
+    auto full_foldername_base = GetFullFolderNameBase(current_item);
+    auto current_item_folder_name_extention = QFileInfo(current_item->GetFullName().c_str());
+    m_foldername_entry->setText((full_foldername_base.c_str()));// +current_item_folder_name_extention));
+    auto filename = current_item->GetName();
+    m_filename_entry->setText(filename.c_str());
 
     // set disabled drivers in combobox
     QStandardItemModel* model = qobject_cast<QStandardItemModel*>(m_driver_selection->model());

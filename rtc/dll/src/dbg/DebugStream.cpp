@@ -227,7 +227,7 @@ namespace { // DebugOutStreamBuff is local
 		}
 	protected:
 		SeverityTypeID m_Severity = SeverityTypeID::ST_MinorTrace;
-		MsgCategory m_MsgCat = MsgCategory::nonspecific;
+		MsgCategory m_MsgCat = MsgCategory::progress;
 	};
 
 	static_ptr<DebugOutStreamBuff>  g_DebugStreamBuff;
@@ -335,7 +335,7 @@ DebugOutStream::scoped_lock::~scoped_lock()
 				if (st != SeverityTypeID::ST_Nothing) // ST_MinorTrace, ST_MajorTrace, ST_Warning, ST_Error, ST_FatalError, ST_Nothing
 				{
 					_RPT0(_CRT_WARN, "\n");
-					if (msgCat > MsgCategory::nonspecific)
+					if (msgCat > MsgCategory::progress)
 						_RPT0(_CRT_WARN, AsString(msgCat));
 
 					if (st >= SeverityTypeID::ST_Error) // ST_Error, ST_FatalError

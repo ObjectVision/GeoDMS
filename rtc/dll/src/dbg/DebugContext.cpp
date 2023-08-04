@@ -69,14 +69,17 @@ void ProgressMsg(CharPtr msg)
 }
 
 /********** MsgCategory **********/
-
 CharPtr AsString(MsgCategory msgCat)
 {
 	switch (msgCat) {
-	case MsgCategory::system: return "[system]";
-	case MsgCategory::wms: return "[wms]";
-	case MsgCategory::disposable: return "[disposable]";
-	case MsgCategory::progress: return "[progress]";
+	case MsgCategory::other: {return "[other]"; }
+	case MsgCategory::storage_read: {return "[storage_read]"; }
+	case MsgCategory::storage_write: {return "[storage_write]";}
+	case MsgCategory::background_layer_connection: {return "[background_layer_connection]"; }
+	case MsgCategory::background_layer_request: {return "[background_layer_request]"; }
+	case MsgCategory::progress: {return "[progress]"; }
+	case MsgCategory::memory: {return "[memory]"; }
+	case MsgCategory::commands: { return "[commands]"; }
 	}
 	return "";
 }

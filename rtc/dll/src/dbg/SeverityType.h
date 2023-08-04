@@ -48,11 +48,12 @@ enum class SeverityTypeID {
 };
 
 enum class MsgCategory {
-	nonspecific,
-	system,
-	disposable,
-	wms,
 	progress,
+	storage_read,
+	storage_write,
+	background_layer_connection,
+	background_layer_request,
+	other,
 	memory,
 	commands,
 };

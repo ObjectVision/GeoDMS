@@ -57,6 +57,11 @@ public:
     QLineEdit *m_sd_input;
     QLineEdit *m_editor_input;
     QLabel *lbl_current_flush_value;
+    QPushButton *m_pp_info;
+    QLabel *lbl_applications;
+    QLineEdit *m_editor_parameters_input;
+    QLabel *lbl_applications_2;
+    QPushButton *m_set_editor_parameters;
 
     void setupUi(QDialog *DmsLocalMachineOptionsWindow)
     {
@@ -132,7 +137,7 @@ public:
         m_editor_folder_dialog->setIconSize(QSize(24, 24));
         line_3 = new QFrame(DmsLocalMachineOptionsWindow);
         line_3->setObjectName("line_3");
-        line_3->setGeometry(QRect(10, 240, 673, 16));
+        line_3->setGeometry(QRect(10, 272, 673, 16));
         sizePolicy.setHeightForWidth(line_3->sizePolicy().hasHeightForWidth());
         line_3->setSizePolicy(sizePolicy);
         line_3->setFrameShadow(QFrame::Sunken);
@@ -140,34 +145,34 @@ public:
         line_3->setFrameShape(QFrame::HLine);
         lbl_parallel_processing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_parallel_processing->setObjectName("lbl_parallel_processing");
-        lbl_parallel_processing->setGeometry(QRect(10, 230, 181, 21));
+        lbl_parallel_processing->setGeometry(QRect(10, 262, 201, 21));
         lbl_parallel_processing->setFont(font1);
         lbl_parallel_processing->setAutoFillBackground(true);
         lbl_parallel_processing->setFrameShape(QFrame::Box);
         lbl_parallel_processing->setLineWidth(0);
         m_pp0 = new QCheckBox(DmsLocalMachineOptionsWindow);
         m_pp0->setObjectName("m_pp0");
-        m_pp0->setGeometry(QRect(10, 260, 293, 25));
+        m_pp0->setGeometry(QRect(10, 292, 293, 25));
         m_pp0->setFont(font1);
         m_pp0->setChecked(true);
         m_pp2 = new QCheckBox(DmsLocalMachineOptionsWindow);
         m_pp2->setObjectName("m_pp2");
-        m_pp2->setGeometry(QRect(10, 290, 303, 25));
+        m_pp2->setGeometry(QRect(10, 322, 303, 25));
         m_pp2->setFont(font1);
         m_pp2->setChecked(true);
         m_pp1 = new QCheckBox(DmsLocalMachineOptionsWindow);
         m_pp1->setObjectName("m_pp1");
-        m_pp1->setGeometry(QRect(350, 260, 189, 25));
+        m_pp1->setGeometry(QRect(350, 292, 189, 25));
         m_pp1->setFont(font1);
         m_pp1->setChecked(true);
         m_pp3 = new QCheckBox(DmsLocalMachineOptionsWindow);
         m_pp3->setObjectName("m_pp3");
-        m_pp3->setGeometry(QRect(350, 290, 224, 25));
+        m_pp3->setGeometry(QRect(350, 322, 224, 25));
         m_pp3->setFont(font1);
         m_pp3->setChecked(true);
         line_4 = new QFrame(DmsLocalMachineOptionsWindow);
         line_4->setObjectName("line_4");
-        line_4->setGeometry(QRect(10, 350, 673, 16));
+        line_4->setGeometry(QRect(10, 382, 673, 16));
         sizePolicy.setHeightForWidth(line_4->sizePolicy().hasHeightForWidth());
         line_4->setSizePolicy(sizePolicy);
         line_4->setFrameShadow(QFrame::Sunken);
@@ -175,7 +180,7 @@ public:
         line_4->setFrameShape(QFrame::HLine);
         m_flush_treshold = new QSlider(DmsLocalMachineOptionsWindow);
         m_flush_treshold->setObjectName("m_flush_treshold");
-        m_flush_treshold->setGeometry(QRect(64, 380, 551, 22));
+        m_flush_treshold->setGeometry(QRect(64, 412, 551, 22));
         m_flush_treshold->setMinimum(50);
         m_flush_treshold->setMaximum(100);
         m_flush_treshold->setValue(80);
@@ -184,19 +189,19 @@ public:
         m_flush_treshold->setTickInterval(10);
         lbl_min = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_min->setObjectName("lbl_min");
-        lbl_min->setGeometry(QRect(10, 380, 40, 21));
+        lbl_min->setGeometry(QRect(10, 412, 40, 21));
         lbl_min->setFont(font);
         lbl_max = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_max->setObjectName("lbl_max");
-        lbl_max->setGeometry(QRect(630, 380, 49, 21));
+        lbl_max->setGeometry(QRect(630, 412, 49, 21));
         lbl_max->setFont(font);
         m_flush_treshold_text = new QLabel(DmsLocalMachineOptionsWindow);
         m_flush_treshold_text->setObjectName("m_flush_treshold_text");
-        m_flush_treshold_text->setGeometry(QRect(130, 420, 35, 21));
+        m_flush_treshold_text->setGeometry(QRect(130, 452, 35, 21));
         m_flush_treshold_text->setFont(font);
         lbl_memory_flushing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_memory_flushing->setObjectName("lbl_memory_flushing");
-        lbl_memory_flushing->setGeometry(QRect(10, 340, 388, 21));
+        lbl_memory_flushing->setGeometry(QRect(10, 372, 388, 21));
         QFont font2;
         font2.setPointSize(10);
         font2.setBold(true);
@@ -206,7 +211,7 @@ public:
         lbl_memory_flushing->setLineWidth(0);
         line_5 = new QFrame(DmsLocalMachineOptionsWindow);
         line_5->setObjectName("line_5");
-        line_5->setGeometry(QRect(10, 470, 673, 16));
+        line_5->setGeometry(QRect(10, 502, 673, 16));
         sizePolicy.setHeightForWidth(line_5->sizePolicy().hasHeightForWidth());
         line_5->setSizePolicy(sizePolicy);
         line_5->setFrameShadow(QFrame::Sunken);
@@ -214,14 +219,14 @@ public:
         line_5->setFrameShape(QFrame::HLine);
         lbl_logging = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_logging->setObjectName("lbl_logging");
-        lbl_logging->setGeometry(QRect(10, 460, 81, 21));
+        lbl_logging->setGeometry(QRect(10, 492, 81, 21));
         lbl_logging->setFont(font2);
         lbl_logging->setAutoFillBackground(true);
         lbl_logging->setFrameShape(QFrame::Box);
         lbl_logging->setLineWidth(0);
         m_tracelog = new QCheckBox(DmsLocalMachineOptionsWindow);
         m_tracelog->setObjectName("m_tracelog");
-        m_tracelog->setGeometry(QRect(10, 490, 172, 25));
+        m_tracelog->setGeometry(QRect(10, 522, 172, 25));
         m_tracelog->setFont(font1);
         m_tracelog->setChecked(true);
         m_ok = new QPushButton(DmsLocalMachineOptionsWindow);
@@ -241,11 +246,32 @@ public:
         m_sd_input->setGeometry(QRect(110, 100, 521, 25));
         m_editor_input = new QLineEdit(DmsLocalMachineOptionsWindow);
         m_editor_input->setObjectName("m_editor_input");
-        m_editor_input->setGeometry(QRect(10, 180, 621, 25));
+        m_editor_input->setGeometry(QRect(110, 180, 521, 25));
         lbl_current_flush_value = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_current_flush_value->setObjectName("lbl_current_flush_value");
-        lbl_current_flush_value->setGeometry(QRect(10, 420, 107, 21));
+        lbl_current_flush_value->setGeometry(QRect(10, 452, 107, 21));
         lbl_current_flush_value->setFont(font);
+        m_pp_info = new QPushButton(DmsLocalMachineOptionsWindow);
+        m_pp_info->setObjectName("m_pp_info");
+        m_pp_info->setGeometry(QRect(180, 260, 16, 28));
+        QIcon icon1;
+        icon1.addFile(QString::fromUtf8("../images/DP_ValueInfo.bmp"), QSize(), QIcon::Normal, QIcon::Off);
+        m_pp_info->setIcon(icon1);
+        m_pp_info->setFlat(true);
+        lbl_applications = new QLabel(DmsLocalMachineOptionsWindow);
+        lbl_applications->setObjectName("lbl_applications");
+        lbl_applications->setGeometry(QRect(10, 180, 90, 21));
+        lbl_applications->setFont(font);
+        m_editor_parameters_input = new QLineEdit(DmsLocalMachineOptionsWindow);
+        m_editor_parameters_input->setObjectName("m_editor_parameters_input");
+        m_editor_parameters_input->setGeometry(QRect(110, 210, 241, 25));
+        lbl_applications_2 = new QLabel(DmsLocalMachineOptionsWindow);
+        lbl_applications_2->setObjectName("lbl_applications_2");
+        lbl_applications_2->setGeometry(QRect(10, 210, 90, 21));
+        lbl_applications_2->setFont(font);
+        m_set_editor_parameters = new QPushButton(DmsLocalMachineOptionsWindow);
+        m_set_editor_parameters->setObjectName("m_set_editor_parameters");
+        m_set_editor_parameters->setGeometry(QRect(370, 210, 261, 28));
         line->raise();
         lbl_title->raise();
         lbl_paths->raise();
@@ -278,6 +304,11 @@ public:
         m_sd_input->raise();
         m_editor_input->raise();
         lbl_current_flush_value->raise();
+        m_pp_info->raise();
+        lbl_applications->raise();
+        m_editor_parameters_input->raise();
+        lbl_applications_2->raise();
+        m_set_editor_parameters->raise();
 
         retranslateUi(DmsLocalMachineOptionsWindow);
 
@@ -310,6 +341,13 @@ public:
         m_cancel->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Cancel", nullptr));
         m_undo->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Undo", nullptr));
         lbl_current_flush_value->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Current Value:", nullptr));
+#if QT_CONFIG(tooltip)
+        m_pp_info->setToolTip(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Example explanation on <span style=\" font-weight:600;\">parallel processing</span>.</p><p>What is it? How to use?</p><p><br/></p></body></html>", nullptr));
+#endif // QT_CONFIG(tooltip)
+        m_pp_info->setText(QString());
+        lbl_applications->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Application:", nullptr));
+        lbl_applications_2->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Parameters:", nullptr));
+        m_set_editor_parameters->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Set default parameters for application", nullptr));
     } // retranslateUi
 
 };
