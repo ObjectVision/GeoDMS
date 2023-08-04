@@ -60,13 +60,14 @@ public:
     ExportTab(bool is_raster, DmsExportWindow* exportWindow);
     bool m_is_raster = false;
     std::vector<gdal_driver_id> m_available_drivers;
+    QPointer<QLineEdit> m_foldername_entry;
     QPointer<QLineEdit> m_filename_entry;
     QPointer<QCheckBox> m_native_driver_checkbox;
     QPointer<QComboBox> m_driver_selection;
     QPointer<QTextBrowser> m_final_filename;
 
 private slots:
-    void setFilenameUsingFileDialog();
+    void setFoldernameUsingFileDialog();
     void onComboBoxItemActivate(int index);
     void onFilenameEntryTextChanged(const QString& new_filename);
 
