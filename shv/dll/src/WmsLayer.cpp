@@ -265,15 +265,15 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
-		MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
+		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-			MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
+			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
+		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
@@ -413,7 +413,7 @@ namespace wms {
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(MsgCategory::wms, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
+		reportF(MsgCategory::background_layer_request, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
 			, what 
 			, msg 
 			, m_Request 

@@ -16,6 +16,17 @@
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 
+static QColor html_ForestGreen = QColor(34, 139, 34); // EventLog: minor in Calculation Progress
+static QColor html_DarkGreen = QColor(0, 100, 0); // EventLog: major in Calculation Progress
+static QColor html_blue = QColor(0, 0, 255); // EventLog: read in Storage
+static QColor html_navy = QColor(0, 0, 128); // EventLog: write in Storage
+static QColor html_fuchsia = QColor(255, 0, 255); // EventLog: connection in Background layer
+static QColor html_purple = QColor(255, 0, 255); // EventLog: request in Background layer
+static QColor html_black = QColor(0, 0, 0); // EventLog: commands
+static QColor html_gray = QColor(128, 128, 128); // EventLog: other
+static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
+static QColor html_red = QColor(255, 0, 0); // EventLog: error
+
 auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
 {
 	return m_Items.at(m_filtered_indices.at(row));
@@ -47,18 +58,29 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 
 	case Qt::ForegroundRole:
 	{
-		switch (item_data.GetSeverityType()) {
+		auto return_color = QColor();
+		switch (item_data.GetSeverityType()) 
+		{
+		case SeverityTypeID::ST_DispError:// error
 		case SeverityTypeID::ST_FatalError:
-		case SeverityTypeID::ST_Error:
-			return QColor(Qt::red);
-		case SeverityTypeID::ST_Warning:
-			return QColor(255, 127, 80);
-		case SeverityTypeID::ST_MajorTrace:
-			return QColor(Qt::black);
+		case SeverityTypeID::ST_Error: {return html_red; }
+		case SeverityTypeID::ST_Warning: {return html_darkorange; }// warning
+		case SeverityTypeID::ST_MinorTrace: {return_color = html_ForestGreen; break; } // minor trace							  
+		case SeverityTypeID::ST_MajorTrace: { return_color = html_DarkGreen; break; }// major trace
 		}
-		break;
-	}
 
+		switch (item_data.GetMsgCategory())
+		{
+		case MsgCategory::storage_read: {return html_blue;}
+		case MsgCategory::storage_write: {return html_navy; }
+		case MsgCategory::background_layer_connection: {return html_fuchsia; }
+		case MsgCategory::background_layer_request: {return html_purple; }
+		case MsgCategory::commands: { return html_black; }
+		case MsgCategory::memory: {return html_gray; }
+		case MsgCategory::other: {return html_gray; }
+		}
+		return return_color;
+	}
 	case Qt::SizeHintRole:
 	{
 		static int pixels_high = QFontMetrics(QApplication::font()).height();
@@ -84,13 +106,16 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto item_severity_type = item.GetSeverityType();
 	switch (item.GetMsgCategory())
 	{
-	//case MsgCategory::system: {return eventlog->m_dms_type_filter->m_category_filter_system->isChecked(); }
-	//case MsgCategory::disposable: {return eventlog->m_dms_type_filter->m_category_filter_disposable->isChecked(); }
-	case MsgCategory::wms: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
-	//case MsgCategory::progress: {return eventlog->m_dms_type_filter->m_category_filter_progress->isChecked(); }
-	//case MsgCategory::memory: {return eventlog->m_dms_type_filter->m_category_filter_memory->isChecked(); }
+	case MsgCategory::storage_read: {return eventlog->m_eventlog_filter->m_read_filter->isChecked(); }
+	case MsgCategory::storage_write: {return eventlog->m_eventlog_filter->m_write_filter->isChecked(); }
+	case MsgCategory::background_layer_connection: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
+	case MsgCategory::background_layer_request: {return eventlog->m_eventlog_filter->m_request_filter->isChecked(); }
+	//case MsgCategory::memory: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
+	case MsgCategory::other: {return eventlog->m_eventlog_filter->m_category_filter_other->isChecked(); }
+	case MsgCategory::progress: {return item_severity_type==SeverityTypeID::ST_MinorTrace || item_severity_type == SeverityTypeID::ST_MajorTrace; }
 	case MsgCategory::commands: {return eventlog->m_eventlog_filter->m_category_filter_commands->isChecked(); }
 	}
 	return false;

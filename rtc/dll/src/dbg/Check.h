@@ -152,10 +152,10 @@ RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2);
 RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg);
 
-inline void reportD_impl(SeverityTypeID st, const CharPtrRange& msg) { reportD_impl(MsgCategory::nonspecific, st, msg); }
-inline void reportD(SeverityTypeID st, CharPtr msg) { reportD(MsgCategory::nonspecific, st, msg); }
-inline void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2) { reportD(MsgCategory::nonspecific, st, msg1, msg2); }
-inline void reportD_without_cancellation_check(SeverityTypeID st, CharPtr msg) { reportD_without_cancellation_check(MsgCategory::nonspecific, st, msg); }
+inline void reportD_impl(SeverityTypeID st, const CharPtrRange& msg) { reportD_impl(MsgCategory::other, st, msg); }
+inline void reportD(SeverityTypeID st, CharPtr msg) { reportD(MsgCategory::other, st, msg); }
+inline void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2) { reportD(MsgCategory::other, st, msg1, msg2); }
+inline void reportD_without_cancellation_check(SeverityTypeID st, CharPtr msg) { reportD_without_cancellation_check(MsgCategory::other, st, msg); }
 
 struct CharPtrRange;
 template<typename CharIterType>
