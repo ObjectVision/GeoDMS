@@ -167,7 +167,7 @@ namespace wms {
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
-				MG_DEBUGCODE(MsgCategory::background_layer_request, self->report(("TimerExpired: " + ec.message()).c_str(), true));
+				MG_DEBUGCODE(self->report(MsgCategory::background_layer_request, ("TimerExpired: " + ec.message()).c_str(), true));
 			});
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
