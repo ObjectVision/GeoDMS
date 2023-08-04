@@ -26,6 +26,7 @@ static QColor html_black = QColor(0, 0, 0); // EventLog: commands
 static QColor html_gray = QColor(128, 128, 128); // EventLog: other
 static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
 static QColor html_red = QColor(255, 0, 0); // EventLog: error
+static QColor html_brown = QColor(165, 42, 42); // EventLog: memory
 
 auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
 {
@@ -76,7 +77,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		case MsgCategory::background_layer_connection: {return html_fuchsia; }
 		case MsgCategory::background_layer_request: {return html_purple; }
 		case MsgCategory::commands: { return html_black; }
-		case MsgCategory::memory: {return html_gray; }
+		case MsgCategory::memory: {return html_brown; }
 		case MsgCategory::other: {return html_gray; }
 		}
 		return return_color;
@@ -106,16 +107,14 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	auto item_severity_type = item.GetSeverityType();
 	switch (item.GetMsgCategory())
 	{
 	case MsgCategory::storage_read: {return eventlog->m_eventlog_filter->m_read_filter->isChecked(); }
 	case MsgCategory::storage_write: {return eventlog->m_eventlog_filter->m_write_filter->isChecked(); }
 	case MsgCategory::background_layer_connection: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
 	case MsgCategory::background_layer_request: {return eventlog->m_eventlog_filter->m_request_filter->isChecked(); }
-	//case MsgCategory::memory: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
+	case MsgCategory::memory: {return eventlog->m_eventlog_filter->m_category_filter_memory->isChecked(); }
 	case MsgCategory::other: {return eventlog->m_eventlog_filter->m_category_filter_other->isChecked(); }
-	case MsgCategory::progress: {return item_severity_type==SeverityTypeID::ST_MinorTrace || item_severity_type == SeverityTypeID::ST_MajorTrace; }
 	case MsgCategory::commands: {return eventlog->m_eventlog_filter->m_category_filter_commands->isChecked(); }
 	}
 	return false;
@@ -132,7 +131,13 @@ bool EventLogModel::itemPassesTextFilter(item_t& item)
 
 bool EventLogModel::itemPassesFilter(item_t& item)
 {
-	return (itemPassesTypeFilter(item) || itemPassesCategoryFilter(item)) && itemPassesTextFilter(item);
+	auto item_passes_type_filter = itemPassesTypeFilter(item);
+	auto item_passes_category_filter = itemPassesCategoryFilter(item);
+	if (item.GetMsgCategory() == MsgCategory::progress)
+		item_passes_category_filter = item_passes_type_filter;
+	auto item_passes_text_filter = itemPassesTextFilter(item);
+
+	return (item_passes_type_filter || item_passes_category_filter) && item_passes_text_filter;
 }
 
 void EventLogModel::refilter()
@@ -240,7 +245,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
