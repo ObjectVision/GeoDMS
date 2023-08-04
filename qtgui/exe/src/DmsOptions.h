@@ -4,6 +4,8 @@
 #include <QDialog>
 #include "geo/color.h"
 #include "ptr/SharedStr.h"
+#include "DmsLocalMachineOptionsWindow.h"
+#include "DmsGuiOptionsWindow.h"
 struct TreeItem;
 
 enum string_option
@@ -39,7 +41,7 @@ class QLabel;
 class QFileDialog;
 class QLineEdit;
 
-class DmsGuiOptionsWindow : public QDialog
+class DmsGuiOptionsWindow : public QDialog, Ui::DmsGuiOptionsWindow
 {
     Q_OBJECT
 public:
@@ -53,6 +55,7 @@ private slots:
     void changeClassificationStartColor();
     void changeClassificationEndColor();
     void ok();
+    void cancel();
     void apply();
     void restoreOptions();
 
@@ -63,7 +66,7 @@ private:
     void hasChanged() { return setChanged(true); }
 
     bool m_changed = false;
-    QPointer<QCheckBox> m_show_hidden_items;
+    /*QPointer<QCheckBox> m_show_hidden_items;
     QPointer<QCheckBox> m_show_thousand_separator;
     QPointer<QCheckBox> m_show_state_colors_in_treeview;
 
@@ -75,10 +78,10 @@ private:
     QPointer<QPushButton> m_end_color_button;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
+    QPointer<QPushButton> m_undo;*/
 };
 
-class DmsAdvancedOptionsWindow : public QDialog
+class DmsAdvancedOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
 {
     Q_OBJECT
 public:
@@ -88,6 +91,7 @@ private slots:
     void onFlushTresholdValueChange(int value);
     void restoreOptions();
     void ok();
+    void cancel();
     void apply();
     void onStateChange();
     void onTextChange();
@@ -102,7 +106,9 @@ private:
     void setChanged(bool isChanged);
 
     bool m_changed = false;
-
+    QPointer<QFileDialog> m_folder_dialog;
+    QPointer<QFileDialog> m_file_dialog;
+    /*
     QPointer<QFileDialog> m_folder_dialog;
     QPointer<QLabel> m_flush_treshold_text;
     QPointer<QCheckBox> m_pp0;
@@ -116,7 +122,7 @@ private:
     QPointer<QSlider>   m_flush_treshold;
     QPointer<QPushButton> m_ok;
     QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
+    QPointer<QPushButton> m_undo;*/
 };
 
 //======== CONFIG OPTIONS WINDOW ========

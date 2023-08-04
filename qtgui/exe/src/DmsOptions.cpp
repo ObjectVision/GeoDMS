@@ -166,7 +166,8 @@ void DmsGuiOptionsWindow::changeClassificationEndColor()
 DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QString("Gui options"));
+    setupUi(this);
+    /*setWindowTitle(QString("Gui options"));
     setMinimumSize(800, 400);
 
     auto grid_layout = new QGridLayout(this);
@@ -177,12 +178,12 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     m_show_state_colors_in_treeview = new QCheckBox("Show state colors in treeview", this);
     grid_layout->addWidget(m_show_hidden_items, 0, 0, 1, 3);
     grid_layout->addWidget(m_show_thousand_separator, 1, 0, 1, 3);
-    grid_layout->addWidget(m_show_state_colors_in_treeview, 2, 0, 1, 3);
+    grid_layout->addWidget(m_show_state_colors_in_treeview, 2, 0, 1, 3);*/
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
 
-    auto valid_color_text_ti = new QLabel("    Valid:", this);
+    /*auto valid_color_text_ti = new QLabel("    Valid:", this);
     auto not_calculated_color_text_ti = new QLabel("    NotCalculated:", this);
     auto failed_color_text_ti = new QLabel("    Failed:", this);
     m_valid_color_ti_button = new QPushButton(this);
@@ -193,20 +194,20 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     grid_layout->addWidget(not_calculated_color_text_ti, 4, 0);
     grid_layout->addWidget(m_not_calculated_color_ti_button, 4, 1);
     grid_layout->addWidget(failed_color_text_ti, 5, 0);
-    grid_layout->addWidget(m_failed_color_ti_button, 5, 1);
+    grid_layout->addWidget(m_failed_color_ti_button, 5, 1);*/
     connect(m_valid_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeValidTreeItemColor);
     connect(m_not_calculated_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor);
     connect(m_failed_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeFailedTreeItemColor);
 
-    auto map_view_color_settings = new QLabel("Mapview color settings", this);
+    /*auto map_view_color_settings = new QLabel("Mapview color settings", this);
     auto background_color_text = new QLabel("    Background:", this);
     m_background_color_button = new QPushButton(this);
     grid_layout->addWidget(map_view_color_settings, 6, 0, 1, 3);
     grid_layout->addWidget(background_color_text, 7, 0);
-    grid_layout->addWidget(m_background_color_button, 7, 1);
+    grid_layout->addWidget(m_background_color_button, 7, 1);*/
     connect(m_background_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeMapviewBackgroundColor);
 
-    auto default_classification_text = new QLabel("Default classification ramp colors", this);
+    /*auto default_classification_text = new QLabel("Default classification ramp colors", this);
     auto start_color_text = new QLabel("    Start:", this);
     m_start_color_button = new QPushButton(this);
     auto end_color_text = new QLabel("    End:", this);
@@ -215,32 +216,32 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     grid_layout->addWidget(start_color_text, 9, 0);
     grid_layout->addWidget(m_start_color_button, 9, 1);
     grid_layout->addWidget(end_color_text, 10, 0);
-    grid_layout->addWidget(m_end_color_button, 10, 1);
+    grid_layout->addWidget(m_end_color_button, 10, 1);*/
     connect(m_start_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationStartColor);
     connect(m_end_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationEndColor);
 
-    QWidget* spacer = new QWidget(this);
+    /*QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid_layout->addWidget(spacer, 11, 0, 1, 3);
+    grid_layout->addWidget(spacer, 11, 0, 1, 3);*/
 
     // ok/apply/cancel buttons
-    auto box_layout = new QHBoxLayout(this);
+    /*auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok", this);
     m_ok->setMaximumSize(75, 30);
     m_ok->setAutoDefault(true);
     m_apply = new QPushButton("Apply", this);
     m_apply->setMaximumSize(75, 30);
     m_undo = new QPushButton("Undo", this);
-    m_undo->setMaximumSize(75, 30);
+    m_undo->setMaximumSize(75, 30);*/
 
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
-    connect(m_apply, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
+    connect(m_cancel, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
     connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::restoreOptions);
 
-    box_layout->addWidget(m_ok);
+    /*box_layout->addWidget(m_ok);
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, 12, 0, 1, 3);
+    grid_layout->addLayout(box_layout, 12, 0, 1, 3);*/
 
     restoreOptions();
 
@@ -251,7 +252,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_apply->setEnabled(isChanged);
+    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -299,13 +300,72 @@ void DmsGuiOptionsWindow::ok()
     done(QDialog::Accepted);
 }
 
+void DmsGuiOptionsWindow::cancel()
+{
+    restoreOptions();
+    done(QDialog::Rejected);
+}
+
 //======== BEGIN GUI OPTIONS WINDOW ========
 
 //======== BEGIN ADVANCED OPTIONS WINDOW ========
 DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QString("Advanced options"));
+    setupUi(this);
+
+    m_folder_dialog = new QFileDialog(this);
+    m_folder_dialog->setFileMode(QFileDialog::FileMode::Directory);
+
+    m_file_dialog = new QFileDialog(this);
+    m_file_dialog->setFileMode(QFileDialog::FileMode::ExistingFile);
+
+    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+    connect(m_editor_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+
+    connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog);
+    connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
+    connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
+    m_ld_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_ld_folder_dialog->setText("");
+    m_sd_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_sd_folder_dialog->setText("");
+    m_editor_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
+    m_editor_folder_dialog->setText("");
+
+    // parallel processing
+    m_pp0->setChecked(IsMultiThreaded0());
+    m_pp1->setChecked(IsMultiThreaded1());
+    m_pp2->setChecked(IsMultiThreaded2());
+    m_pp3->setChecked(IsMultiThreaded3());
+    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+
+    // flush treshold
+    m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
+    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
+
+    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+
+    // ok/apply/cancel buttons
+    m_ok->setAutoDefault(true);
+    m_ok->setDefault(true);
+    m_cancel->setDisabled(true);
+    m_undo->setDisabled(true);
+    connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
+    connect(m_cancel, &QPushButton::released, this, &DmsAdvancedOptionsWindow::cancel);
+    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::restoreOptions);
+
+    restoreOptions();
+    onFlushTresholdValueChange(m_flush_treshold->value());
+    setWindowModality(Qt::ApplicationModal);
+    setAttribute(Qt::WA_DeleteOnClose);
+    setChanged(false);
+
+    /*setWindowTitle(QString("Advanced options"));
     setMinimumSize(800, 400);
 
     m_folder_dialog = new QFileDialog(this);
@@ -442,11 +502,11 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     box_layout->addWidget(m_apply);
     box_layout->addWidget(m_undo);
     grid_layout->addLayout(box_layout, 16, 0, 1, 3);
-
+    
     restoreOptions();
     onFlushTresholdValueChange(m_flush_treshold->value());
     setWindowModality(Qt::ApplicationModal);
-    setAttribute(Qt::WA_DeleteOnClose);
+    setAttribute(Qt::WA_DeleteOnClose);*/
 }
 
 struct string_option_attr {
@@ -520,11 +580,17 @@ void DmsAdvancedOptionsWindow::restoreOptions()
     setChanged(false);
 }
 
+void DmsAdvancedOptionsWindow::cancel()
+{
+    restoreOptions();
+    done(QDialog::Accepted);
+}
+
 void DmsAdvancedOptionsWindow::apply()
 {
-    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input.data()->text().toStdString());
-    SetGeoDmsRegKeyString("DmsEditor", m_editor_input.data()->text().toStdString());
+    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString());
+    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString());
+    SetGeoDmsRegKeyString("DmsEditor", m_editor_input->text().toStdString());
 
     auto dms_reg_status_flags = GetRegStatusFlags();
     setSF(m_pp0->isChecked(), dms_reg_status_flags, RSF_SuspendForGUI);
@@ -545,7 +611,7 @@ void DmsAdvancedOptionsWindow::apply()
 void DmsAdvancedOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_apply->setEnabled(isChanged);
+    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 

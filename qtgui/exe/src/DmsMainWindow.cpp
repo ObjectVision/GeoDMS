@@ -239,6 +239,20 @@ void DmsCurrentItemBar::setPath(CharPtr itemPath)
     onEditingFinished();
 }
 
+void DmsCurrentItemBar::setPathDirectly(QString path)
+{
+    setText(path);
+    auto root = MainWindow::TheOne()->getRootTreeItem();
+    if (!root)
+        return;
+
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, path.toUtf8());
+    auto found_treeitem = best_item_ref.first;
+    if (!found_treeitem)
+        return;
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
+}
+
 void DmsCurrentItemBar::onEditingFinished()
 {
     auto root = MainWindow::TheOne()->getRootTreeItem();
@@ -247,8 +261,9 @@ void DmsCurrentItemBar::onEditingFinished()
 
     auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(root, text().toUtf8());
     auto found_treeitem = best_item_ref.first;
-    if (found_treeitem)
-        MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
+    if (!found_treeitem)
+        return;
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem));
 }
 
 bool MainWindow::IsExisting()
@@ -310,7 +325,7 @@ void MainWindow::updateActionsForNewCurrentItem()
 void MainWindow::updateTreeItemVisitHistory()
 {
     auto current_index = m_treeitem_visit_history->currentIndex();
-    if (m_treeitem_visit_history->currentIndex() < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
+    if (current_index < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
     {
         for (int i=m_treeitem_visit_history->count() - 1; i > current_index; i--)
             m_treeitem_visit_history->removeItem(i);
@@ -742,60 +757,58 @@ bool MainWindow::event(QEvent* event)
     return QMainWindow::event(event);
 }
 
-std::string fillOpenConfigSourceCommand(const std::string_view command, const std::string_view filename, const std::string_view line)
+std::string fillOpenConfigSourceCommand(const std::string command, const std::string filename, const std::string line)
 {
-    //"%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L
-    std::string result = command.data();
-    auto fn_part = result.find("%F");
-    auto tmp_str = result.substr(fn_part + 2);
-    if (fn_part != std::string::npos)
-    {
-        result.replace(fn_part, fn_part + 2, filename.data());
-        result += tmp_str;
-    }
+    //tested for "%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L and "%ProgramFiles32%\Crimson Editor\cedt.exe" /L:%L "%F"
+    std::string result = command;
+    auto fnp_pos = result.find("%F");
+    if (fnp_pos == std::string::npos)
+        return result;
+    result.replace(fnp_pos, 2, "");
+    result.insert(fnp_pos, filename);
 
-    auto ln_part = result.find("%L");
-    tmp_str = result.substr(ln_part + 2);
-    if (ln_part != std::string::npos)
-    {
-        result.replace(ln_part, ln_part + 2, line);
-        result += tmp_str;
-    }
-
+    auto lnp_pos = result.find("%L");
+    if (lnp_pos == std::string::npos)
+        return result;
+    result.replace(lnp_pos, 2, "");
+    result.insert(lnp_pos, line);
     return result;
 }
 
 void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line)
 {
-    std::string command = GetGeoDmsRegKey("DmsEditor").c_str(); // TODO: replace with Qt application persistent data 
+    std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
+    std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
+    std::string unexpanded_open_config_source_command = "";
     std::string open_config_source_command = "";
     if (!filename.empty() && !line.empty() && !command.empty())
     {
-        auto unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, filename, line);
+        unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, std::string(filename), std::string(line));
         const TreeItem* ti = getCurrentTreeItem();
-
         if (!ti)
             ti = getRootTreeItem();
 
         if (!ti)
-            open_config_source_command = AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();
+            open_config_source_command = AbstrStorageManager::Expand("", unexpanded_open_config_source_command.c_str()).c_str();// AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();
         else
-            open_config_source_command = AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
+            open_config_source_command = AbstrStorageManager::Expand(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();//AbstrStorageManager::GetFullStorageName(ti, SharedStr(unexpanded_open_config_source_command.c_str())).c_str();
 
         assert(!open_config_source_command.empty());
-        reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
-        WinExec(open_config_source_command.c_str(), SW_MAXIMIZE); // TODO: replace by safer alternative: CreateProcess?; resolve spaces properly.
-        //QProcess process;
-        //process.setProgram();
-        //process.startDetached(open_config_source_command.c_str());
+
+        QProcess process;
+        QStringList args = QProcess::splitCommand(QString(open_config_source_command.c_str()));
+        process.setProgram(args.takeFirst());
+        process.setArguments(args);
+        if (process.startDetached())
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
     }
 }
 
 void MainWindow::openConfigSource()
 {
-    std::string filename = getCurrentTreeItem()->GetConfigFileName().c_str();
+    auto filename =  ConvertDmsFileNameAlways(getCurrentTreeItem()->GetConfigFileName());
     std::string line = std::to_string(getCurrentTreeItem()->GetConfigFileLineNr());
-    openConfigSourceDirectly(filename, line);
+    openConfigSourceDirectly(filename.c_str(), line);
 }
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
@@ -1311,6 +1324,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
     mdiSubWindow->setWindowTitle(title.c_str());
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
@@ -1491,10 +1505,23 @@ void MainWindow::createActions()
     m_current_item_bar_container = addToolBar(tr("Current item bar"));
 
     m_treeitem_visit_history = std::make_unique<QComboBox>();
-    //m_treeitem_visit_history->setFixedWidth(25);
+    m_treeitem_visit_history->setFixedWidth(18);
+    m_treeitem_visit_history->setFixedHeight(18);
+    m_treeitem_visit_history->setFrame(false);
+    //m_treeitem_visit_history->setMinimumSize(QSize(0, 0));
+    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {\n"
+                                                "min-width:400px;"
+                                            "}\n"
+                                            "QComboBox::drop-down:button{\n"
+                                                "background-color: transparant;\n"
+                                                "padding: 5px;\n"
+                                            "}\n"
+                                            "QComboBox::down-arrow {\n"
+                                                "image: url(:/res/images/arrow_down.png);\n"
+                                            "}\n");
+   
 
-    //m_treeitem_visit_history->setStyleSheet("QComboBox::drop-down{width:200px;}");
-    //m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
+    m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
 
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
     
@@ -1503,6 +1530,7 @@ void MainWindow::createActions()
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
+    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_current_item_bar.get(), &DmsCurrentItemBar::setPathDirectly);
 
     addToolBarBreak();
 
@@ -1954,18 +1982,7 @@ void MainWindow::createDmsHelperWindowDocks()
     m_eventlog = createEventLog(this);
     // connections below need constructed treeview and filters to work
     // TODO: refactor action/pushbutton logic
-    connect(m_eventlog->m_text_filter.get(), &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
-    connect(m_eventlog->m_minor_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_major_trace_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_warning_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_error_filter.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    
-    connect(m_eventlog->m_category_filter_system.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_progress.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_commands.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_wms.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    connect(m_eventlog->m_category_filter_memory.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-    //connect(m_eventlog->m_category_filter_disposable.get(), &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+
 }
 
 void MainWindow::back()

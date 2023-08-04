@@ -84,10 +84,10 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	switch (item.GetSeverityType())
 	{
-	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_minor_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_major_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_Warning: {return eventlog->m_warning_filter->isChecked(); };
-	case SeverityTypeID::ST_Error: {return eventlog->m_error_filter->isChecked(); };
+	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_eventlog_filter->m_minor_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_eventlog_filter->m_major_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_Warning: {return eventlog->m_eventlog_filter->m_warning_filter->isChecked(); };
+	case SeverityTypeID::ST_Error: {return eventlog->m_eventlog_filter->m_error_filter->isChecked(); };
 	default: return true;
 	}
 }
@@ -97,22 +97,22 @@ bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	switch (item.GetMsgCategory())
 	{
-	case MsgCategory::system: {return eventlog->m_category_filter_system->isChecked(); }
-	case MsgCategory::disposable: {return eventlog->m_category_filter_disposable->isChecked(); }
-	case MsgCategory::wms: {return eventlog->m_category_filter_wms->isChecked(); }
-	case MsgCategory::progress: {return eventlog->m_category_filter_progress->isChecked(); }
-	case MsgCategory::memory: {return eventlog->m_category_filter_memory->isChecked(); }
-	case MsgCategory::commands: {return eventlog->m_category_filter_commands->isChecked(); }
+	//case MsgCategory::system: {return eventlog->m_dms_type_filter->m_category_filter_system->isChecked(); }
+	//case MsgCategory::disposable: {return eventlog->m_dms_type_filter->m_category_filter_disposable->isChecked(); }
+	case MsgCategory::wms: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
+	//case MsgCategory::progress: {return eventlog->m_dms_type_filter->m_category_filter_progress->isChecked(); }
+	//case MsgCategory::memory: {return eventlog->m_dms_type_filter->m_category_filter_memory->isChecked(); }
+	case MsgCategory::commands: {return eventlog->m_eventlog_filter->m_category_filter_commands->isChecked(); }
 	}
 	return false;
 }
 
 bool EventLogModel::itemPassesTextFilter(item_t& item)
 {
-	auto text_filter_string = MainWindow::TheOne()->m_eventlog.get()->m_text_filter->text();
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
 	if (text_filter_string.isEmpty())
 		return true;
-
 	return item.m_Msg.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
 }
 
@@ -170,26 +170,36 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 	//eventlog->repaint(); // TODO: also repaints treeview.
 }
 
+DmsTypeFilter::DmsTypeFilter(QWidget* parent)
+	: QWidget(parent)
+{
+	setupUi(this);
+}
+
+QSize DmsTypeFilter::sizeHint() const
+{
+	auto type_filter_size_hint = groupBox->size();
+	return type_filter_size_hint;
+}
+
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
-	// actions
-	const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
-	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
-	m_event_text_filter_toggle->setToolTip(tr("Text filter"));
-	m_event_text_filter_toggle->setStatusTip("Turn eventlog text-filter on or off");
-	m_event_text_filter_toggle->setCheckable(true);
-	m_event_text_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	
-	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
+	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
+	m_event_filter_toggle = std::make_unique<QPushButton>(event_filter_icon, "");
+	m_event_filter_toggle->setToolTip(tr("Filters"));
+	m_event_filter_toggle->setStatusTip("Turn eventlog filter dialog on or off");
+	m_event_filter_toggle->setCheckable(true);
+	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
 
-	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
+	/*const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
 	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
 	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
 	m_event_type_filter_toggle->setStatusTip("Turn eventlog type-filter on or off");
 	m_event_type_filter_toggle->setCheckable(true);
 	m_event_type_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
+	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);*/
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
@@ -207,44 +217,27 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_scroll_to_bottom_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
-	// throttle
-	//m_throttle_timer = new QTimer(this);
-	//m_throttle_timer->setSingleShot(true);
-	//connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
-
 	// filters
-	m_text_filter = std::make_unique<QLineEdit>();
-	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor");
-	m_minor_trace_filter->setCheckable(true);
-	m_minor_trace_filter->setChecked(false);
-	m_major_trace_filter = std::make_unique<QCheckBox>("Major");
-	m_major_trace_filter->setCheckable(true);
-	m_major_trace_filter->setChecked(true);
-	m_warning_filter = std::make_unique<QCheckBox>("Warning");
-	m_warning_filter->setCheckable(true);
-	m_warning_filter->setChecked(true);
-	m_error_filter = std::make_unique<QCheckBox>("Error");
-	m_error_filter->setCheckable(true);
-	m_error_filter->setChecked(true);
+	//m_text_filter = std::make_unique<QLineEdit>();
+	m_eventlog_filter = std::make_unique<DmsTypeFilter>();
+	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 
-	m_category_filter_system = std::make_unique<QCheckBox>("System");
-	m_category_filter_system->setCheckable(true);
-	m_category_filter_system->setChecked(true);
-	// m_category_filter_disposable = std::make_unique<QCheckBox>("Disposable");
-	//m_category_filter_disposable->setCheckable(true);
-	//m_category_filter_disposable->setChecked(false);
-	m_category_filter_wms = std::make_unique<QCheckBox>("Wms");
-	m_category_filter_wms->setCheckable(true);
-	m_category_filter_wms->setChecked(false);
-	m_category_filter_progress = std::make_unique<QCheckBox>("Progress");
-	m_category_filter_progress->setCheckable(true);
-	m_category_filter_progress->setChecked(true);
-	m_category_filter_memory = std::make_unique<QCheckBox>("Memory");
-	m_category_filter_memory->setCheckable(true);
-	m_category_filter_memory->setChecked(false);
-	m_category_filter_commands = std::make_unique<QCheckBox>("Commands");
-	m_category_filter_commands->setCheckable(true);
-	m_category_filter_commands->setChecked(false);
+	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+
+	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
+	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
+	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
 
 	// eventlog
 	m_log = std::make_unique<QListView>();
@@ -253,41 +246,23 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
+	auto vertical_layout = new QVBoxLayout();
 	auto grid_layout = new QGridLayout();
+
 	auto eventlog_toolbar = new QVBoxLayout();
-
-	auto type_filter_layout = new QHBoxLayout();
-
-	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
-	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
+	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
+	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	QWidget* spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 	eventlog_toolbar->addWidget(spacer);
-	
-	//QWidget* type_spacer = new QWidget(this);
-	//spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+	vertical_layout->addWidget(m_eventlog_filter.get(), 0);
 
-	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 2);
-	type_filter_layout->addWidget(m_minor_trace_filter.get());
-	type_filter_layout->addWidget(m_major_trace_filter.get());
-	type_filter_layout->addWidget(m_warning_filter.get());
-	type_filter_layout->addWidget(m_error_filter.get());
-	type_filter_layout->addWidget(m_category_filter_system.get());
-	type_filter_layout->addWidget(m_category_filter_disposable.get());
-	type_filter_layout->addWidget(m_category_filter_wms.get());
-	type_filter_layout->addWidget(m_category_filter_progress.get());
-	type_filter_layout->addWidget(m_category_filter_memory.get());
-	type_filter_layout->addWidget(m_category_filter_commands.get());
-	//type_filter_layout->addWidget(type_spacer);
-	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 1);
-
-	grid_layout->addWidget(m_log.get(), 2, 0);
-	m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	grid_layout->addLayout(eventlog_toolbar, 2, 1); // , Qt::AlignmentFlag::AlignRight
-	setLayout(grid_layout);
-
+	grid_layout->addWidget(m_log.get(), 0, 0);
+	grid_layout->addLayout(eventlog_toolbar, 0, 1);
+	vertical_layout->addLayout(grid_layout);
+	setLayout(vertical_layout);
 	toggleTextFilter(false);
 	toggleTypeFilter(false);
 }
@@ -343,31 +318,36 @@ void DmsEventLog::scrollToBottomThrottled()
 		return;
 
 	scrollToBottomOnTimeout();
-	
-	//if (m_throttle_timer->isActive())
-	//	return;
-
-	//m_throttle_timer->start(1000);
 }
 
 void DmsEventLog::toggleTextFilter(bool toggled)
 {
-	toggled ? m_text_filter->show() : m_text_filter->hide();
+	m_eventlog_filter->setVisible(toggled);
 }
 
 void DmsEventLog::toggleTypeFilter(bool toggled)
 {
-	toggled ? m_minor_trace_filter->show() : m_minor_trace_filter->hide();
-	toggled ? m_major_trace_filter->show() : m_major_trace_filter->hide();
-	toggled ? m_warning_filter->show() : m_warning_filter->hide();
-	toggled ? m_error_filter->show() : m_error_filter->hide();
+	m_eventlog_filter->setVisible(toggled);
+}
 
-	toggled ? m_category_filter_system->show() : m_category_filter_system->hide();
-	//	toggled ? m_category_filter_disposable->show() : m_category_filter_disposable->hide();
-	toggled ? m_category_filter_wms->show() : m_category_filter_wms->hide();
-	toggled ? m_category_filter_progress->show() : m_category_filter_progress->hide();
-	toggled ? m_category_filter_memory->show() : m_category_filter_memory->hide();
-	toggled ? m_category_filter_commands->show() : m_category_filter_commands->hide();
+void DmsEventLog::onTextChanged(const QString& text)
+{
+	if (m_eventlog_filter->m_text_filter->text().isEmpty())
+	{
+		m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+		m_eventlog_filter->m_clear_text_filter->setDisabled(true);
+	}
+	else
+	{
+		m_eventlog_filter->m_activate_text_filter->setEnabled(true); 
+		m_eventlog_filter->m_clear_text_filter->setEnabled(true);
+	}
+}
+
+void DmsEventLog::clearTextFilter()
+{
+	m_eventlog_filter->m_text_filter->clear();
+	MainWindow::TheOne()->m_eventlog_model->refilter();
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)

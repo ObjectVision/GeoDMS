@@ -934,9 +934,8 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 		{
 			const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
 			auto unit_projection = colDomain->GetProjection();
-			auto factor = unit_projection->Factor();
-			auto offset = unit_projection->Offset();
-			wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
+			if (unit_projection)
+				wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
 		}
 
 		if (!wktString.empty())
