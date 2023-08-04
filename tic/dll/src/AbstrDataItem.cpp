@@ -320,7 +320,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	DataReadLock lockForSave(this);
 
 	AbstrStorageManager* sm = smi->StorageManager();
-	reportF(SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()
 	);
@@ -1186,7 +1186,7 @@ struct InterestReporter : DebugReporter
 
 #if defined(MG_DEBUG_DCDATA)
 		auto dc = dynamic_cast<const DataController*>(focusItem);
-		reportF(SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
 			focusItem->GetInterestCount(),
 			YesNo(ti ? ti->GetKeepDataState() : false),
 			YesNo(focusItem->DoesHaveSupplInterest()),

@@ -224,14 +224,14 @@ void TreeItemAdmLock::Report()
 	SizeT n = s_TreeItems->size();
 	if(n)
 	{
-		reportF_without_cancellation_check(SeverityTypeID::ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
+		reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_Error, "MemoryLeak of %d TreeItems. See EventLog for details.", n);
 
 		TreeItemSetType::iterator i = s_TreeItems->begin();
 		TreeItemSetType::iterator e = s_TreeItems->end();
 		while (i!=e)
 		{
 			const TreeItem* ti = *i++;
-			reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
+			reportF_without_cancellation_check(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "MemoryLeak: %s (%d,%d) %s",
 				ti->GetDynamicClass()->GetName(), 
 				ti->GetRefCount(), 
 				ti->IsCacheItem(), 
@@ -2927,7 +2927,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	try
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "Read %s(%s)"
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read %s(%s)"
 		,		storageParent->GetStorageManager()->GetNameStr().c_str()
 		,		GetFullName().c_str()
 		);	
