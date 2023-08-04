@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1184</width>
-    <height>120</height>
+    <height>127</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -63,7 +63,7 @@
      </rect>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Plain</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="lineWidth">
      <number>2</number>
@@ -76,7 +76,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>10</y>
+      <y>7</y>
       <width>150</width>
       <height>21</height>
      </rect>
@@ -95,7 +95,7 @@
     <property name="geometry">
      <rect>
       <x>210</x>
-      <y>10</y>
+      <y>7</y>
       <width>57</width>
       <height>21</height>
      </rect>
@@ -114,7 +114,7 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>10</y>
+      <y>7</y>
       <width>131</width>
       <height>21</height>
      </rect>
@@ -139,7 +139,7 @@
      </rect>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Plain</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="lineWidth">
      <number>2</number>
@@ -187,7 +187,7 @@
      </font>
     </property>
     <property name="styleSheet">
-     <string notr="true">color: green;</string>
+     <string notr="true">color: ForestGreen;</string>
     </property>
     <property name="text">
      <string>minor</string>
@@ -200,7 +200,7 @@
     <property name="geometry">
      <rect>
       <x>140</x>
-      <y>80</y>
+      <y>81</y>
       <width>86</width>
       <height>25</height>
      </rect>
@@ -224,7 +224,7 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>80</y>
+      <y>81</y>
       <width>63</width>
       <height>25</height>
      </rect>
@@ -369,7 +369,7 @@
    <property name="geometry">
     <rect>
      <x>530</x>
-     <y>30</y>
+     <y>70</y>
      <width>66</width>
      <height>25</height>
     </rect>
@@ -412,7 +412,7 @@
     <enum>QFrame::Sunken</enum>
    </property>
    <property name="lineWidth">
-    <number>3</number>
+    <number>2</number>
    </property>
    <property name="orientation">
     <enum>Qt::Vertical</enum>
@@ -422,7 +422,7 @@
    <property name="geometry">
     <rect>
      <x>670</x>
-     <y>10</y>
+     <y>7</y>
      <width>131</width>
      <height>21</height>
     </rect>
@@ -471,6 +471,30 @@
    </property>
    <property name="text">
     <string>Clear </string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_category_filter_memory">
+   <property name="geometry">
+    <rect>
+     <x>530</x>
+     <y>40</y>
+     <width>87</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color: brown;</string>
+   </property>
+   <property name="text">
+    <string>memory</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>
