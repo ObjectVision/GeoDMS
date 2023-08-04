@@ -155,7 +155,7 @@ namespace wms {
 			m_SslSocket.set_verify_mode(ssl::verify_none);
 			m_SslSocket.set_verify_callback(ssl::host_name_verification(host.m_Name));
 
-			MG_DEBUGCODE(report("ctor", false));
+			MG_DEBUGCODE(report(MsgCategory::background_layer_request, "ctor", false));
 			++s_InstanceCount;
 		}
 
@@ -163,23 +163,23 @@ namespace wms {
  
 		void SetTimer()
 		{
-			MG_DEBUGCODE(report("SetTimer", true));
+			MG_DEBUGCODE(report(MsgCategory::background_layer_request, "SetTimer", true));
 			m_Timer.expires_from_now(boost::posix_time::seconds(WMS_TIMER_SECONDS));
 			m_Timer.async_wait([self = shared_from_this()](boost::system::error_code ec)
 			{
-				MG_DEBUGCODE(self->report(("TimerExpired: " + ec.message()).c_str(), true));
+				MG_DEBUGCODE(MsgCategory::background_layer_request, self->report(("TimerExpired: " + ec.message()).c_str(), true));
 			});
 		}
 		void Run(const Host& host) // in separate method because shared_from_this can only be called after completion of make_shared<TileLoader>(...);
 		{
-			MG_DEBUGCODE(report("Run", true));
+			MG_DEBUGCODE(report(MsgCategory::background_layer_request, "Run", true));
 
 			m_Request.set(http::field::host, host.Name());
 			m_Request.set(http::field::connection, "keep-alive");
 			m_Request.set(http::field::user_agent, "GeoDMS");
 
-			// Look up the domain name
-			report(SeverityTypeID::ST_MajorTrace, ("connect to" + host.m_Name).c_str(), "OK", true);
+			// Look up the domain named
+			report(MsgCategory::background_layer_connection, SeverityTypeID::ST_MajorTrace, ("connect to" + host.m_Name).c_str(), "OK", true);
 			host.async_connect(m_SslSocket.lowest_layer(), [self = shared_from_this()](boost::system::error_code ec, auto iter)
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -195,11 +195,11 @@ namespace wms {
 				runTask = dms_task([]() { ProcessPendingTasks(); });
 		}
 
-		void report(SeverityTypeID st, CharPtr what, CharPtr msg, bool alive);
+		void report(MsgCategory ct, SeverityTypeID st, CharPtr what, CharPtr msg, bool alive);
 		bool report_status(const boost::system::error_code& ec, CharPtr what);
-		void report(CharPtr what, bool alive)
+		void report(MsgCategory ct, CharPtr what, bool alive)
 		{
-			report(SeverityTypeID::ST_MinorTrace, what, "OK", alive);
+			report(MsgCategory::background_layer_request, SeverityTypeID::ST_MinorTrace, what, "OK", alive);
 		}
 
 		void on_connect(const boost::system::error_code& ec) {
@@ -221,7 +221,7 @@ namespace wms {
 			m_Request.prepare_payload();
 
 			// Send the HTTP request to the remote host
-			report(SeverityTypeID::ST_MajorTrace, m_Target.c_str(), "OK", true);
+			report(MsgCategory::background_layer_request, SeverityTypeID::ST_MajorTrace, m_Target.c_str(), "OK", true);
 			http::async_write(m_SslSocket, m_Request, [self = shared_from_this()](const boost::system::error_code& ec, std::size_t bytes_transferred) 
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -398,7 +398,7 @@ namespace wms {
 
 	TileLoader::~TileLoader()
 	{
-		MG_DEBUGCODE(report("dtor", false));
+		MG_DEBUGCODE(report(MsgCategory::background_layer_request, "dtor", false));
 		--s_InstanceCount;
 		auto owner = m_Owner.lock();
 		if (owner)
@@ -408,12 +408,12 @@ namespace wms {
 		}
 	}
 
-	void TileLoader::report(SeverityTypeID st, CharPtr what, CharPtr msg, bool alive)
+	void TileLoader::report(MsgCategory ct, SeverityTypeID st, CharPtr what, CharPtr msg, bool alive)
 	{
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(MsgCategory::background_layer_request, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
+		reportF(ct, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
 			, what 
 			, msg 
 			, m_Request 
@@ -429,10 +429,10 @@ namespace wms {
 
 		if (!ec)
 		{
-			report(SeverityTypeID::ST_MinorTrace, what, "OK", true);
+			//report(SeverityTypeID::ST_MinorTrace, what, "OK", true);
 			return false;
 		}
-		report(SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
+		report(MsgCategory::background_layer_request, SeverityTypeID::ST_Warning, what, ec.message().c_str(), true);
 
 		auto owner = m_Owner.lock();
 		if (owner)

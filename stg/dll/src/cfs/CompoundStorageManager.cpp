@@ -306,7 +306,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 	dms_assert(!m_IsReadOnly);
 	dms_assert(DoesExist(smi.StorageHolder()));
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Write cfs(%s,%s)", GetNameStr().c_str(), path);
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write cfs(%s,%s)", GetNameStr().c_str(), path);
 
 	// create new Compound storage file
 	SharedPtr<cfsptr<IStream> > stream(GetStream(path, true));
@@ -318,7 +318,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 
 std::unique_ptr<InpStreamBuff> CompoundStorageManager::DoOpenInpStream(const StorageMetaInfo&, CharPtr path) const
 {
-	reportF(SeverityTypeID::ST_MajorTrace, "Read  cfs(%s,%s)", GetNameStr().c_str(), path);
+	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  cfs(%s,%s)", GetNameStr().c_str(), path);
 
 	dms_assert(IsOpen());
 

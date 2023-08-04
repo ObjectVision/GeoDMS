@@ -100,11 +100,11 @@ namespace gdalComponentImpl
 			fullFileName = ConvertDmsFileNameAlways(DelimitedConcat(GetExeDir().c_str(), DelimitedConcat(subFolder, fileName).c_str()));
 
 			MG_DEBUGCODE(
-				reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
 			
 			)
 			if (!IsFileOrDirAccessible(fullFileName))
-				reportF_without_cancellation_check(SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
 		}
 		return fullFileName.c_str();
 	}
