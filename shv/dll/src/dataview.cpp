@@ -535,10 +535,6 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 					KillTimer(m_hWnd, UPDATE_TIMER_ID);
 					m_Waiter.end();
 				}
-/*
-				else
-					SetUpdateTimer();
-*/
 				goto completed;
 			}
 			goto defaultProcessing;
