@@ -490,6 +490,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     m_foldername_entry = new QLineEdit(this);
     m_filename_entry = new QLineEdit(this);
 
+    connect(m_foldername_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
     connect(m_filename_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
 
     auto folder_browser_button = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
