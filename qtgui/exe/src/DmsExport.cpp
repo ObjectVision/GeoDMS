@@ -411,15 +411,6 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     return available_drivers;
 }
 
-void ExportTab::resetFilenameExtension()
-{
-    auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
-    auto file_info = QFileInfo(m_filename_entry->text());
-    auto path = file_info.absolutePath();
-    auto base_filename = file_info.baseName();
-    m_filename_entry->setText(QString(path + "/" + base_filename));
-}
-
 void ExportTab::setNativeDriverCheckbox()
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
@@ -452,7 +443,6 @@ void ExportTab::onComboBoxItemActivate(int index)
 {
     auto driver = m_available_drivers.at(index);
     setNativeDriverCheckbox();
-    //resetFilenameExtension();
     onFilenameEntryTextChanged(QString());
 }
 
@@ -469,7 +459,7 @@ auto ExportTab::createFinalFileNameText() -> QString
 {
     auto driver = m_available_drivers.at(m_driver_selection->currentIndex());
     QString final_filename_text = "";
-    auto new_filename = m_filename_entry->text();
+    auto new_filename = m_foldername_entry->text() + "/" + m_filename_entry->text();
     for (auto ext : driver.exts)
     {
         final_filename_text = final_filename_text + new_filename + ext + "\n\n";
@@ -565,6 +555,12 @@ bool isCurrentItemOrItsSubItemsMappable()
 
 #include <QStandardItemModel>
 
+auto convertFullNameToFoldernameExtension(TreeItem* current_item) -> QString
+{
+    auto parent_item = current_item->GetParent();
+    return QString(parent_item->GetFullName().c_str());
+}
+
 void ExportTab::showEvent(QShowEvent* event)
 {
     const auto& currDriver = m_available_drivers.at(m_driver_selection->currentIndex());
@@ -573,8 +569,8 @@ void ExportTab::showEvent(QShowEvent* event)
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto full_foldername_base = GetFullFolderNameBase(current_item);
-    auto current_item_folder_name_extention = QFileInfo(current_item->GetFullName().c_str());
-    m_foldername_entry->setText((full_foldername_base.c_str()));// +current_item_folder_name_extention));
+    auto current_item_folder_name_extension = convertFullNameToFoldernameExtension(current_item);
+    m_foldername_entry->setText((QString(full_foldername_base.c_str())+current_item_folder_name_extension));// +current_item_folder_name_extention));
     auto filename = current_item->GetName();
     m_filename_entry->setText(filename.c_str());
 
@@ -636,7 +632,7 @@ void DmsExportWindow::exportImpl()
     auto active_tab = static_cast<ExportTab*>(m_tabs->currentWidget());
     auto& driver = active_tab->m_available_drivers.at(active_tab->m_driver_selection->currentIndex());
     bool use_native_driver = active_tab->m_native_driver_checkbox->isChecked();
-    auto filename = SharedStr((active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
+    auto filename = SharedStr((active_tab->m_foldername_entry->text() + "/" + active_tab->m_filename_entry->text() + driver.exts.at(0)).toStdString().c_str());
 
     CharPtr driverName = nullptr;
     CharPtr storageTypeName = nullptr;
