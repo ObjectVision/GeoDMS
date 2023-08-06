@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LocalMachine options</string>
+   <string>Local machine options</string>
   </property>
   <widget class="QLabel" name="lbl_title">
    <property name="geometry">
@@ -689,6 +689,15 @@
      <width>16</width>
      <height>28</height>
     </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="cursor">
+    <cursorShape>WhatsThisCursor</cursorShape>
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Example explanation on &lt;span style=&quot; font-weight:600;&quot;&gt;parallel processing&lt;/span&gt;.&lt;/p&gt;&lt;p&gt;What is it? How to use?&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
