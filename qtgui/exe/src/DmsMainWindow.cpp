@@ -561,9 +561,13 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 
 void MainWindow::scheduleUpdateToolbar()
 {
-    if (m_UpdateToolbarResuestPending)
+    //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
+    if (m_UpdateToolbarRequestPending) // TODO: actually do something with this boolean
         return;
 
+    // update requested toolbar style
+    QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+    QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     QTimer::singleShot(0, [this]()
         {
            this->updateToolbar();
@@ -624,6 +628,21 @@ void MainWindow::createDetailPagesActions()
     connect(m_metainfo_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 }
 
+auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>
+{
+    return { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined,
+             TB_ShowFirstSelectedRow, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined,
+             TB_TableGroupBy };
+}
+
+auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID>
+{
+    return { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
+             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
+             TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
+             TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
+}
+
 void MainWindow::updateDetailPagesToolbar()
 {
     if (m_detail_pages->isHidden())
@@ -633,15 +652,20 @@ void MainWindow::updateDetailPagesToolbar()
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_toolbar->addWidget(spacer);
-    
-    //m_toolbar->addAction(m_back_action.get());
-    //m_toolbar->addAction(m_forward_action.get());
+
     m_toolbar->addAction(m_general_page_action.get());
     m_toolbar->addAction(m_explore_page_action.get());
     m_toolbar->addAction(m_properties_page_action.get());
     m_toolbar->addAction(m_configuration_page_action.get());
     m_toolbar->addAction(m_sourcedescr_page_action.get());
     m_toolbar->addAction(m_metainfo_page_action.get());
+}
+
+void MainWindow::clearToolbarUpToDetailPagesTools()
+{
+    for (auto action : m_current_dms_view_actions)
+        m_toolbar->removeAction(action);
+    m_current_dms_view_actions.clear();
 }
 
 void MainWindow::updateToolbar()
@@ -659,60 +683,46 @@ void MainWindow::updateToolbar()
         
         m_toolbar->setIconSize(QSize(32, 32));
         m_toolbar->setMinimumSize(QSize(38, 38));
-        updateDetailPagesToolbar();
+
+        updateDetailPagesToolbar(); // detail pages toolbar is created once
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+    if (!active_mdi_subwindow)
+    {
+        clearToolbarUpToDetailPagesTools();
+        return;
+    }
 
     if (m_tooled_mdi_subwindow == active_mdi_subwindow)
         return;
 
     m_tooled_mdi_subwindow = active_mdi_subwindow;
-    m_toolbar->clear();
 
-    if (!active_mdi_subwindow)
-    {
-        updateDetailPagesToolbar();
-        return;
-    }
+    //m_toolbar->clear();
 
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     if (!active_dms_view_area)
     {
-        updateDetailPagesToolbar();
+        clearToolbarUpToDetailPagesTools();
         return;
     }
 
     // create new actions
     auto* dv = active_dms_view_area->getDataView();
-    if (!dv)
-    {
-        updateDetailPagesToolbar();
-        return;
-    }
-
     auto view_style = dv->GetViewType();
+    if (view_style==m_current_toolbar_style) // Do nothing
+        return;
 
-    static ToolButtonID available_table_buttons[] = { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined, 
-                                                      TB_ShowFirstSelectedRow, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined, 
-                                                      TB_TableGroupBy };
-
-    static ToolButtonID available_map_buttons[] = { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
-                                                    TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
-                                                    TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
-                                                    TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
-
-    ToolButtonID* button_id_ptr = available_map_buttons;
-    SizeT button_id_count = sizeof(available_map_buttons) / sizeof(ToolButtonID);
-    if (view_style == ViewStyle::tvsTableView)
+    clearToolbarUpToDetailPagesTools();
+    static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
+    static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
+    auto& available_buttons = view_style == ViewStyle::tvsTableView ? available_table_buttons : available_map_buttons;
+    
+    auto first_toolbar_detail_pages_action = m_toolbar->actions().at(0);
+    for (auto button_id : available_buttons)
     {
-        button_id_ptr = available_table_buttons;
-        button_id_count = sizeof(available_table_buttons) / sizeof(ToolButtonID);
-    }
-
-    while (button_id_count--)
-    {
-        auto button_id = *button_id_ptr++;
+        //auto button_id = *button_id_ptr++;
         if (button_id == TB_Undefined)
         {
             QWidget* spacer = new QWidget(this);
@@ -724,18 +734,18 @@ void MainWindow::updateToolbar()
         auto button_data = getToolbarButtonData(button_id);
         auto button_icon = QIcon(button_data.icons[0]);
         auto action = new DmsToolbuttonAction(button_icon, view_style==ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], m_toolbar, button_data, view_style);
-
+        m_current_dms_view_actions.push_back(action);
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
         if (!is_command_enabled)
             action->setDisabled(true);
         
-        m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
+        m_toolbar->insertAction(first_toolbar_detail_pages_action, action);
+        //m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
 
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
     }
-
-    updateDetailPagesToolbar();
+    m_current_toolbar_style = view_style;
 }
 
 bool MainWindow::event(QEvent* event)
@@ -1056,8 +1066,6 @@ void MainWindow::CloseConfig()
         }
         if (has_active_dms_views)
             m_mdi_area->repaint();
-
-        scheduleUpdateToolbar();
     }
 
     if (m_root)
@@ -1072,6 +1080,7 @@ void MainWindow::CloseConfig()
         m_current_item.reset();
         m_current_item = nullptr;
     }
+    scheduleUpdateToolbar();
 }
 
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32

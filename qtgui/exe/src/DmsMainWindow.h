@@ -226,6 +226,8 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    void reconnectToolbarActionsForSameStyleView();
+    void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
@@ -255,8 +257,6 @@ private:
     SharedStr m_currConfigFileName;
     SharedPtr<TreeItem> m_root;
     SharedPtr<TreeItem> m_current_item;
-
-
 
 public:
     // helper window docks
@@ -291,15 +291,12 @@ public:
     std::unique_ptr<DmsEventLog> m_eventlog;
     DmsTreeView* m_treeview;
     QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
-//    QPointer<QToolBar> m_right_side_toolbar;
-//    QPointer<QLabel>   m_StatusWidget;
+    ViewStyle m_current_toolbar_style = ViewStyle::tvsUndefined;
+    std::vector<QAction*> m_current_dms_view_actions;
 
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;
     QPointer<DmsExportWindow> m_export_window;
     QPointer<DmsErrorWindow> m_error_window;
-//    QPointer<DmsGuiOptionsWindow> m_gui_options_window;
-//    QPointer<DmsAdvancedOptionsWindow> m_advanced_options_window;
-//    QPointer<DmsConfigOptionsWindow> m_config_options_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
@@ -309,7 +306,7 @@ private:
     QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
-    bool m_UpdateToolbarResuestPending = false;
+    bool m_UpdateToolbarRequestPending = false;
 };
 
 #endif
