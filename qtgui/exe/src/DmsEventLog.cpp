@@ -21,7 +21,7 @@ static QColor html_DarkGreen = QColor(0, 100, 0); // EventLog: major in Calculat
 static QColor html_blue = QColor(0, 0, 255); // EventLog: read in Storage
 static QColor html_navy = QColor(0, 0, 128); // EventLog: write in Storage
 static QColor html_fuchsia = QColor(255, 0, 255); // EventLog: connection in Background layer
-static QColor html_purple = QColor(255, 0, 255); // EventLog: request in Background layer
+static QColor html_purple = QColor(128, 0, 128); // EventLog: request in Background layer
 static QColor html_black = QColor(0, 0, 0); // EventLog: commands
 static QColor html_gray = QColor(128, 128, 128); // EventLog: other
 static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
@@ -168,7 +168,11 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
+	if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
+		return;
+
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+
 	eventlog->m_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
@@ -247,6 +251,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
 
