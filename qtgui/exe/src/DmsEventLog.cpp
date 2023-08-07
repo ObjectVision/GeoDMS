@@ -168,8 +168,8 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-	if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
-		return;
+	//if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
+	//	return;
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 
