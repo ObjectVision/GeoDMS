@@ -292,6 +292,7 @@ public:
     DmsTreeView* m_treeview;
     QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
     ViewStyle m_current_toolbar_style = ViewStyle::tvsUndefined;
+    std::unique_ptr<QAction> m_dms_toolbar_spacer_action;
     std::vector<QAction*> m_current_dms_view_actions;
 
     QPointer<QMdiSubWindow> m_tooled_mdi_subwindow;

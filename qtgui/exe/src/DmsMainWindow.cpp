@@ -568,6 +568,8 @@ void MainWindow::scheduleUpdateToolbar()
     // update requested toolbar style
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
     QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
+    !dms_active_mdi_subwindow ? m_current_toolbar_style = ViewStyle::tvsUndefined : dms_active_mdi_subwindow->getDataView()->GetViewType();
+    
     QTimer::singleShot(0, [this]()
         {
            this->updateToolbar();
@@ -647,18 +649,18 @@ void MainWindow::updateDetailPagesToolbar()
 {
     if (m_detail_pages->isHidden())
         return;
-
-    // detail pages buttons
-    QWidget* spacer = new QWidget(this);
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_toolbar->addWidget(spacer);
-
+    
     m_toolbar->addAction(m_general_page_action.get());
     m_toolbar->addAction(m_explore_page_action.get());
     m_toolbar->addAction(m_properties_page_action.get());
     m_toolbar->addAction(m_configuration_page_action.get());
     m_toolbar->addAction(m_sourcedescr_page_action.get());
     m_toolbar->addAction(m_metainfo_page_action.get());
+    // detail pages buttons
+    QWidget* spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    //m_toolbar->addWidget(spacer);
+    m_dms_toolbar_spacer_action.reset(m_toolbar->insertWidget(m_general_page_action.get(), spacer));
 }
 
 void MainWindow::clearToolbarUpToDetailPagesTools()
@@ -666,6 +668,7 @@ void MainWindow::clearToolbarUpToDetailPagesTools()
     for (auto action : m_current_dms_view_actions)
         m_toolbar->removeAction(action);
     m_current_dms_view_actions.clear();
+
 }
 
 void MainWindow::updateToolbar()
@@ -719,7 +722,7 @@ void MainWindow::updateToolbar()
     static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
     auto& available_buttons = view_style == ViewStyle::tvsTableView ? available_table_buttons : available_map_buttons;
     
-    auto first_toolbar_detail_pages_action = m_toolbar->actions().at(0);
+    auto first_toolbar_detail_pages_action = m_dms_toolbar_spacer_action.get();
     for (auto button_id : available_buttons)
     {
         //auto button_id = *button_id_ptr++;
@@ -727,7 +730,7 @@ void MainWindow::updateToolbar()
         {
             QWidget* spacer = new QWidget(this);
             spacer->setMinimumSize(30,0);
-            m_toolbar->addWidget(spacer);
+            m_current_dms_view_actions.push_back(m_toolbar->insertWidget(first_toolbar_detail_pages_action, spacer));
             continue;
         }
 
