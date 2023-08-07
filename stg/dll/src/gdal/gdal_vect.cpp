@@ -880,8 +880,8 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 			case VT_UInt16:    ::ReadInt64AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
 			case VT_Int8:      ::ReadInt64AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<Int8>     (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
 			case VT_UInt8:     ::ReadInt64AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Float32:   ::ReadInt64AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Float64:   ::ReadInt64AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case VT_Float32:   ::ReadDoubleAttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case VT_Float64:   ::ReadDoubleAttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
 			default: goto typeConflict;
 		}
 
