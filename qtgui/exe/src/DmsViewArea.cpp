@@ -170,9 +170,9 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
         auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
         m_DataView->AddLayer(currItem, false);
         if (m_DataView->GetViewType()== ViewStyle::tvsMapView)
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add layer for item %s in %s", current_item, m_DataView->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add layer for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
         else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add column for item %s in %s", current_item, m_DataView->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add column for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
     }
     catch (...) {
         CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
@@ -243,6 +243,13 @@ QDmsViewArea::~QDmsViewArea()
 {
     RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
+    auto main_window = MainWindow::TheOne();
+    auto active_subwindow = main_window->m_mdi_area->activeSubWindow();
+    if (!active_subwindow)
+    {
+        main_window->scheduleUpdateToolbar();
+        main_window->m_current_toolbar_style = ViewStyle::tvsUndefined;
+    }
 }
 
 void QDmsViewArea::dragEnterEvent(QDragEnterEvent* event)
@@ -264,11 +271,11 @@ void QDmsViewArea::dropEvent(QDropEvent* event)
     if (tree_view != source)
         return;
 
-    auto current_ti = MainWindow::TheOne()->getCurrentTreeItem();
-    if (m_DataView->CanContain(current_ti))
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+    if (m_DataView->CanContain(current_item))
         SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
     else
-        MainWindow::TheOne()->defaultView();
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), m_DataView->GetCaption());
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event)

@@ -511,8 +511,10 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 //	m_context_menu->addAction(histogramview);
 
 	// process scheme
-	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
-	m_context_menu->addAction(process_scheme);
+	//auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..
+	//m_context_menu->addAction(process_scheme);
+	
+	
 	//m_context_menu->exec(viewport()->mapToGlobal(pos));
 	m_context_menu->popup(viewport()->mapToGlobal(pos));
 }

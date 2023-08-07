@@ -76,7 +76,6 @@ protected:
 
 private:
     auto createFinalFileNameText() -> QString;
-    void resetFilenameExtension();
     void setNativeDriverCheckbox();
     void repopulateDriverSelection();
 };

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LocalMachine options</string>
+   <string>Local machine options</string>
   </property>
   <widget class="QLabel" name="lbl_title">
    <property name="geometry">
@@ -62,8 +62,8 @@
     <rect>
      <x>10</x>
      <y>40</y>
-     <width>61</width>
-     <height>28</height>
+     <width>53</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -81,7 +81,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Paths&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Paths &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QLabel" name="lbl_localdata">
@@ -198,7 +198,7 @@
     <rect>
      <x>10</x>
      <y>150</y>
-     <width>121</width>
+     <width>111</width>
      <height>21</height>
     </rect>
    </property>
@@ -217,7 +217,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QPushButton" name="m_editor_folder_dialog">
@@ -246,10 +246,10 @@
   <widget class="Line" name="line_3">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>272</y>
-     <width>673</width>
-     <height>16</height>
+     <x>202</x>
+     <y>270</y>
+     <width>481</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="sizePolicy">
@@ -273,7 +273,7 @@
     <rect>
      <x>10</x>
      <y>262</y>
-     <width>201</width>
+     <width>166</width>
      <height>21</height>
     </rect>
    </property>
@@ -292,7 +292,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel Processing&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel Processing &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QCheckBox" name="m_pp0">
@@ -494,7 +494,7 @@
     <rect>
      <x>10</x>
      <y>372</y>
-     <width>388</width>
+     <width>393</width>
      <height>21</height>
     </rect>
    </property>
@@ -515,7 +515,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Treshold for memory flushing wait procedure&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Treshold for memory flushing wait procedure &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="Line" name="line_5">
@@ -548,7 +548,7 @@
     <rect>
      <x>10</x>
      <y>492</y>
-     <width>81</width>
+     <width>75</width>
      <height>21</height>
     </rect>
    </property>
@@ -569,7 +569,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Logging&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Logging &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QCheckBox" name="m_tracelog">
@@ -690,6 +690,15 @@
      <height>28</height>
     </rect>
    </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="cursor">
+    <cursorShape>WhatsThisCursor</cursorShape>
+   </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Example explanation on &lt;span style=&quot; font-weight:600;&quot;&gt;parallel processing&lt;/span&gt;.&lt;/p&gt;&lt;p&gt;What is it? How to use?&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
@@ -797,11 +806,11 @@
   <zorder>m_sd_input</zorder>
   <zorder>m_editor_input</zorder>
   <zorder>lbl_current_flush_value</zorder>
-  <zorder>m_pp_info</zorder>
   <zorder>lbl_applications</zorder>
   <zorder>m_editor_parameters_input</zorder>
   <zorder>lbl_applications_2</zorder>
   <zorder>m_set_editor_parameters</zorder>
+  <zorder>m_pp_info</zorder>
  </widget>
  <resources/>
  <connections/>

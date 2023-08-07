@@ -335,6 +335,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_sd_folder_dialog->setText("");
     m_editor_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
     m_editor_folder_dialog->setText("");
+    m_pp_info->setIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
 
     // parallel processing
     m_pp0->setChecked(IsMultiThreaded0());

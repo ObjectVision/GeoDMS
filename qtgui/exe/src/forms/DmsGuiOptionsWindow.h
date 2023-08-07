@@ -14,7 +14,6 @@
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QFrame>
-#include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
 
@@ -47,25 +46,15 @@ public:
     QFrame *line_3;
     QLabel *lbl_table_statistics;
     QCheckBox *m_show_thousand_separator;
-    QFrame *line_4;
-    QLabel *lbl_eventlog;
-    QLabel *lbl_clear_eventlogafter;
-    QLabel *lbl_add_to_each_trace;
-    QCheckBox *m_opening_new_configuration;
-    QCheckBox *m_reopening_current_configuration;
-    QCheckBox *m_date_time;
-    QCheckBox *m_thread;
     QPushButton *m_undo;
     QPushButton *m_cancel;
     QPushButton *m_ok;
-    QGroupBox *groupBox;
-    QGroupBox *groupBox_2;
 
     void setupUi(QDialog *DmsGuiOptionsWindow)
     {
         if (DmsGuiOptionsWindow->objectName().isEmpty())
             DmsGuiOptionsWindow->setObjectName("DmsGuiOptionsWindow");
-        DmsGuiOptionsWindow->resize(700, 600);
+        DmsGuiOptionsWindow->resize(699, 444);
         lbl_title = new QLabel(DmsGuiOptionsWindow);
         lbl_title->setObjectName("lbl_title");
         lbl_title->setGeometry(QRect(10, 10, 238, 22));
@@ -199,66 +188,15 @@ public:
         m_show_thousand_separator->setObjectName("m_show_thousand_separator");
         m_show_thousand_separator->setGeometry(QRect(10, 370, 216, 25));
         m_show_thousand_separator->setFont(font1);
-        line_4 = new QFrame(DmsGuiOptionsWindow);
-        line_4->setObjectName("line_4");
-        line_4->setGeometry(QRect(10, 420, 673, 16));
-        sizePolicy.setHeightForWidth(line_4->sizePolicy().hasHeightForWidth());
-        line_4->setSizePolicy(sizePolicy);
-        line_4->setFrameShadow(QFrame::Sunken);
-        line_4->setLineWidth(2);
-        line_4->setFrameShape(QFrame::HLine);
-        lbl_eventlog = new QLabel(DmsGuiOptionsWindow);
-        lbl_eventlog->setObjectName("lbl_eventlog");
-        lbl_eventlog->setGeometry(QRect(10, 410, 91, 28));
-        lbl_eventlog->setFont(font1);
-        lbl_eventlog->setAutoFillBackground(true);
-        lbl_eventlog->setFrameShape(QFrame::Box);
-        lbl_eventlog->setLineWidth(0);
-        lbl_clear_eventlogafter = new QLabel(DmsGuiOptionsWindow);
-        lbl_clear_eventlogafter->setObjectName("lbl_clear_eventlogafter");
-        lbl_clear_eventlogafter->setGeometry(QRect(14, 450, 152, 21));
-        lbl_clear_eventlogafter->setFont(font);
-        lbl_add_to_each_trace = new QLabel(DmsGuiOptionsWindow);
-        lbl_add_to_each_trace->setObjectName("lbl_add_to_each_trace");
-        lbl_add_to_each_trace->setGeometry(QRect(14, 500, 166, 21));
-        lbl_add_to_each_trace->setFont(font);
-        m_opening_new_configuration = new QCheckBox(DmsGuiOptionsWindow);
-        m_opening_new_configuration->setObjectName("m_opening_new_configuration");
-        m_opening_new_configuration->setGeometry(QRect(190, 450, 222, 25));
-        m_opening_new_configuration->setFont(font1);
-        m_opening_new_configuration->setChecked(true);
-        m_reopening_current_configuration = new QCheckBox(DmsGuiOptionsWindow);
-        m_reopening_current_configuration->setObjectName("m_reopening_current_configuration");
-        m_reopening_current_configuration->setGeometry(QRect(430, 450, 237, 25));
-        m_reopening_current_configuration->setFont(font1);
-        m_reopening_current_configuration->setChecked(false);
-        m_date_time = new QCheckBox(DmsGuiOptionsWindow);
-        m_date_time->setObjectName("m_date_time");
-        m_date_time->setGeometry(QRect(190, 500, 100, 25));
-        m_date_time->setFont(font1);
-        m_date_time->setChecked(true);
-        m_thread = new QCheckBox(DmsGuiOptionsWindow);
-        m_thread->setObjectName("m_thread");
-        m_thread->setGeometry(QRect(430, 500, 136, 25));
-        m_thread->setFont(font1);
-        m_thread->setChecked(true);
         m_undo = new QPushButton(DmsGuiOptionsWindow);
         m_undo->setObjectName("m_undo");
-        m_undo->setGeometry(QRect(580, 560, 93, 28));
+        m_undo->setGeometry(QRect(580, 400, 93, 28));
         m_cancel = new QPushButton(DmsGuiOptionsWindow);
         m_cancel->setObjectName("m_cancel");
-        m_cancel->setGeometry(QRect(480, 560, 93, 28));
+        m_cancel->setGeometry(QRect(480, 400, 93, 28));
         m_ok = new QPushButton(DmsGuiOptionsWindow);
         m_ok->setObjectName("m_ok");
-        m_ok->setGeometry(QRect(380, 560, 93, 28));
-        groupBox = new QGroupBox(DmsGuiOptionsWindow);
-        groupBox->setObjectName("groupBox");
-        groupBox->setGeometry(QRect(10, 495, 670, 35));
-        groupBox_2 = new QGroupBox(DmsGuiOptionsWindow);
-        groupBox_2->setObjectName("groupBox_2");
-        groupBox_2->setGeometry(QRect(10, 445, 670, 35));
-        groupBox_2->raise();
-        groupBox->raise();
+        m_ok->setGeometry(QRect(380, 400, 93, 28));
         line_2->raise();
         lbl_title->raise();
         line->raise();
@@ -283,14 +221,6 @@ public:
         line_3->raise();
         lbl_table_statistics->raise();
         m_show_thousand_separator->raise();
-        line_4->raise();
-        lbl_eventlog->raise();
-        lbl_clear_eventlogafter->raise();
-        lbl_add_to_each_trace->raise();
-        m_opening_new_configuration->raise();
-        m_reopening_current_configuration->raise();
-        m_date_time->raise();
-        m_thread->raise();
         m_undo->raise();
         m_cancel->raise();
         m_ok->raise();
@@ -324,18 +254,9 @@ public:
         lbl_start->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Start:", nullptr));
         lbl_table_statistics->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Table/Statistics View</span></p><p><br/></p></body></html>", nullptr));
         m_show_thousand_separator->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Show thousand seperator", nullptr));
-        lbl_eventlog->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">EventLog</span></p><p><span style=\" font-weight:600;\"><br/></span></p></body></html>", nullptr));
-        lbl_clear_eventlogafter->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Clear eventlog after:", nullptr));
-        lbl_add_to_each_trace->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Add to each message:", nullptr));
-        m_opening_new_configuration->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "opening new configuration", nullptr));
-        m_reopening_current_configuration->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "reopen current configuration", nullptr));
-        m_date_time->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "date/time", nullptr));
-        m_thread->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "thread number", nullptr));
         m_undo->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Undo", nullptr));
         m_cancel->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Cancel", nullptr));
         m_ok->setText(QCoreApplication::translate("DmsGuiOptionsWindow", "Ok", nullptr));
-        groupBox->setTitle(QString());
-        groupBox_2->setTitle(QString());
     } // retranslateUi
 
 };

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1184</width>
-    <height>127</height>
+    <width>1373</width>
+    <height>140</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <x>0</x>
      <y>0</y>
      <width>520</width>
-     <height>110</height>
+     <height>130</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -193,14 +193,14 @@
      <string>minor</string>
     </property>
     <property name="checked">
-     <bool>true</bool>
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QCheckBox" name="m_warning_filter">
     <property name="geometry">
      <rect>
       <x>140</x>
-      <y>81</y>
+      <y>90</y>
       <width>86</width>
       <height>25</height>
      </rect>
@@ -224,7 +224,7 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>81</y>
+      <y>90</y>
       <width>63</width>
       <height>25</height>
      </rect>
@@ -386,7 +386,7 @@
     <string>other</string>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="QLineEdit" name="m_text_filter">
@@ -394,7 +394,7 @@
     <rect>
      <x>670</x>
      <y>40</y>
-     <width>500</width>
+     <width>200</width>
      <height>25</height>
     </rect>
    </property>
@@ -405,7 +405,7 @@
      <x>640</x>
      <y>0</y>
      <width>20</width>
-     <height>121</height>
+     <height>140</height>
     </rect>
    </property>
    <property name="frameShadow">
@@ -494,7 +494,207 @@
     <string>memory</string>
    </property>
    <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="Line" name="line_5">
+   <property name="geometry">
+    <rect>
+     <x>890</x>
+     <y>0</y>
+     <width>20</width>
+     <height>140</height>
+    </rect>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Sunken</enum>
+   </property>
+   <property name="lineWidth">
+    <number>2</number>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_thread">
+   <property name="geometry">
+    <rect>
+     <x>1180</x>
+     <y>80</y>
+     <width>136</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>thread number</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_opening_new_configuration">
+   <property name="geometry">
+    <rect>
+     <x>910</x>
+     <y>60</y>
+     <width>222</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>opening new configuration</string>
+   </property>
+   <property name="checked">
     <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_date_time">
+   <property name="geometry">
+    <rect>
+     <x>1180</x>
+     <y>60</y>
+     <width>100</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>date/time</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lbl_clear_eventlogafter">
+   <property name="geometry">
+    <rect>
+     <x>910</x>
+     <y>40</y>
+     <width>152</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>MS Shell Dlg 2</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Clear eventlog after:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lbl_add_to_each_trace">
+   <property name="geometry">
+    <rect>
+     <x>1180</x>
+     <y>40</y>
+     <width>166</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>MS Shell Dlg 2</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Add to each message:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lbl_background_layer_3">
+   <property name="geometry">
+    <rect>
+     <x>910</x>
+     <y>7</y>
+     <width>178</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>MS Shell Dlg 2</family>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Filter message contents</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_reopening_current_configuration">
+   <property name="geometry">
+    <rect>
+     <x>910</x>
+     <y>80</y>
+     <width>237</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>reopen current configuration</string>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="m_thread_2">
+   <property name="geometry">
+    <rect>
+     <x>1180</x>
+     <y>100</y>
+     <width>136</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>category</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="Line" name="line_6">
+   <property name="geometry">
+    <rect>
+     <x>1150</x>
+     <y>40</y>
+     <width>20</width>
+     <height>100</height>
+    </rect>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Sunken</enum>
+   </property>
+   <property name="lineWidth">
+    <number>2</number>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
    </property>
   </widget>
  </widget>

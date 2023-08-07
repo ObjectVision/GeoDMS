@@ -47,15 +47,25 @@ public:
     QPushButton *m_activate_text_filter;
     QPushButton *m_clear_text_filter;
     QCheckBox *m_category_filter_memory;
+    QFrame *line_5;
+    QCheckBox *m_thread;
+    QCheckBox *m_opening_new_configuration;
+    QCheckBox *m_date_time;
+    QLabel *lbl_clear_eventlogafter;
+    QLabel *lbl_add_to_each_trace;
+    QLabel *lbl_background_layer_3;
+    QCheckBox *m_reopening_current_configuration;
+    QCheckBox *m_thread_2;
+    QFrame *line_6;
 
     void setupUi(QWidget *DmsEventLogTypeSelection)
     {
         if (DmsEventLogTypeSelection->objectName().isEmpty())
             DmsEventLogTypeSelection->setObjectName("DmsEventLogTypeSelection");
-        DmsEventLogTypeSelection->resize(1184, 127);
+        DmsEventLogTypeSelection->resize(1373, 140);
         groupBox = new QGroupBox(DmsEventLogTypeSelection);
         groupBox->setObjectName("groupBox");
-        groupBox->setGeometry(QRect(0, 0, 520, 110));
+        groupBox->setGeometry(QRect(0, 0, 520, 130));
         groupBox->setAutoFillBackground(false);
         line = new QFrame(groupBox);
         line->setObjectName("line");
@@ -108,16 +118,16 @@ public:
         m_minor_trace_filter->setGeometry(QRect(20, 30, 69, 25));
         m_minor_trace_filter->setFont(font1);
         m_minor_trace_filter->setStyleSheet(QString::fromUtf8("color: ForestGreen;"));
-        m_minor_trace_filter->setChecked(true);
+        m_minor_trace_filter->setChecked(false);
         m_warning_filter = new QCheckBox(groupBox);
         m_warning_filter->setObjectName("m_warning_filter");
-        m_warning_filter->setGeometry(QRect(140, 81, 86, 25));
+        m_warning_filter->setGeometry(QRect(140, 90, 86, 25));
         m_warning_filter->setFont(font1);
         m_warning_filter->setStyleSheet(QString::fromUtf8("color: darkorange;"));
         m_warning_filter->setChecked(true);
         m_error_filter = new QCheckBox(groupBox);
         m_error_filter->setObjectName("m_error_filter");
-        m_error_filter->setGeometry(QRect(320, 81, 63, 25));
+        m_error_filter->setGeometry(QRect(320, 90, 63, 25));
         m_error_filter->setFont(font1);
         m_error_filter->setStyleSheet(QString::fromUtf8("color: red;"));
         m_error_filter->setChecked(true);
@@ -156,13 +166,13 @@ public:
         m_category_filter_other->setGeometry(QRect(530, 70, 66, 25));
         m_category_filter_other->setFont(font1);
         m_category_filter_other->setStyleSheet(QString::fromUtf8("color: grey;"));
-        m_category_filter_other->setChecked(true);
+        m_category_filter_other->setChecked(false);
         m_text_filter = new QLineEdit(DmsEventLogTypeSelection);
         m_text_filter->setObjectName("m_text_filter");
-        m_text_filter->setGeometry(QRect(670, 40, 500, 25));
+        m_text_filter->setGeometry(QRect(670, 40, 200, 25));
         line_4 = new QFrame(DmsEventLogTypeSelection);
         line_4->setObjectName("line_4");
-        line_4->setGeometry(QRect(640, 0, 20, 121));
+        line_4->setGeometry(QRect(640, 0, 20, 140));
         line_4->setFrameShadow(QFrame::Sunken);
         line_4->setLineWidth(2);
         line_4->setFrameShape(QFrame::VLine);
@@ -183,7 +193,56 @@ public:
         m_category_filter_memory->setGeometry(QRect(530, 40, 87, 25));
         m_category_filter_memory->setFont(font1);
         m_category_filter_memory->setStyleSheet(QString::fromUtf8("color: brown;"));
-        m_category_filter_memory->setChecked(true);
+        m_category_filter_memory->setChecked(false);
+        line_5 = new QFrame(DmsEventLogTypeSelection);
+        line_5->setObjectName("line_5");
+        line_5->setGeometry(QRect(890, 0, 20, 140));
+        line_5->setFrameShadow(QFrame::Sunken);
+        line_5->setLineWidth(2);
+        line_5->setFrameShape(QFrame::VLine);
+        m_thread = new QCheckBox(DmsEventLogTypeSelection);
+        m_thread->setObjectName("m_thread");
+        m_thread->setGeometry(QRect(1180, 80, 136, 25));
+        m_thread->setFont(font1);
+        m_thread->setChecked(false);
+        m_opening_new_configuration = new QCheckBox(DmsEventLogTypeSelection);
+        m_opening_new_configuration->setObjectName("m_opening_new_configuration");
+        m_opening_new_configuration->setGeometry(QRect(910, 60, 222, 25));
+        m_opening_new_configuration->setFont(font1);
+        m_opening_new_configuration->setChecked(true);
+        m_date_time = new QCheckBox(DmsEventLogTypeSelection);
+        m_date_time->setObjectName("m_date_time");
+        m_date_time->setGeometry(QRect(1180, 60, 100, 25));
+        m_date_time->setFont(font1);
+        m_date_time->setChecked(true);
+        lbl_clear_eventlogafter = new QLabel(DmsEventLogTypeSelection);
+        lbl_clear_eventlogafter->setObjectName("lbl_clear_eventlogafter");
+        lbl_clear_eventlogafter->setGeometry(QRect(910, 40, 152, 21));
+        lbl_clear_eventlogafter->setFont(font);
+        lbl_add_to_each_trace = new QLabel(DmsEventLogTypeSelection);
+        lbl_add_to_each_trace->setObjectName("lbl_add_to_each_trace");
+        lbl_add_to_each_trace->setGeometry(QRect(1180, 40, 166, 21));
+        lbl_add_to_each_trace->setFont(font);
+        lbl_background_layer_3 = new QLabel(DmsEventLogTypeSelection);
+        lbl_background_layer_3->setObjectName("lbl_background_layer_3");
+        lbl_background_layer_3->setGeometry(QRect(910, 7, 178, 21));
+        lbl_background_layer_3->setFont(font);
+        m_reopening_current_configuration = new QCheckBox(DmsEventLogTypeSelection);
+        m_reopening_current_configuration->setObjectName("m_reopening_current_configuration");
+        m_reopening_current_configuration->setGeometry(QRect(910, 80, 237, 25));
+        m_reopening_current_configuration->setFont(font1);
+        m_reopening_current_configuration->setChecked(false);
+        m_thread_2 = new QCheckBox(DmsEventLogTypeSelection);
+        m_thread_2->setObjectName("m_thread_2");
+        m_thread_2->setGeometry(QRect(1180, 100, 136, 25));
+        m_thread_2->setFont(font1);
+        m_thread_2->setChecked(true);
+        line_6 = new QFrame(DmsEventLogTypeSelection);
+        line_6->setObjectName("line_6");
+        line_6->setGeometry(QRect(1150, 40, 20, 100));
+        line_6->setFrameShadow(QFrame::Sunken);
+        line_6->setLineWidth(2);
+        line_6->setFrameShape(QFrame::VLine);
 
         retranslateUi(DmsEventLogTypeSelection);
 
@@ -211,6 +270,14 @@ public:
         m_activate_text_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Filter", nullptr));
         m_clear_text_filter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Clear ", nullptr));
         m_category_filter_memory->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "memory", nullptr));
+        m_thread->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "thread number", nullptr));
+        m_opening_new_configuration->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "opening new configuration", nullptr));
+        m_date_time->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "date/time", nullptr));
+        lbl_clear_eventlogafter->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Clear eventlog after:", nullptr));
+        lbl_add_to_each_trace->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Add to each message:", nullptr));
+        lbl_background_layer_3->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "Filter message contents", nullptr));
+        m_reopening_current_configuration->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "reopen current configuration", nullptr));
+        m_thread_2->setText(QCoreApplication::translate("DmsEventLogTypeSelection", "category", nullptr));
     } // retranslateUi
 
 };

@@ -118,7 +118,8 @@ TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem * ti, bool mustClean)
 	if (mustClean)
 	{
 		dsm->m_SupplierLevels.clear();
-		NotifyStateChange(ti, NC2_InterestChange);
+		if (dsm->m_SourceItem)
+			NotifyStateChange(dsm->m_SourceItem, NC2_InterestChange);
 	}
 	if (!ti)
 		return;

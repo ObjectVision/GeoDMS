@@ -179,7 +179,7 @@ namespace wms {
 			m_Request.set(http::field::user_agent, "GeoDMS");
 
 			// Look up the domain named
-			report(MsgCategory::background_layer_connection, SeverityTypeID::ST_MajorTrace, ("connect to" + host.m_Name).c_str(), "OK", true);
+			report(MsgCategory::background_layer_connection, SeverityTypeID::ST_MajorTrace, ("connect to https://" + host.m_Name).c_str(), ", result: OK", true);
 			host.async_connect(m_SslSocket.lowest_layer(), [self = shared_from_this()](boost::system::error_code ec, auto iter)
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -221,7 +221,8 @@ namespace wms {
 			m_Request.prepare_payload();
 
 			// Send the HTTP request to the remote host
-			report(MsgCategory::background_layer_request, SeverityTypeID::ST_MajorTrace, m_Target.c_str(), "OK", true);
+			auto request_msg = "request: " + m_Target;
+			report(MsgCategory::background_layer_request, SeverityTypeID::ST_MajorTrace, request_msg.c_str(), ", result: OK", true);
 			http::async_write(m_SslSocket, m_Request, [self = shared_from_this()](const boost::system::error_code& ec, std::size_t bytes_transferred) 
 				{ 
 					auto owner = self->m_Owner.lock();
@@ -413,13 +414,13 @@ namespace wms {
 		if (st == SeverityTypeID::ST_Error)
 			st = SeverityTypeID::ST_Warning;
 
-		reportF(ct, st, "wms(%5%,%6%) %1%:%2%\nRequest: %3%\nResponse: %4%\n"
+		reportF(ct, st, "%1%:%2%\nRequest: %3%\nResponse: %4%\n" // wms(%5%,%6%)
 			, what 
 			, msg 
 			, m_Request 
 			, m_Response 
-			, s_InstanceCount
-			, (alive ? shared_from_this().use_count()-1 : 0 )
+			//, s_InstanceCount s
+			//, (alive ? shared_from_this().use_count()-1 : 0 )
 		);
 	}
 
