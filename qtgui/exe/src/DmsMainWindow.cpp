@@ -81,8 +81,8 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
     m_reopen->setMaximumSize(75, 30);
-    box_layout->addWidget(m_ignore);
     box_layout->addWidget(m_reopen);
+    box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
 
