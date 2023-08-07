@@ -316,10 +316,18 @@ void MainWindow::updateActionsForNewCurrentItem()
     m_invalidate_action->setEnabled(true);
     m_update_subtree_action->setEnabled(true);
     m_edit_config_source_action->setEnabled(true);
-    if (!FindURL(m_current_item.get()).empty())
-        m_metainfo_page_action->setEnabled(true);
-    else
-        m_metainfo_page_action->setDisabled(true);
+    
+    try 
+    {
+        if (!FindURL(m_current_item.get()).empty())
+            m_metainfo_page_action->setEnabled(true);
+        else
+            m_metainfo_page_action->setDisabled(true);
+    }
+    catch (...)
+    {
+        m_metainfo_page_action->setEnabled(true); 
+    }
 }
 
 void MainWindow::updateTreeItemVisitHistory()
@@ -532,8 +540,8 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     {
     case TB_Export: return { {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"}};
     case TB_TableCopy: return { {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
-    case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_copy.bmp"}};
-    case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_copy.bmp"}};
     case TB_ShowFirstSelectedRow: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ShowFirstSelectedRow}, {":/res/images/TB_table_show_first_selected.bmp"} };
     case TB_ZoomSelectedObj: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"}};
     case TB_SelectRows: return { {"Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)",""}, {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"}};
@@ -639,7 +647,7 @@ auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>
 
 auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID>
 {
-    return { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
+    return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
              TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
