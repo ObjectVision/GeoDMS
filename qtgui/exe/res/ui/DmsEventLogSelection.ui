@@ -193,7 +193,7 @@
      <string>minor</string>
     </property>
     <property name="checked">
-     <bool>true</bool>
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QCheckBox" name="m_warning_filter">
@@ -386,7 +386,7 @@
     <string>other</string>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="QLineEdit" name="m_text_filter">
@@ -494,7 +494,7 @@
     <string>memory</string>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="Line" name="line_5">
