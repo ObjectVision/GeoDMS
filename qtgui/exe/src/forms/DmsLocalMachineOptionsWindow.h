@@ -88,7 +88,7 @@ public:
         line->setFrameShape(QFrame::HLine);
         lbl_paths = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_paths->setObjectName("lbl_paths");
-        lbl_paths->setGeometry(QRect(10, 40, 61, 28));
+        lbl_paths->setGeometry(QRect(10, 40, 53, 21));
         QFont font1;
         font1.setPointSize(10);
         lbl_paths->setFont(font1);
@@ -125,7 +125,7 @@ public:
         line_2->setFrameShape(QFrame::HLine);
         lbl_script = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_script->setObjectName("lbl_script");
-        lbl_script->setGeometry(QRect(10, 150, 121, 21));
+        lbl_script->setGeometry(QRect(10, 150, 111, 21));
         lbl_script->setFont(font1);
         lbl_script->setAutoFillBackground(true);
         lbl_script->setFrameShape(QFrame::Box);
@@ -137,7 +137,7 @@ public:
         m_editor_folder_dialog->setIconSize(QSize(24, 24));
         line_3 = new QFrame(DmsLocalMachineOptionsWindow);
         line_3->setObjectName("line_3");
-        line_3->setGeometry(QRect(10, 272, 673, 16));
+        line_3->setGeometry(QRect(202, 270, 481, 20));
         sizePolicy.setHeightForWidth(line_3->sizePolicy().hasHeightForWidth());
         line_3->setSizePolicy(sizePolicy);
         line_3->setFrameShadow(QFrame::Sunken);
@@ -145,7 +145,7 @@ public:
         line_3->setFrameShape(QFrame::HLine);
         lbl_parallel_processing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_parallel_processing->setObjectName("lbl_parallel_processing");
-        lbl_parallel_processing->setGeometry(QRect(10, 262, 201, 21));
+        lbl_parallel_processing->setGeometry(QRect(10, 262, 166, 21));
         lbl_parallel_processing->setFont(font1);
         lbl_parallel_processing->setAutoFillBackground(true);
         lbl_parallel_processing->setFrameShape(QFrame::Box);
@@ -201,7 +201,7 @@ public:
         m_flush_treshold_text->setFont(font);
         lbl_memory_flushing = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_memory_flushing->setObjectName("lbl_memory_flushing");
-        lbl_memory_flushing->setGeometry(QRect(10, 372, 388, 21));
+        lbl_memory_flushing->setGeometry(QRect(10, 372, 393, 21));
         QFont font2;
         font2.setPointSize(10);
         font2.setBold(true);
@@ -219,7 +219,7 @@ public:
         line_5->setFrameShape(QFrame::HLine);
         lbl_logging = new QLabel(DmsLocalMachineOptionsWindow);
         lbl_logging->setObjectName("lbl_logging");
-        lbl_logging->setGeometry(QRect(10, 492, 81, 21));
+        lbl_logging->setGeometry(QRect(10, 492, 75, 21));
         lbl_logging->setFont(font2);
         lbl_logging->setAutoFillBackground(true);
         lbl_logging->setFrameShape(QFrame::Box);
@@ -254,6 +254,12 @@ public:
         m_pp_info = new QPushButton(DmsLocalMachineOptionsWindow);
         m_pp_info->setObjectName("m_pp_info");
         m_pp_info->setGeometry(QRect(180, 260, 16, 28));
+        QSizePolicy sizePolicy1(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        sizePolicy1.setHorizontalStretch(0);
+        sizePolicy1.setVerticalStretch(0);
+        sizePolicy1.setHeightForWidth(m_pp_info->sizePolicy().hasHeightForWidth());
+        m_pp_info->setSizePolicy(sizePolicy1);
+        m_pp_info->setCursor(QCursor(Qt::WhatsThisCursor));
         QIcon icon1;
         icon1.addFile(QString::fromUtf8("../images/DP_ValueInfo.bmp"), QSize(), QIcon::Normal, QIcon::Off);
         m_pp_info->setIcon(icon1);
@@ -304,11 +310,11 @@ public:
         m_sd_input->raise();
         m_editor_input->raise();
         lbl_current_flush_value->raise();
-        m_pp_info->raise();
         lbl_applications->raise();
         m_editor_parameters_input->raise();
         lbl_applications_2->raise();
         m_set_editor_parameters->raise();
+        m_pp_info->raise();
 
         retranslateUi(DmsLocalMachineOptionsWindow);
 
@@ -317,16 +323,16 @@ public:
 
     void retranslateUi(QDialog *DmsLocalMachineOptionsWindow)
     {
-        DmsLocalMachineOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "LocalMachine options", nullptr));
+        DmsLocalMachineOptionsWindow->setWindowTitle(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Local machine options", nullptr));
         lbl_title->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Settings for your local machine", nullptr));
-        lbl_paths->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Paths</span></p></body></html>", nullptr));
+        lbl_paths->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Paths </span></p></body></html>", nullptr));
         lbl_localdata->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Local Data: ", nullptr));
         m_ld_folder_dialog->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "...", nullptr));
         lbl_sourcedata->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Source Data: ", nullptr));
         m_sd_folder_dialog->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "...", nullptr));
-        lbl_script->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Script Editor</span></p></body></html>", nullptr));
+        lbl_script->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Script Editor </span></p></body></html>", nullptr));
         m_editor_folder_dialog->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "...", nullptr));
-        lbl_parallel_processing->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Parallel Processing</span></p></body></html>", nullptr));
+        lbl_parallel_processing->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Parallel Processing </span></p></body></html>", nullptr));
         m_pp0->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "0: Suspend view update to favor gui", nullptr));
         m_pp2->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "2: Multiple operations simultaneoulsy", nullptr));
         m_pp1->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "1: Tile/segment tasks", nullptr));
@@ -334,8 +340,8 @@ public:
         lbl_min->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "50 %", nullptr));
         lbl_max->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "100 %", nullptr));
         m_flush_treshold_text->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "80%", nullptr));
-        lbl_memory_flushing->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Treshold for memory flushing wait procedure</p></body></html>", nullptr));
-        lbl_logging->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Logging</p></body></html>", nullptr));
+        lbl_memory_flushing->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Treshold for memory flushing wait procedure </p></body></html>", nullptr));
+        lbl_logging->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Logging </p></body></html>", nullptr));
         m_tracelog->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", " Write TraceLog file", nullptr));
         m_ok->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Ok", nullptr));
         m_cancel->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Cancel", nullptr));
