@@ -184,7 +184,16 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
         if (adi != adiGeometry)
         {
             // TODO: reproduce multi-level structure of DataContainer
-            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+            // TODO: cleanup
+            auto value_composition = adi->GetValueComposition();
+            auto values_unit = adi->GetAbstrValuesUnit();
+            auto vci = values_unit->GetValueType()->GetValueClassID();
+            auto vc = adi->GetValueComposition();
+            bool is_geometry = vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
+
+            if (is_geometry)
+                continue;
+            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, values_unit, value_composition);
             vda->SetExpr(adi->GetFullName());
         }
 
