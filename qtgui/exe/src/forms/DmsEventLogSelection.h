@@ -118,7 +118,7 @@ public:
         m_minor_trace_filter->setGeometry(QRect(20, 30, 69, 25));
         m_minor_trace_filter->setFont(font1);
         m_minor_trace_filter->setStyleSheet(QString::fromUtf8("color: ForestGreen;"));
-        m_minor_trace_filter->setChecked(true);
+        m_minor_trace_filter->setChecked(false);
         m_warning_filter = new QCheckBox(groupBox);
         m_warning_filter->setObjectName("m_warning_filter");
         m_warning_filter->setGeometry(QRect(140, 90, 86, 25));
@@ -166,7 +166,7 @@ public:
         m_category_filter_other->setGeometry(QRect(530, 70, 66, 25));
         m_category_filter_other->setFont(font1);
         m_category_filter_other->setStyleSheet(QString::fromUtf8("color: grey;"));
-        m_category_filter_other->setChecked(true);
+        m_category_filter_other->setChecked(false);
         m_text_filter = new QLineEdit(DmsEventLogTypeSelection);
         m_text_filter->setObjectName("m_text_filter");
         m_text_filter->setGeometry(QRect(670, 40, 200, 25));
@@ -193,7 +193,7 @@ public:
         m_category_filter_memory->setGeometry(QRect(530, 40, 87, 25));
         m_category_filter_memory->setFont(font1);
         m_category_filter_memory->setStyleSheet(QString::fromUtf8("color: brown;"));
-        m_category_filter_memory->setChecked(true);
+        m_category_filter_memory->setChecked(false);
         line_5 = new QFrame(DmsEventLogTypeSelection);
         line_5->setObjectName("line_5");
         line_5->setGeometry(QRect(890, 0, 20, 140));
