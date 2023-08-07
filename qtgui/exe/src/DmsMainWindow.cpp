@@ -1658,7 +1658,7 @@ void MainWindow::createActions()
     // process schemes
     m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
     //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
-    m_view_menu->addAction(m_process_schemes_action.get());
+    //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
@@ -1709,15 +1709,15 @@ void MainWindow::createActions()
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
     m_tools_menu->addAction(m_gui_options_action.get());
 
-    m_advanced_options_action = std::make_unique<QAction>(tr("&Advanced Options"));
-    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options);
+    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
+    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
     m_tools_menu->addAction(m_advanced_options_action.get());
 
     m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
     connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
     m_tools_menu->addAction(m_config_options_action.get());
 
-    m_code_analysis_submenu = std::make_unique<QMenu>("&Code analysis ...");
+    m_code_analysis_submenu = std::make_unique<QMenu>("&Code analysis...");
     m_tools_menu->addMenu(m_code_analysis_submenu.get());
 
     m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
@@ -1828,6 +1828,10 @@ void MainWindow::updateViewMenu()
 
 void MainWindow::updateToolsMenu()
 {
+    m_code_analysis_add_target_action->setEnabled(m_current_item);
+    m_code_analysis_clr_targets_action->setEnabled(m_current_item);
+    m_code_analysis_set_source_action->setEnabled(m_current_item);
+    m_code_analysis_set_target_action->setEnabled(m_current_item);
     m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
 }
 
