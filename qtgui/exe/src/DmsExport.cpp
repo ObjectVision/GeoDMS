@@ -533,6 +533,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     auto final_filename = new QLabel("Resulting filename(s):", this);
     m_final_filename = new QTextBrowser(this);
     m_final_filename->setReadOnly(true);
+    m_final_filename->setStyleSheet("QTextBrowser { background-color: rgb(240, 240, 240); }");
 
     grid_layout_box->addWidget(final_filename, 4, 0);
     grid_layout_box->addWidget(m_final_filename, 4, 1);
