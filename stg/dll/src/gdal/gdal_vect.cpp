@@ -1411,7 +1411,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 
 bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
-	DBG_START("gdal.vect", "WriteDataItem", false);
+	DBG_START("gdalwrite.vect", "WriteDataItem", false);
 	
 	auto smi = smiHolder.get();
 	SharedStr datasourceName = smi->StorageManager()->GetNameStr();
@@ -1455,7 +1455,6 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layerTokenT))
 		return true;
-
 
 	auto dataReadLocks = ReadableDataHandles(layername, m_DataItemsStatusInfo);
 	auto layer = this->m_hDS->GetLayerByName(layername.c_str()); gdal_error_frame.ThrowUpWhateverCameUp();
