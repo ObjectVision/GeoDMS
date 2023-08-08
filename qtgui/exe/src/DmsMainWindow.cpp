@@ -374,7 +374,17 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
 
 void MainWindow::fileOpen() 
 {
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms").toLower();
+    //m_recent_files_actions
+    auto proj_dir = SharedStr("");
+    if (m_root)
+        proj_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%projDir%"));
+    else
+    {
+        if (!m_recent_files_actions.empty())
+            proj_dir = m_recent_files_actions.at(0)->m_cfg_file_path.c_str();
+    }
+
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", proj_dir.c_str(), "*.dms").toLower();
 
     if (configFileName.isEmpty())
         return;
@@ -1006,7 +1016,8 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
-        
+        connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
+
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
         {
@@ -1143,7 +1154,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
-        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this);
+        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this); // TODO: possible source of memory leaks
         connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(new_recent_file_action);
         m_recent_files_actions.prepend(new_recent_file_action);
@@ -1719,7 +1730,6 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_toggle_currentitembar_action.get());
     connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
 
-
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
     menuBar()->addMenu(m_tools_menu.get());
@@ -1762,14 +1772,14 @@ void MainWindow::createActions()
     auto win1_action = new QAction(tr("&Tile Windows"), this);
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     win1_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
+    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
     //auto win2_action = new QAction(tr("&Tile Vertical"), this);
     //win2_action->setShortcut(QKeySequence(tr("Ctrl+Alt+V")));
     auto win3_action = new QAction(tr("&Cascade"), this);
     win3_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
     win3_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
+    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
     win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));

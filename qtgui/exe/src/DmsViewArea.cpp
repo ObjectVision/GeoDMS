@@ -92,9 +92,11 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
 }
 
 QDmsMdiArea::QDmsMdiArea(QWidget* parent)
-    : QMdiArea(parent) 
+    : QMdiArea(parent)
 {
-    setViewMode(QMdiArea::ViewMode::TabbedView);
+    setTabbedViewModeStyle();
+
+
     setAcceptDrops(true);
 }
 
@@ -144,6 +146,31 @@ void QDmsMdiArea::closeAllButActiveSubWindow()
     for (auto swPtr : subWindowList())
         if (swPtr != asw)
             swPtr->close();
+}
+
+void QDmsMdiArea::setTabbedViewModeStyle()
+{
+    setViewMode(QMdiArea::ViewMode::TabbedView);
+    QTabBar* mdi_tabbar = findChild<QTabBar*>();
+    if (mdi_tabbar)
+    {
+        mdi_tabbar->setExpanding(false);
+        mdi_tabbar->setStyleSheet("QTabBar::tab:selected{"
+                                    "background-color: rgb(137, 207, 240);"
+                                    "}");
+    }
+}
+
+void QDmsMdiArea::onCascadeSubWindows()
+{
+    setViewMode(QMdiArea::ViewMode::SubWindowView);
+    cascadeSubWindows();
+}
+
+void QDmsMdiArea::onTileSubWindows()
+{
+    setViewMode(QMdiArea::ViewMode::SubWindowView);
+    tileSubWindows();
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)
@@ -332,3 +359,13 @@ void QDmsViewArea::paintEvent(QPaintEvent* event)
     return QMdiSubWindow::paintEvent(event);
 }
 
+void QDmsViewArea::onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState)
+{
+    if (!(newState & Qt::WindowState::WindowMaximized))
+        return;
+
+    auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
+    mdi_area->setTabbedViewModeStyle();
+
+    return;
+}
