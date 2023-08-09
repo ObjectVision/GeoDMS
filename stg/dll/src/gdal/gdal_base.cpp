@@ -397,14 +397,17 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Abst
 	if (wktPrjStr.empty())
 	{
 		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
+		if (fullName.empty())
+			return;
+
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit %s has no projection", fullName);
 		return;
 	}
 	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
 	if (spOrErr.second != OGRERR_NONE)
 	{
 		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has projection with error %d", fullName, spOrErr.second);
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit %s has projection with error %d", fullName, spOrErr.second);
 	}
 	if (ogrSR)
 	{
