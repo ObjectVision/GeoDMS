@@ -486,10 +486,10 @@ SharedStr TableControl::GetCaption() const
 		row_label = "row";
 	
 	if (m_GroupByEntity)
-		return mgFormat2SharedStr("Table View, with %s %s %s, grouped to %d rows by %s", AsString(nrRecs), domain->GetName(), row_label, nrRows, m_GroupByEntity->GetExpr());
+		return mgFormat2SharedStr("%s with %s %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), row_label, nrRows, m_GroupByEntity->GetExpr());
 	if (nrRows == nrRecs)
-		return mgFormat2SharedStr("Table View, with %s %s %s", AsString(nrRecs), domain->GetName(), row_label);
-	return mgFormat2SharedStr("Table View, selected %s of %s %s %s", AsString(nrRows), AsString(nrRecs), domain->GetName(), row_label);
+		return mgFormat2SharedStr("%s with %s %s", domain->GetName(), AsString(nrRecs), row_label);
+	return mgFormat2SharedStr("%s, selected %s of %s %s", domain->GetName(), AsString(nrRows), AsString(nrRecs), row_label);
 }
 
 void TableControl::NotifyCaptionChange()
