@@ -57,7 +57,8 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
     MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
 }
 
-DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
+DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
+    : QDialog(parent)
 {
     setWindowTitle(QString("Source changed.."));
     setMinimumSize(600, 200);
@@ -73,18 +74,16 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"));
     m_ignore->setMaximumSize(75, 30);
-    m_ignore->setAutoDefault(true);
-    m_ignore->setDefault(true);
-
 
     m_reopen = new QPushButton(tr("&Reopen"));
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
+    m_reopen->setAutoDefault(true);
+    m_reopen->setDefault(true);
     m_reopen->setMaximumSize(75, 30);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
-
 
     setWindowModality(Qt::ApplicationModal);
 }
@@ -127,7 +126,8 @@ void DmsErrorWindow::onAnchorClicked(const QUrl& link)
     MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
 }
 
-DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
+DmsErrorWindow::DmsErrorWindow(QWidget* parent)
+    : QDialog(parent)
 {
     setWindowTitle(QString("Error"));
     setMinimumSize(800, 400);
@@ -1028,9 +1028,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
-
-
-
     }
     catch (...)
     {
