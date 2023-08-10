@@ -149,7 +149,7 @@ void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, MsgCategory m
 	if (st < SeverityTypeID::ST_MajorTrace)
 		return;
 
-	if (msgCat != MsgCategory::nonspecific)
+	if (msgCat != MsgCategory::other)
 		std::cout << AsString(msgCat);
 	std::cout << msg << std::endl;
 }

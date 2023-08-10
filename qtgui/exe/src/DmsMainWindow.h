@@ -112,7 +112,7 @@ class DmsFileChangedWindow : public QDialog
     Q_OBJECT
 
 public: //auto changed_files = DMS_ReportChangedFiles(true);
-    DmsFileChangedWindow(QWidget* parent);
+    DmsFileChangedWindow(QWidget* parent = nullptr);
     void setFileChangedMessage(std::string_view changed_files);
 
 private slots:
@@ -132,7 +132,7 @@ class DmsErrorWindow : public QDialog
     Q_OBJECT
 
 public:
-    DmsErrorWindow(QWidget* parent);
+    DmsErrorWindow(QWidget* parent = nullptr);
     void setErrorMessageHtml(QString message) { m_message->setHtml(message); };
 
 private slots:

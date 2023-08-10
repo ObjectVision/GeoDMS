@@ -1582,10 +1582,16 @@ bool IsVatDomain(const AbstrUnit* au)
 
 void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
 {
-	assert(geometry);
 	if (!spatialRef)
 		return;
 
+	assert(geometry);
+<<<<<<< HEAD
+	if (!spatialRef)
+		return;
+
+=======
+>>>>>>> 2c66319dde1a067a6f3e3b304f125a97bd58e8de
 	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
 	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
 
