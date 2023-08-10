@@ -65,10 +65,12 @@ class DmsEventLog : public QWidget
 	Q_OBJECT
 public:
 	DmsEventLog(QWidget* parent);
+	void keyPressEvent(QKeyEvent* event) override;
 	std::unique_ptr<DmsTypeFilter> m_eventlog_filter;
 	std::unique_ptr<QListView> m_log;
 	std::unique_ptr<QPushButton> m_scroll_to_bottom_toggle, m_event_filter_toggle, m_clear;
 	bool m_scroll_to_bottom = true;
+
 
 public slots:
 	void onVerticalScrollbarValueChanged(int value);
@@ -82,8 +84,10 @@ public slots:
 	void clearTextFilter();
 
 private:
+	void copySelectedEventlogLinesToClipboard();
 	bool isScrolledToBottom();
 	//QPointer<QTimer> m_throttle_timer;
+	
 };
 
 

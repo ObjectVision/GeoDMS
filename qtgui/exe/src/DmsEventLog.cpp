@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
+#include <QClipBoard>
 
 #include "dbg/Timer.h"
 
@@ -292,6 +293,49 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	setLayout(vertical_layout);
 	toggleTextFilter(false);
 	toggleTypeFilter(false);
+}
+
+void DmsEventLog::copySelectedEventlogLinesToClipboard()
+{
+	auto eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
+	auto selected_indexes = m_log->selectionModel()->selectedIndexes();
+
+	if (selected_indexes.isEmpty())
+		return;
+
+	std::sort(selected_indexes.begin(), selected_indexes.end());
+
+	QString new_cliboard_text = "";
+
+	for (auto& index : selected_indexes)
+	{
+		auto eventlog_item = eventlog_model->data(index, Qt::DisplayRole);
+		if (!eventlog_item.isValid())
+			continue;
+
+		auto item_text = eventlog_item.toString();
+		if (item_text.isEmpty())
+			continue;
+
+		new_cliboard_text = new_cliboard_text + item_text + "\n";
+	}
+	if (new_cliboard_text.isEmpty())
+		return;
+
+	QGuiApplication::clipboard()->clear();
+	QGuiApplication::clipboard()->setText(new_cliboard_text, QClipboard::Clipboard);
+}
+
+void DmsEventLog::keyPressEvent(QKeyEvent* event)
+{
+	if (event == QKeySequence::Copy)
+	{
+		//return QWidget::keyPressEvent(event);
+		copySelectedEventlogLinesToClipboard();
+		event->accept();
+		return;
+	}
+	return QWidget::keyPressEvent(event);
 }
 
 void DmsEventLog::onVerticalScrollbarValueChanged(int value)
