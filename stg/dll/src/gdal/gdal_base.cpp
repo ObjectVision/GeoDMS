@@ -387,17 +387,36 @@ void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* from
 	}
 }
 
+auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
+{
+	return {};
+}
+
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
 {
+	if (!ogrSR) // dataset spatial reference does not exist, no check possible.
+		return;
+
+	// TODO: check of the sr provider code matches the geodms projection
 	assert(IsMainThread());
 	assert(uBase);
-//	uBase->UpdateMetaInfo();
-
+	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());
+
+	/*if (!projection.empty())
+	{
+		auto authority_identifier_and_code = ConvertProjectionStrToAuthorityIdentifierAndCode(projection.c_str());
+		auto srs = GetSpatialReferenceFromUserInput(authority_identifier_and_code);
+		srs.first.IsSame(ogrSR.value());
+	}*/
+	
+
+	
 	if (wktPrjStr.empty())
 	{
-		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
+		//TODO: reconsider implementation of this error message, message is unclear as of now.
+		//auto fullName = SharedStr(uBase->GetFullName());
+		//reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
 		return;
 	}
 	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
