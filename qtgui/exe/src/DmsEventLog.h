@@ -68,11 +68,12 @@ public:
 	void keyPressEvent(QKeyEvent* event) override;
 	std::unique_ptr<DmsTypeFilter> m_eventlog_filter;
 	std::unique_ptr<QListView> m_log;
-	std::unique_ptr<QPushButton> m_scroll_to_bottom_toggle, m_event_filter_toggle, m_clear;
+	std::unique_ptr<QPushButton> m_copy_selected_to_clipboard, m_scroll_to_bottom_toggle, m_event_filter_toggle, m_clear;
 	bool m_scroll_to_bottom = true;
 
 
 public slots:
+	void copySelectedEventlogLinesToClipboard();
 	void onVerticalScrollbarValueChanged(int value);
 	void scrollToBottomOnTimeout();
 	void scrollToBottomThrottled();
@@ -84,7 +85,7 @@ public slots:
 	void clearTextFilter();
 
 private:
-	void copySelectedEventlogLinesToClipboard();
+
 	bool isScrolledToBottom();
 	//QPointer<QTimer> m_throttle_timer;
 	

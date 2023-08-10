@@ -210,6 +210,13 @@ QSize DmsTypeFilter::sizeHint() const
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
+	const QIcon copy_icon = QIcon(":/res/images/TB_copy.bmp");
+	m_copy_selected_to_clipboard = std::make_unique<QPushButton>(copy_icon, "");
+	m_copy_selected_to_clipboard->setToolTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStatusTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_copy_selected_to_clipboard.get(), &QPushButton::pressed, this, &DmsEventLog::copySelectedEventlogLinesToClipboard);
+
 	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
 	m_event_filter_toggle = std::make_unique<QPushButton>(event_filter_icon, "");
 	m_event_filter_toggle->setToolTip(tr("Filters"));
@@ -278,6 +285,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	auto grid_layout = new QGridLayout();
 
 	auto eventlog_toolbar = new QVBoxLayout();
+	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
 	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
 	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
