@@ -430,7 +430,6 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 		"}"
 		"QTreeView {"
 		"           padding-top: 5px;"
-		"           background: white;"
 		"}");
 }
 
