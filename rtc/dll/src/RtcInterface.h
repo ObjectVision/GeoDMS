@@ -43,18 +43,6 @@ RTC_CALL CharPtr DMS_CONV DMS_GetLastErrorMsg();
 
 RTC_CALL void DMS_CONV DMS_SetGlobalCppExceptionTranslator(TCppExceptionTranslator trFunc);
 
-// The following typedef defines the type TReduceResourcesFunc
-// which is a pointer to a function type that takes 
-//		clientHandle: a client suppplied DWord to identify a client object that handles the message
-// and returns nothing. It is used before calling an external proc to reduce locks etc.
-// ODBCStorageManagers subscribe here to close recordsets and database connections.
-
-
-typedef bool (DMS_CONV *TReduceResourcesFunc)(ClientHandle clientHandle);
-RTC_CALL void DMS_CONV DMS_RegisterReduceResourcesFunc(TReduceResourcesFunc fcb, ClientHandle clientHandle);
-RTC_CALL void DMS_CONV DMS_ReleaseReduceResourcesFunc (TReduceResourcesFunc fcb, ClientHandle clientHandle);
-RTC_CALL bool DMS_CONV DMS_ReduceResources();
-RTC_CALL void DMS_CONV DMS_FreeResources();
 RTC_CALL void DMS_CONV DMS_Terminate();
 
 //----------------------------------------------------------------------

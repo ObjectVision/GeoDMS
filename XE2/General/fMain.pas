@@ -397,9 +397,6 @@ begin
 
   m_TreeNodeUpdateSet.Free;
 
-  // MTA: Verplaatst vanaf Destroy teneinde resource-leak-errors te tonen en te loggen.
-  DMS_FreeResources;
-
   Screen.OnActiveFormChange := nil;
 end;
 

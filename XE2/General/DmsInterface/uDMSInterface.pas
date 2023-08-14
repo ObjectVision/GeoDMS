@@ -94,12 +94,6 @@ function  DMS_Actor_DidSuspend:  Boolean;                                       
 procedure DMS_Actor_Resume;                                                            cdecl; external RTC_DLL;
 function  DMS_HasWaitingMessages: Boolean;                                             cdecl; external RTC_DLL;
 
-// call for reduction of resources before calling an external process.
-procedure DMS_RegisterReduceResourcesFunc(fcb: TReduceResources; clientHandle: TClientHandle);cdecl; external RTC_DLL;
-procedure DMS_ReleaseReduceResourcesFunc(fcb: TReduceResources; clientHandle: TClientHandle); cdecl; external RTC_DLL;
-function  DMS_ReduceRecources(): bool;                                                 cdecl; external RTC_DLL;
-procedure DMS_FreeResources;                                                           cdecl; external RTC_DLL;
-
 // call for state change notifications when monitoring the update process
 procedure DMS_RegisterStateChangeNotification(fcb: TStateChangeNotificationFunc; clientHandle: TClientHandle); cdecl; external TIC_DLL;
 procedure DMS_ReleaseStateChangeNotification (fcb: TStateChangeNotificationFunc; clientHandle: TClientHandle); cdecl; external TIC_DLL;

@@ -316,7 +316,6 @@ TUpdateState =  (
                            );
    // Callback function for trace-info subscription
    TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; msg: PMsgChar);  cdecl;
-   TReduceResources = function(clientHandle: TClientHandle): boolean; cdecl;
 
 {*******************************************************************************
                            Other Callback functions
