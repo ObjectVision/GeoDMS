@@ -387,24 +387,43 @@ void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* from
 	}
 }
 
+auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
+{
+	return {};
+}
+
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
 {
+	if (!ogrSR) // dataset spatial reference does not exist, no check possible.
+		return;
+
+	// TODO: check of the sr provider code matches the geodms projection
 	assert(IsMainThread());
 	assert(uBase);
-//	uBase->UpdateMetaInfo();
-
+	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());
+
+	/*if (!projection.empty())
+	{
+		auto authority_identifier_and_code = ConvertProjectionStrToAuthorityIdentifierAndCode(projection.c_str());
+		auto srs = GetSpatialReferenceFromUserInput(authority_identifier_and_code);
+		srs.first.IsSame(ogrSR.value());
+	}*/
+	
+
+	
 	if (wktPrjStr.empty())
 	{
-		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
+		//TODO: reconsider implementation of this error message, message is unclear as of now.
+		//auto fullName = SharedStr(uBase->GetFullName());
+		//reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
 		return;
 	}
 	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
 	if (spOrErr.second != OGRERR_NONE)
 	{
 		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has projection with error %d", fullName, spOrErr.second);
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit %s has projection with error %d", fullName, spOrErr.second);
 	}
 	if (ogrSR)
 	{
@@ -1350,7 +1369,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
  	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
-		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+		if (std::filesystem::exists(datasourceName.c_str()))
+			driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))

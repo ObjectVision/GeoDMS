@@ -8,6 +8,7 @@
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
+#include "dbg/DmsCatch.h"
 #include <QMainWindow>
 
 #include "dbg/SeverityType.h"
@@ -244,8 +245,19 @@ void DmsDetailPages::drawPage()
     }
     case ActiveDetailPage::METADATA:
     {
-        auto url = FindURL(current_item);
+        SharedStr url = {};
+        try
+        {
+            url = FindURL(current_item);
+        }
+        catch (...)
+        {
+            auto errMsg = catchException(false);
+            MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
+        }
+
         if (!url.empty())
+        {
             if (ShowInDetailPage(url))
             {
                 FilePtrHandle file;
@@ -262,6 +274,7 @@ void DmsDetailPages::drawPage()
                 }
                 return;
             }
+        }
         DMS_XML_MetaInfoRef(current_item, xmlOut.get());
         break;
     }

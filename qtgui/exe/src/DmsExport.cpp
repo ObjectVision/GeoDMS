@@ -184,7 +184,16 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
         if (adi != adiGeometry)
         {
             // TODO: reproduce multi-level structure of DataContainer
-            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+            // TODO: cleanup
+            auto value_composition = adi->GetValueComposition();
+            auto values_unit = adi->GetAbstrValuesUnit();
+            auto vci = values_unit->GetValueType()->GetValueClassID();
+            auto vc = adi->GetValueComposition();
+            bool is_geometry = vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
+
+            if (is_geometry)
+                continue;
+            auto vda = CreateDataItem(vdc, UniqueName(vdc, adi->GetID()), auCommon, values_unit, value_composition);
             vda->SetExpr(adi->GetFullName());
         }
 
@@ -524,6 +533,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     auto final_filename = new QLabel("Resulting filename(s):", this);
     m_final_filename = new QTextBrowser(this);
     m_final_filename->setReadOnly(true);
+    m_final_filename->setStyleSheet("QTextBrowser { background-color: rgb(240, 240, 240); }");
 
     grid_layout_box->addWidget(final_filename, 4, 0);
     grid_layout_box->addWidget(m_final_filename, 4, 1);

@@ -145,14 +145,14 @@ int main(int argc, char *argv[])
         DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
 
         QApplication dms_app(argc, argv);
-        geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
+        //dms_app.setStyle("macos");
 
+        geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
         dms_app.installNativeEventFilter(&navive_event_filter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         MainWindow main_window(settingsFrame);
         dms_app.setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
-        //main_window.setWindowIcon(QIcon(":res/images/GeoDmsGui-0.png"));
         main_window.showMaximized();
 
         dms_app.installEventFilter(&mouse_forward_backward_event_filter);

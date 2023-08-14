@@ -57,7 +57,8 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
     MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
 }
 
-DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
+DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
+    : QDialog(parent)
 {
     setWindowTitle(QString("Source changed.."));
     setMinimumSize(600, 200);
@@ -73,18 +74,16 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent = nullptr)
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"));
     m_ignore->setMaximumSize(75, 30);
-    m_ignore->setAutoDefault(true);
-    m_ignore->setDefault(true);
-
 
     m_reopen = new QPushButton(tr("&Reopen"));
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
+    m_reopen->setAutoDefault(true);
+    m_reopen->setDefault(true);
     m_reopen->setMaximumSize(75, 30);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
-
 
     setWindowModality(Qt::ApplicationModal);
 }
@@ -127,7 +126,8 @@ void DmsErrorWindow::onAnchorClicked(const QUrl& link)
     MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
 }
 
-DmsErrorWindow::DmsErrorWindow(QWidget* parent = nullptr)
+DmsErrorWindow::DmsErrorWindow(QWidget* parent)
+    : QDialog(parent)
 {
     setWindowTitle(QString("Error"));
     setMinimumSize(800, 400);
@@ -316,10 +316,18 @@ void MainWindow::updateActionsForNewCurrentItem()
     m_invalidate_action->setEnabled(true);
     m_update_subtree_action->setEnabled(true);
     m_edit_config_source_action->setEnabled(true);
-    if (!FindURL(m_current_item.get()).empty())
-        m_metainfo_page_action->setEnabled(true);
-    else
-        m_metainfo_page_action->setDisabled(true);
+    
+    try 
+    {
+        if (!FindURL(m_current_item.get()).empty())
+            m_metainfo_page_action->setEnabled(true);
+        else
+            m_metainfo_page_action->setDisabled(true);
+    }
+    catch (...)
+    {
+        m_metainfo_page_action->setEnabled(true); 
+    }
 }
 
 void MainWindow::updateTreeItemVisitHistory()
@@ -366,7 +374,17 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
 
 void MainWindow::fileOpen() 
 {
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", {}, "*.dms").toLower();
+    //m_recent_files_actions
+    auto proj_dir = SharedStr("");
+    if (m_root)
+        proj_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%projDir%"));
+    else
+    {
+        if (!m_recent_files_actions.empty())
+            proj_dir = m_recent_files_actions.at(0)->m_cfg_file_path.c_str();
+    }
+
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", proj_dir.c_str(), "*.dms").toLower();
 
     if (configFileName.isEmpty())
         return;
@@ -532,8 +550,8 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     {
     case TB_Export: return { {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"}};
     case TB_TableCopy: return { {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
-    case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_copy.bmp"}};
-    case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_copy.bmp"}};
     case TB_ShowFirstSelectedRow: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ShowFirstSelectedRow}, {":/res/images/TB_table_show_first_selected.bmp"} };
     case TB_ZoomSelectedObj: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"}};
     case TB_SelectRows: return { {"Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)",""}, {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"}};
@@ -639,7 +657,7 @@ auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>
 
 auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID>
 {
-    return { TB_Export , TB_Copy, TB_CopyLC, TB_Undefined,
+    return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
              TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
@@ -998,7 +1016,8 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
-        
+        connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
+
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
         {
@@ -1009,9 +1028,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
-
-
-
     }
     catch (...)
     {
@@ -1134,7 +1150,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
-        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this);
+        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this); // TODO: possible source of memory leaks
         connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(new_recent_file_action);
         m_recent_files_actions.prepend(new_recent_file_action);
@@ -1695,7 +1711,6 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_toggle_currentitembar_action.get());
     connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
 
-
     // tools menu
     m_tools_menu = std::make_unique<QMenu>("&Tools");
     menuBar()->addMenu(m_tools_menu.get());
@@ -1738,14 +1753,14 @@ void MainWindow::createActions()
     auto win1_action = new QAction(tr("&Tile Windows"), this);
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     win1_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::tileSubWindows);
+    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
     //auto win2_action = new QAction(tr("&Tile Vertical"), this);
     //win2_action->setShortcut(QKeySequence(tr("Ctrl+Alt+V")));
     auto win3_action = new QAction(tr("&Cascade"), this);
     win3_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
     win3_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QMdiArea::cascadeSubWindows);
+    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
     auto win4_action = new QAction(tr("&Close"), this);
     win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));

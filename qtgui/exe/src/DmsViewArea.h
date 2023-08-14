@@ -12,12 +12,17 @@ struct MdiCreateStruct;
 
 class QDmsMdiArea : public QMdiArea
 {
+    Q_OBJECT
 public:
     QDmsMdiArea(QWidget* parent);
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
-
     void closeAllButActiveSubWindow();
+    void setTabbedViewModeStyle();
+
+public slots:
+    void onCascadeSubWindows();
+    void onTileSubWindows();
 };
 
 class QDmsViewArea : public QMdiSubWindow
@@ -38,8 +43,8 @@ public:
 
     void on_rescale();
 
-//protected:
-//    void paintEvent(QPaintEvent* event);
+public slots:
+    void onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState);
 
 private:
     void CreateDmsView(QMdiArea* parent);

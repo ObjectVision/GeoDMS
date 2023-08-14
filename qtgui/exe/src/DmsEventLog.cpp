@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
+#include <QClipBoard>
 
 #include "dbg/Timer.h"
 
@@ -179,10 +180,13 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
 	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-	if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
-		return;
+	//if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
+	//	return;
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+
+	if (st == SeverityTypeID::ST_Error)
+		int i = 0;
 
 	eventlog->m_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
@@ -217,6 +221,13 @@ QSize DmsTypeFilter::sizeHint() const
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
+	const QIcon copy_icon = QIcon(":/res/images/TB_copy.bmp");
+	m_copy_selected_to_clipboard = std::make_unique<QPushButton>(copy_icon, "");
+	m_copy_selected_to_clipboard->setToolTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStatusTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_copy_selected_to_clipboard.get(), &QPushButton::pressed, this, &DmsEventLog::copySelectedEventlogLinesToClipboard);
+
 	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
 	m_event_filter_toggle = std::make_unique<QPushButton>(event_filter_icon, "");
 	m_event_filter_toggle->setToolTip(tr("Filters"));
@@ -285,6 +296,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	auto grid_layout = new QGridLayout();
 
 	auto eventlog_toolbar = new QVBoxLayout();
+	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
 	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
 	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
@@ -300,6 +312,49 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	setLayout(vertical_layout);
 	toggleTextFilter(false);
 	toggleTypeFilter(false);
+}
+
+void DmsEventLog::copySelectedEventlogLinesToClipboard()
+{
+	auto eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
+	auto selected_indexes = m_log->selectionModel()->selectedIndexes();
+
+	if (selected_indexes.isEmpty())
+		return;
+
+	std::sort(selected_indexes.begin(), selected_indexes.end());
+
+	QString new_cliboard_text = "";
+
+	for (auto& index : selected_indexes)
+	{
+		auto eventlog_item = eventlog_model->data(index, Qt::DisplayRole);
+		if (!eventlog_item.isValid())
+			continue;
+
+		auto item_text = eventlog_item.toString();
+		if (item_text.isEmpty())
+			continue;
+
+		new_cliboard_text = new_cliboard_text + item_text + "\n";
+	}
+	if (new_cliboard_text.isEmpty())
+		return;
+
+	QGuiApplication::clipboard()->clear();
+	QGuiApplication::clipboard()->setText(new_cliboard_text, QClipboard::Clipboard);
+}
+
+void DmsEventLog::keyPressEvent(QKeyEvent* event)
+{
+	if (event == QKeySequence::Copy)
+	{
+		//return QWidget::keyPressEvent(event);
+		copySelectedEventlogLinesToClipboard();
+		event->accept();
+		return;
+	}
+	return QWidget::keyPressEvent(event);
 }
 
 void DmsEventLog::onVerticalScrollbarValueChanged(int value)
