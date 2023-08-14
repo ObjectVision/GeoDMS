@@ -1,7 +1,7 @@
 ﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
 			<ProjectGuid>{6C970A99-641C-4E6E-8D23-1E74FD094BE6}</ProjectGuid>
-			<MainSource>GeoDmsGui.dpr</MainSource>
+			<MainSource>GeoDmsGuiDelphi.dpr</MainSource>
 			<Base>True</Base>
 			<Config Condition="'$(Config)'==''">Release</Config>
 			<TargetedPlatforms>3</TargetedPlatforms>
@@ -240,7 +240,7 @@
 			<BorlandProject>
 				<Delphi.Personality>
 					<Source>
-						<Source Name="MainSource">GeoDmsGui.dpr</Source>
+						<Source Name="MainSource">GeoDmsGuiDelphi.dpr</Source>
 					</Source>
 					<VersionInfo>
 						<VersionInfo Name="IncludeVerInfo">True</VersionInfo>
@@ -308,18 +308,18 @@
 					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.exe">
 						<Platform Name="Win64"/>
 					</DeployFile>
-					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
-						<Platform Name="Win32"/>
+					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
+						<Platform Name="Win32">
+							<RemoteName>GeoDmsGui.rsm</RemoteName>
+						</Platform>
 					</DeployFile>
 					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="c:\LocalData\bin2010\GeoDmsGui.rsm">
 						<Platform Name="Win64">
 							<RemoteName>GeoDmsGui.rsm</RemoteName>
 						</Platform>
 					</DeployFile>
-					<DeployFile Class="DebugSymbols" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.rsm">
-						<Platform Name="Win32">
-							<RemoteName>GeoDmsGui.rsm</RemoteName>
-						</Platform>
+					<DeployFile Class="ProjectOutput" Configuration="Release" LocalName="..\..\bin\Release\Win32\GeoDmsGui.exe">
+						<Platform Name="Win32"/>
 					</DeployFile>
 					<DeployClass Name="ProjectOutput" Required="true">
 						<Platform Name="OSX32">

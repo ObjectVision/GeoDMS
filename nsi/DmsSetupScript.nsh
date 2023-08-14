@@ -31,7 +31,7 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR
   
   CreateDirectory $INSTDIR
-  File /oname=GeoDmsGuiDelphi.exe ..\bin\Release\${GeoDmsPlatform}\GeoDmsGui.exe
+  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiDelphi.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsCaller.exe
