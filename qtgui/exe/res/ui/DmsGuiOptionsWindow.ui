@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>580</width>
-    <height>460</height>
+    <width>573</width>
+    <height>437</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>1</width>
-    <height>1</height>
+    <width>0</width>
+    <height>0</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
       <widget class="QLabel" name="lbl_mapview">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
          <weight>75</weight>
          <bold>true</bold>
         </font>
@@ -46,7 +46,7 @@
       <widget class="QLabel" name="lbl_valid">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -64,16 +64,21 @@
        </property>
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
-        <string>Default classification ramp colors</string>
+        <string>Default classification ramp colors  </string>
        </property>
       </widget>
      </item>
      <item row="10" column="3">
       <widget class="QPushButton" name="m_failed_color_ti_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:red;
 </string>
@@ -87,7 +92,7 @@
       <widget class="QLabel" name="lbl_failed">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -103,6 +108,11 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -112,7 +122,7 @@
       <widget class="QLabel" name="lbl_background_color">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -164,7 +174,7 @@
       <widget class="QCheckBox" name="m_show_thousand_separator">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -174,6 +184,11 @@
      </item>
      <item row="15" column="3">
       <widget class="QPushButton" name="m_end_color_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:blue;
 </string>
@@ -185,6 +200,11 @@
      </item>
      <item row="14" column="3">
       <widget class="QPushButton" name="m_start_color_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:red;
 </string>
@@ -196,6 +216,11 @@
      </item>
      <item row="13" column="3">
       <widget class="QPushButton" name="m_background_color_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:white;
 </string>
@@ -209,7 +234,7 @@
       <widget class="QLabel" name="lbl_treeview">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
          <weight>75</weight>
          <bold>true</bold>
         </font>
@@ -229,7 +254,7 @@
        </property>
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -241,7 +266,7 @@
       <widget class="QLabel" name="lbl_table_statistics">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
          <weight>75</weight>
          <bold>true</bold>
         </font>
@@ -253,6 +278,11 @@
      </item>
      <item row="20" column="1" colspan="3">
       <widget class="QLabel" name="lbl_empty">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -262,7 +292,7 @@
       <widget class="QLabel" name="lbl_title">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -272,6 +302,11 @@
      </item>
      <item row="8" column="3">
       <widget class="QPushButton" name="m_not_calculated_color_ti_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:blue;</string>
        </property>
@@ -284,7 +319,7 @@
       <widget class="QCheckBox" name="m_show_state_colors_in_treeview">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -299,7 +334,7 @@
       <widget class="QLabel" name="lbl_end">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -311,7 +346,7 @@
       <widget class="QLabel" name="lbl_not_yet_calculated">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -321,6 +356,11 @@
      </item>
      <item row="5" column="1" colspan="3">
       <widget class="Line" name="line">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -328,6 +368,11 @@
      </item>
      <item row="12" column="1" colspan="3">
       <widget class="Line" name="line_2">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -335,6 +380,11 @@
      </item>
      <item row="9" column="3">
       <widget class="QPushButton" name="m_valid_color_ti_button">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color:green;
 </string>
@@ -348,7 +398,7 @@
       <widget class="QCheckBox" name="m_show_hidden_items">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
