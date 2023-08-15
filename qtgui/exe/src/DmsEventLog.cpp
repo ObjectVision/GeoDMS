@@ -13,6 +13,7 @@
 #include "dbg/Timer.h"
 
 #include "DmsEventLog.h"
+#include "DmsOptions.h"
 #include "DmsMainWindow.h"
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
@@ -58,13 +59,13 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	case Qt::DisplayRole:
 	{
 		SharedStr msgTxt = item_data.m_Txt;
-		auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-		bool showDateTime = eventlog->m_eventlog_filter->m_date_time->isChecked();
-		bool showThreadID = eventlog->m_eventlog_filter->m_thread->isChecked();
-		bool showCategory = eventlog->m_eventlog_filter->m_category->isChecked();
-
-		if (!showDateTime && !showThreadID &&  !showCategory)
+		auto dms_reg_status_flags = GetRegStatusFlags();
+		if ((dms_reg_status_flags & RSF_EventLog_ShowAnyExtra) == 0)
 			return QString(msgTxt.c_str());
+
+		bool showDateTime = (dms_reg_status_flags & RSF_EventLog_ShowDateTime);
+		bool showThreadID = (dms_reg_status_flags & RSF_EventLog_ShowThreadID);
+		bool showCategory = (dms_reg_status_flags & RSF_EventLog_ShowCategory);
 
 		VectorOutStreamBuff buff;
 		FormattedOutStream fout(&buff, {});
@@ -189,9 +190,18 @@ void EventLogModel::refilter()
 	m_filter_active = true;
 	m_filtered_indices.clear();
 
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+
+	auto dms_reg_status_flags = GetRegStatusFlags();
+	setSF(eventlog_filter_ptr->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
+	setSF(eventlog_filter_ptr->m_thread   ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
+	setSF(eventlog_filter_ptr->m_category ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
+	SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
+	DMS_Appl_SetRegStatusFlags(dms_reg_status_flags);
+
 	UInt64 index = 0;
 
-	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
 	m_TextFilterAsByteArray = text_filter_string.toUtf8();
 	
@@ -269,6 +279,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
 
+	auto eventlog_model_ptr = MainWindow::TheOne()->m_eventlog_model.get();
+
 	/*const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
 	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
 	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
@@ -283,7 +295,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_clear->setStatusTip("Clear all eventlog messages");
 	m_clear->setDisabled(true);
 	m_clear->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_clear.get(), &QPushButton::pressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::clear);
+	connect(m_clear.get(), &QPushButton::pressed, eventlog_model_ptr, &EventLogModel::clear);
 
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
 	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
@@ -296,27 +308,31 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	// filters
 	//m_text_filter = std::make_unique<QLineEdit>();
 	m_eventlog_filter = std::make_unique<DmsTypeFilter>();
-	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 
-	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
-	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 
-	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
 	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
+
+	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter->m_thread, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter->m_category, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 
 	// eventlog
 	m_log = std::make_unique<QListView>();

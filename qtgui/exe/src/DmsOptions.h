@@ -134,3 +134,12 @@ private:
     QPointer<QPushButton> m_apply;
     QPointer<QPushButton> m_undo;
 };
+
+inline void setSF(bool value, UInt32& rsf, UInt32 flag)
+{
+    if (value)
+        rsf |= flag;
+    else
+        rsf &= ~flag;
+}
+

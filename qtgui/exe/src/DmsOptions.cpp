@@ -56,14 +56,6 @@ colorOptionAttr sColorOptionData[(int)color_option::count] =
 
 };
 
-void setSF(bool value, UInt32& rsf, UInt32 flag)
-{
-    if (value)
-        rsf |= flag;
-    else
-        rsf &= ~flag;
-}
-
 auto backgroundColor2StyleSheet(QColor clr) -> QString
 {
     return QString("* { background-color: rgb(")

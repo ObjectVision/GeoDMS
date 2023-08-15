@@ -89,29 +89,35 @@ RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char de
 
 enum RegStatusFlags
 {
-// flags only used in GeoDmsClient.exe
-	RSF_AdminMode       =  1,
-	RSF_SuspendForGUI   =  2,
-	RSF_ShowStateColors =  4,
-	RSF_TraceLogFile    =  8,
+	// flags only used in GeoDmsClient.exe
+	RSF_AdminMode = 1,
+	RSF_SuspendForGUI = 2,
+	RSF_ShowStateColors = 4,
+	RSF_TraceLogFile = 8,
 
-	RSF_TreeViewVisible =  16,
-	RSF_DetailsVisible  =  32,
-	RSF_EventLogVisible =  64,
-	RSF_ToolBarVisible  = 128,
-	RSF_CurrentItemBarHidden = 2048,
+	RSF_TreeViewVisible = 16,
+	RSF_DetailsVisible = 32,
+	RSF_EventLogVisible = 64,
+	RSF_ToolBarVisible = 128,
+	RSF_CurrentItemBarHidden = 0x800,
 	RSF_AllPanelsVisible = RSF_TreeViewVisible + RSF_DetailsVisible + RSF_EventLogVisible + RSF_ToolBarVisible,
 
-	RSF_DynamicROI           = 4096,
+	RSF_DynamicROI = 0x1000,
 
-//  Flags really in use by the GeoDMS C++ Engine
-	RSF_MultiThreading1 = 256,
-//	RSF_MultiThreading2 = 512,
-	RSF_MultiThreading2 = 1024,
-	RSF_MultiThreading3 = 8192,
+	//  Flags really in use by the GeoDMS C++ Engine
+	RSF_MultiThreading1 = 0x100,
+	//	RSF_MultiThreading2 = 512,
+	RSF_MultiThreading2 = 0x400,
+	RSF_MultiThreading3 = 0x2000,
 	RSF_AllMultiThreading = RSF_SuspendForGUI | RSF_MultiThreading1 | RSF_MultiThreading2 | RSF_MultiThreading3,
 
-	RSF_ShowThousandSeparator = 16384,
+	RSF_ShowThousandSeparator = 0x4000,
+
+	RSF_EventLog_ShowDateTime = 0x8000,
+	RSF_EventLog_ShowThreadID = 0x10000,
+	RSF_EventLog_ShowCategory = 0x20000,
+	RSF_EventLog_ShowAnyExtra = RSF_EventLog_ShowDateTime | RSF_EventLog_ShowThreadID | RSF_EventLog_ShowCategory,
+
 	RSF_WasRead         = 0x80000000,
 	RSF_Default         = RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
 };
