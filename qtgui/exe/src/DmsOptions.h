@@ -97,6 +97,7 @@ private slots:
     void onTextChange();
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
+    void setEditorProgramThroughDialog();
 
 private:
     void setInitialLocalDataDirValue();
