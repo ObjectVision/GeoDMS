@@ -352,10 +352,25 @@ void DmsAdvancedOptionsWindow::setInitialEditorValue()
         SetGeoDmsRegKeyString(regKeyName, regKey.c_str());
     }
 
-    QStringList args = QProcess::splitCommand(QString(regKey.c_str()));
+    auto cmd_qstring = QString(regKey.c_str());
+    cmd_qstring.replace(QString("\""), QString("\"\"\"")); // only triple quotes will be interpreted as single quote by QProcess::splitCommand
+    // replace first two occurences of 
+    auto first_index_of_triple_quotes = cmd_qstring.indexOf("\"\"\"");
+    if (first_index_of_triple_quotes == 0) // command line program is quoted
+        cmd_qstring.replace(first_index_of_triple_quotes, 3, "\"");
+        cmd_qstring.replace(cmd_qstring.indexOf("\"\"\""), 3, "\"");
+
+    QStringList args = QProcess::splitCommand(cmd_qstring);
+    if (args.isEmpty())
+        return;
+
     auto editor_program = args.takeFirst();
+    m_editor_input->setText("\"" + editor_program + "\"");
+
     QString editor_arguments = args.join(" ");
-    m_editor_input->setText(editor_program);
+    if (editor_arguments.isEmpty())
+        return;
+
     m_editor_parameters_input->setText(editor_arguments);
 }
 
