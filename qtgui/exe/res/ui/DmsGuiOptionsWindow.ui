@@ -16,6 +16,12 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>1</width>
+    <height>1</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>GUI options</string>
   </property>
