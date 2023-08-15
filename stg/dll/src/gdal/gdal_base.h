@@ -165,6 +165,9 @@ GDALDataType gdalRasterDataType(ValueClassID tid);
 
 // *****************************************************************************
 
+// Proj specific tests
+STGDLL_CALL bool AuthorityCodeIsValidCrs(std::string_view wkt);
+
 auto DmsType2OGRFieldType(ValueClassID id) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
 auto DmsType2OGRSubFieldType(ValueClassID id) -> OGRFieldSubType;
 auto DmsType2OGRGeometryType(ValueComposition vc) -> OGRwkbGeometryType;

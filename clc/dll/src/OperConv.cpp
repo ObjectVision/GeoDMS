@@ -546,6 +546,21 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				GDAL_ErrorFrame frame;
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
+				
+				if (!AuthorityCodeIsValidCrs(srcFormatStr.c_str()))
+				{
+					reportF(MsgCategory::progress, SeverityTypeID::ST_Error, 
+						"The 'src' unit in projection conversion from 'src' unit %s to res unit %s is not a valid projection.",
+						srcUnit->GetFullName(), resUnit->GetFullName());
+				}
+
+				if (!AuthorityCodeIsValidCrs(resFormatStr.c_str()))
+				{
+					reportF(MsgCategory::progress, SeverityTypeID::ST_Error,
+						"The 'res' unit in projection conversion from src unit %s to 'res' unit %s is not a valid projection.",
+						srcUnit->GetFullName(), resUnit->GetFullName());
+				}
+
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();

@@ -434,7 +434,8 @@ void CheckDrawnRect(const MovableObject* self)
 		auto sf = self->GetScaleFactors();
 		auto absDeviceRect = TRect2GRect(absLogicalRect, sf); absDeviceRect.Expand(1);
 		auto absDeviceDrawnRect = self->GetDrawnFullAbsDeviceRect();
-		assert(IsIncluding(absDeviceRect, absDeviceDrawnRect));
+		auto drawn_rect_is_included_in_device_rect = IsIncluding(absDeviceRect, absDeviceDrawnRect);		
+		assert(drawn_rect_is_included_in_device_rect);
 	}
 #endif
 }

@@ -177,6 +177,9 @@ void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
 	if (st == SeverityTypeID::ST_Error)
 		int i = 0;
 
+	if (st == SeverityTypeID::ST_Warning)
+		int i = 0;
+
 	eventlog->m_clear->setEnabled(true);
 	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
