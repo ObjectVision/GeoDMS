@@ -60,8 +60,8 @@ public:
     {
         if (DmsGuiOptionsWindow->objectName().isEmpty())
             DmsGuiOptionsWindow->setObjectName("DmsGuiOptionsWindow");
-        DmsGuiOptionsWindow->resize(573, 437);
-        QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        DmsGuiOptionsWindow->resize(573, 434);
+        QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
         sizePolicy.setHorizontalStretch(0);
         sizePolicy.setVerticalStretch(0);
         sizePolicy.setHeightForWidth(DmsGuiOptionsWindow->sizePolicy().hasHeightForWidth());
