@@ -404,7 +404,7 @@ ExportInfo GraphDataView::GetExportInfo()
 	return GetContents()->GetViewPort()->GetExportInfo();
 }
 
-SharedStr GraphDataView::GetCaption() const
+SharedStr GraphDataView::GetCaption() const // Mapview caption
 {
 	auto mapContents = GetContents();
 	if (mapContents)
@@ -414,21 +414,21 @@ SharedStr GraphDataView::GetCaption() const
 		if (wcu)
 			spatialRefStr = wcu->GetSpatialReference();
 		if (spatialRefStr.empty())
-			spatialRefStr = "Map View";
+			spatialRefStr = "";
 		else
-			spatialRefStr = "Map View with " + spatialRefStr;
+			spatialRefStr = "with " + spatialRefStr;
 		auto ls = mapContents->GetLayerSet();
 		if (ls)
 		{
 			auto al = ls->GetActiveLayer();
 			if (al)
 			{
-				return spatialRefStr + ", " + al->GetCaption();
+				return spatialRefStr + " " + al->GetCaption();
 			}
 		}
 		return spatialRefStr;
 	}
-	return SharedStr("Map View");
+	return SharedStr("");
 }
 
 LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const
