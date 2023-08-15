@@ -81,7 +81,7 @@ ViewPoint::ViewPoint(CharPtrRange viewPointStr)
 {
 	auto streamWrap = MemoInpStreamBuff(viewPointStr.first, viewPointStr.second);
 	FormattedInpStream inp(&streamWrap);
-	inp >> "X=" >> center.Col() >> "; Y=" >> center.Row() >> "; Z=" >> zoomLevel;
+	inp >> "X=" >> center.Col() >> "; Y=" >> center.Row() >> "; ZL=" >> zoomLevel;
 
 }
 
@@ -89,7 +89,7 @@ bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 {
 	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
 	FormattedOutStream out(&streamWrap, flags);
-	out << "X=" << center.Col() << "; Y=" << center.Row() << "; Z=" << zoomLevel;
+	out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
 
 	if (streamWrap.CurrPos() >= len)
 		return false;

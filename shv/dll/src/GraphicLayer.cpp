@@ -177,7 +177,7 @@ SharedStr GraphicLayer::GetCaption() const
 		row_label = "row";
 
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("active layer: %s with %s %s %s"
+	return mgFormat2SharedStr("Active layer: %s with %s %s %s"
 		, GetThemeDisplayName(this)
 		, AsString(nrRecs, FormattingFlags::ThousandSeparator)
 		, domainName
