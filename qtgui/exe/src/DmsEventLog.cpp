@@ -56,12 +56,12 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	switch (role)
 	{
 	case Qt::DisplayRole:
-		return item_data.m_Msg;
+		return item_data.m_Txt.c_str();
 
 	case Qt::ForegroundRole:
 	{
 		auto return_color = QColor();
-		switch (item_data.GetSeverityType()) 
+		switch (item_data.m_SeverityType) 
 		{
 		case SeverityTypeID::ST_DispError:// error
 		case SeverityTypeID::ST_FatalError:
@@ -71,7 +71,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		case SeverityTypeID::ST_MajorTrace: { return_color = html_DarkGreen; break; }// major trace
 		}
 
-		switch (item_data.GetMsgCategory())
+		switch (item_data.m_MsgCategory)
 		{
 		case MsgCategory::storage_read: {return html_blue;}
 		case MsgCategory::storage_write: {return html_navy; }
@@ -94,7 +94,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 
 bool itemIsError(EventLogModel::item_t& item)
 {
-	switch (item.GetSeverityType())
+	switch (item.m_SeverityType)
 	{
 	case SeverityTypeID::ST_Warning:
 	case SeverityTypeID::ST_Error:
@@ -106,7 +106,7 @@ bool itemIsError(EventLogModel::item_t& item)
 bool EventLogModel::itemPassesTypeFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.GetSeverityType())
+	switch (item.m_SeverityType)
 	{
 	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_eventlog_filter->m_minor_trace_filter->isChecked(); };
 	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_eventlog_filter->m_major_trace_filter->isChecked(); };
@@ -119,7 +119,7 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.GetMsgCategory())
+	switch (item.m_MsgCategory)
 	{
 	case MsgCategory::storage_read: {return eventlog->m_eventlog_filter->m_read_filter->isChecked(); }
 	case MsgCategory::storage_write: {return eventlog->m_eventlog_filter->m_write_filter->isChecked(); }
@@ -134,18 +134,19 @@ bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 
 bool EventLogModel::itemPassesTextFilter(item_t& item)
 {
-	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
-	if (text_filter_string.isEmpty())
+	if (m_TextFilterAsByteArray.isEmpty())
 		return true;
-	return item.m_Msg.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
+
+	CharPtr textBegin = m_TextFilterAsByteArray.constData();
+	auto searchText = CharPtrRange(textBegin, m_TextFilterAsByteArray);
+	return item.m_Txt.contains_case_insensitive(searchText);
 }
 
 bool EventLogModel::itemPassesFilter(item_t& item)
 {
 	auto item_passes_type_filter = itemPassesTypeFilter(item);
 	auto item_passes_category_filter = itemPassesCategoryFilter(item);
-	if (item.GetMsgCategory() == MsgCategory::progress)
+	if (item.m_MsgCategory == MsgCategory::progress)
 		item_passes_category_filter = item_passes_type_filter;
 	auto item_passes_text_filter = itemPassesTextFilter(item);
 
@@ -159,6 +160,12 @@ void EventLogModel::refilter()
 	m_filtered_indices.clear();
 
 	UInt64 index = 0;
+
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
+	auto text_filter_as_bytearray= text_filter_string.toUtf8();
+	m_TextFilterAsByteArray = text_filter_as_bytearray.constData();
+
 	for (auto& item : m_Items)
 	{
 		if (itemPassesFilter(item))
@@ -176,20 +183,17 @@ void EventLogModel::refilterOnToggle(bool /*checked*/)
 	refilter();
 }
 
-void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, StreamableDateTime when, dms_thread_id threadID, CharPtr msg)
+void EventLogModel::addText(MsgData&& msgData)
 {
 	auto rowCount_ = rowCount();
-	auto new_eventlog_item = item_t{ st, msgCat, threadID, when, msg };
+//	auto new_eventlog_item = item_t{ st, msgCat, threadID, when, msg };
 	//if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
 	//	return;
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 
-	if (st == SeverityTypeID::ST_Error)
-		int i = 0;
-
 	eventlog->m_clear->setEnabled(true);
-	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
+	m_Items.emplace_back(std::move(msgData));
 	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
 	if (!new_item_passes_filter)
 		return;
@@ -440,10 +444,10 @@ void DmsEventLog::clearTextFilter()
 	MainWindow::TheOne()->m_eventlog_model->refilter();
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, MsgData* msgData)
+void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 {
 	assert(msgData);
-	SeverityTypeID st = msgData->st;
+	SeverityTypeID st = msgData->m_SeverityType;
 
 	if (st == SeverityTypeID::ST_Nothing)
 	{
@@ -453,15 +457,15 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, MsgData* msgData)
 		return;
 	}
 
-	MsgCategory msgCat = msgData->cat;
-	CharPtr msg = msgData->msg.c_str();
-	auto when = msgData->dateTime;
-	auto threadID = msgData->threadID;
+	MsgCategory msgCat = msgData->m_MsgCategory;
+	CharPtr msg = msgData->m_Txt.c_str();
+	auto when = msgData->m_DateTime;
+	auto threadID = msgData->m_ThreadID;
 
 	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
-	eventlog_model->addText(st, msgCat, when, threadID, msg);
+	eventlog_model->addText(MsgData(*msgData));
 	eventlog_view->scrollToBottomThrottled();
 }
 

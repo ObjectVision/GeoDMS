@@ -51,7 +51,7 @@ uses Windows, Messages, ComCtrls, StdCtrls, uDMSInterfaceTypes,
    function    TreeNode_GetTreeItem(const tn: TTreeNode): TTreeItem;
    function    TreeView_OnDrawTreeNode(tv: TTreeView; treeNodeUpdateSet: TTreeNodeUpdateSet; var Message: TWMNotify): Boolean;
 
-   procedure   LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; longMsg: PMsgChar);  cdecl;
+   procedure   LogMsgCallback(clienthandle: TClientHandle; msgData: PMsgData); cdecl;
    function    CoalesceHeap(size: SizeT; longMsg: PMsgChar): Boolean;  cdecl;
 
 var g_HeapProblemCount: Cardinal = 0;
@@ -405,18 +405,22 @@ begin
 end;
 
 
-procedure LogMsgCallback(clienthandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; longMsg: PMsgChar); cdecl;
+procedure LogMsgCallback(clienthandle: TClientHandle; msgData: PMsgData); cdecl;
+var st: TSeverityType;
+var msgTxt: PMsgChar;
 begin
-  if s = ST_Nothing then exit;
+  st := TSeverityType(msgData^.st);
+  if st = ST_Nothing then exit;
 
-  if (s in [ST_Error, ST_Fatal]) and Assigned(g_frmMain) then
+  if (st in [ST_Error, ST_Fatal]) and Assigned(g_frmMain) then
     INC(frmMain.m_nErrorCount);
 
-  if (s = ST_DispError) then
-    dmfGeneral.DispError(longMsg, false);
+  msgTxt := RTC_MsgData_GetMsgAsCStr(msgData);
+  if (st = ST_DispError) then
+    dmfGeneral.DispError(msgTxt, false);
 
-  if s > ST_MinorTrace then
-    AppLogMessage(longMsg);
+  if st > ST_MinorTrace then
+    AppLogMessage(msgTxt);
 end;
 
 function CoalesceHeap(size: SizeT; longMsg: PMsgChar): Boolean;  cdecl;

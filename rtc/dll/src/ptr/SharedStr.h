@@ -258,6 +258,8 @@ public:
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz);
+	RTC_CALL bool contains(CharPtrRange subStr);
+	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr);
 
 private:
 	RTC_CALL void MakeUnique();
@@ -371,13 +373,14 @@ private:
 //----------------------------------------------------------------------
 
 struct MsgData {
-	SeverityTypeID st;
-	MsgCategory cat;
-	SharedStr msg;
-	StreamableDateTime dateTime;
-	dms_thread_id threadID;
+	SeverityTypeID m_SeverityType;
+	MsgCategory m_MsgCategory;
+	dms_thread_id m_ThreadID;
+	StreamableDateTime m_DateTime;
+	SharedStr m_Txt;
 };
 
+extern "C" RTC_CALL CharPtr DMS_CONV RTC_MsgData_GetMsgAsCStr(MsgData * msgData);
 
 #endif // __RTC_PTR_SHAREDCHARARRAY_H
 

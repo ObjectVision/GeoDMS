@@ -20,25 +20,21 @@ class EventLogModel : public QAbstractListModel
 
 public:
 
-	struct item_t {
-		SeverityTypeID m_SeverityCode;
-		MsgCategory m_MsgCode;
-		dms_thread_id m_ThreadID = 1;
-		StreamableDateTime m_DateTime;
-		QString m_Msg;
+	using item_t = MsgData;
 
-		SeverityTypeID GetSeverityType() const { return m_SeverityCode; }
-		MsgCategory GetMsgCategory() const { return m_MsgCode; }
-	};
-
-	int rowCount(const QModelIndex& /*parent*/ = QModelIndex()) const override
+	int rowCount(const QModelIndex & /*parent*/ = QModelIndex()) const override
 	{
 		return m_filtered_indices.empty() ? m_Items.size() : m_filtered_indices.size();
 	}
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	void addText(SeverityTypeID st, MsgCategory msgCat, StreamableDateTime when, dms_thread_id threadID, CharPtr msg);
+	void addText(MsgData&& msgData);
+	void addText(SeverityTypeID st, MsgCategory msgCat, dms_thread_id threadID, StreamableDateTime when, CharPtr msg)
+	{
+		MsgData data{ st, msgCat, threadID, when, SharedStr(msg) };
+		addText(std::move(data));
+	}
 
 public slots:
 	void clear();
@@ -55,6 +51,7 @@ private:
 	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
 	bool m_filter_active = true;
+	QByteArray m_TextFilterAsByteArray;
 };
 
 class DmsTypeFilter : public QWidget, public Ui::DmsEventLogTypeSelection
@@ -96,5 +93,5 @@ private:
 };
 
 
-void geoDMSMessage(ClientHandle clientHandle, MsgData* msgData);
+void geoDMSMessage(ClientHandle clientHandle, const MsgData* msgData);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;

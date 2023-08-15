@@ -318,15 +318,17 @@ TUpdateState =  (
    SharedMsgStr = Pointer;
    TDmsThreadID = UInt32;
    TDmsTime     = Int64;
+
    TMsgData = record
-       st: TSeverityType;
-       cat:	TMsgCategory;
-       msg: Pointer;
-	     timne: TDmsTime;
+       st: UInt8;
+       cat:	UInt8;
 	     threadID: TDmsThreadID;
+	     time: TDmsTime;
+       msg: Pointer;
    end;
 
-   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; msg: PMsgChar; when: xxx; treadID: yyyh);  cdecl;
+   PMsgData = ^TMsgData;
+   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; msgData: PMsgData); cdecl;
 
 {*******************************************************************************
                            Other Callback functions

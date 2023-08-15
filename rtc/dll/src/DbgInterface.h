@@ -56,7 +56,7 @@ void ProgressMsg(CharPtr msg);
 //		msg: a PChar representing a DMS generated message
 //		clientHandle: a client suppplied DWord to identify a client object that handles the message
 
-using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, MsgData* data);
+using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, const MsgData* data);
 using TASyncContinueCheck = void (DMS_CONV *)();
 
 RTC_CALL void MustCoalesceHeap(SizeT size);

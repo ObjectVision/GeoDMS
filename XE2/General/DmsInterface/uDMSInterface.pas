@@ -80,10 +80,11 @@ function RTC_ParseRegStatusFlag(argv: PSourceChar): Boolean;                    
 *******************************************************************************}
 
 // Trace-into Callback registration
-procedure DMS_RegisterMsgCallback(f: TMsgCallbackFunc; clientHandle: TClientHandle);     cdecl; external RTC_DLL;
-procedure DMS_ReleaseMsgCallback (f: TMsgCallbackFunc; clientHandle: TClientHandle);     cdecl; external RTC_DLL;
-procedure DMS_SetGlobalCppExceptionTranslator(trFunc: TCppExceptionTranslator);    cdecl; external RTC_DLL;
-procedure DMS_SetGlobalSeTranslator (trFunc: TCppExceptionTranslator);    cdecl; external RTC_DLL;
+procedure DMS_RegisterMsgCallback(f: TMsgCallbackFunc; clientHandle: TClientHandle); cdecl; external RTC_DLL;
+procedure DMS_ReleaseMsgCallback (f: TMsgCallbackFunc; clientHandle: TClientHandle); cdecl; external RTC_DLL;
+procedure DMS_SetGlobalCppExceptionTranslator(trFunc: TCppExceptionTranslator);      cdecl; external RTC_DLL;
+procedure DMS_SetGlobalSeTranslator (trFunc: TCppExceptionTranslator);               cdecl; external RTC_DLL;
+function  RTC_MsgData_GetMsgAsCStr(msgData: PMsgData): PMsgChar;                     cdecl; external RTC_DLL;
 
 // TCoalesceHeapFunc
 procedure DMS_SetCoalesceHeapFunc(f: TCoalesceHeapFunc);                           cdecl; external RTC_DLL;

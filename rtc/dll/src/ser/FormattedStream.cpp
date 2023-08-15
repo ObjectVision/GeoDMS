@@ -681,3 +681,9 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const Streamab
 		fos << timeBuff;
 	return fos;
 }
+
+extern "C" RTC_CALL CharPtr DMS_CONV RTC_MsgData_GetMsgAsCStr(MsgData * msgData)
+{
+	assert(msgData);
+	return msgData->m_Txt.c_str();
+}

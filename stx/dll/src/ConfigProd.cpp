@@ -165,7 +165,7 @@ void ConfigProd::SetSignature(SignatureType type)
 
 void ConfigProd::DoEntitySignature()
 {
-	SetSignature(ST_Unit);
+	SetSignature(SignatureType::Unit);
 	m_eValueClass = ValueWrap<UInt32>::GetStaticClass();
 }
 
@@ -181,7 +181,7 @@ void ConfigProd::ClearSignature()
 
 void ConfigProd::DoAttrSignature()
 {
-	SetSignature(ST_Attribute);
+	SetSignature(SignatureType::Attribute);
 }
 
 // *****************************************************************************
@@ -216,7 +216,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 {
 	if (CurrentIsRoot())
 	{
-		if(m_eSignatureType != ST_TreeItem)
+		if(m_eSignatureType != SignatureType::TreeItem)
 			throwSemanticError("root of configuration tree must be a container");
 
 		dms_assert( m_stackContexts.empty() );
@@ -234,11 +234,11 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		CheckIsNew(GetContextItem(), nameID);
 
 		switch (m_eSignatureType) {
-			case ST_TreeItem: CreateContainer(nameID); break;
-			case ST_Template: CreateTemplate (nameID); break;
-			case ST_Unit:     CreateUnit     (nameID); break;
-			case ST_Attribute:CreateAttribute(nameID); break;
-			case ST_Parameter:CreateParameter(nameID); break;
+			case SignatureType::TreeItem: CreateContainer(nameID); break;
+			case SignatureType::Template: CreateTemplate (nameID); break;
+			case SignatureType::Unit:     CreateUnit     (nameID); break;
+			case SignatureType::Attribute:CreateAttribute(nameID); break;
+			case SignatureType::Parameter:CreateParameter(nameID); break;
 			default: dms_assert(0); // syntax only produces CreateItem with valid signature types
 		}
 	}
@@ -395,7 +395,7 @@ void ConfigProd::OnItemDecl()
 		if (!expr.empty())
 		{
 			// m_pCurrent->throwItemError("Combination of range and Calculation rule depreciated");
-			reportF(ST_Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
+			reportF(SignatureType::Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
 		}
 		switch (unit->GetValueType()->GetNrDims())
 		{

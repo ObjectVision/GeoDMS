@@ -178,7 +178,7 @@ namespace { // DebugOutStreamBuff is local
 
 			if (m_Data.empty())
 				return;
-			MsgData msgData(m_Severity, m_MsgCat, SharedStr(begin_ptr(m_Data), end_ptr(m_Data)), StreamableDateTime(), GetThreadID());
+			MsgData msgData(m_Severity, m_MsgCat, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
 			AddMainThreadOper([msg = std::move(msgData)]() mutable {
 					if (!s_nrRtcStreamLocks)
 						return;
@@ -195,9 +195,9 @@ namespace { // DebugOutStreamBuff is local
 			SizeT minorSkipCount = 0, majorSkipCount = 0;
 
 			UInt32 printedLines = 0;
-			SeverityTypeID st = msgData->st;
-			MsgCategory msgCat = msgData->cat;
-			auto i = msgData->msg.begin(), e = msgData->msg.end();
+			SeverityTypeID st = msgData->m_SeverityType;
+			MsgCategory msgCat = msgData->m_MsgCategory;
+			auto i = msgData->m_Txt.begin(), e = msgData->m_Txt.end();
 			while (i!=e)
 			{
 				assert(e[-1]==0); // guaranteed by caller to have a completed Line.
@@ -214,9 +214,9 @@ namespace { // DebugOutStreamBuff is local
 						auto summaryData = MsgData{
 							majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
 						,	msgCat
+						,   msgData->m_ThreadID
+						,	msgData->m_DateTime
 						,	std::move(skipMsg)
-						,	msgData->dateTime
-						,   msgData->threadID
 						};
 						MsgDispatch(&summaryData);
 						minorSkipCount = majorSkipCount = 0;
@@ -270,8 +270,7 @@ void DebugOutStream::NewLine()
 void DebugOutStream::PrintSpaces()
 {
 	UInt32 nrSpaces = GetCallCount() * 3;
-const char* spaces16 = "                ";
-	char buffer[16];
+	const char* spaces16 = "                ";
 	NewLine();
 	if (nrSpaces)
 	{
@@ -564,10 +563,10 @@ CDebugLog::~CDebugLog()
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }
 
-void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, MsgData* msgData)
+void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData)
 {
 	CDebugLog* dl = reinterpret_cast<CDebugLog*>(clientHandle);
-	dl->m_Stream << '\n' << msgData->dateTime << "[" << msgData->threadID << "]" << msgData->msg.c_str();
+	dl->m_Stream << '\n' << msgData->m_DateTime << "[" << msgData->m_ThreadID << "]" << msgData->m_Txt;
 }
 
 CDebugLog* DMS_CONV DBG_DebugLog_Open(CharPtr fileName)
