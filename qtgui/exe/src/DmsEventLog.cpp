@@ -308,6 +308,12 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	// filters
 	//m_text_filter = std::make_unique<QLineEdit>();
 	m_eventlog_filter = std::make_unique<DmsTypeFilter>();
+	auto dms_reg_status_flags = GetRegStatusFlags();
+
+	m_eventlog_filter->m_date_time->setChecked(dms_reg_status_flags & RSF_EventLog_ShowDateTime);
+	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
+	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
+
 	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
