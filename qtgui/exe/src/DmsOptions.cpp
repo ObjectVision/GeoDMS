@@ -268,6 +268,7 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog);
     connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
     connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setEditorProgramThroughDialog);
+    connect(m_set_editor_parameters, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setDefaultEditorParameters);
     m_ld_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
     m_ld_folder_dialog->setText("");
     m_sd_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
@@ -464,6 +465,15 @@ void DmsAdvancedOptionsWindow::setEditorProgramThroughDialog()
     auto new_editor_program = m_folder_dialog->QFileDialog::getOpenFileName(this, tr("Select Editor Program"), "C:/Program Files", tr("Exe files (*.exe)"));;
     if (!new_editor_program.isEmpty())
         m_editor_input->setText("\"" + new_editor_program + "\""); // set quoted .exe editor program
+}
+
+void DmsAdvancedOptionsWindow::setDefaultEditorParameters()
+{
+    auto editor_program = m_editor_input->text();
+    if (editor_program.contains("notepad++", Qt::CaseInsensitive))
+        m_editor_parameters_input->setText("\"%F\" -n%L");
+    if (editor_program.contains("crimson", Qt::CaseInsensitive))
+        m_editor_parameters_input->setText("/L:%L \"%F\"");
 }
 
 void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)

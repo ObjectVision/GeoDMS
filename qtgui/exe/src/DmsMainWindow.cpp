@@ -832,6 +832,8 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
         process.setArguments(args);
         if (process.startDetached())
             reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, open_config_source_command.c_str());
+        else
+            reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Unable to start open config source command %s.", open_config_source_command.c_str());
     }
 }
 

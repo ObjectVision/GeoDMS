@@ -66,19 +66,6 @@ private:
     void hasChanged() { return setChanged(true); }
 
     bool m_changed = false;
-    /*QPointer<QCheckBox> m_show_hidden_items;
-    QPointer<QCheckBox> m_show_thousand_separator;
-    QPointer<QCheckBox> m_show_state_colors_in_treeview;
-
-    QPointer<QPushButton> m_valid_color_ti_button;
-    QPointer<QPushButton> m_not_calculated_color_ti_button;
-    QPointer<QPushButton> m_failed_color_ti_button;
-    QPointer<QPushButton> m_background_color_button;
-    QPointer<QPushButton> m_start_color_button;
-    QPointer<QPushButton> m_end_color_button;
-    QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;*/
 };
 
 class DmsAdvancedOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
@@ -98,6 +85,7 @@ private slots:
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
     void setEditorProgramThroughDialog();
+    void setDefaultEditorParameters();
 
 private:
     void setInitialLocalDataDirValue();
@@ -109,21 +97,6 @@ private:
     bool m_changed = false;
     QPointer<QFileDialog> m_folder_dialog;
     QPointer<QFileDialog> m_file_dialog;
-    /*
-    QPointer<QFileDialog> m_folder_dialog;
-    QPointer<QLabel> m_flush_treshold_text;
-    QPointer<QCheckBox> m_pp0;
-    QPointer<QCheckBox> m_pp1;
-    QPointer<QCheckBox> m_pp2;
-    QPointer<QCheckBox> m_pp3;
-    QPointer<QCheckBox> m_tracelog;
-    QPointer<QLineEdit> m_ld_input;
-    QPointer<QLineEdit> m_sd_input;
-    QPointer<QLineEdit> m_editor_input;
-    QPointer<QSlider>   m_flush_treshold;
-    QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;*/
 };
 
 //======== CONFIG OPTIONS WINDOW ========
