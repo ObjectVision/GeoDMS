@@ -735,6 +735,11 @@ void MainWindow::updateToolbar()
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
 
+    // disable/enable coordinate tool
+    auto is_mapview = view_style == ViewStyle::tvsMapView;
+    m_coordinate_label->setVisible(is_mapview);
+    m_statusbar_coordinates->setVisible(is_mapview);
+
     clearToolbarUpToDetailPagesTools();
     static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
     static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
@@ -1933,13 +1938,15 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
     
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
-    auto coordinate_label = new QLabel("Coordinate", this);
+    m_coordinate_label = new QLabel("Coordinate", this);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
-    m_statusbar_coordinates->setFixedWidth(300);
+    m_statusbar_coordinates->setFixedWidth(310);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
-    statusBar()->insertPermanentWidget(0, coordinate_label);
+    statusBar()->insertPermanentWidget(0, m_coordinate_label);
     statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
+    m_coordinate_label->setVisible(false);
+    m_statusbar_coordinates->setVisible(false);
 }
 
 void MainWindow::on_status_msg_changed(const QString& msg)
