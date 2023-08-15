@@ -678,7 +678,10 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const Streamab
 	char timeBuff[30];
 	auto errCode = ctime_s(timeBuff, sizeof(timeBuff), &self.m_time);
 	if (errCode == 0)
+	{
+		timeBuff[24] = 0;
 		fos << timeBuff;
+	}
 	return fos;
 }
 

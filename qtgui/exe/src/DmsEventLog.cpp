@@ -71,9 +71,18 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		if (showDateTime)
 			fout << item_data.m_DateTime;
 		if (showThreadID)
+		{
+			if (showDateTime)
+				fout << " ";
 			fout << "[" << item_data.m_ThreadID << "]";
+		}
 		if (showCategory)
+		{
+			if (showDateTime || showThreadID)
+				fout << " ";
 			fout << AsString(item_data.m_MsgCategory);
+		}
+		fout << " ";
 		fout << msgTxt;
 		fout << char(0);
 		return QString(buff.GetData());

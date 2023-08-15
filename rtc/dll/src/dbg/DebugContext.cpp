@@ -73,10 +73,10 @@ CharPtr AsString(MsgCategory msgCat)
 {
 	switch (msgCat) {
 	case MsgCategory::other: {return "[other]"; }
-	case MsgCategory::storage_read: {return "[storage_read]"; }
-	case MsgCategory::storage_write: {return "[storage_write]";}
-	case MsgCategory::background_layer_connection: {return "[background_layer_connection]"; }
-	case MsgCategory::background_layer_request: {return "[background_layer_request]"; }
+	case MsgCategory::storage_read: {return "[storage read]"; }
+	case MsgCategory::storage_write: {return "[storage write]";}
+	case MsgCategory::background_layer_connection: {return "[background layer connection]"; }
+	case MsgCategory::background_layer_request: {return "[background layer request]"; }
 	case MsgCategory::progress: {return "[progress]"; }
 	case MsgCategory::memory: {return "[memory]"; }
 	case MsgCategory::commands: { return "[commands]"; }
