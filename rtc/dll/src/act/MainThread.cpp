@@ -68,10 +68,10 @@ void SetPriority()
 
 void SetMainThreadID()
 {
-	dms_assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
+	assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
 	sMetaThreadID = GetThreadID();
-	dms_assert(sMainThreadID == 1);
+	assert(sMainThreadID == 1);
 	SetPriority();
 }
 
@@ -120,8 +120,6 @@ void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 	bool wasEmpty = s_OperQueue.empty();
 	s_OperQueue.emplace_back(std::move(func));
 	SuspendTrigger::DoSuspend();
-	//if (wasEmpty)
-	//	MsgDispatch(SeverityTypeID::ST_Nothing, MsgCategory::disposable, "");
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;

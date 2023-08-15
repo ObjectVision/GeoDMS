@@ -56,7 +56,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "cpc/CompChar.h"
 #include "cpc/Types.h"
-typedef UInt32 dms_thread_id;
+
+using dms_thread_id = UInt32;
 
 #include <vector>
 
@@ -176,10 +177,10 @@ class  PersistentSharedObj;
 struct IString;
 struct Undefined;
 
-enum   class SeverityTypeID;
-enum   ValueClassID;
-enum   class ValueComposition;
-enum   class dms_rw_mode;
+enum   class SeverityTypeID  : UInt8;
+enum   class ValueClassID    : UInt8;
+enum   class ValueComposition: UInt8;
+enum   class dms_rw_mode     : Int8; // can have negative values
 
 struct SafeFileWriterArray;
 

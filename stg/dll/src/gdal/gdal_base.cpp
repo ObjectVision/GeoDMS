@@ -653,24 +653,24 @@ GDALDataType gdalRasterDataType(ValueClassID tid)
 {
 	switch (tid) {
 		//		case Int8: 
-	case VT_Bool:
-	case VT_UInt2:
-	case VT_UInt4:
-	case VT_UInt8:   return GDT_Byte;
-	case VT_UInt16:  return GDT_UInt16;
-	case VT_Int16:   return GDT_Int16;
+	case ValueClassID::VT_Bool:
+	case ValueClassID::VT_UInt2:
+	case ValueClassID::VT_UInt4:
+	case ValueClassID::VT_UInt8:   return GDT_Byte;
+	case ValueClassID::VT_UInt16:  return GDT_UInt16;
+	case ValueClassID::VT_Int16:   return GDT_Int16;
 
-	case VT_UInt32:  return GDT_UInt32;
-	case VT_Int32:   return GDT_Int32;
-	case VT_UInt64:  return GDT_UInt64;
-	case VT_Int64:   return GDT_Int64;
-	case VT_Float32: return GDT_Float32;
-	case VT_Float64: return GDT_Float64;
+	case ValueClassID::VT_UInt32:  return GDT_UInt32;
+	case ValueClassID::VT_Int32:   return GDT_Int32;
+	case ValueClassID::VT_UInt64:  return GDT_UInt64;
+	case ValueClassID::VT_Int64:   return GDT_Int64;
+	case ValueClassID::VT_Float32: return GDT_Float32;
+	case ValueClassID::VT_Float64: return GDT_Float64;
 
-	case VT_SPoint:  return GDT_CInt16;   // Complex Int16
-	case VT_IPoint:  return GDT_CInt32;   // Complex Int32
-	case VT_FPoint:  return GDT_CFloat32; // Complex Float32
-	case VT_DPoint:  return GDT_CFloat64; // Complex Float64
+	case ValueClassID::VT_SPoint:  return GDT_CInt16;   // Complex Int16
+	case ValueClassID::VT_IPoint:  return GDT_CInt32;   // Complex Int32
+	case ValueClassID::VT_FPoint:  return GDT_CFloat32; // Complex Float32
+	case ValueClassID::VT_DPoint:  return GDT_CFloat64; // Complex Float64
 	}
 	return GDT_Unknown;
 }
@@ -837,7 +837,7 @@ CPLStringList GetOptionArray(const TreeItem* optionsItem)
 	if (optionsItem)
 	{ 
 		MG_CHECK(IsDataItem(optionsItem));
-		MG_CHECK(AsDataItem(optionsItem)->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String);
+		MG_CHECK(AsDataItem(optionsItem)->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String);
 
 		DataReadLock lock(AsDataItem(optionsItem));
 		auto data = const_array_cast<SharedStr>(optionsItem)->GetLockedDataRead();
@@ -1098,7 +1098,6 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 
 auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
 {
-
 	if (knownDriverShortName == "ESRI Shapefile")
 		RegisterOGRShape();
 
@@ -1237,8 +1236,6 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDALDataType eType = GDT_Unknown;
 	auto optionArray = GetOptionArray(gmi.m_OptionsItem);
 	auto driverArray = GetOptionArray(gmi.m_DriverItem);
-	//auto layerOptionArray = GetOptionArray(gmi.m_LayerCreationOptions);
-	//auto configurationOptionsArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions);
 
 	if (!gmi.m_Options.empty())
 		optionArray.AddString(gmi.m_Options.c_str());
@@ -1249,16 +1246,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
 
-	// test configuration options array
-	//const char* CPLParseNameValue(const char* pszNameValue, char** ppszKey)
-	//CPLStringList pszConfigurationOptionsArray;
-	//for (const auto& option : configurationOptionsArray)
-	//	pszConfigurationOptionsArray.AddString(option.c_str());
-
-	//if (pszConfigurationOptionsArray)
-	//	CPLSetConfigOptions(pszConfigurationOptionsArray);
-
-	auto valuesTypeID = VT_Unknown;
+	auto valuesTypeID = ValueClassID::VT_Unknown;
 	auto value_composition = ValueComposition::Unknown;
 	if (IsDataItem(smi.CurrRI()))
 	{
@@ -1287,9 +1275,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nBands = 1;
 			
 			eType = gdalRasterDataType(valuesTypeID);
-			if (valuesTypeID == VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
-			if (valuesTypeID == VT_UInt2) optionArray.AddString("NBITS=2");
-			if (valuesTypeID == VT_UInt4) optionArray.AddString("NBITS=3");
+			if (valuesTypeID == ValueClassID::VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
+			if (valuesTypeID == ValueClassID::VT_UInt2) optionArray.AddString("NBITS=2");
+			if (valuesTypeID == ValueClassID::VT_UInt4) optionArray.AddString("NBITS=3");
 			optionArray.AddString("COMPRESS=LZW");
 			optionArray.AddString("BIGTIFF=IF_SAFER");
 			optionArray.AddString("TFW=YES");
@@ -1378,10 +1366,6 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
 			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driverShortName.c_str(), dms_value_type_token_str.c_str());
 		}
-
-		//osgeo.ogr.GetFieldSubTypeName(OGRFieldSubType type) -> char const*
-		//osgeo.ogr.GetFieldTypeName(OGRFieldType type) -> char const*
-		//poDriver->GetMetadataItem(GDAL_DMD_CREATIONDATATYPES);
 
 		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);		
 		

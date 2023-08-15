@@ -206,7 +206,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		pd->UpdateMetaInfo();
 		ValueClassID streamTypeID = GetStreamType(pd)->GetValueClassID();
-		if (streamTypeID == VT_UInt32 || streamTypeID == VT_Int32
+		if (streamTypeID == ValueClassID::VT_UInt32 || streamTypeID == ValueClassID::VT_Int32
 			&& pd->GetID() == PALETTE_DATA_ID
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			)

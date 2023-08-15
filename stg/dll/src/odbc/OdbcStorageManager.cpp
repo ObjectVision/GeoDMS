@@ -124,16 +124,16 @@ SQLSMALLINT	ValueClassID2CType(ValueClassID vid)
 {
 	switch (vid)
 	{
-		case VT_SharedStr:	return SQL_C_CHAR;
-		case VT_UInt32: return SQL_C_ULONG;
-		case VT_Int32:  return SQL_C_SLONG;
-		case VT_UInt16: return SQL_C_USHORT;
-		case VT_Int16:  return SQL_C_SSHORT;
-		case VT_UInt8:  return SQL_C_UTINYINT;
-		case VT_Int8:   return SQL_C_STINYINT;
-		case VT_Bool:   return SQL_C_BIT;
-		case VT_Float64:return SQL_C_DOUBLE;
-		case VT_Float32:return SQL_C_FLOAT;
+		case ValueClassID::VT_SharedStr:	return SQL_C_CHAR;
+		case ValueClassID::VT_UInt32: return SQL_C_ULONG;
+		case ValueClassID::VT_Int32:  return SQL_C_SLONG;
+		case ValueClassID::VT_UInt16: return SQL_C_USHORT;
+		case ValueClassID::VT_Int16:  return SQL_C_SSHORT;
+		case ValueClassID::VT_UInt8:  return SQL_C_UTINYINT;
+		case ValueClassID::VT_Int8:   return SQL_C_STINYINT;
+		case ValueClassID::VT_Bool:   return SQL_C_BIT;
+		case ValueClassID::VT_Float64:return SQL_C_DOUBLE;
+		case ValueClassID::VT_Float32:return SQL_C_FLOAT;
 
 	}
 	throwErrorF("ODBC", "ValueType %s has no equivalent SQL_C type",
@@ -756,7 +756,7 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

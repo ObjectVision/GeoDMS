@@ -198,8 +198,8 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 
 	switch(ColDescriptions[col_index].m_Type)
 	{
-		case VT_UInt32:
-		case VT_Int32:
+		case ValueClassID::VT_UInt32:
+		case ValueClassID::VT_Int32:
 		{
 			Int32* tbuf = reinterpret_cast<Int32*>(buf);
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
@@ -207,7 +207,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			fast_zero(tbuf, tbuf+stripped);
 			break;
 		}
-		case VT_Float32:
+		case ValueClassID::VT_Float32:
 		{
 			Float32* tbuf = reinterpret_cast<Float32*>(buf);
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
@@ -215,7 +215,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 			fast_zero(tbuf, tbuf+stripped);
 			break;
 		}
-		case VT_Float64:
+		case ValueClassID::VT_Float64:
 		{
 			Float64* tbuf = reinterpret_cast<Float64*>(buf);
 			for (; cnt; dataPtr+=width, ++tbuf, --cnt)
@@ -298,9 +298,11 @@ bool XdbImp::ReadHeader()
 	long len = 0;
 	long offset = 0;
 
-	ValueClassID type = VT_Unknown;
-	while (fscanf(*this, "%s %d %d", fldName, &len, &type) != EOF)
+	int int_type = 0;
+	while (fscanf(*this, "%s %d %d", fldName, &len, &int_type) != EOF)
 	{	
+		MG_CHECK(int_type >= 0 && int_type < int(ValueClassID::VT_Count));
+		auto type = ValueClassID(int_type);
 		MG_CHECK(StrLen(fldName) < 400);
 
 		DBG_TRACE(("name, len: %s, %d", fldName, len));
@@ -338,7 +340,7 @@ bool XdbImp::WriteHeader()
 		fprintf(*this, "%s %u %d\n"
 			,	ColDescriptions[i].m_Name.c_str()
 			,	ColWidth(i)
-			,	ColDescriptions[i].m_Type
+			,	int(ColDescriptions[i].m_Type)
 		);
 
 	// Done
@@ -436,7 +438,7 @@ ValueClassID XdbImp::ColType(column_index i) const
 {
 	// Subtractn offsets
 	if (!IsValidColumnIndex(i)) 
-		return VT_Unknown;
+		return ValueClassID::VT_Unknown;
 	return ColDescriptions[i].m_Type;
 }
 

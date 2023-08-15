@@ -1,5 +1,6 @@
 #include "RtcBase.h"
 #include "dbg/SeverityType.h"
+#include "ptr/SharedStr.h"
 #include "DmsEventLogSelection.h"
 
 #include <QPointer>
@@ -18,13 +19,16 @@ class EventLogModel : public QAbstractListModel
 	Q_OBJECT
 
 public:
+
 	struct item_t {
-		BYTE m_SeverityCode = 0;
-		BYTE m_MsgCode = 0;
+		SeverityTypeID m_SeverityCode;
+		MsgCategory m_MsgCode;
+		dms_thread_id m_ThreadID = 1;
+		StreamableDateTime m_DateTime;
 		QString m_Msg;
 
-		SeverityTypeID GetSeverityType() const { return SeverityTypeID(m_SeverityCode); }
-		MsgCategory GetMsgCategory() const { return MsgCategory(m_MsgCode); }
+		SeverityTypeID GetSeverityType() const { return m_SeverityCode; }
+		MsgCategory GetMsgCategory() const { return m_MsgCode; }
 	};
 
 	int rowCount(const QModelIndex& /*parent*/ = QModelIndex()) const override
@@ -34,7 +38,7 @@ public:
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	void addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
+	void addText(SeverityTypeID st, MsgCategory msgCat, StreamableDateTime when, dms_thread_id threadID, CharPtr msg);
 
 public slots:
 	void clear();
@@ -92,5 +96,5 @@ private:
 };
 
 
-void geoDMSMessage(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
+void geoDMSMessage(ClientHandle clientHandle, MsgData* msgData);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;

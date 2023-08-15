@@ -61,7 +61,7 @@ bool HasFixedRange(const ValueClass* vc)
 {
 	if (vc->HasFixedValues())
 		return true;
-	return vc->GetValueClassID() == VT_Void;
+	return vc->GetValueClassID() == ValueClassID::VT_Void;
 }
 
 #if defined(MG_DEBUG)

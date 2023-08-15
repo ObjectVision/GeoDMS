@@ -315,7 +315,18 @@ TUpdateState =  (
 	                          MC_progress
                            );
    // Callback function for trace-info subscription
-   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; msg: PMsgChar);  cdecl;
+   SharedMsgStr = Pointer;
+   TDmsThreadID = UInt32;
+   TDmsTime     = Int64;
+   TMsgData = record
+       st: TSeverityType;
+       cat:	TMsgCategory;
+       msg: Pointer;
+	     timne: TDmsTime;
+	     threadID: TDmsThreadID;
+   end;
+
+   TMsgCallbackFunc = procedure(clientHandle: TClientHandle; s: TSeverityType; msgCat: TMsgCategory; msg: PMsgChar; when: xxx; treadID: yyyh);  cdecl;
 
 {*******************************************************************************
                            Other Callback functions

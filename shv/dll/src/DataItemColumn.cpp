@@ -99,7 +99,7 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 			return true;
 
 		case AggrMethod::count:
-			return vc->GetValueClassID() == VT_UInt32 && vcm == ValueComposition::Single; // we dont want to have to change the ValuesUnit type
+			return vc->GetValueClassID() == ValueClassID::VT_UInt32 && vcm == ValueComposition::Single; // we dont want to have to change the ValuesUnit type
 
 		case AggrMethod::union_polygon:
 			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
@@ -133,7 +133,7 @@ ConstUnitRef ValuesUnit(const AbstrDataItem* adi, AggrMethod am)
 			return count_unit_creator(adi);
 
 		case AggrMethod::asItemList:
-			return (vc->GetValueClassID() == VT_String) ? avu : Unit<SharedStr>::GetStaticClass()->CreateDefault();
+			return (vc->GetValueClassID() == ValueClassID::VT_String) ? avu : Unit<SharedStr>::GetStaticClass()->CreateDefault();
 
 		default:
 			return avu;
@@ -150,7 +150,7 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::count: return "count";
 		case AggrMethod::union_polygon: return "partitioned_union_polygon";
 		case AggrMethod::asItemList:
-			if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String)
+			if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
 				return "asItemList";
 			else
 				return "asExprList";

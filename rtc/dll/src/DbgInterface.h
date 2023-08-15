@@ -36,9 +36,11 @@ granted by an additional written contract for support, assistance and/or develop
 class CDebugContext;
 class CDebugLog;
 
-typedef bool (*CoalesceHeapFuncType)(std::size_t, CharPtr);
-typedef bool (*InternalCoalesceHeapFuncType)(std::size_t reqestedData);
-enum class MsgCategory;
+using CoalesceHeapFuncType = bool (*)(std::size_t, CharPtr);
+enum class MsgCategory : UInt8;
+
+
+struct MsgData;
 
 //----------------------------------------------------------------------
 // class  : ContextNotification
@@ -54,7 +56,7 @@ void ProgressMsg(CharPtr msg);
 //		msg: a PChar representing a DMS generated message
 //		clientHandle: a client suppplied DWord to identify a client object that handles the message
 
-using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, SeverityTypeID st, MsgCategory cat, CharPtr msg);
+using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, MsgData* data);
 using TASyncContinueCheck = void (DMS_CONV *)();
 
 RTC_CALL void MustCoalesceHeap(SizeT size);

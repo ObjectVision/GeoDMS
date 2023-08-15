@@ -176,10 +176,10 @@ void EventLogModel::refilterOnToggle(bool /*checked*/)
 	refilter();
 }
 
-void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, StreamableDateTime when, dms_thread_id threadID, CharPtr msg)
 {
 	auto rowCount_ = rowCount();
-	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
+	auto new_eventlog_item = item_t{ st, msgCat, threadID, when, msg };
 	//if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
 	//	return;
 
@@ -440,9 +440,11 @@ void DmsEventLog::clearTextFilter()
 	MainWindow::TheOne()->m_eventlog_model->refilter();
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void geoDMSMessage(ClientHandle /*clientHandle*/, MsgData* msgData)
 {
-//	assert(IsMainThread());
+	assert(msgData);
+	SeverityTypeID st = msgData->st;
+
 	if (st == SeverityTypeID::ST_Nothing)
 	{
 		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
@@ -450,10 +452,16 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory
 		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
 	}
+
+	MsgCategory msgCat = msgData->cat;
+	CharPtr msg = msgData->msg.c_str();
+	auto when = msgData->dateTime;
+	auto threadID = msgData->threadID;
+
 	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
-	eventlog_model->addText(st, msgCat, msg);
+	eventlog_model->addText(st, msgCat, when, threadID, msg);
 	eventlog_view->scrollToBottomThrottled();
 }
 

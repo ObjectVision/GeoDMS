@@ -129,7 +129,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 
 			basicValue
 				= numericValue
-				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(VT_SharedStr);})]
+				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(ValueClassID::VT_SharedStr);})]
 				| rgbValue
 				| pointValue
 				| boolValue
@@ -148,7 +148,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					>>	numericValue[([&](...) { currDBP.DoSecondPointValue();})]
 					]
 				>>	assert_d("'}' after point value expected")[ RBRACE ]
-					[([&](...) { currDBP.SetValueType(VT_DPoint);})];
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
 
 				parenthesizedPointValue
 					= LPAREN
@@ -158,7 +158,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					>> numericValue[([&](...) { currDBP.DoSecondPointValue();})]
 					]
 				>>	assert_d("')' after point value expected")[ RPAREN ]
-					[([&](...) { currDBP.SetValueType(VT_DPoint);})];
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
 
 			rgbValue
 				=	as_lower_d["rgb"] 

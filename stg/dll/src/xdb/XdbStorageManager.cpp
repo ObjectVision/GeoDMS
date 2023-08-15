@@ -122,7 +122,6 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	);
 }
 
-
 // Constructor for this implementation of the abstact storagemanager interface
 XdbStorageManager::XdbStorageManager(CharPtr datExtension, bool saveColInfo)
 	:	m_DatExtension(datExtension)
@@ -169,6 +168,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	const AbstrUnit* u_row = StorageHolder_GetTableDomain(storageHolder);
 
+
 	Int32 colcnt = imp.NrOfCols();
 	for (Int32 i =0; i<colcnt; i++)
 	{
@@ -184,7 +184,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			if (!OverlappingTypes(
 					adi->GetDynamicObjClass()->GetValuesType(), 
 					ValueClass::FindByValueClassID(imp.ColType(i))))
-				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, imp.ColType(i));
+				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, int(imp.ColType(i)));
 		}
 		else if (sm !=SM_None)
 		{
@@ -196,6 +196,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		}
 	}
 }
+
 
 // Inspect the current tree and creates c.q synchronises the ascii table
 void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const TreeItem* subItem)
@@ -223,18 +224,19 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	ValueClassID vid = vu->GetValueType()->GetValueClassID();
 	switch (vid)
 	{
-		case VT_UInt32: col_size = 12;  break;
-		case VT_Int32:  col_size = 12;  break;
-		case VT_Float32: col_size = 16; break;
-		case VT_Float64: col_size = 25; break;
+		case ValueClassID::VT_UInt32:  col_size = 12;  break;
+		case ValueClassID::VT_Int32:   col_size = 12;  break;
+		case ValueClassID::VT_Float32: col_size = 16; break;
+		case ValueClassID::VT_Float64: col_size = 25; break;
 		default: self->throwItemErrorF("xdb: unsupported value-type %s", vu->GetValueType()->GetName());
 	}
-	DBG_TRACE(("col_type = %d", vid));
+	DBG_TRACE(("col_type = %d", int(vid)));
 	DBG_TRACE(("col_size = %d", col_size));
 
 	// Write dummy content to disk (if the column doesn't exist yet)
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
+	auto result = imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
+	MG_CHECK(result);
 }
 
 void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
@@ -247,7 +249,9 @@ void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	XdbImp imp;
-	imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
+	auto result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
+	MG_CHECK(result);
+
 	SyncItem(this, imp, m_SaveColInfo, storageHolder);
 	for (const TreeItem* subItem = storageHolder->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		SyncItem(this, imp, m_SaveColInfo, subItem);
@@ -272,9 +276,9 @@ public:
 		imp.m_RecSize = 32;
 		imp.m_LineBreakSize = 1;
 		imp.ColDescriptions.resize(3);
-		imp.ColDescriptions[0].m_Name =  "X"; imp.ColDescriptions[0].m_Offset =  0; imp.ColDescriptions[0].m_Type = VT_Float32;
-		imp.ColDescriptions[1].m_Name =  "Y"; imp.ColDescriptions[1].m_Offset = 12; imp.ColDescriptions[1].m_Type = VT_Float32;
-		imp.ColDescriptions[2].m_Name =  "Z"; imp.ColDescriptions[2].m_Offset = 24; imp.ColDescriptions[2].m_Type = VT_Float32;
+		imp.ColDescriptions[0].m_Name =  "X"; imp.ColDescriptions[0].m_Offset =  0; imp.ColDescriptions[0].m_Type = ValueClassID::VT_Float32;
+		imp.ColDescriptions[1].m_Name =  "Y"; imp.ColDescriptions[1].m_Offset = 12; imp.ColDescriptions[1].m_Type = ValueClassID::VT_Float32;
+		imp.ColDescriptions[2].m_Name =  "Z"; imp.ColDescriptions[2].m_Offset = 24; imp.ColDescriptions[2].m_Type = ValueClassID::VT_Float32;
 	};
 
 	DECL_RTTI(STGDLL_CALL,StorageClass)

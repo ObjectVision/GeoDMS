@@ -143,15 +143,17 @@ int main2(int argc, char** argv)
 }
 
 
-void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void DMS_CONV logMsg(ClientHandle clientHandle, MsgData* msgData)
 {
-	dms_assert(clientHandle == nullptr);
-	if (st < SeverityTypeID::ST_MajorTrace)
+	assert(msgData);
+	assert(clientHandle == nullptr);
+	if (msgData->st < SeverityTypeID::ST_MajorTrace)
 		return;
 
+	auto msgCat = msgData->cat;
 	if (msgCat != MsgCategory::other)
 		std::cout << AsString(msgCat);
-	std::cout << msg << std::endl;
+	std::cout << msgData->msg << std::endl;
 }
 
 void DMS_CONV reportMsg(CharPtr msg)

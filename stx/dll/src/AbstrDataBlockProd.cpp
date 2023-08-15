@@ -75,7 +75,7 @@ void AbstrDataBlockProd::DoRgbValue3(UInt32 p_nBlue)
 		throwSemanticError("Value Blue out of range");
 	m_IntValAsUInt64 += CombineRGB(0, 0, p_nBlue);
 
-	m_eValueType = VT_UInt32;
+	m_eValueType = ValueClassID::VT_UInt32;
 	m_FloatVal   = m_IntValAsUInt64;
 }
 
@@ -109,7 +109,7 @@ void AbstrDataBlockProd::DoUInt64(UInt64 nIntVal)
 		m_IntValAsInt64 = (m_bSignIsPlus)
 			? +Int64(nIntVal)
 			: -Int64(nIntVal);
-	m_eValueType = (m_bSignIsPlus) ? VT_UInt64 : VT_Int64;
+	m_eValueType = (m_bSignIsPlus) ? ValueClassID::VT_UInt64 : ValueClassID::VT_Int64;
 }
 
 // *****************************************************************************
@@ -124,7 +124,7 @@ void AbstrDataBlockProd::DoUInt64(UInt64 nIntVal)
 void AbstrDataBlockProd::DoFloatValue(const Float64& v)
 {
 	m_FloatVal = m_bSignIsPlus ? v : -v;
-	m_eValueType = VT_Float64;
+	m_eValueType = ValueClassID::VT_Float64;
 }
 
 // *****************************************************************************
@@ -146,24 +146,24 @@ void AbstrDataBlockProd::DoFirstIntervalValue()
 {
 	switch (m_eValueType)
 	{
-		case VT_Unknown:
-			m_eValueType = VT_Float64;
+		case ValueClassID::VT_Unknown:
+			m_eValueType = ValueClassID::VT_Float64;
 			m_FloatVal   = UNDEFINED_VALUE(Float64);
 			[[fallthrough]];
 
-		case VT_Float64:
-		case VT_Int32:
-		case VT_UInt32:
-		case VT_Int64:
-		case VT_UInt64:
+		case ValueClassID::VT_Float64:
+		case ValueClassID::VT_Int32:
+		case ValueClassID::VT_UInt32:
+		case ValueClassID::VT_Int64:
+		case ValueClassID::VT_UInt64:
 			m_FloatInterval.first = m_FloatVal;
 			break;
 
-		case VT_DPoint:
+		case ValueClassID::VT_DPoint:
 			m_DPointInterval.first = m_DPointVal;
 			break;
 
-		case VT_SharedStr:
+		case ValueClassID::VT_SharedStr:
 		default:
 		{
 			throwDmsErrF("DoFirstIntervalValue: value type %s not supported as Interval Type", 
@@ -182,13 +182,13 @@ void AbstrDataBlockProd::DoFirstIntervalValue()
 
 void AbstrDataBlockProd::DoSecondIntervalValue()
 {
-	if (m_eValueType == VT_Unknown)
+	if (m_eValueType == ValueClassID::VT_Unknown)
 	{
-		m_eValueType = VT_Float64;
+		m_eValueType = ValueClassID::VT_Float64;
 		m_FloatVal   = UNDEFINED_VALUE(Float64);
 	}
 
-	if ( (m_eAssignmentDomainType <= VT_Float64) != (m_eValueType <= VT_Float64))
+	if ( (m_eAssignmentDomainType <= ValueClassID::VT_Float64) != (m_eValueType <= ValueClassID::VT_Float64))
 		throwDmsErrF("Incompatible value types '%s' and '%s' in Interval",
 			GetValueTypeName(m_eAssignmentDomainType), 
 			GetValueTypeName(m_eValueType));
@@ -196,15 +196,15 @@ void AbstrDataBlockProd::DoSecondIntervalValue()
 
 	switch (m_eValueType)
 	{
-		case VT_Float64:
-		case VT_Int32:
-		case VT_UInt32:
-		case VT_Int64:
-		case VT_UInt64:
+		case ValueClassID::VT_Float64:
+		case ValueClassID::VT_Int32:
+		case ValueClassID::VT_UInt32:
+		case ValueClassID::VT_Int64:
+		case ValueClassID::VT_UInt64:
 			m_FloatInterval.second = m_FloatVal;
 			break;
 
-		case VT_DPoint:
+		case ValueClassID::VT_DPoint:
 			m_DPointInterval.second = m_DPointVal;
 			break;
 		default:
@@ -225,7 +225,7 @@ void AbstrDataBlockProd::DoBoolValue(bool v)
 {
 	m_BoolVal      = v;
 	m_FloatVal     = v;
-	m_eValueType = VT_Bool;
+	m_eValueType = ValueClassID::VT_Bool;
 }
 
 void AbstrDataBlockProd::DoFirstPointValue()
@@ -246,6 +246,6 @@ void AbstrDataBlockProd::DoNullValue()
 	MakeUndefined(m_StringVal.m_StringValue);
 	MakeUndefined(m_DPointVal);
 	m_BoolVal    = 0;
-	m_eValueType = VT_Unknown;
+	m_eValueType = ValueClassID::VT_Unknown;
 }
 

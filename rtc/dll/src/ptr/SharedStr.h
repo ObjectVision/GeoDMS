@@ -353,6 +353,31 @@ SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
 
 #endif defined(MG_DEBUG_ALLOCATOR)
 
+//----------------------------------------------------------------------
+// StreamableDataTime
+//----------------------------------------------------------------------
+
+struct StreamableDateTime // Display operating system-style date and time. 
+{
+	RTC_CALL StreamableDateTime();
+
+private:
+	time_t m_time;
+	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDateTime& self);
+};
+
+//----------------------------------------------------------------------
+// Section      : MsgData
+//----------------------------------------------------------------------
+
+struct MsgData {
+	SeverityTypeID st;
+	MsgCategory cat;
+	SharedStr msg;
+	StreamableDateTime dateTime;
+	dms_thread_id threadID;
+};
+
 
 #endif // __RTC_PTR_SHAREDCHARARRAY_H
 

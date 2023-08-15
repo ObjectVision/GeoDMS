@@ -60,7 +60,6 @@ granted by an additional written contract for support, assistance and/or develop
 //
 // -----------------------------------------------------
 
-
 // Read without changing byte order
 template<class T>  std::size_t ReadLittleEndian(FILE * fp, T& t)
 {
@@ -126,7 +125,7 @@ void ShpImp::Clear()
 {
 	DBG_START("ShpImp", "Clear", m_Polygons.size() > 0);
 	m_NrRecs = 0;
-	m_ShapeType = ST_None;
+	m_ShapeType = ShapeTypes::ST_None;
 	vector_clear(m_Polygons);
 	vector_clear(m_Points);
 }
@@ -191,12 +190,12 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
 
 
 	// Read header
-	ShpHeader head(ST_None);
+	ShpHeader head(ShapeTypes::ST_None);
 	std::size_t postFileHeaderPos = head.Read(m_FH);
 
 	if (!IsKnown(head.m_ShapeType))
 		throwErrorF("Shp", "ShapeType %d in ShapeFile '%s' is not supported",
-			head.m_ShapeType, name.c_str());
+			int(head.m_ShapeType), name.c_str());
 	SetShapeType(head.m_ShapeType);
 
 //	m_BoundingBox.first.first   = head.m_Xmin;
@@ -258,7 +257,7 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 				if (!IsPoint(shapeType))
 					throwErrorF("Shape", "Unsupported type %d at record %d in shapefile %s\n"
 						"Expected shapetype: ST_Point", 
-						shapeType, rhead.RecordNumber, name.c_str());
+						int(shapeType), rhead.RecordNumber, name.c_str());
 				pos += ::Read(m_Points.back(), m_FH);
 			}
 		}
@@ -280,7 +279,7 @@ bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
 			pos += rhead.Read(m_FH);
 
 			// Add polygon and fill it
-			ShapeSet_PushBackPolygon(ST_None);
+			ShapeSet_PushBackPolygon(ShapeTypes::ST_None);
 
 			MG_CHECK( rhead.RecordNumber == m_Polygons.size() );
 			MG_CHECK( (m_FileLength - (pos - 8)) / 2 >=  UInt32(rhead.ContentLength));
@@ -352,7 +351,7 @@ bool ShpImp::Write(WeakStr name, SafeFileWriterArray* sfwa, SharedStr wktPrjStr)
 			rhead.RecordNumber = ++recNr;
 			pos += rhead.Write(m_FH);
 
-			pos += WriteLittleEndian(m_FH, (long)ST_Point);
+			pos += WriteLittleEndian(m_FH, (long)ShapeTypes::ST_Point);
 			pos += ::Write(*point, m_FH);
 		}
 	}
@@ -484,7 +483,7 @@ bool ShpImp::CalcBox()
 void ShpImp::CheckShapeType() const
 {
 	if (!IsKnown(m_ShapeType))
-		throwErrorF("ShpImp", "unsupported m_ShapeType %d", m_ShapeType);
+		throwErrorF("ShpImp", "unsupported m_ShapeType %d", int(m_ShapeType));
 }
 
 #if defined(MG_DEBUG)
@@ -527,7 +526,7 @@ std::size_t ShpHeader::Read(FILE * fp)
 	DBG_TRACE(("Unused5    = %d", m_Unused5));
 	DBG_TRACE(("FileLength = %d", m_FileLength));
 	DBG_TRACE(("Version    = %d", m_Version));
-	DBG_TRACE(("ShapeType  = %d", m_ShapeType));
+	DBG_TRACE(("ShapeType  = %d", int(m_ShapeType)));
 	DBG_TRACE(("Xmin       = %E", m_Box.first.first ));
 	DBG_TRACE(("Ymin       = %E", m_Box.first.second));
 	DBG_TRACE(("Xmax       = %E", m_Box.second.first));
@@ -540,7 +539,6 @@ std::size_t ShpHeader::Read(FILE * fp)
 	// Number of bytes read
 	return pos;
 }
-
 
 // Write file header
 std::size_t ShpHeader::Write(FILE * fp) const
@@ -571,7 +569,7 @@ std::size_t ShpHeader::Write(FILE * fp) const
 	DBG_TRACE(("Unused5    = %d", m_Unused5));
 	DBG_TRACE(("FileLength = %d", m_FileLength));
 	DBG_TRACE(("Version    = %d", m_Version));
-	DBG_TRACE(("ShapeType  = %d", m_ShapeType));
+	DBG_TRACE(("ShapeType  = %d", int(m_ShapeType)));
 	DBG_TRACE(("Xmin       = %E", m_Box.first.first ));
 	DBG_TRACE(("Ymin       = %E", m_Box.first.second));
 	DBG_TRACE(("Xmax       = %E", m_Box.second.first));
@@ -584,7 +582,6 @@ std::size_t ShpHeader::Write(FILE * fp) const
 	// Number of bytes read
 	return pos;
 }
-
 
 // Read recordheader (= recordnr + size of record (in shorts, excluding header))
 std::size_t ShpRecordHeader::Read(FILE * fp)
@@ -973,7 +970,6 @@ ConstPointIterRange ShpImp::ShapeSet_GetPoints(UInt32 recNr, UInt32 partNr) cons
 	ConstPointIter 
 		begin = (*polygon.m_Points).begin() + partStart;
 	return ConstPointIterRange(begin, begin + cnt);
-//	return Range<const ShpPoint*>();
 }
 
 const ShpPoint& ShpImp::ShapeSet_GetPoint(UInt32 recNr, UInt32 partNr, UInt32 pointNr) // Gets a point from a ring
@@ -983,7 +979,7 @@ const ShpPoint& ShpImp::ShapeSet_GetPoint(UInt32 recNr, UInt32 partNr, UInt32 po
 
 void ShpImp::SetShapeType(ShapeTypes shapeType)
 {
-	assert((m_ShapeType == 0 && !m_Polygons.size()) || m_ShapeType == shapeType);
+	assert((m_ShapeType == ShapeTypes::ST_None && !m_Polygons.size()) || m_ShapeType == shapeType);
 
 	m_ShapeType = shapeType;
 
@@ -994,11 +990,6 @@ ShpPolygon& ShpImp::ShapeSet_PushBackPolygon(ShapeTypes shapeType)
 {
 	m_Polygons.push_back(ShpPolygon(shapeType));
 	
-//	assert(m_SeqPoints.size() < m_SeqPoints.capacity()); // => m_SeqPoints.end() != NULL
-//	assert(m_SeqParts.size()  < m_SeqParts .capacity()); // => m_SeqParts.end()  != NULL
-
-//	static_cast<sequence_array<ShpPoint>::iterator&>(m_Polygons.back().m_Points) = m_SeqPoints.end(); m_SeqPoints.push_back(Undefined());
-//	static_cast<sequence_array<long>    ::iterator&>(m_Polygons.back().m_Parts ) = m_SeqParts.end();  m_SeqParts .push_back(Undefined());
 	ShpPolygon& polygon = m_Polygons.back();
 	polygon.m_Points.m_Container = &m_SeqPoints;
 	polygon.m_Parts .m_Container = &m_SeqParts;
@@ -1009,8 +1000,7 @@ ShpPolygon& ShpImp::ShapeSet_PushBackPolygon(ShapeTypes shapeType)
 
 ShpPolygon& ShpImp::ShapeSet_PushBackPolygon()
 {
-	MG_DEBUGCODE( CheckShapeType(ST_Polygon) );
+	MG_DEBUGCODE( CheckShapeType(ShapeTypes::ST_Polygon) );
 	return ShapeSet_PushBackPolygon(m_ShapeType);
 }
-
 

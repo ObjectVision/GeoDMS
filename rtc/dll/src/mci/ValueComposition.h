@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 // An enumeration type that represents the values that can be put in a unit
 
-enum class ValueComposition {
+enum class ValueComposition : UInt8 {
 	Single   = 0
 ,	Polygon  = 1
 ,	Sequence = 2

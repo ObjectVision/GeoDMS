@@ -189,18 +189,6 @@ inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange val
 
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value);
 
-//----------------------------------------------------------------------
-// StreamableDataTime
-//----------------------------------------------------------------------
-
-struct StreamableDataTime // Display operating system-style date and time. 
-{
-	char dateBuff[128], timeBuff[128];
-
-	StreamableDataTime();
-};
-
-FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDataTime& self);
 
 
 #endif // __RTC_SER_FORMATTEDSTREAM_H

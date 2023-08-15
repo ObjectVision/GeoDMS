@@ -668,14 +668,16 @@ RTC_CALL bool AsCharArray(Bool value, char* buffer, UInt32 bufLen)
 // StreamableDataTime
 //----------------------------------------------------------------------
 
-StreamableDataTime::StreamableDataTime() 
+StreamableDateTime::StreamableDateTime() 
 {
-	_strdate_s(dateBuff, sizeof(dateBuff));
-	_strtime_s(timeBuff, sizeof(timeBuff));
+	time(&m_time);
 }
 
-FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDataTime& self)
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDateTime& self)
 {
-	fos << self.dateBuff << "-" << self.timeBuff;
+	char timeBuff[30];
+	auto errCode = ctime_s(timeBuff, sizeof(timeBuff), &self.m_time);
+	if (errCode == 0)
+		fos << timeBuff;
 	return fos;
 }

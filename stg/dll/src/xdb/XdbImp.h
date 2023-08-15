@@ -53,7 +53,7 @@ granted by an additional written contract for support, assistance and/or develop
 // wrapper for columnparameters
 struct XdbColDescription
 {
-	XdbColDescription(): m_Offset(0), m_Type(VT_Unknown) {}
+	XdbColDescription(): m_Offset(0), m_Type(ValueClassID::VT_Unknown) {}
 
 	XdbColDescription& operator =(const XdbColDescription&) = default;
 

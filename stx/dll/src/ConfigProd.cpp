@@ -304,7 +304,7 @@ void ConfigProd::CreateTemplate(TokenID nameID)
 
 bool IsPolygonType(ValueClassID vid)
 {
-	return (vid >= VT_FirstPolygon && vid < VT_FirstAfterPolygon);
+	return (vid >= ValueClassID::VT_FirstPolygon && vid < ValueClassID::VT_FirstAfterPolygon);
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)
@@ -588,7 +588,7 @@ void ConfigProd::DoItemName()
 
 void ConfigProd::DoNrOfRowsProp()
 {
-	assert(m_eValueType == VT_UInt64);
+	assert(m_eValueType == ValueClassID::VT_UInt64);
 	assert(m_pCurrent);
 
 	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());

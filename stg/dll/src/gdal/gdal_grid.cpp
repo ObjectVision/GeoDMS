@@ -311,7 +311,7 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	auto nBandCount = m_hDS->GetRasterCount();
 	auto bandType = poBand->GetRasterDataType();
 
-	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
+	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == ValueClassID::VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
 		resultCode = ReadInterleavedMultiBandTile(stripBuff, tile_x, tile_y, sx, sy, nBandCount);
 	else // single band
 		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, poBand);
@@ -473,7 +473,7 @@ struct netCDFSubdatasetInfo
 	UInt32 nx = 0;
 	UInt32 ny = 0;
 	UInt32 nz = 0;
-	ValueClassID vc = VT_Unknown;
+	ValueClassID vc = ValueClassID::VT_Unknown;
 };
 
 std::string GetNetCDFItemName(std::string rawItemName)
@@ -645,7 +645,7 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 		width, height, // roi size
 		&buffer[0],
 		width, height, // buffer size
-		gdalRasterDataType(VT_UInt8),
+		gdalRasterDataType(ValueClassID::VT_UInt8),
 		0, //nPixelSpace,
 		0 //nLineSpace
 	);

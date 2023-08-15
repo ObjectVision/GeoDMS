@@ -146,9 +146,9 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 	auto polyData = debug_valcast<DataArray<PolygonType>*>(ado)->GetDataWrite();
 
 	dms_assert(polyData.size() == shpImpFeatureCount);
-	MG_CHECK(pImp->GetShapeType() != ST_Point);
+	MG_CHECK(pImp->GetShapeType() != ShapeTypes::ST_Point);
 
-	bool mustCloseRings = (pImp->GetShapeType() == ST_Polygon);
+	bool mustCloseRings = (pImp->GetShapeType() == ShapeTypes::ST_Polygon);
 
 	SeqLock<sequence_array<ShpPointIndex> > lockParts (pImp->m_SeqParts , dms_rw_mode::read_only);
 	SeqLock<sequence_array<ShpPoint>      > lockPoints(pImp->m_SeqPoints, dms_rw_mode::read_only);
@@ -209,7 +209,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 template <typename PointType>
 void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 {
-	MG_CHECK(pImp->GetShapeType() == ST_Point);
+	MG_CHECK(pImp->GetShapeType() == ShapeTypes::ST_Point);
 
 	auto pointData 
 		= debug_valcast<DataArray<PointType>*>(ado)->GetDataWrite();
@@ -324,7 +324,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 		> func_iter;
 
 		auto feature = pImp->ShapeSet_PushBackPolygon();
-		if (pImp->GetShapeType() == ST_Polygon)
+		if (pImp->GetShapeType() == ShapeTypes::ST_Polygon)
 		{
 			boost::polygon::SA_ConstRingIterator<PointType> 
 				ri(polygon,  0), 
@@ -404,14 +404,14 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	ValueClassID           vtId       = vClass->GetValueClassID();
 	ValueComposition       vComp    =   adi->GetValueComposition();
 
-	ShapeTypes shapeType = ST_Point;
+	ShapeTypes shapeType = ShapeTypes::ST_Point;
 	if (vComp == ValueComposition::Sequence)
 	{
-		shapeType = ST_Polyline;
-		vtId = ValueClassID(vtId + VT_DArc - VT_DPolygon); // (D/F/S/I)Poly -> (D/F/S/I)Arc
+		shapeType = ShapeTypes::ST_Polyline;
+		vtId = ValueClassID(int(vtId) + int(ValueClassID::VT_DArc) - int(ValueClassID::VT_DPolygon)); // (D/F/S/I)Poly -> (D/F/S/I)Arc
 	}
 	if (vComp == ValueComposition::Polygon)
-		shapeType = ST_Polygon;
+		shapeType = ShapeTypes::ST_Polygon;
 
 	ShpImp impl;
 	impl.SetShapeType(shapeType);
@@ -466,11 +466,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	switch (shapeType)
 	{
-		case ST_MultiPoint:
-		case ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
-		default: throwItemErrorF("ShapeType %d is not supported", shapeType);
+		case ShapeTypes::ST_MultiPoint:
+		case ShapeTypes::ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ShapeTypes::ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ShapeTypes::ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
+		default: throwItemErrorF("ShapeType %d is not supported", int(shapeType));
 	}
 
 	if (pData)

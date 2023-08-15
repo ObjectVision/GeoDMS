@@ -564,7 +564,7 @@ namespace Grid {
 		MG_CHECK(vpi.IsNonScaling());
 
 		UInt8 bitsPerPixel = streamType->GetBitSize();
-		UInt8 samplesPerPixel = (streamType->GetValueClassID() == VT_UInt32) ? 4 : 1;
+		UInt8 samplesPerPixel = (streamType->GetValueClassID() == ValueClassID::VT_UInt32) ? 4 : 1;
 		UInt8 bitsPerSample = bitsPerPixel / samplesPerPixel;
 
 		imp.SetDataMode(bitsPerSample, samplesPerPixel, HasPaletteData(storageHolder), SAMPLEFORMAT(adi->GetAbstrValuesUnit()->GetValueType()));
@@ -596,22 +596,22 @@ namespace Grid {
 		const AbstrDataObject* ado = adi->GetRefObj();
 		switch (streamType->GetValueClassID())
 		{
-		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;
-		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado), dataSourceName); return;
-		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado), dataSourceName); return;
+		case ValueClassID::VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;
+		case ValueClassID::VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado), dataSourceName); return;
+		case ValueClassID::VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado), dataSourceName); return;
 
-		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado), dataSourceName); return;
-		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado), dataSourceName); return;
+		case ValueClassID::VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado)), dataSourceName); return;
 
-		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado), dataSourceName); return;
-		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado)), dataSourceName); return;
 
-		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado)), dataSourceName); return;
-		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado), dataSourceName); return;
-		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado)), dataSourceName); return;
-		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado), dataSourceName); return;
-		case VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado)), dataSourceName); return;
-		case VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
+		case ValueClassID::VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado)), dataSourceName); return;
+		case ValueClassID::VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(streamType->GetName());
 		throwErrorF("GRID::WriteGridData", "cannot store %s elements as raster data ", streamTypeName);

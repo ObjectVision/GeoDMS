@@ -397,7 +397,7 @@ void District(
 {
 	switch (ado->GetValuesType()->GetValueClassID())
 	{
-		case VT_UInt32:
+		case ValueClassID::VT_UInt32:
 			MDL_DistrictUI32(
 				UCUInt32Grid(
 					size,
@@ -408,7 +408,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Int32:
+		case ValueClassID::VT_Int32:
 			MDL_DistrictUI32(
 				UCUInt32Grid(
 					size,
@@ -419,7 +419,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_UInt8:
+		case ValueClassID::VT_UInt8:
 			MDL_DistrictUI8(
 				UCUInt8Grid(
 					size,
@@ -430,7 +430,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Int8:
+		case ValueClassID::VT_Int8:
 			MDL_DistrictUI8(
 				UCUInt8Grid(
 					size,
@@ -441,7 +441,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Bool:
+		case ValueClassID::VT_Bool:
 			MDL_DistrictBool(
 				UCBoolGrid(
 					size,

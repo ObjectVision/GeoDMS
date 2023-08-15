@@ -266,7 +266,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 
 		SizeT d = 0;
 		DataReadLock lock(di);
-		if (!vt->IsNumeric() && vt->GetValueClassID() != VT_Bool)
+		if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
 		{
 			d = n - di->GetRefObj()->GetNrNulls();
 		}
@@ -280,7 +280,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 		os << "\nNr Nulls : " << (n - d);
 		os << "\nNr Values: " << d;
 
-		if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String)
+		if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
 		{
 			auto da = const_array_cast<SharedStr>(di)->GetDataRead();
 			os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
