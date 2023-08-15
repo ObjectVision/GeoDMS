@@ -700,7 +700,7 @@
     <cursorShape>WhatsThisCursor</cursorShape>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Example explanation on &lt;span style=&quot; font-weight:600;&quot;&gt;parallel processing&lt;/span&gt;.&lt;/p&gt;&lt;p&gt;What is it? How to use?&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously.&lt;/p&gt;&lt;p&gt;For more information see &lt;a href=&quot;https://en.wikipedia.org/wiki/Parallel_computing&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;parrallel computing&lt;/span&gt;&lt;/a&gt;.&lt;span style=&quot; font-weight:600;&quot;/&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string/>
