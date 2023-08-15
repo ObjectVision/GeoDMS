@@ -1,7 +1,7 @@
 #include "RtcBase.h"
 #include "dbg/SeverityType.h"
 #include "ptr/SharedStr.h"
-#include "DmsEventLogSelection.h"
+#include "ui_DmsEventLogSelection.h"
 
 #include <QPointer>
 #include <QAbstractListModel>

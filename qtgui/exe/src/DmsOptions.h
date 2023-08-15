@@ -4,8 +4,8 @@
 #include <QDialog>
 #include "geo/color.h"
 #include "ptr/SharedStr.h"
-#include "DmsLocalMachineOptionsWindow.h"
-#include "DmsGuiOptionsWindow.h"
+#include "ui_DmsLocalMachineOptionsWindow.h"
+#include "ui_DmsGuiOptionsWindow.h"
 struct TreeItem;
 
 enum string_option

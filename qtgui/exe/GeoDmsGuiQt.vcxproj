@@ -59,7 +59,7 @@
     <ClCompile>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4577;4467;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;./src/forms/;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;../../stgimpl/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./src/qt_advanced_docking_system;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;../../stgimpl/dll/src;GeneratedFiles\$(ConfigurationName);GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <UseFullPaths>false</UseFullPaths>
     </ClCompile>
@@ -178,10 +178,6 @@
     <QtMoc Include="src\DmsViewArea.h" />
     <QtMoc Include="src\DmsOptions.h" />
     <QtMoc Include="src\DmsExport.h" />
-    <ClInclude Include="src\forms\DmsConfigOptionsWindow.h" />
-    <ClInclude Include="src\forms\DmsEventLogSelection.h" />
-    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h" />
-    <ClInclude Include="src\forms\DmsLocalMachineOptionsWindow.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />
@@ -244,5 +240,11 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\icons\GeoDmsGui.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="res\ui\DmsConfigOptionsWindow.ui" />
+    <QtUic Include="res\ui\DmsEventLogSelection.ui" />
+    <QtUic Include="res\ui\DmsGuiOptionsWindow.ui" />
+    <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui" />
   </ItemGroup>
 </Project>

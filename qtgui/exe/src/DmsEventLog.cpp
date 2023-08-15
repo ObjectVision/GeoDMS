@@ -56,7 +56,28 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	switch (role)
 	{
 	case Qt::DisplayRole:
-		return item_data.m_Txt.c_str();
+	{
+		SharedStr msgTxt = item_data.m_Txt;
+		auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+		bool showDateTime = eventlog->m_eventlog_filter->m_date_time->isChecked();
+		bool showThreadID = eventlog->m_eventlog_filter->m_thread->isChecked();
+		bool showCategory = eventlog->m_eventlog_filter->m_category->isChecked();
+
+		if (!showDateTime && !showThreadID &&  !showCategory)
+			return QString(msgTxt.c_str());
+
+		VectorOutStreamBuff buff;
+		FormattedOutStream fout(&buff, {});
+		if (showDateTime)
+			fout << item_data.m_DateTime;
+		if (showThreadID)
+			fout << "[" << item_data.m_ThreadID << "]";
+		if (showCategory)
+			fout << AsString(item_data.m_MsgCategory);
+		fout << msgTxt;
+		fout << char(0);
+		return QString(buff.GetData());
+	}
 
 	case Qt::ForegroundRole:
 	{
@@ -163,9 +184,8 @@ void EventLogModel::refilter()
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
-	auto text_filter_as_bytearray= text_filter_string.toUtf8();
-	m_TextFilterAsByteArray = text_filter_as_bytearray.constData();
-
+	m_TextFilterAsByteArray = text_filter_string.toUtf8();
+	
 	for (auto& item : m_Items)
 	{
 		if (itemPassesFilter(item))
@@ -451,16 +471,9 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 
 	if (st == SeverityTypeID::ST_Nothing)
 	{
-		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
-//		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
 		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
 	}
-
-	MsgCategory msgCat = msgData->m_MsgCategory;
-	CharPtr msg = msgData->m_Txt.c_str();
-	auto when = msgData->m_DateTime;
-	auto threadID = msgData->m_ThreadID;
 
 	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);

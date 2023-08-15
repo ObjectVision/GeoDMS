@@ -208,23 +208,25 @@
       <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="src\forms\DmsLocalMachineOptionsWindow.h">
-      <Filter>Forms</Filter>
-    </ClInclude>
-    <ClInclude Include="src\forms\DmsConfigOptionsWindow.h">
-      <Filter>Forms</Filter>
-    </ClInclude>
-    <ClInclude Include="src\forms\DmsGuiOptionsWindow.h">
-      <Filter>Forms</Filter>
-    </ClInclude>
-    <ClInclude Include="src\forms\DmsEventLogSelection.h">
-      <Filter>Forms</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GeoDmsGuiQt.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\icons\GeoDmsGui.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="res\ui\DmsConfigOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsEventLogSelection.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsGuiOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
   </ItemGroup>
 </Project>
