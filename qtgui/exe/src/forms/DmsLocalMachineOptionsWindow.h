@@ -348,7 +348,7 @@ public:
         m_undo->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Undo", nullptr));
         lbl_current_flush_value->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Current Value:", nullptr));
 #if QT_CONFIG(tooltip)
-        m_pp_info->setToolTip(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p>Example explanation on <span style=\" font-weight:600;\">parallel processing</span>.</p><p>What is it? How to use?</p><p><br/></p></body></html>", nullptr));
+        m_pp_info->setToolTip(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "<html><head/><body><p><span style=\" font-weight:600;\">Parallel processing </span>is a type of computation in which many calculations are carried out simultaneously.</p><p>For more information see <a href=\"https://en.wikipedia.org/wiki/Parallel_computing\"><span style=\" text-decoration: underline; color:#0000ff;\">parrallel computing</span></a>.<span style=\" font-weight:600;\"/></p><p><br/></p><p><br/></p></body></html>", nullptr));
 #endif // QT_CONFIG(tooltip)
         m_pp_info->setText(QString());
         lbl_applications->setText(QCoreApplication::translate("DmsLocalMachineOptionsWindow", "Application:", nullptr));
