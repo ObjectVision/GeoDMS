@@ -36,6 +36,7 @@ public:
     ~QDmsViewArea();
 
     void dragEnterEvent(QDragEnterEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     auto getDataView() -> DataView* { return m_DataView; }
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; } // QEvent::WinIdChange
