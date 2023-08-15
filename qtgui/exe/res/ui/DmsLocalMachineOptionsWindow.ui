@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>588</width>
-    <height>595</height>
+    <width>591</width>
+    <height>622</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -47,7 +47,7 @@
         </font>
        </property>
        <property name="text">
-        <string>1: Tile/segment tasks</string>
+        <string>1: Data-segment production as separate tasks</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -62,7 +62,7 @@
         </font>
        </property>
        <property name="text">
-        <string>3: Pipelined tile operations</string>
+        <string>3: Pipelined operations</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -364,7 +364,7 @@
         <cursorShape>WhatsThisCursor</cursorShape>
        </property>
        <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously.&lt;/p&gt;&lt;p&gt;For more information see &lt;a href=&quot;https://en.wikipedia.org/wiki/Parallel_computing&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;parrallel computing&lt;/span&gt;&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;The current options are:&lt;/p&gt;&lt;p&gt;0: keeps the GUI responsive while the GeoDMS is calcyulating&lt;/p&gt;&lt;p&gt;1: split up tasks in tiles (for 2 dimensional data) or segments (for 1 dimensional data)&lt;/p&gt;&lt;p&gt;2: performs multiple operations simultaneously using multiple cores&lt;/p&gt;&lt;p&gt;3: use multiple cores to pipeline operations on tiles/segments&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting, usually after an advice to do so.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously by using multuiple cores that perform tasks in separate threads.&lt;/p&gt;&lt;p&gt;For more information see &lt;a href=&quot;https://en.wikipedia.org/wiki/Parallel_computing&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;parallel computing&lt;/span&gt;&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;The current options are:&lt;/p&gt;&lt;p&gt;0: keeps the GUI responsive by suspending further calculation steps whenever User events are queued , and resume these when idle.&lt;/p&gt;&lt;p&gt;1: split up operations into separate tasks per data-segment&lt;/p&gt;&lt;p&gt;2: performs multiple operations simultaneously&lt;/p&gt;&lt;p&gt;3: pipeline data-segment processing by delaying data-segment production to the taks that requests such segments.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="text">
         <string/>
@@ -455,7 +455,6 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -497,7 +496,6 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
