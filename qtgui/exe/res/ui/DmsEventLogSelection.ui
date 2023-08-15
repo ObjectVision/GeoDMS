@@ -657,7 +657,7 @@
     <bool>false</bool>
    </property>
   </widget>
-  <widget class="QCheckBox" name="m_thread_2">
+  <widget class="QCheckBox" name="m_category">
    <property name="geometry">
     <rect>
      <x>1180</x>

@@ -737,7 +737,7 @@ void MainWindow::updateToolbar()
 
     // disable/enable coordinate tool
     auto is_mapview = view_style == ViewStyle::tvsMapView;
-    m_coordinate_label->setVisible(is_mapview);
+    m_statusbar_coordinate_label->setVisible(is_mapview);
     m_statusbar_coordinates->setVisible(is_mapview);
 
     clearToolbarUpToDetailPagesTools();
@@ -1024,7 +1024,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
-
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
         {
@@ -1086,10 +1085,7 @@ void MainWindow::CloseConfig()
     if (m_mdi_area)
     {
         bool has_active_dms_views = m_mdi_area->subWindowList().size();
-        for (auto* sw : m_mdi_area->subWindowList())
-        {
-            delete sw;
-        }
+        m_mdi_area->closeAllSubWindows();
         if (has_active_dms_views)
             m_mdi_area->repaint();
     }
@@ -1937,14 +1933,14 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
     
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
-    m_coordinate_label = new QLabel("Coordinate", this);
+    m_statusbar_coordinate_label = new QLabel("Coordinate", this);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(310);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
-    statusBar()->insertPermanentWidget(0, m_coordinate_label);
+    statusBar()->insertPermanentWidget(0, m_statusbar_coordinate_label);
     statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
-    m_coordinate_label->setVisible(false);
+    m_statusbar_coordinate_label->setVisible(false);
     m_statusbar_coordinates->setVisible(false);
 }
 
