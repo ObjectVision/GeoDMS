@@ -256,8 +256,18 @@ gdalDynamicLoader::gdalDynamicLoader()
 
 bool AuthorityCodeIsValidCrs(std::string_view wkt)
 {
-	auto srs = OGRSpatialReference(wkt.data());
-	return srs.IsGeographic() || srs.IsDerivedGeographic() || srs.IsProjected() || srs.IsLocal() || srs.IsDynamic() || srs.IsGeocentric() || srs.IsVertical() || srs.IsCompound();
+	auto srs = OGRSpatialReference();
+	srs.SetFromUserInput(wkt.data());
+	
+	auto is_geographic = srs.IsGeographic();
+	auto is_derived_geographic = srs.IsDerivedGeographic();
+	auto is_projected = srs.IsProjected();
+	auto is_local = srs.IsLocal();
+	auto is_dynamic = srs.IsDynamic();
+	auto is_geocentric = srs.IsGeocentric();
+	auto is_vertical = srs.IsVertical();
+	auto is_compound = srs.IsCompound();
+	return is_geographic || is_derived_geographic || is_projected || is_local || is_dynamic || is_geocentric || is_vertical || is_compound;
 }
 
 void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str)
