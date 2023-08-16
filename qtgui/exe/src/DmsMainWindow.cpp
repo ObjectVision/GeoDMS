@@ -1772,6 +1772,10 @@ void MainWindow::createActions()
     connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
     m_code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
 
+    m_eventlog_filter_toggle = std::make_unique<QAction>(tr("Eventlog filter"));
+    connect(m_eventlog_filter_toggle.get(), &QAction::triggered, m_eventlog->m_event_filter_toggle.get(), &QCheckBox::click);
+    m_tools_menu->addAction(m_eventlog_filter_toggle.get());
+
     // window menu
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
     menuBar()->addMenu(m_window_menu.get());
