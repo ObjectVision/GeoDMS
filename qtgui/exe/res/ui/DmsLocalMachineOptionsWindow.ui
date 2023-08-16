@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>591</width>
+    <width>607</width>
     <height>622</height>
    </rect>
   </property>
@@ -364,7 +364,14 @@
         <cursorShape>WhatsThisCursor</cursorShape>
        </property>
        <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously by using multuiple cores that perform tasks in separate threads.&lt;/p&gt;&lt;p&gt;For more information see &lt;a href=&quot;https://en.wikipedia.org/wiki/Parallel_computing&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;parallel computing&lt;/span&gt;&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;The current options are:&lt;/p&gt;&lt;p&gt;0: keeps the GUI responsive by suspending further calculation steps whenever User events are queued , and resume these when idle.&lt;/p&gt;&lt;p&gt;1: split up operations into separate tasks per data-segment&lt;/p&gt;&lt;p&gt;2: performs multiple operations simultaneously&lt;/p&gt;&lt;p&gt;3: pipeline data-segment processing by delaying data-segment production to the taks that requests such segments.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously by using multiple cores that perform tasks in separate threads.&lt;/p&gt;&lt;p&gt;The current options are:
+&lt;ol&gt;
+&lt;li&gt;keeps the GUI responsive by suspending further calculation steps whenever user events are queued, and resume these when idle.&lt;/li&gt;
+&lt;li&gt;split up operations into separate tasks per data-segment.&lt;/li&gt;
+&lt;li&gt;performs multiple operations simultaneously.&lt;/li&gt;
+&lt;li&gt;pipeline data-segment processing by delaying data-segment production to the taks that requests such segments.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/p&gt;&lt;p&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting.&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="text">
         <string/>
@@ -396,6 +403,9 @@
        <property name="text">
         <string>Current Value:</string>
        </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
       </widget>
      </item>
      <item row="20" column="2">
@@ -407,7 +417,7 @@
         </font>
        </property>
        <property name="text">
-        <string>80%</string>
+        <string>80 %</string>
        </property>
       </widget>
      </item>
@@ -427,7 +437,10 @@
         </font>
        </property>
        <property name="text">
-        <string>50 %</string>
+        <string>50 % </string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -455,6 +468,7 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -496,6 +510,7 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
