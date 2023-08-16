@@ -143,19 +143,20 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton("Ignore");
     m_ignore->setMaximumSize(75, 30);
-    m_ignore->setAutoDefault(true);
-    m_ignore->setDefault(true);
     m_terminate = new QPushButton("Terminate");
     m_terminate->setMaximumSize(75, 30);
 
     m_reopen = new QPushButton("Reopen");
+    m_reopen->setAutoDefault(true);
+    m_reopen->setDefault(true);
+
     connect(m_ignore, &QPushButton::released, this, &DmsErrorWindow::ignore);
     connect(m_terminate, &QPushButton::released, this, &DmsErrorWindow::terminate);
     connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
     m_reopen->setMaximumSize(75, 30);
-    box_layout->addWidget(m_ignore);
-    box_layout->addWidget(m_terminate);
     box_layout->addWidget(m_reopen);
+    box_layout->addWidget(m_terminate);
+    box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
 
 
