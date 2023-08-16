@@ -48,7 +48,7 @@ void DmsFileChangedWindow::ignore()
 void DmsFileChangedWindow::reopen()
 {
     done(QDialog::Accepted);
-    MainWindow::TheOne()->reOpen();
+    MainWindow::TheOne()->reopen();
 }
 
 void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
@@ -389,17 +389,18 @@ void MainWindow::fileOpen()
     if (configFileName.isEmpty())
         return;
 
-    LoadConfig(configFileName.toUtf8().data());
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
+        m_eventlog_model->clear();
+
+    bool result = LoadConfig(configFileName.toUtf8().data());
 }
 
-void MainWindow::reopen()
-{
-    reOpen();
-}
-
-bool MainWindow::reOpen()
+bool MainWindow::reopen()
 {
     auto cip = m_current_item_bar->text();
+
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
+        m_eventlog_model->clear();
 
     bool result = LoadConfig(m_currConfigFileName.c_str());
     if (!result)
@@ -460,6 +461,10 @@ DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_v
 void DmsRecentFileButtonAction::onToolbuttonPressed()
 {
     auto main_window = MainWindow::TheOne();
+
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
+        main_window->m_eventlog_model->clear();
+
     main_window->LoadConfig(m_cfg_file_path.c_str());
 }
 
@@ -993,7 +998,7 @@ bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
     assert(dialogResult == QDialog::DialogCode::Accepted);
-    bool reloadResult = TheOne()->reOpen();
+    bool reloadResult = TheOne()->reopen();
     return reloadResult;
 }
 
@@ -1576,7 +1581,7 @@ void MainWindow::createActions()
     auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcut(QKeySequence(tr("Alt+R")));
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
-    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
+    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
     m_file_menu->addAction(reOpenAct);
     //fileToolBar->addAction(reOpenAct);
 

@@ -199,8 +199,7 @@ public slots:
 
 public slots:
     void fileOpen();
-    void reopen();
-    bool reOpen();
+    bool reopen();
 
     void aboutGeoDms();
     void wiki();

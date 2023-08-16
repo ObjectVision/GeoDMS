@@ -118,6 +118,9 @@ enum RegStatusFlags
 	RSF_EventLog_ShowCategory = 0x20000,
 	RSF_EventLog_ShowAnyExtra = RSF_EventLog_ShowDateTime | RSF_EventLog_ShowThreadID | RSF_EventLog_ShowCategory,
 
+	RSF_EventLog_ClearOnLoad  = 0x40000,
+	RSF_EventLog_ClearOnReLoad= 0x80000,
+
 	RSF_WasRead         = 0x80000000,
 	RSF_Default         = RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
 };
