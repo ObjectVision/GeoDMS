@@ -216,14 +216,23 @@ void EventLogModel::refilter()
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
-void EventLogModel::writeSettingsOnToggle()
+void EventLogModel::writeSettingsOnToggle(bool newValue)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+	bool clearOnOpen = eventlog_filter_ptr->m_opening_new_configuration->isChecked();
+	bool clearOnReopen = eventlog_filter_ptr->m_reopening_current_configuration->isChecked();
+	if (clearOnReopen && !clearOnOpen)
+	{
+		clearOnReopen = newValue;
+		clearOnOpen = newValue;
+		eventlog_filter_ptr->m_opening_new_configuration->setChecked(newValue);
+		eventlog_filter_ptr->m_reopening_current_configuration->setChecked(newValue);
+	}
 
 	auto dms_reg_status_flags = GetRegStatusFlags();
-	setSF(eventlog_filter_ptr->m_opening_new_configuration->isChecked(), dms_reg_status_flags, RSF_EventLog_ClearOnLoad);
-	setSF(eventlog_filter_ptr->m_reopening_current_configuration->isChecked(), dms_reg_status_flags, RSF_EventLog_ClearOnReLoad);
+	setSF(clearOnOpen, dms_reg_status_flags, RSF_EventLog_ClearOnLoad);
+	setSF(clearOnReopen, dms_reg_status_flags, RSF_EventLog_ClearOnReLoad);
 	SetRegStatusFlags(dms_reg_status_flags);
 }
 
