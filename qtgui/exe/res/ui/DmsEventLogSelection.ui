@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1373</width>
-    <height>140</height>
+    <height>133</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,10 +16,10 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>0</x>
+     <x>10</x>
      <y>0</y>
      <width>520</width>
-     <height>130</height>
+     <height>121</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -77,8 +77,8 @@
      <rect>
       <x>20</x>
       <y>7</y>
-      <width>150</width>
-      <height>21</height>
+      <width>116</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="font">
@@ -96,8 +96,8 @@
      <rect>
       <x>210</x>
       <y>7</y>
-      <width>57</width>
-      <height>21</height>
+      <width>45</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="font">
@@ -115,8 +115,8 @@
      <rect>
       <x>370</x>
       <y>7</y>
-      <width>131</width>
-      <height>21</height>
+      <width>101</width>
+      <height>16</height>
      </rect>
     </property>
     <property name="font">
@@ -153,8 +153,8 @@
      <rect>
       <x>20</x>
       <y>50</y>
-      <width>70</width>
-      <height>25</height>
+      <width>57</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -177,8 +177,8 @@
      <rect>
       <x>20</x>
       <y>30</y>
-      <width>69</width>
-      <height>25</height>
+      <width>56</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -200,9 +200,9 @@
     <property name="geometry">
      <rect>
       <x>140</x>
-      <y>90</y>
-      <width>86</width>
-      <height>25</height>
+      <y>85</y>
+      <width>69</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -224,9 +224,9 @@
     <property name="geometry">
      <rect>
       <x>320</x>
-      <y>90</y>
-      <width>63</width>
-      <height>25</height>
+      <y>85</y>
+      <width>52</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -249,8 +249,8 @@
      <rect>
       <x>210</x>
       <y>30</y>
-      <width>60</width>
-      <height>25</height>
+      <width>49</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -273,8 +273,8 @@
      <rect>
       <x>210</x>
       <y>50</y>
-      <width>65</width>
-      <height>25</height>
+      <width>52</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -297,8 +297,8 @@
      <rect>
       <x>370</x>
       <y>30</y>
-      <width>107</width>
-      <height>25</height>
+      <width>84</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -321,8 +321,8 @@
      <rect>
       <x>370</x>
       <y>50</y>
-      <width>83</width>
-      <height>25</height>
+      <width>66</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="font">
@@ -344,10 +344,10 @@
   <widget class="QCheckBox" name="m_category_filter_commands">
    <property name="geometry">
     <rect>
-     <x>530</x>
+     <x>540</x>
      <y>10</y>
-     <width>107</width>
-     <height>25</height>
+     <width>85</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -368,10 +368,10 @@
   <widget class="QCheckBox" name="m_category_filter_other">
    <property name="geometry">
     <rect>
-     <x>530</x>
+     <x>540</x>
      <y>70</y>
-     <width>66</width>
-     <height>25</height>
+     <width>53</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -392,9 +392,9 @@
   <widget class="QLineEdit" name="m_text_filter">
    <property name="geometry">
     <rect>
-     <x>670</x>
+     <x>660</x>
      <y>40</y>
-     <width>200</width>
+     <width>271</width>
      <height>25</height>
     </rect>
    </property>
@@ -402,7 +402,7 @@
   <widget class="Line" name="line_4">
    <property name="geometry">
     <rect>
-     <x>640</x>
+     <x>630</x>
      <y>0</y>
      <width>20</width>
      <height>140</height>
@@ -421,10 +421,10 @@
   <widget class="QLabel" name="lbl_background_layer_2">
    <property name="geometry">
     <rect>
-     <x>670</x>
+     <x>660</x>
      <y>7</y>
-     <width>131</width>
-     <height>21</height>
+     <width>77</width>
+     <height>16</height>
     </rect>
    </property>
    <property name="font">
@@ -440,7 +440,7 @@
   <widget class="QPushButton" name="m_activate_text_filter">
    <property name="geometry">
     <rect>
-     <x>670</x>
+     <x>660</x>
      <y>80</y>
      <width>93</width>
      <height>28</height>
@@ -458,7 +458,7 @@
   <widget class="QPushButton" name="m_clear_text_filter">
    <property name="geometry">
     <rect>
-     <x>780</x>
+     <x>840</x>
      <y>80</y>
      <width>93</width>
      <height>28</height>
@@ -476,10 +476,10 @@
   <widget class="QCheckBox" name="m_category_filter_memory">
    <property name="geometry">
     <rect>
-     <x>530</x>
+     <x>540</x>
      <y>40</y>
-     <width>87</width>
-     <height>25</height>
+     <width>70</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -500,7 +500,7 @@
   <widget class="Line" name="line_5">
    <property name="geometry">
     <rect>
-     <x>890</x>
+     <x>940</x>
      <y>0</y>
      <width>20</width>
      <height>140</height>
@@ -521,8 +521,8 @@
     <rect>
      <x>1180</x>
      <y>80</y>
-     <width>136</width>
-     <height>25</height>
+     <width>108</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -540,10 +540,10 @@
   <widget class="QCheckBox" name="m_opening_new_configuration">
    <property name="geometry">
     <rect>
-     <x>910</x>
+     <x>960</x>
      <y>60</y>
-     <width>222</width>
-     <height>25</height>
+     <width>129</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -552,7 +552,7 @@
     </font>
    </property>
    <property name="text">
-    <string>opening new configuration</string>
+    <string>open configuration</string>
    </property>
    <property name="checked">
     <bool>true</bool>
@@ -563,8 +563,8 @@
     <rect>
      <x>1180</x>
      <y>60</y>
-     <width>100</width>
-     <height>25</height>
+     <width>78</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -582,10 +582,10 @@
   <widget class="QLabel" name="lbl_clear_eventlogafter">
    <property name="geometry">
     <rect>
-     <x>910</x>
+     <x>960</x>
      <y>40</y>
-     <width>152</width>
-     <height>21</height>
+     <width>131</width>
+     <height>16</height>
     </rect>
    </property>
    <property name="font">
@@ -595,7 +595,7 @@
     </font>
    </property>
    <property name="text">
-    <string>Clear eventlog after:</string>
+    <string>Clear eventlog before:</string>
    </property>
   </widget>
   <widget class="QLabel" name="lbl_add_to_each_trace">
@@ -603,8 +603,8 @@
     <rect>
      <x>1180</x>
      <y>40</y>
-     <width>166</width>
-     <height>21</height>
+     <width>128</width>
+     <height>16</height>
     </rect>
    </property>
    <property name="font">
@@ -620,10 +620,10 @@
   <widget class="QLabel" name="lbl_background_layer_3">
    <property name="geometry">
     <rect>
-     <x>910</x>
-     <y>7</y>
-     <width>178</width>
-     <height>21</height>
+     <x>1090</x>
+     <y>10</y>
+     <width>136</width>
+     <height>16</height>
     </rect>
    </property>
    <property name="font">
@@ -639,10 +639,10 @@
   <widget class="QCheckBox" name="m_reopening_current_configuration">
    <property name="geometry">
     <rect>
-     <x>910</x>
+     <x>960</x>
      <y>80</y>
-     <width>237</width>
-     <height>25</height>
+     <width>151</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
@@ -651,7 +651,7 @@
     </font>
    </property>
    <property name="text">
-    <string>reopen current configuration</string>
+    <string>reopen configuration</string>
    </property>
    <property name="checked">
     <bool>false</bool>
@@ -662,8 +662,8 @@
     <rect>
      <x>1180</x>
      <y>100</y>
-     <width>136</width>
-     <height>25</height>
+     <width>72</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="font">
