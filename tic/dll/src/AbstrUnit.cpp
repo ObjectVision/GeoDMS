@@ -243,15 +243,9 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 
 bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
-	dms_assert( GetInterestCount() );
+	assert( GetInterestCount() );
 
 	AbstrStorageManager* sm = smi->StorageManager();
-
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS PROVIDED TO %s",
-		GetSourceName().c_str()
-	,	sm->GetNameStr().c_str()
-	);	
-
 	return sm->WriteUnitRange(std::move(smi));
 }
 

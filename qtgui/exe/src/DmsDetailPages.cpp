@@ -209,6 +209,9 @@ SharedStr FindURL(const TreeItem* ti)
 
 void DmsDetailPages::drawPage()
 {
+    if (!MainWindow::IsExisting())
+        return;
+
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (!current_item)
         return;

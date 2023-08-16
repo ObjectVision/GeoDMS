@@ -1278,7 +1278,7 @@ bool TreeItem::IsStorable() const
 		if (self == storageParent)
 			return true;
 		self = self->GetTreeParent();
-		dms_assert(self);
+		assert(self);
 	}
 }
 
@@ -3467,7 +3467,7 @@ bool TreeItem::HasCurrConfigData() const
 
 bool TreeItem::CommitDataChanges() const
 {
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo);
 	if	(	(m_State.GetProgress() < PS_Committed)
 		&&  IsStorable()
 		&&	!IsDataReadable()
@@ -3478,9 +3478,9 @@ bool TreeItem::CommitDataChanges() const
 
 		const TreeItem* storageHolder = GetStorageParent(true);
 		bool            hasCalculator = HasCalculator();
-		dms_assert(storageHolder); // guaranteed by IsStorable();
+		assert(storageHolder); // guaranteed by IsStorable();
 		const AbstrStorageManager* sm = storageHolder->GetStorageManager();
-		dms_assert(sm); // guaranteed by IsStorable();
+		assert(sm); // guaranteed by IsStorable();
 
 		if (hasCalculator || IsDataReady(this) && !GetCurrRangeItem()->WasFailed(FR_Committed))
 		{
