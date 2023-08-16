@@ -118,7 +118,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 void MsgDispatch(MsgData* msgData)
 {
 	assert(msgData);
-	assert((msgData->st == SeverityTypeID::ST_Nothing) || IsMainThread());
+	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMainThread());
 	if (!g_MsgCallbacks)
 		return;
 
@@ -331,11 +331,11 @@ DebugOutStream::scoped_lock::~scoped_lock()
 			}
 
 		private:
-			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, MsgData* msgData)
+			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, const MsgData* msgData)
 			{
-				auto st = msgData->st; 
-				auto msgCat = msgData->cat;
-				auto msg = msgData->msg.c_str();
+				auto st = msgData->m_SeverityType; 
+				auto msgCat = msgData->m_MsgCategory;
+				auto msg = msgData->m_Txt.c_str();
 				if (st != SeverityTypeID::ST_Nothing) // ST_MinorTrace, ST_MajorTrace, ST_Warning, ST_Error, ST_FatalError, ST_Nothing
 				{
 					_RPT0(_CRT_WARN, "\n");

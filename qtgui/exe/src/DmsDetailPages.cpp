@@ -505,7 +505,7 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
     // log link action
 #if defined(_DEBUG)
     MainWindow::TheOne()->m_eventlog_model->addText(
-        SeverityTypeID::ST_MajorTrace, MsgCategory::other, StreamableDateTime(), GetThreadID(), linkStr.data()
+        SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
     );
 #endif
 
