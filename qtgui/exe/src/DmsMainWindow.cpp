@@ -963,17 +963,38 @@ void MainWindow::config_options()
 
 void MainWindow::code_analysis_set_source()
 {
-   TreeItem_SetAnalysisSource(getCurrentTreeItem());
+   try 
+   {
+       TreeItem_SetAnalysisSource(getCurrentTreeItem());
+   }
+   catch (...)
+   {
+       auto errMsg = catchException(false);
+   }
 }
 
 void MainWindow::code_analysis_set_target()
 {
-    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), true);
+    try
+    {
+        TreeItem_SetAnalysisTarget(getCurrentTreeItem(), true);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+    }
 }
 
 void MainWindow::code_analysis_add_target()
 {
-    TreeItem_SetAnalysisTarget(getCurrentTreeItem(), false);
+    try
+    {
+        TreeItem_SetAnalysisTarget(getCurrentTreeItem(), false);
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+    }
 }
 
 void MainWindow::code_analysis_clr_targets()
