@@ -783,7 +783,7 @@ bool MainWindow::event(QEvent* event)
 {
     if (event->type() == QEvent::WindowActivate)
     {
-        QTimer::singleShot(500, this, [=]() 
+        QTimer::singleShot(0, this, [=]() 
             { 
                 auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
                 if (vos.CurrPos())
