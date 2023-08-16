@@ -270,11 +270,14 @@ QDmsViewArea::~QDmsViewArea()
     RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
     auto main_window = MainWindow::TheOne();
-    auto active_subwindow = main_window->m_mdi_area->activeSubWindow();
-    if (!active_subwindow)
+    if (main_window) // not already closed ?
     {
-        main_window->scheduleUpdateToolbar();
-        main_window->m_current_toolbar_style = ViewStyle::tvsUndefined;
+        auto active_subwindow = main_window->m_mdi_area->activeSubWindow();
+        if (!active_subwindow)
+        {
+            main_window->scheduleUpdateToolbar();
+            main_window->m_current_toolbar_style = ViewStyle::tvsUndefined;
+        }
     }
 }
 
