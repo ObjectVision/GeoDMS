@@ -272,7 +272,9 @@ public:
         , m_gui_options_action, m_advanced_options_action, m_config_options_action
         , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
         , m_quit_action
-        , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action;
+        , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
+        , m_eventlog_filter_toggle;
+
 
     // unique application objects
     std::unique_ptr<QDmsMdiArea> m_mdi_area;

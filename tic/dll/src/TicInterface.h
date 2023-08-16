@@ -203,6 +203,7 @@ TIC_CALL void     DMS_CONV DMS_TreeItem_SetDescr(TreeItem* self, CharPtr descrip
 TIC_CALL void     DMS_CONV DMS_TreeItem_SetExpr (TreeItem* self, CharPtr expression);
 
 // TreeItem status management
+TIC_CALL UInt32		 DMS_CONV TreeItem_GetProgressState(const TreeItem* self);
 TIC_CALL void        DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self);
 TIC_CALL UInt32      DMS_CONV DMS_TreeItem_GetProgressState(const TreeItem* self);
 TIC_CALL bool        DMS_CONV DMS_TreeItem_IsFailed(const TreeItem* self);

@@ -277,7 +277,7 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
 	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str)) // TODO: replace hardcoded 20 characters to get past strings that are ie. EPSG:XXXX
-		reportF(SeverityTypeID::ST_Warning, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
+		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
 void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const

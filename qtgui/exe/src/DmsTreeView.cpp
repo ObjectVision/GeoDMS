@@ -308,25 +308,53 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
 	QStyledItemDelegate::paint(painter, option, index);
-	return;
-	//QStyleOptionViewItem opt = option;
-	//initStyleOption(&opt, index);
 
-	
+	// draw storage icon applicable
+	auto ti = GetTreeItem(index);
+	const TreeItem* storageHolder = nullptr;
+	if (ti->HasStorageManager())
+		storageHolder = ti;
+	else
+	{
+		auto parent = ti->GetTreeParent();
+		if (!parent) // root has no parent
+			return;
+		if (parent->HasStorageManager())
+			storageHolder = parent;
+	}
+
+	if (!storageHolder)
+		return;
+
+	bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
+	if (is_read_only && ti->HasCalculator())
+		return;
+
+	if (ti->IsDisabledStorage())
+		return;
 
 	painter->save();
-	auto ti = GetTreeItem(index);
-	painter->setRenderHint(QPainter::Antialiasing, true);
-	if (option.state & QStyle::State_Selected)
-		painter->fillRect(option.rect, option.palette.highlightedText());
+	QFontMetrics fm(QApplication::font());
+	int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 
-	//if (option.state & QStyle::State_MouseOver)
-	//	painter->fillRect(option.rect, option.palette.highlightedText());
-
-	//painter->translate(option.rect.x(), option.rect.y());
+	auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
+	int offset_icon = item_icon.width();
+	auto rect = option.rect;
+	auto cur_brush = painter->brush();
+	auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
+	auto storage_icon = QImage(item_icon.size(), QImage::Format::Format_ARGB32);
+	storage_icon.load(":/res/images/TV_storage_unstored.png");
 	
-	painter->drawText(option.rect.topLeft().x(), option.rect.topLeft().y(), option.rect.topRight().x()-option.rect.topLeft().x(), option.rect.topLeft().y()-option.rect.bottomLeft().y(), Qt::AlignCenter, ti->GetName().c_str());
+	// set transparancy if not committed yet
+	NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
+	if (ti_state < NotificationCode::NC2_DataReady)
+		painter->setOpacity(0.5);
+
+	painter->drawImage(QRect(QPoint(offset, rect.topLeft().y()+2), QSize(item_icon.size().width()-4, item_icon.size().height()-4)), storage_icon);
+	//QLineF line(rect.topLeft().x() + offset_icon + offset_item_text + 15, rect.topLeft().y(), rect.bottomRight().x(), rect.bottomRight().y());
+	//painter->drawLine(line);
 	painter->restore();
+	return;
 }
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
@@ -430,6 +458,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 		"}"
 		"QTreeView {"
 		"           padding-top: 5px;"
+		"           background-color: transparent;"
 		"}");
 }
 

@@ -74,5 +74,6 @@
         <file>res/images/arrow_down.png</file>
         <file>res/images/EL_selection.bmp</file>
         <file>res/images/GeoDmsGuiQt.png</file>
+        <file>res/images/TV_storage_unstored.png</file>
     </qresource>
 </RCC>
