@@ -102,6 +102,7 @@ struct CmdLineSetttings {
     bool m_NoConfig = false;
     SharedStr m_ConfigFileName;
     std::vector<SharedStr> m_CurrItemFullNames;
+    SharedStr m_TestScriptName;
 };
 
 class DmsFileChangedWindow : public QDialog

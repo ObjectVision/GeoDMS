@@ -108,6 +108,9 @@
     <ClCompile Include="src\main_qt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\TestScript.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">

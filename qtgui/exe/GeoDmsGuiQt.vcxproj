@@ -170,6 +170,7 @@
     <ClCompile Include="src\qt_advanced_docking_system\IconProvider.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\PushButton.cpp" />
     <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp" />
+    <ClCompile Include="src\TestScript.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />

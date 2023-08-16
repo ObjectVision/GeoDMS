@@ -13,6 +13,9 @@
 
 #include "DmsMainWindow.h"
 
+int RunTestScript(SharedStr testScriptName);
+
+
 struct CmdLineException : std::exception
 {
     using std::exception::exception; // inherit constructors
@@ -27,15 +30,20 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
 
     std::any result;
 
-    CharPtr firstParam = argv[0];
-    if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'L')
     {
-        SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+        SharedStr dmsLogFileName = ConvertDosFileName(SharedStr((*argv) + 2));
 
         auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str())); //TODO: move to appropriate location, with lifetime of app
         result = make_noncopyable_any<decltype(log_file_handle)>(std::move(log_file_handle));
 
         SetCachedStatusFlag(RSF_TraceLogFile);
+        argc--; argv++;
+    }
+
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'T')
+    {
+        settingsFrame.m_TestScriptName = ConvertDosFileName(SharedStr((*argv) + 2));
         argc--; argv++;
     }
 
@@ -135,11 +143,13 @@ protected:
     }
 };
 
+#include <future>
+
 int main(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
-        std::any geoDmsResources; // destruct resources after app completion
+        garbage_t geoDmsResources; // destruct resources after app completion
 
         CustomEventFilter navive_event_filter;
         DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
@@ -147,7 +157,7 @@ int main(int argc, char *argv[])
         QApplication dms_app(argc, argv);
         //dms_app.setStyle("macos");
 
-        geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
+        geoDmsResources |= init_geodms(dms_app, settingsFrame); // destruct resources after app completion
         dms_app.installNativeEventFilter(&navive_event_filter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
@@ -157,7 +167,19 @@ int main(int argc, char *argv[])
 
         dms_app.installEventFilter(&mouse_forward_backward_event_filter);
 
-        return dms_app.exec();
+        auto tsn = settingsFrame.m_TestScriptName;
+        std::future<int> testResult;
+        if (!tsn.empty())
+        {
+            testResult = std::async([tsn] { return RunTestScript(tsn);  });
+        }
+        auto result = dms_app.exec();
+        if (tsn.empty())
+        {
+            if (!result)
+                result = testResult.get();
+        }
+        return result;
     }
     catch (const CmdLineException& x)
     {
@@ -165,4 +187,5 @@ int main(int argc, char *argv[])
         std::cout << "expected syntax:" << std::endl;
         std::cout << "GeoDmsGuiQt.exe [options] configFileName.dms [item]" << std::endl;
     }
+    return 9;
 }
