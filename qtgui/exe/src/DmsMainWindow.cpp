@@ -1867,6 +1867,16 @@ void MainWindow::updateFileMenu()
 
 void MainWindow::updateViewMenu()
 {
+    // disable actions not applicable to current item
+    auto ti_is_or_is_in_template = m_current_item->InTemplate() && m_current_item->IsTemplate();
+    m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
+    m_update_subtree_action->setDisabled(ti_is_or_is_in_template);
+    m_invalidate_action->setDisabled(ti_is_or_is_in_template);
+    m_defaultview_action->setDisabled(ti_is_or_is_in_template);
+    m_tableview_action->setDisabled(ti_is_or_is_in_template);
+    m_mapview_action->setDisabled(ti_is_or_is_in_template);
+    m_statistics_action->setDisabled(ti_is_or_is_in_template);
+
     m_toggle_treeview_action->setChecked(m_treeview->isVisible());
     m_toggle_detailpage_action->setChecked(m_detail_pages->isVisible());
     m_toggle_eventlog_action->setChecked(m_eventlog->isVisible());
