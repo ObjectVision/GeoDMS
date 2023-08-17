@@ -446,7 +446,7 @@ auto getGeoDMSAboutText() -> std::string
     return { buff.GetData(), buff.GetDataEnd() };
 }
 
-void MainWindow::aboutGeoDms()
+void MainWindow::aboutGeoDms() 
 {
     auto dms_about_text = getGeoDMSAboutText();
     dms_about_text += "- GeoDms icon obtained from: World icons created by turkkub-Flaticon https://www.flaticon.com/free-icons/world";

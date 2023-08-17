@@ -255,7 +255,7 @@ private:
     SharedPtr<TreeItem> m_root;
     SharedPtr<TreeItem> m_current_item;
 
-public:
+public: 
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock, m_value_info_dock;
 
