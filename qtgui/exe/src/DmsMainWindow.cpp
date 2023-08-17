@@ -957,7 +957,7 @@ void MainWindow::advanced_options()
 
 void MainWindow::config_options()
 {
-    auto optionsWindow = new DmsConfigOptionsWindow (this);
+    auto optionsWindow = new DmsConfigOptionsWindow(this);
     optionsWindow->show();
 }
 
