@@ -449,6 +449,7 @@ auto getGeoDMSAboutText() -> std::string
 void MainWindow::aboutGeoDms()
 {
     auto dms_about_text = getGeoDMSAboutText();
+    dms_about_text += "- GeoDms icon obtained from: World icons created by turkkub-Flaticon https://www.flaticon.com/free-icons/world";
     QMessageBox::about(this, tr("About GeoDms"),
             tr(dms_about_text.c_str()));
 }
@@ -1762,14 +1763,20 @@ void MainWindow::createActions()
     m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
     connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
     m_code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
-
+    m_code_analysis_set_source_action->setShortcut(QKeySequence(tr("Alt+K")));
+    m_code_analysis_set_source_action->setShortcutContext(Qt::ApplicationShortcut);
+    this->addAction(m_code_analysis_set_source_action.get());
     m_code_analysis_set_target_action = std::make_unique<QAction>(tr("set target"));
+    m_code_analysis_set_target_action->setShortcut(QKeySequence(tr("Alt+B")));
+    m_code_analysis_set_target_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
     m_code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
 
     m_code_analysis_add_target_action = std::make_unique<QAction>(tr("add target"));
     connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
     m_code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
+    m_code_analysis_add_target_action->setShortcut(QKeySequence(tr("Alt+N")));
+    m_code_analysis_add_target_action->setShortcutContext(Qt::ApplicationShortcut);
 
     m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target")); 
     connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
