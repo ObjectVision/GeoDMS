@@ -28,7 +28,7 @@
 #define new MYDEBUG_NEW 
 #endif*/
 
-#include "DmsMainWindow.h"
+#include "DmsMainWindow.h" 
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
