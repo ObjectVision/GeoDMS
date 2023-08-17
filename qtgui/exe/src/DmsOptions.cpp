@@ -513,12 +513,25 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
 
     auto grid_layout = new QGridLayout(this);
     grid_layout->setVerticalSpacing(0);
+    auto header = new QLabel("Settings for user and local machine specific overridden values", this);
+    auto line = new QFrame(this);
+    QSizePolicy size_policy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    size_policy.setHorizontalStretch(0);
+    size_policy.setVerticalStretch(0);
+    size_policy.setHeightForWidth(line->sizePolicy().hasHeightForWidth());
+    line->setSizePolicy(size_policy);
+    line->setFrameShadow(QFrame::Sunken);
+    line->setLineWidth(2);
+    line->setFrameShape(QFrame::HLine);
 
-    grid_layout->addWidget(new QLabel("Option", this), 0, 0);
-    grid_layout->addWidget(new QLabel("Override", this), 0, 1);
-    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
+    grid_layout->addWidget(header, 0, 0, 1, 3);
+    grid_layout->addWidget(line, 1, 0, 2, 3);
 
-    unsigned int nrRows = 1;
+    grid_layout->addWidget(new QLabel("Option", this), 4, 0);
+    grid_layout->addWidget(new QLabel("Override", this), 4, 1);
+    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 4, 2);
+
+    unsigned int nrRows = 5;
 
     auto tiCursor = getFirstOverridableOption();
     if (tiCursor)

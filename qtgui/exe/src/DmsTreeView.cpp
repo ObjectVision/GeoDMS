@@ -478,11 +478,11 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 
-//REMOVE	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
+	auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
 
 	// export primary data
 	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	auto item_can_be_exported = !ti->WasFailed() && !ti->InTemplate() && !ti->IsTemplate() && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
+	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
 	m_context_menu->addAction(export_primary_data_action);
 
@@ -504,32 +504,41 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
 	m_context_menu->addAction(edit_config_source);
 	m_context_menu->addSeparator();
+
 	// update treeitem
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
+	update_treeitem->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(update_treeitem);
 
 	// update subtree
 	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
+	m_context_menu->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(update_subtree);
 
 	// invalidate 
 	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
+	invalidate->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(invalidate);
 	m_context_menu->addSeparator();
+
 	// default view
 	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
+	default_view_action->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(default_view_action);
 
 	// table view
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
+	table_view_action->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(table_view_action);
 
 	// map view
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
+	map_view_action->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(map_view_action);
 
 	// statistics view
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
+	statistics_view_action->setDisabled(ti_is_or_is_in_template);
 	m_context_menu->addAction(statistics_view_action);
 //	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
