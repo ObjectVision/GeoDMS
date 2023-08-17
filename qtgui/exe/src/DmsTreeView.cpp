@@ -469,7 +469,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 		return;
 
 	if (!m_context_menu)
-		m_context_menu = new QMenu(MainWindow::TheOne()); // TODO: does this get properly destroyed if parent gets destroyed?
+		m_context_menu = new QMenu(MainWindow::TheOne());
 
 	m_context_menu->clear();
 
