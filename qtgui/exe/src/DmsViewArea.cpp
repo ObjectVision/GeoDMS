@@ -160,6 +160,11 @@ void QDmsMdiArea::setTabbedViewModeStyle()
     }
 }
 
+QSize QDmsMdiArea::sizeHint() const
+{
+    return QSize(500, 0);
+}
+
 void QDmsMdiArea::onCascadeSubWindows()
 {
     setViewMode(QMdiArea::ViewMode::SubWindowView);

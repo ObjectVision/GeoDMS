@@ -2051,17 +2051,31 @@ void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
-
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
+    m_detail_pages->setMinimumWidth(0);
+    m_detailpages_dock->setMinimumWidth(0);
     m_detailpages_dock->setWidget(m_detail_pages);
-    //m_detail_pages->minimumSizeHint() = QSize(20,20);
-    addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
+    splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
+
     m_detail_pages->connectDetailPagesAnchorClicked();
+}
+
+void MainWindow::createValueInfoDock()
+{
+    m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
+    m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
+    m_value_info_dock->setMinimumWidth(0);
+    m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
+    m_value_info_mdi_area->setMinimumWidth(0);
+    m_value_info_dock->setWidget(m_value_info_mdi_area);
+    addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
 {
+    createValueInfoDock();
     createDetailPagesDock();
+
 //    m_detail_pages->setDummyText();
 
     m_treeview = createTreeview(this);

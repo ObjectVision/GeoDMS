@@ -390,7 +390,7 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 
 QSize DmsDetailPages::sizeHint() const
 {
-    return QSize(500, 20);
+    return QSize(500, 0);
 }
 
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)

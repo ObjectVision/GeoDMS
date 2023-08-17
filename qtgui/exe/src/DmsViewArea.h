@@ -19,6 +19,8 @@ public:
     void dropEvent(QDropEvent* event) override;
     void closeAllButActiveSubWindow();
     void setTabbedViewModeStyle();
+    QSize sizeHint() const override;
+
 
 public slots:
     void onCascadeSubWindows();
