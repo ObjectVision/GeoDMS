@@ -278,7 +278,7 @@ public:
 
 
     // unique application objects
-    std::unique_ptr<QDmsMdiArea> m_mdi_area;
+    QPointer<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
@@ -304,7 +304,6 @@ public:
 private:
     std::vector<processing_record> m_processing_records;
 
-    QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;

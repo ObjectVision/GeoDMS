@@ -347,10 +347,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
-	auto vertical_layout = new QVBoxLayout();
-	auto grid_layout = new QGridLayout();
-
-	auto eventlog_toolbar = new QVBoxLayout();
+	auto vertical_layout = new QVBoxLayout(this);
+	auto grid_layout = new QGridLayout(this);
+	auto eventlog_toolbar = new QVBoxLayout(this);
 	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
 	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
 	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());

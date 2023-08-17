@@ -5,6 +5,11 @@
 #include "StgBase.h"
 #include "AbstrDataItem.h"
 
+#include "Unit.h"
+#include "UnitClass.h"
+#include "utl/Registry.h"
+#include "DmsMainWindow.h"
+
 #include <QCheckBox>
 #include <QPushButton>
 #include <QSlider>
@@ -489,11 +494,6 @@ void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
     setChanged(true);
 }
 //======== END ADVANCED OPTIONS WINDOW ========
-
-#include "Unit.h"
-#include "UnitClass.h"
-#include "utl/Registry.h"
-#include "DmsMainWindow.h"
 
 //======== BEGIN CONFIG OPTIONS WINDOW ========
 

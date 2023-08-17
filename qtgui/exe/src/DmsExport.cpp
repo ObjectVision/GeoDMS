@@ -7,6 +7,8 @@
 #include "TicInterface.h"
 #include "ShvDllInterface.h"
 
+#include <filesystem>
+
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
@@ -146,8 +148,6 @@ void DoExportTableorDatabaseToCSV(const TreeItem* tableOrDatabaseItem, SharedStr
             DoExportTableToCSV(tableItem, subFileName);
         }
 }
-
-#include <filesystem>
 
 void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 {

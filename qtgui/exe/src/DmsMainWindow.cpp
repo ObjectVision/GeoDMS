@@ -1,4 +1,3 @@
-// dms
 #include "RtcInterface.h"
 #include "StxInterface.h"
 #include "TicInterface.h"
@@ -24,6 +23,11 @@
 #include <QMdiArea>
 #include <QPixmap>
 
+/*#include "dms_memory_leak_debugging.h" // explicitly detect unparented QObjects
+#ifdef _DEBUG
+#define new MYDEBUG_NEW 
+#endif*/
+
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
@@ -37,6 +41,8 @@
 #include <regex>
 
 #include "dataview.h"
+
+
 
 static MainWindow* s_CurrMainWindow = nullptr;
 
@@ -72,10 +78,10 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
-    m_ignore = new QPushButton(tr("&Ignore"));
+    m_ignore = new QPushButton(tr("&Ignore"), this);
     m_ignore->setMaximumSize(75, 30);
 
-    m_reopen = new QPushButton(tr("&Reopen"));
+    m_reopen = new QPushButton(tr("&Reopen"), this);
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
     m_reopen->setAutoDefault(true);
@@ -141,12 +147,12 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
-    m_ignore = new QPushButton("Ignore");
+    m_ignore = new QPushButton("Ignore", this);
     m_ignore->setMaximumSize(75, 30);
-    m_terminate = new QPushButton("Terminate");
+    m_terminate = new QPushButton("Terminate", this);
     m_terminate->setMaximumSize(75, 30);
 
-    m_reopen = new QPushButton("Reopen");
+    m_reopen = new QPushButton("Reopen", this);
     m_reopen->setAutoDefault(true);
     m_reopen->setDefault(true);
 
@@ -172,7 +178,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
 
-    m_mdi_area = std::make_unique<QDmsMdiArea>(this);
+    m_mdi_area = new QDmsMdiArea(this);
 
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
@@ -453,7 +459,7 @@ void MainWindow::wiki()
 }
 
 DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
-    :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str())
+    :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str(), parent)
 {
     m_cfg_file_path = dms_file_full_path;
 }
@@ -468,6 +474,7 @@ DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text,
     : QAction(icon, text, parent)
 {
     assert(button_data.text.size()==2);
+    assert(parent);
 
     if (vs == ViewStyle::tvsTableView)
         setStatusTip(button_data.text[0]);
@@ -720,9 +727,6 @@ void MainWindow::updateToolbar()
         return;
 
     m_tooled_mdi_subwindow = active_mdi_subwindow;
-
-    //m_toolbar->clear();
-
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     if (!active_dms_view_area)
     {
@@ -749,7 +753,6 @@ void MainWindow::updateToolbar()
     auto first_toolbar_detail_pages_action = m_dms_toolbar_spacer_action.get();
     for (auto button_id : available_buttons)
     {
-        //auto button_id = *button_id_ptr++;
         if (button_id == TB_Undefined)
         {
             QWidget* spacer = new QWidget(this);
@@ -1175,7 +1178,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
-        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, this); // TODO: possible source of memory leaks
+        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, m_file_menu.get());
         connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(new_recent_file_action);
         m_recent_files_actions.prepend(new_recent_file_action);
@@ -1211,7 +1214,7 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
-            m_treeview->setItemDelegate(new TreeItemDelegate());
+            m_treeview->setItemDelegate(new TreeItemDelegate(m_treeview));
             m_treeview->setModel(m_dms_model.get());
             m_treeview->setRootIndex(m_treeview->rootIndex().parent());
             m_treeview->scrollTo({});
@@ -1298,7 +1301,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     if (openErrorOnFailedCurrentItem())
         return;
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
     auto* textWidget = new StatisticsBrowser(mdiSubWindow);
     textWidget->m_Context = tiContext;
     tiContext->PrepareData();
@@ -1368,7 +1371,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
  
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: no parent, memory leak
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow);
     textWidget->m_Context = Explain::CreateContext();
     textWidget->m_StudyObject = studyObject;
@@ -1489,7 +1492,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         assert(IsMainThread());
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
-        new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
+        new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct); // TODO: no parent, memory leak
         return;
     }
     case CC_Activate:
@@ -1768,7 +1771,7 @@ void MainWindow::createActions()
     connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
     m_code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
 
-    m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target"));
+    m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target")); 
     connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
     m_code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
 
@@ -1779,48 +1782,51 @@ void MainWindow::createActions()
     // window menu
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
     menuBar()->addMenu(m_window_menu.get());
-    auto win1_action = new QAction(tr("&Tile Windows"), this);
+    auto win1_action = new QAction(tr("&Tile Windows"), m_window_menu.get());
     win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     win1_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
-    //auto win2_action = new QAction(tr("&Tile Vertical"), this);
-    //win2_action->setShortcut(QKeySequence(tr("Ctrl+Alt+V")));
-    auto win3_action = new QAction(tr("&Cascade"), this);
-    win3_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    win3_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
+    auto win2_action = new QAction(tr("&Cascade"), m_window_menu.get());
+    win2_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    win2_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(win2_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
-    auto win4_action = new QAction(tr("&Close"), this);
-    win4_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    //win4_action->setShortcutContext(Qt::ApplicationShortcut);
-    //auto close_active_view_shortcut = new QShortcut(QKeySequence(tr("Ctrl+W")), this);
-    //connect(close_active_view_shortcut, &QShortcut::activated, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
-    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
+    auto win3_action = new QAction(tr("&Close"), m_window_menu.get());
+    win3_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
 
-    auto win5_action = new QAction(tr("&Close All"), this);
-    win5_action->setShortcut(QKeySequence(tr("Ctrl+L")));
+    auto win4_action = new QAction(tr("&Close All"), m_window_menu.get());
+    win4_action->setShortcut(QKeySequence(tr("Ctrl+L")));
+    win4_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
+
+    auto win5_action = new QAction(tr("&Close All But This"), m_window_menu.get());
+    win5_action->setShortcut(QKeySequence(tr("Ctrl+B")));
     win5_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
+    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
 
-    auto win6_action = new QAction(tr("&Close All But This"), this);
-    win6_action->setShortcut(QKeySequence(tr("Ctrl+B")));
-    win6_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win6_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
-
-    m_window_menu->addActions({win1_action, win3_action, win4_action, win5_action});
+    m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
     m_window_menu->addSeparator();
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
 
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
     menuBar()->addMenu(m_help_menu.get());
-    QAction *aboutAct = m_help_menu->addAction(tr("&About GeoDms"), this, &MainWindow::aboutGeoDms); // TODO: ownership not transferred using add action likely a memory leaks
-    aboutAct->setStatusTip(tr("Show the application's About box"));
-    QAction *aboutQtAct = m_help_menu->addAction(tr("About &Qt"), qApp, &QApplication::aboutQt);
-    aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
-    QAction* wikiAct = m_help_menu->addAction(tr("&Wiki"), this, &MainWindow::wiki);
-    wikiAct->setStatusTip(tr("Open the GeoDms wiki in a browser"));
+    auto about_action = new QAction(tr("&About GeoDms"), m_help_menu.get());
+    about_action->setStatusTip(tr("Show the application's About box"));
+    connect(about_action, &QAction::triggered, this, &MainWindow::aboutGeoDms);
+    m_help_menu->addAction(about_action);
+    
+    auto aboutQt_action = new QAction(tr("About &Qt"), m_help_menu.get());
+    aboutQt_action->setStatusTip(tr("Show the Qt library's About box"));
+    connect(aboutQt_action, &QAction::triggered, qApp, &QApplication::aboutQt);
+    m_help_menu->addAction(aboutQt_action);
+
+    auto wiki_action = new QAction(tr("&Wiki"), m_help_menu.get());
+    wiki_action->setStatusTip(tr("Open the GeoDms wiki in a browser"));
+    connect(wiki_action, &QAction::triggered, this, &MainWindow::wiki);
+    m_help_menu->addAction(wiki_action);
 }
 
 void MainWindow::updateFileMenu()
@@ -1841,7 +1847,7 @@ void MainWindow::updateFileMenu()
     size_t recent_file_index = 1;
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, this);
+        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, m_file_menu.get());
         connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
         m_file_menu->addAction(qa);
         m_recent_files_actions.append(qa);
@@ -1878,17 +1884,20 @@ void MainWindow::updateToolsMenu()
 
 void MainWindow::updateWindowMenu()
 {
-    for (auto* swPtr : m_CurrWindowActions)
-    {
-        m_window_menu->removeAction(swPtr);
-        delete swPtr;
-    }
-    m_CurrWindowActions.clear(); // delete old actions;
+    // clear non persistent actions from window menu
+    auto actions_to_remove = QList<QAction*>();
+    int number_of_persistent_actions = 5;
+    for (int i=number_of_persistent_actions; i<m_window_menu->actions().size(); i++)
+        actions_to_remove.append(m_window_menu->actions().at(i));
 
+    for (auto to_be_removed_action : actions_to_remove)
+        m_window_menu->removeAction(to_be_removed_action);
+
+    // reinsert window actions
     auto asw = m_mdi_area->currentSubWindow();
     for (auto* sw : m_mdi_area->subWindowList())
     {
-        auto qa = new QAction(sw->windowTitle(), this);
+        auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         if (sw == asw)
         {
@@ -1896,9 +1905,7 @@ void MainWindow::updateWindowMenu()
             qa->setChecked(true);
         }
         m_window_menu->addAction(qa);
-        m_CurrWindowActions.append(qa);
     }
-    m_window_menu->addActions(m_CurrWindowActions);
 }
 
 bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName)
@@ -2010,7 +2017,7 @@ void MainWindow::view_calculation_times()
     }
     os << char(0); // ends
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setText(vosb.GetData());
