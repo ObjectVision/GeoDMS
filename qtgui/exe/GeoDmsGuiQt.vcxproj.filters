@@ -216,7 +216,7 @@
     <ResourceCompile Include="GeoDmsGuiQt.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="res\icons\GeoDmsGui.ico" />
+    <Image Include="res\icons\GeoDmsGuiQt.ico" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="res\ui\DmsConfigOptionsWindow.ui">

@@ -255,12 +255,11 @@ private:
     SharedPtr<TreeItem> m_root;
     SharedPtr<TreeItem> m_current_item;
 
-public:
+public: 
     // helper window docks
-    QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock;
+    QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock, m_value_info_dock;
 
-    std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_help_menu
-        , m_code_analysis_submenu;
+    std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_help_menu, m_code_analysis_submenu;
 
     // shared actions
     std::unique_ptr<QAction> m_export_primary_data_action
@@ -278,7 +277,7 @@ public:
 
 
     // unique application objects
-    std::unique_ptr<QDmsMdiArea> m_mdi_area;
+    QPointer<QDmsMdiArea> m_mdi_area;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
@@ -304,7 +303,6 @@ public:
 private:
     std::vector<processing_record> m_processing_records;
 
-    QList<QAction*> m_CurrWindowActions;
     QList<DmsRecentFileButtonAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
