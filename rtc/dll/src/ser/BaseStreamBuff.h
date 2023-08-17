@@ -63,7 +63,7 @@ public:
 	RTC_CALL virtual WeakStr FileName();
 	RTC_CALL virtual bool    AtEnd() const = 0;
 	void WriteByte(Byte data) { WriteBytes(&data, 1); }
-	void WriteBytes(CharPtr cstr) { WriteBytes(cstr, StrLen(cstr)); }
+	RTC_CALL void WriteBytes(CharPtr cstr);
 };
 
 #endif // __RTC_SER_BASESTREAMBUFF

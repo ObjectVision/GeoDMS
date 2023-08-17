@@ -9,6 +9,7 @@
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
+#include "xct/ErrMsg.h"
 
 #include "ShvDllInterface.h"
 #include "ShvUtils.h"
@@ -188,7 +189,7 @@ int main(int argc, char *argv[])
     catch (...)
     {
         auto msg = catchException(false);
-        std::cout << "cmd line error " << msg->What() << std::endl;
+        std::cout << "cmd line error " << msg->Why() << std::endl;
         std::cout << "expected syntax:" << std::endl;
         std::cout << "GeoDmsGuiQt.exe [options] configFileName.dms [item]" << std::endl;
     }

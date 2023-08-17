@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/Check.h"
 #include "ser/BaseStreamBuff.h"
-
+#include "ptr/SharedStr.h"
 struct SafeFileWriterArray;
 
 #include <fstream>
