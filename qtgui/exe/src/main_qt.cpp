@@ -4,16 +4,18 @@
 #include <QByteArray>
 #include <memory>
 
-#include "ShvDllInterface.h"
 #include "act/Any.h"
+#include "dbg/DebugLog.h"
+#include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
-#include "dbg/DebugLog.h"
+
+#include "ShvDllInterface.h"
 #include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
 
-int RunTestScript(SharedStr testScriptName);
+int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
 
 
 struct CmdLineException : std::exception
@@ -171,7 +173,9 @@ int main(int argc, char *argv[])
         std::future<int> testResult;
         if (!tsn.empty())
         {
-            testResult = std::async([tsn] { return RunTestScript(tsn);  });
+            HWND hwDispatch = (HWND)(MainWindow::TheOne()->winId());
+            assert(hwDispatch);
+            testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
         auto result = dms_app.exec();
         if (tsn.empty())
@@ -181,9 +185,10 @@ int main(int argc, char *argv[])
         }
         return result;
     }
-    catch (const CmdLineException& x)
+    catch (...)
     {
-        std::cout << "cmd line error " << x.what() << std::endl;
+        auto msg = catchException(false);
+        std::cout << "cmd line error " << msg->What() << std::endl;
         std::cout << "expected syntax:" << std::endl;
         std::cout << "GeoDmsGuiQt.exe [options] configFileName.dms [item]" << std::endl;
     }

@@ -24,7 +24,9 @@
 #include <QMdiArea>
 #include <QPixmap>
 
+
 #include "DmsMainWindow.h"
+#include "TestScript.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"

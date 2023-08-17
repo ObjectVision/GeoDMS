@@ -1,22 +1,9 @@
-#include <QApplication>
-#include <QAbstractNativeEventFilter>
-#include <QResource>
-#include <QByteArray>
-#include <memory>
-
-#include "ShvDllInterface.h"
-#include "act/Any.h"
-#include "utl/Environment.h"
-#include "utl/splitPath.h"
-#include "dbg/DebugLog.h"
-#include "ShvUtils.h"
-
 #include "DmsMainWindow.h"
 
 #include "ser/FormattedStream.h"
 #include "ser/FileStreamBuff.h"
+#include "TestScript.h"
 
-using stx_error = std::exception;
 
 void reportErr(CharPtr errMsg)
 {
@@ -44,25 +31,11 @@ UINT32 str2int(CharPtr str)
 	throw stx_error(mgFormat2string("numeric value expected at %1%", str).c_str());
 }
 
-enum class CommandCode {
-	// MSG, WPARAM, LPARAM, 
-	SendApp = 0,
-	SendMain = 1,
-	SendFocus = 2,
-	SendActiveDmsControl = 3,
-	CopyActiveDmsControl = 4, // MSG=WM_COPYDATA, WPARAM=WindowHandle, LPARAM=cds(nrRemainingNumbers, {numbers})
-	DefaultView = 5,
-	GOTO = 6,
-	EXPAND = 8,
-	DP = 9, // followed by integer page number.
-	SAVE_DP = 10
-};
-
-int PassMsg(int argc, char* argv[])
+int PassMsg(int argc, char* argv[], HWND hwDispatch)
 {
-	assert(argc > 1);
+	assert(argc > 0);
 
-	int i = 1;
+	int i = 0;
 	if (std::strcmp(argv[i], "WAIT") == 0)
 	{
 		if (argc <= ++i)
@@ -73,8 +46,6 @@ int PassMsg(int argc, char* argv[])
 		Sleep(waitMilliSec);
 		return 0;
 	}
-
-	HWND hwDispatch = (HWND)(MainWindow::TheOne()->winId());
 
 	for (; i < argc; ++i)
 	{
@@ -148,33 +119,65 @@ int PassMsg(int argc, char* argv[])
 	return 0;
 }
 
-int RunTestLine(SharedStr line)
+int RunTestLine(SharedStr line, HWND hwDispatch)
 {
 	const int MAX_ARG_COUNT = 20;
 	char* argv[MAX_ARG_COUNT];
 	int argc = 0;
 	char* currPtr = line.begin();
-	while (argc < MAX_ARG_COUNT && currPtr != line.end())
+	while (argc < MAX_ARG_COUNT && currPtr != line.end() && *currPtr)
 	{
 		argv[argc++] = currPtr++;
-		while (currPtr != line.end() && !isspace(*currPtr))
+		while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
 			++currPtr;
-		while (currPtr != line.end() && isspace(*currPtr))
+
+		if (currPtr == line.end() || !*currPtr)
+			break;
+		*currPtr++ = char(0);
+
+		while (currPtr != line.end() && *currPtr && isspace(*currPtr))
 			++currPtr;
 	}
+	if (!argc)
+		return 0;
 
-	return PassMsg(argc, argv);
+	if (argc < MAX_ARG_COUNT)
+		argv[argc] = 0;
+
+	return PassMsg(argc, argv, hwDispatch);
 }
 
-int RunTestScript(SharedStr testScriptName)
+SharedStr ReadLine(FormattedInpStream& fis)
+{
+	SharedStr result; // TODO: us reusable allocate buffer.
+	while (!fis.AtEnd() && fis.NextChar() != '\n')
+	{
+		auto ch = fis.NextChar(); fis.ReadChar();
+		if (ch == '/')
+			if (fis.NextChar() == '/') // rest of line is commented out
+				break;
+		result += ch;
+	}
+
+	// read up till end or past EOL
+	while (!fis.AtEnd())
+	{
+		auto ch = fis.NextChar();  fis.ReadChar();
+		if (ch == '\n')
+			break;
+	}
+
+	return result;
+}
+
+int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
 {
     auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
 	while (!fis.AtEnd())
 	{
-		SharedStr line;
-		fis >> line;
-		auto result = RunTestLine(line);
+		auto line = ReadLine(fis);
+		auto result = RunTestLine(line, hwDispatch);
 		if (result)
 			return result;
 	}

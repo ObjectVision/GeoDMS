@@ -96,8 +96,8 @@ char FormattedInpStream::ReadChar()
 {
 	if (!m_AtEnd)
 	{
-		dms_assert(m_InpStreamBuff);
-		dbg_assert(md_LastPos == m_InpStreamBuff->CurrPos());
+		assert(m_InpStreamBuff);
+		assert(md_LastPos == m_InpStreamBuff->CurrPos());
 
 		if (m_NextChar == '\n')
 		{
