@@ -15,13 +15,21 @@
 #include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
 
 int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
 
 
-struct CmdLineException : std::exception
+struct CmdLineException : SharedStr, std::exception
 {
-    using std::exception::exception; // inherit constructors
+    CmdLineException(SharedStr x)
+    :   SharedStr(x + 
+            "\nexpected syntax:"
+            "\nGeoDmsGuiQt.exe [options] [/LLogFile] [/TTestFile] configFileName.dms [item]"
+        )
+    ,   std::exception(c_str())
+    {}
+    CmdLineException(CharPtr x) : CmdLineException(SharedStr(x)) {}
 };
 
 std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
@@ -97,6 +105,91 @@ public:
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 
+UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
+{
+    if (pcds->cbData < (i + 1) * 4)
+        return 0;
+    auto uint32_ptr = reinterpret_cast<UInt32*>(pcds->lpData);
+    return uint32_ptr[i];
+}
+
+
+bool WmCopyData(MSG* copyMsgPtr)
+{
+    auto pcds = reinterpret_cast<const COPYDATASTRUCT*>(copyMsgPtr->lParam);
+    if (!pcds)
+        return false;
+    HWND hWindow = nullptr;
+    auto code = pcds->dwData;
+    switch (code)
+    {
+    case 0: break;
+    case 1: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
+    case 2: hWindow = GetFocus(); break;
+    case 5:
+        MainWindow::TheOne()->defaultView();
+        return true;
+
+    case 6: // GOTO 
+        MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
+        return true;
+        
+    case 7: 
+//        miExportViewPorts.Click;
+        return true;
+    case 8: // EXPAND
+        MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
+        return true;
+    case 9: 
+//        pgcntrlData.ActivePageIndex : = Get4Bytes(pcds, 0);
+        return true;
+    case 10: // SAVE_DP
+//        SaveDetailPage(PFileChar(pcds.lpData));
+        return true;
+    case 11: 
+//        dmfGeneral.miDatagridView.Click;
+        return true;
+    case 12: 
+//        dmfGeneral.miHistogramView.Click;
+        return true;
+    default:
+        return false;
+    }
+    MSG msg;
+    if (code < 4)
+    {
+        msg.message = UINT(Get4Bytes(pcds, 0));
+        msg.wParam  = WPARAM(Get4Bytes(pcds, 1));
+        msg.lParam  = LPARAM(Get4Bytes(pcds, 2));
+
+    }
+    else { // code >= 4
+/*
+        cds2.dwData : = UINT(Get4Bytes(pcds, 0));
+        cds2.cbData : = iif(pcds.cbData >= 4, pcds.cbData - 4, 0);
+        cds2.lpData : = iif(pcds.cbData >= 4, Pointer(UInt32(pcds.lpData) + 4), nil);
+        msg.Msg    : = WM_COPYDATA;
+        msg.WParam : = WPARAM(WindowHandle);
+        msg.LParam : = LPARAM(@cds2);
+*/
+    }
+    if (code < 3)
+        SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
+    else
+    {
+/*
+        if (ActiveMDIChild is TfrmPrimaryDataViewer)
+            and (TfrmPrimaryDataViewer(ActiveMDIChild).DataControl is TfraDmsControl)
+        {
+            ctrl: = TfrmPrimaryDataViewer(ActiveMDIChild).DataControl as TfraDmsControl;
+            if (ctrl)
+                ctrl.WndProc(msg);
+        }
+  */      
+    }
+    return true;
+}
+
 
 bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
 {
@@ -122,6 +215,9 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         ProcessMainThreadOpers();
         return true;
 
+    case WM_COPYDATA:
+    case WM_APP + 4:
+        return WmCopyData(msg);
     }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
@@ -179,19 +275,27 @@ int main(int argc, char *argv[])
             testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
         auto result = dms_app.exec();
-        if (tsn.empty())
+        if (!tsn.empty() && !result)
         {
-            if (!result)
+            try
+            {
                 result = testResult.get();
+
+            }
+            catch (...)
+            {
+                auto msg = catchException(false);
+                msg->TellExtra("while getting results from testscript");
+                throw DmsException(msg);
+            } 
         }
         return result;
     }
     catch (...)
     {
         auto msg = catchException(false);
-        std::cout << "cmd line error " << msg->Why() << std::endl;
-        std::cout << "expected syntax:" << std::endl;
-        std::cout << "GeoDmsGuiQt.exe [options] configFileName.dms [item]" << std::endl;
+        std::cout << "error          : " << msg->Why() << std::endl;
+        std::cout << "context        : " << msg->Why() << std::endl;
     }
     return 9;
 }
