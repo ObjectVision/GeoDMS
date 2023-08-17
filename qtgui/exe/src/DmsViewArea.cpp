@@ -269,7 +269,12 @@ QDmsViewArea::~QDmsViewArea()
 {
     RevokeScaleChangeNotifications(DEVICE_PRIMARY, m_cookie);
     CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy
+
+    if (!MainWindow::IsExisting())
+        return;
+
     auto main_window = MainWindow::TheOne();
+
     auto active_subwindow = main_window->m_mdi_area->activeSubWindow();
     if (!active_subwindow)
     {
