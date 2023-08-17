@@ -71,9 +71,9 @@ enum class SupplierVisitFlag
 	TemplateOrg = 0x1000, // use to visit also the template origin
 	CDF         = 0x2000, // use to visit the cdf source item and its palette
 	DIALOGDATA  = 0x4000,
-	ImplSuppliers = 0x8000,
+	ImplSuppliers = 0x8000, // implicit suppliers
 
-	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA,
+	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
 
 	StartSupplInterest = (DetermineState | Checker) & ~Signature // Signature Already explicitly done by StartInterest function
