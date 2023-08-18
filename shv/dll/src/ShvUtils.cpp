@@ -1016,6 +1016,11 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
 			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
 			*siwlMovedPaletteDomain = ItemWriteLock(); 
+			auto paletteInterest = SharedTreeItemInterestPtr(paletteDomain.get());
+			auto tryReadLock = ItemReadLock(std::move(paletteInterest), try_token);
+			if (!tryReadLock.has_ptr())
+				return; // no accces because of other classifying action, pray for the other action to fill this palette
+
 			breakAttrPtr->MarkTS(tsActive);
 
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
