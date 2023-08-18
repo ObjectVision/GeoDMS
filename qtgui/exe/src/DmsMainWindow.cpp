@@ -220,6 +220,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
 MainWindow::~MainWindow()
 {
+    m_UpdateToolbarRequestPending = true; // avoid going into scheduleUpdateToolbar while destructing subWindows
     CloseConfig();
 
     assert(s_CurrMainWindow == this);
@@ -592,7 +593,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 void MainWindow::scheduleUpdateToolbar()
 {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
-    if (m_UpdateToolbarRequestPending) // TODO: actually do something with this boolean
+    if (m_UpdateToolbarRequestPending)
         return;
 
     // update requested toolbar style
@@ -600,9 +601,11 @@ void MainWindow::scheduleUpdateToolbar()
     QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     !dms_active_mdi_subwindow ? m_current_toolbar_style = ViewStyle::tvsUndefined : dms_active_mdi_subwindow->getDataView()->GetViewType();
     
+    m_UpdateToolbarRequestPending = true;
     QTimer::singleShot(0, [this]()
         {
-           this->updateToolbar();
+            m_UpdateToolbarRequestPending = false;
+            this->updateToolbar();
         }
     );
 

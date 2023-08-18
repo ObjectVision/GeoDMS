@@ -114,7 +114,7 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		else
 			reportErr(mgFormat2string("Unrecognized keyword: %1%", argv[i]).c_str());
 
-		SendMessage(hwDispatch, UINT(WM_APP + 4), WPARAM(NULL), LPARAM(&myCDS));
+		SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 	return 0;
 }

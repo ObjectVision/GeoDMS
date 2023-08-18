@@ -16,6 +16,7 @@
 
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
+#include "DmsDetailPages.h"
 
 int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
 
@@ -105,6 +106,15 @@ public:
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 
+void SaveDetailPage(CharPtr fileName)
+{
+    auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
+    auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+    FileOutStreamBuff buff(SharedStr(fileName), nullptr, true, false);
+   
+    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+}
+
 UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
 {
     if (pcds->cbData < (i + 1) * 4)
@@ -126,6 +136,18 @@ bool WmCopyData(MSG* copyMsgPtr)
     case 0: break;
     case 1: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
     case 2: hWindow = GetFocus(); break;
+    case 3:
+    case 4:
+    {
+        auto aw = MainWindow::TheOne()->m_mdi_area->activeSubWindow();
+        if (!aw)
+            return false;
+        auto va = dynamic_cast<QDmsViewArea*>(aw);
+        if (!va)
+            return false;
+        hWindow = (HWND)va->winId();
+    }
+
     case 5:
         MainWindow::TheOne()->defaultView();
         return true;
@@ -141,10 +163,10 @@ bool WmCopyData(MSG* copyMsgPtr)
         MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
         return true;
     case 9: 
-//        pgcntrlData.ActivePageIndex : = Get4Bytes(pcds, 0);
+        MainWindow::TheOne()->m_detail_pages->show((ActiveDetailPage)Get4Bytes(pcds, 0));
         return true;
     case 10: // SAVE_DP
-//        SaveDetailPage(PFileChar(pcds.lpData));
+        SaveDetailPage(CharPtr(pcds->lpData));
         return true;
     case 11: 
 //        dmfGeneral.miDatagridView.Click;
@@ -156,6 +178,7 @@ bool WmCopyData(MSG* copyMsgPtr)
         return false;
     }
     MSG msg;
+    COPYDATASTRUCT cds2;
     if (code < 4)
     {
         msg.message = UINT(Get4Bytes(pcds, 0));
@@ -164,30 +187,14 @@ bool WmCopyData(MSG* copyMsgPtr)
 
     }
     else { // code >= 4
-/*
-        cds2.dwData : = UINT(Get4Bytes(pcds, 0));
-        cds2.cbData : = iif(pcds.cbData >= 4, pcds.cbData - 4, 0);
-        cds2.lpData : = iif(pcds.cbData >= 4, Pointer(UInt32(pcds.lpData) + 4), nil);
-        msg.Msg    : = WM_COPYDATA;
-        msg.WParam : = WPARAM(WindowHandle);
-        msg.LParam : = LPARAM(@cds2);
-*/
+        cds2.dwData = UINT(Get4Bytes(pcds, 0));
+        cds2.cbData = (pcds->cbData >= 4) ?  pcds->cbData - 4 :0;
+        cds2.lpData = (pcds->cbData >= 4) ? reinterpret_cast<UInt32*>(pcds->lpData) + 1 : nullptr;
+        msg.message = WM_COPYDATA;
+        msg.wParam  = WPARAM(MainWindow::TheOne()->winId());
+        msg.lParam  = LPARAM(&cds2);
     }
-    if (code < 3)
-        SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
-    else
-    {
-/*
-        if (ActiveMDIChild is TfrmPrimaryDataViewer)
-            and (TfrmPrimaryDataViewer(ActiveMDIChild).DataControl is TfraDmsControl)
-        {
-            ctrl: = TfrmPrimaryDataViewer(ActiveMDIChild).DataControl as TfraDmsControl;
-            if (ctrl)
-                ctrl.WndProc(msg);
-        }
-  */      
-    }
-    return true;
+    return SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
 }
 
 
