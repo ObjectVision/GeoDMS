@@ -17,6 +17,7 @@
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "TestScript.h"
 
 int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
 
@@ -131,14 +132,14 @@ bool WmCopyData(MSG* copyMsgPtr)
         return false;
     HWND hWindow = nullptr;
     DataView* dv = nullptr;
-    auto code = pcds->dwData;
-    switch (code)
+    auto commandCode = (CommandCode)pcds->dwData;
+    switch (commandCode)
     {
-    case 0: break;
-    case 1: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
-    case 2: hWindow = GetFocus(); break;
-    case 3:
-    case 4:
+    case CommandCode::SendApp: break; // send msg without HWND
+    case CommandCode::SendMain: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
+    case CommandCode::SendFocus: hWindow = GetFocus(); break;
+    case CommandCode::SendActiveDmsControl:
+    case CommandCode::WmCopyActiveDmsControl:
     {
         auto aw = MainWindow::TheOne()->m_mdi_area->activeSubWindow();
         if (!aw)
@@ -153,43 +154,58 @@ bool WmCopyData(MSG* copyMsgPtr)
         break;
     }
 
-    case 5:
+    case CommandCode::DefaultView:
         MainWindow::TheOne()->defaultView();
         return true;
 
-    case 6: // GOTO 
+    case CommandCode::GOTO:
         MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
         return true;
         
-    case 7: 
+    case CommandCode::miExportViewPorts:
 //        miExportViewPorts.Click;
         return true;
-    case 8: // EXPAND
+
+    case CommandCode::Expand:
         MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
         return true;
-    case 9: 
+
+    case CommandCode::ShowDetailPage:
         MainWindow::TheOne()->m_detail_pages->show((ActiveDetailPage)Get4Bytes(pcds, 0));
         return true;
-    case 10: // SAVE_DP
+
+    case CommandCode::SaveDetailPage:
         SaveDetailPage(CharPtr(pcds->lpData));
         return true;
-    case 11: 
+
+    case CommandCode::miDatagridView:
 //        dmfGeneral.miDatagridView.Click;
         return true;
-    case 12: 
+
+    case CommandCode::miHistogramView:
 //        dmfGeneral.miHistogramView.Click;
         return true;
+
+    case CommandCode::cascadeSubWindows:
+        MainWindow::TheOne()->m_mdi_area->cascadeSubWindows();
+        return true;
+
+    case CommandCode::tileSubWindows:
+        MainWindow::TheOne()->m_mdi_area->tileSubWindows();
+        return true;
+
     default:
         return false;
     }
+
+    assert(commandCode <= CommandCode::WmCopyActiveDmsControl);
     MSG msg;
     COPYDATASTRUCT cds2;
-    if (code < 4)
+    if (commandCode < CommandCode::WmCopyActiveDmsControl)
     {
         msg.message = UINT(Get4Bytes(pcds, 0));
         msg.wParam  = WPARAM(Get4Bytes(pcds, 1));
         msg.lParam  = LPARAM(Get4Bytes(pcds, 2));
-
     }
     else { // code >= 4
         cds2.dwData = UINT(Get4Bytes(pcds, 0));
