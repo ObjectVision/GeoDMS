@@ -143,7 +143,7 @@ void EditPaletteControl::AddBreakColumn(AbstrDataItem* classAttr, const AbstrDat
 }
 SharedStr EditPaletteControl::GetCaption() const
 {
-	return mySSPrintF("PaletteEditor for %s: %s"
+	return mySSPrintF("PaletteEditor for %s (%s)"
 		,	m_ThemeAttr ? m_ThemeAttr->GetDisplayName() : SharedStr()
 		,	m_PaletteControl ? m_PaletteControl->GetCaption() : SharedStr()
 		);
