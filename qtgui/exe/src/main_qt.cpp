@@ -130,6 +130,7 @@ bool WmCopyData(MSG* copyMsgPtr)
     if (!pcds)
         return false;
     HWND hWindow = nullptr;
+    DataView* dv = nullptr;
     auto code = pcds->dwData;
     switch (code)
     {
@@ -145,7 +146,11 @@ bool WmCopyData(MSG* copyMsgPtr)
         auto va = dynamic_cast<QDmsViewArea*>(aw);
         if (!va)
             return false;
-        hWindow = (HWND)va->winId();
+        dv = va->getDataView();
+        if (!dv)
+            return false;
+        hWindow = dv->GetHWnd();
+        break;
     }
 
     case 5:
@@ -223,7 +228,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         return true;
 
     case WM_COPYDATA:
-    case WM_APP + 4:
+        if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
         return WmCopyData(msg);
     }
     return false;
