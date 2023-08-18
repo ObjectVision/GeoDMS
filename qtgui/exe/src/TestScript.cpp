@@ -88,28 +88,42 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		}
 		else if (std::strcmp(argv[i], "EXPAND") == 0)
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::EXPAND);
+			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
 			myCDS.cbData = 4;
 			buffer.emplace_back(1); // code for expand all
 			myCDS.lpData = &(buffer[0]);
 		}
-		else if (std::strcmp(argv[i], "DP") == 0)
+		else if ((std::strcmp(argv[i], "DP") == 0) || (std::strcmp(argv[i], "ShowDetailPage") == 0))
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::DP);
+			myCDS.dwData = ULONG_PTR(CommandCode::ShowDetailPage);
 			myCDS.cbData = 4;
 			if (argc <= ++i)
-				throw stx_error("number expected after DP");
+				throw stx_error("number expected after ShowDetailPage");
 			buffer.emplace_back(str2int(argv[i]));
 			myCDS.lpData = &(buffer[0]);
 		}
-		else if (std::strcmp(argv[i], "SAVE_DP") == 0)
+		else if ((std::strcmp(argv[i], "SAVE_DP") == 0) || (std::strcmp(argv[i], "SaveDetailPage") == 0))
 		{
 			if (argc <= ++i)
-				throw stx_error("path expected after SAVE_DP");
-			myCDS.dwData = ULONG_PTR(CommandCode::SAVE_DP);
+				throw stx_error("path expected after SaveDetailPage");
+			myCDS.dwData = ULONG_PTR(CommandCode::SaveDetailPage);
 			myCDS.cbData = std::strlen(argv[i]) + 1;
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
+		}
+		else if (std::strcmp(argv[i], "cascadeSubWindows") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::cascadeSubWindows);
+			myCDS.cbData = 0;
+			myCDS.lpData = nullptr;
+
+		}
+		else if (std::strcmp(argv[i], "tileSubWindows") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::tileSubWindows);
+			myCDS.cbData = 0;
+			myCDS.lpData = nullptr;
+
 		}
 		else
 			reportErr(mgFormat2string("Unrecognized keyword: %1%", argv[i]).c_str());

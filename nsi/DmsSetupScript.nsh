@@ -31,10 +31,8 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR
   
   CreateDirectory $INSTDIR
-  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiDelphi.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
-  File ..\bin\Release\${GeoDmsPlatform}\GeoDmsCaller.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
   File ..\res\readme.txt
@@ -80,7 +78,6 @@ Section "" ;No components page, name is not important
   skip_set_all:
 
   CreateDirectory "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}"
-  CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Delphi GUI ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGuiDelphi.exe"   "" "$INSTDIR\GeoDmsGui.exe"   0 SW_SHOWMAXIMIZED "" "Start the GeoDMS GUI"
   CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk" "$INSTDIR\GeoDmsGuiQt.exe"   "" "$INSTDIR\GeoDmsGuiQt.exe"   0 SW_SHOWMAXIMIZED "" "Preview the new GeoDMS GuiQt"
   CreateShortCut "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk" "$INSTDIR\uninstaller.exe" "" "$INSTDIR\uninstaller.exe" 0 SW_SHOWNORMAL    "" "Remove the Geographic Data & Model Software"
  
@@ -90,10 +87,8 @@ SectionEnd ; end the section
 
 Section uninstall
 
-  Delete $INSTDIR\GeoDmsGuiDelphi.exe
   Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\GeoDmsRun.exe
-  Delete $INSTDIR\GeoDmsCaller.exe
   Delete $INSTDIR\RewriteExpr.lsp
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\readme.txt
@@ -111,7 +106,6 @@ Section uninstall
   Delete $INSTDIR\tls\*.*
 ;  Delete $INSTDIR\translations\*.*
 
-  Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Delphi GUI ${GeoDmsVersion}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk"
   Delete $INSTDIR\uninstaller.exe
