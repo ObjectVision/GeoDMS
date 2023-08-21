@@ -144,7 +144,7 @@ struct XML_Table : XML_OutElement
 					NewLine(OutStream());
 	}
 
-	void	LinedRow(UInt32 colSpan = 2)
+	void LinedRow(UInt32 colSpan = 2)
 	{
 		Row row(*this);
 			Row::Cell xmlElemTD(row);

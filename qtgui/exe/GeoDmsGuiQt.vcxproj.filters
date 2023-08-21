@@ -235,4 +235,7 @@
       <Filter>Forms</Filter>
     </QtUic>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="debug-settings.txt" />
+  </ItemGroup>
 </Project>

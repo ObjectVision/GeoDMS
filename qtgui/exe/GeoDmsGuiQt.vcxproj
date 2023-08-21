@@ -249,4 +249,7 @@
     <QtUic Include="res\ui\DmsGuiOptionsWindow.ui" />
     <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="debug-settings.txt" />
+  </ItemGroup>
 </Project>

@@ -1,0 +1,2 @@
+/TC:\dev\tst\dmsscript\DPGeneral_explicit_supplier_error.dmsscript c:\dev\tst\Unit\GUI\cfg\DPGeneral_explicit_supplier_error.dms
+/noconfig

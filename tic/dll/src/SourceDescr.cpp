@@ -93,7 +93,7 @@ namespace { // local defs
 		,	m_SourceSecArray(1 MG_DEBUG_ALLOCATOR_SRC_SA)
 	{
 		m_SourceSecArray.push_back(Undefined());
-		dms_assert(m_SourceSecArray[0].size() == 0);
+		assert(m_SourceSecArray[0].size() == 0);
 	}
 
 
@@ -225,8 +225,10 @@ namespace { // local defs
 			fout << "(other specs can be selected at View->Source Descr variant)";
 
 
-		for (auto token: m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)])
-			fout << "\n- " << token;
+		SA_Reference<TokenID> sourceSequence = m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)];
+		if (IsDefined(sourceSequence))
+			for (auto tokenPtr = sourceSequence.begin(), tokenEnd = sourceSequence.end(); tokenPtr != tokenEnd; ++tokenPtr)
+				fout << "\n- " << *tokenPtr;
 
 		if (m_hasError) {
 			fout << "\nList may be incomplete due to errors.";

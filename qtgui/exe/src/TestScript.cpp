@@ -141,9 +141,19 @@ int RunTestLine(SharedStr line, HWND hwDispatch)
 	char* currPtr = line.begin();
 	while (argc < MAX_ARG_COUNT && currPtr != line.end() && *currPtr)
 	{
-		argv[argc++] = currPtr++;
-		while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
-			++currPtr;
+		if (*currPtr == '"')
+		{
+			argv[argc++] = ++currPtr; // skip quote
+			// adopt first char
+			while (currPtr != line.end() && *currPtr && *currPtr != '"')
+				++currPtr;
+		}
+		else
+		{
+			argv[argc++] = currPtr++;
+			while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
+				++currPtr;
+		}
 
 		if (currPtr == line.end() || !*currPtr)
 			break;
@@ -164,7 +174,7 @@ int RunTestLine(SharedStr line, HWND hwDispatch)
 SharedStr ReadLine(FormattedInpStream& fis)
 {
 	SharedStr result; // TODO: us reusable allocate buffer.
-	while (!fis.AtEnd() && fis.NextChar() != '\n')
+	while (!fis.AtEnd() && fis.NextChar() != '\n' && fis.NextChar() != EOF)
 	{
 		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '/')
@@ -174,9 +184,9 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	}
 
 	// read up till end or past EOL
-	while (!fis.AtEnd())
+	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
-		auto ch = fis.NextChar();  fis.ReadChar();
+		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '\n')
 			break;
 	}

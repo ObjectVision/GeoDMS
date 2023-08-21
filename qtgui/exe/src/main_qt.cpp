@@ -11,6 +11,7 @@
 #include "utl/splitPath.h"
 #include "xct/ErrMsg.h"
 
+#include "stg/AbstrStorageManager.h"
 #include "ShvDllInterface.h"
 #include "ShvUtils.h"
 
@@ -109,8 +110,16 @@ public:
 
 void SaveDetailPage(CharPtr fileName)
 {
+    auto currItem = MainWindow::TheOne()->getCurrentTreeItem();
+
+    auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
+    auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
+
     auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
     auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
+
     FileOutStreamBuff buff(SharedStr(fileName), nullptr, true, false);
    
     buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());

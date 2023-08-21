@@ -1295,6 +1295,7 @@ struct StatisticsBrowser : QUpdatableTextBrowser
         vos_buffer_type textBuffer;
         SuspendTrigger::Resume();
         bool done = NumericDataItem_GetStatistics(m_Context, textBuffer);
+        textBuffer.emplace_back(char(0));
         setText(begin_ptr(textBuffer));
         return done;
     }

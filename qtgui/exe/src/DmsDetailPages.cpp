@@ -36,6 +36,7 @@
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "SowDetailPage %d", int(new_active_detail_page));
     m_active_detail_page = new_active_detail_page;
 }
 
@@ -104,7 +105,7 @@ void DmsDetailPages::show(ActiveDetailPage new_active_detail_page)
     MainWindow::TheOne()->m_detailpages_dock->setVisible(true);
     toggleVisualState(new_active_detail_page, true);
     setActiveDetailPage(new_active_detail_page);
-    //setVisible(true);
+    scheduleDrawPage();
 }
 
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
