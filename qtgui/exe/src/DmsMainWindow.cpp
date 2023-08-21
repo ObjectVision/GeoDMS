@@ -178,11 +178,12 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     m_mdi_area = new QDmsMdiArea(this);
 
+    // fonts
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
+    QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
     setCentralWidget(m_mdi_area.get());
-
     m_mdi_area->show();
 
     createStatusBar();
@@ -1055,6 +1056,7 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        dms_mdi_subwindow->setProperty("viewstyle", viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
@@ -1313,6 +1315,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     textWidget->m_Context = tiContext;
     tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
 
     SharedStr title = "Statistics View of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
@@ -1924,6 +1927,15 @@ void MainWindow::updateWindowMenu()
     for (auto* sw : m_mdi_area->subWindowList())
     {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
+        ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
+        switch (viewstyle)
+        {
+        case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; }
+        case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
+        case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp")); break; }
+        default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
+        }
+                
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         if (sw == asw)
         {
@@ -2044,6 +2056,7 @@ void MainWindow::view_calculation_times()
     os << char(0); // ends
 
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setText(vosb.GetData());

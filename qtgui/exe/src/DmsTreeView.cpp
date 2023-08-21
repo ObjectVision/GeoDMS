@@ -311,6 +311,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 	// draw storage icon applicable
 	auto ti = GetTreeItem(index);
+	
 	const TreeItem* storageHolder = nullptr;
 	if (ti->HasStorageManager())
 		storageHolder = ti;
@@ -342,17 +343,21 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	auto rect = option.rect;
 	auto cur_brush = painter->brush();
 	auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
-	auto storage_icon = QImage(item_icon.size(), QImage::Format::Format_ARGB32);
-	storage_icon.load(":/res/images/TV_storage_unstored.png");
-	
+
+	QFont font;
+	font.setFamily("remixicon");
+	painter->setFont(font);
+
 	// set transparancy if not committed yet
 	NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
 	if (ti_state < NotificationCode::NC2_DataReady)
 		painter->setOpacity(0.5);
 
-	painter->drawImage(QRect(QPoint(offset, rect.topLeft().y()+2), QSize(item_icon.size().width()-4, item_icon.size().height()-4)), storage_icon);
-	//QLineF line(rect.topLeft().x() + offset_icon + offset_item_text + 15, rect.topLeft().y(), rect.bottomRight().x(), rect.bottomRight().y());
-	//painter->drawLine(line);
+	
+	if (ti->IsDataFailed())
+		painter->setPen(QColor(255,0,0,255));
+	painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uF0B0":"\uEC15");
+
 	painter->restore();
 	return;
 }
