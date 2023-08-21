@@ -23,12 +23,10 @@
 #include <QMdiArea>
 #include <QPixmap>
 
-/*#include "dms_memory_leak_debugging.h" // explicitly detect unparented QObjects
-#ifdef _DEBUG
-#define new MYDEBUG_NEW 
-#endif*/
 
-#include "DmsMainWindow.h" 
+#include "DmsMainWindow.h"
+#include "TestScript.h"
+
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
@@ -54,7 +52,7 @@ void DmsFileChangedWindow::ignore()
 void DmsFileChangedWindow::reopen()
 {
     done(QDialog::Accepted);
-    MainWindow::TheOne()->reOpen();
+    MainWindow::TheOne()->reopen();
 }
 
 void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
@@ -222,6 +220,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
 MainWindow::~MainWindow()
 {
+    m_UpdateToolbarRequestPending = true; // avoid going into scheduleUpdateToolbar while destructing subWindows
     CloseConfig();
 
     assert(s_CurrMainWindow == this);
@@ -396,17 +395,18 @@ void MainWindow::fileOpen()
     if (configFileName.isEmpty())
         return;
 
-    LoadConfig(configFileName.toUtf8().data());
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
+        m_eventlog_model->clear();
+
+    bool result = LoadConfig(configFileName.toUtf8().data());
 }
 
-void MainWindow::reopen()
-{
-    reOpen();
-}
-
-bool MainWindow::reOpen()
+bool MainWindow::reopen()
 {
     auto cip = m_current_item_bar->text();
+
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
+        m_eventlog_model->clear();
 
     bool result = LoadConfig(m_currConfigFileName.c_str());
     if (!result)
@@ -468,6 +468,10 @@ DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_v
 void DmsRecentFileButtonAction::onToolbuttonPressed()
 {
     auto main_window = MainWindow::TheOne();
+
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
+        main_window->m_eventlog_model->clear();
+
     main_window->LoadConfig(m_cfg_file_path.c_str());
 }
 
@@ -589,7 +593,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 void MainWindow::scheduleUpdateToolbar()
 {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
-    if (m_UpdateToolbarRequestPending) // TODO: actually do something with this boolean
+    if (m_UpdateToolbarRequestPending)
         return;
 
     // update requested toolbar style
@@ -597,9 +601,11 @@ void MainWindow::scheduleUpdateToolbar()
     QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
     !dms_active_mdi_subwindow ? m_current_toolbar_style = ViewStyle::tvsUndefined : dms_active_mdi_subwindow->getDataView()->GetViewType();
     
+    m_UpdateToolbarRequestPending = true;
     QTimer::singleShot(0, [this]()
         {
-           this->updateToolbar();
+            m_UpdateToolbarRequestPending = false;
+            this->updateToolbar();
         }
     );
 
@@ -783,7 +789,7 @@ bool MainWindow::event(QEvent* event)
 {
     if (event->type() == QEvent::WindowActivate)
     {
-        QTimer::singleShot(500, this, [=]() 
+        QTimer::singleShot(0, this, [=]() 
             { 
                 auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
                 if (vos.CurrPos())
@@ -1019,7 +1025,7 @@ bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
     assert(dialogResult == QDialog::DialogCode::Accepted);
-    bool reloadResult = TheOne()->reOpen();
+    bool reloadResult = TheOne()->reopen();
     return reloadResult;
 }
 
@@ -1602,7 +1608,7 @@ void MainWindow::createActions()
     auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
     reOpenAct->setShortcut(QKeySequence(tr("Alt+R")));
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
-    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reOpen);
+    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
     m_file_menu->addAction(reOpenAct);
     //fileToolBar->addAction(reOpenAct);
 

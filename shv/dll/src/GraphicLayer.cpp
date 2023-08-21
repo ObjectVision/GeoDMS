@@ -172,16 +172,12 @@ SharedStr GraphicLayer::GetCaption() const
 		return mgFormat2SharedStr("%s", GetThemeDisplayName(this)); // Map View 
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
-	auto row_label = SharedStr("rows");
-	if (nrRecs == 1)
-		row_label = "row";
 
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("Active layer: %s with %s %s %s"
+	return mgFormat2SharedStr("Active layer: %s (#%s = %s)"
 		, GetThemeDisplayName(this)
-		, AsString(nrRecs, FormattingFlags::ThousandSeparator)
 		, domainName
-		, row_label
+		, IsDefined(nrRecs) ? AsString(nrRecs, FormattingFlags::ThousandSeparator).c_str() : "..."
 	);
 }
 

@@ -201,103 +201,106 @@ void GridFill(
 		--currViewRow;
 		assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
 
-		if (IsDefined(currGridRow) && currGridRow >= rowOffset)
+		if (IsDefined(currGridRow))
 		{
+			if (currGridRow < rowOffset)
+				continue;
+
 			typename sequence_traits<PixelType>::pointer resultingClassIdRowBegin = resultingClassIds;
 			currGridRow -= rowOffset;
 
-			if (currGridRow < grid_rowcol_id(gridSize.Row()) )
+			if (currGridRow >= grid_rowcol_id(gridSize.Row()))
+				continue;
+
+			const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
+
+			SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col());
+
+			GType currViewCol = viewColBegin;
+			PixelType result;
+
+			while (true)
 			{
+				assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr);
 
-				const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
-
-				SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col());
-
-				GType currViewCol = viewColBegin;
-				PixelType result;
-
-				while (true)
+				grid_rowcol_id currGridCol = *currGridColPtr;
+				if (IsDefined(currGridCol))
 				{
-					assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr);
-
-					grid_rowcol_id currGridCol = *currGridColPtr;
-					if (IsDefined(currGridCol))
+					grid_rowcol_id colOffset = (gridDrawer->m_SelValues)
+						? gridDrawer->m_SelValues->m_Rect.first.Col()
+						: gridDrawer->m_TileRect.first.Col();
+					if (currGridCol >= colOffset)
 					{
-						grid_rowcol_id colOffset = (gridDrawer->m_SelValues)
-							? gridDrawer->m_SelValues->m_Rect.first.Col()
-							: gridDrawer->m_TileRect.first.Col();
-						if (currGridCol >= colOffset)
+						currGridCol -= colOffset;
+						if (currGridCol < grid_rowcol_id(gridSize.Col()))
 						{
-							currGridCol -= colOffset;
-							if (currGridCol < grid_rowcol_id(gridSize.Col()))
+							SizeT currGridNr = currGridRowBegin + currGridCol;
+							if (entityIndex)
 							{
-								SizeT currGridNr = currGridRowBegin + currGridCol;
-								if (entityIndex)
-								{
-									entity_id e = entityIndex->GetEntityIndex(currGridNr);
-									if (!IsDefined(e))
-										goto assignUndefined;
-									currGridNr = e - tileIndexRange.first;
-									if (currGridNr >= tileIndexRangeSize)
-										goto skipResult;
-								}
-								assert(classIdArray);
-								assert(currGridNr < classIdArraySize);
-								result = Convert<PixelType>(applicator(classIdArray[currGridNr]));
-								valueAdjuster(result);
-								goto applyResult;
+								entity_id e = entityIndex->GetEntityIndex(currGridNr);
+								if (!IsDefined(e))
+									goto assignUndefined;
+								currGridNr = e - tileIndexRange.first;
+								if (currGridNr >= tileIndexRangeSize)
+									goto skipResult;
 							}
+							assert(classIdArray);
+							assert(currGridNr < classIdArraySize);
+							result = Convert<PixelType>(applicator(classIdArray[currGridNr]));
+							valueAdjuster(result);
+							goto applyResult;
 						}
 					}
-				assignUndefined:
-					Assign(result, valueAdjuster.GetUndefValue());
-
-				applyResult:
-					// copy duplicate columns
-					do {
-						*resultingClassIds = result; ++resultingClassIds;
-						++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
-					} while (currGridCol == *++currGridColPtr);
-					continue; // go to nextGridCol
-				skipResult:
-					// skip duplicate columns
-					do {
-						++resultingClassIds;
-						++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
-					} while (currGridCol == *++currGridColPtr);
 				}
+			assignUndefined:
+				Assign(result, valueAdjuster.GetUndefValue());
 
-			end_of_line:
-				resultingClassIds = resultingClassIdRowBegin + viewColSize;
-
-				typename sequence_traits<PixelType>::pointer
-					resultingClassIdRowEnd = resultingClassIds;
-
-				if (isLastRun)
-					PostProcessLine(resultingClassIdRowBegin, resultingClassIdRowEnd);
-
-				// copy duplicate lines
-				while (true)
-				{
-					if (currViewRow == viewRowBegin)
-						return;
-					if (currGridRow != currGridRowPtr[-1])
-						break;
-
-					if (isLastRun)
-						fast_copy(
-							resultingClassIdRowBegin,
-							resultingClassIdRowEnd,
-							resultingClassIds
-						);
-					resultingClassIds += (resultingClassIdRowEnd - resultingClassIdRowBegin);
-
-					--currViewRow;
-					--currGridRowPtr;
-				}
-				continue;
+			applyResult:
+				// copy duplicate columns
+				do {
+					*resultingClassIds = result; ++resultingClassIds;
+					++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
+				} while (currGridCol == *++currGridColPtr);
+				continue; // go to nextGridCol
+			skipResult:
+				// skip duplicate columns
+				do {
+					++resultingClassIds;
+					++currViewCol; if (currViewCol == viewColEnd) goto end_of_line;
+				} while (currGridCol == *++currGridColPtr);
 			}
 
+		end_of_line:
+			resultingClassIds = resultingClassIdRowBegin + viewColSize;
+
+			typename sequence_traits<PixelType>::pointer
+				resultingClassIdRowEnd = resultingClassIds;
+
+			if (isLastRun)
+				PostProcessLine(resultingClassIdRowBegin, resultingClassIdRowEnd);
+
+			// copy duplicate lines
+			while (true)
+			{
+				if (currViewRow == viewRowBegin)
+					return;
+				if (currGridRow != currGridRowPtr[-1])
+					break;
+
+				if (isLastRun)
+					fast_copy(
+						resultingClassIdRowBegin,
+						resultingClassIdRowEnd,
+						resultingClassIds
+					);
+				resultingClassIds += (resultingClassIdRowEnd - resultingClassIdRowBegin);
+
+				--currViewRow;
+				--currGridRowPtr;
+			}
+		}
+		else
+		{
 			typename sequence_traits<PixelType>::pointer currResultingClassIds = resultingClassIds;
 			resultingClassIds += viewColSize;
 			if (isLastRun)

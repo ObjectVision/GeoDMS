@@ -126,11 +126,13 @@ namespace treeitem_production_task
 
 		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
-		assert(self->m_ItemCount == -1);
-		++self->m_ItemCount;
+		assert(self->m_ItemCount < 0);
+		auto newCount = ++self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
-		self->m_Producer.reset();
+		if (newCount < 0)
+			return;
 
+		self->m_Producer.reset();
 		cv_lockrelease.notify_all();
 	}
 

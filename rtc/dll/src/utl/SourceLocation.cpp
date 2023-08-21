@@ -52,19 +52,21 @@ struct CompareFD
 	}
 };
 
-typedef std::set<FileDescr*, CompareFD> FileDescrSet;
-
+using FileDescrSet = std::set<FileDescr*, CompareFD> ;
 static FileDescrSet s_FDS;
+std::mutex cs_FDS;
 
 FileDescr::FileDescr(WeakStr str, FileDateTime fdt)
 	:	m_FileName(str)
 	,	m_Fdt(fdt)
 {
+	auto lock = std::scoped_lock(cs_FDS);
 	s_FDS.insert(this);
 }
 
 FileDescr::~FileDescr()
 {
+	auto lock = std::scoped_lock(cs_FDS);
 	s_FDS.erase(this);
 }
 

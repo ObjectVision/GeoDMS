@@ -39,8 +39,8 @@ struct TreeItem;
 enum class supplier_level
 {
 	none = 0,
-	calc = 1,
-	meta = 2,
+	meta = 1,
+	calc = 2,
 
 	usage_flags = calc+meta,
 

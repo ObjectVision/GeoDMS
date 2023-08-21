@@ -183,6 +183,11 @@ GType TType2GType1(TType src, CrdType scale, CrdType slack)
 {
 	assert(slack >= 0.0);
 	auto target = src * scale + slack;
+	if (target <= MIN_VALUE(GType))
+		return MIN_VALUE(GType);
+	if (target >= MAX_VALUE(GType))
+		return MAX_VALUE(GType);
+
 	auto roundedTarget = TType2GType(target);
 	if (CrdType(roundedTarget) > target)
 	{

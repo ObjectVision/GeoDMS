@@ -199,8 +199,7 @@ void DmsGuiOptionsWindow::apply()
     setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
     setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
-    SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
-    DMS_Appl_SetRegStatusFlags(dms_reg_status_flags);
+    SetRegStatusFlags(dms_reg_status_flags);
 
     saveBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
     saveBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
@@ -421,8 +420,7 @@ void DmsAdvancedOptionsWindow::apply()
     setSF(m_pp2->isChecked(), dms_reg_status_flags, RSF_MultiThreading2);
     setSF(m_pp3->isChecked(), dms_reg_status_flags, RSF_MultiThreading3);
     setSF(m_tracelog->isChecked(), dms_reg_status_flags, RSF_TraceLogFile);
-    SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
-    DMS_Appl_SetRegStatusFlags(dms_reg_status_flags);
+    SetRegStatusFlags(dms_reg_status_flags);
 
     auto flushThreshold = m_flush_treshold->value();
     SetGeoDmsRegKeyDWord("MemoryFlushThreshold", flushThreshold);
@@ -713,5 +711,11 @@ void DmsConfigOptionsWindow::ok()
     done(QDialog::Accepted);
 }
 
+
+void SetRegStatusFlags(UInt32 newSF)
+{
+    SetGeoDmsRegKeyDWord("StatusFlags", newSF);
+    DMS_Appl_SetRegStatusFlags(newSF);
+}
 
 //======== END CONFIG OPTIONS WINDOW ========

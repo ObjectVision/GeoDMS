@@ -535,7 +535,7 @@ public:
 		const Arg1Type* arg1 = const_array_cast<PolygonType>(arg1A);
 		dms_assert(arg1);
 
-		UInt32 nrPoints = 0;
+		SizeT nrPoints = 0;
 		bool   bDoCloseLast = (m_CreateFlags & DoCloseLast);
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		for (tile_id t=0; t!=tn; ++t)
@@ -545,7 +545,7 @@ public:
 			// first, calc cardinality for resDomain
 			for (auto i=arg1Data.begin(), e=arg1Data.end(); i !=e; ++i)
 			{
-				UInt32 sz = i->size();
+				auto sz = i->size();
 				if (sz && !bDoCloseLast)
 					--sz;
 				nrPoints += sz;

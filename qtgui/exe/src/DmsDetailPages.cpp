@@ -99,14 +99,19 @@ void DmsDetailPages::toggleVisualState(ActiveDetailPage new_active_detail_page, 
     }
 }
 
+void DmsDetailPages::show(ActiveDetailPage new_active_detail_page)
+{
+    MainWindow::TheOne()->m_detailpages_dock->setVisible(true);
+    toggleVisualState(new_active_detail_page, true);
+    setActiveDetailPage(new_active_detail_page);
+    //setVisible(true);
+}
+
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
     if (!MainWindow::TheOne()->m_detailpages_dock->isVisible() || m_active_detail_page != new_active_detail_page || !isVisible())
     {
-        MainWindow::TheOne()->m_detailpages_dock->setVisible(true);
-        toggleVisualState(new_active_detail_page, true);
-        setActiveDetailPage(new_active_detail_page);
-        //setVisible(true);
+        show(new_active_detail_page);
     }
     else
     {

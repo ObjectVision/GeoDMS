@@ -86,4 +86,8 @@ OutStreamBuff:: OutStreamBuff() {}
 OutStreamBuff::~OutStreamBuff() {}
 WeakStr OutStreamBuff::FileName() { return SharedStr(); }
 
+void OutStreamBuff::WriteBytes(CharPtr cstr)
+{
+	WriteBytes(cstr, StrLen(cstr)); 
+}
 

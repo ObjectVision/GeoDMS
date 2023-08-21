@@ -4,18 +4,33 @@
 #include <QByteArray>
 #include <memory>
 
-#include "ShvDllInterface.h"
 #include "act/Any.h"
+#include "dbg/DebugLog.h"
+#include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
-#include "dbg/DebugLog.h"
+#include "xct/ErrMsg.h"
+
+#include "ShvDllInterface.h"
 #include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
+#include "DmsDetailPages.h"
 
-struct CmdLineException : std::exception
+int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
+
+
+struct CmdLineException : SharedStr, std::exception
 {
-    using std::exception::exception; // inherit constructors
+    CmdLineException(SharedStr x)
+    :   SharedStr(x + 
+            "\nexpected syntax:"
+            "\nGeoDmsGuiQt.exe [options] [/LLogFile] [/TTestFile] configFileName.dms [item]"
+        )
+    ,   std::exception(c_str())
+    {}
+    CmdLineException(CharPtr x) : CmdLineException(SharedStr(x)) {}
 };
 
 std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
@@ -27,15 +42,20 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
 
     std::any result;
 
-    CharPtr firstParam = argv[0];
-    if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'L')
     {
-        SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+        SharedStr dmsLogFileName = ConvertDosFileName(SharedStr((*argv) + 2));
 
         auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str())); //TODO: move to appropriate location, with lifetime of app
         result = make_noncopyable_any<decltype(log_file_handle)>(std::move(log_file_handle));
 
         SetCachedStatusFlag(RSF_TraceLogFile);
+        argc--; argv++;
+    }
+
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'T')
+    {
+        settingsFrame.m_TestScriptName = ConvertDosFileName(SharedStr((*argv) + 2));
         argc--; argv++;
     }
 
@@ -86,6 +106,102 @@ public:
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 
+void SaveDetailPage(CharPtr fileName)
+{
+    auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
+    auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+    FileOutStreamBuff buff(SharedStr(fileName), nullptr, true, false);
+   
+    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+}
+
+UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
+{
+    if (pcds->cbData < (i + 1) * 4)
+        return 0;
+    auto uint32_ptr = reinterpret_cast<UInt32*>(pcds->lpData);
+    return uint32_ptr[i];
+}
+
+
+bool WmCopyData(MSG* copyMsgPtr)
+{
+    auto pcds = reinterpret_cast<const COPYDATASTRUCT*>(copyMsgPtr->lParam);
+    if (!pcds)
+        return false;
+    HWND hWindow = nullptr;
+    DataView* dv = nullptr;
+    auto code = pcds->dwData;
+    switch (code)
+    {
+    case 0: break;
+    case 1: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
+    case 2: hWindow = GetFocus(); break;
+    case 3:
+    case 4:
+    {
+        auto aw = MainWindow::TheOne()->m_mdi_area->activeSubWindow();
+        if (!aw)
+            return false;
+        auto va = dynamic_cast<QDmsViewArea*>(aw);
+        if (!va)
+            return false;
+        dv = va->getDataView();
+        if (!dv)
+            return false;
+        hWindow = dv->GetHWnd();
+        break;
+    }
+
+    case 5:
+        MainWindow::TheOne()->defaultView();
+        return true;
+
+    case 6: // GOTO 
+        MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
+        return true;
+        
+    case 7: 
+//        miExportViewPorts.Click;
+        return true;
+    case 8: // EXPAND
+        MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
+        return true;
+    case 9: 
+        MainWindow::TheOne()->m_detail_pages->show((ActiveDetailPage)Get4Bytes(pcds, 0));
+        return true;
+    case 10: // SAVE_DP
+        SaveDetailPage(CharPtr(pcds->lpData));
+        return true;
+    case 11: 
+//        dmfGeneral.miDatagridView.Click;
+        return true;
+    case 12: 
+//        dmfGeneral.miHistogramView.Click;
+        return true;
+    default:
+        return false;
+    }
+    MSG msg;
+    COPYDATASTRUCT cds2;
+    if (code < 4)
+    {
+        msg.message = UINT(Get4Bytes(pcds, 0));
+        msg.wParam  = WPARAM(Get4Bytes(pcds, 1));
+        msg.lParam  = LPARAM(Get4Bytes(pcds, 2));
+
+    }
+    else { // code >= 4
+        cds2.dwData = UINT(Get4Bytes(pcds, 0));
+        cds2.cbData = (pcds->cbData >= 4) ?  pcds->cbData - 4 :0;
+        cds2.lpData = (pcds->cbData >= 4) ? reinterpret_cast<UInt32*>(pcds->lpData) + 1 : nullptr;
+        msg.message = WM_COPYDATA;
+        msg.wParam  = WPARAM(MainWindow::TheOne()->winId());
+        msg.lParam  = LPARAM(&cds2);
+    }
+    return SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
+}
+
 
 bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
 {
@@ -111,6 +227,9 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         ProcessMainThreadOpers();
         return true;
 
+    case WM_COPYDATA:
+        if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
+        return WmCopyData(msg);
     }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
@@ -135,11 +254,13 @@ protected:
     }
 };
 
+#include <future>
+
 int main(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
-        std::any geoDmsResources; // destruct resources after app completion
+        garbage_t geoDmsResources; // destruct resources after app completion
 
         CustomEventFilter navive_event_filter;
         DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
@@ -147,7 +268,7 @@ int main(int argc, char *argv[])
         QApplication dms_app(argc, argv);
         //dms_app.setStyle("macos");
 
-        geoDmsResources = init_geodms(dms_app, settingsFrame); // destruct resources after app completion
+        geoDmsResources |= init_geodms(dms_app, settingsFrame); // destruct resources after app completion
         dms_app.installNativeEventFilter(&navive_event_filter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
@@ -157,12 +278,36 @@ int main(int argc, char *argv[])
 
         dms_app.installEventFilter(&mouse_forward_backward_event_filter);
 
-        return dms_app.exec();
+        auto tsn = settingsFrame.m_TestScriptName;
+        std::future<int> testResult;
+        if (!tsn.empty())
+        {
+            HWND hwDispatch = (HWND)(MainWindow::TheOne()->winId());
+            assert(hwDispatch);
+            testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
+        }
+        auto result = dms_app.exec();
+        if (!tsn.empty() && !result)
+        {
+            try
+            {
+                result = testResult.get();
+
+            }
+            catch (...)
+            {
+                auto msg = catchException(false);
+                msg->TellExtra("while getting results from testscript");
+                throw DmsException(msg);
+            } 
+        }
+        return result;
     }
-    catch (const CmdLineException& x)
+    catch (...)
     {
-        std::cout << "cmd line error " << x.what() << std::endl;
-        std::cout << "expected syntax:" << std::endl;
-        std::cout << "GeoDmsGuiQt.exe [options] configFileName.dms [item]" << std::endl;
+        auto msg = catchException(false);
+        std::cout << "error          : " << msg->Why() << std::endl;
+        std::cout << "context        : " << msg->Why() << std::endl;
     }
+    return 9;
 }

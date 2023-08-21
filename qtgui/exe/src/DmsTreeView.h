@@ -79,6 +79,7 @@ public:
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
 	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
+	bool expandActiveNode(bool doExpand);
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);

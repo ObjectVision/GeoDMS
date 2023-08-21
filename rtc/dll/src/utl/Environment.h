@@ -105,8 +105,9 @@ enum RegStatusFlags
 	RSF_DynamicROI = 0x1000,
 
 	//  Flags really in use by the GeoDMS C++ Engine
+	RSF_MultiThreading0 = RSF_SuspendForGUI,
 	RSF_MultiThreading1 = 0x100,
-	//	RSF_MultiThreading2 = 512,
+	//	RSF_MultiThreading2 = 0x200,
 	RSF_MultiThreading2 = 0x400,
 	RSF_MultiThreading3 = 0x2000,
 	RSF_AllMultiThreading = RSF_SuspendForGUI | RSF_MultiThreading1 | RSF_MultiThreading2 | RSF_MultiThreading3,
@@ -118,8 +119,12 @@ enum RegStatusFlags
 	RSF_EventLog_ShowCategory = 0x20000,
 	RSF_EventLog_ShowAnyExtra = RSF_EventLog_ShowDateTime | RSF_EventLog_ShowThreadID | RSF_EventLog_ShowCategory,
 
-	RSF_WasRead         = 0x80000000,
-	RSF_Default         = RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
+	RSF_EventLog_ClearOnLoad = 0x40000,
+	RSF_EventLog_ClearOnReLoad = 0x80000,
+
+	RSF_WasRead = 0x80000000,
+	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
+		| RSF_EventLog_ClearOnLoad | RSF_EventLog_ShowDateTime | RSF_EventLog_ShowCategory,
 };
 
 RTC_CALL UInt32 GetRegStatusFlags();

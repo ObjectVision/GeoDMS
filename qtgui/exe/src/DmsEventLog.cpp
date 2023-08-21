@@ -197,8 +197,7 @@ void EventLogModel::refilter()
 	setSF(eventlog_filter_ptr->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
 	setSF(eventlog_filter_ptr->m_thread   ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
 	setSF(eventlog_filter_ptr->m_category ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
-	SetGeoDmsRegKeyDWord("StatusFlags", dms_reg_status_flags);
-	DMS_Appl_SetRegStatusFlags(dms_reg_status_flags);
+	SetRegStatusFlags(dms_reg_status_flags);
 
 	UInt64 index = 0;
 
@@ -217,10 +216,27 @@ void EventLogModel::refilter()
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
-void EventLogModel::refilterOnToggle(bool /*checked*/)
+void EventLogModel::writeSettingsOnToggle(bool newValue)
 {
-	refilter();
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+	bool clearOnOpen = eventlog_filter_ptr->m_opening_new_configuration->isChecked();
+	bool clearOnReopen = eventlog_filter_ptr->m_reopening_current_configuration->isChecked();
+	if (clearOnReopen && !clearOnOpen)
+	{
+		clearOnReopen = newValue;
+		clearOnOpen = newValue;
+		eventlog_filter_ptr->m_opening_new_configuration->setChecked(newValue);
+		eventlog_filter_ptr->m_reopening_current_configuration->setChecked(newValue);
+	}
+
+	auto dms_reg_status_flags = GetRegStatusFlags();
+	setSF(clearOnOpen, dms_reg_status_flags, RSF_EventLog_ClearOnLoad);
+	setSF(clearOnReopen, dms_reg_status_flags, RSF_EventLog_ClearOnReLoad);
+	SetRegStatusFlags(dms_reg_status_flags);
 }
+
+
 
 void EventLogModel::addText(MsgData&& msgData)
 {
@@ -314,18 +330,18 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
 	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
 
-	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 
 	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
@@ -336,9 +352,15 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
 	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
 
-	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter->m_thread, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	connect(m_eventlog_filter->m_category, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
+	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_thread   , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_category , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+
+	m_eventlog_filter->m_opening_new_configuration      ->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnLoad);
+	m_eventlog_filter->m_reopening_current_configuration->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnReLoad);
+
+	connect(m_eventlog_filter->m_opening_new_configuration      , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
+	connect(m_eventlog_filter->m_reopening_current_configuration, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
 
 	// eventlog
 	m_log = std::make_unique<QListView>();

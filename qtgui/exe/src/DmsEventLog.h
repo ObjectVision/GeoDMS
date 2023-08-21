@@ -39,7 +39,7 @@ public:
 public slots:
 	void clear();
 	void refilter();
-	void refilterOnToggle(bool checked);
+	void writeSettingsOnToggle(bool newValue);
 
 private:
 	auto dataFiltered(int row) const -> const EventLogModel::item_t&;

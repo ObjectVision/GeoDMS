@@ -414,6 +414,19 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 	}
 }
 
+bool DmsTreeView::expandActiveNode(bool doExpand)
+{
+	auto index = currentIndex();
+	if (!index.isValid())
+		return false;
+
+	if (doExpand)
+		expand(index);
+	else
+		collapse(index);
+	return true;
+}
+
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {

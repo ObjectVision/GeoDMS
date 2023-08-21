@@ -143,3 +143,5 @@ inline void setSF(bool value, UInt32& rsf, UInt32 flag)
         rsf &= ~flag;
 }
 
+void SetRegStatusFlags(UInt32 newSF);
+

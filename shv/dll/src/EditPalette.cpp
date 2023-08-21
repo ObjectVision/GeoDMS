@@ -189,9 +189,12 @@ void EditPaletteControl::Init()
 	InsertEntry(m_TableView.get());
 	InsertEntry(m_Line2.get());
 
+/*
 	auto dv = GetDataView().lock();
 	if (dv)
 		SetClientSize(TPoint(dv->ViewLogicalRect().Size()));
+*/
+
 }
 
 void EditPaletteControl::ProcessSize(TPoint viewClientSize)

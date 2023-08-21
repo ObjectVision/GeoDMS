@@ -481,15 +481,12 @@ SharedStr TableControl::GetCaption() const
 
 	SizeT nrRows = NrRows();
 	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
-	auto row_label = SharedStr("rows");
-	if (nrRecs == 1)
-		row_label = "row";
 	
 	if (m_GroupByEntity)
-		return mgFormat2SharedStr("%s with %s %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), row_label, nrRows, m_GroupByEntity->GetExpr());
+		return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
 	if (nrRows == nrRecs)
-		return mgFormat2SharedStr("%s with %s %s", domain->GetName(), AsString(nrRecs), row_label);
-	return mgFormat2SharedStr("%s, selected %s of %s %s", domain->GetName(), AsString(nrRows), AsString(nrRecs), row_label);
+		return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
+	return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
 }
 
 void TableControl::NotifyCaptionChange()

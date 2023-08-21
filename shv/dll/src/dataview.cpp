@@ -1558,8 +1558,8 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 		.contextItem = GetViewContext(),
 		.caption = caption,
 	};
-	if (m_Contents) 
-		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
+//	if (m_Contents) 
+//		MakeLowerBound(createStruct.maxSize, TPoint2GPoint(GetContents()->CalcMaxSize(), GetScaleFactors()));
 
 	NotifyStateChange(reinterpret_cast<const TreeItem*>(&createStruct), CC_CreateMdiChild);
 	if (createStruct.hWnd)
@@ -1698,9 +1698,9 @@ void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last
 				if (currLevel == level)
 					break;
 			};
-			dms_assert(menuData[result].m_Level == level);
+			assert(menuData[result].m_Level == level);
 		}
-		dms_assert(menuData[result].m_Level == level);
+		assert(menuData[result].m_Level == level);
 
 		// if more to come, go to next item, which should be first sub-item of the current menu-item.
 		if (first != last && *first)

@@ -27,6 +27,7 @@ public:
 	void connectDetailPagesAnchorClicked();
 
 public slots:
+	void show(ActiveDetailPage new_active_detail_page);
 	void toggleGeneral();
 	void toggleExplorer();
 	void toggleProperties();

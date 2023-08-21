@@ -52,6 +52,12 @@ granted by an additional written contract for support, assistance and/or develop
 #include "PCount.h"
 
 /*
+	discrete allocation, O(n*k), see:
+		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
+		Koomen, E., Hilferink, M., & Borsboom-van Beurden, J. (2011). Introducing land use scanner (pp. 3-21). Springer Netherlands. paragraph 1.3.3
+*/
+
+/*
 HT<S> takes the following arguments:
 
 	suitabilities: for each ggType:
@@ -80,46 +86,47 @@ results in:
 
 */
 /* 
-	SMALL PERTUBATIONS
-	In order to make exact allocation possible, equal suitabilities are virtually pertubated.
-	It should never be the case that for any two cells i,l and types j,k,
-	the distance from points Si and Sl to the facet (j,k) is equal
+	SMALL PERTURBATIONS
+	In order to make exact allocation possible, equal suitabilities are virtually perturbated.
+	It should never be the case that for any two cells i,h and types j,k,
+	the distance from points i and h to the facet (j,k) is equal
 	or formally:
 
 	(R1):
 
-		(Sij + Cj) - (Sik + Ck) <> (Slj + Cj) - (Slk + Ck)
-	or	(Sij - Sik) + (Cj - Ck) <> (Slj - Slk) + ( Cj - Ck)
-	or	(Sij - Sik)             <> (Slj - Slk)
+		(S_ij + C_j ) - (S_ik + C_k) <> (S_hj + C_j) - (S_hk + C_k)
+	or	(S_ij - S_ik) + (C_j  - C_k) <> (S_hj - S_hk) + ( C_j - C_k)
+	or	(S_ij - S_ik)                <> (S_hj - S_hk)
 
-	unless i==l OR j==k.
+	unless i==h OR j==k.
 
 
-	This is achieved by applying symbolic pertubations to the cost values and
+	This is achieved by applying symbolic perturbations to the cost values and
 	require some administration which points are compared. 
 
-	Sij(epsilon) := Sij + epsilon*i*j
+	S_ij(epsilon) := S_ij + epsilon*i*j
 
-	Thus Sij(epsilon) <> Skl(epsilon) for i<>k XOR j<>l
-	since Sij == Skl implies Sij(epsilon) - Skl(epsilon) == epsilon*(ij - kl)
+	Thus S_ij(epsilon) <> S_kh(epsilon) for i<>k XOR j<>h
+	since S_ij == Skh implies S_ij(epsilon) - S_kh(epsilon) == epsilon*(ij - kh)
 
-	and (Sij(epsilon) - Sik(epsilon)) - (Slj(epsilon) - Slk(epsilon))
-	== epsilon * [(ij - ik) - (lj - lk)]
-	== epsilon * [(i-l)(j-k)],
+	and (S_ij(epsilon) - S_ik(epsilon)) - (S_hj(epsilon) - S_hk(epsilon))
+	== epsilon * [(ij - ik) - (hj - hk)]
+	== epsilon * [(i-h)(j-k)],
 	which fullfills requirement (R1).
 
-	The sufficiency of (R1) and thus the fact that degeneracies such as Sij == Slk for i<>l AND j<>k doesn't matter
+	The sufficiency of (R1) and thus the fact that degeneracies such as S_ij == S_hk for i<>h AND j<>k doesn't matter
 	follows from close analysis of the used operators:
 		
-	- We take and count maxima per cell i of (Sij + Cj) over j.
-	- We keep a queue of cells i for each communicating (j,k) facet, strictly ordered by (Sij(epsilon) - Sik(epsilon)), small values have priority
-	- We update Cj(epsilon) := Ck(epsilon) - (Sij(epsilon) - Sik(epsilon)) using facet (j,k)
-	  =>        Cj.first    := Ck.first    - heap(j,k).top.first
-	  =>        Cj.second   := Ck.second   - epsilon*i*(j-k)
+	- We take and count maxima per cell i of (S_ij + C_j) over j.
+	- We keep a queue of cells i for each communicating (j,k) facet, strictly ordered by (S_ij(epsilon) - S_ik(epsilon)), small values have priority
+	- We update C_j(epsilon) := C_k(epsilon) - (S_ij(epsilon) - S_ik(epsilon)) using facet (j,k)
+
+	  =>        C[j].first    := C[k].first    - heap(j,k).top.first
+	  =>        C[j].second   := C[k].second   - epsilon * i * (j-k)
 
 
 	See:
-	Edelsbrunner, H. And Mcke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
+	Edelsbrunner, H. And Mücke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
 */
 
 #define EPSILON(x) (x)
