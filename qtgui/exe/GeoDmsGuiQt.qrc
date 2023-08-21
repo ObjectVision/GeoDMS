@@ -4,7 +4,6 @@
         <file>res/images/print.png</file>
         <file>res/images/save.png</file>
         <file>res/images/undo.png</file>
-        <file>res/images/default.txt</file>
         <file>res/images/DP_properties.bmp</file>
         <file>res/images/DP_explore.bmp</file>
         <file>res/images/DP_configuration.bmp</file>
@@ -74,5 +73,6 @@
         <file>res/images/EL_selection.bmp</file>
         <file>res/images/GeoDmsGuiQt.png</file>
         <file>res/images/TV_storage_unstored.png</file>
+        <file>res/fonts/remixicon.ttf</file>
     </qresource>
 </RCC>
