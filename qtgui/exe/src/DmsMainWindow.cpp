@@ -1678,6 +1678,7 @@ void MainWindow::createActions()
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
     auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
     connect(tableview_shortcut, &QShortcut::activated, this, &MainWindow::tableView);
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
@@ -1686,6 +1687,7 @@ void MainWindow::createActions()
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
     auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
     connect(mapview_shortcut, &QShortcut::activated, this, &MainWindow::mapView);
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
@@ -1693,7 +1695,7 @@ void MainWindow::createActions()
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
-//    m_statistics_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+    m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/DP_statistics.bmp")));
     connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
     m_view_menu->addAction(m_statistics_action.get());
 
@@ -1708,6 +1710,7 @@ void MainWindow::createActions()
     //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
+    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp"));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
@@ -1874,7 +1877,7 @@ void MainWindow::updateFileMenu()
 void MainWindow::updateViewMenu()
 {
     // disable actions not applicable to current item
-    auto ti_is_or_is_in_template = m_current_item->InTemplate() && m_current_item->IsTemplate();
+    auto ti_is_or_is_in_template = !m_current_item || (m_current_item->InTemplate() && m_current_item->IsTemplate());
     m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
     m_update_subtree_action->setDisabled(ti_is_or_is_in_template);
     m_invalidate_action->setDisabled(ti_is_or_is_in_template);
@@ -2080,6 +2083,7 @@ void MainWindow::createValueInfoDock()
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
+    m_value_info_dock->setVisible(false);
     createDetailPagesDock();
 
 //    m_detail_pages->setDummyText();
