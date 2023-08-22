@@ -36,7 +36,7 @@
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "SowDetailPage %d", int(new_active_detail_page));
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ShowDetailPage %d", int(new_active_detail_page));
     m_active_detail_page = new_active_detail_page;
 }
 
