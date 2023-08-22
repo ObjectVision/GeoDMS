@@ -215,10 +215,14 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-	if (IsDataCurrReady(ti->GetCurrRangeItem()))
-		return color_option::tv_valid;
-	if (ti->m_State.GetProgress() >= PS_Validated)
-		return color_option::tv_exogenic;
+	assert(ti->Was(PS_MetaInfo));
+	if (ti->Was(PS_MetaInfo))
+	{
+		if (IsDataCurrReady(ti->GetCurrRangeItem()))
+			return color_option::tv_valid;
+		if (ti->m_State.GetProgress() >= PS_Validated)
+			return color_option::tv_exogenic;
+	}
 
 	return color_option::tv_not_calculated;
 }
@@ -255,10 +259,8 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return getTreeItemIcon(index);
 
 	case Qt::EditRole: 
+	case Qt::DisplayRole:
 		return QString(ti->GetName().c_str());
-
-	case Qt::DisplayRole: 
-		return  QString(ti->GetName().c_str());
 
 	case Qt::ForegroundRole:
 		return getTreeItemColor(index);

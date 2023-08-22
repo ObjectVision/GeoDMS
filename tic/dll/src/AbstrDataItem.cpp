@@ -111,6 +111,7 @@ inline const AbstrUnit* AbstrDataItem::GetAbstrDomainUnit() const
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
 	return m_DomainUnit;
 }
+
 inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const 
 { 
 	if (!m_ValuesUnit && IsMetaThread())
@@ -398,27 +399,28 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	// only copy unitnames when not defined
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit))
 	{
+		res->m_tDomainUnit = m_tDomainUnit;
 		try {
 			auto adu = GetAbstrDomainUnit();
-			assert(adu);
-			res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
+			if (adu)
+				res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tDomainUnit = m_tDomainUnit;
 		}
 	}
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit))
 	{
+		res->m_tValuesUnit = m_tValuesUnit;
 		try {
 			auto avu = GetAbstrValuesUnit();
-			res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
+			if (avu)
+				res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tValuesUnit = m_tValuesUnit;
 		}
 	}
 	res->m_StatusFlags.SetValueComposition(GetValueComposition());
@@ -526,7 +528,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined %s unit", role), FR_MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
-	if (!result)
+	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
 		ThrowFail(msg, FR_MetaInfo);
