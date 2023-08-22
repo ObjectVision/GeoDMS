@@ -24,6 +24,7 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QWidgetAction;
 class QComboBox;
 class QDialog;
 class QLabel;
@@ -98,6 +99,20 @@ public slots:
     void onToolbuttonPressed();
 };
 
+class DmsRecentFileEntry : public QWidget
+{
+    Q_OBJECT
+
+public:
+    DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QWidget* parent = nullptr);
+    std::string m_cfg_file_path;
+    size_t m_index = 0;
+
+public slots:
+    void onDeleteRecentFileEntry();
+    void onFileEntryPressed();
+};
+
 struct CmdLineSetttings {
     bool m_NoConfig = false;
     SharedStr m_ConfigFileName;
@@ -163,6 +178,7 @@ public:
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
+    void removeRecentFileAtIndex(size_t index);
     void setRecentFiles();
 
     static auto TheOne() -> MainWindow*;
@@ -223,6 +239,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
@@ -305,7 +322,7 @@ public:
 private:
     std::vector<processing_record> m_processing_records;
 
-    QList<DmsRecentFileButtonAction*> m_recent_files_actions;
+    QList<QWidgetAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
 };
