@@ -22,6 +22,7 @@
 #include <QCompleter>
 #include <QMdiArea>
 #include <QPixmap>
+#include <QWidgetAction>
 
 
 #include "DmsMainWindow.h"
@@ -388,7 +389,10 @@ void MainWindow::fileOpen()
     else
     {
         if (!m_recent_files_actions.empty())
-            proj_dir = m_recent_files_actions.at(0)->m_cfg_file_path.c_str();
+        {
+            auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(0)->defaultWidget());
+            proj_dir = recent_file_widget->m_cfg_file_path.c_str();
+        }
     }
 
     auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", proj_dir.c_str(), "*.dms").toLower();
@@ -467,6 +471,64 @@ DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_v
 }
 
 void DmsRecentFileButtonAction::onToolbuttonPressed()
+{
+    auto main_window = MainWindow::TheOne();
+
+    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
+        main_window->m_eventlog_model->clear();
+
+    main_window->LoadConfig(m_cfg_file_path.c_str());
+}
+
+DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QWidget* parent)
+    :QWidget(parent)
+{
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    auto h_layout = new QHBoxLayout(this);
+    h_layout->setContentsMargins(0, 0, 0, 0);
+    h_layout->setSpacing(0);
+    auto remove_config = new QPushButton(this);
+    remove_config->setIcon(QIcon(":/res/images/EL_clear.bmp"));
+    std::string preprending_spaces = index<10 ? "   &" : "  ";
+    std::string pushbutton_text = preprending_spaces + std::to_string(index+1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
+    auto config_text = new QPushButton(tr(pushbutton_text.c_str()), this);
+    QFontMetrics fm(QApplication::font());
+    auto action_height = fm.height()+5;
+    setFixedHeight(action_height);
+    remove_config->setFixedHeight(action_height);
+    remove_config->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    config_text->setFixedHeight(action_height);
+    config_text->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    QWidget* spacer = new QWidget(this);
+    spacer->setFixedHeight(action_height);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+    remove_config->setStyleSheet("QPushButton {border: 0px; background-color:rgba(255, 255, 255, 0);}"
+                                 "QPushButton::hover {border: 0px; background-color:rgba(145, 200, 245, 255);}");
+    config_text->setStyleSheet("QPushButton {border: 0px; background-color:rgba(255, 255, 255, 0);}"
+                               "QPushButton::hover {border: 0px; background-color:rgba(145, 200, 245, 255);}");
+    // connections
+    connect(remove_config, &QPushButton::clicked, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+    connect(config_text, &QPushButton::clicked, this, &DmsRecentFileEntry::onFileEntryPressed);
+
+    h_layout->addWidget(remove_config);
+    h_layout->addWidget(config_text);
+    h_layout->addWidget(spacer);
+    setLayout(h_layout);
+    
+    m_cfg_file_path = dms_file_full_path;
+    m_index = index;
+}
+
+void DmsRecentFileEntry::onDeleteRecentFileEntry()
+{
+    auto main_window = MainWindow::TheOne();
+    main_window->m_file_menu->close();
+    main_window->removeRecentFileAtIndex(m_index);
+}
+
+void DmsRecentFileEntry::onFileEntryPressed()
 {
     auto main_window = MainWindow::TheOne();
 
@@ -695,6 +757,14 @@ void MainWindow::updateDetailPagesToolbar()
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     //m_toolbar->addWidget(spacer);
     m_dms_toolbar_spacer_action.reset(m_toolbar->insertWidget(m_general_page_action.get(), spacer));
+}
+
+auto MainWindow::createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*
+{
+    auto new_recent_file_action_widget = new QWidgetAction(parent);
+    auto new_recent_file_widget = new DmsRecentFileEntry(index, cfg, parent);
+    new_recent_file_action_widget->setDefaultWidget(new_recent_file_widget);
+    return new_recent_file_action_widget;
 }
 
 void MainWindow::clearToolbarUpToDetailPagesTools()
@@ -1010,8 +1080,6 @@ void MainWindow::code_analysis_clr_targets()
 //    TreeItem_SetAnalysisTarget(nullptr, true);  // REMOVE, al gedaan door SetAnalysisSource
 }
 
-
-
 bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
 {
     VectorOutStreamBuff buffer;
@@ -1170,14 +1238,26 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
 
+void MainWindow::removeRecentFileAtIndex(size_t index)
+{
+    if (m_recent_files_actions.size()<=index)
+        return;
+
+    auto action_to_be_removed = m_recent_files_actions.at(index);
+    m_file_menu->removeAction(action_to_be_removed);
+    m_recent_files_actions.removeAt(index);
+    setRecentFiles();
+}
+
 void MainWindow::setRecentFiles()
 {
     std::vector<std::string> recent_files_as_std_strings;
     for (auto* recent_file_action : m_recent_files_actions)
     {
-        auto dos_string = recent_file_action->m_cfg_file_path;
+        auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(recent_file_action->defaultWidget());
+        auto dos_string = recent_file_widget->m_cfg_file_path;
         std::replace(dos_string.begin(), dos_string.end(), '/', '\\');
-        recent_files_as_std_strings.push_back(dos_string); // TODO: string juggling
+        recent_files_as_std_strings.push_back(dos_string);
     }
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
@@ -1187,10 +1267,14 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
-        auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, m_file_menu.get());
-        connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
-        m_file_menu->addAction(new_recent_file_action);
-        m_recent_files_actions.prepend(new_recent_file_action);
+        auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), cfg, m_file_menu.get());
+        m_file_menu->addAction(new_recent_file_action_widget);
+        m_recent_files_actions.prepend(new_recent_file_action_widget);
+
+        //auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, m_file_menu.get());
+        //connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
+        //m_file_menu->addAction(new_recent_file_action);
+        //m_recent_files_actions.prepend(new_recent_file_action);
 
     }
     else
@@ -1866,12 +1950,17 @@ void MainWindow::updateFileMenu()
     cleanRecentFilesThatDoNotExist();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
     size_t recent_file_index = 1;
+    
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, m_file_menu.get());
-        connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
-        m_file_menu->addAction(qa);
-        m_recent_files_actions.append(qa);
+        auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), recent_file, m_file_menu.get());
+        m_file_menu->addAction(new_recent_file_action_widget);
+        m_recent_files_actions.prepend(new_recent_file_action_widget);
+
+        //auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, m_file_menu.get());
+        //connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
+        //m_file_menu->addAction(qa);
+        //m_recent_files_actions.append(qa);
         recent_file_index++;
     }
 
@@ -2066,7 +2155,7 @@ void MainWindow::view_calculation_times()
     textWidget->setText(vosb.GetData());
 
     mdiSubWindow->setWindowTitle("Calculation time overview");
-    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp"));
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
