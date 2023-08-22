@@ -167,7 +167,7 @@ bool WmCopyData(MSG* copyMsgPtr)
         MainWindow::TheOne()->defaultView();
         return true;
 
-    case CommandCode::GOTO:
+    case CommandCode::ActivateItem:
         MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
         return true;
         
@@ -195,11 +195,11 @@ bool WmCopyData(MSG* copyMsgPtr)
 //        dmfGeneral.miHistogramView.Click;
         return true;
 
-    case CommandCode::cascadeSubWindows:
+    case CommandCode::CascadeSubWindows:
         MainWindow::TheOne()->m_mdi_area->cascadeSubWindows();
         return true;
 
-    case CommandCode::tileSubWindows:
+    case CommandCode::TileSubWindows:
         MainWindow::TheOne()->m_mdi_area->tileSubWindows();
         return true;
 

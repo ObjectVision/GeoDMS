@@ -1,2 +1,3 @@
 /TC:\dev\tst\dmsscript\DPGeneral_explicit_supplier_error.dmsscript c:\dev\tst\Unit\GUI\cfg\DPGeneral_explicit_supplier_error.dms
+/TC:\dev\tst\dmsscript\MapViewClassification.dmsscript c:\dev\tst\Operator\cfg\MicroTst.dms
 /noconfig

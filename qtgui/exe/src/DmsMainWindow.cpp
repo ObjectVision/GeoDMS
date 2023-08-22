@@ -1089,20 +1089,20 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
 
 void MainWindow::defaultView()
 {
-    //reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", m_current_item->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
     createView(default_view_style);
 }
 
 void MainWindow::mapView()
 {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: create new Mapview for item %s", m_current_item->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
 void MainWindow::tableView()
 {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: create new Tableview for item %s", m_current_item->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 

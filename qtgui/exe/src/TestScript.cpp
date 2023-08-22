@@ -77,11 +77,18 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 				buffer.emplace_back(0);
 			myCDS.lpData = &(buffer[0]);
 		}
+		else if (std::strcmp(argv[i], "DefaultView") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::DefaultView);
+			myCDS.cbData = 0;
+			myCDS.lpData = nullptr;
+//			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
+		}
 		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
 		{
 			if (argc <= ++i)
 				throw stx_error("path expected after GOTO");
-			myCDS.dwData = ULONG_PTR(CommandCode::GOTO);
+			myCDS.dwData = ULONG_PTR(CommandCode::ActivateItem);
 			myCDS.cbData = std::strlen(argv[i]) + 1;
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
@@ -111,16 +118,16 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 		}
-		else if (std::strcmp(argv[i], "cascadeSubWindows") == 0)
+		else if (std::strcmp(argv[i], "CascadeSubWindows") == 0)
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::cascadeSubWindows);
+			myCDS.dwData = ULONG_PTR(CommandCode::CascadeSubWindows);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
 
 		}
-		else if (std::strcmp(argv[i], "tileSubWindows") == 0)
+		else if (std::strcmp(argv[i], "TileSubWindows") == 0)
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::tileSubWindows);
+			myCDS.dwData = ULONG_PTR(CommandCode::TileSubWindows);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
 
