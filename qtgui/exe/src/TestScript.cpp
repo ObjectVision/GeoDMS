@@ -198,7 +198,7 @@ int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
 {
     auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
-	while (!fis.AtEnd())
+	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
 		auto line = ReadLine(fis);
 		auto result = RunTestLine(line, hwDispatch);

@@ -254,7 +254,18 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 
     case WM_COPYDATA:
         if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
-        return WmCopyData(msg);
+        {
+            try {
+                return WmCopyData(msg);
+            }
+            catch (...)
+            {
+                auto msg = catchException(false);
+                auto userResult = MessageBoxA(nullptr, msg->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+                if (userResult == IDCANCEL)
+                    terminate();
+            }
+        }
     }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
@@ -333,7 +344,7 @@ int main_without_SE_handler(int argc, char *argv[])
         auto msg = catchException(false);
         std::cout << "error          : " << msg->Why() << std::endl;
         std::cout << "context        : " << msg->Why() << std::endl;
-        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR| MB_SYSTEMMODAL);
     }
     return 9;
 }
