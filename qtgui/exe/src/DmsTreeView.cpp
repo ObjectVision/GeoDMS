@@ -215,7 +215,7 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-	assert(ti->Was(PS_MetaInfo));
+	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
 	if (ti->Was(PS_MetaInfo))
 	{
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))
@@ -246,7 +246,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return QVariant();
 
 	SuspendTrigger::Resume();
-	if (!ti->Is(PS_MetaInfo) && !ti->WasFailed())
+	if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
 	{
 		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");
 		Waiter showWaitingStatus(&thisMsgGenerator);
