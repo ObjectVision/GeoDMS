@@ -189,7 +189,6 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -550,6 +549,11 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             nrRows++;
         }
     }
+    
+    // default height of window
+    QFontMetrics fm(QApplication::font());
+    auto window_height = nrRows*fm.height() + 250;
+    resize(500, window_height);
 
     // ok/cancel/undo buttons
     auto box_layout = new QHBoxLayout(this);
