@@ -281,7 +281,7 @@ protected:
 
 #include <future>
 
-int main(int argc, char *argv[])
+int main_without_SE_handler(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
@@ -335,4 +335,15 @@ int main(int argc, char *argv[])
         std::cout << "context        : " << msg->Why() << std::endl;
     }
     return 9;
+}
+
+int main(int argc, char* argv[])
+{
+    DMS_SE_CALL_BEGIN
+
+        return main_without_SE_handler(argc, argv);
+
+    DMS_SE_CALL_END
+
+    return GetLastExceptionCode();
 }
