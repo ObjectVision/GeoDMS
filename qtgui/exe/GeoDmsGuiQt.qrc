@@ -67,12 +67,13 @@
         <file>res/images/TV_palette_bw.bmp</file>
         <file>res/images/TV_table_bw.bmp</file>
         <file>res/images/TV_unit_transparant_bw.bmp</file>
-        <file>res/images/IconCalculationTimeOverview.bmp</file>
         <file>res/images/DP_history.bmp</file>
         <file>res/images/arrow_down.png</file>
         <file>res/images/EL_selection.bmp</file>
         <file>res/images/GeoDmsGuiQt.png</file>
         <file>res/images/TV_storage_unstored.png</file>
         <file>res/fonts/remixicon.ttf</file>
+        <file>res/images/IconCalculationTimeOverview.png</file>
+        <file>res/images/TV_default_view.bmp</file>
     </qresource>
 </RCC>

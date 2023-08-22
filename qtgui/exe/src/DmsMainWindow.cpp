@@ -1061,7 +1061,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
         {
-        case (ViewStyle::tvsTableView): {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
         case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
         default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
         }
@@ -1091,7 +1090,8 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
 void MainWindow::defaultView()
 {
     //reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
-    createView(SHV_GetDefaultViewStyle(m_current_item));
+    auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    createView(default_view_style);
 }
 
 void MainWindow::mapView()
@@ -1317,7 +1317,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     mdiSubWindow->setWidget(textWidget);
     mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
 
-    SharedStr title = "Statistics View of " + tiContext->GetFullName();
+    SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_statistics.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
@@ -1574,7 +1574,6 @@ void MainWindow::createActions()
     m_treeitem_visit_history->setFixedWidth(18);
     m_treeitem_visit_history->setFixedHeight(18);
     m_treeitem_visit_history->setFrame(false);
-    //m_treeitem_visit_history->setMinimumSize(QSize(0, 0));
     m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {\n"
                                                 "min-width:400px;"
                                             "}\n"
@@ -1588,9 +1587,7 @@ void MainWindow::createActions()
    
 
     m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
-
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
-    
     m_current_item_bar_container->addAction(m_back_action.get());
     m_current_item_bar_container->addAction(m_forward_action.get());
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
@@ -1613,7 +1610,6 @@ void MainWindow::createActions()
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
     m_file_menu->addAction(reOpenAct);
-    //fileToolBar->addAction(reOpenAct);
 
     m_file_menu->addSeparator();
     m_quit_action = std::make_unique<QAction>(tr("&Quit"));
@@ -1672,6 +1668,7 @@ void MainWindow::createActions()
     menuBar()->addMenu(m_view_menu.get());
 
     m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
     connect(defaultview_shortcut, &QShortcut::activated, this, &MainWindow::defaultView);
@@ -1713,7 +1710,7 @@ void MainWindow::createActions()
     //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
-    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp"));
+    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
@@ -1824,9 +1821,13 @@ void MainWindow::createActions()
     win5_action->setShortcut(QKeySequence(tr("Ctrl+B")));
     win5_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
-
-    m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
-    m_window_menu->addSeparator();
+    m_window_menu->addAction(win1_action);
+    m_window_menu->addAction(win2_action);
+    m_window_menu->addAction(win3_action);
+    m_window_menu->addAction(win4_action);
+    m_window_menu->addAction(win5_action);
+    //m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
+    
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
 
     // help menu
@@ -1922,6 +1923,8 @@ void MainWindow::updateWindowMenu()
     for (auto to_be_removed_action : actions_to_remove)
         m_window_menu->removeAction(to_be_removed_action);
 
+    m_window_menu->addSeparator();
+
     // reinsert window actions
     auto asw = m_mdi_area->currentSubWindow();
     for (auto* sw : m_mdi_area->subWindowList())
@@ -1932,7 +1935,7 @@ void MainWindow::updateWindowMenu()
         {
         case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; }
         case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
-        case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.bmp")); break; }
+        case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png")); break; }
         default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
         }
                 
