@@ -64,6 +64,9 @@ enum ViewStyle {
 ,	tvsSupplierSchema
 ,	tvsExprSchema
 ,	tvsUndefined
+,   tvsStatistics
+//  Non treeitem related styles
+,   tvsCalculationTimes
 };
 	
 enum ViewStyleFlags {

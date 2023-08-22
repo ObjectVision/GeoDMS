@@ -189,7 +189,6 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
 void DmsGuiOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -505,33 +504,17 @@ bool IsOverridableConfigSetting(const TreeItem* tiCursor)
 }
 
 
-DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
+DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent) 
     : QDialog(parent)
 {
-    setWindowTitle(QString("Config options"));
-    setMinimumSize(800, 400);
+    setupUi(this);
 
-    auto grid_layout = new QGridLayout(this);
-    grid_layout->setVerticalSpacing(0);
-    auto header = new QLabel("Settings for user and local machine specific overridden values", this);
-    auto line = new QFrame(this);
-    QSizePolicy size_policy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    size_policy.setHorizontalStretch(0);
-    size_policy.setVerticalStretch(0);
-    size_policy.setHeightForWidth(line->sizePolicy().hasHeightForWidth());
-    line->setSizePolicy(size_policy);
-    line->setFrameShadow(QFrame::Sunken);
-    line->setLineWidth(2);
-    line->setFrameShape(QFrame::HLine);
-
-    grid_layout->addWidget(header, 0, 0, 1, 3);
-    grid_layout->addWidget(line, 1, 0, 2, 3);
-
-    grid_layout->addWidget(new QLabel("Option", this), 4, 0);
-    grid_layout->addWidget(new QLabel("Override", this), 4, 1);
-    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 4, 2);
-
-    unsigned int nrRows = 5;
+    /*auto grid_layout = new QGridLayout(this);
+    grid_layout->addWidget(new QLabel("Option", this), 0, 0);
+    grid_layout->addWidget(new QLabel("Override", this), 0, 1);
+    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
+    */
+    unsigned int nrRows = 4;
 
     auto tiCursor = getFirstOverridableOption();
     if (tiCursor)
@@ -552,9 +535,9 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::onCheckboxToggle);
             connect(option_input, &QLineEdit::textChanged, this, &DmsConfigOptionsWindow::onTextChange);
 
-            grid_layout->addWidget(label, nrRows, 0);
-            grid_layout->addWidget(option_cbx, nrRows, 1);
-            grid_layout->addWidget(option_input, nrRows, 2);
+            gridLayout->addWidget(label, nrRows, 0);
+            gridLayout->addWidget(option_cbx, nrRows, 1);
+            gridLayout->addWidget(option_input, nrRows, 2);
 
             SharedDataItemInterestPtr data_item = adi;
 
@@ -566,33 +549,38 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             nrRows++;
         }
     }
+    
+    // default height of window
+    QFontMetrics fm(QApplication::font());
+    auto window_height = nrRows*fm.height() + 250;
+    resize(500, window_height);
 
-    // ok/apply/cancel buttons
+    // ok/cancel/undo buttons
     auto box_layout = new QHBoxLayout(this);
     m_ok = new QPushButton("Ok", this);
     m_ok->setMaximumSize(75, 30);
     m_ok->setAutoDefault(true);
     m_ok->setDefault(true);
-    m_apply = new QPushButton("Apply", this);
-    m_apply->setMaximumSize(75, 30);
+    m_cancel = new QPushButton("Cancel", this);
+    m_cancel->setMaximumSize(75, 30);
     m_undo = new QPushButton("Undo", this);
     m_undo->setMaximumSize(75, 30);
 
     connect(m_ok, &QPushButton::released, this, &DmsConfigOptionsWindow::ok);
-    connect(m_apply, &QPushButton::released, this, &DmsConfigOptionsWindow::apply);
+    connect(m_cancel, &QPushButton::released, this, &DmsConfigOptionsWindow::cancel);
     connect(m_undo, &QPushButton::released, this, &DmsConfigOptionsWindow::resetValues);
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid_layout->addWidget(spacer, nrRows+1, 0, 1, 3);
+    gridLayout->addWidget(spacer, nrRows+1, 0, 1, 3);
 
     QWidget* button_spacer = new QWidget(this);
     button_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     box_layout->addWidget(button_spacer);
     box_layout->addWidget(m_ok);
-    box_layout->addWidget(m_apply);
+    box_layout->addWidget(m_cancel);
     box_layout->addWidget(m_undo);
-    grid_layout->addLayout(box_layout, nrRows+2, 2, 1, 1);
+    gridLayout->addLayout(box_layout, nrRows+2, 2, 1, 1);
 
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
@@ -631,7 +619,7 @@ bool DmsConfigOptionsWindow::hasOverridableConfigOptions()
 void DmsConfigOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_apply->setEnabled(isChanged);
+    m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -709,6 +697,12 @@ void DmsConfigOptionsWindow::ok()
     if (m_changed)
         apply();
     done(QDialog::Accepted);
+}
+
+void DmsConfigOptionsWindow::cancel()
+{
+    resetValues();
+    done(QDialog::Rejected);
 }
 
 

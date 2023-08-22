@@ -178,11 +178,12 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     m_mdi_area = new QDmsMdiArea(this);
 
+    // fonts
     QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
     QApplication::setFont(dms_text_font);
+    QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
     setCentralWidget(m_mdi_area.get());
-
     m_mdi_area->show();
 
     createStatusBar();
@@ -1055,11 +1056,11 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         SuspendTrigger::Resume();
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        dms_mdi_subwindow->setProperty("viewstyle", viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
         {
-        case (ViewStyle::tvsTableView): {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
         case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
         default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
         }
@@ -1089,7 +1090,8 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
 void MainWindow::defaultView()
 {
     //reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
-    createView(SHV_GetDefaultViewStyle(m_current_item));
+    auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    createView(default_view_style);
 }
 
 void MainWindow::mapView()
@@ -1314,8 +1316,9 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     textWidget->m_Context = tiContext;
     tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
 
-    SharedStr title = "Statistics View of " + tiContext->GetFullName();
+    SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_statistics.bmp"));
     m_mdi_area->addSubWindow(mdiSubWindow);
@@ -1572,7 +1575,6 @@ void MainWindow::createActions()
     m_treeitem_visit_history->setFixedWidth(18);
     m_treeitem_visit_history->setFixedHeight(18);
     m_treeitem_visit_history->setFrame(false);
-    //m_treeitem_visit_history->setMinimumSize(QSize(0, 0));
     m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {\n"
                                                 "min-width:400px;"
                                             "}\n"
@@ -1586,9 +1588,7 @@ void MainWindow::createActions()
    
 
     m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
-
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
-    
     m_current_item_bar_container->addAction(m_back_action.get());
     m_current_item_bar_container->addAction(m_forward_action.get());
     m_current_item_bar_container->addWidget(m_current_item_bar.get());
@@ -1611,7 +1611,6 @@ void MainWindow::createActions()
     reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
     m_file_menu->addAction(reOpenAct);
-    //fileToolBar->addAction(reOpenAct);
 
     m_file_menu->addSeparator();
     m_quit_action = std::make_unique<QAction>(tr("&Quit"));
@@ -1670,6 +1669,7 @@ void MainWindow::createActions()
     menuBar()->addMenu(m_view_menu.get());
 
     m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
     connect(defaultview_shortcut, &QShortcut::activated, this, &MainWindow::defaultView);
@@ -1679,6 +1679,7 @@ void MainWindow::createActions()
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
+    m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
     auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
     connect(tableview_shortcut, &QShortcut::activated, this, &MainWindow::tableView);
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
@@ -1687,6 +1688,7 @@ void MainWindow::createActions()
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
+    m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
     auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
     connect(mapview_shortcut, &QShortcut::activated, this, &MainWindow::mapView);
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
@@ -1694,7 +1696,7 @@ void MainWindow::createActions()
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
-//    m_statistics_action->setShortcut(QKeySequence(tr("Ctrl+H")));
+    m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/DP_statistics.bmp")));
     connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
     m_view_menu->addAction(m_statistics_action.get());
 
@@ -1709,6 +1711,7 @@ void MainWindow::createActions()
     //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
+    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
@@ -1819,9 +1822,13 @@ void MainWindow::createActions()
     win5_action->setShortcut(QKeySequence(tr("Ctrl+B")));
     win5_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
-
-    m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
-    m_window_menu->addSeparator();
+    m_window_menu->addAction(win1_action);
+    m_window_menu->addAction(win2_action);
+    m_window_menu->addAction(win3_action);
+    m_window_menu->addAction(win4_action);
+    m_window_menu->addAction(win5_action);
+    //m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
+    
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
 
     // help menu
@@ -1847,7 +1854,7 @@ void MainWindow::updateFileMenu()
 {
     for (auto* recent_file_action : m_recent_files_actions)
     {
-        m_window_menu->removeAction(recent_file_action);
+        m_file_menu->removeAction(recent_file_action);
         delete recent_file_action;
     }
     m_recent_files_actions.clear(); // delete old actions;
@@ -1875,7 +1882,7 @@ void MainWindow::updateFileMenu()
 void MainWindow::updateViewMenu()
 {
     // disable actions not applicable to current item
-    auto ti_is_or_is_in_template = m_current_item->InTemplate() && m_current_item->IsTemplate();
+    auto ti_is_or_is_in_template = !m_current_item || (m_current_item->InTemplate() && m_current_item->IsTemplate());
     m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
     m_update_subtree_action->setDisabled(ti_is_or_is_in_template);
     m_invalidate_action->setDisabled(ti_is_or_is_in_template);
@@ -1917,11 +1924,22 @@ void MainWindow::updateWindowMenu()
     for (auto to_be_removed_action : actions_to_remove)
         m_window_menu->removeAction(to_be_removed_action);
 
+    m_window_menu->addSeparator();
+
     // reinsert window actions
     auto asw = m_mdi_area->currentSubWindow();
     for (auto* sw : m_mdi_area->subWindowList())
     {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
+        ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
+        switch (viewstyle)
+        {
+        case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; }
+        case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
+        case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png")); break; }
+        default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
+        }
+                
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         if (sw == asw)
         {
@@ -2042,6 +2060,7 @@ void MainWindow::view_calculation_times()
     os << char(0); // ends
 
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setText(vosb.GetData());
@@ -2058,17 +2077,32 @@ void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
-
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
+    m_detail_pages->setMinimumWidth(0);
+    m_detailpages_dock->setMinimumWidth(0);
     m_detailpages_dock->setWidget(m_detail_pages);
-    //m_detail_pages->minimumSizeHint() = QSize(20,20);
-    addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
+    splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
+
     m_detail_pages->connectDetailPagesAnchorClicked();
+}
+
+void MainWindow::createValueInfoDock()
+{
+    m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
+    m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
+    m_value_info_dock->setMinimumWidth(0);
+    m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
+    m_value_info_mdi_area->setMinimumWidth(0);
+    m_value_info_dock->setWidget(m_value_info_mdi_area);
+    addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
 {
+    createValueInfoDock();
+    m_value_info_dock->setVisible(false);
     createDetailPagesDock();
+
 //    m_detail_pages->setDummyText();
 
     m_treeview = createTreeview(this);

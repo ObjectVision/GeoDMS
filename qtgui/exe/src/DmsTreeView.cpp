@@ -27,6 +27,7 @@
 #include "StateChangeNotification.h"
 #include "dataview.h"
 #include "waiter.h"
+#include "dbg/DmsCatch.h"
 
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
@@ -312,50 +313,68 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	QStyledItemDelegate::paint(painter, option, index);
 
 	// draw storage icon applicable
-	auto ti = GetTreeItem(index);
-	const TreeItem* storageHolder = nullptr;
-	if (ti->HasStorageManager())
-		storageHolder = ti;
-	else
+	TreeItem* ti = nullptr;
+	try
 	{
-		auto parent = ti->GetTreeParent();
-		if (!parent) // root has no parent
+		ti = GetTreeItem(index);
+
+
+		if (!ti)
 			return;
-		if (parent->HasStorageManager())
-			storageHolder = parent;
-	}
 
-	if (!storageHolder)
-		return;
+		const TreeItem* storageHolder = nullptr;
+		if (ti->HasStorageManager())
+			storageHolder = ti;
+		else
+		{
+			auto parent = ti->GetTreeParent();
+			if (!parent) // root has no parent
+				return;
+			if (parent->HasStorageManager())
+				storageHolder = parent;
+		}
 
-	bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
-	if (is_read_only && ti->HasCalculator())
-		return;
+		if (!storageHolder)
+			return;
 
-	if (ti->IsDisabledStorage())
-		return;
+		bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
+		if (is_read_only && ti->HasCalculator())
+			return;
 
-	painter->save();
-	QFontMetrics fm(QApplication::font());
-	int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
+		if (ti->IsDisabledStorage())
+			return;
 
-	auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
-	int offset_icon = item_icon.width();
-	auto rect = option.rect;
-	auto cur_brush = painter->brush();
-	auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
-	auto storage_icon = QImage(item_icon.size(), QImage::Format::Format_ARGB32);
-	storage_icon.load(":/res/images/TV_storage_unstored.png");
+		painter->save();
+		QFontMetrics fm(QApplication::font());
+		int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
+
+		auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
+		int offset_icon = item_icon.width();
+		auto rect = option.rect;
+		auto cur_brush = painter->brush();
+		auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
+
+		QFont font;
+		font.setFamily("remixicon");
+		painter->setFont(font);
+
+		// set transparancy if not committed yet
+		NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
+		if (ti_state < NotificationCode::NC2_DataReady)
+			painter->setOpacity(0.5);
+
 	
-	// set transparancy if not committed yet
-	NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
-	if (ti_state < NotificationCode::NC2_DataReady)
-		painter->setOpacity(0.5);
+		if (ti->IsDataFailed())
+			painter->setPen(QColor(255,0,0,255));
+		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uF0B0":"\uEC15");
 
-	painter->drawImage(QRect(QPoint(offset, rect.topLeft().y()+2), QSize(item_icon.size().width()-4, item_icon.size().height()-4)), storage_icon);
-	//QLineF line(rect.topLeft().x() + offset_icon + offset_item_text + 15, rect.topLeft().y(), rect.bottomRight().x(), rect.bottomRight().y());
-	//painter->drawLine(line);
-	painter->restore();
+		painter->restore();
+	}
+	catch (...)
+	{
+		auto errMsg = catchException(false);
+		return;
+	}
 	return;
 }
 
