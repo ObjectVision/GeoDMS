@@ -374,7 +374,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
     m_treeview->setNewCurrentItem(new_current_item);
     m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Selected new current item %s", m_current_item->GetFullName());
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
 }
 
 #include <QFileDialog>

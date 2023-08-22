@@ -77,7 +77,7 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 				buffer.emplace_back(0);
 			myCDS.lpData = &(buffer[0]);
 		}
-		else if (std::strcmp(argv[i], "GOTO") == 0)
+		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
 		{
 			if (argc <= ++i)
 				throw stx_error("path expected after GOTO");
@@ -86,7 +86,7 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 		}
-		else if (std::strcmp(argv[i], "EXPAND") == 0)
+		else if (std::strcmp(argv[i], "EXPAND") == 0 || std::strcmp(argv[i], "Expand") == 0)
 		{
 			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
 			myCDS.cbData = 4;
