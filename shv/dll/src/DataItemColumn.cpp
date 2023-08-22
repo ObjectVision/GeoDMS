@@ -1111,25 +1111,25 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )
 		{
-			if ( GetEnabledTheme(AN_LabelBackColor) )
+			if ( auto theme = GetEnabledTheme(AN_LabelBackColor) )
 			{
-				if (IsEditable(AN_LabelBackColor))
+				if (theme->IsEditable())
 				{
 					SelectBrushColor();
 					return true;
 				}
 			}
-			else if (GetEnabledTheme(AN_LabelTextColor))
+			else if (theme = GetEnabledTheme(AN_LabelTextColor))
 			{
-				if (IsEditable(AN_LabelTextColor))
+				if (theme->IsEditable())
 				{
 					SelectPenColor();
 					return true;
 				}
 			}
-			else if (GetEnabledTheme(AN_LabelText))
+			else if (theme = GetEnabledTheme(AN_LabelText))
 			{
-				if (IsEditable(AN_LabelTextColor))
+				if (theme->IsEditable())
 				{
 					OnKeyDown(VK_F2);
 					return true;
