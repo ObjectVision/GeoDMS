@@ -120,7 +120,7 @@ void SaveDetailPage(CharPtr fileName)
 
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
 
-    FileOutStreamBuff buff(SharedStr(fileName), nullptr, true, false);
+    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
    
     buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
 }
