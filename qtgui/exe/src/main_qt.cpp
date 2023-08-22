@@ -281,7 +281,7 @@ protected:
 
 #include <future>
 
-int main(int argc, char *argv[])
+int main_without_SE_handler(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
@@ -336,4 +336,15 @@ int main(int argc, char *argv[])
         MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR);
     }
     return 9;
+}
+
+int main(int argc, char* argv[])
+{
+    DMS_SE_CALL_BEGIN
+
+        return main_without_SE_handler(argc, argv);
+
+    DMS_SE_CALL_END
+
+    return GetLastExceptionCode();
 }
