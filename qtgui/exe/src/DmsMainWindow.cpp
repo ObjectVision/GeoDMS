@@ -1853,7 +1853,7 @@ void MainWindow::updateFileMenu()
 {
     for (auto* recent_file_action : m_recent_files_actions)
     {
-        m_window_menu->removeAction(recent_file_action);
+        m_file_menu->removeAction(recent_file_action);
         delete recent_file_action;
     }
     m_recent_files_actions.clear(); // delete old actions;
