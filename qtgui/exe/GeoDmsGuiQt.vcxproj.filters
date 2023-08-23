@@ -236,6 +236,6 @@
     </QtUic>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="debug-settings.txt" />
+    <Text Include="DebugSettings.txt" />
   </ItemGroup>
 </Project>

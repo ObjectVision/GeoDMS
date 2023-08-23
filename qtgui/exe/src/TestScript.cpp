@@ -87,7 +87,7 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
 		{
 			if (argc <= ++i)
-				throw stx_error("path expected after GOTO");
+				throw stx_error("path expected after ActivateItem");
 			myCDS.dwData = ULONG_PTR(CommandCode::ActivateItem);
 			myCDS.cbData = std::strlen(argv[i]) + 1;
 			myCDS.lpData = argv[i];
