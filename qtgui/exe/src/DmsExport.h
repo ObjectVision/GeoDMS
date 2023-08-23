@@ -17,12 +17,13 @@ class QTextBrowser;
 
 enum class driver_characteristics : UInt32
 {
-    none = 0,
-    is_raster = 0x01,
-    native_is_default = 0x02,
-    tableset_is_folder = 0x04,
-    disable_with_no_geometry = 0x08,
-    disable_with_geometry = 0x16,
+    none                     = 0,
+    is_raster                = 1,
+    native_is_default        = 2,
+    tableset_is_folder       = 4,
+    disable_with_no_geometry = 8,
+    disable_with_geometry    = 16,
+    only_native_driver       = 32
 };
 inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
 inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
@@ -37,9 +38,8 @@ struct gdal_driver_id
 
     CharPtr Caption() const
     {
-        if (name)
-            return name;
-        return shortname;
+        assert(name);
+        return name;
     }
 
     bool HasNativeVersion() const { return nativeName; }
