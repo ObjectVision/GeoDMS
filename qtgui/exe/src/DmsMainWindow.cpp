@@ -207,13 +207,15 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         if (!cmdLineSettings.m_ConfigFileName.empty())
+        {
             QTimer::singleShot(0, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
+        }
     }
 
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
     if (!cmdLineSettings.m_CurrItemFullNames.empty())
-        m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str());
+        QTimer::singleShot(0, this, [=]() { m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str()); });
 
     scheduleUpdateToolbar();
 
