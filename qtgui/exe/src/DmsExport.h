@@ -59,6 +59,7 @@ class ExportTab : public QWidget
 
 public:
     ExportTab(bool is_raster, DmsExportWindow* exportWindow);
+    void setNativeDriverCheckbox();
     bool m_is_raster = false;
     std::vector<gdal_driver_id> m_available_drivers;
     QPointer<QLineEdit> m_foldername_entry;
@@ -77,7 +78,6 @@ protected:
 
 private:
     auto createFinalFileNameText() -> QString;
-    void setNativeDriverCheckbox();
     void repopulateDriverSelection();
 };
 

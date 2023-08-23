@@ -541,7 +541,10 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     m_filename_entry = new QLineEdit(this);
 
     connect(m_foldername_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
+    connect(m_foldername_entry, &QLineEdit::textChanged, exportWindow, &DmsExportWindow::resetExportButton);
+
     connect(m_filename_entry, &QLineEdit::textChanged, this, &ExportTab::onFilenameEntryTextChanged);
+    connect(m_filename_entry, &QLineEdit::textChanged, exportWindow, &DmsExportWindow::resetExportButton);
 
     auto folder_browser_button = new QPushButton(QIcon(":/res/images/DP_explore.bmp"), "", this);
     connect(folder_browser_button, &QPushButton::clicked, this, &ExportTab::setFoldernameUsingFileDialog);
@@ -560,10 +563,11 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     connect(m_driver_selection, &QComboBox::currentIndexChanged, exportWindow, &DmsExportWindow::resetExportButton);
 
     m_native_driver_checkbox = new QCheckBox("Use native driver", this);
+    connect(m_native_driver_checkbox, &QCheckBox::stateChanged, exportWindow, &DmsExportWindow::resetExportButton);
     grid_layout_box->addWidget(format_label, 2, 0);
     grid_layout_box->addWidget(m_driver_selection, 2, 1);
     grid_layout_box->addWidget(m_native_driver_checkbox, 2, 2);
-    setNativeDriverCheckbox();
+    //setNativeDriverCheckbox();
 
     auto line_editor = new QFrame(this);
     line_editor->setFrameShape(QFrame::HLine);
@@ -731,19 +735,20 @@ void DmsExportWindow::exportActiveTabInfo()
 DmsExportWindow::DmsExportWindow(QWidget* parent)
 	: QDialog(parent)
 {
-    setMinimumSize(800, 400);
     auto tab_layout = new QVBoxLayout(this);
 	m_tabs = new QTabWidget(this);
 	m_vector_tab_index = m_tabs->addTab(new ExportTab(false, this), tr("Vector"));
 	m_raster_tab_index = m_tabs->addTab(new ExportTab(true, this), tr("Raster"));
+
+
     m_tabs->setCurrentIndex(m_vector_tab_index);
     tab_layout->addWidget(m_tabs);
 
     QWidget* export_cancel_widgets = new QWidget(this);
-
+    setMinimumSize(800, 400);
     auto h_layout = new QHBoxLayout(this);
     m_export_button = new QPushButton("Export", this);
-    connect(m_export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo);
+    connect(m_export_button, &QPushButton::released, this, &DmsExportWindow::exportActiveTabInfo); //TODO: refactor, needs to be created before SetNativeDriverCheckbox is called
     h_layout->addWidget(m_export_button);
 
     auto cancel_button = new QPushButton("Cancel", this);
@@ -753,5 +758,7 @@ DmsExportWindow::DmsExportWindow(QWidget* parent)
 
     tab_layout->addWidget(export_cancel_widgets);
 
+    static_cast<ExportTab*>(m_tabs->widget(m_vector_tab_index))->setNativeDriverCheckbox();
+    static_cast<ExportTab*>(m_tabs->widget(m_raster_tab_index))->setNativeDriverCheckbox();
     setWindowModality(Qt::ApplicationModal);
 }
