@@ -22,6 +22,7 @@ enum class driver_characteristics : UInt32
     native_is_default = 0x02,
     tableset_is_folder = 0x04,
     disable_with_no_geometry = 0x08,
+    disable_with_geometry = 0x16,
 };
 inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
 inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }

@@ -105,6 +105,44 @@ bool CurrentItemCanBeExportedAsTableOrDatabase(const TreeItem* item)
     return CurrentItemCanBeExportedAsDatabase(item);
 }
 
+bool isCurrentItemGeometry()
+{
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+    if (!IsDataItem(current_item))
+        return false;
+    auto adi = AsDataItem(current_item);
+    auto vc = adi->GetValueComposition();
+    auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+    return vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon);
+}
+
+bool isCurrentItemMappable()
+{
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+    auto vsflags = SHV_GetViewStyleFlags(current_item);
+    return vsflags & ViewStyleFlags::vsfMapView;
+}
+
+bool isCurrentItemOrItsSubItemsMappable()
+{
+    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
+    auto current_item_is_mappable = isCurrentItemMappable();
+    if (current_item_is_mappable)
+        return current_item_is_mappable;
+
+    auto next_sub_item = current_item->GetFirstSubItem();
+    while (next_sub_item)
+    {
+        ViewStyleFlags vsflags = SHV_GetViewStyleFlags(next_sub_item);
+        if (vsflags & ViewStyleFlags::vsfMapView)
+            return true;
+
+        next_sub_item = next_sub_item->GetNextItem();
+    }
+
+    return false;
+}
+
 void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
 {
     std::vector<TableColumnSpec> columnSpecs;
@@ -156,7 +194,10 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
 
     const AbstrDataItem* adiGeometry = nullptr;
     // find geometry, if any.
-    if (RefersToMappable(auCommon)) {
+    if (isCurrentItemGeometry())
+        adiGeometry = AsDataItem(ti);
+
+    if (!adiGeometry && RefersToMappable(auCommon)) {
         adiGeometry = GetMappedData(auCommon);
         if (adiGeometry)
             if (adiGeometry->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
@@ -410,11 +451,11 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"});
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"});
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"});
-    available_drivers.emplace_back("DBF", "DBF", nullptr, std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("DBF", "DBF", nullptr, std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder | driver_characteristics::disable_with_geometry);
 
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif", ".tfw"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
-    available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, std::vector<CharPtr>{".cdf"}, driver_characteristics::is_raster);
+    //available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
+    //available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, std::vector<CharPtr>{".cdf"}, driver_characteristics::is_raster);
     //available_drivers.emplace_back("PNG", "Portable Network Graphics (*.png)", nullptr, ".png", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     //available_drivers.emplace_back("JPEG", "JPEG JFIF File Format (*.jpg)", nullptr, ".jpg", driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     return available_drivers;
@@ -513,6 +554,7 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
 
 
     m_driver_selection = new QComboBox(this);
+    m_driver_selection->setStyleSheet("QComboBox { background-color: rgb(255, 255, 255); }");
     repopulateDriverSelection();
     connect(m_driver_selection, &QComboBox::currentIndexChanged, this, &ExportTab::onComboBoxItemActivate);
     connect(m_driver_selection, &QComboBox::currentIndexChanged, exportWindow, &DmsExportWindow::resetExportButton);
@@ -542,26 +584,6 @@ ExportTab::ExportTab(bool is_raster, DmsExportWindow* exportWindow)
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     grid_layout_box->addWidget(spacer, 5, 0, 1, 3);
-}
-
-bool isCurrentItemOrItsSubItemsMappable()
-{
-    auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    auto vsflags = SHV_GetViewStyleFlags(current_item);
-    if (vsflags & ViewStyleFlags::vsfMapView)
-        return true;
-
-    auto next_sub_item = current_item->GetFirstSubItem();
-    while (next_sub_item)
-    {
-        vsflags = SHV_GetViewStyleFlags(next_sub_item);
-        if (vsflags & ViewStyleFlags::vsfMapView)
-            return true;
-
-        next_sub_item = next_sub_item->GetNextItem();
-    }
-
-    return false;
 }
 
 #include <QStandardItemModel>
@@ -605,6 +627,8 @@ void ExportTab::showEvent(QShowEvent* event)
         const auto& otherDriver = m_available_drivers.at(i);
         if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
             item->setEnabled(false);
+        //else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_geometry))
+        //    item->setEnabled(false); // TODO fix
         else
             item->setEnabled(true);
     }
