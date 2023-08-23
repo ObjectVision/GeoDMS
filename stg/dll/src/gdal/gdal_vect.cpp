@@ -1397,7 +1397,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 
-		if (subItem->GetID() == token::geometry || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		{
 			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
 			disi.setIsGeometry(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
