@@ -1130,6 +1130,7 @@ void MainWindow::createView(ViewStyle viewStyle)
         switch (viewStyle)
         {
         case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
+        case (ViewStyle::tvsPaletteEdit): {dms_view_window_icon.addFile(":/res/images/TV_palette.bmp"); break; }
         default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
         }
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
@@ -1465,7 +1466,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
  
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: no parent, memory leak
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow);
     textWidget->m_Context = Explain::CreateContext();
     textWidget->m_StudyObject = studyObject;
@@ -2022,9 +2023,10 @@ void MainWindow::updateWindowMenu()
         ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
         switch (viewstyle)
         {
-        case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; }
+        case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; } // TODO: generalize
         case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
         case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png")); break; }
+        case ViewStyle::tvsPaletteEdit: { qa->setIcon(QPixmap(":/res/images/TV_palette.bmp")); break; }
         default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
         }
                 
@@ -2179,22 +2181,28 @@ void MainWindow::createValueInfoDock()
     m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
     m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
     m_value_info_dock->setMinimumWidth(0);
+    m_value_info_dock->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
     m_value_info_mdi_area->setMinimumWidth(0);
+    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
+    
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
-    m_value_info_dock->setVisible(false);
+    //m_value_info_dock->setVisible(false);
     createDetailPagesDock();
 
 //    m_detail_pages->setDummyText();
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
+
+    auto sz_test1 = m_value_info_dock->minimumSize();
+    auto sz_test2 = m_value_info_mdi_area->minimumSize();
     // connections below need constructed treeview and filters to work
     // TODO: refactor action/pushbutton logic
 
