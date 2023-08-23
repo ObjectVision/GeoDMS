@@ -531,7 +531,7 @@ TRect DataItemColumn::GetElemFullRelLogicalRect( SizeT rowNr) const
 void DataItemColumn::InvalidateRelRect(TRect rect)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
-	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsLogicalPos(), GetScaleFactors() );
+	GRect screenRect = TRect2GRect( rect + GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack());
 	screenRect &= GetDrawnClientAbsDeviceRect();
 	if (!screenRect.empty())
 		dv->InvalidateDeviceRect(screenRect);

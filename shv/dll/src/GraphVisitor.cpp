@@ -705,6 +705,12 @@ GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
 	return GVS_BreakOnSuspended();
 }
 
+GraphVisitState GraphUpdater::DoDataItemColumn(DataItemColumn* dic)
+{
+	return DoObject(dic);
+}
+
+
 //----------------------------------------------------------------------
 // UpdateViewProcessor members
 //----------------------------------------------------------------------

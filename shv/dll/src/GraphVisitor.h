@@ -246,6 +246,7 @@ public:
 	GraphUpdater(const GRect& clipRect, CrdPoint subPixelFactors);
 
 	GraphVisitState DoObject(GraphicObject* go) override;
+	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 };
 
 #endif // __SHV_GRAPHVISITOR_H

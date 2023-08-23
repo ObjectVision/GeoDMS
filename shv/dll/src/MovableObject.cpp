@@ -494,7 +494,7 @@ void MovableObject::GrowHor(TType deltaX, TType relPosX, const MovableObject* so
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
 				auto scrollInfo = TPoint2GPoint2(delta, sf, scrollSlack);
-				m_ScrollSlack = scrollInfo.second;
+//				m_ScrollSlack = scrollInfo.second;
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(scrollInfo.first, oldVisibleAbsRect, clipRect, this);
 				ResizeDrawnRect(clipRect, scrollInfo.first, GPoint(oldAbsGRect.Left(), MaxValue<GType>()));
@@ -592,7 +592,7 @@ void MovableObject::GrowVer(TType deltaY, TType relPosY, const MovableObject* so
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
 				auto scrollInfo = TPoint2GPoint2(delta, sf, scrollSlack);
-				m_ScrollSlack = scrollInfo.second;
+//				m_ScrollSlack = scrollInfo.second;
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(scrollInfo.first, oldVisibleAbsRect, clipRect, this);
 				ResizeDrawnRect(clipRect, scrollInfo.first, GPoint(MaxValue<GType>(), oldAbsGRect.Top()));
