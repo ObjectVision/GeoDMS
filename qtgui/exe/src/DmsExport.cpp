@@ -658,6 +658,7 @@ void DmsExportWindow::prepare()
 void DmsExportWindow::resetExportButton()
 {
     m_export_button->setText("Export");
+    m_export_button->setEnabled(true);
     m_export_button->setStatusTip("");
     m_export_ready = false;
 }
@@ -716,6 +717,7 @@ void DmsExportWindow::exportActiveTabInfo()
     }
     SuspendTrigger::Resume();
     m_export_button->setText("Exporting...");
+    m_export_button->setDisabled(true);
     m_export_button->repaint();
 
     try {
