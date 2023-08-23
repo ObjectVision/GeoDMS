@@ -1123,6 +1123,7 @@ void MainWindow::createView(ViewStyle viewStyle)
         auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
 
         SuspendTrigger::Resume();
+
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         dms_mdi_subwindow->setProperty("viewstyle", viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
@@ -1160,6 +1161,11 @@ void MainWindow::defaultView()
 {
     //reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: Defaultview for item %s", m_current_item->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    if (default_view_style == ViewStyle::tvsDefault)
+    {
+        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", m_current_item->GetFullName());
+        return;
+    }
     createView(default_view_style);
 }
 
@@ -2180,10 +2186,11 @@ void MainWindow::createValueInfoDock()
 {
     m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
     m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    m_value_info_dock->setMinimumWidth(0);
-    m_value_info_dock->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    //m_value_info_dock->setMinimumWidth(0);
+
+    //m_value_info_dock->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
     m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    m_value_info_mdi_area->setMinimumWidth(0);
+    //m_value_info_mdi_area->setMinimumWidth(0);
     m_value_info_mdi_area->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
     
@@ -2193,7 +2200,7 @@ void MainWindow::createValueInfoDock()
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
-    //m_value_info_dock->setVisible(false);
+    m_value_info_dock->setVisible(false);
     createDetailPagesDock();
 
 //    m_detail_pages->setDummyText();
