@@ -17,11 +17,13 @@ class QTextBrowser;
 
 enum class driver_characteristics : UInt32
 {
-    none = 0,
-    is_raster = 0x01,
-    native_is_default = 0x02,
-    tableset_is_folder = 0x04,
-    disable_with_no_geometry = 0x08,
+    none                     = 0,
+    is_raster                = 1,
+    native_is_default        = 2,
+    tableset_is_folder       = 4,
+    disable_with_no_geometry = 8,
+    disable_with_geometry    = 16,
+    only_native_driver       = 32
 };
 inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
 inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
@@ -36,9 +38,8 @@ struct gdal_driver_id
 
     CharPtr Caption() const
     {
-        if (name)
-            return name;
-        return shortname;
+        assert(name);
+        return name;
     }
 
     bool HasNativeVersion() const { return nativeName; }
@@ -58,6 +59,7 @@ class ExportTab : public QWidget
 
 public:
     ExportTab(bool is_raster, DmsExportWindow* exportWindow);
+    void setNativeDriverCheckbox();
     bool m_is_raster = false;
     std::vector<gdal_driver_id> m_available_drivers;
     QPointer<QLineEdit> m_foldername_entry;
@@ -76,7 +78,6 @@ protected:
 
 private:
     auto createFinalFileNameText() -> QString;
-    void setNativeDriverCheckbox();
     void repopulateDriverSelection();
 };
 

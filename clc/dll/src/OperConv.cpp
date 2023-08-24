@@ -375,7 +375,10 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 	void CreateTransformer()
 	{
 		assert(!m_Transformer);
-		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
+		OGRCoordinateTransformationOptions options;
+		//options.SetBallparkAllowed(true);
+		CPLSetConfigOption("OGR_CT_OP_SELECTION", "BEST_ACCURACY");
+		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
 	}
 
 	void Release() const { if (!DecRef()) delete this; }
@@ -516,6 +519,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 	Float64 m_Factor;
 };
 
+const int PROJ_BLOCK_SIZE = 1024;
 
 template<typename TR, typename TA>
 void DispatchMapping(Type1DConversion<TR, TA>& functor, typename Type1DConversion<TR, TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
@@ -626,12 +630,38 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
 	{
 		if (m_OgrComponentHolder) 
-			if (m_PreRescaler.IsIdentity() && m_PostRescaler.IsIdentity())
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyProjection(*ai) );
-			else
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyScaledProjection(*ai) );
+		{
+			Float64 resX[PROJ_BLOCK_SIZE];
+			Float64 resY[PROJ_BLOCK_SIZE];
+			int     successFlags[PROJ_BLOCK_SIZE];
+
+			auto n = ae - ai;
+			while (n)
+			{
+				auto s = n;
+				MakeMin(s, PROJ_BLOCK_SIZE);
+				for (int i = 0; i != s; ++ai, ++i)
+				{
+					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
+					resX[i] = rescaledA.Col();
+					resY[i] = rescaledA.Row();
+				}
+				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+				for (int i = 0; i != s; ++ri, ++i)
+				{
+					if (successFlags[i])
+					{
+						auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+						Assign(*ri, Convert<TR>(rescaledPoint));
+					}
+					else
+						Assign(*ri, Undefined());
+				}
+				n -= s;
+			}
+		}
 		else 
 			if (m_PreRescaler.IsIdentity())
 				for (; ai != ae; ++ai, ++ri)
@@ -667,12 +697,37 @@ template<typename TR, typename TA>
 void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion<TR,TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
 {
 	if (functor.m_OgrComponentHolder) 
-		if (functor.m_PreRescaler.IsIdentity() && functor.m_PostRescaler.IsIdentity())
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyProjection(Range_GetValue_naked(tileRange, i)) );
-		else
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyScaledProjection(Range_GetValue_naked(tileRange, i)) );
+	{
+		Float64 resX[PROJ_BLOCK_SIZE];
+		Float64 resY[PROJ_BLOCK_SIZE];
+		int     successFlags[PROJ_BLOCK_SIZE];
+
+		while (n)
+		{
+			auto s = n;
+			MakeMin(s, PROJ_BLOCK_SIZE);
+			for (SizeT i = 0; i != n; ++i)
+			{
+				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
+				resX[i] = rescaledA.Col();
+				resY[i] = rescaledA.Row();
+			}
+			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+			for (SizeT i = 0; i != n; ++ri, ++i)
+			{
+				if (successFlags[i])
+				{
+					auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
+					Assign(*ri, Convert<TR>(rescaledPoint));
+				}
+				else
+					Assign(*ri, Undefined());
+			}
+			n -= s;
+		}
+	}
 	else 
 		if (functor.m_PreRescaler.IsIdentity())
 			for (SizeT i=0; i!=n; ++ri, ++i)
