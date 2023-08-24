@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -239,26 +214,41 @@ public:
 // CastUnitOperator
 // *****************************************************************************
 
-CastUnitOperator::CastUnitOperator(AbstrOperGroup* gr, const UnitClass* resultUnitClass)
+class CastUnitOperatorBase : public UnaryOperator
+{
+	typedef AbstrUnit Arg1Type;
+	const UnitClass* m_ResultUnitClass;
+public:
+	CastUnitOperatorBase(AbstrOperGroup* gr, const UnitClass* resultUnitClass);
+
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
+};
+
+// *****************************************************************************
+// CastUnitOperator
+// *****************************************************************************
+
+CastUnitOperatorBase::CastUnitOperatorBase(AbstrOperGroup* gr, const UnitClass* resultUnitClass)
 	:	UnaryOperator(gr, resultUnitClass,  Arg1Type::GetStaticClass())
 	,	m_ResultUnitClass(resultUnitClass)
 {
-	dms_assert(m_ResultUnitClass == GetUnitClass(gr->GetNameID()));
+	assert(m_ResultUnitClass == GetUnitClass(gr->GetNameID()));
 }
 
 // Override Operator
-bool CastUnitOperator::CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc)  const
+bool CastUnitOperatorBase::CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc)  const
 {
-	dms_assert(args.size() == 1);
+	assert(args.size() == 1);
 
 	const Arg1Type* arg1 = debug_cast<const Arg1Type*>(args[0]);
-	dms_assert(arg1);
+	assert(arg1);
 
 	// TODO G8: Niet Tmp, want dat roept SetMaxRange aan, roep CreateResultUnit aan en copy range en intersect als onderdeel van DuplFrom met mustCalc conform Range(srcUnit, lb, ub);
 	// TODO G8: Of schedule geen calc phase voor dit soort operator die in meta-info tijd een compleet resultaat geven (dus zonder range output) 
 	if (!resultHolder)
 	{
-		dms_assert(!mustCalc);
+		assert(!mustCalc);
 		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder);
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		dms_assert(resUnit);
@@ -1211,4 +1201,15 @@ namespace
 
 	DomainUnitOperator  domOper(&sog_DomainUnit);
 	ValuesUnitOperator  valOper(&sog_ValuesUnit);
+
+	template<typename V>
+	struct castUnitOperator: CastUnitOperatorBase
+	{
+		castUnitOperator() : CastUnitOperatorBase(GetUnitGroup<V>(), Unit<V>::GetStaticClass())
+		{}
+	};
+	tl_oper::inst_tuple<typelists::numerics, castUnitOperator<_> > castUnitOpers;
+
+
+	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
 }
