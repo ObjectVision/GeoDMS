@@ -89,16 +89,6 @@ private:
     UInt8 m_state = 0;
 };
 
-class DmsRecentFileButtonAction : public QAction
-{
-    Q_OBJECT
-public:
-    DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
-    std::string m_cfg_file_path;
-public slots:
-    void onToolbuttonPressed();
-};
-
 class DmsRecentFileEntry : public QWidget
 {
     Q_OBJECT
