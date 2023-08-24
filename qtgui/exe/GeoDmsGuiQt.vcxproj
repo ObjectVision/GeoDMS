@@ -176,7 +176,10 @@
   <ItemGroup>
     <ClInclude Include="resource.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
+    <ClInclude Include="src\dms_memory_leak_debugging.h" />
+    <ClInclude Include="src\StatisticsBrowser.h" />
     <ClInclude Include="src\TestScript.h" />
+    <ClInclude Include="src\UpdatableBrowser.h" />
     <QtMoc Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsViewArea.h" />
     <QtMoc Include="src\DmsOptions.h" />
