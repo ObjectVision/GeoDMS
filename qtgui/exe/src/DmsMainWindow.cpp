@@ -2185,7 +2185,7 @@ void MainWindow::createValueInfoDock()
     m_value_info_mdi_area->resize(500, 0);
     m_value_info_dock->resize(500, 0);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
-    m_value_info_dock->setVisible(false);
+    m_value_info_dock->setVisible(true);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
