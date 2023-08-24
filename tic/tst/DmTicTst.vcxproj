@@ -105,12 +105,6 @@
     <ProjectReference Include="..\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\clc1.vcxproj">
-      <Project>{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\clc2.vcxproj">
-      <Project>{604FD9AA-6DF6-46D7-A1B9-E66B413DC21B}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1241,6 +1241,8 @@ namespace
 
 	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
+	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
+
 	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::point_sequences, convertAndCastOpers<_, typelists::point_sequences> > pointSequenceConvertAndCastOpers;

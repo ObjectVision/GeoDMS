@@ -1210,6 +1210,4 @@ namespace
 	};
 	tl_oper::inst_tuple<typelists::numerics, castUnitOperator<_> > castUnitOpers;
 
-
-	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
 }
