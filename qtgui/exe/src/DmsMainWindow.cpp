@@ -1270,7 +1270,13 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 
     }
     else
-        m_recent_files_actions.move(cfg_index_in_recent_files, 0);
+    {
+        auto swapped_first = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(0)->defaultWidget());
+        auto swapped_secnd = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(cfg_index_in_recent_files)->defaultWidget());
+        m_recent_files_actions.swapItemsAt(cfg_index_in_recent_files, 0);
+    }
+
+
 
     setRecentFiles();
     updateFileMenu();
@@ -2178,7 +2184,7 @@ void MainWindow::createValueInfoDock()
     m_value_info_mdi_area->resize(500, 0);
     m_value_info_dock->resize(500, 0);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
-    m_value_info_dock->setVisible(true);
+    m_value_info_dock->setVisible(false);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
