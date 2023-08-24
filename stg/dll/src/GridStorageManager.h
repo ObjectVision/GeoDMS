@@ -276,8 +276,8 @@ namespace Grid {
 		readRectInGrid.second += IPoint(1, 1);
 
 		//	tilestrip height (tiff pixels)
-		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRectInGrid));
-		UInt32 stripWidth = _Width(readRectInGrid);
+		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRectInGrid));
+		UInt32 stripWidth = Width(readRectInGrid);
 		UInt32 stripBufferSize = stripWidth * stripHeight;
 		//	buffer for reading from m_TiffHandle
 		OwningPtrSizedArray<T> stripBuffer( stripBufferSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
@@ -355,7 +355,7 @@ namespace Grid {
 
 			//	next strip
 			readRectInGrid.first.Row() += stripHeight; // TODO: GENERALIZE FOR VERTICAL MIRRORING
-			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRectInGrid));
+			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRectInGrid));
 		}
 	};
 
@@ -400,8 +400,8 @@ namespace Grid {
 		DRect viewRectInGrid = viewPort2tiff.Apply(Convert<DRect>(viewPort2tiff.GetViewPortExtents()));
 		IRect readRect = Round<4>(viewRectInGrid); // & IRect(IPoint(0,0), GetSize());
 
-		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRect));
-		UInt32 stripWidth = _Width(readRect);
+		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRect));
+		UInt32 stripWidth = Width(readRect);
 
 		//	buffer for reading from m_TiffHandle
 		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripBuffer"));
@@ -443,7 +443,7 @@ namespace Grid {
 						Increment(pixelPtr[viewRectOffsets[c]]);
 			}
 			readRect.first.Row() += stripHeight; // TODO: GENERALIZE FOR VERTICAL MIRRORING
-			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRect));
+			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRect));
 		}
 	};
 
@@ -572,8 +572,8 @@ namespace Grid {
 		auto trd = adi->GetCurrRefObj()->GetTiledRangeData();
 		IRect entireRect = ThrowingConvert<IRect>(trd->GetRangeAsI64Rect());
 		UInt32
-			width = _Width(entireRect),
-			height = _Height(entireRect);
+			width = Width(entireRect),
+			height = Height(entireRect);
 		imp.SetTiled();
 		imp.SetWidth(width);
 		imp.SetHeight(height);

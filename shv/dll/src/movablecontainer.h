@@ -82,8 +82,8 @@ public:
 	void ProcessCollectionChange() override;
 	void DrawBackground(const GraphDrawer& d) const override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
 
 	void SetMaxColWidth (TType  maxColWidth);
 	void SetRowSepHeight(UInt32 rowSepHeight);
@@ -112,8 +112,8 @@ public:
 	void ProcessCollectionChange() override;
 	void DrawBackground(const GraphDrawer& d) const override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
 
 	void SetMaxRowHeight(TType  maxRowHeight);
 	void SetColSepWidth (UInt32 colSepWidth);

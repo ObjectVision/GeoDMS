@@ -168,7 +168,7 @@ class MovableRectCaret : public InvertRgnCaret
 	typedef InvertRgnCaret base_type;
 
 public:
-	MovableRectCaret(const GRect& objRect);
+	MovableRectCaret(GRect objRect);
 
 	void GetRgn(Region& rgn, HDC dc) const override;
 

@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_RANGEINDEX_H)
@@ -102,8 +78,8 @@ inline Void Range_GetValue_naked(const Range<Void>&, SizeT i)
 template <bit_size_t N>
 inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_value<N> loc)
 {
-	dms_assert(range.first == 0);
-	dms_assert(range.second== bit_value<N>::nr_values);
+	assert(range.first == 0);
+	assert(range.second== bit_value<N>::nr_values);
 
 	return  loc;
 }
@@ -111,8 +87,8 @@ inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_value<N> loc)
 template <bit_size_t N, typename Block>
 inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_reference<N, Block> loc)
 {
-	dms_assert(range.first == 0);
-	dms_assert(range.second== bit_value<N>::nr_values);
+	assert(range.first == 0);
+	assert(range.second== bit_value<N>::nr_values);
 
 	return bit_value<N>(loc);
 }
@@ -120,14 +96,14 @@ inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_reference<N, B
 template <typename T>
 inline SizeT Range_GetIndex_naked(const Range<Point<T> >& range, Point<T>loc)
 {
-	dms_assert(IsDefined(loc));
+	assert(IsDefined(loc));
 
-	dms_assert(IsDefined(range));        // caller must shield undefined values
-	dms_assert(IsIncluding(range, loc)); // caller must provide loc in range
+	assert(IsDefined(range));        // caller must shield undefined values
+	assert(IsIncluding(range, loc)); // caller must provide loc in range
 
-	SizeT rowSize  = _Width(range);
-	loc.Row() -= _Top(range);  SizeT rowIndex = loc.Row();
-	loc.Col() -= _Left(range); SizeT colIndex = loc.Col();
+	SizeT rowSize  = Width(range);
+	loc.Row() -= Top(range);  SizeT rowIndex = loc.Row();
+	loc.Col() -= Left(range); SizeT colIndex = loc.Col();
 
 	assert(colIndex < rowSize);
 	SizeT index =  rowIndex * rowSize + colIndex;
@@ -139,10 +115,10 @@ inline SizeT Range_GetIndex_naked(const Range<Point<T> >& range, Point<T>loc)
 template <typename T>
 inline SizeT Range_GetIndex_naked_zbase(Point<T> upperBound, Point<T> loc)
 {
-	dms_assert(IsDefined(loc));
+	assert(IsDefined(loc));
 
-	dms_assert(IsDefined(upperBound));        // caller must shield undefined values
-	dms_assert(IsStrictlyLower(loc, upperBound)); // caller must provide loc in range
+	assert(IsDefined(upperBound));        // caller must shield undefined values
+	assert(IsStrictlyLower(loc, upperBound)); // caller must provide loc in range
 
 	SizeT rowSize  = upperBound.Col();
 	SizeT rowIndex = loc.Row();
@@ -172,13 +148,10 @@ inline Point<T> Range_GetValue_naked(const Range<Point<T> >& range, SizeT index)
 	dms_assert(IsDefined(range));        // callers must shield undefined values
 	dms_assert(index < Cardinality(range)); // caller must shield out of range
 
-	UInt32 rowSize = _Width(range);
+	UInt32 rowSize = Width(range);
 	dms_assert(rowSize != 0);
 
-	return Point<T>(
-		_Top (range) + index / rowSize, 
-		_Left(range) + index % rowSize
-	);
+	return Point<T>(Top (range) + index / rowSize, Left(range) + index % rowSize);
 }
 
 template <typename R, typename V>
@@ -498,11 +471,5 @@ inline void Range_Index2Value_Inplace_checked(const Range<E>& range, MutIter fir
 	range_impl::Range_Index2Value_Inplace_checked(range, first, last, TYPEID(elem_traits<value_type>));
 }
 
-
-/* NYI
-
-template <typename T>
-inline void Range_Value2Index_Inplace_checked(Range<T> range, T* first, T* last)
-NYI */
 
 #endif // __RTC_GEO_RANGEINDEX_H

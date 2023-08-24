@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __SHV_MOVABLEOBJECT_H
@@ -59,53 +35,52 @@ public:
 	void SetBorder(bool hasBorder);
 	void SetRevBorder(bool revBorder);
 
-	virtual void MoveTo(TPoint newClientRelPos); // SetClientRelPos
-	virtual void SetClientSize(TPoint newRelPos);
-	void SetClientRect(const TRect& r);
-	void SetFullRelRect(TRect r);
+	virtual void MoveTo(CrdPoint newClientRelPos); // SetClientRelPos
+	virtual void SetClientSize(CrdPoint newRelPos);
+	void SetClientRect(CrdRect r);
+	void SetFullRelRect(CrdRect r);
 
-	TPoint GetCurrClientRelPos () const { return m_RelPos; }
-	TPoint GetCurrClientSize   () const { return m_ClientLogicalSize; }
-	TPoint GetCurrFullSize     () const { return m_ClientLogicalSize + GetBorderLogicalSize(); }
-	TRect  GetCurrClientRelLogicalRect() const { return TRect(m_RelPos, m_RelPos+m_ClientLogicalSize); }
+	CrdPoint GetCurrClientRelPos () const { return m_RelPos; }
+	CrdPoint GetCurrClientSize   () const { return m_ClientLogicalSize; }
+	CrdPoint GetCurrFullSize     () const { return m_ClientLogicalSize + GetBorderLogicalSize(); }
+	CrdRect  GetCurrClientRelLogicalRect() const { return CrdRect(m_RelPos, m_RelPos + Convert<CrdPoint>(m_ClientLogicalSize)); }
 
-	TPoint CalcClientSize() const;
-	virtual TPoint CalcMaxSize() const;
-	TRect  CalcClientRelRect() const { return TRect(m_RelPos, m_RelPos + CalcClientSize()); }
-	TRect  CalcFullRelRect  () const { return CalcClientRelRect() + GetBorderLogicalExtents(); }
+	CrdPoint CalcClientSize() const;
+	virtual CrdPoint CalcMaxSize() const;
+	CrdRect  CalcClientRelRect() const { return CrdRect(m_RelPos, m_RelPos + Convert<CrdPoint>(CalcClientSize())); }
+	CrdRect  CalcFullRelRect  () const { return CalcClientRelRect() + Convert<CrdRect>(GetBorderLogicalExtents()); }
 
-	TPoint GetCurrClientAbsLogicalPos () const;
-	GPoint GetCurrClientAbsDevicePos() const { return TPoint2GPoint1(GetCurrClientAbsLogicalPos(), GetScaleFactors(), GetCumulativeScrollSlack()); }
-	TRect  GetCurrClientAbsLogicalRect() const { TPoint pos = GetCurrClientAbsLogicalPos(); return TRect(pos, pos + m_ClientLogicalSize); }
-	GRect  GetCurrClientAbsDeviceRect() const { return TRect2GRect(GetCurrClientAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
+	CrdPoint GetCurrClientAbsLogicalPos () const;
+	CrdPoint GetCurrClientAbsDevicePos() const { return ScaleCrdPoint(GetCurrClientAbsLogicalPos(), GetScaleFactors()); }
+	CrdRect  GetCurrClientAbsLogicalRect() const { auto pos = GetCurrClientAbsLogicalPos(); return CrdRect(pos, pos + Convert<CrdPoint>(m_ClientLogicalSize)); }
+	CrdRect  GetCurrClientAbsDeviceRect() const { return ScaleCrdRect(GetCurrClientAbsLogicalRect(), GetScaleFactors()); }
 
-	TPoint GetCurrClientAbsLogicalPos(const GraphVisitor& v) const;
-	GPoint GetCurrClientAbsDevicePos(const GraphVisitor& v) const;
-	TRect  GetCurrClientAbsLogicalRect(const GraphVisitor& v) const;
-	GRect  GetCurrClientAbsDeviceRect(const GraphVisitor& v) const;
+	CrdPoint GetCurrClientAbsLogicalPos(const GraphVisitor& v) const;
+	CrdPoint GetCurrClientAbsDevicePos(const GraphVisitor& v) const;
+	CrdRect  GetCurrClientAbsLogicalRect(const GraphVisitor& v) const;
+	CrdRect  GetCurrClientAbsDeviceRect(const GraphVisitor& v) const;
 
-	GRect GetDrawnClientAbsDeviceRect() const;
-	GRect GetDrawnNettAbsDeviceRect() const override;
+	CrdRect GetDrawnClientAbsDeviceRect() const;
+	CrdRect GetDrawnNettAbsDeviceRect() const override;
 
-	TRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelLogicalRect() + GetBorderLogicalExtents(); }
-	TRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsLogicalRect() + GetBorderLogicalExtents(); }
+	CrdRect GetCurrFullRelLogicalRect() const { return GetCurrClientRelLogicalRect() + Convert<CrdRect>(GetBorderLogicalExtents()); }
+	CrdRect GetCurrFullAbsLogicalRect() const { return GetCurrClientAbsLogicalRect() + Convert<CrdRect>(GetBorderLogicalExtents()); }
 
-	GRect GetCurrFullRelDeviceRect() const { return TRect2GRect( GetCurrFullRelLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
-	GRect GetCurrFullAbsDeviceRect() const { return TRect2GRect( GetCurrFullAbsLogicalRect(), GetScaleFactors(), GetCumulativeScrollSlack()); }
-	CrdPoint GetCumulativeScrollSlack() const;
+	CrdRect GetCurrFullRelDeviceRect() const { return ScaleCrdRect( GetCurrFullRelLogicalRect(), GetScaleFactors()); }
+	CrdRect GetCurrFullAbsDeviceRect() const { return ScaleCrdRect( GetCurrFullAbsLogicalRect(), GetScaleFactors()); }
 
-	GRect GetParentClipAbsRect() const;
+	CrdRect GetParentClipAbsRect() const;
 
-	virtual TPoint GetCurrNettLogicalSize()  const { return m_ClientLogicalSize; } // for ScrollPorts this is excluding the scrollbar sizes if visible
-	TRect GetCurrNettRelLogicalRect() const { return TRect(m_RelPos, m_RelPos+GetCurrNettLogicalSize()); }
+	virtual CrdPoint GetCurrNettLogicalSize()  const { return m_ClientLogicalSize; } // for ScrollPorts this is excluding the scrollbar sizes if visible
+	CrdRect GetCurrNettRelLogicalRect() const { return CrdRect(m_RelPos, m_RelPos + Convert<CrdPoint>(GetCurrNettLogicalSize())); }
 
-	TRect GetCurrNettAbsLogicalRect() const;
-	TRect GetCurrNettAbsLogicalRect(const GraphVisitor& v) const;
-	TRect GetCurrFullAbsLogicalRect(const GraphVisitor& v) const { return GetCurrClientAbsLogicalRect(v) + GetBorderLogicalExtents(); }
-	GRect GetCurrFullAbsDeviceRect(const GraphVisitor& v) const override;
+	CrdRect GetCurrNettAbsLogicalRect() const;
+	CrdRect GetCurrNettAbsLogicalRect(const GraphVisitor& v) const;
+	CrdRect GetCurrFullAbsLogicalRect(const GraphVisitor& v) const { return GetCurrClientAbsLogicalRect(v) + Convert<CrdRect>(GetBorderLogicalExtents()); }
+	CrdRect GetCurrFullAbsDeviceRect(const GraphVisitor& v) const override;
 
-	TRect  GetBorderLogicalExtents() const;
-	TPoint GetBorderLogicalSize   () const;
+	CrdRect  GetBorderLogicalExtents() const;
+	CrdPoint GetBorderLogicalSize   () const;
 
 	void CopyToClipboard(DataView* dv);
 	HBITMAP GetAsDDBitmap(DataView* dv, CrdType subPixelFactor = 1.0, MovableObject* extraObj= nullptr);
@@ -116,9 +91,9 @@ public:
 	std::weak_ptr<MovableObject> GetOwner()             { return std::static_pointer_cast<MovableObject>(base_type::GetOwner().lock());	}
 	std::weak_ptr<const MovableObject> GetOwner() const { return std::static_pointer_cast<const MovableObject>(base_type::GetOwner().lock()); }
 
-	void InvalidateClientRect(TRect rect) const;
-	virtual void GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
-	virtual void GrowVer(TType deltaX, TType relPosX, const MovableObject* sourceItem = nullptr);
+	void InvalidateClientRect(CrdRect rect) const;
+	virtual void GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject* sourceItem = nullptr);
+	virtual void GrowVer(CrdType deltaX, CrdType relPosX, const MovableObject* sourceItem = nullptr);
 
 //	override GraphicObject
 	void SetIsVisible(bool value) override;
@@ -139,11 +114,9 @@ protected:
 private:
 	bool UpdateCursor() const;
 
-public:
-	CrdPoint m_ScrollSlack = { 0.0, 0.0 };
 private:
-	TPoint m_RelPos            = Point<TType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
-	TPoint m_ClientLogicalSize = Point<TType>(0, 0); // should be determined by DoUpdateView
+	CrdPoint m_RelPos            = Point<CrdType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
+	CrdPoint m_ClientLogicalSize = Point<CrdType>(0, 0); // should be determined by DoUpdateView
 	HCURSOR m_Cursor;
 };
 

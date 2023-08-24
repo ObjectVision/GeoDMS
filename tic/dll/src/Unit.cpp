@@ -54,9 +54,9 @@ namespace {
 		dms_assert(self->GetNrDimensions() == 2);
 		dms_assert(dimNr < 2);
 		if (!dimNr)
-			return _Height(self->GetRange());// case 0
+			return Height(self->GetRange());// case 0
 		else 
-			return _Width(self->GetRange()); // case 1
+			return Width(self->GetRange()); // case 1
 	}
 
 } // end anonymous namespace

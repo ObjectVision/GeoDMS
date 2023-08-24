@@ -68,42 +68,40 @@ ScrollPort::ScrollPort(MovableObject* owner, DataView* dv, CharPtr caption, bool
 void ScrollPort::ScrollHome()
 {
 	// up is positive, 
-	ScrollLogicalTo (Point<TType>(0, 0) );
+	ScrollLogicalTo (Point<CrdType>(0, 0) );
 }
 
 void ScrollPort::ScrollEnd()
 {
 	// down = negative
-	TPoint topLeft = shp2dms_order<TType>( 0, GetCurrClientSize().Y() - GetContents()->CalcClientSize().Y() );
+	auto topLeft = shp2dms_order<CrdType>( 0, GetCurrClientSize().Y() - GetContents()->CalcClientSize().Y() );
 
 	ScrollLogicalTo( topLeft );
 }
 
-// TODO: MOVE TO RANGES
-template <typename T>
-T CalcDelta(Range<T> obj, Range<T> window, T borderSize)
+CrdType CalcDelta(Range<CrdType> obj, Range<CrdType> window, TType borderSize)
 {
-	T d1 = window.first  - obj.first;
-	T d2 = window.second - obj.second;
-	if (d1>0 && d2>0) return Min<T>(d1 + borderSize, d2);
-	if (d1<0 && d2<0) return Max<T>(d1, d2 - borderSize);
+	CrdType d1 = window.first  - obj.first;
+	CrdType d2 = window.second - obj.second;
+	if (d1>0 && d2>0) return Min<CrdType>(d1 + borderSize, d2);
+	if (d1<0 && d2<0) return Max<CrdType>(d1, d2 - borderSize);
 	return 0;
 }
 
 
-void ScrollPort::MakeLogicalRectVisible(TRect rect, const TPoint& border)
+void ScrollPort::MakeLogicalRectVisible(CrdRect rect, TPoint border)
 {
 #if defined(MG_DEBUG)
-	TRect contentsClientRect = GetContents()->GetCurrClientRelLogicalRect();
-	dms_assert( IsIncluding(contentsClientRect, rect));
+	auto contentsClientRect = GetContents()->GetCurrClientRelLogicalRect();
+	assert( IsIncluding(contentsClientRect, rect));
 #endif
 
-	TRect scrollRect = GetCurrNettRelLogicalRect();
-	rect += scrollRect.TopLeft();
+	auto scrollRect = GetCurrNettRelLogicalRect();
+	rect += scrollRect.first;
 
-	TPoint delta = shp2dms_order<TType>(
-		CalcDelta(rect.HorRange(), scrollRect.HorRange(), border.X()),
-		CalcDelta(rect.VerRange(), scrollRect.VerRange(), border.Y())
+	auto delta = shp2dms_order<CrdType>(
+		CalcDelta(Range<CrdType>(rect.first.X(), rect.second.X()), Range<CrdType>(scrollRect.first.X(), scrollRect.second.X()), border.X()),
+		CalcDelta(Range<CrdType>(rect.first.Y(), rect.second.Y()), Range<CrdType>(scrollRect.first.Y(), scrollRect.second.Y()), border.Y())
 	);
 
 	ScrollLogical(delta);
@@ -128,9 +126,9 @@ const UInt32 SCROLLBAR_WIDTH = 16;
 
 void ScrollPort::CalcNettSize()
 {
-	TPoint contentSize = GetContents()->CalcClientSize();
+	auto contentSize = GetContents()->CalcClientSize();
 
-	TPoint newNettSize = GetCurrClientSize();
+	auto newNettSize = GetCurrClientSize();
 	bool horScroll = false, verScroll = false;
 	if (!m_State.Get(SPF_NoScrollBars))
 	{
@@ -148,15 +146,15 @@ void ScrollPort::CalcNettSize()
 			}
 		}
 	}
-	MakeUpperBound(newNettSize, Point<TType>(0, 0));
+	MakeUpperBound(newNettSize, Point<CrdType>(0, 0));
 
 	auto sf = GetScaleFactors();
-	TPoint smallestSize = LowerBound(m_NettSize, newNettSize);
+	auto smallestSize = LowerBound(m_NettSize, newNettSize);
 	if (GetContents()->IsDrawn())
 		GetContents()->ResizeDrawnRect(
 			GetDrawnNettAbsDeviceRect(),
-			TPoint2GPoint(smallestSize - m_NettSize, sf),
-			TPoint2GPoint(GetCurrClientAbsLogicalPos() + m_NettSize, sf)
+			CrdPoint2GPoint(ScaleCrdPoint(smallestSize - m_NettSize, sf)),
+			CrdPoint2GPoint(ScaleCrdPoint(GetCurrClientAbsLogicalPos() + m_NettSize, sf))
 		);
 
 	omni::swap(m_NettSize, newNettSize);
@@ -165,23 +163,24 @@ void ScrollPort::CalcNettSize()
 	SetScrollX(horScroll);
 	SetScrollY(verScroll);
 	
+	// Resize from curr size, which bas set by previous IsDrawn m_NettSize
 	if (GetContents()->IsDrawn())
 		GetContents()->ResizeDrawnRect(
 			GetDrawnNettAbsDeviceRect(),
-			TPoint2GPoint(m_NettSize - smallestSize, sf),
-			TPoint2GPoint(GetCurrClientAbsLogicalPos() + smallestSize, sf) // Resize from curr size, which bas set by previous IsDrawn m_NettSize
+			CrdPoint2GPoint(ScaleCrdPoint(m_NettSize - smallestSize, sf)),
+			CrdPoint2GPoint(ScaleCrdPoint(GetCurrClientAbsLogicalPos() + smallestSize, sf))
 		);
 
 	if (!(newNettSize == m_NettSize))
 	{
 		if (horScroll && verScroll && !hasScroll)
-			InvalidateClientRect(TRect(m_NettSize, GetCurrClientSize()));
+			InvalidateClientRect(CrdRect(m_NettSize, GetCurrClientSize()));
 
 		m_cmdOnScrolled();
 	}
 }
 
-void ScrollPort::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
+void ScrollPort::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject* sourceItem)
 {
 	if (!sourceItem)
 	{
@@ -192,7 +191,7 @@ void ScrollPort::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourc
 			base_type::GrowHor(deltaX, relPosX, 0);                  // maakt ruimte buiten groter
 
 		m_NettSize.X() += deltaX;                                      // maakt DrawnNettRect kleiner
-		MakeMax(m_NettSize.X(), TType());
+		MakeMax(m_NettSize.X(), CrdType());
 		SetScrollBars();
 
 		if (deltaX < 0)
@@ -207,18 +206,18 @@ void ScrollPort::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourc
 	InvalidateView();
 }
 
-void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
+void ScrollPort::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject* sourceItem)
 {
 	if (!sourceItem)
 	{
-		dms_assert(relPosY <= GetCurrClientSize().Y());
+		assert(relPosY <= GetCurrClientSize().Y());
 		MakeMin(relPosY, m_NettSize.Y());
 
 		if (deltaY > 0)
 			base_type::GrowVer(deltaY, relPosY);  // maakt ruimte buiten groter
 
 		m_NettSize.Y() += deltaY;                               // maakt DrawnNettRect groter
-		MakeMax(m_NettSize.Y(), TType());
+		MakeMax(m_NettSize.Y(), CrdType());
 		SetScrollBars();
 
 		if (deltaY < 0)
@@ -233,7 +232,7 @@ void ScrollPort::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourc
 	InvalidateView();
 }
 
-void RePosScrollBar(HWND hScroll, GPoint& devPos, GType nettWidth, GType nettHeight)
+void RePosScrollBar(HWND hScroll, GPoint devPos, GType nettWidth, GType nettHeight)
 {
 	SetWindowPos(hScroll, HWND_TOP
 	,	devPos.x, devPos.y  // vertical position 
@@ -244,16 +243,16 @@ void RePosScrollBar(HWND hScroll, GPoint& devPos, GType nettWidth, GType nettHei
 
 void ScrollPort::SetScrollX(bool horScroll)
 {
-	TPoint absBase = GetCurrClientAbsLogicalPos();
+	auto absBase = GetCurrClientAbsLogicalPos();
 //	absBase *= GetScaleFactors();
 
 	if (horScroll)
 	{
 		auto sf = GetScaleFactors();
 		absBase.Y() += m_NettSize.Y();
-		auto absDeviceBase = TPoint2GPoint(absBase, sf);
-		auto nettDeviceSize = TPoint2GPoint(m_NettSize, sf);
-		auto deviceHeight = GType(GetCurrClientSize().Y() * sf.second) - nettDeviceSize.y;
+		auto absDeviceBase = ScaleCrdPoint(absBase, sf);
+		auto nettDeviceSize = ScaleCrdPoint(m_NettSize, sf);
+		auto deviceHeight = GetCurrClientSize().Y() * sf.second - nettDeviceSize.Y();
 		if (!m_HorScroll)
 		{
 			auto dv = GetDataView().lock(); if (!dv) return;
@@ -265,9 +264,9 @@ void ScrollPort::SetScrollX(bool horScroll)
 				"SCROLLBAR",                              // scroll bar control class 
 				(LPSTR) NULL,                             // text for window title bar 
 				WS_CHILD | SBS_HORZ,                      // scroll bar styles 
-				absDeviceBase.x,                          // horizontal position 
-				absDeviceBase.y,                          // vertical position 
-				nettDeviceSize.x,                         // width of the scroll bar 
+				absDeviceBase.X(),                        // horizontal position 
+				absDeviceBase.Y(),                        // vertical position 
+				nettDeviceSize.X(),                       // width of the scroll bar 
 				deviceHeight,                             // default height 
 				hWnd,                                     // handle to main window 
 				(HMENU) NULL,                             // no menu for a scroll bar 
@@ -275,7 +274,7 @@ void ScrollPort::SetScrollX(bool horScroll)
 				(LPVOID) NULL                             // pointer not needed 
 			);
 		}
-		RePosScrollBar(m_HorScroll, absDeviceBase, nettDeviceSize.x, deviceHeight);
+		RePosScrollBar(m_HorScroll, CrdPoint2GPoint(absDeviceBase), nettDeviceSize.X(), deviceHeight);
 	}
 	else
 	{
@@ -289,15 +288,15 @@ void ScrollPort::SetScrollX(bool horScroll)
 
 void ScrollPort::SetScrollY(bool verScroll)
 {
-	TPoint absBase = GetCurrClientAbsLogicalPos();
+	auto absBase = GetCurrClientAbsLogicalPos();
 
 	if (verScroll)
 	{
 		auto sf = GetScaleFactors();
 		absBase.X() += m_NettSize.X();
-		auto absDeviceBase = TPoint2GPoint(absBase, sf);
-		auto nettDeviceSize = TPoint2GPoint(m_NettSize, sf);
-		auto deviceWidth = GType(GetCurrClientSize().X() * sf.first) - nettDeviceSize.x;
+		auto absDeviceBase = ScaleCrdPoint(absBase, sf);
+		auto nettDeviceSize = ScaleCrdPoint(m_NettSize, sf);
+		auto deviceWidth = GetCurrClientSize().X() * sf.first - nettDeviceSize.X();
 		if (!m_VerScroll)
 		{
 			auto dv = GetDataView().lock();
@@ -308,16 +307,16 @@ void ScrollPort::SetScrollY(bool verScroll)
 				"SCROLLBAR",                        // scroll bar control class 
 				(LPSTR) NULL,                       // text for window title bar 
 				WS_CHILD | SBS_VERT,                // scroll bar styles 
-				absDeviceBase.x,                    // horizontal position 
-				absDeviceBase.y,                    // vertical position 
-				deviceWidth, nettDeviceSize.y,      // size of the scroll bar
+				absDeviceBase.X(),                  // horizontal position 
+				absDeviceBase.Y(),                  // vertical position 
+				deviceWidth, nettDeviceSize.Y(),    // size of the scroll bar
 				hWnd,                               // handle to main window 
 				(HMENU) NULL,                       // no menu for a scroll bar 
 				GetInstance(hWnd),                  // instance owning this window 
 				(LPVOID) NULL                       // pointer not needed 
 			); 
 		}
-		RePosScrollBar(m_VerScroll, absDeviceBase, deviceWidth, nettDeviceSize.y);
+		RePosScrollBar(m_VerScroll, CrdPoint2GPoint(absDeviceBase), deviceWidth, nettDeviceSize.Y());
 	}
 	else
 	{
@@ -393,12 +392,12 @@ void ScrollPort::OnVScroll(UInt16 scollCmd)
 		ScrollLogical(shp2dms_order<TType>(0, -(newPos + GetContents()->GetCurrClientRelPos().Y())) );
 }
 
-void ScrollPort::ScrollLogicalTo(TPoint newClientPos)
+void ScrollPort::ScrollLogicalTo(CrdPoint newClientPos)
 {
-	ScrollLogical(newClientPos - GetContents()->GetCurrClientRelPos() );
+	ScrollLogical(newClientPos - Convert<CrdPoint>(GetContents()->GetCurrClientRelPos()) );
 }
 
-void ScrollPort::ScrollLogical(TPoint delta)
+void ScrollPort::ScrollLogical(CrdPoint delta)
 {
 	DBG_START("ScrollPort", "Scroll", MG_DEBUG_SCROLL);
 	DBG_TRACE(("org delta = %s", AsString(delta).c_str()));
@@ -410,32 +409,31 @@ void ScrollPort::ScrollLogical(TPoint delta)
 	{
 		MG_DEBUGCODE( DynamicIncrementalLock<> xxx(md_ScrollRecursionCount); )
 
-		TPoint viewBase = GetCurrClientAbsLogicalPos();
-		TPoint viewSize = m_NettSize;
-		TRect viewExtents = TRect(viewBase, viewBase + viewSize );
+		auto viewBase = GetCurrClientAbsLogicalPos();
+		auto viewExtents = CrdRect(viewBase, viewBase + m_NettSize);
 		DBG_TRACE(("viewExtents = %s", AsString(viewExtents).c_str()));
 
-		TRect contentExtents = GetContents()->GetCurrClientRelLogicalRect();
+		auto contentExtents = GetContents()->GetCurrClientRelLogicalRect();
 		DBG_TRACE(("contentExtents = %s", AsString(contentExtents).c_str()));
 
 		// positive delta increases contentBase, thus scrols towards left/up.
 		// positive delta can cause empty space at end, which is to be avoided; limit delta to not creating such space
-		MakeMax(delta.X(), viewExtents.Width() - contentExtents.Right());
-		MakeMin(delta.X(), 0                   - contentExtents.Left ());
+		MakeMax(delta.X(), Width(viewExtents) - contentExtents.second.X());
+		MakeMin(delta.X(), 0                   - contentExtents.first .X());
 
 		// positive delta can cause empty space at the bottom, which is to be avoided: limit highness of delta 
 		// to not creating such space, and then too low delta that causes empty space at the top is limited
-		MakeMax(delta.Y(), viewExtents.Height() - contentExtents.Bottom());
-		MakeMin(delta.Y(), 0                    - contentExtents.Top   ());
+		MakeMax(delta.Y(), Height(viewExtents) - contentExtents.second.Y());
+		MakeMin(delta.Y(), 0                    - contentExtents.first .Y());
 
 		DBG_TRACE(("new delta = %s", AsString(delta).c_str()));
 
 
-		if (!(delta == Point<TType>(0,0)))
+		if (!(delta == Point<CrdType>(0,0)))
 			GetContents()->MoveTo(GetContents()->GetCurrClientRelPos() + delta);
 
-		m_NrLogicalUnitsPerTumpnailTick.x = 1 + contentExtents.Width () / MaxValue<GType>();
-		m_NrLogicalUnitsPerTumpnailTick.y = 1 + contentExtents.Height() / MaxValue<GType>();
+		m_NrLogicalUnitsPerTumpnailTick.x = 1 + Width (contentExtents) / MaxValue<GType>();
+		m_NrLogicalUnitsPerTumpnailTick.y = 1 + Height(contentExtents) / MaxValue<GType>();
 
 		if (m_HorScroll)
 		{
@@ -443,8 +441,8 @@ void ScrollPort::ScrollLogical(TPoint delta)
 			scrollInfo.cbSize = sizeof(SCROLLINFO);
 			scrollInfo.fMask  = SIF_PAGE|SIF_POS|SIF_RANGE;
 			scrollInfo.nMin   = 0;
-			scrollInfo.nMax   = (contentExtents.Width() - 1) / m_NrLogicalUnitsPerTumpnailTick.x;
-			scrollInfo.nPage  = viewSize.X();
+			scrollInfo.nMax   = (Width(contentExtents) - 1) / m_NrLogicalUnitsPerTumpnailTick.x;
+			scrollInfo.nPage  = m_NettSize.X();
 			scrollInfo.nPos   = - GetContents()->GetCurrClientRelPos().X() / m_NrLogicalUnitsPerTumpnailTick.x;
 	//		scrollInfo.nTrackPos; 
 			SetScrollInfo(m_HorScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
@@ -455,14 +453,14 @@ void ScrollPort::ScrollLogical(TPoint delta)
 			scrollInfo.cbSize = sizeof(SCROLLINFO);
 			scrollInfo.fMask  = SIF_PAGE|SIF_POS|SIF_RANGE;
 			scrollInfo.nMin   = 0;
-			scrollInfo.nMax   = (contentExtents.Height() - 1) / m_NrLogicalUnitsPerTumpnailTick.y;
-			scrollInfo.nPage  = viewSize.Y();
+			scrollInfo.nMax   = (Height(contentExtents) - 1) / m_NrLogicalUnitsPerTumpnailTick.y;
+			scrollInfo.nPage  = m_NettSize.Y();
 			scrollInfo.nPos   = -GetContents()->GetCurrClientRelPos().Y() / m_NrLogicalUnitsPerTumpnailTick.y;
 	//		scrollInfo.nTrackPos; 
 			SetScrollInfo(m_VerScroll, SB_CTL, &scrollInfo, true); // may Send msg's to SHV_DataView_DispatchMessage
 		}
 	}
-	if (!(delta == Point<TType>(0,0)))
+	if (!(delta == Point<CrdType>(0,0)))
 		m_cmdOnScrolled();
 }
 
@@ -488,7 +486,7 @@ const MovableObject* ScrollPort::GetContents() const
 {
 	return debug_cast<const MovableObject*>(base_type::GetContents()); 
 }
-void ScrollPort::MoveTo(TPoint newRelPos)
+void ScrollPort::MoveTo(CrdPoint newRelPos)
 {
 	base_type::MoveTo(newRelPos);
 
@@ -514,9 +512,9 @@ bool ScrollPort::OnKeyDown(UInt32 virtKey)
 	return base_type::OnKeyDown(virtKey);
 }
 
-TPoint ScrollPort::CalcMaxSize() const
+CrdPoint ScrollPort::CalcMaxSize() const
 {
-	return GetContents()->CalcMaxSize() + GetBorderLogicalExtents().Size();
+	return GetContents()->CalcMaxSize() + Size(GetBorderLogicalExtents());
 }
 
 

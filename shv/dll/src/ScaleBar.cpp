@@ -58,8 +58,9 @@ ScaleBarBase::~ScaleBarBase()
 const UInt32 MIN_MEASURE_SIZE = 16;
 const UInt32 MAX_TEXT_HEIGHT = 12;
 
-bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
+bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 {
+	GRect clientAbsRect = CrdRect2GRect(devAbsRect);
 	GPoint clientSize = clientAbsRect.Size();
 	if (clientSize.y < 30)
 		return false;
@@ -233,7 +234,7 @@ bool ScaleBarObj::Draw(GraphDrawer& d) const
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
 	assert(IsUpdated());
 	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos();
-	return m_Impl.Draw(d.GetDC(), TRect2GRect(absLogicalRect, GetScaleFactors()));
+	return m_Impl.Draw(d.GetDC(), ScaleCrdRect(absLogicalRect, GetScaleFactors()));
 }
 
 void ScaleBarObj::DoUpdateView()
@@ -270,29 +271,29 @@ void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
 	}
 }
 
-GRect ScaleBarCaret::GetCurrDeviceExtents() const
+CrdRect ScaleBarCaret::GetCurrDeviceExtents() const
 {
 	return m_DeviceExtents;
 }
 
-TPoint ScaleBarBase::GetLogicalSize() const
+CrdPoint ScaleBarBase::GetLogicalSize() const
 {
-	return shp2dms_order<TType>(250, 48);
+	return shp2dms_order<CrdType>(250, 48);
 }
 
-GRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
+CrdRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
 {
 	auto rect = owner->GetCurrClientAbsDeviceRect();
 	auto logicalSize = GetLogicalSize();
-	auto scaleBarSize = TPoint2GPoint(logicalSize, subPixelFactors);
-	MakeMax(rect.left, rect.right - scaleBarSize.x);
-	MakeMax(rect.top, rect.bottom - scaleBarSize.y);
+	auto scaleBarSize = ScaleCrdPoint(logicalSize, subPixelFactors);
+	MakeMax(rect.first.X(), rect.second.X() - scaleBarSize.X());
+	MakeMax(rect.first.Y(), rect.second.Y() - scaleBarSize.Y());
 	return rect;
 }
 
-void ScaleBarObj::DetermineAndSetLogicalBoundingBox(TPoint currTL, TPoint currPageSize)
+void ScaleBarObj::DetermineAndSetLogicalBoundingBox(CrdPoint currTL, CrdPoint currPageSize)
 {
-	SetClientRect( TRect(currPageSize - m_Impl.GetLogicalSize(), currPageSize) - currTL );
+	SetClientRect( CrdRect(currPageSize - m_Impl.GetLogicalSize(), currPageSize) - currTL );
 	UpdateView();
 }
 

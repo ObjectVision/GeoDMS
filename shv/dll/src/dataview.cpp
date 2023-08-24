@@ -771,7 +771,7 @@ void DataView::InvalidateChangedGraphics()
 
 	MG_DEBUG_DATA_CODE( SuspendTrigger::ApplyLock protectSuspend; )
 
-	assert( !go->IsDrawn() || IsIncluding(ViewDeviceRect(), go->GetDrawnFullAbsDeviceRect()));
+	assert( !go->IsDrawn() || IsIncluding(GRect2CrdRect(ViewDeviceRect()), go->GetDrawnFullAbsDeviceRect()));
 
 	if (m_CheckedTS != UpdateMarker::LastTS())
 	{
@@ -1127,7 +1127,7 @@ void InsertMenuItems(
 
 }
 
-void DataView::ShowPopupMenu(const GPoint& point, const MenuData& menuData) const
+void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 {
 	dms_assert(menuData.size());
 
@@ -1261,7 +1261,7 @@ bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoin
 	return result;
 }
 
-void DataView::SetFocusRect(const GRect& focusRect)
+void DataView::SetFocusRect(GRect focusRect)
 {
 	if (m_FocusCaret)
 	{
@@ -1409,7 +1409,7 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 		GetContents()->InvalidateDraw();
 	}
 		 
-	auto logicalSize = Convert<TPoint>(Reverse(deviceSize));
+	auto logicalSize = Reverse(GPoint2CrdPoint(deviceSize));
 	if (m_ViewDeviceSize == deviceSize)
 	{
 		if (GetContents()->GetCurrFullSize() == logicalSize)
@@ -1440,9 +1440,9 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 
 	if (m_Contents) {
 		auto deviceRect = GRect(GPoint(0, 0), deviceSize);
-		auto logicalRect = TRect(Point<TType>(0, 0), logicalSize);
+		auto logicalRect = CrdRect(Point<CrdType>(0, 0), logicalSize);
 		if (GetContents()->IsDrawn())
-			GetContents()->ClipDrawnRect(deviceRect);
+			GetContents()->ClipDrawnRect(GRect2CrdRect(deviceRect));
 		GetContents()->SetFullRelRect(logicalRect);
 	}
 	m_ViewDeviceSize = deviceSize;

@@ -205,8 +205,8 @@ public:
 	HWND     GetHWnd()        const { return m_hWnd; }
 	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
 	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
-	CrdPoint Reverse(GPoint pnt) const { auto res = shp2dms_order<CrdType>(pnt.x, pnt.y); res *= GetReverseFactors(); return res; }
-	CrdRect  Reverse(GRect rect) const { return CrdRect(Reverse(rect.LeftTop()), Reverse(rect.RightBottom())); }
+	CrdPoint Reverse(CrdPoint pnt) const { auto rf = GetReverseFactors();  pnt.X() *= rf.first; pnt.Y() *= rf.second; return pnt; }
+	CrdRect  Reverse(CrdRect rect) const { return CrdRect(Reverse(rect.first), Reverse(rect.second)); }
 	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
 	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDip2PixFactorY(GetHWnd())); }
 
@@ -246,10 +246,10 @@ public:
 	void SetCursorPos(GPoint clientPoint);
 
 	GRect ViewDeviceRect() const { return GRect(GPoint(0, 0), m_ViewDeviceSize); }
-	TRect ViewLogicalRect() const { return Convert<TRect>(Reverse(ViewDeviceRect())); }
+	TRect ViewLogicalRect() const { return Convert<TRect>(Reverse(GRect2CrdRect(ViewDeviceRect()))); }
 
-	void ShowPopupMenu(const GPoint& point, const MenuData& menuData) const;
-	void SetFocusRect(const GRect& focusRect);
+	void ShowPopupMenu(GPoint point, const MenuData& menuData) const;
+	void SetFocusRect(GRect focusRect);
 	void SetScrollEventsReceiver(ScrollPort* sp);
 
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView

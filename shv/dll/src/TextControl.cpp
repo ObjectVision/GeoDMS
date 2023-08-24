@@ -259,17 +259,16 @@ bool TextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
-		DrawText(
-			d.GetDC(),
-			clientAbsRect,
+		auto clientAbsRect = ScaleCrdRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+		auto clientIntRect = CrdRect2GRect(clientAbsRect);
+		DrawText(d.GetDC(), clientIntRect,
 			0, // use font of current DC
 			GetColor(),
 			GetBkColor(),
 			GetCaption().c_str()
 		);
 		if (m_IsInverted)
-			InvertRect(d.GetDC(), &clientAbsRect);
+			InvertRect(d.GetDC(), &clientIntRect);
 	}
 	return false;
 }
@@ -343,10 +342,10 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 {
 	if (d.DoDrawBackground())
 	{
-		GRect clientAbsRect = TRect2GRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), GetScaleFactors() );
-		DrawEditText(
-			d.GetDC(), 
-			clientAbsRect,
+		auto clientAbsRect = ScaleCrdRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), GetScaleFactors() );
+		auto clientIntRect = CrdRect2GRect(clientAbsRect);
+
+		DrawEditText(d.GetDC(), clientIntRect,
 			0, // // use font of current DC
 			GetColor(),
 			GetBkColor(),
@@ -354,7 +353,7 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 			IsActive()
 		);
 		if (m_IsInverted)
-			InvertRect(d.GetDC(), &clientAbsRect);
+			InvertRect(d.GetDC(), &clientIntRect);
 	}
 	return false;
 }
@@ -381,7 +380,7 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 	}
 	if(med.GetEventInfo().m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONDBLCLK) )
 	{
-		TPoint relClientPos = med.GetLogicalSize(med.GetEventInfo().m_Point) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
+		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		if (HasBorder())
 		{
 			if (relClientPos.X() < 0) goto skip;
@@ -389,7 +388,7 @@ bool EditableTextControl::MouseEvent(MouseEventDispatcher& med)
 		}
 		dms_assert(relClientPos.X() >= 0);
 		dms_assert(relClientPos.Y() >= 0);
-		if (!IsStrictlyLower(relClientPos, GetCurrClientSize())) goto skip;
+		if (!IsStrictlyLower(relClientPos, Convert<CrdPoint>(GetCurrClientSize()))) goto skip;
 
 		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )
 			OnKeyDown(VK_F2);

@@ -504,8 +504,8 @@ void ConfigProd::DoUnitRangeProp(bool isCategorical)
 
 		case 2:
 			unit->SetRangeAsDPoint(
-				_Top   (m_DPointInterval), _Left (m_DPointInterval),
-				_Bottom(m_DPointInterval), _Right(m_DPointInterval)
+				Top   (m_DPointInterval), Left (m_DPointInterval),
+				Bottom(m_DPointInterval), Right(m_DPointInterval)
 			);
 			break;
 

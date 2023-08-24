@@ -1,35 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
 #pragma once
 
 #if !defined(__SHV_GEOTYPES_H)
@@ -140,14 +112,14 @@ inline bool IsStrictlyLower(POINT a, POINT b)
 	return IsStrictlyLower(DMS_LONG(a.x), DMS_LONG(b.x)) && IsStrictlyLower(DMS_LONG(a.y), DMS_LONG(b.y));
 }
 
-inline TPoint ConcatVertical(TPoint a, TPoint b)
+inline CrdPoint ConcatVertical(CrdPoint a, CrdPoint b)
 {
-	return shp2dms_order<TType>(Max<TType>(a.X(), b.X()), a.Y()+ b.Y());
+	return shp2dms_order<CrdType>(Max<CrdType>(a.X(), b.X()), a.Y()+ b.Y());
 }
 
-inline TPoint ConcatHorizontal(TPoint a, TPoint b)
+inline CrdPoint ConcatHorizontal(CrdPoint a, CrdPoint b)
 {
-	return shp2dms_order<TType>(a.X() +b.X(), Max<TType>(a.Y(), b.Y()));
+	return shp2dms_order<CrdType>(a.X() +b.X(), Max<CrdType>(a.Y(), b.Y()));
 }
 
 
@@ -396,19 +368,43 @@ struct TRect : Range<TPoint>
 };
 
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GPoint TPoint2GPoint(const TPoint& src, CrdPoint sf) { return GPoint(TType2GType  (src.X() * sf.first), TType2GType(src.Y() * sf.second)); }
-inline GRect  TRect2GRect  (const TRect & src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
+inline GType  CrdType2GType(CrdType src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
+inline GPoint CrdPoint2GPoint(CrdPoint src) { return GPoint(CrdType2GType(src.X()), CrdType2GType(src.Y())); }
 
-GType TType2GType1(TType src, CrdType scale, CrdType slack);
-std::pair<GType, CrdType> TType2GType2(TType src, CrdType scale, CrdType slack);
+inline CrdPoint TPoint2CrdPoint(TPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.X() * sf.first, src.Y() * sf.second); }
+inline GPoint TPoint2GPoint(TPoint src, CrdPoint sf) { return GPoint(TType2GType  (src.X() * sf.first), TType2GType(src.Y() * sf.second)); }
+inline GRect  TRect2GRect  (TRect  src, CrdPoint sf) { return GRect (TPoint2GPoint(src.first, sf), TPoint2GPoint(src.second, sf)); }
 
-inline GPoint TPoint2GPoint1(TPoint src, CrdPoint sf, CrdPoint slack)
+inline CrdRect TRect2CrdRect(TRect src, CrdPoint sf)
 {
-	auto xs = TType2GType1(src.X(), sf.first, slack.first);
-	auto ys = TType2GType1(src.Y(), sf.second, slack.second);
-	return {xs, ys};
+	return CrdRect(TPoint2CrdPoint(src.first, sf), TPoint2CrdPoint(src.second, sf));
 }
 
+inline CrdPoint ScaleCrdPoint(CrdPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.X() * sf.first, src.Y() * sf.second); }
+inline CrdPoint ReverseGPoint(GPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.x / sf.first, src.y / sf.second); }
+inline CrdPoint ReverseCrdPoint(CrdPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.X() / sf.first, src.Y() / sf.second); }
+inline CrdRect  ReverseCrdRect (CrdRect src, CrdPoint sf) { return CrdRect(ReverseCrdPoint(src.first, sf), ReverseCrdPoint(src.second, sf)); }
+inline CrdRect ScaleCrdRect(CrdRect src, CrdPoint sf)
+{
+	return CrdRect(ScaleCrdPoint(src.first, sf), ScaleCrdPoint(src.second, sf));
+}
+
+inline GRect CrdRect2GRect(CrdRect src)
+{
+	return GRect(CrdPoint2GPoint(src.first), CrdPoint2GPoint(src.second));
+}
+
+inline CrdPoint GPoint2CrdPoint(GPoint src)
+{
+	return CrdPoint(shp2dms_order<CrdType>(src.x, src.y));
+}
+
+inline CrdRect GRect2CrdRect(GRect src)
+{
+	return CrdRect(GPoint2CrdPoint(src.LeftTop()), GPoint2CrdPoint(src.RightBottom()));
+}
+
+/*
 inline GRect TRect2GRect(TRect src, CrdPoint sf, CrdPoint slack)
 {
 	return GRect(TPoint2GPoint1(src.first, sf, slack), TPoint2GPoint1(src.second, sf, slack));
@@ -420,13 +416,14 @@ inline std::pair<GPoint, CrdPoint>  TPoint2GPoint2(TPoint src, CrdPoint sf, CrdP
 	auto ys = TType2GType2(src.Y(), sf.second, slack.second);
 	return { {xs.first, ys.first},  {xs.second, ys.second} };
 }
+*/
 
-template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X() * sf.first, src.Y() * sf.second); }
+//template <typename T> inline GPoint Point2GPoint(Point<T> src, CrdPoint sf) { return GPoint(src.X() * sf.first, src.Y() * sf.second); }
 template <typename T> inline TPoint Point2TPoint(Point<T> src) { return Point<TType>(src.first, src.second); }
-template <typename P> inline GRect  Rect2GRect  (Range<P> src, CrdPoint sf) { return GRect(Point2GPoint(src.first, sf), Point2GPoint(src.second, sf)); }
+//template <typename P> inline GRect  Rect2GRect  (Range<P> src, CrdPoint sf) { return GRect(Point2GPoint(src.first, sf), Point2GPoint(src.second, sf)); }
 template <typename P> inline TRect  Rect2TRect  (Range<P> src) { return TRect(Point2TPoint(src.first), Point2TPoint(src.second)); }
 
-inline GPoint DPoint2GPoint(DPoint src, const CrdTransformation& self) { self.InplApply(src); IPoint tmp = Round<4>(src); return GPoint(tmp.X(), tmp.Y()); }
+inline GPoint DPoint2GPoint(DPoint src, const CrdTransformation& self) { self.InplApply(src); return CrdPoint2GPoint(src); }
 inline GRect  DRect2GRect(DRect src, const CrdTransformation& self)
 { 
 	self.InplApply(src);
@@ -495,8 +492,8 @@ Range<T> Convert4(const TRect& rect, const Range<T>*, const ExceptFunc* ef, cons
 	);
 }
 
-inline LONG _Width (const RECT& r) { return r.right  - r.left; }
-inline LONG _Height(const RECT& r) { return r.bottom - r.top;  }
+inline LONG Width (const RECT& r) { return r.right  - r.left; }
+inline LONG Height(const RECT& r) { return r.bottom - r.top;  }
 
 //----------------------------------------------------------------------
 // section : Streaming of TPoint, TRect

@@ -253,7 +253,7 @@ void DualPointCaretController::Stop()
 //----------------------------------------------------------------------
 
 TieCursorController::TieCursorController(DataView* owner, GraphicObject* target
-	,	const GRect&   tieRect
+	,	GRect tieRect
 	,	UInt32 moveEvents /*EID_MOUSEDRAG*/, UInt32 stopEvents  /*EID_CLOSE_EVENTS*/ )
 	:	AbstrController(owner, target, moveEvents, 0, stopEvents, ToolButtonID::TB_Undefined)
 	,	m_TieRect(tieRect)

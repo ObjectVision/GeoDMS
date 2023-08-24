@@ -87,14 +87,14 @@ TableViewControl::~TableViewControl()
 	SetTableControl(nullptr);
 }
 
-void TableViewControl::ProcessSize(TPoint newSize) 
+void TableViewControl::ProcessSize(CrdPoint newSize) 
 {
 	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().Y() : 0; 
 		MakeMax(headerHeight, TType(DEF_TEXT_PIX_HEIGHT + 2*BORDERSIZE)); 
 		MakeMin(headerHeight, newSize.Y());
 
-	m_TableHeaderPort->SetClientRect( TRect( Point<TType>(0, 0), shp2dms_order<TType>(newSize.X(), headerHeight)) );
-	m_TableScrollPort->SetClientRect( TRect( shp2dms_order<TType>(0, headerHeight), newSize) );
+	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), shp2dms_order<CrdType>(newSize.X(), headerHeight)) );
+	m_TableScrollPort->SetClientRect(CrdRect( shp2dms_order<CrdType>(0, headerHeight), newSize) );
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableHeaderPort->GetCurrFullAbsLogicalRect()));
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableScrollPort->GetCurrFullAbsLogicalRect()));
 
@@ -125,12 +125,12 @@ bool TableViewControl::CanContain(const AbstrDataItem* adi) const
 	return GetTableControl()->CanContain(adi);
 }
 
-TPoint TableViewControl::CalcMaxSize() const
+CrdPoint TableViewControl::CalcMaxSize() const
 {
 	return ConcatVertical(
-		m_TableHeaderPort->CalcMaxSize(),
-		m_TableScrollPort->CalcMaxSize()
-	)	+	GetBorderLogicalExtents().Size()
+		m_TableHeaderPort->CalcMaxSize()
+	,	m_TableScrollPort->CalcMaxSize()
+	)	+	Size(GetBorderLogicalExtents())
 	;
 }
 

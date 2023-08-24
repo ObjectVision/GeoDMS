@@ -146,7 +146,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 		if (m_HooverObj && m_HooverObj != to)
 		{
 			m_Before = (m_HooverObj->ColumnNr() < debug_cast<ColumnHeaderControl*>(to.get())->ColumnNr());
-			m_HooverRect = m_HooverObj->GetCurrFullAbsDeviceRect();
+			m_HooverRect = CrdRect2GRect( m_HooverObj->GetCurrFullAbsDeviceRect() );
 //				m_HooverRect.second.Row() = m_HooverRect.first.Row() +  6;
 			if (m_Before)
 				MakeMin(m_HooverRect.right, m_HooverRect.left  + 12);
@@ -208,7 +208,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		auto owner = GetOwner().lock(); if (!owner) return true;
 		medOwner->InsertController(
 			new TieCursorController(medOwner.get(), owner.get()
-			,	owner->GetCurrClientAbsDeviceRect()
+			,	CrdRect2GRect( owner->GetCurrClientAbsDeviceRect() )
 			,	EID_MOUSEDRAG, EID_CLOSE_EVENTS
 			)
 		);
@@ -295,7 +295,7 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		auto headerWidth = dic->CalcClientSize().X() + dic->GetBorderLogicalExtents().Width() - columnHeader->GetBorderLogicalExtents().Width();
+		auto headerWidth = dic->CalcClientSize().X() + Width(dic->GetBorderLogicalExtents()) - Width(columnHeader->GetBorderLogicalExtents());
 		auto headerSize = shp2dms_order<TType>(headerWidth, DEF_TEXT_PIX_HEIGHT);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
@@ -314,13 +314,13 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
 		auto sf = med.GetSubPixelFactors();
-		TType curX = med.GetEventInfo().m_Point.x / sf.first;
+		auto curX = med.GetEventInfo().m_Point.x / sf.first;
 		// find child that is left of position
 		for (UInt32 i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsLogicalRect().Right();
-			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
+			auto x = chc->GetCurrFullAbsLogicalRect().second.X();
+			if ((x <= curX) && (curX < x + CrdType(ColSepWidth())))
 			{
 				auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
 				if (dic) 

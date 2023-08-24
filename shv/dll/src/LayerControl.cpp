@@ -195,7 +195,7 @@ public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
 		:	DualPointCaretController(owner, new RectCaret, target, origin
 			,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
-		,	m_HooverRect( owner->ViewDeviceRect() )
+		,	m_HooverRect( GRect2CrdRect(owner->ViewDeviceRect()) )
 	{}
 protected:
 	bool Move(EventInfo& eventInfo) override
@@ -220,16 +220,16 @@ protected:
 			if (m_HooverObj && m_HooverObj != GetTargetObject().lock())
 			{
 				m_HooverRect = m_HooverObj->GetCurrFullAbsDeviceRect();
-				m_Above = (m_HooverRect.top < m_Origin.y);
+				m_Above = (m_HooverRect.first.Y() < m_Origin.y);
 				if (m_Above)
-					MakeMin(m_HooverRect.bottom, TType(m_HooverRect.top    + 6));
+					MakeMin(m_HooverRect.second.Y(), TType(m_HooverRect.first.Y() + 6));
 				else
-					MakeMax(m_HooverRect.top,    TType(m_HooverRect.bottom - 6));
+					MakeMax(m_HooverRect.first.Y(),    TType(m_HooverRect.second.Y() - 6));
 			}
 			else 
-				m_HooverRect = GRect(0,0,0,0);
+				m_HooverRect = CrdRect(CrdPoint(0,0), CrdPoint(0, 0));
 
-			dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.LeftTop(), m_HooverRect.RightBottom(), m_HooverObj.get()));
+			dv->MoveCaret(m_Caret, DualPointCaretOperator(CrdPoint2GPoint(m_HooverRect.first), CrdPoint2GPoint(m_HooverRect.second), m_HooverObj.get()));
 		}
 		return true;
 	}
@@ -273,7 +273,7 @@ protected:
 
 private:
 	std::shared_ptr<LayerControlBase> m_HooverObj;
-	GRect                             m_HooverRect;
+	CrdRect                           m_HooverRect;
 	bool                              m_Activated = false;
 	bool                              m_Above = false;
 };

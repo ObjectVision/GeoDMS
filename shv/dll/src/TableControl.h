@@ -51,11 +51,11 @@ struct SelChangeInvalidatorBase
 	~SelChangeInvalidatorBase();
 	void ProcessChange(bool mustSetFocusElemIndex = true);
 
-	TRect GetSelRect() const;
+	CrdRect GetSelRect() const;
 
 private:
 	TableControl* m_TableControl;
-	TRect         m_OldSelRect;
+	CrdRect       m_OldSelRect;
 	SelRange      m_OldRowRange;
 	SelRange      m_OldColRange;
 };

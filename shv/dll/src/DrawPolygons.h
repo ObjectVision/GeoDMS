@@ -151,7 +151,7 @@ bool DrawPolygonInterior(
 					return true;
 			}
 		auto ri = rectArray.begin() + itemCounter;
-		if	(i->size() >= 3 && IsIntersecting(clipRect, *ri ) && _Width (*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
+		if	(i->size() >= 3 && IsIntersecting(clipRect, *ri ) && Width (*ri) >= minWorldWidth && Height(*ri) >= minWorldHeight)
 		{
 			COLORREF brushColor = defBrushColor;
 			Int32    hatchStyle = -1;
@@ -378,7 +378,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						}
 					auto featurePtr = b + itemCounter;
 					auto ri = rectArray.begin() + itemCounter;
-					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && _Width(*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
+					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && Width(*ri) >= minWorldWidth && Height(*ri) >= minWorldHeight)
 					{
 						if (penIndices || selectedOnly)
 						{
@@ -470,8 +470,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 				UInt32 nrPoints = i->size();		
 				if	(	nrPoints >= 3
 					&&	IsIntersecting(clipRect, *ri )
-					&&	_Width (*ri) >= minWorldWidth
-					&&	_Height(*ri) >= minWorldHeight
+					&&	Width (*ri) >= minWorldWidth
+					&&	Height(*ri) >= minWorldHeight
 					)
 				{
 					typename p_traits::PointType centroid = (nrPoints < 4096)

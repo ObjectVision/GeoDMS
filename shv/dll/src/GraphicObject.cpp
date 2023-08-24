@@ -125,7 +125,7 @@ void GraphicObject::CheckState() const
 		return;
 	assert(owner->IsDrawn());
 
-	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect(); drawnNettOwnerAbsDeviceRect.Expand(1);
+	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect(); //drawnNettOwnerAbsDeviceRect.Expand(1);
 	auto drawnFullAbsDeviceRect = GetDrawnFullAbsDeviceRect();
 
 	assert( IsIncluding(drawnNettOwnerAbsDeviceRect, drawnFullAbsDeviceRect) );
@@ -432,17 +432,16 @@ void GraphicObject::SetIsDrawn()
 #endif
 }
 
-GRect GraphicObject::GetDrawnFullAbsDeviceRect() const
+CrdRect GraphicObject::GetDrawnFullAbsDeviceRect() const
 {
 	assert(IsDrawn());
 	return m_DrawnFullAbsRect;
 }
 
-GRect GraphicObject::GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const
+CrdRect GraphicObject::GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const
 {
-	return GetCurrFullAbsDeviceRect(v) & v.GetAbsClipDeviceRect();
+	return GetCurrFullAbsDeviceRect(v) & GRect2CrdRect(v.GetAbsClipDeviceRect());
 }
-
 
 void GraphicObject::InvalidateDraw()
 {
@@ -454,17 +453,17 @@ void GraphicObject::InvalidateDraw()
 
 	ClearDrawFlag();
 
-	dv->InvalidateDeviceRect( m_DrawnFullAbsRect );
+	dv->InvalidateDeviceRect( CrdRect2GRect( m_DrawnFullAbsRect) );
 }
 
-void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delta)
+void GraphicObject::TranslateDrawnRect(CrdRect clipRect, GPoint delta)
 {
 	assert(IsDrawn());    // callers responsibility
 	assert(AllVisible()); // invariant consequence of IsDrawn
 	assert(!m_DrawnFullAbsRect.empty()); 
 	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
-	m_DrawnFullAbsRect += delta;
+	m_DrawnFullAbsRect += GPoint2CrdPoint(delta);
 	m_DrawnFullAbsRect &= clipRect;
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
@@ -482,7 +481,7 @@ void GraphicObject::TranslateDrawnRect(const GRect& clipRect, const GPoint& delt
 	}
 }
 
-void GraphicObject::ClipDrawnRect(const GRect& clipRect)
+void GraphicObject::ClipDrawnRect(CrdRect clipRect)
 {
 	assert(IsDrawn());    // callers responsibility
 	assert(!m_DrawnFullAbsRect.empty() || !HasDefinedExtent()); 
@@ -508,15 +507,23 @@ void GraphicObject::ClipDrawnRect(const GRect& clipRect)
 	dms_assert(AllVisible()); // invariant consequence of IsDrawn, also checks Draw clipping inclusion relation
 }
 
-void Resize(GRect& drawRect, GPoint delta, GPoint invariantLimit)
+void Resize_impl(CrdType& drawRectPos, long delta, long invariantLimit)
 {
-	if (drawRect.left  >  invariantLimit.x ) drawRect.left  += delta.x; else if (delta.x < 0) MakeMin(drawRect.left,   invariantLimit.x + delta.x);
-	if (drawRect.top   >  invariantLimit.y ) drawRect.top   += delta.y; else if (delta.y < 0) MakeMin(drawRect.top,    invariantLimit.y + delta.y);
-	if (drawRect.right >= invariantLimit.x ) drawRect.right += delta.x; else if (delta.x < 0) MakeMin(drawRect.right,  invariantLimit.x + delta.x);
-	if (drawRect.bottom>= invariantLimit.y ) drawRect.bottom+= delta.y; else if (delta.y < 0) MakeMin(drawRect.bottom, invariantLimit.y + delta.y);
+	if (drawRectPos >= invariantLimit) 
+		drawRectPos += delta; 
+	else if (delta < 0) 
+		MakeMin(drawRectPos, invariantLimit + delta);
 }
 
-void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint invariantLimit)
+void Resize(CrdRect& drawRect, GPoint delta, GPoint invariantLimit)
+{
+	Resize_impl(drawRect.first.X(), delta.x, invariantLimit.x); // was >
+	Resize_impl(drawRect.first.Y(), delta.y, invariantLimit.y); // was >
+	Resize_impl(drawRect.second.X(), delta.x, invariantLimit.x); // was >=
+	Resize_impl(drawRect.second.Y(), delta.y, invariantLimit.y); // was >=
+}
+
+void GraphicObject::ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invariantLimit)
 {
 	assert(IsDrawn()); // callers responsibility
 	auto owner = GetOwner().lock();
@@ -544,9 +551,9 @@ void GraphicObject::ResizeDrawnRect(const GRect& clipRect, GPoint delta, GPoint 
 			GraphicObject* subObj = GetEntry(--n);
 			if (subObj->IsDrawn())
 			{
-				if (!IsLowerBound(subObj->m_DrawnFullAbsRect.RightBottom(), invariantLimit))
+				if (!IsLowerBound(CrdPoint2GPoint(subObj->m_DrawnFullAbsRect.second), invariantLimit))
 				{
-					assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.LeftTop(), invariantLimit));
+//					assert(!IsStrictlyLower(subObj->m_DrawnFullAbsRect.first, GPoint2CrdPoint(invariantLimit)));
 					subObj->TranslateDrawnRect(clipRect, delta);
 				}
 				else

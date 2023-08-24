@@ -197,39 +197,39 @@ void EditPaletteControl::Init()
 
 }
 
-void EditPaletteControl::ProcessSize(TPoint viewClientSize)
+void EditPaletteControl::ProcessSize(CrdPoint viewClientSize)
 {
 	if (!m_PaletteButton)
 		return;
 
-	TRect clientRect = TRect(Point<TType>(0,0), viewClientSize);
+	auto clientRect = CrdRect(Point<CrdType>(0,0), viewClientSize);
 
-	m_txtDomain    ->MoveTo(shp2dms_order<TType>(0, BORDERSIZE));
-	m_PaletteButton->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_txtDomain    ->GetCurrClientRelLogicalRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
-	m_txtNrClasses ->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelLogicalRect().TopRight());
-	m_numNrClasses ->MoveTo(shp2dms_order<TType>(BORDERSIZE, 0) + m_txtNrClasses ->GetCurrClientRelLogicalRect().TopRight());
+	m_txtDomain    ->MoveTo(shp2dms_order<CrdType>(0, BORDERSIZE));
+	m_PaletteButton->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_txtDomain    ->GetCurrClientRelLogicalRect())); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
+	m_txtNrClasses ->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_PaletteButton->GetCurrClientRelLogicalRect()));
+	m_numNrClasses ->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_txtNrClasses ->GetCurrClientRelLogicalRect()));
 
 
-	clientRect.Top   () += editPaletteButtonClientSize.Y() + 3*BORDERSIZE;
-	clientRect.Bottom() -= editPaletteButtonClientSize.Y() + 3*BORDERSIZE; 
+	clientRect.first .Y() += editPaletteButtonClientSize.Y() + 3*BORDERSIZE;
+	clientRect.second.Y() -= editPaletteButtonClientSize.Y() + 3*BORDERSIZE; 
 
-	MakeMin(clientRect.Bottom(), viewClientSize.Y());
-	MakeMin(clientRect.Top   (), clientRect.Bottom());
+	MakeMin(clientRect.second.Y(), viewClientSize.Y());
+	MakeMin(clientRect.first.Y(), clientRect.second.Y());
 
-	if (clientRect.Left () < clientRect.Right()) ++clientRect.Left ();
-	if (clientRect.Left () < clientRect.Right()) --clientRect.Right();
+	if (clientRect.first.X() < clientRect.second.X()) ++clientRect.first .X();
+	if (clientRect.first.X() < clientRect.second.X()) --clientRect.second.X();
 
-	m_Line1->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
-	m_Line2->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
+	m_Line1->SetClientRect(CrdRect(TopLeft   (clientRect), TopRight   (clientRect)));
+	m_Line2->SetClientRect(CrdRect(BottomLeft(clientRect), BottomRight(clientRect)));
 
-	clientRect.Top   () += BORDERSIZE;
-	clientRect.Bottom() -= BORDERSIZE; 
+	clientRect.first.Y() += BORDERSIZE;
+	clientRect.second.Y() -= BORDERSIZE;
 
-	MakeMin(clientRect.Bottom(), viewClientSize.Y());
-	MakeMin(clientRect.Top   (), clientRect.Bottom());
+	MakeMin(clientRect.second.Y(), viewClientSize.Y());
+	MakeMin(clientRect.first .Y(), clientRect.second.Y());
 
-	if (clientRect.Left () > 0                 ) --clientRect.Left ();
-	if (clientRect.Right() < viewClientSize.X()) ++clientRect.Right();
+	if (clientRect.first .X() > 0                 ) --clientRect.first.X();
+	if (clientRect.second.X() < viewClientSize.X()) ++clientRect.second.X();
 
 	m_TableView->SetClientRect(clientRect);
 }
@@ -339,10 +339,10 @@ void EditPaletteControl::ClassMerge()
 	UpdateNrClasses();
 }
 
-TPoint EditPaletteControl::CalcMaxSize() const
+CrdPoint EditPaletteControl::CalcMaxSize() const
 {
-	TPoint buttonSize    = ConcatHorizontal(m_txtDomain   ->CalcMaxSize(), m_PaletteButton->CalcMaxSize());
-	TPoint nrClassesSize = ConcatHorizontal(m_txtNrClasses->CalcMaxSize(), m_numNrClasses     ->CalcMaxSize());
+	CrdPoint buttonSize    = ConcatHorizontal(m_txtDomain   ->CalcMaxSize(), m_PaletteButton->CalcMaxSize());
+	CrdPoint nrClassesSize = ConcatHorizontal(m_txtNrClasses->CalcMaxSize(), m_numNrClasses     ->CalcMaxSize());
 	buttonSize = ConcatHorizontal(buttonSize, nrClassesSize);
 	buttonSize.Y() *= 2;
 	buttonSize.Y() += 4*BORDERSIZE;

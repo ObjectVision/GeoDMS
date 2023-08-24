@@ -104,7 +104,7 @@ public:
 	void Export();
 	void ScrollDevice(GPoint delta);
 	void ScrollLogical(TPoint delta) { ScrollDevice(TPoint2GPoint(delta, GetScaleFactors())); }
-	void InvalidateWorldRect(const CrdRect& rect, const TRect& borderExtents) const;
+	void InvalidateWorldRect(CrdRect rect, TRect borderExtents) const;
 
 	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
@@ -119,7 +119,7 @@ public:
 	void AL_SelectAllObjects(bool select);
 
 	// props
-	void ZoomWorldFullRect(const TRect& relClientRect) ;
+	void ZoomWorldFullRect(CrdRect relClientRect) ;
 	CrdRect  GetCurrWorldFullRect() const;
 	CrdRect  GetCurrWorldClientRect() const;
 	CrdRect  CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
@@ -158,7 +158,7 @@ public:
 	void FillMenu(MouseEventDispatcher& med) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
 	COLORREF GetBkColor() const override;
-	void SetClientSize(TPoint newSize) override;
+	void SetClientSize(CrdPoint newSize) override;
 	bool Draw(GraphDrawer& d) const override;
 
 	      ScalableObject* GetContents();

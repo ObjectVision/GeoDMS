@@ -226,11 +226,10 @@ struct AddTransformation : private tmp_swapper<CrdTransformation>
 
 struct AddClientLogicalOffset
 {
-	AddClientLogicalOffset(GraphVisitor* v, TPoint c2p, CrdPoint scaleSlack);
+	AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p);
 
 private:
-	tmp_swapper<TPoint> clientSwapper;
-	tmp_swapper<CrdPoint> slackSwapper;
+	tmp_swapper<CrdPoint> clientSwapper;
 };
 
 //----------------------------------------------------------------------
@@ -257,7 +256,7 @@ struct ClipDeviceRectSelector : private tmp_swapper<GRect>
 
 struct VisitorDeviceRectSelector : ClipDeviceRectSelector
 {
-	VisitorDeviceRectSelector(GraphVisitor* v, const GRect& objRect);
+	VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect);
 };
 
 

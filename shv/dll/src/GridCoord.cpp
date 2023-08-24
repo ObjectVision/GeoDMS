@@ -159,7 +159,8 @@ void GridCoord::Recalc()
 		m_ClippedRelDeviceRect = GRect();
 	else
 	{
-		m_ClippedRelDeviceRect = Rect2GRect( RoundUp<4>(clientDeviceRect), CrdPoint(1.0, 1.0) ); 
+		auto devRect = RoundUp<4>(clientDeviceRect);
+		m_ClippedRelDeviceRect = GRect(devRect.first.X(), devRect.first.Y(), devRect.second.X(), devRect.second.Y() ); 
 		assert(m_GridOrigin.Row() >= 0);
 		assert(m_GridOrigin.Col() >= 0);
 		assert(m_ClippedRelDeviceRect.Size().x >= 0);
@@ -323,7 +324,7 @@ const grid_rowcol_id* GridCoord::GetGridRowPtrFromAbs(view_rowcol_id currViewAbs
 {
 	auto owner = m_Owner.lock();
 	if (owner)
-		currViewAbsRow -= owner->GetCurrClientAbsDevicePos().y;
+		currViewAbsRow -= owner->GetCurrClientAbsDevicePos().Y();
 	return GetGridRowPtr(currViewAbsRow, withLines);
 }
 
@@ -331,7 +332,7 @@ const grid_rowcol_id* GridCoord::GetGridColPtrFromAbs(view_rowcol_id currViewAbs
 {
 	auto owner = m_Owner.lock();
 	if (owner)
-		currViewAbsCol -= owner->GetCurrClientAbsDevicePos().x;
+		currViewAbsCol -= owner->GetCurrClientAbsDevicePos().X();
 	return GetGridColPtr(currViewAbsCol, withLines);
 }
 
@@ -425,6 +426,6 @@ IPoint GridCoord::GetExtGridCoordFromAbs(GPoint clientAbsPoint) const
 {	
 	auto owner = m_Owner.lock();
 	if (owner)
-		clientAbsPoint -= owner->GetCurrClientAbsDevicePos();
+		clientAbsPoint -= CrdPoint2GPoint( owner->GetCurrClientAbsDevicePos() );
 	return GetExtGridCoord(clientAbsPoint);
 }

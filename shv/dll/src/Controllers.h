@@ -116,9 +116,9 @@ class TieCursorController : public AbstrController
 	typedef AbstrController base_type;
 public:
 	TieCursorController(DataView* owner, GraphicObject* target
-	,	const GRect&   tieRect
-	,	UInt32         moveEvents  // = EID_MOUSEDRAG,
-	,	UInt32         stopEvents  // = EID_CLOSE_EVENTS
+	,	GRect tieRect
+	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
+	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
 	);
 
 protected:

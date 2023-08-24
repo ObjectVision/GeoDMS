@@ -259,7 +259,7 @@ void GraphicRect::MoveWorldRect(const CrdPoint& point)
 
 bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr, GRect clientRect) const
 {
-	if (_Width(clientRect) <= 0 || _Height(clientRect) <= 0)
+	if (Width(clientRect) <= 0 || Height(clientRect) <= 0)
 		return false;
 
 	HDC dc = d.GetDC();
@@ -312,7 +312,7 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 		if (clientRect.left == clientRect.right)
 			return false;
 	}
-	if ( (_Width(clientRect) > 2 && _Height(clientRect) > 2) || !IsIncluding(cr, wr) )
+	if ( (Width(clientRect) > 2 && Height(clientRect) > 2) || !IsIncluding(cr, wr) )
 	{
 
 #if defined(SHV_ALPHABLEND_NOT_SUPPORTED)
@@ -337,8 +337,8 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 				dc, 
 					clientRect.left, 
 					clientRect.top, 
-					_Width(clientRect), 
-					_Height(clientRect),
+					Width(clientRect), 
+					Height(clientRect),
 				memDC, 0,0, 1,1,
 				blendFunction
 			),
@@ -358,9 +358,9 @@ bool GraphicRect::Draw(GraphDrawer& d) const
 	auto wr= CalcWorldClientRect();
 	CrdRect cr = d.GetWorldClipRect();
 
-	GRect clientRect = GetClippedCurrFullAbsDeviceRect(d);
+	auto clientRect = GetClippedCurrFullAbsDeviceRect(d);
 
-	if (!DrawRect(d, wr, cr, clientRect))
+	if (!DrawRect(d, wr, cr, CrdRect2GRect(clientRect)))
 		return false;
 	auto deviceROI = DRect2GRect(m_ROI, d.GetTransformation());
 	deviceROI += TRect2GRect(TRect(-1, -1, 1, 1), d.GetSubPixelFactors());

@@ -30,7 +30,7 @@ GraphVisitState MovableContainer::InviteGraphVistor(AbstrVisitor& v)
 
 void AutoSizeContainer::ProcessCollectionChange()
 {
-	TPoint clientSize = Point<TType>(0, 0);
+	auto clientSize = Point<CrdType>(0, 0);
 	// calculate Size
 	auto n = NrEntries();
 	while (n)
@@ -38,13 +38,12 @@ void AutoSizeContainer::ProcessCollectionChange()
 		MovableObject* entry = GetEntry(--n);
 		if (entry && entry->IsVisible())
 		{
-			TPoint entrySize = entry->GetCurrClientSize();
-			assert(entry->GetCurrClientRelPos().X() + entry->GetBorderLogicalExtents().Left() >= 0);
-			assert(entry->GetCurrClientRelPos().Y() + entry->GetBorderLogicalExtents().Top () >= 0);
+			auto entrySize = entry->GetCurrClientSize();
+			assert(entry->GetCurrClientRelPos().X() + Left(entry->GetBorderLogicalExtents()) >= 0);
+			assert(entry->GetCurrClientRelPos().Y() + Top (entry->GetBorderLogicalExtents()) >= 0);
 
-			MakeUpperBound( clientSize
-			,	entrySize + entry->GetCurrClientRelPos() + TPoint(entry->GetBorderLogicalExtents().BottomRight())
-			);
+			entrySize += entry->GetCurrClientRelPos() + BottomRight(entry->GetBorderLogicalExtents());
+			MakeUpperBound( clientSize,	entrySize);
 		}
 	}
 	SetClientSize(clientSize);
@@ -65,17 +64,17 @@ GraphicVarRows::GraphicVarRows(MovableObject* owner)
 void GraphicVarRows::ProcessCollectionChange()
 {
 	auto n = NrEntries();
-	TPoint resSize = shp2dms_order<TType>(m_MaxColWidth, m_RowSepHeight);
+	auto resSize = shp2dms_order<CrdType>(m_MaxColWidth, m_RowSepHeight);
 	for (decltype(n) i = 0; i!=n; ++i)
 	{
 		MovableObject* entry = GetEntry(i);
 
-		TRect extents  = entry->GetBorderLogicalExtents();
-		TType entryTop = resSize.Y();
+		auto extents  = entry->GetBorderLogicalExtents();
+		auto entryTop = resSize.Y();
 
 		if (entry->IsVisible()) 
 		{
-			TPoint entrySize = entry->GetCurrClientSize() + extents.Size();
+			auto entrySize = entry->GetCurrClientSize() + Size(extents);
 			resSize.Y() += entrySize.Y();
 			resSize.Y() += m_RowSepHeight;
 
@@ -83,7 +82,7 @@ void GraphicVarRows::ProcessCollectionChange()
 				MakeMax(resSize.X(), entrySize.X());
 			SetClientSize( UpperBound(GetCurrClientSize(), resSize) );
 		}
-		entry->MoveTo(shp2dms_order<TType>(0, entryTop) - extents.TopLeft() );
+		entry->MoveTo(shp2dms_order<CrdType>(0, entryTop) - TopLeft(extents) );
 	}
 
 	SetClientSize( resSize );
@@ -100,37 +99,40 @@ void GraphicVarRows::DrawBackground(const GraphDrawer& d) const
 
 	SizeT n = NrEntries(); 
 
-	GRect  absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
-	GType  clipStartRow = d.GetAbsClipDeviceRect().Top   ();
-	TType  clipEndRow   = d.GetAbsClipDeviceRect().Bottom();
-	SizeT  recNo        = 0;
+	auto  absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
+	GType clipStartRow = d.GetAbsClipDeviceRect().Top   ();
+	TType clipEndRow   = d.GetAbsClipDeviceRect().Bottom();
+	SizeT recNo        = 0;
 
-	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos(), m_ScrollSlack);
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
 
-	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Top() <= clipStartRow)
+	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.Y() <= clipStartRow)
 		++recNo;
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	while (recNo < n)
 	{
-		absFullRect.Top   () = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Top();
-		absFullRect.Bottom() = absFullRect.Bottom() - rowSep;
-		dms_assert(absFullRect.Bottom() > clipStartRow); // follows from previous while condition, recNo < n, and the ascending order of Entries
-		if (absFullRect.Top() >= clipEndRow)
+		absFullRect.second .Y() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.Y();
+		absFullRect.first.Y() = absFullRect.second.Y() - rowSep * d.GetSubPixelFactors().second;
+		assert(absFullRect.second.Y() > clipStartRow); // follows from previous while condition, recNo < n, and the ascending order of Entries
+		if (absFullRect.first.Y() >= clipEndRow)
 			return;
 
-		FillRect(d.GetDC(), &absFullRect, br);
+		auto intFullRect = CrdRect2GRect(absFullRect);
+		FillRect(d.GetDC(), &intFullRect, br);
 		++recNo;
 	}
-	dms_assert(recNo == n);
-	absFullRect.Top() = (recNo)
-		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).Bottom()
+	assert(recNo == n);
+	absFullRect.first.Y() = (recNo)
+		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).second.Y()
 		:	0;
-	if (absFullRect.Top() >= clipEndRow)
+	if (absFullRect.first.Y() >= clipEndRow)
 		return;
-	absFullRect.Bottom() = absFullRect.Top() + rowSep;
-	if (absFullRect.Bottom() > clipStartRow)
-		FillRect(d.GetDC(), &absFullRect, br);
+	absFullRect.second.Y() = absFullRect.first.Y() + rowSep * d.GetSubPixelFactors().second;
+	if (absFullRect.second.Y() <= clipStartRow)
+		return;
+	auto  intFullRect = CrdRect2GRect(absFullRect);
+	FillRect(d.GetDC(), &intFullRect, br);
 }
 
 
@@ -171,17 +173,17 @@ GraphicVarCols::GraphicVarCols(MovableObject* owner)
 void GraphicVarCols::ProcessCollectionChange()
 {
 	gr_elem_index n = NrEntries();
-	TPoint resSize = shp2dms_order<TType>(m_ColSepWidth, m_MaxRowHeight);
+	auto resSize = shp2dms_order<CrdType>(m_ColSepWidth, m_MaxRowHeight);
 	for (gr_elem_index i = 0; i!=n; ++i)
 	{
 		MovableObject* entry = GetEntry(i);
 
-		TRect extents = entry->GetBorderLogicalExtents();
-		TType entryLeft    = resSize.X();
+		auto extents   = entry->GetBorderLogicalExtents();
+		auto entryLeft = resSize.X();
 
 		if (entry->IsVisible()) 
 		{
-			TPoint entrySize = entry->GetCurrClientSize() + extents.Size();
+			auto entrySize = entry->GetCurrClientSize() + Size(extents);
 
 			resSize.X() += entrySize.X();
 			resSize.X() += m_ColSepWidth;
@@ -191,7 +193,7 @@ void GraphicVarCols::ProcessCollectionChange()
 
 			SetClientSize(UpperBound(GetCurrClientSize(), resSize));
 		}
-		entry->MoveTo(shp2dms_order<TType>(entryLeft, 0) - extents.TopLeft() );
+		entry->MoveTo(shp2dms_order<CrdType>(entryLeft, 0) - TopLeft(extents) );
 	}
 
 	SetClientSize( resSize );
@@ -208,37 +210,41 @@ void GraphicVarCols::DrawBackground(const GraphDrawer& d) const
 
 	SizeT n = NrEntries(); 
 
-	GRect  absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
+	auto   absFullRect  = GetClippedCurrFullAbsDeviceRect(d);
 	GType  clipStartCol = d.GetAbsClipDeviceRect().Left ();
 	GType  clipEndCol   = d.GetAbsClipDeviceRect().Right();
 	UInt32 recNo        = 0;
 
-	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos(), m_ScrollSlack);
+	AddClientLogicalOffset localOffset(const_cast<GraphDrawer*>(&d), GetCurrClientRelPos());
 
-	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Left() <= clipStartCol)
+	while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.X() <= clipStartCol)
 		++recNo;
 
 	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	while (recNo < n)
 	{
-		absFullRect.Right() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).Left();
-		absFullRect.Left () = absFullRect.Right() - colSep;
-		dms_assert(absFullRect.Right() > clipStartCol); // follows from previous while condition, recNo < n, and the ascending order of Entries
-		if (absFullRect.Left () >= clipEndCol)
+		absFullRect.second.X() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.X();
+		absFullRect.first.X() = absFullRect.second.X() - colSep * d.GetSubPixelFactors().first;
+		assert(absFullRect.second.X() > clipStartCol); // follows from previous while condition, recNo < n, and the ascending order of Entries
+		if (absFullRect.first.X() >= clipEndCol)
 			return;
 
-		FillRect(d.GetDC(), &absFullRect, br);
+		auto intFullRect = CrdRect2GRect(absFullRect);
+		FillRect(d.GetDC(), &intFullRect, br);
 		++recNo;
 	}
 	dms_assert(recNo == n);
-	absFullRect.Left() = (recNo)
-		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).Right()
+	absFullRect.first.X() = (recNo)
+		?	GetConstEntry(--recNo)->GetCurrFullAbsDeviceRect(d).second.X()
 		:	0;
-	if (absFullRect.Left() >= clipEndCol)
+	if (absFullRect.first.X() >= clipEndCol)
 		return;
-	absFullRect.Right() = absFullRect.Left () + colSep;
-	if (absFullRect.Right() > clipStartCol)
-		FillRect(d.GetDC(), &absFullRect, br);
+	absFullRect.second.X() = absFullRect.first.X() + colSep;
+	if (absFullRect.second.X() <= clipStartCol)
+		return;
+
+	auto intFullRect = CrdRect2GRect(absFullRect);
+	FillRect(d.GetDC(), &intFullRect, br);
 }
 
 GraphVisitState GraphicVarCols::InviteGraphVistor(class AbstrVisitor& gv)
@@ -268,7 +274,7 @@ void GraphicVarCols::SetColSepWidth(UInt32 colSepWidth)
 // section : Grow
 //----------------------------------------------------------------------
 
-void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
+void GraphicVarCols::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject* sourceItem)
 {
 	assert(relPosX <= m_ClientLogicalSize.X());
 	if (deltaX > 0)
@@ -291,7 +297,7 @@ void GraphicVarCols::GrowHor(TType deltaX, TType relPosX, const MovableObject* s
 	m_cmdElemSetChanged();
 }
 
-void GraphicVarRows::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
+void GraphicVarRows::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject* sourceItem)
 {
 	assert(relPosY <= m_ClientLogicalSize.Y());
 	if (deltaY > 0)
@@ -314,18 +320,18 @@ void GraphicVarRows::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 	m_cmdElemSetChanged();
 }
 
-void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* sourceItem)
+void GraphicVarCols::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject* sourceItem)
 {
 	if (deltaY > 0)
 	{
-		TType excess = relPosY + deltaY - m_ClientLogicalSize.Y();
+		auto excess = relPosY + deltaY - m_ClientLogicalSize.Y();
 		if (excess > 0)
 			base_type::GrowVer(excess, m_ClientLogicalSize.Y());
 	}
 	if (deltaY < 0)
 	{
 		// recalculate max elem width
-		TType height = 0;
+		auto height = 0;
 		SizeT n=NrEntries();
 		while (n)
 			MakeMax(height, GetEntry(--n)->GetCurrFullSize().Y());
@@ -336,19 +342,19 @@ void GraphicVarCols::GrowVer(TType deltaY, TType relPosY, const MovableObject* s
 	}
 }
 
-void GraphicVarRows::GrowHor(TType deltaX, TType relPosX, const MovableObject* sourceItem)
+void GraphicVarRows::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject* sourceItem)
 {
 	assert(relPosX <= m_ClientLogicalSize.X());
 	if (deltaX > 0)
 	{
-		TType excess = relPosX + deltaX - m_ClientLogicalSize.X();
+		auto excess = relPosX + deltaX - m_ClientLogicalSize.X();
 		if (excess > 0)
 			base_type::GrowHor(excess, m_ClientLogicalSize.X());
 	}
 	if (deltaX < 0)
 	{
 		// recalculate max elem width
-		TType width = 0;
+		auto width = 0;
 		SizeT n=NrEntries();
 		while (n) 
 			MakeMax(width, GetEntry(--n)->GetCurrFullSize().X());
