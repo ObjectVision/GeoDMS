@@ -359,7 +359,7 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 	OGRCoordinateTransformation* m_Transformer = nullptr; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
 	SpatialRefBlock() 
 	{
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		m_ProjCtx = proj_context_create();
 	}
 
@@ -368,7 +368,7 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 		if (m_Transformer)
 			OGRCoordinateTransformation::DestroyCT(m_Transformer);
 
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		proj_context_destroy(m_ProjCtx);
 	}
 

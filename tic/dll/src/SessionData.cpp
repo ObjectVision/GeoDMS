@@ -230,7 +230,7 @@ void SessionData::Open(const TreeItem* configRoot)
 
 std::shared_ptr<SessionData> SessionData::Curr()
 {
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
+	std::lock_guard dcLock(sd_SessionDataCriticalSection);
 	return s_CurrSD;
 }
 

@@ -293,7 +293,7 @@ DataController::~DataController()
 	if (!curr)
 		return;
 	
-	auto dcLock = std::lock_guard(sd_DataControllerMapCriticalSeciton);
+	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
 
 	curr->GetDcMap().erase(m_Key);
 
@@ -339,7 +339,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	auto dcRef = CreateDC(keyExpr);
 	assert(dcRef->GetLispRef() == keyExpr);
 
-	auto scopedcLock = std::lock_guard(sd_DataControllerMapCriticalSeciton);
+	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSeciton);
 	dcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
 	return dcRef;
 }

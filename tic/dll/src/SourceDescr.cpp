@@ -213,10 +213,10 @@ namespace { // local defs
 		VectorOutStreamBuff vout;
 		FormattedOutStream fout(&vout, FormattingFlags::ThousandSeparator);
 		switch (m_SDM) {
-		case SourceDescrMode::Configured: fout << "Configured Source Descriptions\n"; break;
-		case SourceDescrMode::ReadOnly:   fout << "Read Only Storage Managers\n"; break;
-		case SourceDescrMode::WriteOnly:  fout << "Non-Read Only Storage Managers\n"; break;
-		case SourceDescrMode::All:        fout << "Utilized Storage Managers\n"; break;
+		case SourceDescrMode::Configured: fout << "<h1>Configured Source Descriptions</h1>\n"; break;
+		case SourceDescrMode::ReadOnly:   fout << "<h1>Read Only Storage Managers</h1>\n"; break;
+		case SourceDescrMode::WriteOnly:  fout << "<h1>Non-Read Only Storage Managers</h1>\n"; break;
+		case SourceDescrMode::All:        fout << "<h1>Utilized Storage Managers</h1>\n"; break;
 		}
 		fout << "For item: \n" << ti->GetSourceName() << "\n";
 		if (DMS_Appl_GetExeType() == exe_type::geodms_qt_gui)

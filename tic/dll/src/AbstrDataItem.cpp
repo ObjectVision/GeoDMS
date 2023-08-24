@@ -218,7 +218,7 @@ struct reader_clone_farm
 	UInt32 acquire()
 	{
 		m_Countdown.acquire();
-		auto csLock = std::lock_guard(m_CloneCS);
+		std::lock_guard csLock(m_CloneCS);
 		auto token = m_Tokens.back();
 		m_Tokens.pop_back();
 		return token;
@@ -226,7 +226,7 @@ struct reader_clone_farm
 	void release(UInt32 token)
 	{
 		{
-			auto csLock = std::lock_guard(m_CloneCS);
+			std::lock_guard csLock(m_CloneCS);
 			m_Tokens.emplace_back(token);
 		}
 		m_Countdown.release();

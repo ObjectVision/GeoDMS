@@ -794,8 +794,11 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		assert(xmlOutStrPtr);
 		assert(!SuspendTrigger::DidSuspend());
 
+		CharPtr h2Caption = showAll
+			? "All properties, including with default values, ordered by specificity and then property-name"
+			: "Properties with non-default values, ordered by specificity and then property-name";
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, "All properties", self);
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, h2Caption, self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();
