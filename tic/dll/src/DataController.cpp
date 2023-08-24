@@ -209,7 +209,7 @@ void DataControllerContextHandle::GenerateDescription()
 
 namespace {
 
-	DataController* CreateDC(LispPtr keyExpr)
+	DataControllerRef CreateDC(LispPtr keyExpr)
 	{
 
 #if defined(MG_DEBUG_LISP_TREE)
@@ -261,7 +261,7 @@ namespace {
 		}
 		else
 		{
-			dms_assert(keyExpr.IsUI64());
+			assert(keyExpr.IsUI64());
 			return new UI64DC(keyExpr);
 		}
 	}
@@ -272,6 +272,8 @@ namespace {
 // *****************************************************************************
 
 #include "SessionData.h"
+static std::mutex sd_DataControllerMapCriticalSeciton;
+static std::condition_variable sd_DataControllerMapCriticalSectionWasRevisited;
 
 //inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); }
 
@@ -287,42 +289,58 @@ DataController::~DataController()
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
-
 	auto curr = SessionData::Curr();
-	if (curr)
-		curr->GetDcMap().erase(m_Key);
+	if (!curr)
+		return;
+	
+	auto dcLock = std::lock_guard(sd_DataControllerMapCriticalSeciton);
+
+	curr->GetDcMap().erase(m_Key);
+
+	sd_DataControllerMapCriticalSectionWasRevisited.notify_all();
 }
 
 DataControllerRef
 GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 {
+	MG_CHECK(IsMainThread());
+
 	if (keyExpr.EndP())
 		return {};
 
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
-
 	auto currSD = SessionData::Curr();
-	
+	assert(currSD);
 	DataControllerMap& dcMap = currSD->GetDcMap();
-	DataControllerMap::iterator dcPtrLoc = dcMap.lower_bound(keyExpr);
-	
-	if (dcPtrLoc != dcMap.end() && dcPtrLoc->first == keyExpr)
-		return dcPtrLoc->second;
-	if (!mayCreate)
-		return nullptr;
+	DataControllerMap::iterator dcPtrLoc;
+	{
+		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
 
+	retry:
+		dcPtrLoc = dcMap.lower_bound(keyExpr);
+		if (dcPtrLoc != dcMap.end() && dcPtrLoc->first == keyExpr)
+		{
+			if (!dcPtrLoc->second->IsOwned()) // destruction is pending, wait for it and retry
+			{
+				sd_DataControllerMapCriticalSectionWasRevisited.wait(dcLock);
+				goto retry;
+			}
+			return dcPtrLoc->second;
+		}
+		if (!mayCreate)
+			return nullptr;
+	}
+	// we now have uqiue access to dcPtrLoc, as this is only called from one thread and keyExpr cannot be self-referential.
 #if defined(MG_DEBUG_LISP_TREE)
 	reportD(SeverityTypeID::ST_MinorTrace, "===GetDataController===");
 	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 #endif
-	dms_assert(!keyExpr.EndP()); // entry condition
+	assert(!keyExpr.EndP()); // entry condition
 
-	DataControllerRef dcRef = CreateDC(keyExpr);
-	dms_assert(dcRef->GetLispRef() == keyExpr);
+	auto dcRef = CreateDC(keyExpr);
+	assert(dcRef->GetLispRef() == keyExpr);
 
+	auto scopedcLock = std::lock_guard(sd_DataControllerMapCriticalSeciton);
 	dcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
-
 	return dcRef;
 }
 

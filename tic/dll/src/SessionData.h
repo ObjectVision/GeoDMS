@@ -57,7 +57,6 @@ TIC_CALL void TreeItem_SetAnalysisSource(const TreeItem* ti);
 // struct SessionData
 //----------------------------------------------------------------------
 
-extern std::recursive_mutex sd_SessionDataCriticalSection;
 extern leveled_counted_section s_SessionUsageCounter;
 
 struct SessionData : std::enable_shared_from_this<SessionData>
