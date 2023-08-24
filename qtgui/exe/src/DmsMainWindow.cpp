@@ -1799,6 +1799,11 @@ void MainWindow::createActions()
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
+    m_view_current_config_filelist = std::make_unique<QAction>(tr("Listing of currently loaded configuration files"));
+    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
+    m_view_menu->addAction(m_view_current_config_filelist.get());
+
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
     m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
@@ -2149,13 +2154,35 @@ void MainWindow::view_calculation_times()
     }
     os << char(0); // ends
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setText(vosb.GetData());
 
     mdiSubWindow->setWindowTitle("Calculation time overview");
+    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_mdi_area->addSubWindow(mdiSubWindow);
+    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
+    mdiSubWindow->show();
+}
+
+void MainWindow::view_current_config_filelist()
+{
+    VectorOutStreamBuff vosb;
+    {
+        auto xmlOut = OutStream_HTM(&vosb, "html", nullptr);
+        //    outStreamBuff << "List of currently loaded configuration (*.dms) files\n";
+        ReportCurrentConfigFileList(xmlOut);
+    }
+    vosb.WriteByte(char(0));
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
+    auto* textWidget = new QTextBrowser(mdiSubWindow);
+    mdiSubWindow->setWidget(textWidget);
+    textWidget->setHtml(vosb.GetData());
+
+    mdiSubWindow->setWindowTitle("List of currently loaded configuration (*.dms) files");
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);

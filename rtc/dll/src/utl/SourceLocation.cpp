@@ -78,6 +78,7 @@ FileDescr::~FileDescr()
 #include "ser/MoreStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
+#include "xml/XmlOut.h"
 
 auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
 {
@@ -102,6 +103,35 @@ auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
 	}
 	
 	return vos;
+}
+
+void ReportCurrentConfigFileList(OutStreamBase& os)
+{
+	XML_OutElement table(os, "TABLE");
+
+	FileDateTime fdt;
+	auto
+		i = s_FDS.begin(),
+		e = s_FDS.end();
+	for (; i != e; ++i)
+	{
+		FileDescr* fd = *i;
+		XML_OutElement row(os, "TR");
+		{
+			XML_OutElement col(os, "TD");
+			os << fd->GetFileName().c_str();
+			fdt = GetFileOrDirDateTime(fd->GetFileName());
+		}
+		{
+			XML_OutElement col(os, "TD");
+			os << AsString(fd->m_Fdt).c_str();
+		}
+		if (fdt != fd->m_Fdt)
+		{
+			XML_OutElement col(os, "TD");
+			os << AsString(fdt).c_str();
+		}
+	}
 }
 
 IStringHandle DMS_ReportChangedFiles(bool updateFileTimes) //TODO: remove IStringHandle
