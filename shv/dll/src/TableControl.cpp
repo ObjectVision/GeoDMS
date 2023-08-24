@@ -644,8 +644,8 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 	auto activeCol = FirstActiveCol();
 	if (activeCol < NrEntries())
 	{
-		if (firstActiveCol)
-			m_Cols.Go(shift,  activeCol);
+//		if (firstActiveCol)
+//			m_Cols.Go(shift,  activeCol);
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);
@@ -660,7 +660,7 @@ void TableControl::GoEnd(bool shift)
 
 	SelChangeInvalidator sci(this);
 	m_Rows.GoEnd(shift, NrRows()-1);
-	m_Cols.GoEnd(shift, NrEntries()-1);
+//	m_Cols.GoEnd(shift, NrEntries()-1);
 	sci.ProcessChange(true);
 }
 
