@@ -1,6 +1,11 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "RtcInterface.h"
-#include "StxInterface.h"
+//#include "StxInterface.h"
 #include "TicInterface.h"
+
 #include "act/MainThread.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
@@ -34,6 +39,9 @@
 #include "DmsDetailPages.h"
 #include "DmsOptions.h"
 #include "DmsExport.h"
+#include "DmsValueInfo.h"
+#include "StatisticsBrowser.h"
+
 #include "DataView.h"
 #include "StateChangeNotification.h"
 #include "stg/AbstrStorageManager.h"
@@ -1339,58 +1347,6 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
-// TODO: BEGIN move to separate file UpdatableTextBrowser.h
-
-struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
-{
-    using QTextBrowser::QTextBrowser;
-
-    void restart_updating()
-    {
-        m_Waiter.start(this);
-        QTimer::singleShot(0, [this]()
-            {
-                if (!this->update())
-                    this->restart_updating();
-                else
-                    m_Waiter.end();
-            }
-        );
-    }
-    void GenerateDescription() override
-    {
-        auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
-        if (!pw)
-            return;
-        SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
-    }
-
-protected:
-    Waiter m_Waiter;
-
-    virtual bool update() = 0;
-};
-
-// TODO: move to separate file StatisticsBrowser.h
-
-struct StatisticsBrowser : QUpdatableTextBrowser
-{
-    using QUpdatableTextBrowser::QUpdatableTextBrowser;
-
-    bool update() override
-    {
-        vos_buffer_type textBuffer;
-        SuspendTrigger::Resume();
-        bool done = NumericDataItem_GetStatistics(m_Context, textBuffer);
-        textBuffer.emplace_back(char(0));
-        setText(begin_ptr(textBuffer));
-        return done;
-    }
-    SharedTreeItemInterestPtr m_Context;
-};
-
-// TODO: END move to separate file
-
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 {
     if (openErrorOnFailedCurrentItem())
@@ -1413,65 +1369,12 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     textWidget->restart_updating();
 }
 
-
-// TODO: BEGIN move to separate file ValueInfoBrowser.h
-
-#include "TicBase.h"
-#include "Explain.h"
-
-struct ValueInfoBrowser : QUpdatableTextBrowser
-{
-    ValueInfoBrowser(auto parent)
-        : QUpdatableTextBrowser(parent)
-        , m_Context(Explain::CreateContext())
-    {
-        setOpenLinks(false);
-        setOpenExternalLinks(false);
-        connect(this, &QTextBrowser::anchorClicked, MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
-    }
-
-    bool update() override;
-
-    Explain::context_handle m_Context;
-    SharedDataItemInterestPtr m_StudyObject;
-    SizeT m_Index;
-
-    vos_buffer_type m_VOS_buffer;
-};
-
-// TODO: move to separate file ValueInfoBrowser.cpp
-
-bool ValueInfoBrowser::update()
-{
-    m_VOS_buffer.clear();
-    ExternalVectorOutStreamBuff outStreamBuff(m_VOS_buffer);
-
-    auto xmlOut = OutStream_HTM(&outStreamBuff, "html", nullptr);
-    SuspendTrigger::Resume();
-
-
-    bool done = Explain::AttrValueToXML(m_Context.get(), m_StudyObject, &xmlOut, m_Index, "", true);
-    outStreamBuff.WriteByte(char(0));
-
-    setText(outStreamBuff.GetData());
-
-    // clean-up;
-    if (done)
-        m_VOS_buffer = vos_buffer_type();
-    return done;
-}
-
-// TODO: END move to separate file
-
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
  
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    auto* textWidget = new ValueInfoBrowser(mdiSubWindow);
-    textWidget->m_Context = Explain::CreateContext();
-    textWidget->m_StudyObject = studyObject;
-    textWidget->m_Index = index;
+    auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
 
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
