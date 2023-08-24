@@ -1256,6 +1256,7 @@ void MainWindow::setRecentFiles()
 
 void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 {
+    setRecentFiles();
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
