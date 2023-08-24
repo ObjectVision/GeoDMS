@@ -111,6 +111,9 @@
     <ClCompile Include="src\TestScript.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsValueInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -211,6 +214,9 @@
       <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="src\DmsValueInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\TestScript.h">
       <Filter>Header Files</Filter>
     </ClInclude>

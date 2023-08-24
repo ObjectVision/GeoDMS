@@ -1258,6 +1258,7 @@ void MainWindow::setRecentFiles()
 
 void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 {
+    setRecentFiles();
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
@@ -2214,7 +2215,7 @@ void MainWindow::createValueInfoDock()
     m_value_info_mdi_area->resize(500, 0);
     m_value_info_dock->resize(500, 0);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
-    m_value_info_dock->setVisible(false);
+    m_value_info_dock->setVisible(true);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
