@@ -20,6 +20,7 @@ leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type
 //----------------------------------------------------------------------
 
 std::recursive_mutex sd_SessionDataCriticalSection;
+
 static std::shared_ptr<SessionData> s_CurrSD;
 
 //----------------------------------------------------------------------
