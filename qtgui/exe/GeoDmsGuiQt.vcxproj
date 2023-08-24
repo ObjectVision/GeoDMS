@@ -141,6 +141,7 @@
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsOptions.cpp" />
     <ClCompile Include="src\DmsTreeView.cpp" />
+    <ClCompile Include="src\DmsValueInfo.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
     <ClCompile Include="src\main_qt.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
@@ -179,6 +180,7 @@
     <QtMoc Include="src\DmsViewArea.h" />
     <QtMoc Include="src\DmsOptions.h" />
     <QtMoc Include="src\DmsExport.h" />
+    <ClInclude Include="src\DmsValueInfo.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h" />
     <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h" />
     <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h" />
