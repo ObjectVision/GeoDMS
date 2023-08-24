@@ -548,7 +548,9 @@ namespace
 	IterativeProportionalFittingOperator<Int32> ipf(&ipfGroup);
 
 	CharPtr rewriteObsoleteWarning = "claim correction related rewrite rules have been removed from RewriteExpr.lsp";
-	auto whatever = {
+
+	Obsolete< CommonOperGroup > whatever[] =
+	{
 		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div"),
 //		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32"),
 		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64"),
