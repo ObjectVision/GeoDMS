@@ -635,8 +635,8 @@ void ExportTab::showEvent(QShowEvent* event)
         const auto& otherDriver = m_available_drivers.at(i);
         if (!isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_no_geometry))
             item->setEnabled(false);
-        //else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_geometry))
-        //    item->setEnabled(false); // TODO fix
+        else if (isCurrentItemOrItsSubItemsMappable() && (otherDriver.driver_characteristics & driver_characteristics::disable_with_geometry))
+            item->setEnabled(false);
         else
             item->setEnabled(true);
     }

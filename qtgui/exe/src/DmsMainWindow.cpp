@@ -466,22 +466,6 @@ void MainWindow::wiki()
     QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
 }
 
-DmsRecentFileButtonAction::DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent)
-    :QAction(QString(index < 10 ? QString("&") : "") + QString::number(index) + ". " + ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str(), parent)
-{
-    m_cfg_file_path = dms_file_full_path;
-}
-
-void DmsRecentFileButtonAction::onToolbuttonPressed()
-{
-    auto main_window = MainWindow::TheOne();
-
-    if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
-        main_window->m_eventlog_model->clear();
-
-    main_window->LoadConfig(m_cfg_file_path.c_str());
-}
-
 DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QWidget* parent)
     :QWidget(parent)
 {
@@ -536,8 +520,9 @@ void DmsRecentFileEntry::onFileEntryPressed()
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
         main_window->m_eventlog_model->clear();
-
+    main_window->m_file_menu->close();
     main_window->LoadConfig(m_cfg_file_path.c_str());
+    main_window->setRecentFiles();
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
@@ -1287,7 +1272,13 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 
     }
     else
-        m_recent_files_actions.move(cfg_index_in_recent_files, 0);
+    {
+        auto swapped_first = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(0)->defaultWidget());
+        auto swapped_secnd = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(cfg_index_in_recent_files)->defaultWidget());
+        m_recent_files_actions.swapItemsAt(cfg_index_in_recent_files, 0);
+    }
+
+
 
     setRecentFiles();
     updateFileMenu();
@@ -2177,8 +2168,7 @@ void MainWindow::createDetailPagesDock()
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
-    m_detail_pages->setMinimumWidth(0);
-    m_detailpages_dock->setMinimumWidth(0);
+    m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_detailpages_dock->setWidget(m_detail_pages);
     splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
 
@@ -2193,17 +2183,18 @@ void MainWindow::createValueInfoDock()
 
     //m_value_info_dock->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
     m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    //m_value_info_mdi_area->setMinimumWidth(0);
-    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Ignored);
+    m_value_info_mdi_area->resize(500, 0);
+    m_value_info_dock->resize(500, 0);
     m_value_info_dock->setWidget(m_value_info_mdi_area);
-    
+    m_value_info_dock->setVisible(false);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
-    m_value_info_dock->setVisible(false);
+    
     createDetailPagesDock();
 
 //    m_detail_pages->setDummyText();
