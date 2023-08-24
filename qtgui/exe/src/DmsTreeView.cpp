@@ -448,6 +448,15 @@ bool DmsTreeView::expandActiveNode(bool doExpand)
 	return true;
 }
 
+bool DmsTreeView::expandRecursiveFromCurrentItem()
+{
+	auto index = currentIndex();
+	if (!index.isValid())
+		return false;
+
+	expandRecursively(index);
+}
+
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {

@@ -296,6 +296,30 @@ struct XML_OutElement
 	UInt32         m_AttrCount;
 };
 
+struct XML_h1 : XML_OutElement
+{
+	XML_h1(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h1")
+	{
+		xmlStream << caption;
+	}
+};
+
+struct XML_h2 : XML_OutElement
+{
+	XML_h2(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h2")
+	{
+		xmlStream << caption;
+	}
+};
+
+struct XML_h3 : XML_OutElement
+{
+	XML_h3(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h3")
+	{
+		xmlStream << caption;
+	}
+};
+
 struct XML_hRef : XML_OutElement
 {
 	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtr url);

@@ -97,8 +97,29 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		{
 			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
 			myCDS.cbData = 4;
-			buffer.emplace_back(1); // code for expand all
+			buffer.emplace_back(1); // code for expand
 			myCDS.lpData = &(buffer[0]);
+		}
+		else if (std::strcmp(argv[i], "Collapse") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
+			myCDS.cbData = 4;
+			buffer.emplace_back(0); // code for collapes
+			myCDS.lpData = &(buffer[0]);
+		}
+		else if (std::strcmp(argv[i], "ExpandAll") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::ExpandAll);
+			myCDS.cbData = 0;
+//			buffer.emplace_back(1); // code for expand all
+			myCDS.lpData = nullptr;
+		}
+		else if (std::strcmp(argv[i], "ExpandRecursive") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::ExpandRecursive);
+			myCDS.cbData = 0;
+			//			buffer.emplace_back(1); // code for expand all
+			myCDS.lpData = nullptr;
 		}
 		else if ((std::strcmp(argv[i], "DP") == 0) || (std::strcmp(argv[i], "ShowDetailPage") == 0))
 		{

@@ -252,10 +252,13 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 
 // ********** XML_ItemBody                                             *********
 
-XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFullName)
+XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, const TreeItem* item, bool showFullName)
 	:	XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
+
+	XML_h1(out, caption);
+
 
 	XML_OutElement xmlElemH2(out, "H2");
 	XML_OutElement xmlElemA (out, "A");
@@ -655,7 +658,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 	assert(xmlOutStrPtr);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", self);
 	try {
 		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
 			return false;
@@ -677,7 +680,7 @@ TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* 
 	assert(self);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", self);
 	try {
 
 		*xmlOutStrPtr << "Description or available documentation:";
@@ -791,7 +794,8 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		assert(xmlOutStrPtr);
 		assert(!SuspendTrigger::DidSuspend());
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, "All properties", self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();
@@ -866,7 +870,7 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
 {
 	dms_assert(self);
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self, true);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", self, true);
 	dms_assert(xmlOutStrPtr);
 	{
 		XML_Table    xmlTable   (*xmlOutStrPtr);

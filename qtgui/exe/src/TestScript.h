@@ -15,7 +15,7 @@ enum class CommandCode {
 	DefaultView = 5,
 	ActivateItem = 6,
 	miExportViewPorts = 7,
-	Expand = 8,
+	Expand = 8, ExpandAll = 15, ExpandRecursive = 16,
 	ShowDetailPage = 9, // followed by integer page number.
 	SaveDetailPage = 10,
 	miDatagridView = 11,

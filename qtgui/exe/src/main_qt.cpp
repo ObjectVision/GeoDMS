@@ -179,6 +179,13 @@ bool WmCopyData(MSG* copyMsgPtr)
         MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
         return true;
 
+    case CommandCode::ExpandAll:
+        MainWindow::TheOne()->m_treeview->expandAll();
+
+    case CommandCode::ExpandRecursive:
+        MainWindow::TheOne()->m_treeview->expandRecursiveFromCurrentItem();
+        return true;
+
     case CommandCode::ShowDetailPage:
         MainWindow::TheOne()->m_detail_pages->show((ActiveDetailPage)Get4Bytes(pcds, 0));
         return true;

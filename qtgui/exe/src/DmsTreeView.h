@@ -80,6 +80,7 @@ public:
 	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
 	bool expandActiveNode(bool doExpand);
+	bool expandRecursiveFromCurrentItem();
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);
