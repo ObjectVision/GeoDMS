@@ -867,11 +867,9 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 	}
 }
 
-void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
+void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStreamBase* xmlOutStrPtr
+	, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
 {
-	dms_assert(self);
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", self, true);
-	dms_assert(xmlOutStrPtr);
 	{
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 		if (calledBy)
@@ -913,14 +911,14 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 				if (i)
 					role = "is parent and used by";
 			}
-			TreeItem_XML_DumpExploreThisAndParents(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
+			TreeItem_XML_DumpExploreThisAndParents_impl(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
 		}
 	}
 	else
 	{
 		const TreeItem* parent = self->GetTreeParent();
 		if (parent)
-			TreeItem_XML_DumpExploreThisAndParents(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
+			TreeItem_XML_DumpExploreThisAndParents_impl(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
 	}
 	return;
 
@@ -929,14 +927,22 @@ omit_repetition:
 	(*xmlOutStrPtr) << "(repetition of sub items omitted)";
 }
 
+void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, const TreeItem* calledBy, CharPtr callingRole)
+{
+	assert(self);
+	assert(self);
+
+	TreeItemSetType doneItems;
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces in search order", self, true);
+
+	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, doneItems, calledBy, callingRole);
+}
+
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden)
 {
 	DMS_CALL_BEGIN
 
-		* xmlOutStrPtr << "items visible from here per namespace in search order";
-
-		TreeItemSetType doneItems;
-		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, doneItems, nullptr, "");
+		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, nullptr, "");
 
 	DMS_CALL_END
 }
