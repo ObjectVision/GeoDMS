@@ -178,23 +178,42 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
     return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
 }
 
+
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    if (m_DrawPageRequestPending)
-        return;
+    bool oldValue = false;
+    if (!m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    {
+        if (oldValue)
+            return;
+    }    
+    assert(m_DrawPageRequestPending);
 
-    m_DrawPageRequestPending = true;
-    QTimer::singleShot(milliseconds, [this]()
+    AddMainThreadOper(
+        [this, milliseconds]()
         {
-            m_DrawPageRequestPending = false;
-            this->drawPage();
+            assert(IsMainThread());
+            static std::time_t pendingDeadline = 0;
+            auto deadline = std::time(nullptr) + milliseconds / 1000;
+            if (!pendingDeadline || deadline < pendingDeadline)
+            {
+                pendingDeadline = deadline;
+                QTimer::singleShot(milliseconds, [this]()
+                    {
+                        assert(IsMainThread());
+                        pendingDeadline = 0;
+                        this->m_DrawPageRequestPending = false;
+                        this->drawPage();
+                    }
+                );
+            }
         }
     );
 }
 
 void DmsDetailPages::scheduleDrawPage()
 {
-    scheduleDrawPageImpl(0);
+    scheduleDrawPageImpl(10);
 }
 
 void DmsDetailPages::onTreeItemStateChange()
