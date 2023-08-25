@@ -40,8 +40,8 @@ granted by an additional written contract for support, assistance and/or develop
 //*****************************************************************
 //**********         FileDescr Interface                 **********
 //*****************************************************************
-#include "set/QuickContainers.h"
 
+/*
 struct CompareFD
 {
 	bool operator()(const FileDescr* a, FileDescr* b) const
@@ -51,8 +51,9 @@ struct CompareFD
 		return a->GetFileName() < b->GetFileName();
 	}
 };
+*/
 
-using FileDescrSet = std::set<FileDescr*, CompareFD> ;
+using FileDescrSet = std::vector<FileDescr*>;
 static FileDescrSet s_FDS;
 std::mutex cs_FDS;
 
@@ -60,14 +61,20 @@ FileDescr::FileDescr(WeakStr str, FileDateTime fdt)
 	:	m_FileName(str)
 	,	m_Fdt(fdt)
 {
+	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
+
 	auto lock = std::scoped_lock(cs_FDS);
-	s_FDS.insert(this);
+	s_FDS.emplace_back(this);
 }
 
 FileDescr::~FileDescr()
 {
+	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload %s", GetFileName());
+
 	auto lock = std::scoped_lock(cs_FDS);
-	s_FDS.erase(this);
+	auto pos = std::find(s_FDS.begin(), s_FDS.end(), this);
+	assert(pos != s_FDS.end());
+	s_FDS.erase(pos);
 }
 
 
