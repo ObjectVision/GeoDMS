@@ -1226,7 +1226,7 @@ void MainWindow::CloseConfig()
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
     std::string dos_cfg_name = cfg.data();
-    std::replace(dos_cfg_name.begin(), dos_cfg_name.end(), '/', '\\');
+//    std::replace(dos_cfg_name.begin(), dos_cfg_name.end(), '/', '\\');
     auto it = std::find(files.begin(), files.end(), dos_cfg_name);
     if (it == files.end())
         return -1;
@@ -1236,16 +1236,23 @@ auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>&
 void MainWindow::cleanRecentFilesThatDoNotExist()
 {
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
+/*
     for (auto& recent_file_name : recent_files_from_registry)
         for (auto& ch : recent_file_name)
             ch = std::tolower(ch);
-
+*/
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
     {
-        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0) && !std::filesystem::exists(*it_rf) || it_rf->empty())
-            it_rf = recent_files_from_registry.erase(it_rf);
-        else
-            ++it_rf;
+        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0))
+        {
+            auto dosFileName = ConvertDmsFileName(SharedStr(it_rf->c_str()));
+            if (!std::filesystem::exists(dosFileName.c_str()) || it_rf->empty())
+            {
+                it_rf = recent_files_from_registry.erase(it_rf);
+                continue;
+            }
+        }
+        ++it_rf;
     }
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
@@ -1256,9 +1263,17 @@ void MainWindow::removeRecentFileAtIndex(size_t index)
         return;
 
     auto action_to_be_removed = m_recent_files_actions.at(index);
-    m_file_menu->removeAction(action_to_be_removed);
-    m_recent_files_actions.removeAt(index);
-    saveRecentFileActionToRegistry();
+    auto rf_action = dynamic_cast<DmsRecentFileEntry*>(action_to_be_removed->defaultWidget());
+    if (!rf_action)
+        return;
+
+    auto msgTxt = mySSPrintF("Remove %s from the list of recent files ?", rf_action->m_cfg_file_path);
+    if (MessageBoxA((HWND)winId(), msgTxt.c_str(), "Confirmation Request", MB_YESNO | MB_ICONQUESTION) == IDYES)
+    {
+        m_file_menu->removeAction(action_to_be_removed);
+        m_recent_files_actions.removeAt(index);
+        saveRecentFileActionToRegistry();
+    }
 }
 
 void MainWindow::saveRecentFileActionToRegistry()
@@ -1267,9 +1282,11 @@ void MainWindow::saveRecentFileActionToRegistry()
     for (auto* recent_file_action : m_recent_files_actions)
     {
         auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(recent_file_action->defaultWidget());
-        auto dos_string = recent_file_widget->m_cfg_file_path;
-        std::replace(dos_string.begin(), dos_string.end(), '/', '\\');
-        recent_files_as_std_strings.push_back(dos_string);
+        if (!recent_file_widget)
+            continue;
+        auto dms_string = recent_file_widget->m_cfg_file_path;
+//        std::replace(dos_string.begin(), dos_string.end(), '/', '\\');
+        recent_files_as_std_strings.push_back(dms_string);
     }
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
@@ -1319,6 +1336,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         if (m_root)
         {
             SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
+            for (auto& ch : configFilePathStr)
+                ch = std::tolower(ch);
 
             insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
