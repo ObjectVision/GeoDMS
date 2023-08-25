@@ -193,7 +193,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
     ObjectMsgGenerator thisMsgGenerator(currItem, "CreateDmsView");
     Waiter showWaitingStatus(&thisMsgGenerator);
 
-    CreateDmsView(parent);
+    CreateDmsView(parent, viewStyle);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
     // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     try 
@@ -216,11 +216,11 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
     ,   m_DataView(createStruct->dataView)
 {
     setWindowTitle(createStruct->caption);
-    CreateDmsView(parent);
+    CreateDmsView(parent, createStruct->ct);
     createStruct->hWnd = (HWND)m_DataViewHWnd;
 }
 
-void QDmsViewArea::CreateDmsView(QMdiArea* parent)
+void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     //    setAttribute(Qt::WA_Mapped);
@@ -266,6 +266,8 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent)
     show();
 
     RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, WM_APP + 2, &m_cookie);
+
+    setProperty("viewstyle", viewStyle);
 
     QTimer::singleShot(0, this, [dv_hWnd] { SetFocus(dv_hWnd); });
 }

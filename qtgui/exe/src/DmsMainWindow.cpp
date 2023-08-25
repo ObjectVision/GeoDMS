@@ -531,7 +531,7 @@ void DmsRecentFileEntry::onFileEntryPressed()
         main_window->m_eventlog_model->clear();
     main_window->m_file_menu->close();
     main_window->LoadConfig(m_cfg_file_path.c_str());
-    main_window->setRecentFiles();
+    main_window->saveRecentFileActionToRegistry();
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
@@ -1135,7 +1135,6 @@ void MainWindow::createView(ViewStyle viewStyle)
         SuspendTrigger::Resume();
 
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
-        dms_mdi_subwindow->setProperty("viewstyle", viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
         auto dms_view_window_icon = QIcon();
         switch (viewStyle)
@@ -1234,15 +1233,12 @@ auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>&
     return it - files.begin();
 }
 
-auto removeDuplicateStringsFromVector(std::vector<std::string>& strings)
-{
-    std::sort(strings.begin(), strings.end());
-    strings.erase(std::unique(strings.begin(), strings.end()), strings.end());
-}
-
 void MainWindow::cleanRecentFilesThatDoNotExist()
 {
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
+    for (auto& recent_file_name : recent_files_from_registry)
+        for (auto& ch : recent_file_name)
+            ch = std::tolower(ch);
 
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
     {
@@ -1251,22 +1247,21 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
         else
             ++it_rf;
     }
-    //removeDuplicateStringsFromVector(recent_files_from_registry); TODO: causes reordering, remember correct order.
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
 
 void MainWindow::removeRecentFileAtIndex(size_t index)
 {
-    if (m_recent_files_actions.size()<=index)
+    if (m_recent_files_actions.size() <= index)
         return;
 
     auto action_to_be_removed = m_recent_files_actions.at(index);
     m_file_menu->removeAction(action_to_be_removed);
     m_recent_files_actions.removeAt(index);
-    setRecentFiles();
+    saveRecentFileActionToRegistry();
 }
 
-void MainWindow::setRecentFiles()
+void MainWindow::saveRecentFileActionToRegistry()
 {
     std::vector<std::string> recent_files_as_std_strings;
     for (auto* recent_file_action : m_recent_files_actions)
@@ -1281,7 +1276,6 @@ void MainWindow::setRecentFiles()
 
 void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 {
-    setRecentFiles();
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
     {
@@ -1302,9 +1296,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
         m_recent_files_actions.swapItemsAt(cfg_index_in_recent_files, 0);
     }
 
-
-
-    setRecentFiles();
+    saveRecentFileActionToRegistry();
     updateFileMenu();
 }
 
@@ -1617,14 +1609,16 @@ void MainWindow::createActions()
     connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
     m_file_menu->addAction(reOpenAct);
 
-    m_file_menu->addSeparator();
     m_quit_action = std::make_unique<QAction>(tr("&Quit"));
     connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
     m_file_menu->addAction(m_quit_action.get());
     m_quit_action->setShortcuts(QKeySequence::Quit);
     m_quit_action->setStatusTip(tr("Quit the application"));
+
+    m_file_menu->addSeparator();
+
     connect(m_file_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
-    updateFileMenu();
+    updateFileMenu(); //this will be done again when the it's about showtime, but we already need the list of recent_file_actions fn case we insert or refresh one
 
     m_edit_menu = std::make_unique<QMenu>(tr("&Edit"));
     menuBar()->addMenu(m_edit_menu.get());
@@ -1721,17 +1715,17 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
     m_view_current_config_filelist = std::make_unique<QAction>(tr("Listing of currently loaded configuration files"));
-    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+//    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
     m_view_menu->addAction(m_view_current_config_filelist.get());
 
     m_open_root_config_file_action = std::make_unique<QAction>(tr("Open the root configuration file"));
-    m_open_root_config_file_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+//    m_open_root_config_file_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
     m_view_menu->addAction(m_open_root_config_file_action.get());
 
     m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
-    m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+//    m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_view_menu->addAction(m_expand_all_action.get());
 
@@ -1885,9 +1879,6 @@ void MainWindow::updateFileMenu()
     }
     m_recent_files_actions.clear(); // delete old actions;
 
-    // temporarily remove quit action
-    removeAction(m_quit_action.get());
-
     // rebuild latest recent files from registry
     cleanRecentFilesThatDoNotExist();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
@@ -1905,9 +1896,6 @@ void MainWindow::updateFileMenu()
         //m_recent_files_actions.append(qa);
         recent_file_index++;
     }
-
-    // reinsert quit action
-    m_file_menu->addAction(m_quit_action.get());
 }
 
 void MainWindow::updateViewMenu()
@@ -2117,7 +2105,7 @@ void MainWindow::view_current_config_filelist()
     }
     vosb.WriteByte(char(0));
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
+    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCurrentConfigFileList);
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setHtml(vosb.GetData());

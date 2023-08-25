@@ -67,6 +67,7 @@ enum ViewStyle {
 ,   tvsStatistics
 //  Non treeitem related styles
 ,   tvsCalculationTimes
+,	tvsCurrentConfigFileList
 };
 	
 enum ViewStyleFlags {

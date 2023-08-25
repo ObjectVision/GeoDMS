@@ -173,7 +173,7 @@ public:
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
     void removeRecentFileAtIndex(size_t index);
-    void setRecentFiles();
+    void saveRecentFileActionToRegistry();
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();

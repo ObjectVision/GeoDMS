@@ -50,7 +50,7 @@ public slots:
     void onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState);
 
 private:
-    void CreateDmsView(QMdiArea* parent);
+    void CreateDmsView(QMdiArea* parent, ViewStyle viewStyle);
     void moveEvent(QMoveEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
