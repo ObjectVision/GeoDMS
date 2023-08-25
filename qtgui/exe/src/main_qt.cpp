@@ -176,14 +176,14 @@ bool WmCopyData(MSG* copyMsgPtr)
         return true;
 
     case CommandCode::Expand:
-        MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
+        MainWindow::TheOne()->expandActiveNode(Get4Bytes(pcds, 0) != 0);
         return true;
 
     case CommandCode::ExpandAll:
-        MainWindow::TheOne()->m_treeview->expandAll();
+        MainWindow::TheOne()->expandAll();
 
     case CommandCode::ExpandRecursive:
-        MainWindow::TheOne()->m_treeview->expandRecursiveFromCurrentItem();
+        MainWindow::TheOne()->expandRecursiveFromCurrentItem();
         return true;
 
     case CommandCode::ShowDetailPage:

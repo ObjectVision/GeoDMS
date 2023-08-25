@@ -455,6 +455,7 @@ bool DmsTreeView::expandRecursiveFromCurrentItem()
 		return false;
 
 	expandRecursively(index);
+	return true;
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)

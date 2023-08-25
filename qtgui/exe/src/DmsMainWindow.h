@@ -210,6 +210,13 @@ public slots:
     void toggle_currentitembar();
     void toggle_valueinfo();
 
+    void view_calculation_times();
+    void view_current_config_filelist();
+
+    void expandAll();
+    void expandActiveNode(bool doExpand);
+    void expandRecursiveFromCurrentItem();
+
 public slots:
     void fileOpen();
     bool reopen();
@@ -259,10 +266,10 @@ private:
     void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
-    void view_calculation_times();
-    void view_current_config_filelist();
+
     void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach);
     void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (void* clientHandle, AbstrMsgGenerator* ach);
+
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 

@@ -7,6 +7,7 @@
 #include "TicInterface.h"
 
 #include "act/MainThread.h"
+#include "dbg/Check.h"
 #include "dbg/Debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
@@ -1399,6 +1400,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
     m_value_info_dock->setVisible(true);
+    mdiSubWindow->showMaximized();
     textWidget->restart_updating();
 }
 
@@ -1730,7 +1732,7 @@ void MainWindow::createActions()
 
     m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
     m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    connect(m_expand_all_action.get(), &QAction::triggered, m_treeview, &QTreeView::expandAll);
+    connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_view_menu->addAction(m_expand_all_action.get());
 
     m_view_menu->addSeparator();
@@ -2126,6 +2128,34 @@ void MainWindow::view_current_config_filelist()
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 }
+
+void MainWindow::expandAll()
+{
+    FixedContextHandle context("expandAll");
+    Waiter waitReporter(&context);
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandAll");
+
+    m_treeview->expandAll();
+}
+
+void MainWindow::expandActiveNode(bool doExpand)
+{
+    FixedContextHandle context("expandActiveNode");
+    Waiter waitReporter(&context);
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expand");
+
+    m_treeview->expandActiveNode(doExpand);
+}
+
+void MainWindow::expandRecursiveFromCurrentItem()
+{
+    FixedContextHandle context("expandRecursiveFromCurrentItem");
+    Waiter waitReporter(&context);
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandRecursiveFromCurrentItem");
+
+    m_treeview->expandRecursiveFromCurrentItem();
+}
+
 
 void MainWindow::createDetailPagesDock()
 {
