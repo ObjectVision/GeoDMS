@@ -1387,17 +1387,18 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
  
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
+
+    auto* mdiSubWindow = new QMdiSubWindow(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
 
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
-    m_mdi_area->addSubWindow(mdiSubWindow);
+    m_value_info_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
-
+    m_value_info_dock->setVisible(true);
     textWidget->restart_updating();
 }
 
