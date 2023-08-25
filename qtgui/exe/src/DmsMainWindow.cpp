@@ -926,6 +926,13 @@ void MainWindow::openConfigSource()
     openConfigSourceDirectly(filename.c_str(), line);
 }
 
+void MainWindow::openConfigRootSource()
+{
+    auto filename = ConvertDmsFileNameAlways(getRootTreeItem()->GetConfigFileName());
+    std::string line = std::to_string(getRootTreeItem()->GetConfigFileLineNr());
+    openConfigSourceDirectly(filename.c_str(), line);
+}
+
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
 void MainWindow::stepToFailReason()
@@ -1012,6 +1019,13 @@ void MainWindow::toggle_currentitembar()
     bool isVisible = m_current_item_bar_container->isVisible();
     m_current_item_bar_container->setVisible(!isVisible);
 }
+
+void MainWindow::toggle_valueinfo()
+{
+    bool isVisible = m_value_info_dock->isVisible();
+    m_value_info_dock->setVisible(!isVisible);
+}
+
 
 void MainWindow::gui_options()
 {
@@ -1708,24 +1722,37 @@ void MainWindow::createActions()
     connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
     m_view_menu->addAction(m_view_current_config_filelist.get());
 
+    m_open_root_config_file_action = std::make_unique<QAction>(tr("Open the root configuration file"));
+    m_open_root_config_file_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
+    m_view_menu->addAction(m_open_root_config_file_action.get());
+
+    m_expand_all_action = std::make_unique<QAction>(tr("Open the root configuration file"));
+    m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    connect(m_expand_all_action.get(), &QAction::triggered, m_treeview, &QTreeView::expandAll);
+    m_view_menu->addAction(m_expand_all_action.get());
+
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages"));
+    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages area"));
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
+    m_toggle_valueinfo_action      = std::make_unique<QAction>(tr("Toggle ValueInfo area"));
 
     m_toggle_treeview_action->setCheckable(true);
     m_toggle_detailpage_action->setCheckable(true);
     m_toggle_eventlog_action->setCheckable(true);
     m_toggle_toolbar_action->setCheckable(true);
     m_toggle_currentitembar_action->setCheckable(true);
+    m_toggle_valueinfo_action->setCheckable(true);
 
     connect(m_toggle_treeview_action.get(), &QAction::triggered, this, &MainWindow::toggle_treeview);
     connect(m_toggle_detailpage_action.get(), &QAction::triggered, this, &MainWindow::toggle_detailpages);
     connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
     connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
     connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
+    connect(m_toggle_valueinfo_action.get(), &QAction::triggered, this, &MainWindow::toggle_valueinfo);
     m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
     m_toggle_treeview_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
@@ -1736,11 +1763,14 @@ void MainWindow::createActions()
     m_toggle_toolbar_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
     m_toggle_currentitembar_action->setShortcutContext(Qt::ApplicationShortcut);
+    m_toggle_valueinfo_action->setShortcut(QKeySequence(tr("Alt+5")));
+    m_toggle_valueinfo_action->setShortcutContext(Qt::ApplicationShortcut);
     m_view_menu->addAction(m_toggle_treeview_action.get());
     m_view_menu->addAction(m_toggle_detailpage_action.get());
     m_view_menu->addAction(m_toggle_eventlog_action.get());
     m_view_menu->addAction(m_toggle_toolbar_action.get());
     m_view_menu->addAction(m_toggle_currentitembar_action.get());
+    m_view_menu->addAction(m_toggle_valueinfo_action.get());
     connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
 
     // tools menu
@@ -2093,7 +2123,6 @@ void MainWindow::view_current_config_filelist()
     mdiSubWindow->show();
 }
 
-
 void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
@@ -2102,6 +2131,7 @@ void MainWindow::createDetailPagesDock()
     m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_detailpages_dock->setWidget(m_detail_pages);
     splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
+    m_value_info_dock->setVisible(false);
 
     m_detail_pages->connectDetailPagesAnchorClicked();
 }
