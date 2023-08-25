@@ -252,13 +252,15 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 
 // ********** XML_ItemBody                                             *********
 
-XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, const TreeItem* item, bool showFullName)
+XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText, const TreeItem* item, bool showFullName)
 	:	XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
 
 	XML_h1(out, caption);
 
+	if (subText && *subText)
+		out << subText;
 
 	XML_OutElement xmlElemH2(out, "H2");
 	XML_OutElement xmlElemA (out, "A");
@@ -658,7 +660,7 @@ TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlO
 	assert(xmlOutStrPtr);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", "this info defines how primary data is typed and determined", self);
 	try {
 		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr))
 			return false;
@@ -680,11 +682,8 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 	assert(self);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a description or available documentation (if any)", self);
 	try {
-
-		*xmlOutStrPtr << "Description or available documentation:";
-
 		XML_Table table(*xmlOutStrPtr);
 		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
 		{
@@ -794,12 +793,11 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		assert(xmlOutStrPtr);
 		assert(!SuspendTrigger::DidSuspend());
 
-		CharPtr h2Caption = showAll
+		CharPtr caption = showAll
 			? "All properties"
 			: "Properties with non-default values";
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, h2Caption, self);
-		*xmlOutStrPtr << "Ordered by specificity and then property-name.";
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, caption, "ordered by specificity and then property-name", self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();
@@ -937,7 +935,7 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 	assert(self);
 
 	TreeItemSetType doneItems;
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces in search order", self, true);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", "in search order.", self, true);
 
 	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, doneItems, calledBy, callingRole);
 }
