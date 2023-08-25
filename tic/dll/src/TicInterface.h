@@ -114,12 +114,10 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Commit(TreeItem* self); // stores unsaved pr
 TIC_CALL void DMS_CONV DMS_TreeItem_DisableStorage(TreeItem* self); // disable storage for 'self' and subitems
 
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* out);
-TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden);
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName); // creates a temp. XML_Stream on a temp. FileOutBuff
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 
 //----------------------------------------------------------------------
 // C style Interface functions for TreeItem retrieval
@@ -328,5 +326,8 @@ TIC_CALL void DMS_CONV DMS_TreeItem_DecInterestCount(const TreeItem* self);
 TIC_CALL void DMS_CONV DMS_Tic_Load();
 
 } // end extern "C"
+
+TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
+TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 
 #endif // __TIC_INTERFACE_H

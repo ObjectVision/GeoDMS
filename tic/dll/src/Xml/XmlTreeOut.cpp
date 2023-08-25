@@ -457,7 +457,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 	DMS_CALL_END
 }
 
-bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	XML_Table xmlTable(*xmlOutStrPtr);
 	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
@@ -598,7 +598,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			xmlTable.NameValueRow("AccessType", readOnly ? "ReadOnly" : "ReadWrite");
 
 			result = TreeItemPropertyValue(self, sqlStringPropDefPtr);
-			if (showAll || !result.empty())
+			if (!result.empty())
 				xmlTable.EditableNameValueRow(SQLSTRING_NAME, result.c_str());
 		}
 	}
@@ -653,14 +653,14 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
 	SuspendTrigger::Resume();
 
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", self);
 	try {
-		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
+		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr))
 			return false;
 	} catch (...)
 	{
@@ -674,7 +674,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
+TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
 	assert(self);
@@ -795,10 +795,11 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		assert(!SuspendTrigger::DidSuspend());
 
 		CharPtr h2Caption = showAll
-			? "All properties, including with default values, ordered by specificity and then property-name"
-			: "Properties with non-default values, ordered by specificity and then property-name";
+			? "All properties"
+			: "Properties with non-default values";
 
 		XML_ItemBody xmlItemBody(*xmlOutStrPtr, h2Caption, self);
+		*xmlOutStrPtr << "Ordered by specificity and then property-name.";
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();

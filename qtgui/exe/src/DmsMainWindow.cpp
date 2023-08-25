@@ -1410,7 +1410,11 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     m_value_info_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
-    m_value_info_dock->setVisible(true);
+    if (!m_value_info_dock->isVisible())
+    {
+        m_detailpages_dock->setVisible(false);
+        m_value_info_dock->setVisible(true);
+    }
     mdiSubWindow->showMaximized();
     textWidget->restart_updating();
 }

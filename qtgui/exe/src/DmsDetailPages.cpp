@@ -137,7 +137,17 @@ void DmsDetailPages::toggleExplorer()
 
 void DmsDetailPages::toggleProperties()
 {
-    toggle(ActiveDetailPage::PROPERTIES);
+    if (m_active_detail_page != ActiveDetailPage::PROPERTIES || m_ShowNonDefaultProperties == false)
+    {
+        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
+            m_ShowNonDefaultProperties = true; // we hide now, but go for Show when made visible again
+        toggle(ActiveDetailPage::PROPERTIES);
+    }
+    else
+    {
+        m_ShowNonDefaultProperties = false;
+        scheduleDrawPage();
+    }
 }
 
 void DmsDetailPages::toggleConfiguration()
@@ -149,13 +159,14 @@ void DmsDetailPages::toggleSourceDescr()
 {
     if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
     {
-        m_SDM = SourceDescrMode::Configured;
+        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
+            m_SDM = SourceDescrMode::Configured; // we hide now, but go for Show when made visible again
         toggle(ActiveDetailPage::SOURCEDESCR);
     }
     else
     {
         reinterpret_cast<int&>(m_SDM)++;
-        scheduleDrawPageImpl(1000);
+        scheduleDrawPageImpl(500);
     }
 }
 
@@ -182,33 +193,34 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
     bool oldValue = false;
-    if (!m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
     {
-        if (oldValue)
-            return;
-    }    
-    assert(m_DrawPageRequestPending);
-
-    AddMainThreadOper(
-        [this, milliseconds]()
-        {
-            assert(IsMainThread());
-            static std::time_t pendingDeadline = 0;
-            auto deadline = std::time(nullptr) + milliseconds / 1000;
-            if (!pendingDeadline || deadline < pendingDeadline)
+        assert(m_DrawPageRequestPending);
+        AddMainThreadOper(
+            [this, milliseconds]()
             {
-                pendingDeadline = deadline;
-                QTimer::singleShot(milliseconds, [this]()
-                    {
-                        assert(IsMainThread());
-                        pendingDeadline = 0;
-                        this->m_DrawPageRequestPending = false;
-                        this->drawPage();
-                    }
-                );
+                assert(IsMainThread());
+                static std::time_t pendingDeadline = 0;
+                auto deadline = std::time(nullptr) + milliseconds / 1000;
+                if (!pendingDeadline || deadline < pendingDeadline)
+                {
+                    pendingDeadline = deadline;
+                    QTimer::singleShot(milliseconds, [this]()
+                        {
+                            assert(IsMainThread());
+                            pendingDeadline = 0;
+
+                            bool oldValue = true;
+                            if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, false))
+                            {
+                                this->drawPage();
+                            }
+                        }
+                    );
+                }
             }
-        }
-    );
+        );
+    }
 }
 
 void DmsDetailPages::scheduleDrawPage()
@@ -258,10 +270,10 @@ void DmsDetailPages::drawPage()
     switch (m_active_detail_page)
     {
     case ActiveDetailPage::GENERAL:
-        result = DMS_TreeItem_XML_DumpGeneral(current_item, xmlOut.get(), showAll);
+        result = TreeItem_XML_DumpGeneral(current_item, xmlOut.get());
         break;
     case ActiveDetailPage::PROPERTIES:
-        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), showAll);
+        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_ShowNonDefaultProperties);
         break;
     case ActiveDetailPage::EXPLORE:
         DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);
@@ -308,7 +320,7 @@ void DmsDetailPages::drawPage()
                 return;
             }
         }
-        DMS_XML_MetaInfoRef(current_item, xmlOut.get());
+        XML_MetaInfoRef(current_item, xmlOut.get());
         break;
     }
     }
