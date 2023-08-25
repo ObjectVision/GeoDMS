@@ -1727,7 +1727,7 @@ void MainWindow::createActions()
     connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
     m_view_menu->addAction(m_open_root_config_file_action.get());
 
-    m_expand_all_action = std::make_unique<QAction>(tr("Open the root configuration file"));
+    m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
     m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_expand_all_action.get(), &QAction::triggered, m_treeview, &QTreeView::expandAll);
     m_view_menu->addAction(m_expand_all_action.get());
@@ -1918,6 +1918,8 @@ void MainWindow::updateViewMenu()
     m_tableview_action->setDisabled(ti_is_or_is_in_template);
     m_mapview_action->setDisabled(ti_is_or_is_in_template);
     m_statistics_action->setDisabled(ti_is_or_is_in_template);
+    m_expand_all_action->setEnabled(m_root.has_ptr());
+    m_open_root_config_file_action->setEnabled(m_root.has_ptr());
 
     m_toggle_treeview_action->setChecked(m_treeview->isVisible());
     m_toggle_detailpage_action->setChecked(m_detail_pages->isVisible());
@@ -1927,9 +1929,10 @@ void MainWindow::updateViewMenu()
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
+    m_toggle_valueinfo_action->setChecked(m_value_info_dock->isVisible());
+    m_toggle_valueinfo_action->setEnabled(m_value_info_mdi_area->subWindowList().size() > 0);
 
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
-
 }
 
 void MainWindow::updateToolsMenu()
