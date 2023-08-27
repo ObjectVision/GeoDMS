@@ -252,10 +252,15 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 
 // ********** XML_ItemBody                                             *********
 
-XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFullName)
+XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText, const TreeItem* item, bool showFullName)
 	:	XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
+
+	XML_h1(out, caption);
+
+	if (subText && *subText)
+		out << subText;
 
 	XML_OutElement xmlElemH2(out, "H2");
 	XML_OutElement xmlElemA (out, "A");
@@ -454,7 +459,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 	DMS_CALL_END
 }
 
-bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	XML_Table xmlTable(*xmlOutStrPtr);
 	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
@@ -595,7 +600,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			xmlTable.NameValueRow("AccessType", readOnly ? "ReadOnly" : "ReadWrite");
 
 			result = TreeItemPropertyValue(self, sqlStringPropDefPtr);
-			if (showAll || !result.empty())
+			if (!result.empty())
 				xmlTable.EditableNameValueRow(SQLSTRING_NAME, result.c_str());
 		}
 	}
@@ -650,14 +655,14 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", "this info defines how primary data is typed and determined", self);
 	try {
-		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
+		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr))
 			return false;
 	} catch (...)
 	{
@@ -671,17 +676,14 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStr
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
+TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
 	assert(self);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a description or available documentation (if any)", self);
 	try {
-
-		*xmlOutStrPtr << "Description or available documentation:";
-
 		XML_Table table(*xmlOutStrPtr);
 		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
 		{
@@ -791,7 +793,11 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 		assert(xmlOutStrPtr);
 		assert(!SuspendTrigger::DidSuspend());
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+		CharPtr caption = showAll
+			? "All properties"
+			: "Properties with non-default values";
+
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, caption, "ordered by specificity and then property-name", self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();
@@ -863,11 +869,9 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 	}
 }
 
-void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
+void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStreamBase* xmlOutStrPtr
+	, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
 {
-	dms_assert(self);
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self, true);
-	dms_assert(xmlOutStrPtr);
 	{
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 		if (calledBy)
@@ -909,14 +913,14 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 				if (i)
 					role = "is parent and used by";
 			}
-			TreeItem_XML_DumpExploreThisAndParents(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
+			TreeItem_XML_DumpExploreThisAndParents_impl(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
 		}
 	}
 	else
 	{
 		const TreeItem* parent = self->GetTreeParent();
 		if (parent)
-			TreeItem_XML_DumpExploreThisAndParents(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
+			TreeItem_XML_DumpExploreThisAndParents_impl(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
 	}
 	return;
 
@@ -925,14 +929,22 @@ omit_repetition:
 	(*xmlOutStrPtr) << "(repetition of sub items omitted)";
 }
 
+void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, const TreeItem* calledBy, CharPtr callingRole)
+{
+	assert(self);
+	assert(self);
+
+	TreeItemSetType doneItems;
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", "in search order.", self, true);
+
+	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, doneItems, calledBy, callingRole);
+}
+
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden)
 {
 	DMS_CALL_BEGIN
 
-		* xmlOutStrPtr << "items visible from here per namespace in search order";
-
-		TreeItemSetType doneItems;
-		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, doneItems, nullptr, "");
+		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, nullptr, "");
 
 	DMS_CALL_END
 }

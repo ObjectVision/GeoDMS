@@ -137,7 +137,7 @@ AbstrStorageManager::AbstrStorageManager()
 	,	m_CriticalSection(item_level_type(0), ord_level_type::AbstrStorage, "AbstrStorageManager")
 {
 #if MG_DEBUG_ASM
-	auto lock = std::lock_guard(sd_asm);
+	std::lock_guard guard(sd_asm);
 	sd_ASM_set[this] = ++sd_AsmNr;
 #endif // MG_DEBUG_ASM
 }

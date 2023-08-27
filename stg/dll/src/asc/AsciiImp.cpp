@@ -371,7 +371,7 @@ bool AsciiImp::ReadCells(typename sequence_traits<T>::pointer buff, const StgVie
 	if (dataRect.first.Row() < 0)
 	{
 		UInt32 skipRowCount = - dataRect.first.Row();
-		typename sequence_traits<T>::pointer buffE = buff + SizeT(_Width(dataRect)) * skipRowCount;
+		typename sequence_traits<T>::pointer buffE = buff + SizeT(Width(dataRect)) * skipRowCount;
 		fast_fill(buff, buffE, UNDEFINED_OR_ZERO(T));
 		buff = buffE;
 		dataRect.first.Row() = 0;

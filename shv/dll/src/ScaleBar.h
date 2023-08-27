@@ -16,12 +16,12 @@ public:
 
 	bool MustUpdateView() const;
 	bool DoUpdateViewImpl(CrdPoint scaleFactor);
-	bool Draw(HDC dc, const GRect& clientAbsRect) const;
+	bool Draw(HDC dc, CrdRect clientAbsRect) const;
 
 	const ViewPort* GetViewPort() const { return m_ViewPort; }
 
-	TPoint GetLogicalSize() const;
-	GRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
+	CrdPoint GetLogicalSize() const;
+	CrdRect DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const;
 
 protected: 
 	const ViewPort*  m_ViewPort = nullptr;
@@ -43,7 +43,7 @@ public:
 	ScaleBarObj(MovableObject* owner, const ViewPort* vp);
 	~ScaleBarObj();
 
-	void DetermineAndSetLogicalBoundingBox(TPoint currTL, TPoint currPageSize);
+	void DetermineAndSetLogicalBoundingBox(CrdPoint currTL, CrdPoint currPageSize);
 
 protected:
 //	override Actor interface
@@ -76,13 +76,13 @@ public:
 	void Move(const AbstrCaretOperator& caretOper, HDC dc) override;
 	void Reverse(HDC dc, bool newVisibleState) override;
 
-	GRect GetCurrDeviceExtents() const;
+	CrdRect GetCurrDeviceExtents() const;
 	void  DetermineAndSetBoundingBox(CrdPoint scaleFactor);
 	const ViewPort* GetViewPort() const { return m_Impl.GetViewPort(); }
 
 private:
 	ScaleBarBase m_Impl;
-	GRect        m_DeviceExtents;
+	CrdRect      m_DeviceExtents;
 };
 
 #include "CaretOperators.h"

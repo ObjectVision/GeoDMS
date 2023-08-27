@@ -50,6 +50,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "UnitProcessor.h"
+#include "xml/XmlTreeOut.h"
 
 #include "TicInterface.h"
 #include "ClcInterface.h"
@@ -84,7 +85,7 @@ struct f64_accumulator
 
 using bin_count_type = std::vector<SizeT>;
 
-void AccumulateData(FormattedOutStream& os, f64_accumulator& accu, bin_count_type& binCounts, const AbstrDataItem* di)
+void AccumulateData(f64_accumulator& accu, bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	auto valueBitSize = di->GetRefObj()->GetValuesType()->GetBitSize();
 	if (valueBitSize && valueBitSize <= 16)
@@ -101,12 +102,9 @@ void AccumulateData(FormattedOutStream& os, f64_accumulator& accu, bin_count_typ
 
 
 		visit<typelists::numerics>(vu,
-			[&os, di, t, &accu] <typename V> (const Unit<V>*)
+			[di, t, &accu] <typename V> (const Unit<V>*)
 			{
 				auto tileData = const_array_cast<V>(di)->GetTile(t);
-#if defined(MG_DEBUG)
-				os << mySSPrintF("\nTile %d starts at address %x and size %d", t, SizeT(data_ptr_traits<typename sequence_traits<V>::cseq_t>::begin(tileData)), tileData.size());
-#endif // defined(MG_DEBUG)
 				for (auto x : tileData)
 				{
 					if constexpr (!is_bitvalue_v<V>)
@@ -138,17 +136,17 @@ void AccumulateData(FormattedOutStream& os, f64_accumulator& accu, bin_count_typ
 	}
 }
 
-void WriteAccuData(FormattedOutStream& os, f64_accumulator& accu, const AbstrDataItem* di)
+void WriteAccuData(XML_Table& table, f64_accumulator& accu, const AbstrDataItem* di)
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	os << "\nFormal Range " << vu->GetName().c_str() << ":" << di->GetAbstrValuesUnit()->GetRangeAsStr();
+	table.NameValueRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr().c_str());
 	if (metricPtr)
-		os << metricPtr->AsString(FormattingFlags::ThousandSeparator);
+		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
-	os << "\nMaximum  : " << accu.max;
-	os << "\nMinimum  : " << accu.min;
-	os << "\nSum      : " << accu.s;
+	table.NameValueRow("Maximum", AsString(accu.max).c_str());
+	table.NameValueRow("Minimum", AsString(accu.min).c_str());
+	table.NameValueRow("Sum", AsString(accu.s).c_str());
 
 	if (accu.d) // there is actual data?
 	{
@@ -157,18 +155,20 @@ void WriteAccuData(FormattedOutStream& os, f64_accumulator& accu, const AbstrDat
 			sumXtimesErr = Max<Float64>(accu.s2 - accu.s * mean, 0.0);
 
 
-		os << "\nAverage  : " << mean;
-		os << "\nVariance : " << sumXtimesErr / accu.d;
+		table.NameValueRow("Average", AsString(mean).c_str());
+		table.NameValueRow("Variance", AsString(sumXtimesErr / accu.d).c_str());
 
 		if (accu.d > 1)
-			os << "\nStdDev   : " << sqrt(sumXtimesErr / (accu.d - 1));
+			table.NameValueRow("StdDev", AsString(sqrt(sumXtimesErr / (accu.d - 1))).c_str());
 	}
 }
-void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const AbstrDataItem* di)
+
+void WriteBinData(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	if (binCounts.size())
 	{
-		os << "\n\nValue; Count";
+		XML_Table table(os);
+		table.NameValueRow("Value", "Count");
 		auto vu = di->GetAbstrValuesUnit();
 //		auto valuesRange = vu->GetRangeAsFloat64();
 //		int lb = valuesRange.first;
@@ -180,7 +180,7 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 		for (Int32 i = 0; i != binCounts.size(); ++i)
 		{
 			if (binCounts[i])
-				os << "\n" << DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << "; " << binCounts[i];
+				table.NameValueRow(AsString(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock)).c_str(), AsString(binCounts[i]).c_str());
 		}
 	}
 	else
@@ -188,6 +188,8 @@ void WriteBinData(FormattedOutStream& os, const bin_count_type& binCounts, const
 		os << CharPtr(u8"\n\nTo see all unique values and their frequency, you can open this attribute in a TableView, select the column header, and press the ∑ (GroupBy) button in the toolbar.");
 	}
 }
+
+#include "xml/XmlTreeOut.h"
 
 CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_type& statisticsBuffer)
 {
@@ -197,12 +199,13 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 	statisticsBuffer.clear();
 
 	ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
-	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
+//	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
 
-	bool isReady = true;
+	OutStream_HTM os(&outStreamBuff, "html", nullptr);
+
 	try {
 
-		os << "Statistics for " << item->GetFullName() << ":\n";
+		os << "Statistics for " << item->GetFullName().c_str() << ":\n";
 
 		if (item->InTemplate())
 		{
@@ -210,97 +213,100 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 				"\nNot available since the DataItem is part of a calculation scheme template."
 				"\nGo to its instantiations to see actual data";
 
-			goto finally;
+			return true;
 		}
 
 		SharedDataItemInterestPtr di = AsDynamicDataItem(item);
 		if (!di)
 		{
 			os << "Not available since this is not a DataItem";
-			goto finally;
+			return true;
 		}
-		dms_assert(di->Was(PS_MetaInfo)); // PRECONDITION
+		assert(di->Was(PS_MetaInfo)); // PRECONDITION
 		SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
-		dms_assert(vu);
-		dms_assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
-		isReady = vu->PrepareData(); // GetRange needed later
-		auto vt = di->GetAbstrValuesUnit()->GetValueType();
-
-		SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
-		if (!metricStr.empty())
-			os << "\nValuesMetric :" << metricStr;
-		os << "\nValuesType   :" << vt->GetID();
-
-		dms_assert(!SuspendTrigger::DidSuspend() || !isReady);
-		if (isReady) 
-			isReady = di->PrepareData();
-
-		if (di->IsFailed(FR_Data))
-		{
-			auto fr = di->GetFailReason();
-			if (fr)
-				os << "\nProcessing statistics failed because:\n\n" << *fr;
-			isReady = true;
-			goto finally;
-		}
-		assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
-		if (!isReady || !(AsDataItem(di->GetCurrUltimateItem())->m_DataObject))
-		{
-			assert(SuspendTrigger::DidSuspend());
-			os << "\nProcessing ...";
-			goto finally;
-		}
-
-		assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
-
-		SizeT n = di->GetAbstrDomainUnit()->GetCount();;
-		const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
-		os << "\n\nCount    : " << n;
-		if (tn != 1)
-			os << "\n#Tiles   : " << tn;
-
-		if (!n)
-			goto finally;
-
-		bin_count_type binCounts;
+		assert(vu);
+		assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
+		bool isReady = vu->PrepareData(); // GetRange needed later
 
 		SizeT d = 0;
-		DataReadLock lock(di);
-		if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
-		{
-			d = n - di->GetRefObj()->GetNrNulls();
-		}
-		else
-		{
-			f64_accumulator accu;
-			AccumulateData(os, accu, binCounts, di);
-			WriteAccuData(os, accu, di);
-			d = accu.d;
-		}
-		os << "\nNr Nulls : " << (n - d);
-		os << "\nNr Values: " << d;
+		bin_count_type binCounts;
 
-		if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
+		auto vt = di->GetAbstrValuesUnit()->GetValueType();
 		{
-			auto da = const_array_cast<SharedStr>(di)->GetDataRead();
-			os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
-			os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
-		}
-		if (di->GetValueComposition() != ValueComposition::Single)
-		{
-			visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
-				[di, &os] <typename V> (const Unit<V>*)
+			XML_Table table(os);
+			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
+			if (!metricStr.empty())
+				table.NameValueRow("ValuesMetric", metricStr.c_str());
+			table.NameValueRow("ValuesType", vt->GetID().GetStr().c_str());
+
+			assert(!SuspendTrigger::DidSuspend() || !isReady);
+			if (isReady)
+				isReady = di->PrepareData();
+
+			if (di->IsFailed(FR_Data))
 			{
-				using a_seq = sequence_traits<V>::container_type;
-
-				auto da = const_array_cast<a_seq>(di)->GetDataRead();
-				os << "\nNumber of actual   bytes in elements: " << da.get_sa().actual_data_size();
-				os << "\nNumber of reserved bytes in elements: " << da.get_sa().data_size();
+				auto fr = di->GetFailReason();
+				if (fr)
+					os << "\nProcessing statistics failed because:\n\n" << *fr;
+				return true;
 			}
-			);
+			assert(!(isReady && SuspendTrigger::DidSuspend())); // PRECONDITION: PostCondition of PrepareDataUsage?
+			if (!isReady || !(AsDataItem(di->GetCurrUltimateItem())->m_DataObject))
+			{
+				assert(SuspendTrigger::DidSuspend());
+				os << "\nProcessing ...";
+				return isReady;
+			}
+
+			assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
+
+			SizeT n = di->GetAbstrDomainUnit()->GetCount();;
+			const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
+			table.NameValueRow("Count", AsString(n).c_str());
+			if (tn != 1)
+				table.NameValueRow("#Tiles", AsString(tn).c_str());
+
+			if (!n)
+				return isReady;
+
+			DataReadLock lock(di);
+			if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
+			{
+				d = n - di->GetRefObj()->GetNrNulls();
+			}
+			else
+			{
+				f64_accumulator accu;
+				AccumulateData(accu, binCounts, di);
+				WriteAccuData(table, accu, di);
+				d = accu.d;
+			}
+			table.NameValueRow("#Nulls", AsString(n - d).c_str());
+			table.NameValueRow("#Values", AsString(d).c_str());
+
+			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
+			{
+				auto da = const_array_cast<SharedStr>(di)->GetDataRead();
+				table.NameValueRow("# actual   bytes in elements", AsString(da.get_sa().actual_data_size()).c_str());
+				table.NameValueRow("# reserved bytes in elements", AsString(da.get_sa().data_size()).c_str());
+			}
+			if (di->GetValueComposition() != ValueComposition::Single)
+			{
+				visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
+					[&table, di, &os] <typename V> (const Unit<V>*)
+				{
+					using a_seq = sequence_traits<V>::container_type;
+
+					auto da = const_array_cast<a_seq>(di)->GetDataRead();
+					table.NameValueRow("# actual   bytes in elements", AsString(da.get_sa().actual_data_size()).c_str());
+					table.NameValueRow("# reserved bytes in elements", AsString(da.get_sa().data_size()).c_str());
+				}
+				);
+			}
 		}
 		if (d)
 			WriteBinData(os, binCounts, di);
+		return isReady;
 	}
 	catch (...)
 	{
@@ -308,9 +314,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 		if (err)
 			os << *err;
 	}
-	finally:
-	os << "\n" << char(0);
-	return isReady;
+	return true;
 }
 
 CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr)

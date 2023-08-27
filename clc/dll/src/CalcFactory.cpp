@@ -57,48 +57,6 @@ CalcFactory::~CalcFactory()
 {
 	AbstrCalculator::SetConstructor(nullptr);
 }
-/*
-typedef boost::tuple<TreeItem*, SharedStr, CalcRole> CalcKey;
-typedef std::map<CalcKey, const AbstrCalculator*> CalcFactoryCache;
-
-template <typename Cache>
-struct Lockable_static_ptr : static_ptr<Cache>
-{
-	void ConsiderBuildup() // can throw
-	{
-		if (!this->get_ptr())
-			this->assign(new Cache);
-		dms_assert(this->has_ptr()); // postcondition for a normal exit
-	}
-	void ConsiderCleanup() // nothrow
-	{
-		if (this->has_ptr() && this->get_ptr()->empty() && !m_ConstructionCounter)
-			this->reset();
-	}
-
-	struct PendingCreationLock : ref_base<Lockable_static_ptr, noncopyable>
-	{
-		PendingCreationLock(Lockable_static_ptr& self)
-			:	ref_base<Lockable_static_ptr, noncopyable>(&self)
-		{
-			dms_assert(this->has_ptr());
-			self.ConsiderBuildup();
-			++self.m_ConstructionCounter;
-		}
-		~PendingCreationLock() // nothrow
-		{
-			dms_assert(this->has_ptr()); // guaranteed by constructor
-			--(this->get_ptr()->m_ConstructionCounter);
-			this->get_ptr()->ConsiderCleanup();
-		}
-	};
-
-	UInt32 m_ConstructionCounter;
-};
-
-static Lockable_static_ptr<CalcFactoryCache> s_CalcFactoryCache;
-static std::recursive_mutex s_CalcFactoryCacheSection;
-*/
 
 AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr expr, CalcRole cr)
 {
@@ -109,45 +67,9 @@ AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr e
 			context->Fail("Invalid CalculationRule", FR_MetaInfo);
 		return nullptr;
 	}
-//	CalcKey key(context, expr, calcRole);
-
-//	std::lock_guard guard(s_CalcFactoryCacheSection);
-
-//	Lockable_static_ptr<CalcFactoryCache>::PendingCreationLock lock(s_CalcFactoryCache);
-
-//	dms_assert(s_CalcFactoryCache);
-
-//	CalcFactoryCache::iterator entryPtr = s_CalcFactoryCache->lower_bound(key);
-//	if (entryPtr != s_CalcFactoryCache->end() && entryPtr->first == key)
-//		return entryPtr->second;
-
 	AbstrCalculatorRef exprCalc = new ExprCalculator(context, expr, cr); // hold resource for now; beware: this line can trigger new inserts/deletes in s_CalcFactory
-//	entryPtr = s_CalcFactoryCache->insert(entryPtr, CalcFactoryCache::value_type(key, exprCalc));
-//	exprCalc->MakeDataController();
 	return exprCalc; // second alloc succeeded, release hold an from now on it's callers' responsibility to destroy the new ExprCalculator
 }
-
-/*
-void CalcFactory::DestructExpr(TreeItem* context, CalcRole cr, AbstrCalculator* exprCalculator)
-{
-	garbage_t garbage;
-	std::lock_guard guard(s_CalcFactoryCacheSection);
-
-	dms_assert(s_CalcFactoryCache);
-	CalcKey key(context, exprCalculator->GetExpr(), cr);
-	CalcFactoryCache::iterator entryPtr = s_CalcFactoryCache->find(key);
-
-	dms_assert(entryPtr != s_CalcFactoryCache->end());
-	if (entryPtr == s_CalcFactoryCache->end())
-		return;
-
-	dms_assert(entryPtr->first == key);
-	dms_assert(entryPtr->second == exprCalculator);
-	s_CalcFactoryCache->erase(entryPtr);
-
-	s_CalcFactoryCache.ConsiderCleanup();
-}
-*/
 
 #include "DataBlockTask.h"
 

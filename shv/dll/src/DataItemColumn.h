@@ -147,7 +147,7 @@ protected:
 	bool    IsNumeric     () const;
 	Float64 GetColumnTotal() const;
 private:
-	void InvalidateRelRect(TRect rect);
+	void InvalidateRelRect(CrdRect rect);
 
 //	override AbstrTextEditControl callbacks
 	void InvalidateDrawnActiveElement()              override;
@@ -164,7 +164,7 @@ private:
 
 	void UpdateTheme();
 
-	TRect GetElemFullRelLogicalRect( SizeT rowNr) const;
+	CrdRect GetElemFullRelLogicalRect( SizeT rowNr) const;
 	void  SetFocusRect();
 	DataItemColumn* GetPrevControl();
 

@@ -57,7 +57,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 	{
 		dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-		auto lock = std::lock_guard(cs_Handle);
+		std::lock_guard lock(cs_Handle);
 
 		auto tileSPtr = m_ActiveTile.lock();
 		if (!tileSPtr)

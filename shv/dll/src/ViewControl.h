@@ -50,10 +50,10 @@ public:
 	std::weak_ptr<DataView> GetDataView() const      override;
 	bool OnCommand(ToolButtonID id)    override;
 	bool OnKeyDown(UInt32 virtKey)     override;
-	void SetClientSize(TPoint newSize) override;
+	void SetClientSize(CrdPoint newSize) override;
 
 protected: // new callbacks
-	virtual void ProcessSize(TPoint newSize) =0;
+	virtual void ProcessSize(CrdPoint newSize) =0;
 
 private:
 	std::weak_ptr<DataView> m_DataView;

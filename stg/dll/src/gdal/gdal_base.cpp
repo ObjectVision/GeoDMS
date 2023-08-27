@@ -663,6 +663,11 @@ struct gdalVersionComponent : AbstrVersionComponent
 
 gdalVersionComponent s_gdalComponent;
 
+#include "proj.h"
+
+#define PROJ_VERSION_STRING "Proj " BOOST_STRINGIZE(PROJ_VERSION_MAJOR) "." BOOST_STRINGIZE(PROJ_VERSION_MINOR) "." BOOST_STRINGIZE(PROJ_VERSION_PATCH)
+VersionComponent s_ProjComponent(PROJ_VERSION_STRING);
+
 // *****************************************************************************
 
 GDALDataType gdalRasterDataType(ValueClassID tid)

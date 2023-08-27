@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #if !defined(__RTC_GEO_RANGE_H)
@@ -339,11 +343,16 @@ Range<T> Deflate(Range<T> r, T p) { return Range<T>(r.first+p, r.second-p); }
 template <class T> inline
 Range<T> Inflate(T center, T radius) { return Range<T>(center-radius, center+radius); }
 
-template <class T> inline T _Left  (Range<Point<T> > r) { return r.first .Col(); }
-template <class T> inline T _Top   (Range<Point<T> > r) { return r.first .Row(); }
-template <class T> inline T _Right (Range<Point<T> > r) { return r.second.Col(); }
-template <class T> inline T _Bottom(Range<Point<T> > r) { return r.second.Row(); }
-template <class T> inline T _Width (Range<Point<T> > r) { return _Right (r) - _Left(r); }
-template <class T> inline T _Height(Range<Point<T> > r) { return _Bottom(r) - _Top (r); }
+template <class T> inline T Left  (Range<Point<T> > r) { return r.first .Col(); }
+template <class T> inline T Top   (Range<Point<T> > r) { return r.first .Row(); }
+template <class T> inline T Right (Range<Point<T> > r) { return r.second.Col(); }
+template <class T> inline T Bottom(Range<Point<T> > r) { return r.second.Row(); }
+template <class T> inline T Width (Range<Point<T> > r) { return Right (r) - Left(r); }
+template <class T> inline T Height(Range<Point<T> > r) { return Bottom(r) - Top (r); }
+
+template <class T> inline Point<T> TopLeft(Range<Point<T> > r) { return r.first;  }
+template <class T> inline Point<T> BottomRight(Range<Point<T> > r) { return r.second; }
+template <class T> inline Point<T> TopRight(Range<Point<T> > r) { return shp2dms_order(r.second.X(), r.first.Y()); }
+template <class T> inline Point<T> BottomLeft(Range<Point<T> > r) { return shp2dms_order(r.first.X(), r.second.Y()); }
 
 #endif // __RTC_GEO_RANGE_H

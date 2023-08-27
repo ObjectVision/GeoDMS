@@ -67,7 +67,7 @@ dms_transform(
 	//std::transform(f1, l1, outIter, oper);
 	using result_value_type = typename std::iterator_traits<OutIter>::value_type;
 	SizeT n = l1 - f1;
-	parallel_for_if_separable<SizeT, result_value_type>(0, n, [oper = std::move(oper), f1, outIter](SizeT i) { outIter[i] = oper(f1[i]); });
+	parallel_for_if_separable<SizeT, result_value_type>(0, n, [oper = std::forward<UnaOper>(oper), f1, outIter](SizeT i) { outIter[i] = oper(f1[i]); });
 }
 
 template<bit_size_t N, typename CBlock, typename Block, typename UnaOper>

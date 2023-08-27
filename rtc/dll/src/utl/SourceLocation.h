@@ -58,7 +58,7 @@ private:
 	SharedStr m_FileName;
 };
 
-typedef SharedPtr<FileDescr> FileDescrPtr;
+using FileDescrPtr = SharedPtr<FileDescr>;
 
 
 struct SourceLocation : SharedBase
@@ -72,8 +72,7 @@ struct SourceLocation : SharedBase
 
 	FileDescrPtr m_ConfigFileDescr;
 	UInt32       m_ConfigFileLineNr; 
-	UInt32       m_ConfigFileColNr;  
-
+	UInt32       m_ConfigFileColNr;
 };
 
 #endif // __RTC_UTL_SOURCELOCATION_H

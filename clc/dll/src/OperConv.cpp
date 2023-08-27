@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -359,7 +334,7 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 	OGRCoordinateTransformation* m_Transformer = nullptr; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
 	SpatialRefBlock() 
 	{
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		m_ProjCtx = proj_context_create();
 	}
 
@@ -368,14 +343,17 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 		if (m_Transformer)
 			OGRCoordinateTransformation::DestroyCT(m_Transformer);
 
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		proj_context_destroy(m_ProjCtx);
 	}
 
 	void CreateTransformer()
 	{
 		assert(!m_Transformer);
-		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
+		OGRCoordinateTransformationOptions options;
+		//options.SetBallparkAllowed(true);
+		CPLSetConfigOption("OGR_CT_OP_SELECTION", "BEST_ACCURACY");
+		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
 	}
 
 	void Release() const { if (!DecRef()) delete this; }
@@ -516,6 +494,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 	Float64 m_Factor;
 };
 
+const int PROJ_BLOCK_SIZE = 1024;
 
 template<typename TR, typename TA>
 void DispatchMapping(Type1DConversion<TR, TA>& functor, typename Type1DConversion<TR, TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
@@ -626,12 +605,38 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
 	{
 		if (m_OgrComponentHolder) 
-			if (m_PreRescaler.IsIdentity() && m_PostRescaler.IsIdentity())
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyProjection(*ai) );
-			else
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyScaledProjection(*ai) );
+		{
+			Float64 resX[PROJ_BLOCK_SIZE];
+			Float64 resY[PROJ_BLOCK_SIZE];
+			int     successFlags[PROJ_BLOCK_SIZE];
+
+			auto n = ae - ai;
+			while (n)
+			{
+				auto s = n;
+				MakeMin(s, PROJ_BLOCK_SIZE);
+				for (int i = 0; i != s; ++ai, ++i)
+				{
+					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
+					resX[i] = rescaledA.Col();
+					resY[i] = rescaledA.Row();
+				}
+				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+				for (int i = 0; i != s; ++ri, ++i)
+				{
+					if (successFlags[i])
+					{
+						auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+						Assign(*ri, Convert<TR>(rescaledPoint));
+					}
+					else
+						Assign(*ri, Undefined());
+				}
+				n -= s;
+			}
+		}
 		else 
 			if (m_PreRescaler.IsIdentity())
 				for (; ai != ae; ++ai, ++ri)
@@ -667,12 +672,37 @@ template<typename TR, typename TA>
 void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion<TR,TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
 {
 	if (functor.m_OgrComponentHolder) 
-		if (functor.m_PreRescaler.IsIdentity() && functor.m_PostRescaler.IsIdentity())
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyProjection(Range_GetValue_naked(tileRange, i)) );
-		else
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyScaledProjection(Range_GetValue_naked(tileRange, i)) );
+	{
+		Float64 resX[PROJ_BLOCK_SIZE];
+		Float64 resY[PROJ_BLOCK_SIZE];
+		int     successFlags[PROJ_BLOCK_SIZE];
+
+		while (n)
+		{
+			auto s = n;
+			MakeMin(s, PROJ_BLOCK_SIZE);
+			for (SizeT i = 0; i != n; ++i)
+			{
+				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
+				resX[i] = rescaledA.Col();
+				resY[i] = rescaledA.Row();
+			}
+			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+			for (SizeT i = 0; i != n; ++ri, ++i)
+			{
+				if (successFlags[i])
+				{
+					auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
+					Assign(*ri, Convert<TR>(rescaledPoint));
+				}
+				else
+					Assign(*ri, Undefined());
+			}
+			n -= s;
+		}
+	}
 	else 
 		if (functor.m_PreRescaler.IsIdentity())
 			for (SizeT i=0; i!=n; ++ri, ++i)
@@ -1209,18 +1239,9 @@ namespace
 	Rd2LlOpersWithSeq<DPoint, FPoint> rd2llDF;
 	Rd2LlOpersWithSeq<FPoint, FPoint> rd2llFF;
 
-	// type(unit) casting
-	#define INSTANTIATE(X) \
-		CastUnitOperator g_CastUnitOper##X(GetUnitGroup<X>(), Unit<X>::GetStaticClass() );
-
-	INSTANTIATE_NUM_ELEM
-	INSTANTIATE(Bool)
-	//INSTANTIATE(SharedStr)
-	#undef INSTANTIATE
-
+	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
-	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;

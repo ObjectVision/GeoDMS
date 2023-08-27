@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -179,72 +154,15 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 // AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-GType TType2GType1(TType src, CrdType scale, CrdType slack)
-{
-	assert(slack >= 0.0);
-	auto target = src * scale + slack;
-	if (target <= MIN_VALUE(GType))
-		return MIN_VALUE(GType);
-	if (target >= MAX_VALUE(GType))
-		return MAX_VALUE(GType);
-
-	auto roundedTarget = TType2GType(target);
-	if (CrdType(roundedTarget) > target)
-	{
-		MG_CHECK(target < 0.0);
-		roundedTarget--;
-		MG_CHECK(roundedTarget > MIN_VALUE(GType));
-		slack += 1.0;
-	}
-	assert(roundedTarget <= target);
-	MG_CHECK(slack >= 0.0);
-	return roundedTarget;
-}
-
-std::pair<GType, CrdType> TType2GType2(TType src, CrdType scale, CrdType slack)
-{
-	assert(slack >= 0.0);
-	auto target = src * scale + slack;
-	auto roundedTarget = TType2GType(target);
-	if (CrdType(roundedTarget) > target)
-	{
-		assert(target < 0.0);
-		roundedTarget--;
-		MG_CHECK(roundedTarget > MIN_VALUE(GType));
-		slack += 1.0;
-	}
-	assert(roundedTarget <= target);
-	MG_CHECK(slack >= 0.0);
-	return { roundedTarget, target - roundedTarget };
-}
-
-void AdjustSlack(TType& clientCrd, CrdType& slack, CrdType factor)
-{
-	assert(factor > 0);
-	assert(slack >= 0);
-	while (slack > factor)
-	{
-		TType div = slack / factor;
-		MG_CHECK(div > 0); // TODO: change in assert when sufficently testes
-		clientCrd += div;
-		slack -= div * factor;
-		MG_CHECK(slack >= 0); // TODO: change in assert when sufficently testes
-	}
-}
-
-AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, TPoint c2p, CrdPoint srollSlack)
+AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p)
 	: clientSwapper(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
-	, slackSwapper (v->m_ScrollSlack, v->m_ScrollSlack + srollSlack)
-{
-	AdjustSlack(clientSwapper.GetRef().X(), slackSwapper.GetRef().X(), v->m_SubPixelFactors.first);
-	AdjustSlack(clientSwapper.GetRef().Y(), slackSwapper.GetRef().Y(), v->m_SubPixelFactors.second);
-}
+{}
 
 //----------------------------------------------------------------------
 // VistorRectSelector
 //----------------------------------------------------------------------
 
-VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, const GRect& objRect)
+VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect)
 	:	ClipDeviceRectSelector(v->m_ClipDeviceRect, objRect)
 {
 }

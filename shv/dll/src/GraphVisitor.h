@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__SHV_GRAPHVISITOR_H)
@@ -107,11 +83,11 @@ public:
 	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
 	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 
-	const CrdTransformation& GetTransformation() const { return m_Transformation; }
+	CrdTransformation GetTransformation() const { return m_Transformation; }
 	CrdTransformation GetLogicalTransformation() const { return m_Transformation / CrdTransformation(CrdPoint(0.0, 0.0), GetSubPixelFactors()); }
-	const TPoint& GetClientLogicalAbsPos() const { return m_ClientLogicalAbsPos; }
-	const GRect&  GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
-	CrdRect       GetWorldClipRect() const;
+	CrdPoint GetClientLogicalAbsPos() const { return m_ClientLogicalAbsPos; }
+	GRect   GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }
+	CrdRect GetWorldClipRect() const;
 
 	CrdPoint GetSubPixelFactors() const;
 	CrdType GetSubPixelFactor() const;
@@ -123,11 +99,9 @@ protected:
 
 	virtual bool ReverseLayerVisitationOrder() const { return false;  }
   	CrdTransformation m_Transformation;
-	TPoint            m_ClientLogicalAbsPos; 
+	CrdPoint          m_ClientLogicalAbsPos; 
 	GRect             m_ClipDeviceRect;
 	CrdPoint          m_SubPixelFactors;
-public:
-	CrdPoint          m_ScrollSlack = { 0.0, 0.0 };
 
 	friend struct AddTransformation;
 	friend struct AddClientLogicalOffset;
@@ -246,6 +220,7 @@ public:
 	GraphUpdater(const GRect& clipRect, CrdPoint subPixelFactors);
 
 	GraphVisitState DoObject(GraphicObject* go) override;
+	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 };
 
 #endif // __SHV_GRAPHVISITOR_H

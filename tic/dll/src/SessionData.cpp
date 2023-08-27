@@ -20,6 +20,7 @@ leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type
 //----------------------------------------------------------------------
 
 std::recursive_mutex sd_SessionDataCriticalSection;
+
 static std::shared_ptr<SessionData> s_CurrSD;
 
 //----------------------------------------------------------------------
@@ -229,7 +230,7 @@ void SessionData::Open(const TreeItem* configRoot)
 
 std::shared_ptr<SessionData> SessionData::Curr()
 {
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
+	std::lock_guard dcLock(sd_SessionDataCriticalSection);
 	return s_CurrSD;
 }
 

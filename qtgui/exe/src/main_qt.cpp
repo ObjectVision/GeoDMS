@@ -11,6 +11,7 @@
 #include "utl/splitPath.h"
 #include "xct/ErrMsg.h"
 
+#include "stg/AbstrStorageManager.h"
 #include "ShvDllInterface.h"
 #include "ShvUtils.h"
 
@@ -109,9 +110,17 @@ public:
 
 void SaveDetailPage(CharPtr fileName)
 {
+    auto currItem = MainWindow::TheOne()->getCurrentTreeItem();
+
+    auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
+    auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
+
     auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
     auto htmlsourceAsUtf8 = htmlSource.toUtf8();
-    FileOutStreamBuff buff(SharedStr(fileName), nullptr, true, false);
+
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
+
+    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
    
     buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
 }
@@ -158,7 +167,7 @@ bool WmCopyData(MSG* copyMsgPtr)
         MainWindow::TheOne()->defaultView();
         return true;
 
-    case CommandCode::GOTO:
+    case CommandCode::ActivateItem:
         MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
         return true;
         
@@ -167,7 +176,14 @@ bool WmCopyData(MSG* copyMsgPtr)
         return true;
 
     case CommandCode::Expand:
-        MainWindow::TheOne()->m_treeview->expandActiveNode(Get4Bytes(pcds, 0) != 0);
+        MainWindow::TheOne()->expandActiveNode(Get4Bytes(pcds, 0) != 0);
+        return true;
+
+    case CommandCode::ExpandAll:
+        MainWindow::TheOne()->expandAll();
+
+    case CommandCode::ExpandRecursive:
+        MainWindow::TheOne()->expandRecursiveFromCurrentItem();
         return true;
 
     case CommandCode::ShowDetailPage:
@@ -186,11 +202,11 @@ bool WmCopyData(MSG* copyMsgPtr)
 //        dmfGeneral.miHistogramView.Click;
         return true;
 
-    case CommandCode::cascadeSubWindows:
+    case CommandCode::CascadeSubWindows:
         MainWindow::TheOne()->m_mdi_area->cascadeSubWindows();
         return true;
 
-    case CommandCode::tileSubWindows:
+    case CommandCode::TileSubWindows:
         MainWindow::TheOne()->m_mdi_area->tileSubWindows();
         return true;
 
@@ -245,7 +261,18 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 
     case WM_COPYDATA:
         if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
-        return WmCopyData(msg);
+        {
+            try {
+                return WmCopyData(msg);
+            }
+            catch (...)
+            {
+                auto msg = catchException(false);
+                auto userResult = MessageBoxA(nullptr, msg->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+                if (userResult == IDCANCEL)
+                    terminate();
+            }
+        }
     }
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
@@ -272,7 +299,7 @@ protected:
 
 #include <future>
 
-int main(int argc, char *argv[])
+int main_without_SE_handler(int argc, char *argv[])
 {
     try {
         CmdLineSetttings settingsFrame;
@@ -324,6 +351,18 @@ int main(int argc, char *argv[])
         auto msg = catchException(false);
         std::cout << "error          : " << msg->Why() << std::endl;
         std::cout << "context        : " << msg->Why() << std::endl;
+        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR| MB_SYSTEMMODAL);
     }
     return 9;
+}
+
+int main(int argc, char* argv[])
+{
+    DMS_SE_CALL_BEGIN
+
+        return main_without_SE_handler(argc, argv);
+
+    DMS_SE_CALL_END
+
+    return GetLastExceptionCode();
 }

@@ -177,11 +177,12 @@ bool EventLogModel::itemPassesFilter(item_t& item)
 {
 	auto item_passes_type_filter = itemPassesTypeFilter(item);
 	auto item_passes_category_filter = itemPassesCategoryFilter(item);
-	if (item.m_MsgCategory == MsgCategory::progress)
-		item_passes_category_filter = item_passes_type_filter;
 	auto item_passes_text_filter = itemPassesTextFilter(item);
+	auto item_is_warning_or_error = (item.m_SeverityType == SeverityTypeID::ST_Warning || item.m_SeverityType == SeverityTypeID::ST_Error);
+	if (item.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
+		return item_passes_type_filter && item_passes_text_filter;
 
-	return (item_passes_type_filter || item_passes_category_filter) && item_passes_text_filter;
+	return item_passes_category_filter && item_passes_text_filter;
 }
 
 void EventLogModel::refilter()

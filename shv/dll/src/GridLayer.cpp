@@ -180,10 +180,10 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 		{
 			auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
 
-			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
-			UInt32 gridWidth = _Width(gridRect);
-			for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
-				rowProcessor(r, _Left(selectRect), _Right(selectRect), i, tr);
+			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(selectRect), Top(selectRect))));
+			UInt32 gridWidth = Width(gridRect);
+			for (Int32 r = Top(selectRect); r != Bottom(selectRect); ++r, i += gridWidth)
+				rowProcessor(r, Left(selectRect), Right(selectRect), i, tr);
 		}
 		lock.Commit();
 	}
@@ -541,12 +541,12 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 
 		auto sdb = selData.begin();
 
-		Int32 c      = _Left (gridRect);
-		Int32 cRight = _Right(gridRect);
+		Int32 c      = Left (gridRect);
+		Int32 cRight = Right(gridRect);
 		if (indexCollectorPtr)
 		{
 			SizeT i = 0;
-			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
+			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
 				while (c < cRight)
 				{
@@ -559,13 +559,13 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 						c = selectRect.second.Col();
 				}
 				assert(c == cRight);
-				c -= _Width(gridRect);
+				c -= Width(gridRect);
 			}
 		}
 		else
 		{
 			auto sdi = sdb;
-			for (Int32 r = _Top(gridRect), re = _Bottom(gridRect); r != re; ++r)
+			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
 				while (c < cRight)
 				{
@@ -589,7 +589,7 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 					}
 				}
 				assert(c >= cRight);
-				c -= _Width(gridRect);
+				c -= Width(gridRect);
 			}
 		}
 
@@ -709,10 +709,10 @@ void GridLayer::CopySelValues()
 	const ClassID*            colorArray= colorData->GetDataRead().begin();
 
 	IRect gridRange = colorTheme->GetThemeEntityUnit()->GetRangeAsIRect();
-	Int32 gridWidth = _Width(gridRange);
+	Int32 gridWidth = Width(gridRange);
 
 	IRect  selRect  = Convert<IRect>( CalcSelectedGeoRect() ); if (selRect.empty()) return;
-	Int32  selWidth = _Width(selRect);
+	Int32  selWidth = Width(selRect);
 	UInt32 selSize  = Cardinality(selRect);
 
 	UInt32 dataSize = sizeof(SelValuesData) + sizeof(ClassID) * selSize;
@@ -821,16 +821,16 @@ void GridLayer::PasteNow()
 	IRect copyRect = pselRect & gridRect;
 	if (copyRect.empty())
 		return;
-	UInt32 nrCols = _Right(copyRect) - _Left(copyRect);
+	UInt32 nrCols = Right(copyRect) - Left(copyRect);
 	const ClassID* pselArray = m_PasteHandler->GetSelValues()->m_Data;
 
-	for (Int32 row = _Top(copyRect); row!=_Bottom(copyRect); ++row)
+	for (Int32 row = Top(copyRect); row != Bottom(copyRect); ++row)
 	{
-		const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(_Left(copyRect),row)));
+		const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(Left(copyRect),row)));
 		copy_defined(
 			srcPtr,
 			srcPtr + nrCols,
-			colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(copyRect),row)))
+			colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(copyRect),row)))
 		);
 	}
 	lock.Commit();
@@ -871,7 +871,7 @@ void GridLayer::CopySelValuesToBitmap()
 	GridCoord mapping(nullptr, GetGridCoordKey(GetGeoCrdUnit()));
 
 	auto selectIRect = CalcSelectedGeoRect();
-	GRect selectGRect = GRect(_Left(selectIRect), _Top(selectIRect), _Right(selectIRect), _Bottom(selectIRect));
+	GRect selectGRect = GRect(Left(selectIRect), Top(selectIRect), Right(selectIRect), Bottom(selectIRect));
 
 	mapping.Init(selectGRect.Size(), CrdTransformation(-Convert<CrdPoint>(selectIRect.first), CrdPoint(1.0, 1.0)));
 	mapping.UpdateUnscaled();
@@ -956,7 +956,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	const AbstrUnit* gridDomain = grid->GetAbstrDomainUnit();
 	dms_assert(gridDomain->GetValueType()->GetNrDims() == 2);
 
-	GPoint viewportDeviceOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+	auto viewportDeviceOffset = CrdPoint2GPoint( ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors()) );
 	GRect clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect() + viewportDeviceOffset;
 
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
@@ -1034,7 +1034,7 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 
 	auto sf = GetScaleFactors();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), sf);
+	auto viewportOffset = CrdPoint2GPoint( ScaleCrdPoint(d.GetClientLogicalAbsPos(), sf) );
 	GRect  clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
 
 	if (clippedAbsRect.empty())

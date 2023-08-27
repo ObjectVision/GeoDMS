@@ -104,15 +104,16 @@ void SelCaret::OnDeviceScroll(const GPoint& delta)
 		return;
 	auto owner = m_Owner.lock(); if (!owner) return;
 
-	GRect  clipRect = owner->GetCurrClientAbsDeviceRect();
-	Region clipRgn(clipRect);
+	CrdRect  clipRect = owner->GetCurrClientAbsDeviceRect();
+	GRect intClipRect = CrdRect2GRect(clipRect);
+	Region clipRgn(intClipRect);
 
 	// Scroll m_SelCaretRgn but don't Set since this is done by DataView::Scroll
 	if (m_SelCaretRgn.IsIntersecting(clipRgn))
-		m_SelCaretRgn.ScrollDevice(delta, clipRect, clipRgn);
+		m_SelCaretRgn.ScrollDevice(delta, intClipRect, clipRgn);
 
 	// Add scrolled-in stuff to SelCaret
-	UpdateRgn(clipRgn - Region( owner->GetCurrClientAbsDeviceRect() + delta ));
+	UpdateRgn(clipRgn - Region(CrdRect2GRect( owner->GetCurrClientAbsDeviceRect()) + delta ));
 }
 
 Region SelCaret::UpdateRectImpl(const GRect& updateRect)

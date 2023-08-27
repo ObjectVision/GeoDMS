@@ -214,9 +214,9 @@ struct MergeOperatorBase : public AbstrRasterMergeOperator
 
 		I64Rect tuRect = tRect & uRect; 
 		SizeT
-			tWidth  = _Width(tRect),
-			uWidth  = _Width(uRect),
-			tuWidth = _Width(tuRect);
+			tWidth  = Width(tRect),
+			uWidth  = Width(uRect),
+			tuWidth = Width(tuRect);
 
 		dms_assert(!tuRect.empty());
 
@@ -294,9 +294,9 @@ struct RasterImpressOperator: public AbstrRasterMergeOperator
 
 		I64Rect tuRect = tRect & uRect; 
 		UInt32 
-			tWidth  = _Width(tRect),
-			uWidth  = _Width(uRect),
-			tuWidth = _Width(tuRect);
+			tWidth  = Width(tRect),
+			uWidth  = Width(uRect),
+			tuWidth = Width(tuRect);
 
 		dms_assert(!tuRect.empty());
 

@@ -6,6 +6,8 @@
 #include "ptr/SharedStr.h"
 #include "ui_DmsLocalMachineOptionsWindow.h"
 #include "ui_DmsGuiOptionsWindow.h"
+#include "ui_DmsConfigOptionsWindow.h"
+
 struct TreeItem;
 
 enum string_option
@@ -107,7 +109,7 @@ struct ConfigOption {
     QPointer< QLineEdit>      override_value;
 };
 
-class DmsConfigOptionsWindow : public QDialog
+class DmsConfigOptionsWindow : public QDialog, Ui::DmsConfigOptionsWindow
 {
     Q_OBJECT
 public:
@@ -117,6 +119,7 @@ public:
 
 private slots:
     void ok();
+    void cancel();
     void apply();
     void resetValues();
     void onTextChange();
@@ -131,7 +134,7 @@ private:
     std::vector<ConfigOption> m_Options;
 
     QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_cancel;
     QPointer<QPushButton> m_undo;
 };
 

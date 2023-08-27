@@ -1208,7 +1208,7 @@ namespace Explain
 
 	bool AttrValueToXML(Explain::CalcExplImpl* context, const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
 	{
-		XML_ItemBody itemBody(*xmlOutStrPtr, studyObject);
+		XML_ItemBody itemBody(*xmlOutStrPtr, "Value Info", "", studyObject);
 		try {
 			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainAttrValue");
 

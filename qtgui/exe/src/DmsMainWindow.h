@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
@@ -24,6 +28,7 @@
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QWidgetAction;
 class QComboBox;
 class QDialog;
 class QLabel;
@@ -88,14 +93,18 @@ private:
     UInt8 m_state = 0;
 };
 
-class DmsRecentFileButtonAction : public QAction
+class DmsRecentFileEntry : public QWidget
 {
     Q_OBJECT
+
 public:
-    DmsRecentFileButtonAction(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
+    DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QWidget* parent = nullptr);
     std::string m_cfg_file_path;
+    size_t m_index = 0;
+
 public slots:
-    void onToolbuttonPressed();
+    void onDeleteRecentFileEntry();
+    void onFileEntryPressed();
 };
 
 struct CmdLineSetttings {
@@ -163,7 +172,8 @@ public:
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
-    void setRecentFiles();
+    void removeRecentFileAtIndex(size_t index);
+    void saveRecentFileActionToRegistry();
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
@@ -177,6 +187,7 @@ public slots:
     void tableView();
     void mapView();
     void openConfigSource();
+    void openConfigRootSource();
     void exportPrimaryData();
 
     void gui_options();
@@ -197,6 +208,14 @@ public slots:
     void toggle_eventlog();
     void toggle_toolbar();
     void toggle_currentitembar();
+    void toggle_valueinfo();
+
+    void view_calculation_times();
+    void view_current_config_filelist();
+
+    void expandAll();
+    void expandActiveNode(bool doExpand);
+    void expandRecursiveFromCurrentItem();
 
 public slots:
     void fileOpen();
@@ -223,6 +242,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
@@ -234,6 +254,7 @@ private:
     void createActions();
     void createStatusBar();
     void createDetailPagesDock();
+    void createValueInfoDock();
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();
@@ -245,9 +266,10 @@ private:
     void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
-    void view_calculation_times();
+
     void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach);
     void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (void* clientHandle, AbstrMsgGenerator* ach);
+
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);
 
@@ -258,6 +280,7 @@ private:
 public: 
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock, m_value_info_dock;
+    QPointer<QDmsMdiArea> m_value_info_mdi_area;
 
     std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_help_menu, m_code_analysis_submenu;
 
@@ -267,8 +290,8 @@ public:
         , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
         , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
         //    , m_histogramview_action
-        , m_process_schemes_action, m_view_calculation_times_action
-        , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
+        , m_process_schemes_action, m_view_calculation_times_action, m_view_current_config_filelist, m_open_root_config_file_action, m_expand_all_action
+        , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action, m_toggle_valueinfo_action
         , m_gui_options_action, m_advanced_options_action, m_config_options_action
         , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
         , m_quit_action
@@ -303,7 +326,7 @@ public:
 private:
     std::vector<processing_record> m_processing_records;
 
-    QList<DmsRecentFileButtonAction*> m_recent_files_actions;
+    QList<QWidgetAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
 };

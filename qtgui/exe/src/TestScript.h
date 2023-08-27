@@ -13,15 +13,15 @@ enum class CommandCode {
 	SendActiveDmsControl = 3,
 	WmCopyActiveDmsControl = 4, // MSG=WM_COPYDATA, WPARAM=WindowHandle, LPARAM=cds(nrRemainingNumbers, {numbers})
 	DefaultView = 5,
-	GOTO = 6,
+	ActivateItem = 6,
 	miExportViewPorts = 7,
-	Expand = 8,
+	Expand = 8, ExpandAll = 15, ExpandRecursive = 16,
 	ShowDetailPage = 9, // followed by integer page number.
 	SaveDetailPage = 10,
 	miDatagridView = 11,
 	miHistogramView = 12,
-	cascadeSubWindows = 13,
-	tileSubWindows = 14,
+	CascadeSubWindows = 13,
+	TileSubWindows = 14,
 };
 
 

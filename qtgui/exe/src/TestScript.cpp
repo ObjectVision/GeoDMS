@@ -77,21 +77,49 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 				buffer.emplace_back(0);
 			myCDS.lpData = &(buffer[0]);
 		}
-		else if (std::strcmp(argv[i], "GOTO") == 0)
+		else if (std::strcmp(argv[i], "DefaultView") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::DefaultView);
+			myCDS.cbData = 0;
+			myCDS.lpData = nullptr;
+//			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
+		}
+		else if (std::strcmp(argv[i], "GOTO") == 0 || std::strcmp(argv[i], "ActivateItem") == 0)
 		{
 			if (argc <= ++i)
-				throw stx_error("path expected after GOTO");
-			myCDS.dwData = ULONG_PTR(CommandCode::GOTO);
+				throw stx_error("path expected after ActivateItem");
+			myCDS.dwData = ULONG_PTR(CommandCode::ActivateItem);
 			myCDS.cbData = std::strlen(argv[i]) + 1;
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 		}
-		else if (std::strcmp(argv[i], "EXPAND") == 0)
+		else if (std::strcmp(argv[i], "EXPAND") == 0 || std::strcmp(argv[i], "Expand") == 0)
 		{
 			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
 			myCDS.cbData = 4;
-			buffer.emplace_back(1); // code for expand all
+			buffer.emplace_back(1); // code for expand
 			myCDS.lpData = &(buffer[0]);
+		}
+		else if (std::strcmp(argv[i], "Collapse") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::Expand);
+			myCDS.cbData = 4;
+			buffer.emplace_back(0); // code for collapes
+			myCDS.lpData = &(buffer[0]);
+		}
+		else if (std::strcmp(argv[i], "ExpandAll") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::ExpandAll);
+			myCDS.cbData = 0;
+//			buffer.emplace_back(1); // code for expand all
+			myCDS.lpData = nullptr;
+		}
+		else if (std::strcmp(argv[i], "ExpandRecursive") == 0)
+		{
+			myCDS.dwData = ULONG_PTR(CommandCode::ExpandRecursive);
+			myCDS.cbData = 0;
+			//			buffer.emplace_back(1); // code for expand all
+			myCDS.lpData = nullptr;
 		}
 		else if ((std::strcmp(argv[i], "DP") == 0) || (std::strcmp(argv[i], "ShowDetailPage") == 0))
 		{
@@ -111,16 +139,16 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 			myCDS.lpData = argv[i];
 			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 		}
-		else if (std::strcmp(argv[i], "cascadeSubWindows") == 0)
+		else if (std::strcmp(argv[i], "CascadeSubWindows") == 0)
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::cascadeSubWindows);
+			myCDS.dwData = ULONG_PTR(CommandCode::CascadeSubWindows);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
 
 		}
-		else if (std::strcmp(argv[i], "tileSubWindows") == 0)
+		else if (std::strcmp(argv[i], "TileSubWindows") == 0)
 		{
-			myCDS.dwData = ULONG_PTR(CommandCode::tileSubWindows);
+			myCDS.dwData = ULONG_PTR(CommandCode::TileSubWindows);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
 
@@ -141,9 +169,19 @@ int RunTestLine(SharedStr line, HWND hwDispatch)
 	char* currPtr = line.begin();
 	while (argc < MAX_ARG_COUNT && currPtr != line.end() && *currPtr)
 	{
-		argv[argc++] = currPtr++;
-		while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
-			++currPtr;
+		if (*currPtr == '"')
+		{
+			argv[argc++] = ++currPtr; // skip quote
+			// adopt first char
+			while (currPtr != line.end() && *currPtr && *currPtr != '"')
+				++currPtr;
+		}
+		else
+		{
+			argv[argc++] = currPtr++;
+			while (currPtr != line.end() && *currPtr && !isspace(*currPtr))
+				++currPtr;
+		}
 
 		if (currPtr == line.end() || !*currPtr)
 			break;
@@ -164,7 +202,7 @@ int RunTestLine(SharedStr line, HWND hwDispatch)
 SharedStr ReadLine(FormattedInpStream& fis)
 {
 	SharedStr result; // TODO: us reusable allocate buffer.
-	while (!fis.AtEnd() && fis.NextChar() != '\n')
+	while (!fis.AtEnd() && fis.NextChar() != '\n' && fis.NextChar() != EOF)
 	{
 		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '/')
@@ -174,9 +212,9 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	}
 
 	// read up till end or past EOL
-	while (!fis.AtEnd())
+	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
-		auto ch = fis.NextChar();  fis.ReadChar();
+		auto ch = fis.NextChar(); fis.ReadChar();
 		if (ch == '\n')
 			break;
 	}
@@ -188,7 +226,7 @@ int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
 {
     auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
-	while (!fis.AtEnd())
+	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
 		auto line = ReadLine(fis);
 		auto result = RunTestLine(line, hwDispatch);

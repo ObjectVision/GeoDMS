@@ -640,9 +640,9 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 	GRect bb = d.GetAbsClipRegion().BoundingBox();
 
-	GPoint viewportDeviceOffset = TPoint2GPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
+	auto viewportDeviceOffset = ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
 	GRect clippedRelRect = drawGridCoords->GetClippedRelDeviceRect();
-	clippedRelRect &= (bb - viewportDeviceOffset);
+	clippedRelRect &= (bb - CrdPoint2GPoint(viewportDeviceOffset));
 	if (clippedRelRect.empty())
 		return GVS_Continue;
 
@@ -707,7 +707,7 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 				if (!drawer.empty()) {
 					GdiHandle<HBITMAP> hBitmap(drawer.CreateDIBSectionFromPalette());
 					drawer.FillDirect(&rasterBuffer.combinedBands[0], rasterBuffer.combinedBands.size(), true);
-					drawer.CopyDIBSection(hBitmap, viewportDeviceOffset, SRCAND);
+					drawer.CopyDIBSection(hBitmap, CrdPoint2GPoint(viewportDeviceOffset), SRCAND);
 				}
 			}
 			catch (...) 

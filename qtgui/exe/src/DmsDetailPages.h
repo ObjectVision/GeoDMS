@@ -11,9 +11,9 @@ enum ActiveDetailPage
 	GENERAL,
 	EXPLORE,
 	PROPERTIES,
-	METADATA,
 	CONFIGURATION,
 	SOURCEDESCR,
+	METADATA,
 	STATISTICS,
 	VALUE_INFO,
 	NONE
@@ -57,6 +57,7 @@ private:
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
+	bool            m_ShowNonDefaultProperties = true;
 };
 
 SharedStr FindURL(const TreeItem* ti);

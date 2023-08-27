@@ -87,7 +87,7 @@ protected: // override GraphicObject virtuals
 	void FillMenu(MouseEventDispatcher& med) override;
 	bool OnCommand(ToolButtonID id) override;
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;
-	void ProcessSize(TPoint viewClientSize) override;
+	void ProcessSize(CrdPoint viewClientSize) override;
 
 //	override Actor virtuals
 	void DoInvalidate() const override;
@@ -120,7 +120,7 @@ private:
 	void UpdateNrClasses();
 
 public:
-	TPoint CalcMaxSize() const override;
+	CrdPoint CalcMaxSize() const override;
 
 private:
 	SharedDataItemInterestPtr           m_ThemeAttr;

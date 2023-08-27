@@ -36,6 +36,7 @@
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ShowDetailPage %d", int(new_active_detail_page));
     m_active_detail_page = new_active_detail_page;
 }
 
@@ -104,7 +105,7 @@ void DmsDetailPages::show(ActiveDetailPage new_active_detail_page)
     MainWindow::TheOne()->m_detailpages_dock->setVisible(true);
     toggleVisualState(new_active_detail_page, true);
     setActiveDetailPage(new_active_detail_page);
-    //setVisible(true);
+    scheduleDrawPage();
 }
 
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
@@ -136,7 +137,17 @@ void DmsDetailPages::toggleExplorer()
 
 void DmsDetailPages::toggleProperties()
 {
-    toggle(ActiveDetailPage::PROPERTIES);
+    if (m_active_detail_page != ActiveDetailPage::PROPERTIES || m_ShowNonDefaultProperties == false)
+    {
+        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
+            m_ShowNonDefaultProperties = true; // we hide now, but go for Show when made visible again
+        toggle(ActiveDetailPage::PROPERTIES);
+    }
+    else
+    {
+        m_ShowNonDefaultProperties = false;
+        scheduleDrawPage();
+    }
 }
 
 void DmsDetailPages::toggleConfiguration()
@@ -148,13 +159,14 @@ void DmsDetailPages::toggleSourceDescr()
 {
     if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
     {
-        m_SDM = SourceDescrMode::Configured;
+        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
+            m_SDM = SourceDescrMode::Configured; // we hide now, but go for Show when made visible again
         toggle(ActiveDetailPage::SOURCEDESCR);
     }
     else
     {
         reinterpret_cast<int&>(m_SDM)++;
-        scheduleDrawPageImpl(1000);
+        scheduleDrawPageImpl(500);
     }
 }
 
@@ -177,23 +189,43 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
     return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
 }
 
+
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    if (m_DrawPageRequestPending)
-        return;
+    bool oldValue = false;
+    if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    {
+        assert(m_DrawPageRequestPending);
+        AddMainThreadOper(
+            [this, milliseconds]()
+            {
+                assert(IsMainThread());
+                static std::time_t pendingDeadline = 0;
+                auto deadline = std::time(nullptr) + milliseconds / 1000;
+                if (!pendingDeadline || deadline < pendingDeadline)
+                {
+                    pendingDeadline = deadline;
+                    QTimer::singleShot(milliseconds, [this]()
+                        {
+                            assert(IsMainThread());
+                            pendingDeadline = 0;
 
-    m_DrawPageRequestPending = true;
-    QTimer::singleShot(milliseconds, [this]()
-        {
-            m_DrawPageRequestPending = false;
-            this->drawPage();
-        }
-    );
+                            bool oldValue = true;
+                            if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, false))
+                            {
+                                this->drawPage();
+                            }
+                        }
+                    );
+                }
+            }
+        );
+    }
 }
 
 void DmsDetailPages::scheduleDrawPage()
 {
-    scheduleDrawPageImpl(0);
+    scheduleDrawPageImpl(10);
 }
 
 void DmsDetailPages::onTreeItemStateChange()
@@ -238,10 +270,10 @@ void DmsDetailPages::drawPage()
     switch (m_active_detail_page)
     {
     case ActiveDetailPage::GENERAL:
-        result = DMS_TreeItem_XML_DumpGeneral(current_item, xmlOut.get(), showAll);
+        result = TreeItem_XML_DumpGeneral(current_item, xmlOut.get());
         break;
     case ActiveDetailPage::PROPERTIES:
-        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), showAll);
+        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_ShowNonDefaultProperties);
         break;
     case ActiveDetailPage::EXPLORE:
         DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);
@@ -288,7 +320,7 @@ void DmsDetailPages::drawPage()
                 return;
             }
         }
-        DMS_XML_MetaInfoRef(current_item, xmlOut.get());
+        XML_MetaInfoRef(current_item, xmlOut.get());
         break;
     }
     }
@@ -395,7 +427,7 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 
 QSize DmsDetailPages::sizeHint() const
 {
-    return QSize(500, 20);
+    return QSize(500, 0);
 }
 
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
