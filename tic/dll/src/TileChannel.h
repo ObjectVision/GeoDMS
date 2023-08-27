@@ -193,22 +193,20 @@ void convert_assign(T& dst, U&& src)
 template <typename T, typename USeq>
 void convert_assign(SA_Reference<T> dst, USeq&& src)
 {
-	dst.reserve(src.size());
-	for (auto s : src)
-		dst.emplace_back(Convert<T>(s));
-}
-
-template <typename T>
-void convert_assign(SA_Reference<T> dst, SA_ConstReference<T> src)
-{
 	if (!IsDefined(src))
 		MakeUndefined(dst);
 	else
 	{
 		dst.reserve(src.size());
 		for (auto s : src)
-			dst.emplace_back(s);
+			dst.emplace_back(Convert<T>(s));
 	}
+}
+
+template <typename T>
+void convert_assign(SA_Reference<T> dst, SA_ConstReference<T> src)
+{
+	dst = src;
 }
 
 template <bit_size_t N, typename Block, typename U>
