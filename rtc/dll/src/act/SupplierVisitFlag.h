@@ -73,7 +73,7 @@ enum class SupplierVisitFlag
 	DIALOGDATA  = 0x4000,
 	ImplSuppliers = 0x8000,
 
-	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA,
+	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
 
 	StartSupplInterest = (DetermineState | Checker) & ~Signature // Signature Already explicitly done by StartInterest function
