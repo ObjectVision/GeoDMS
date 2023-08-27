@@ -1007,10 +1007,8 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 
-	if (src)
+	if (src && src->WasFailed())
 	{
-		assert(src->WasFailed());
-
 		// parent ?
 		auto context = src->GetTreeParent();
 		if (context)

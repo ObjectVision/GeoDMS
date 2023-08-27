@@ -117,9 +117,12 @@ TIC_CALL void TreeItem_SetAnalysisTarget(const TreeItem * ti, bool mustClean)
 
 	if (mustClean)
 	{
+//	TODO: issue: registered suppliers may alredy be destroyed (and locations even be reused !). We need std::weak_ptr here.
+//		for (auto& supplierRecord: dsm->m_SupplierLevels)
+//			if (auto ti = dynamic_cast<const TreeItem*>(supplierRecord.first))
+//				NotifyStateChange(ti, NC2_InterestChange);
+
 		dsm->m_SupplierLevels.clear();
-		if (dsm->m_SourceItem)
-			NotifyStateChange(dsm->m_SourceItem, NC2_InterestChange);
 	}
 	if (!ti)
 		return;

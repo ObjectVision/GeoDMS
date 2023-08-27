@@ -2339,6 +2339,9 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		assert(!WasFailed(FR_MetaInfo));
 		UpdateMetaInfoImpl(); // recursion protected part of UpdateMetaInfo
 
+		if (m_UsingCache)
+			m_UsingCache->GetNrUsings();
+
 		SetMetaInfoReady();
 		if (WasFailed(FR_MetaInfo))
 			return;
