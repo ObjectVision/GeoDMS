@@ -235,9 +235,12 @@ bool SharedStr::contains(CharPtrRange subStr)
 
 bool SharedStr::contains_case_insensitive(CharPtrRange subStr)
 {
-	return std::search(begin(), end(), subStr.first, subStr.second
-		, [](char a, char b) { return std::tolower(a) == std::tolower(b); }
+	bool str_contains_substr = std::search(begin(), end(), subStr.first, subStr.second
+		, [](unsigned char a, unsigned char b) { 
+			return std::tolower(a) == std::tolower(b); 
+		}
 	) != end();
+	return str_contains_substr;
 
 /*
 	return std::contains_subrange(begin(), end(), subStr.first, subStr.second
