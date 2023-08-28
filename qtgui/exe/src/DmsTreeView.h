@@ -1,3 +1,4 @@
+#include <QMenu.h>
 #include <QPointer.h>
 #include <QTreeView>
 #include <QCompleter>
@@ -86,7 +87,7 @@ private slots:
 	void onDoubleClick(const QModelIndex& index);
 
 private:
-	QPointer<QMenu> m_context_menu;
+	std::unique_ptr<QMenu> m_context_menu, m_code_analysis_submenu;
 };
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;

@@ -174,10 +174,10 @@ public:
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
     void removeRecentFileAtIndex(size_t index);
     void saveRecentFileActionToRegistry();
+    auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
-
 signals:
     void currentItemChanged();
 

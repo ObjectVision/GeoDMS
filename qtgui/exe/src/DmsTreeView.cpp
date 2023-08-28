@@ -513,90 +513,88 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 		return;
 
 	if (!m_context_menu)
-		m_context_menu = new QMenu(MainWindow::TheOne());
+	{
+		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
 
-	m_context_menu->clear();
+//		connect(m_context_menu.get(), &QMenu::aboutToHide, m_context_menu.get(), &QMenu::deleteLater);
 
-	connect(m_context_menu, &QMenu::aboutToHide, m_context_menu, &QMenu::deleteLater);
+		auto ti = GetTreeItem(index);
+		MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 
-	auto ti = GetTreeItem(index);
-	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
+		auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
 
-	auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
+		// export primary data
+		auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
+		auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
+		export_primary_data_action->setEnabled(item_can_be_exported);
+		m_context_menu->addAction(export_primary_data_action);
 
-	// export primary data
-	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
-	export_primary_data_action->setEnabled(item_can_be_exported);
-	m_context_menu->addAction(export_primary_data_action);
+		m_context_menu->addSeparator();
 
-	m_context_menu->addSeparator();
+		// step to failreason
+		auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
+		step_to_failreason->setEnabled(ti && ti->WasFailed());
+		m_context_menu->addAction(step_to_failreason);
 
-	// step to failreason
-	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
-	step_to_failreason->setEnabled(ti && ti->WasFailed());
-	m_context_menu->addAction(step_to_failreason);
+		// go to causa prima
+		auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
+		go_to_causa_prima->setEnabled(ti && ti->WasFailed());
+		m_context_menu->addAction(go_to_causa_prima);
 
-	// go to causa prima
-	auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
-	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
-	m_context_menu->addAction(go_to_causa_prima);
+		m_context_menu->addSeparator();
 
-	m_context_menu->addSeparator();
+		// edit config source
+		auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
+		m_context_menu->addAction(edit_config_source);
+		m_context_menu->addSeparator();
 
-	// edit config source
-	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
-	m_context_menu->addAction(edit_config_source);
-	m_context_menu->addSeparator();
+		// update treeitem
+		auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
+		update_treeitem->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(update_treeitem);
 
-	// update treeitem
-	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
-	update_treeitem->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(update_treeitem);
+		// update subtree
+		auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
+		m_context_menu->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(update_subtree);
 
-	// update subtree
-	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	m_context_menu->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(update_subtree);
+		// invalidate 
+		auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
+		invalidate->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(invalidate);
+		m_code_analysis_submenu = MainWindow::TheOne()->CreateCodeAnalysisSubMenu(m_context_menu.get());
+		m_context_menu->addSeparator();
 
-	// invalidate 
-	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
-	invalidate->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(invalidate);
-	m_context_menu->addSeparator();
+		// default view
+		auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
+		default_view_action->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(default_view_action);
 
-	// default view
-	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
-	default_view_action->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(default_view_action);
+		// table view
+		auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
+		table_view_action->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(table_view_action);
 
-	// table view
-	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
-	table_view_action->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(table_view_action);
+		// map view
+		auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
+		map_view_action->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(map_view_action);
 
-	// map view
-	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
-	map_view_action->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(map_view_action);
+		// statistics view
+		auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
+		statistics_view_action->setDisabled(ti_is_or_is_in_template);
+		m_context_menu->addAction(statistics_view_action);
+		//	m_context_menu->exec(viewport()->mapToGlobal(pos));
 
-	// statistics view
-	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
-	statistics_view_action->setDisabled(ti_is_or_is_in_template);
-	m_context_menu->addAction(statistics_view_action);
-//	m_context_menu->exec(viewport()->mapToGlobal(pos));
+		// histogram view
+		//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
+		//	histogramview->setDisabled(true);
+		//	m_context_menu->addAction(histogramview);
 
-	// histogram view
-//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
-//	histogramview->setDisabled(true);
-//	m_context_menu->addAction(histogramview);
-
-	// process scheme
-	//auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..
-	//m_context_menu->addAction(process_scheme);
-	
-	
-	//m_context_menu->exec(viewport()->mapToGlobal(pos));
+		// process scheme
+		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..
+		//	m_context_menu->addAction(process_scheme);
+	}
 	m_context_menu->popup(viewport()->mapToGlobal(pos));
 }
 

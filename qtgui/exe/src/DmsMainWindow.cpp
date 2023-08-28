@@ -290,6 +290,18 @@ bool MainWindow::IsExisting()
     return s_CurrMainWindow;
 }
 
+auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>
+{
+    auto code_analysis_submenu = std::make_unique<QMenu>("&Code analysis...");
+    menu->addMenu(code_analysis_submenu.get());
+
+    code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
+    code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
+    code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
+    code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
+    return code_analysis_submenu;
+}
+
 MainWindow* MainWindow::TheOne()
 {
     assert(IsMainThread()); // or use a mutex to guard access to TheOne.
@@ -1810,30 +1822,25 @@ void MainWindow::createActions()
     connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
     m_tools_menu->addAction(m_config_options_action.get());
 
-    m_code_analysis_submenu = std::make_unique<QMenu>("&Code analysis...");
-    m_tools_menu->addMenu(m_code_analysis_submenu.get());
-
     m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
     connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
-    m_code_analysis_submenu->addAction(m_code_analysis_set_source_action.get());
     m_code_analysis_set_source_action->setShortcut(QKeySequence(tr("Alt+K")));
     m_code_analysis_set_source_action->setShortcutContext(Qt::ApplicationShortcut);
-    this->addAction(m_code_analysis_set_source_action.get());
+//    this->addAction(m_code_analysis_set_source_action.get());
+
     m_code_analysis_set_target_action = std::make_unique<QAction>(tr("set target"));
+    connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
     m_code_analysis_set_target_action->setShortcut(QKeySequence(tr("Alt+B")));
     m_code_analysis_set_target_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
-    m_code_analysis_submenu->addAction(m_code_analysis_set_target_action.get());
 
     m_code_analysis_add_target_action = std::make_unique<QAction>(tr("add target"));
     connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
-    m_code_analysis_submenu->addAction(m_code_analysis_add_target_action.get());
     m_code_analysis_add_target_action->setShortcut(QKeySequence(tr("Alt+N")));
     m_code_analysis_add_target_action->setShortcutContext(Qt::ApplicationShortcut);
 
     m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target")); 
     connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
-    m_code_analysis_submenu->addAction(m_code_analysis_clr_targets_action.get());
+    m_code_analysis_submenu = CreateCodeAnalysisSubMenu(m_tools_menu.get());
 
     m_eventlog_filter_toggle = std::make_unique<QAction>(tr("Eventlog filter"));
     connect(m_eventlog_filter_toggle.get(), &QAction::triggered, m_eventlog->m_event_filter_toggle.get(), &QCheckBox::click);
