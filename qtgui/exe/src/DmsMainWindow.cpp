@@ -1320,9 +1320,12 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     }
     else
     {
-        auto swapped_first = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(0)->defaultWidget());
-        auto swapped_secnd = static_cast<DmsRecentFileEntry*>(m_recent_files_actions.at(cfg_index_in_recent_files)->defaultWidget());
-        m_recent_files_actions.swapItemsAt(cfg_index_in_recent_files, 0);
+        while (cfg_index_in_recent_files > 0)
+        {
+            auto more_recent_cfg_index = cfg_index_in_recent_files - 1;
+            m_recent_files_actions.swapItemsAt(more_recent_cfg_index, cfg_index_in_recent_files);
+            cfg_index_in_recent_files = more_recent_cfg_index;
+        }
     }
 
     saveRecentFileActionToRegistry();
@@ -1918,7 +1921,7 @@ void MainWindow::updateFileMenu()
     {
         auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), recent_file, m_file_menu.get());
         m_file_menu->addAction(new_recent_file_action_widget);
-        m_recent_files_actions.prepend(new_recent_file_action_widget);
+        m_recent_files_actions.push_back(new_recent_file_action_widget);
 
         //auto qa = new DmsRecentFileButtonAction(recent_file_index, recent_file, m_file_menu.get());
         //connect(qa, &DmsRecentFileButtonAction::triggered, qa, &DmsRecentFileButtonAction::onToolbuttonPressed);
