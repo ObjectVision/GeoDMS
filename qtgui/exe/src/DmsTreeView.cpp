@@ -518,7 +518,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
 	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
 	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
 	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
 	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
@@ -541,7 +540,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 		m_context_menu->addAction(update_treeitem);
 		m_context_menu->addAction(update_subtree);
-		m_context_menu->addAction(invalidate);
 		m_code_analysis_submenu = MainWindow::TheOne()->CreateCodeAnalysisSubMenu(m_context_menu.get());
 		m_context_menu->addSeparator();
 
@@ -570,7 +568,6 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
 	update_treeitem->setDisabled(ti_is_or_is_in_template);
 	update_subtree->setDisabled(ti_is_or_is_in_template);
-	invalidate->setDisabled(ti_is_or_is_in_template);
 	default_view_action->setDisabled(ti_is_or_is_in_template);
 	table_view_action->setDisabled(ti_is_or_is_in_template);
 	map_view_action->setDisabled(ti_is_or_is_in_template);

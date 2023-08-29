@@ -178,7 +178,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     connect(m_end_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationEndColor);
 
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
-    connect(m_cancel, &QPushButton::released, this, &DmsGuiOptionsWindow::apply);
+    connect(m_cancel, &QPushButton::released, this, &DmsGuiOptionsWindow::cancel);
     connect(m_undo, &QPushButton::released, this, &DmsGuiOptionsWindow::restoreOptions);
 
     restoreOptions();
@@ -290,7 +290,6 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     // ok/apply/cancel buttons
     m_ok->setAutoDefault(true);
     m_ok->setDefault(true);
-    m_cancel->setDisabled(true);
     m_undo->setDisabled(true);
     connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
     connect(m_cancel, &QPushButton::released, this, &DmsAdvancedOptionsWindow::cancel);
@@ -431,7 +430,7 @@ void DmsAdvancedOptionsWindow::apply()
 void DmsAdvancedOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_cancel->setEnabled(isChanged);
+    //m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
@@ -619,7 +618,7 @@ bool DmsConfigOptionsWindow::hasOverridableConfigOptions()
 void DmsConfigOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
-    m_cancel->setEnabled(isChanged);
+    //m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 

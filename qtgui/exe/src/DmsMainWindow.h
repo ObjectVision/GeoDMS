@@ -175,6 +175,7 @@ public:
     void removeRecentFileAtIndex(size_t index);
     void saveRecentFileActionToRegistry();
     auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
+    auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();

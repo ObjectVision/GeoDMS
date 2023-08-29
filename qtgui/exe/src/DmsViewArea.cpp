@@ -261,6 +261,7 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
         , SWP_SHOWWINDOW
     );
     parent->addSubWindow(this);
+    this->setWindowIcon(MainWindow::TheOne()->getIconFromViewstyle(viewStyle));
     if (parent->subWindowList().size() == 1)
         showMaximized();
 
