@@ -169,7 +169,7 @@ bool EventLogModel::itemPassesTextFilter(item_t& item)
 		return true;
 
 	CharPtr textBegin = m_TextFilterAsByteArray.constData();
-	auto searchText = CharPtrRange(textBegin, m_TextFilterAsByteArray);
+	auto searchText = CharPtrRange(textBegin, m_TextFilterAsByteArray.size());
 	return item.m_Txt.contains_case_insensitive(searchText);
 }
 
