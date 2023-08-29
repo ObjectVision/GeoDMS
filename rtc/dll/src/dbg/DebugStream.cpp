@@ -222,13 +222,17 @@ namespace { // DebugOutStreamBuff is local
 						MsgDispatch(&summaryData);
 						minorSkipCount = majorSkipCount = 0;
 					}
-					auto eolPtr = std::find(i, e, '\n');
-					while (eolPtr != e)
+					while (true)
 					{
+						auto eolPtr = std::find(i, e, '\n');
+						if (eolPtr == e)
+							break;
 						*eolPtr = char(0);
 						MsgDispatch(msgData);
 						msgData->m_IsFollowup = true;
-						i = eolPtr;
+						
+						msgData->m_Txt = ++eolPtr;
+						i = msgData->m_Txt;
 					}
 					MsgDispatch(msgData);
 					++printedLines;
