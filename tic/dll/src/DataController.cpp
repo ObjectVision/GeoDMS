@@ -289,13 +289,9 @@ DataController::~DataController()
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
-	auto curr = SessionData::Curr();
-	if (!curr)
-		return;
-	
 	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
 
-	curr->GetDcMap().erase(m_Key);
+	SessionData::GetDcMap().erase(m_Key);
 
 	sd_DataControllerMapCriticalSectionWasRevisited.notify_all();
 }
@@ -308,9 +304,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	if (keyExpr.EndP())
 		return {};
 
-	auto currSD = SessionData::Curr();
-	assert(currSD);
-	DataControllerMap& dcMap = currSD->GetDcMap();
+	DataControllerMap& dcMap = SessionData::GetDcMap();
 	DataControllerMap::iterator dcPtrLoc;
 	{
 		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
