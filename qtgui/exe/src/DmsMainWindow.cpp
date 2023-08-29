@@ -1148,13 +1148,8 @@ void MainWindow::createView(ViewStyle viewStyle)
 
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
-        auto dms_view_window_icon = QIcon();
-        switch (viewStyle)
-        {
-        case (ViewStyle::tvsMapView): {dms_view_window_icon.addFile(":/res/images/TV_globe.bmp"); break; }
-        case (ViewStyle::tvsPaletteEdit): {dms_view_window_icon.addFile(":/res/images/TV_palette.bmp"); break; }
-        default: {dms_view_window_icon.addFile(":/res/images/TV_table.bmp"); break; }
-        }
+
+        auto dms_view_window_icon = getIconFromViewstyle(viewStyle);
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
@@ -1392,7 +1387,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 
     SharedStr title = "Statistics of " + tiContext->GetFullName();
     mdiSubWindow->setWindowTitle(title.c_str());
-    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_statistics.bmp"));
+    mdiSubWindow->setWindowIcon(getIconFromViewstyle(ViewStyle::tvsStatistics));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
@@ -1514,6 +1509,19 @@ void MainWindow::updateStatusMessage()
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     
     statusBar()->showMessage(fullMsg.c_str());
+}
+
+auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
+{
+    switch (viewstyle)
+    {
+    case ViewStyle::tvsMapView: { return QPixmap(":/res/images/TV_globe.bmp"); }
+    case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
+    case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
+    case ViewStyle::tvsPaletteEdit: { return QPixmap(":/res/images/TV_palette.bmp");}
+    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
+    default: { return QPixmap(":/res/images/TV_table.bmp");}
+    }
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -1824,6 +1832,24 @@ void MainWindow::createActions()
     m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_tools_menu->addAction(m_expand_all_action.get());
+    
+    
+
+    // settings menu
+    m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
+    menuBar()->addMenu(m_settings_menu.get());
+
+    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
+    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
+    m_settings_menu->addAction(m_gui_options_action.get());
+
+    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
+    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
+    m_settings_menu->addAction(m_advanced_options_action.get());
+
+    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
+    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
+    m_settings_menu->addAction(m_config_options_action.get());
 
     // window menu
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
@@ -1856,26 +1882,7 @@ void MainWindow::createActions()
     m_window_menu->addAction(win3_action);
     m_window_menu->addAction(win4_action);
     m_window_menu->addAction(win5_action);
-    //m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
-    
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
-
-    // settings menu
-    m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
-    menuBar()->addMenu(m_settings_menu.get());
-
-    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
-    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
-    m_settings_menu->addAction(m_gui_options_action.get());
-
-    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
-    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
-    m_settings_menu->addAction(m_advanced_options_action.get());
-
-    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
-    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
-    m_settings_menu->addAction(m_config_options_action.get());
-
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
     menuBar()->addMenu(m_help_menu.get());
@@ -1979,14 +1986,15 @@ void MainWindow::updateWindowMenu()
     {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
         ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
-        switch (viewstyle)
+        qa->setIcon(getIconFromViewstyle(viewstyle));
+        /*switch (viewstyle) s
         {
         case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; } // TODO: generalize
         case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
         case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png")); break; }
         case ViewStyle::tvsPaletteEdit: { qa->setIcon(QPixmap(":/res/images/TV_palette.bmp")); break; }
         default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
-        }
+        }*/
                 
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         if (sw == asw)
@@ -2129,14 +2137,15 @@ void MainWindow::view_current_config_filelist()
         ReportCurrentConfigFileList(xmlOut);
     }
     vosb.WriteByte(char(0));
+    auto viewstyle = ViewStyle::tvsCurrentConfigFileList;
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCurrentConfigFileList);
+    mdiSubWindow->setProperty("viewstyle", viewstyle);
     auto* textWidget = new QTextBrowser(mdiSubWindow);
     mdiSubWindow->setWidget(textWidget);
     textWidget->setHtml(vosb.GetData());
 
     mdiSubWindow->setWindowTitle("List of currently loaded configuration (*.dms) files");
-    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    mdiSubWindow->setWindowIcon(getIconFromViewstyle(viewstyle));
     m_mdi_area->addSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
