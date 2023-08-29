@@ -214,12 +214,21 @@ namespace { // DebugOutStreamBuff is local
 						auto summaryData = MsgData{
 							majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
 						,	msgCat
+						,	false
 						,   msgData->m_ThreadID
 						,	msgData->m_DateTime
 						,	std::move(skipMsg)
 						};
 						MsgDispatch(&summaryData);
 						minorSkipCount = majorSkipCount = 0;
+					}
+					auto eolPtr = std::find(i, e, '\n');
+					while (eolPtr != e)
+					{
+						*eolPtr = char(0);
+						MsgDispatch(msgData);
+						msgData->m_IsFollowup = true;
+						i = eolPtr;
 					}
 					MsgDispatch(msgData);
 					++printedLines;

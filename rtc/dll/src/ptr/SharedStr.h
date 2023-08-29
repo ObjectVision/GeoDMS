@@ -374,7 +374,8 @@ private:
 
 struct MsgData {
 	SeverityTypeID m_SeverityType;
-	MsgCategory m_MsgCategory;
+	MsgCategory m_MsgCategory : 7;
+	bool        m_IsFollowup : 1 = false;
 	dms_thread_id m_ThreadID;
 	StreamableDateTime m_DateTime;
 	SharedStr m_Txt;
