@@ -176,7 +176,7 @@ void EditPaletteControl::Init()
 	m_txtDomain   ->SetText(SharedStr("Domain:"));
 	m_txtNrClasses->SetText(SharedStr("#Classes"));
 	m_PaletteButton->SetBorder(true);
-	m_numNrClasses     ->SetBorder(true);
+	m_numNrClasses ->SetBorder(true);
 
 	m_Line1->SetBorder(true);
 	m_Line2->SetBorder(true);

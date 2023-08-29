@@ -56,6 +56,8 @@ private:
     void paintEvent(QPaintEvent* event) override;
     auto contentsRectInPixelUnits() -> QRect;
 
+    void keyPressEvent(QKeyEvent* keyEvent) override;
+
     DataView* m_DataView = nullptr;
     void* m_DataViewHWnd = nullptr;
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
