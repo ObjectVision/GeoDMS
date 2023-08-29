@@ -288,7 +288,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 			SharedTreeItem thatRepresentation = cu;
 			if (!cu->IsCacheItem())
 			{
-				auto thatDC = GetOrCreateDataController(cu->GetCheckedKeyExpr());
+				auto thatDC = GetExistingDataController(cu->GetCheckedKeyExpr());
 				if (!thatDC)
 					goto error;
 				thatRepresentation = thatDC->MakeResult();

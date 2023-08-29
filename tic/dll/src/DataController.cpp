@@ -299,7 +299,7 @@ DataController::~DataController()
 DataControllerRef
 GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 {
-	MG_CHECK(IsMainThread());
+	MG_CHECK(IsMainThread() || !mayCreate);
 
 	if (keyExpr.EndP())
 		return {};
@@ -329,6 +329,8 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 #endif
 	assert(!keyExpr.EndP()); // entry condition
+	assert(mayCreate);
+	assert(IsMainThread());
 
 	auto dcRef = CreateDC(keyExpr);
 	assert(dcRef->GetLispRef() == keyExpr);
