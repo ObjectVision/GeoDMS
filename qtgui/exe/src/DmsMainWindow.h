@@ -242,6 +242,9 @@ public slots:
 protected:
     bool event(QEvent* event) override;
 
+public:
+    void updateToolsMenu();
+
 private:
     auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
@@ -259,7 +262,7 @@ private:
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();
-    void updateToolsMenu();
+    void updateSettingsMenu();
     void updateWindowMenu();
     void updateCaption();
     void updateTreeItemVisitHistory();

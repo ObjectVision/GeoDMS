@@ -1838,6 +1838,7 @@ void MainWindow::createActions()
     // settings menu
     m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
     menuBar()->addMenu(m_settings_menu.get());
+    connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateSettingsMenu);
 
     m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
     connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
@@ -1964,6 +1965,10 @@ void MainWindow::updateToolsMenu()
     m_code_analysis_clr_targets_action->setEnabled(m_current_item);
     m_code_analysis_set_source_action->setEnabled(m_current_item);
     m_code_analysis_set_target_action->setEnabled(m_current_item);
+}
+
+void MainWindow::updateSettingsMenu()
+{
     m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
 }
 
