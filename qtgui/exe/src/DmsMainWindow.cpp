@@ -1625,7 +1625,7 @@ void MainWindow::createActions()
 
     connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
     //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
-    auto fileOpenAct = new QAction(tr("&Open Configuration File"), this);
+    auto fileOpenAct = new QAction(tr("&Open Configuration"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
     connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
@@ -1668,7 +1668,7 @@ void MainWindow::createActions()
     connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, &MainWindow::runToFailReason);
     
     // open config source
-    m_edit_config_source_action = std::make_unique<QAction>(tr("&Edit Config Source"));
+    m_edit_config_source_action = std::make_unique<QAction>(tr("&Open in Editor"));
     auto edit_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E")), this);
     connect(edit_config_source_shortcut, &QShortcut::activated, this, &MainWindow::openConfigSource);
     connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
@@ -1695,7 +1695,7 @@ void MainWindow::createActions()
     m_view_menu = std::make_unique<QMenu>(tr("&View"));
     menuBar()->addMenu(m_view_menu.get());
 
-    m_defaultview_action = std::make_unique<QAction>(tr("Default View"));
+    m_defaultview_action = std::make_unique<QAction>(tr("Default"));
     m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
@@ -1704,7 +1704,7 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_defaultview_action.get());
 
     // table view
-    m_tableview_action = std::make_unique<QAction>(tr("&Table View"));
+    m_tableview_action = std::make_unique<QAction>(tr("&Table"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
     m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
     auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
@@ -1713,7 +1713,7 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_tableview_action.get());
 
     // map view
-    m_mapview_action = std::make_unique<QAction>(tr("&Map View"));
+    m_mapview_action = std::make_unique<QAction>(tr("&Map"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
     auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
@@ -1722,7 +1722,7 @@ void MainWindow::createActions()
     m_view_menu->addAction(m_mapview_action.get());
 
     // statistics view
-    m_statistics_action = std::make_unique<QAction>(tr("&Statistics View"));
+    m_statistics_action = std::make_unique<QAction>(tr("&Statistics"));
     m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/DP_statistics.bmp")));
     connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
     m_view_menu->addAction(m_statistics_action.get());
@@ -1742,20 +1742,10 @@ void MainWindow::createActions()
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
-    m_view_current_config_filelist = std::make_unique<QAction>(tr("Listing of currently loaded configuration files"));
+    m_view_current_config_filelist = std::make_unique<QAction>(tr("List of loaded Configuration Files"));
 //    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
     m_view_menu->addAction(m_view_current_config_filelist.get());
-
-    m_open_root_config_file_action = std::make_unique<QAction>(tr("Open the root configuration file"));
-//    m_open_root_config_file_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
-    m_view_menu->addAction(m_open_root_config_file_action.get());
-
-    m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
-//    m_expand_all_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
-    m_view_menu->addAction(m_expand_all_action.get());
 
     m_view_menu->addSeparator();
     m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
@@ -1803,18 +1793,6 @@ void MainWindow::createActions()
     menuBar()->addMenu(m_tools_menu.get());
     connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateToolsMenu);
 
-    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
-    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
-    m_tools_menu->addAction(m_gui_options_action.get());
-
-    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
-    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
-    m_tools_menu->addAction(m_advanced_options_action.get());
-
-    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
-    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
-    m_tools_menu->addAction(m_config_options_action.get());
-
     m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
     connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
     m_code_analysis_set_source_action->setShortcut(QKeySequence(tr("Alt+K")));
@@ -1838,6 +1816,14 @@ void MainWindow::createActions()
     m_eventlog_filter_toggle = std::make_unique<QAction>(tr("Eventlog filter"));
     connect(m_eventlog_filter_toggle.get(), &QAction::triggered, m_eventlog->m_event_filter_toggle.get(), &QCheckBox::click);
     m_tools_menu->addAction(m_eventlog_filter_toggle.get());
+
+    m_open_root_config_file_action = std::make_unique<QAction>(tr("Open the root configuration file"));
+    connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
+    m_tools_menu->addAction(m_open_root_config_file_action.get());
+
+    m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
+    connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
+    m_tools_menu->addAction(m_expand_all_action.get());
 
     // window menu
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
@@ -1873,6 +1859,22 @@ void MainWindow::createActions()
     //m_window_menu->addActions({win1_action, win2_action, win3_action, win4_action, win5_action});
     
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
+
+    // settings menu
+    m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
+    menuBar()->addMenu(m_settings_menu.get());
+
+    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
+    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
+    m_settings_menu->addAction(m_gui_options_action.get());
+
+    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
+    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
+    m_settings_menu->addAction(m_advanced_options_action.get());
+
+    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
+    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
+    m_settings_menu->addAction(m_config_options_action.get());
 
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
