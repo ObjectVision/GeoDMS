@@ -1237,9 +1237,10 @@ void MainWindow::CloseConfig()
 
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
-    std::string dos_cfg_name = cfg.data();
+    std::string cfg_name = cfg.data();
+    //auto dos_cfg = ConvertDmsFileNameAlways(SharedStr(cfg.data()));
 //    std::replace(dos_cfg_name.begin(), dos_cfg_name.end(), '/', '\\');
-    auto it = std::find(files.begin(), files.end(), dos_cfg_name);
+    auto it = std::find(files.begin(), files.end(), cfg_name.c_str());
     if (it == files.end())
         return -1;
     return it - files.begin();
@@ -1311,21 +1312,10 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
         auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), cfg, m_file_menu.get());
         m_file_menu->addAction(new_recent_file_action_widget);
         m_recent_files_actions.prepend(new_recent_file_action_widget);
-
-        //auto new_recent_file_action = new DmsRecentFileButtonAction(m_recent_files_actions.size() + 1, cfg, m_file_menu.get());
-        //connect(new_recent_file_action, &DmsRecentFileButtonAction::triggered, new_recent_file_action, &DmsRecentFileButtonAction::onToolbuttonPressed);
-        //m_file_menu->addAction(new_recent_file_action);
-        //m_recent_files_actions.prepend(new_recent_file_action);
-
     }
     else
     {
-        while (cfg_index_in_recent_files > 0)
-        {
-            auto more_recent_cfg_index = cfg_index_in_recent_files - 1;
-            m_recent_files_actions.swapItemsAt(more_recent_cfg_index, cfg_index_in_recent_files);
-            cfg_index_in_recent_files = more_recent_cfg_index;
-        }
+        m_recent_files_actions.move(cfg_index_in_recent_files, 0);
     }
 
     saveRecentFileActionToRegistry();

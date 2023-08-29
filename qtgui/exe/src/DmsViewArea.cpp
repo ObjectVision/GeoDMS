@@ -1,21 +1,23 @@
 #include "RtcBase.h"
 #include "DmsViewArea.h"
+
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
 
+#include "QEvent.h"
+#include <QLabel>
 #include <QMdiArea>
 #include <QMimeData>
 #include <QTimer>
-#include <QLabel>
 
 #include <windows.h>
 #include <ShellScalingApi.h>
 
 #include "dbg/SeverityType.h"
 
-#include "DataView.h"
 #include "ShvDllInterface.h"
-#include "QEvent.h"
+#include "DataView.h"
+#include "KeyFlags.h"
 
 LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -351,6 +353,13 @@ auto QDmsViewArea::contentsRectInPixelUnits()->QRect
     return QRect(topLeft, botRight);
 }
 
+void QDmsViewArea::keyPressEvent(QKeyEvent* keyEvent)
+{
+    if (m_DataView->OnKeyDown(keyEvent->key() | KeyInfo::Flag::Char))
+        return;
+    QMdiSubWindow::keyPressEvent(keyEvent);
+}
+
 void QDmsViewArea::UpdatePosAndSize()
 {
     auto rect = contentsRectInPixelUnits();
@@ -389,6 +398,4 @@ void QDmsViewArea::onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowSta
 
     auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
     mdi_area->setTabbedViewModeStyle();
-
-    return;
 }

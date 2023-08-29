@@ -249,6 +249,12 @@
     <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui">
       <Filter>Forms</Filter>
     </QtUic>
+    <QtUic Include="res\ui\DmsDetailPageProperties.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsDetailPageSourceDescription.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
   </ItemGroup>
   <ItemGroup>
     <Text Include="DebugSettings.txt" />

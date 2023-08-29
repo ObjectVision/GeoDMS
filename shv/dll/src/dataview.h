@@ -194,7 +194,7 @@ public:
 
 //	Operations
 	bool DispatchMsg(const MsgStruct& msg);
-	bool OnKeyDown(UInt32 nVirtKey);
+	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
 
 //	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { dms_assert(m_Contents); return m_Contents; }

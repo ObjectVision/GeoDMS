@@ -178,7 +178,7 @@ namespace { // DebugOutStreamBuff is local
 
 			if (m_Data.empty())
 				return;
-			MsgData msgData(m_Severity, m_MsgCat, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
+			MsgData msgData(m_Severity, m_MsgCat, GetThreadID(), false, StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
 			AddMainThreadOper([msg = std::move(msgData)]() mutable {
 					if (!s_nrRtcStreamLocks)
 						return;
@@ -197,7 +197,8 @@ namespace { // DebugOutStreamBuff is local
 			UInt32 printedLines = 0;
 			SeverityTypeID st = msgData->m_SeverityType;
 			MsgCategory msgCat = msgData->m_MsgCategory;
-			auto i = msgData->m_Txt.begin(), e = msgData->m_Txt.end();
+			auto msgTxt = msgData->m_Txt;
+			auto i = msgTxt.begin(), e = msgTxt.end();
 			while (i!=e)
 			{
 				assert(e[-1]==0); // guaranteed by caller to have a completed Line.
@@ -214,6 +215,7 @@ namespace { // DebugOutStreamBuff is local
 						auto summaryData = MsgData{
 							majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
 						,	msgCat
+						,	false
 						,   msgData->m_ThreadID
 						,	msgData->m_DateTime
 						,	std::move(skipMsg)
@@ -221,7 +223,18 @@ namespace { // DebugOutStreamBuff is local
 						MsgDispatch(&summaryData);
 						minorSkipCount = majorSkipCount = 0;
 					}
-					MsgDispatch(msgData);
+					while (true)
+					{
+						auto eolPtr = std::find(i, e, '\n');
+						if (i != msgData->m_Txt.begin() || eolPtr != msgData->m_Txt.end())
+							msgData->m_Txt = SharedStr(i, eolPtr);
+						MsgDispatch(msgData);
+						if (eolPtr == e)
+							break;
+
+						msgData->m_IsFollowup = true;						
+						i = ++eolPtr;
+					}
 					++printedLines;
 				}
 				i = std::find(i, e, char(0));

@@ -250,6 +250,8 @@
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="res\ui\DmsConfigOptionsWindow.ui" />
+    <QtUic Include="res\ui\DmsDetailPageProperties.ui" />
+    <QtUic Include="res\ui\DmsDetailPageSourceDescription.ui" />
     <QtUic Include="res\ui\DmsEventLogSelection.ui" />
     <QtUic Include="res\ui\DmsGuiOptionsWindow.ui" />
     <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui" />

@@ -676,31 +676,24 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			*msg.m_ResultPtr = static_cast<LRESULT>(GetContents()->OnCommandEnable(ToolButtonID(LOWORD(msg.m_wParam))));
 			return true;
 
-		case WM_KEYDOWN + CN_BASE:
-			if (OnKeyDown(msg.m_wParam))
-				goto delphi_vcl_control_notification_completed;
-			goto defaultProcessing;
-
 		case WM_KEYDOWN:
 			if (OnKeyDown(msg.m_wParam))
 				goto completed;
-			goto defaultProcessing;
-
-		case WM_SYSKEYDOWN + CN_BASE:
-			if (OnKeyDown(msg.m_wParam | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst ))
-				goto delphi_vcl_control_notification_completed;
+//			if (TranslateMessage(msg))
+//				goto completed;
 			goto defaultProcessing;
 
 		case WM_SYSKEYDOWN:
 			if (OnKeyDown(msg.m_wParam | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst))
 				goto completed;
+//			if (TranslateMessage(msg))
+//				goto completed;
 			goto defaultProcessing;
-
 		case WM_CHAR:
 			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
 				goto completed;
 			goto defaultProcessing;
-
+			
 		case WM_SYSCHAR:
 			if (OnKeyDown(msg.m_wParam  | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst | KeyInfo::Flag::Char ))
 				goto completed;
@@ -721,10 +714,6 @@ defaultProcessing:
 
 completed:
 	*msg.m_ResultPtr = 0; // don't dispatch any further if processed
-	return true;
-
-delphi_vcl_control_notification_completed:
-	*msg.m_ResultPtr = 1; // don't dispatch any further if processed (Delphi VCL Control Notification)
 	return true;
 }
 

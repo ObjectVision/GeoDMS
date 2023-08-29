@@ -1372,7 +1372,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());//driverArray[0]);
 	if (!driver)
-		throwErrorF("GDAL", "Cannot find driver for %s", driverArray[0]);
+		throwErrorF("GDAL", "Cannot find driver for %s", datasourceName);
 
 	GDALDatasetHandle result = nullptr;
 
