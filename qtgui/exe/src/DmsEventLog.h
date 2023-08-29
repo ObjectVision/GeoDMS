@@ -36,9 +36,12 @@ public:
 		addText(std::move(data));
 	}
 
+	QByteArray m_TextFilterAsByteArray;
+
 public slots:
 	void clear();
 	void refilter();
+	void refilterForTextFilter();
 	void writeSettingsOnToggle(bool newValue);
 
 private:
@@ -50,8 +53,6 @@ private:
 
 	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
-	bool m_filter_active = true;
-	QByteArray m_TextFilterAsByteArray;
 };
 
 class DmsTypeFilter : public QWidget, public Ui::DmsEventLogTypeSelection
@@ -71,6 +72,7 @@ public:
 	std::unique_ptr<QListView> m_log;
 	std::unique_ptr<QPushButton> m_copy_selected_to_clipboard, m_scroll_to_bottom_toggle, m_event_filter_toggle, m_clear;
 	bool m_scroll_to_bottom = true;
+	bool m_text_filter_active = false;
 
 
 public slots:

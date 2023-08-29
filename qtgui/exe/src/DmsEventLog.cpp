@@ -48,11 +48,11 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	if (!index.isValid())
 		return QVariant();
 
-	if (m_filter_active && m_filtered_indices.empty()) // filter active, but no item passed filter
+	if (m_filtered_indices.empty()) // no item passed filter
 		return QVariant();
 
 	auto row = index.row();
-	const item_t& item_data = m_filter_active ? dataFiltered(row) : m_Items[row];
+	const item_t& item_data = dataFiltered(row);
 
 	switch (role)
 	{
@@ -188,7 +188,6 @@ bool EventLogModel::itemPassesFilter(item_t& item)
 void EventLogModel::refilter()
 {
 	beginResetModel();
-	m_filter_active = true;
 	m_filtered_indices.clear();
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
@@ -215,6 +214,14 @@ void EventLogModel::refilter()
 	endResetModel();
 
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
+}
+
+void EventLogModel::refilterForTextFilter()
+{
+	MainWindow::TheOne()->m_eventlog->m_text_filter_active = true;
+	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_clear_text_filter->setDisabled(false);
+	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+	refilter();
 }
 
 void EventLogModel::writeSettingsOnToggle(bool newValue)
@@ -348,8 +355,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 
-	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, eventlog_model_ptr, &EventLogModel::refilterForTextFilter);
+	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, eventlog_model_ptr, &EventLogModel::refilterForTextFilter);
 	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
 	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
 
@@ -499,21 +506,21 @@ void DmsEventLog::toggleTypeFilter(bool toggled)
 
 void DmsEventLog::onTextChanged(const QString& text)
 {
-	if (m_eventlog_filter->m_text_filter->text().isEmpty())
-	{
-		m_eventlog_filter->m_activate_text_filter->setDisabled(true);
-		m_eventlog_filter->m_clear_text_filter->setDisabled(true);
-	}
-	else
-	{
-		m_eventlog_filter->m_activate_text_filter->setEnabled(true); 
-		m_eventlog_filter->m_clear_text_filter->setEnabled(true);
-	}
+	bool filter_button_is_disabled = false;
+	bool clear_button_is_disabled = !m_text_filter_active;
+	if (MainWindow::TheOne()->m_eventlog_model->m_TextFilterAsByteArray == text)
+		filter_button_is_disabled = true;
+
+	m_eventlog_filter->m_activate_text_filter->setDisabled(filter_button_is_disabled);
+	m_eventlog_filter->m_clear_text_filter->setDisabled(clear_button_is_disabled);
 }
 
 void DmsEventLog::clearTextFilter()
 {
 	m_eventlog_filter->m_text_filter->clear();
+	m_text_filter_active = false;
+	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
+	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 	MainWindow::TheOne()->m_eventlog_model->refilter();
 }
 

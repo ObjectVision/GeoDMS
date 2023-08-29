@@ -282,7 +282,7 @@ public:
     QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock, m_value_info_dock;
     QPointer<QDmsMdiArea> m_value_info_mdi_area;
 
-    std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_help_menu, m_code_analysis_submenu;
+    std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_settings_menu, m_help_menu, m_code_analysis_submenu;
 
     // shared actions
     std::unique_ptr<QAction> m_export_primary_data_action
