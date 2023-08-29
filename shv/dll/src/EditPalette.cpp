@@ -151,6 +151,8 @@ SharedStr EditPaletteControl::GetCaption() const
 
 bool EditPaletteControl::CanContain(const AbstrDataItem* attr) const
 {
+	return false; // edit palette control can never accept another dataitem
+
 	if (!attr)
 		return false;
 	if (m_PaletteControl)
