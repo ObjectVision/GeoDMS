@@ -302,19 +302,19 @@ auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<Pa
 
 bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 {
-	dms_assert(IsMainThread());
-	dms_assert(item);
+	assert(IsMainThread());
+	assert(item);
 //	dms_assert(IsDataItem(item));
 
 	item->UpdateMetaInfo();
-	dms_assert(item->GetInterestCount());
+	assert(item->GetInterestCount());
 
 	if (IsDataReady(item->GetCurrRangeItem()))
 		return true;
 
 	SuspendTrigger::FencedBlocker lockSuspend;
 	SharedTreeItemInterestPtr itemHolder(item);
-	dms_assert(item->HasInterest());
+	assert(item->HasInterest());
 
 	if (!itemHolder->PrepareDataUsage(DrlType::Certain))
 		return false;

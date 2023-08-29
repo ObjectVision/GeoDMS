@@ -602,8 +602,15 @@ void EditPaletteControl::UpdateNrClasses()
 		return;
 
 	const AbstrUnit* domain = GetDomain();
-	if (domain && IsDataReady(domain->GetUltimateItem()))
-		m_numNrClasses->SetValue( domain->GetCount() );
+	if (!domain)
+		return;
+	if (!PrepareDataOrUpdateViewLater(domain))
+		return;
+	assert(IsDataReady(domain->GetUltimateItem()) || domain->WasFailed() || domain->GetUltimateItem()->WasFailed());
+	if (!IsDataReady(domain->GetUltimateItem()))
+		return;
+
+	m_numNrClasses->SetValue( domain->GetCount() );
 }
 
 const AbstrUnit* EditPaletteControl::GetDomain() const
