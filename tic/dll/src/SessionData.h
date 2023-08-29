@@ -100,7 +100,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	void SetActiveDesktop(const TreeItem* tiActive);
 	const TreeItem* GetActiveDesktop() const;
 
-	DataControllerMap& GetDcMap() { return m_DcMap; }
+	auto GetDcMap()->DataControllerMap&;
 	std::shared_ptr<SafeFileWriterArray> GetSafeFileWriterArray() { return { shared_from_this(), &m_SFWA }; }
 
 
@@ -121,7 +121,6 @@ private:
 	SharedStr                     m_ConfigSubDir;
 	SharedStr                     m_ConfigDir;
 	TimeStamp                     m_ConfigLoadTS;
-	DataControllerMap             m_DcMap;
 	bool                          m_cfgColFirst;
 	bool                          m_IsCancelling = false;
 };
