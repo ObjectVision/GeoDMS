@@ -197,7 +197,8 @@ namespace { // DebugOutStreamBuff is local
 			UInt32 printedLines = 0;
 			SeverityTypeID st = msgData->m_SeverityType;
 			MsgCategory msgCat = msgData->m_MsgCategory;
-			auto i = msgData->m_Txt.begin(), e = msgData->m_Txt.end();
+			auto msgTxt = msgData->m_Txt;
+			auto i = msgTxt.begin(), e = msgTxt.end();
 			while (i!=e)
 			{
 				assert(e[-1]==0); // guaranteed by caller to have a completed Line.
@@ -225,16 +226,15 @@ namespace { // DebugOutStreamBuff is local
 					while (true)
 					{
 						auto eolPtr = std::find(i, e, '\n');
+						if (i != msgData->m_Txt.begin() || eolPtr != msgData->m_Txt.end())
+							msgData->m_Txt = SharedStr(i, eolPtr);
+						MsgDispatch(msgData);
 						if (eolPtr == e)
 							break;
-						*eolPtr = char(0);
-						MsgDispatch(msgData);
-						msgData->m_IsFollowup = true;
-						
-						msgData->m_Txt = ++eolPtr;
-						i = msgData->m_Txt;
+
+						msgData->m_IsFollowup = true;						
+						i = ++eolPtr;
 					}
-					MsgDispatch(msgData);
 					++printedLines;
 				}
 				i = std::find(i, e, char(0));
