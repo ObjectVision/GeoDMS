@@ -496,7 +496,7 @@ DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_f
     h_layout->setSpacing(0);
     auto remove_config = new QPushButton(this);
     remove_config->setIcon(QIcon(":/res/images/EL_clear.bmp"));
-    std::string preprending_spaces = index<10 ? "   &" : "  ";
+    std::string preprending_spaces = index < 9 ? "   &" : "  ";
     std::string pushbutton_text = preprending_spaces + std::to_string(index+1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
     auto config_text = new QPushButton(tr(pushbutton_text.c_str()), this);
     QFontMetrics fm(QApplication::font());
