@@ -4,10 +4,31 @@
 
 #include "DmsMainWindow.h"
 #include "DmsDetailPages.h"
+#include "DmsViewArea.h"
 
 #include "DmsValueInfo.h"
 #include "ser/MoreStreamBuff.h"
 #include "xml/XmlOut.h"
+
+#include <QDockWidget>
+
+ValueInfoPanel::ValueInfoPanel(QWidget* parent)
+    : QMdiSubWindow(parent)
+{
+
+}
+
+ValueInfoPanel::~ValueInfoPanel()
+{
+    auto main_window = MainWindow::TheOne();
+    auto active_subwindow = main_window->m_value_info_mdi_area->activeSubWindow();
+    if (!active_subwindow)
+    {
+        main_window->m_value_info_dock->setVisible(false);
+        main_window->m_detailpages_dock->setVisible(true);
+    }
+}
+
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index)
     : QUpdatableTextBrowser(parent)
