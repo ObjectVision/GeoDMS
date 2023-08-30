@@ -212,6 +212,7 @@ namespace { // local defs
 	{
 		VectorOutStreamBuff vout;
 		FormattedOutStream fout(&vout, FormattingFlags::ThousandSeparator);
+		fout << "<BODY bgcolor = '#DDD2D0'>";
 		switch (m_SDM) {
 		case SourceDescrMode::Configured: fout << "<h1>Configured Source Descriptions</h1>\n"; break;
 		case SourceDescrMode::ReadOnly:   fout << "<h1>Read Only Storage Managers</h1>\n"; break;
@@ -236,6 +237,8 @@ namespace { // local defs
 				fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
 		}
 
+		fout << "</BODY>";
+
 		CharPtr first = vout.GetData();
 		return SharedStr(first, first+vout.CurrPos());
 	}
@@ -246,8 +249,10 @@ SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode s
 {
 	dms_assert(IsMainThread());
 	TreeItemContextHandle hnd(studyObject, TreeItem::GetStaticClass(), "DMS_TreeItem_GetSourceDescr");
+	
+	auto source_description_string = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject);
 
-	return SourceCalculator(sdm, bShowHidden).GetDescr(studyObject);
+	return source_description_string;
 }
 
 //  -----------------------------------------------------------------------
