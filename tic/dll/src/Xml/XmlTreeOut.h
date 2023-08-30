@@ -111,10 +111,13 @@ struct XML_Table : XML_OutElement
 				ValueCell(propLabel);
 			else
 			{
-				SharedStr editUrl = (item)
+				/*SharedStr editUrl = (item)
 					?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
-					:	mySSPrintF("dms:edit!%s", propName);
-				ClickableCell(propLabel, editUrl.c_str());
+					:	mySSPrintF("dms:edit!%s", propName);*/
+				
+				Cell xmlElemTD(*this);
+				WriteCellData(propLabel);
+				//ClickableCell(propLabel, editUrl.c_str());
 			}
 		}
 		void ItemCell(const TreeItem* item)

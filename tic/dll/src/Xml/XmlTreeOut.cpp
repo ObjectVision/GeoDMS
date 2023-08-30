@@ -253,15 +253,41 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 // ********** XML_ItemBody                                             *********
 
 XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText, const TreeItem* item, bool showFullName)
-	:	XML_OutElement(out, "BODY")
+	: XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
 
-	XML_h1(out, caption);
+	{
+		XML_OutElement page_title_table(out, "TABLE");
+		out.WriteAttr("width", "100%");
+		//out.WriteAttr("style", "font-size:200%");
+		XML_OutElement table_row(out, "TR");
+		out.WriteAttr("bgcolor", "#89CFF0");
+		XML_OutElement table_col(out, "TD");
+		{
+			XML_OutElement font_size(out, "font");
+			out.WriteAttr("size", "4");
+			out << caption;
+		}
+	}
 
+	{
+	XML_OutElement page_title_table(out, "I");
 	if (subText && *subText)
 		out << subText;
+    }
 
+	XML_Table current_item_table(out);
+	XML_OutElement table_row0(out, "TR");
+	XML_Table::Row row = XML_Table::Row(current_item_table);
+	auto cell = XML_Table::Row::Cell(row);
+	row.ValueCell("Active Item");
+	auto cell2 = XML_Table::Row::Cell(row);
+	row.ItemCell(item);
+	XML_OutElement table_row2(out, "TR");
+	
+	/*XML_OutElement table_col(out, "TD");
+	out.ValueCell("");
 	XML_OutElement xmlElemH2(out, "H2");
 	XML_OutElement xmlElemA (out, "A");
 	out.WriteAttr("href", ItemUrl(item).c_str());
@@ -273,7 +299,7 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText,
 			out << "(ROOT)";
 	}
 	else
-		out << item->GetName().c_str();
+		out << item->GetName().c_str();*/
 }
 
 
@@ -404,8 +430,10 @@ void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 {
 	XML_Table::Row exprRow(xmlTable);
 		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-		exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
 		XML_Table::Row::Cell xmlElemTD(exprRow);
+		exprRow.WriteCellData("CalculationRule");
+		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+		XML_Table::Row::Cell xmlElemTD1(exprRow);
 			GetExprOrSourceDescr(xmlTable.OutStream(), ti);
 }
 
@@ -462,7 +490,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	XML_Table xmlTable(*xmlOutStrPtr);
-	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
+	//xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
 
 #if defined(MG_DEBUG)
 	if (!self->InTemplate())
@@ -659,8 +687,8 @@ TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlO
 {
 	assert(xmlOutStrPtr);
 	SuspendTrigger::Resume();
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", "Item definition and determination of primary data", self);
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", "this info defines how primary data is typed and determined", self);
 	try {
 		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr))
 			return false;
@@ -682,7 +710,7 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 	assert(self);
 	SuspendTrigger::Resume();
 
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a description or available documentation (if any)", self);
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a link to description or documentation", self);
 	try {
 		XML_Table table(*xmlOutStrPtr);
 		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
