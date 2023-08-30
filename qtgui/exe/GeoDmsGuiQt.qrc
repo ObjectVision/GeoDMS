@@ -75,5 +75,6 @@
         <file>res/fonts/remixicon.ttf</file>
         <file>res/images/IconCalculationTimeOverview.png</file>
         <file>res/images/TV_default_view.bmp</file>
+        <file>res/images/ConfigFileList.png</file>
     </qresource>
 </RCC>
