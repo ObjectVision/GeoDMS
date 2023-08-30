@@ -1404,7 +1404,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
 
     mdiSubWindow->setWidget(textWidget);
-    auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
+    auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index);
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
     m_value_info_mdi_area->addSubWindow(mdiSubWindow);
