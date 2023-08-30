@@ -1746,12 +1746,12 @@ void MainWindow::createActions()
     //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
-    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_view_calculation_times_action->setIcon(getIconFromViewstyle(ViewStyle::tvsCalculationTimes));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
     m_view_current_config_filelist = std::make_unique<QAction>(tr("List of loaded Configuration Files"));
-//    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_view_current_config_filelist->setIcon(getIconFromViewstyle(ViewStyle::tvsCurrentConfigFileList));// QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
     m_view_menu->addAction(m_view_current_config_filelist.get());
 
