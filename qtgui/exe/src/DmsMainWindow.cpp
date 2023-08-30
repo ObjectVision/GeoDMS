@@ -1400,7 +1400,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     assert(studyObject);
  
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_value_info_mdi_area.get());
+    auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
 
     mdiSubWindow->setWidget(textWidget);
