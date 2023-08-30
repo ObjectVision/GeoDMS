@@ -94,14 +94,6 @@ protected:
 TIC_CALL DataControllerRef GetOrCreateDataController(LispPtr keyExpr);
 TIC_CALL DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
-// *****************************************************************************
-// auxiliary contructs
-// *****************************************************************************
-
-/********** DataControllerMap **********/
-
-using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
-
 /********** DcRefListElem **********/
 
 struct DcRefListElem

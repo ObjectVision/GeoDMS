@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "DmsExport.h"
 #include "DmsMainWindow.h"
 #include "ExportInfo.h"

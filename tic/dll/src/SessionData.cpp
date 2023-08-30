@@ -191,13 +191,6 @@ void SessionData::SetActiveDesktop(const TreeItem* tiActive)
 	m_ActiveDesktop = tiActive;
 }
 
-static DataControllerMap s_DcMap;
-
-auto SessionData::GetDcMap()->DataControllerMap&
-{ 
-	return s_DcMap; 
-}
-
 const TreeItem* SessionData::GetActiveDesktop() const
 {
 	return m_ActiveDesktop;

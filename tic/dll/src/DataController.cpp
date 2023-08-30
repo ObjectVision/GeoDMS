@@ -156,11 +156,7 @@ garbage_t TreeItemDualRef::DecDataInterestCount() const
 	dbg_assert( m_State.Get(DCFD_DataCounted));
 	auto result = m_Data->DecInterestCount();
 	MG_DEBUGCODE( m_State.Clear(DCFD_DataCounted));
-/*
-	result |= std::move(m_Data);
-	m_State.Clear(DCF_IsOld | DCF_IsTmp);
-	dms_assert(!m_Data);
-*/
+
 	return result;
 }
 
@@ -241,14 +237,7 @@ namespace {
 			}
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head->GetSymbID());
 			dms_assert(og->MustCacheResult());
-//			if (og->MustCacheResult())
 			return new FuncDC(keyExpr, og);
-/* REMOVE
-			else if (og->IsTemplateCall())
-				return new TemplDC(keyExpr, og);
-			else
-				return new CompoundDC(keyExpr, og);
-*/
 		}
 		else if (keyExpr.IsSymb())
 			return new SymbDC(keyExpr, keyExpr.GetSymbID());
@@ -268,14 +257,20 @@ namespace {
 }	// anonymous namespace
 
 // *****************************************************************************
-// Section:     DataController Implementation
+// auxiliary contructs
 // *****************************************************************************
 
-#include "SessionData.h"
+/********** DataControllerMap **********/
+
+using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
+
+static DataControllerMap s_DcMap;
 static std::mutex sd_DataControllerMapCriticalSeciton;
 static std::condition_variable sd_DataControllerMapCriticalSectionWasRevisited;
 
-//inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); }
+// *****************************************************************************
+// Section:     DataController Implementation
+// *****************************************************************************
 
 DataController::DataController(LispPtr keyExpr)
 	:	m_Key(keyExpr)
@@ -291,7 +286,7 @@ DataController::~DataController()
 
 	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
 
-	SessionData::GetDcMap().erase(m_Key);
+	s_DcMap.erase(m_Key);
 
 	sd_DataControllerMapCriticalSectionWasRevisited.notify_all();
 }
@@ -304,14 +299,13 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	if (keyExpr.EndP())
 		return {};
 
-	DataControllerMap& dcMap = SessionData::GetDcMap();
 	DataControllerMap::iterator dcPtrLoc;
 	{
 		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
 
 	retry:
-		dcPtrLoc = dcMap.lower_bound(keyExpr);
-		if (dcPtrLoc != dcMap.end() && dcPtrLoc->first == keyExpr)
+		dcPtrLoc = s_DcMap.lower_bound(keyExpr);
+		if (dcPtrLoc != s_DcMap.end() && dcPtrLoc->first == keyExpr)
 		{
 			if (!dcPtrLoc->second->IsOwned()) // destruction is pending, wait for it and retry
 			{
@@ -336,7 +330,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	assert(dcRef->GetLispRef() == keyExpr);
 
 	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSeciton);
-	dcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
+	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
 	return dcRef;
 }
 
