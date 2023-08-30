@@ -168,6 +168,7 @@ struct FindFileBlock
 	RTC_CALL DWORD   GetFileAttr() const;
 	RTC_CALL bool    IsDirectory() const;
 	RTC_CALL FileDateTime GetFileOrDirDateTime() const;
+	RTC_CALL auto GetFileOrDirDateTimeInReadableFormat() -> SharedStr;
 
 	RTC_CALL bool    Next();
 
@@ -199,6 +200,7 @@ RTC_CALL bool   IsFileOrDirAccessible(WeakStr fileOrDirName);
 RTC_CALL bool   IsFileOrDirWritable(WeakStr fileOrDirName);
 RTC_CALL void   GetWritePermission(WeakStr fileName);
 RTC_CALL FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName);
+RTC_CALL auto   GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr;
 RTC_CALL void   MakeDirsForFile(WeakStr fileName);
 RTC_CALL start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);
