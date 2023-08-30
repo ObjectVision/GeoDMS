@@ -1519,7 +1519,7 @@ auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
     case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
     case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
     case ViewStyle::tvsPaletteEdit: { return QPixmap(":/res/images/TV_palette.bmp");}
-    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
+    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/ConfigFileList.png"); }
     default: { return QPixmap(":/res/images/TV_table.bmp");}
     }
 }
