@@ -847,6 +847,33 @@ FileDateTime FindFileBlock::GetFileOrDirDateTime() const
 	return AsFileDateTime(0, 0);
 }
 
+auto FindFileBlock::GetFileOrDirDateTimeInReadableFormat() -> SharedStr
+{
+	const WIN32_FIND_DATA* found_file_data = reinterpret_cast<const WIN32_FIND_DATA*>(m_Data.get());
+	SYSTEMTIME system_time;
+	auto result = FileTimeToSystemTime(&found_file_data->ftLastWriteTime, &system_time);
+
+	if (!result)
+		return {};
+
+	char year[5];
+	char month[3];
+	char day[3];
+	char hour[3];
+	char minute[3];
+	char second[3];
+	sprintf(year,   "%04d", system_time.wYear);
+	sprintf(month,  "%02d", system_time.wMonth);
+	sprintf(day,    "%02d", system_time.wDay);
+	sprintf(hour,   "%02d", system_time.wHour);
+	sprintf(minute, "%02d", system_time.wMinute);
+	sprintf(second, "%02d", system_time.wSecond);
+
+	std::string final_datetime_string = std::string(year) + " " + month + " " + day + "  " + hour + ":" + minute + ":" + second;
+
+	return SharedStr(final_datetime_string.c_str());
+}
+
 SharedStr AsDateTimeString(const FileDateTime& t) 
 {
 	FILETIME lft1, lft2; 
@@ -1089,6 +1116,12 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 {
 	FindFileBlock fileInfo(fileOrDirName);
 	return fileInfo.GetFileOrDirDateTime();
+}
+
+auto GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr
+{
+	FindFileBlock fileInfo(fileOrDirName);
+	return fileInfo.GetFileOrDirDateTimeInReadableFormat();
 }
 
 //  -----------------------------------------------------------------------

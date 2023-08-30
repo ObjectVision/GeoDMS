@@ -98,6 +98,7 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
     : QMdiArea(parent)
 {
     setTabbedViewModeStyle();
+    setTabsClosable(true);
     setAcceptDrops(true);
 }
 

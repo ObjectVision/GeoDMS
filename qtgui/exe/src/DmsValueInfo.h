@@ -13,6 +13,13 @@
 
 #include "UpdatableBrowser.h"
 
+class ValueInfoPanel : public QMdiSubWindow
+{
+public:
+    ValueInfoPanel(QWidget* parent);
+    ~ValueInfoPanel();
+};
+
 struct ValueInfoBrowser : QUpdatableTextBrowser
 {
     ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index);

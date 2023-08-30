@@ -30,6 +30,8 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 
 #include "RtcInterface.h"
+#include <windows.h>
+#include "timezoneapi.h"
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -115,8 +117,14 @@ auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
 void ReportCurrentConfigFileList(OutStreamBase& os)
 {
 	XML_OutElement table(os, "TABLE");
+	XML_OutElement header_row(os, "TR");
+	XML_OutElement header_col1(os, "TH");
+	os << "Configuration Files";
+	XML_OutElement header_col2(os, "TH");
+	os << "File date & time";
 
-	FileDateTime fdt;
+	FileDateTime file_date_time;
+	SharedStr datetime_to_be_reported;
 	auto
 		i = s_FDS.begin(),
 		e = s_FDS.end();
@@ -127,16 +135,17 @@ void ReportCurrentConfigFileList(OutStreamBase& os)
 		{
 			XML_OutElement col(os, "TD");
 			os << fd->GetFileName().c_str();
-			fdt = GetFileOrDirDateTime(fd->GetFileName());
+			file_date_time = GetFileOrDirDateTime(fd->GetFileName());
+			datetime_to_be_reported = GetFileOrDirDateTimeAsReadableString(fd->GetFileName());
 		}
 		{
 			XML_OutElement col(os, "TD");
-			os << AsString(fd->m_Fdt).c_str();
+			os << datetime_to_be_reported.c_str();// AsString(fd->m_Fdt).c_str();
 		}
-		if (fdt != fd->m_Fdt)
+		if (file_date_time != fd->m_Fdt) // changed files not used in current configuration instance
 		{
 			XML_OutElement col(os, "TD");
-			os << AsString(fdt).c_str();
+			os << datetime_to_be_reported.c_str(); //AsString(file_date_time).c_str();
 		}
 	}
 }

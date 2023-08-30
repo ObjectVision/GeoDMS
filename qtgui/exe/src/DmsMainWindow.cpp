@@ -496,7 +496,7 @@ DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_f
     h_layout->setSpacing(0);
     auto remove_config = new QPushButton(this);
     remove_config->setIcon(QIcon(":/res/images/EL_clear.bmp"));
-    std::string preprending_spaces = index<10 ? "   &" : "  ";
+    std::string preprending_spaces = index < 9 ? "   &" : "  ";
     std::string pushbutton_text = preprending_spaces + std::to_string(index+1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
     auto config_text = new QPushButton(tr(pushbutton_text.c_str()), this);
     QFontMetrics fm(QApplication::font());
@@ -1400,11 +1400,11 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     assert(studyObject);
  
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_value_info_mdi_area.get());
+    auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
 
     mdiSubWindow->setWidget(textWidget);
-    auto title = mySSPrintF("ValueInfo for row %d of %s", index, studyObject->GetFullName());
+    auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index);
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
     m_value_info_mdi_area->addSubWindow(mdiSubWindow);
@@ -1519,7 +1519,7 @@ auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
     case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
     case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
     case ViewStyle::tvsPaletteEdit: { return QPixmap(":/res/images/TV_palette.bmp");}
-    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
+    case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/ConfigFileList.png"); }
     default: { return QPixmap(":/res/images/TV_table.bmp");}
     }
 }
@@ -1746,12 +1746,12 @@ void MainWindow::createActions()
     //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
 
     m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
-    m_view_calculation_times_action->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_view_calculation_times_action->setIcon(getIconFromViewstyle(ViewStyle::tvsCalculationTimes));
     connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
     m_view_menu->addAction(m_view_calculation_times_action.get());
 
     m_view_current_config_filelist = std::make_unique<QAction>(tr("List of loaded Configuration Files"));
-//    m_view_current_config_filelist->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_view_current_config_filelist->setIcon(getIconFromViewstyle(ViewStyle::tvsCurrentConfigFileList));// QPixmap(":/res/images/IconCalculationTimeOverview.png"));
     connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
     m_view_menu->addAction(m_view_current_config_filelist.get());
 
