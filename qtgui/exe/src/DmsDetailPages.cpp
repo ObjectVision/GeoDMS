@@ -138,18 +138,6 @@ void DmsDetailPages::toggleExplorer()
 void DmsDetailPages::toggleProperties()
 {
     toggle(ActiveDetailPage::PROPERTIES);
-    return;
-    if (m_active_detail_page != ActiveDetailPage::PROPERTIES || m_ShowNonDefaultProperties == false)
-    {
-        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
-            m_ShowNonDefaultProperties = true; // we hide now, but go for Show when made visible again
-        toggle(ActiveDetailPage::PROPERTIES);
-    }
-    else
-    {
-        m_ShowNonDefaultProperties = false;
-        scheduleDrawPage();
-    }
 }
 
 void DmsDetailPages::toggleConfiguration()
@@ -160,18 +148,6 @@ void DmsDetailPages::toggleConfiguration()
 void DmsDetailPages::toggleSourceDescr()
 {
     toggle(ActiveDetailPage::SOURCEDESCR);
-    return;
-    if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
-    {
-        if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
-            m_SDM = SourceDescrMode::Configured; // we hide now, but go for Show when made visible again
-        toggle(ActiveDetailPage::SOURCEDESCR);
-    }
-    else
-    {
-        reinterpret_cast<int&>(m_SDM)++;
-        scheduleDrawPageImpl(500);
-    }
 }
 
 void DmsDetailPages::toggleMetaInfo()
@@ -186,12 +162,12 @@ void DmsDetailPages::propertiesButtonToggled(QAbstractButton* button, bool check
 
     auto main_window = MainWindow::TheOne();
     if (main_window->m_detail_page_properties_buttons->pr_nondefault == button) // non default
-        m_ShowNonDefaultProperties = true;
+        m_AllProperties = false;
 
     if (main_window->m_detail_page_properties_buttons->pr_all == button) // all
-        m_ShowNonDefaultProperties = false;
+        m_AllProperties = true;
 
-    scheduleDrawPageImpl(500);
+    scheduleDrawPageImpl(0);
 }
 
 void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, bool checked)
@@ -212,7 +188,7 @@ void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, boo
     if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
         m_SDM = SourceDescrMode::All;
 
-    scheduleDrawPageImpl(500);
+    scheduleDrawPageImpl(0);
 }
 
 auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
@@ -315,7 +291,7 @@ void DmsDetailPages::drawPage()
         break;
     case ActiveDetailPage::PROPERTIES:
         main_window->hideDetailPagesRadioButtonWidgets(false, true);
-        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_ShowNonDefaultProperties);
+        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_AllProperties);
         break;
     case ActiveDetailPage::EXPLORE:
         DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);

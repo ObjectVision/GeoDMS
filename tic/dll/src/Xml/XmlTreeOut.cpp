@@ -283,7 +283,8 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText,
 	auto cell = XML_Table::Row::Cell(row);
 	row.ValueCell("Active Item");
 	auto cell2 = XML_Table::Row::Cell(row);
-	row.ItemCell(item);
+	//XML_OutElement bold(out, "B");
+	row.ItemCell(item, true);
 	XML_OutElement table_row2(out, "TR");
 	
 	/*XML_OutElement table_col(out, "TD");
