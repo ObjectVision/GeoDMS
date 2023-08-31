@@ -820,11 +820,20 @@ void MainWindow::updateToolbar()
         return;
     }
 
+
+
     // create new actions
     auto* dv = active_dms_view_area->getDataView();
     auto view_style = dv->GetViewType();
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
+
+    m_current_toolbar_style = view_style;
+    if (view_style == ViewStyle::tvsPaletteEdit)
+    {
+        clearToolbarUpToDetailPagesTools();
+        return;
+    }
 
     // disable/enable coordinate tool
     auto is_mapview = view_style == ViewStyle::tvsMapView;
@@ -861,7 +870,6 @@ void MainWindow::updateToolbar()
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
     }
-    m_current_toolbar_style = view_style;
 }
 
 bool MainWindow::event(QEvent* event)
