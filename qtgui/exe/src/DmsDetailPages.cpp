@@ -137,6 +137,8 @@ void DmsDetailPages::toggleExplorer()
 
 void DmsDetailPages::toggleProperties()
 {
+    toggle(ActiveDetailPage::PROPERTIES);
+    return;
     if (m_active_detail_page != ActiveDetailPage::PROPERTIES || m_ShowNonDefaultProperties == false)
     {
         if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
@@ -157,6 +159,8 @@ void DmsDetailPages::toggleConfiguration()
 
 void DmsDetailPages::toggleSourceDescr()
 {
+    toggle(ActiveDetailPage::SOURCEDESCR);
+    return;
     if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
     {
         if (m_active_detail_page == ActiveDetailPage::PROPERTIES)
@@ -175,6 +179,41 @@ void DmsDetailPages::toggleMetaInfo()
     toggle(ActiveDetailPage::METADATA);
 }
 
+void DmsDetailPages::propertiesButtonToggled(QAbstractButton* button, bool checked)
+{
+    if (!checked)
+        return;
+
+    auto main_window = MainWindow::TheOne();
+    if (main_window->m_detail_page_properties_buttons->pr_nondefault == button) // non default
+        m_ShowNonDefaultProperties = true;
+
+    if (main_window->m_detail_page_properties_buttons->pr_all == button) // all
+        m_ShowNonDefaultProperties = false;
+
+    scheduleDrawPageImpl(500);
+}
+
+void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, bool checked)
+{
+    if (!checked)
+        return;
+
+    auto main_window = MainWindow::TheOne();
+    if (main_window->m_detail_page_source_description_buttons->sd_readonly == button) // read only
+        m_SDM = SourceDescrMode::ReadOnly;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_configured == button) // configured
+        m_SDM = SourceDescrMode::Configured;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_nonreadonly == button) // non read only
+        m_SDM = SourceDescrMode::WriteOnly;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
+        m_SDM = SourceDescrMode::All;
+
+    scheduleDrawPageImpl(500);
+}
 
 auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 {
@@ -254,6 +293,7 @@ void DmsDetailPages::drawPage()
     if (!MainWindow::IsExisting())
         return;
 
+    auto main_window = MainWindow::TheOne();
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (!current_item)
         return;
@@ -267,12 +307,14 @@ void DmsDetailPages::drawPage()
     auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
     bool result = true;
     bool showAll = true;
+    main_window->hideDetailPagesRadioButtonWidgets(true, true);
     switch (m_active_detail_page)
     {
     case ActiveDetailPage::GENERAL:
         result = TreeItem_XML_DumpGeneral(current_item, xmlOut.get());
         break;
     case ActiveDetailPage::PROPERTIES:
+        main_window->hideDetailPagesRadioButtonWidgets(false, true);
         result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_ShowNonDefaultProperties);
         break;
     case ActiveDetailPage::EXPLORE:
@@ -286,6 +328,7 @@ void DmsDetailPages::drawPage()
     case ActiveDetailPage::SOURCEDESCR:
     {
         //(*xmlOut) << TreeItem_GetSourceDescr(current_item, m_SDM, true).c_str();
+        main_window->hideDetailPagesRadioButtonWidgets(true, false);
         TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
         break;
     }

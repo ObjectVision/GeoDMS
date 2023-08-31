@@ -1402,7 +1402,6 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 
     auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
-
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index);
     mdiSubWindow->setWindowTitle(title.c_str());
@@ -1522,6 +1521,12 @@ auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
     case ViewStyle::tvsCurrentConfigFileList: { return QPixmap(":/res/images/ConfigFileList.png"); }
     default: { return QPixmap(":/res/images/TV_table.bmp");}
     }
+}
+
+void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons)
+{
+    m_detail_page_properties_buttons->gridLayoutWidget->setHidden(hide_properties_buttons);
+    m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -1986,16 +1991,7 @@ void MainWindow::updateWindowMenu()
     {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
         ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
-        qa->setIcon(getIconFromViewstyle(viewstyle));
-        /*switch (viewstyle) s
-        {
-        case ViewStyle::tvsMapView: { qa->setIcon(QPixmap(":/res/images/TV_globe.bmp")); break; } // TODO: generalize
-        case ViewStyle::tvsStatistics: { qa->setIcon(QPixmap(":/res/images/DP_statistics.bmp")); break; }
-        case ViewStyle::tvsCalculationTimes: { qa->setIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png")); break; }
-        case ViewStyle::tvsPaletteEdit: { qa->setIcon(QPixmap(":/res/images/TV_palette.bmp")); break; }
-        default: { qa->setIcon(QPixmap(":/res/images/TV_table.bmp")); break; }
-        }*/
-                
+        qa->setIcon(getIconFromViewstyle(viewstyle));               
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         if (sw == asw)
         {
@@ -2057,7 +2053,6 @@ void MainWindow::updateCaption()
 
     setWindowTitle(buff.GetData());
 }
-
 
 void MainWindow::createStatusBar()
 {
@@ -2183,13 +2178,35 @@ void MainWindow::createDetailPagesDock()
 {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
+
+    auto detail_pages_holder = new QWidget(this);
+    auto vertical_layout = new QVBoxLayout(this);
+    m_detail_page_properties_buttons = std::make_unique<Ui::dp_properties>();
+    m_detail_page_properties_buttons->setupUi(this);
+    m_detail_page_source_description_buttons = std::make_unique<Ui::dp_sourcedescription>();
+    m_detail_page_source_description_buttons->setupUi(this);
+
+
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
-    m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    m_detailpages_dock->setWidget(m_detail_pages);
+    m_detail_pages->connectDetailPagesAnchorClicked();
+    m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    
+    vertical_layout->addWidget(m_detail_page_properties_buttons->gridLayoutWidget);
+    vertical_layout->addWidget(m_detail_page_source_description_buttons->gridLayoutWidget);
+
+    // connect detail pages buttons
+    connect(m_detail_page_properties_buttons->dp_properties_option, &QButtonGroup::buttonToggled, m_detail_pages, &DmsDetailPages::propertiesButtonToggled);
+    connect(m_detail_page_source_description_buttons->dp_sourcedescription_option, &QButtonGroup::buttonToggled, m_detail_pages, &DmsDetailPages::sourceDescriptionButtonToggled);
+    hideDetailPagesRadioButtonWidgets(true, true);
+
+    vertical_layout->addWidget(m_detail_pages.get());
+    detail_pages_holder->setLayout(vertical_layout);
+    m_detailpages_dock->setWidget(detail_pages_holder);
+
+    //m_detailpages_dock->setWidget(m_detail_pages);
+    
     splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
     m_value_info_dock->setVisible(false);
-
-    m_detail_pages->connectDetailPagesAnchorClicked();
 }
 
 void MainWindow::createValueInfoDock()

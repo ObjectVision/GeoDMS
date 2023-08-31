@@ -26,6 +26,9 @@
 #include "DockAreaWidget.h"
 #include "DockWidget.h"
 
+#include "ui_DmsDetailPageProperties.h"
+#include "ui_DmsDetailPageSourceDescription.h"
+
 QT_BEGIN_NAMESPACE
 class QAction;
 class QWidgetAction;
@@ -176,6 +179,7 @@ public:
     void saveRecentFileActionToRegistry();
     auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
+    void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
@@ -310,6 +314,9 @@ public:
     // helper windows; TODO: destroy these before the above model objects
     QPointer<QLabel> m_statusbar_coordinate_label;
     QPointer<QLineEdit> m_statusbar_coordinates;
+    std::unique_ptr<Ui::dp_properties> m_detail_page_properties_buttons;
+    std::unique_ptr<Ui::dp_sourcedescription> m_detail_page_source_description_buttons;
+    
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
     DmsTreeView* m_treeview;
