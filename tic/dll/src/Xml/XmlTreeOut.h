@@ -97,12 +97,22 @@ struct XML_Table : XML_OutElement
 				WriteCellData(value);
 		}
 
-		void ClickableCell(CharPtr value, CharPtr hRef)
+		void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false) // TODO: move implementation to implementation file
 		{
 			Cell xmlElemTD(*this);
+			if (bold)
+			{
+				auto bold = XML_OutElement(OutStream(), "B");
 				XML_hRef xmlElemA(OutStream(), hRef);
-					WriteCellData(value);
+				WriteCellData(value); // TODO: remove duplicate logic
+			}
+			else
+			{
+				XML_hRef xmlElemA(OutStream(), hRef);
+				WriteCellData(value);
+			}
 		}
+
 		void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = 0)
 		{
 			if (!*propLabel) 
@@ -120,9 +130,9 @@ struct XML_Table : XML_OutElement
 				//ClickableCell(propLabel, editUrl.c_str());
 			}
 		}
-		void ItemCell(const TreeItem* item)
+		void ItemCell(const TreeItem* item, bool bold = false)
 		{
-			ClickableCell(item->GetFullName().c_str(), ItemUrl(item).c_str());
+			ClickableCell(item->GetFullName().c_str(), ItemUrl(item).c_str(), bold);
 		}
 	};
 
