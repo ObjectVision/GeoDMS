@@ -167,7 +167,7 @@ void DmsDetailPages::propertiesButtonToggled(QAbstractButton* button, bool check
     if (main_window->m_detail_page_properties_buttons->pr_all == button) // all
         m_AllProperties = true;
 
-    scheduleDrawPageImpl(500);
+    scheduleDrawPageImpl(0);
 }
 
 void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, bool checked)
@@ -188,7 +188,7 @@ void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, boo
     if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
         m_SDM = SourceDescrMode::All;
 
-    scheduleDrawPageImpl(500);
+    scheduleDrawPageImpl(0);
 }
 
 auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
