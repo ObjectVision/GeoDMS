@@ -188,7 +188,8 @@ template <sequence_or_string V> struct const_tile_type<V> { using type = const_s
 
 template <typename V> using const_tile_t = typename const_tile_type<V>::type;
 
-std::mutex shadowPtrSection;
+static std::mutex              sd_shadowPtrSection;
+static std::condition_variable sd_shadowPtrSectionWasRevisisted;
 
 template <typename V> 
 struct const_shadow : const_tile_t<V>
@@ -199,11 +200,12 @@ struct const_shadow : const_tile_t<V>
 
 	void Disconnect()
 	{
-		auto lockCS = std::unique_lock(shadowPtrSection);
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
 		if (!m_Owner)
 			return;
 		m_Owner->m_shadowTilePtr = nullptr;
 		m_Owner = nullptr;
+		sd_shadowPtrSectionWasRevisisted.notify_all();
 	}
 
 	void DecoupleShadowFromOwner() override
@@ -220,25 +222,39 @@ struct const_shadow : const_tile_t<V>
 
 AbstrDataObject::~AbstrDataObject()
 {
-	if (!m_shadowTilePtr)
+	while (m_shadowTilePtr)
+	{
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
+		if (!m_shadowTilePtr)
+			return;
+		if (!m_shadowTilePtr->IsOwned())
+		{
+			sd_shadowPtrSectionWasRevisisted.wait(lockCS);
+			continue;
+		}
+		m_shadowTilePtr->DecoupleShadowFromOwner();
+		m_shadowTilePtr = nullptr;
 		return;
-	auto lockCS = std::unique_lock(shadowPtrSection);
-	if (!m_shadowTilePtr)
-		return;
-	m_shadowTilePtr->DecoupleShadowFromOwner();
-	m_shadowTilePtr = nullptr;
+	}
 }
 
 template<typename V>
 SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
 {
 	assert(ado);
-	auto lockCS = std::unique_lock(shadowPtrSection);
+
+retry:
+	auto lockCS = std::unique_lock(sd_shadowPtrSection);
 	if (!ado->m_shadowTilePtr)
 	{
 		auto csPtr = new const_shadow<V>;
 		csPtr->m_Owner = ado;
 		ado->m_shadowTilePtr = csPtr;
+	}
+	else if (!ado->m_shadowTilePtr->IsOwned())
+	{
+		sd_shadowPtrSectionWasRevisisted.wait(lockCS);
+		goto retry;
 	}
 	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
 }
