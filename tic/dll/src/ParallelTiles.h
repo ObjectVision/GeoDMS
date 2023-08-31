@@ -109,30 +109,25 @@ void parallel_for(IndexType first, IndexType last, Func&& func)
 
 
 template <typename IndexType, typename E, typename Func>
-typename std::enable_if<is_separable_v<E>>::type
-parallel_for_if_separable(IndexType first, IndexType last, Func&& func)
+void parallel_for_if_separable(IndexType first, IndexType last, Func&& func)
 {
-	if (last - first >= 8192)
+	if constexpr (is_separable_v<E>)
 	{
-		IndexType nrBlocks = (last - first) / 4096;
-		parallel_for<IndexType>(0, nrBlocks, [&func, first](IndexType blockNr)
-			{
-				Func funcCopy = func;
-				serial_for<IndexType>(first + blockNr * 4096, first + (blockNr + 1) * 4096, funcCopy);
-			}
-		);
-		first += nrBlocks * 4096;
+		if (last - first >= 8192)
+		{
+			IndexType nrBlocks = (last - first) / 4096;
+			parallel_for<IndexType>(0, nrBlocks, [&func, first](IndexType blockNr)
+				{
+					Func funcCopy = func;
+					serial_for<IndexType>(first + blockNr * 4096, first + (blockNr + 1) * 4096, funcCopy);
+				}
+			);
+			first += nrBlocks * 4096;
+			return;
+		}
 	}
 	serial_for<IndexType>(first, last, std::move(func));
 }
-
-template <typename IndexType, typename E, typename Func>
-typename std::enable_if<!is_separable_v<E>>::type
-parallel_for_if_separable(IndexType first, IndexType last, Func&& func)
-{
-	serial_for<IndexType>(first, last, std::move(func));
-}
-
 
 template <typename Func>
 void parallel_tileloop(tile_id last, Func&& func)
