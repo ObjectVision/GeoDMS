@@ -293,7 +293,7 @@ TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceD
 	if (!IsDefined(source_sequence))
 		return;
 
-	auto ordered_list = XML_OutElement(*xmlOutStrPtr, "ol");
+	auto ordered_list = XML_OutElement(*xmlOutStrPtr, "ul");
 	for (auto tokenPtr = source_sequence.begin(), tokenEnd = source_sequence.end(); tokenPtr != tokenEnd; ++tokenPtr)
 	{
 		auto list_item = XML_OutElement(*xmlOutStrPtr, "li");
