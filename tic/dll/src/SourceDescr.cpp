@@ -212,7 +212,7 @@ namespace { // local defs
 	{
 		VectorOutStreamBuff vout;
 		FormattedOutStream fout(&vout, FormattingFlags::ThousandSeparator);
-		fout << "<BODY bgcolor = '#DDD2D0'>";
+		/*fout << "<BODY bgcolor = '#DDD2D0'>";
 		switch (m_SDM) {
 		case SourceDescrMode::Configured: fout << "<h1>Configured Source Descriptions</h1>\n"; break;
 		case SourceDescrMode::ReadOnly:   fout << "<h1>Read Only Storage Managers</h1>\n"; break;
@@ -224,7 +224,7 @@ namespace { // local defs
 			fout << "(other specs can be obtaint by re-pressing the (S) button in the DetailPage toolbar)";
 		else
 			fout << "(other specs can be selected at View->Source Descr variant)";
-
+		*/
 
 		SA_Reference<TokenID> sourceSequence = m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)];
 		if (IsDefined(sourceSequence))
@@ -237,7 +237,7 @@ namespace { // local defs
 				fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
 		}
 
-		fout << "</BODY>";
+		//fout << "</BODY>";
 
 		CharPtr first = vout.GetData();
 		return SharedStr(first, first+vout.CurrPos());
