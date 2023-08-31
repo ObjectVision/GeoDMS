@@ -123,7 +123,6 @@ void parallel_for_if_separable(IndexType first, IndexType last, Func&& func)
 				}
 			);
 			first += nrBlocks * 4096;
-			return;
 		}
 	}
 	serial_for<IndexType>(first, last, std::move(func));
