@@ -1,5 +1,6 @@
 #include <QPointer>
 #include <qtextbrowser>
+#include <QAbstractButton>
 
 #include "ptr/SharedStr.h"
 #include "ptr/InterestHolders.h"
@@ -34,7 +35,8 @@ public slots:
 	void toggleConfiguration();
 	void toggleSourceDescr();
 	void toggleMetaInfo();
-
+	void propertiesButtonToggled(QAbstractButton* button, bool checked);
+	void sourceDescriptionButtonToggled(QAbstractButton* button, bool checked);
 	void newCurrentItem();
 
 	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
