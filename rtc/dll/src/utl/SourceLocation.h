@@ -45,12 +45,13 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct FileDescr : SharedBase
 {
-	RTC_CALL FileDescr(WeakStr str, FileDateTime fdt = 0);
+	RTC_CALL FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber);
 	RTC_CALL ~FileDescr();
 
 	WeakStr GetFileName() const { return m_FileName; }
 
 	FileDateTime m_Fdt;
+	UInt32 m_LoadNumber;
 
 	void Release() const { if (!DecRef()) delete this; }
 

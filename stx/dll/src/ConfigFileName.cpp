@@ -45,8 +45,9 @@ granted by an additional written contract for support, assistance and/or develop
 // class/module: ConfigurationFilenameContainer
 // *****************************************************************************
 
-ConfigurationFilenameContainer::ConfigurationFilenameContainer(WeakStr configLoadDir)
+ConfigurationFilenameContainer::ConfigurationFilenameContainer(WeakStr configLoadDir, UInt32 loadNumber)
 	:	m_ConfigLoadDir(configLoadDir)
+	,	m_LoadNumber(loadNumber)
 {
 	dms_assert(!s_Singleton);
 	s_Singleton = this;
@@ -64,7 +65,7 @@ FileDescrPtr ConfigurationFilenameContainer::GetFileRef(CharPtr name)
 		if (!stricmp( (*i)->GetFileName().c_str(), name))
 			return *i;
 
-	m_FileRefs.push_back( new FileDescr( SharedStr(name), 0 ));
+	m_FileRefs.push_back( new FileDescr( SharedStr(name), 0, m_LoadNumber ));
 	return m_FileRefs.back();
 }
 

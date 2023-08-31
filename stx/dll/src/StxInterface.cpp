@@ -72,8 +72,12 @@ SYNTAX_CALL void DMS_CONV DMS_Stx_Load()
 // Returns:           TreeItem*: root of the tree
 // *****************************************************************************
 
+static UInt32 s_LoadNumber = 0;
+
 SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
+	assert(IsMainThread());
+
 	//auto current_dir = GetCurrentDir();
 	TreeItem* res = nullptr;
 	try {
@@ -89,7 +93,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 		auto currSession = SessionData::Create(configLoadDir.c_str(), getFileNameBase(fileName).c_str());
 		currSession->SetConfigPointColFirst(GetConfigPointColFirst());
 
-		ConfigurationFilenameContainer filenameContainer(configLoadDir);
+		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
 		{
 			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
@@ -130,11 +134,11 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromString(CharPtr configString)
 {
 	DMS_CALL_BEGIN
 
-		TreeItem* res = 0;
+		TreeItem* res = nullptr;
 		CDebugContextHandle debugContext("DMS_CreateTreeFromString", configString, false);
 
 		SessionData::Create(GetCurrentDir().c_str(), "" );
-		ConfigurationFilenameContainer filenameContainer(SharedStr::SharedStr());
+		ConfigurationFilenameContainer filenameContainer(SharedStr::SharedStr(), ++s_LoadNumber);
 		{
 			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;

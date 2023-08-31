@@ -847,47 +847,19 @@ FileDateTime FindFileBlock::GetFileOrDirDateTime() const
 	return AsFileDateTime(0, 0);
 }
 
-auto FindFileBlock::GetFileOrDirDateTimeInReadableFormat() -> SharedStr
+auto AsDateTimeString(FileDateTime t64) -> SharedStr
 {
-	const WIN32_FIND_DATA* found_file_data = reinterpret_cast<const WIN32_FIND_DATA*>(m_Data.get());
-	SYSTEMTIME system_time;
-	auto result = FileTimeToSystemTime(&found_file_data->ftLastWriteTime, &system_time);
+	FILETIME lft1, lft2;
 
-	if (!result)
-		return {};
+	lft1.dwHighDateTime = (t64 >> 32);
+	lft1.dwLowDateTime = t64 & 0xFFFFFFFF;
 
-	char year[5];
-	char month[3];
-	char day[3];
-	char hour[3];
-	char minute[3];
-	char second[3];
-	sprintf(year,   "%04d", system_time.wYear);
-	sprintf(month,  "%02d", system_time.wMonth);
-	sprintf(day,    "%02d", system_time.wDay);
-	sprintf(hour,   "%02d", system_time.wHour);
-	sprintf(minute, "%02d", system_time.wMinute);
-	sprintf(second, "%02d", system_time.wSecond);
-
-	std::string final_datetime_string = std::string(year) + " " + month + " " + day + "  " + hour + ":" + minute + ":" + second;
-
-	return SharedStr(final_datetime_string.c_str());
-}
-
-SharedStr AsDateTimeString(const FileDateTime& t) 
-{
-	FILETIME lft1, lft2; 
-
-	lft1.dwHighDateTime = (t >> 32);
-	lft1.dwLowDateTime  = t & 0xFFFFFFFF;
-
-	FileTimeToLocalFileTime(&lft1,&lft2);
+	FileTimeToLocalFileTime(&lft1, &lft2);
 	SYSTEMTIME stCreate;
-	FileTimeToSystemTime(&lft2,&stCreate);
+	FileTimeToSystemTime(&lft2, &stCreate);
 
-	return mySSPrintF("(%08x:%08x)= %d/%02d/%02d  %02d:%02d:%02d",
-		lft1.dwHighDateTime, lft1.dwLowDateTime,
-		stCreate.wYear, stCreate.wMonth, stCreate.wDay, 
+	return mySSPrintF("%04d/%02d/%02d  %02d:%02d:%02d",
+		stCreate.wYear, stCreate.wMonth, stCreate.wDay,
 		stCreate.wHour, stCreate.wMinute, stCreate.wSecond
 	);
 }
@@ -1116,12 +1088,6 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 {
 	FindFileBlock fileInfo(fileOrDirName);
 	return fileInfo.GetFileOrDirDateTime();
-}
-
-auto GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr
-{
-	FindFileBlock fileInfo(fileOrDirName);
-	return fileInfo.GetFileOrDirDateTimeInReadableFormat();
 }
 
 //  -----------------------------------------------------------------------

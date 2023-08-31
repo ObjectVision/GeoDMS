@@ -59,9 +59,10 @@ using FileDescrSet = std::vector<FileDescr*>;
 static FileDescrSet s_FDS;
 std::mutex cs_FDS;
 
-FileDescr::FileDescr(WeakStr str, FileDateTime fdt)
+FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 	:	m_FileName(str)
 	,	m_Fdt(fdt)
+	,	m_LoadNumber(loadNumber)
 {
 	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
 
@@ -117,14 +118,26 @@ auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
 void ReportCurrentConfigFileList(OutStreamBase& os)
 {
 	XML_OutElement table(os, "TABLE");
-	XML_OutElement header_row(os, "TR");
-	XML_OutElement header_col1(os, "TH");
-	os << "Configuration Files";
-	XML_OutElement header_col2(os, "TH");
-	os << "File date & time";
-
-	FileDateTime file_date_time;
-	SharedStr datetime_to_be_reported;
+	{
+		XML_OutElement header_row(os, "TR");
+		{
+			XML_OutElement header_col1(os, "TH");
+			os << "Configuration Files";
+		}
+		{
+			XML_OutElement header_col2(os, "TH");
+			os << "Load Number";
+		}
+		{
+			XML_OutElement header_col3(os, "TH");
+			os << "File date & time when read";
+		}
+		{
+			XML_OutElement header_col4(os, "TH");
+			os << "File date & time now";
+		}
+	}
+	FileDateTime curr_file_date_time;
 	auto
 		i = s_FDS.begin(),
 		e = s_FDS.end();
@@ -135,17 +148,20 @@ void ReportCurrentConfigFileList(OutStreamBase& os)
 		{
 			XML_OutElement col(os, "TD");
 			os << fd->GetFileName().c_str();
-			file_date_time = GetFileOrDirDateTime(fd->GetFileName());
-			datetime_to_be_reported = GetFileOrDirDateTimeAsReadableString(fd->GetFileName());
+			curr_file_date_time = GetFileOrDirDateTime(fd->GetFileName());
 		}
 		{
 			XML_OutElement col(os, "TD");
-			os << datetime_to_be_reported.c_str();// AsString(fd->m_Fdt).c_str();
+			os << AsString(fd->m_LoadNumber).c_str();
 		}
-		if (file_date_time != fd->m_Fdt) // changed files not used in current configuration instance
 		{
 			XML_OutElement col(os, "TD");
-			os << datetime_to_be_reported.c_str(); //AsString(file_date_time).c_str();
+			os << AsDateTimeString(fd->m_Fdt).c_str();
+		}
+		if (curr_file_date_time != fd->m_Fdt) // changed files not used in current configuration instance
+		{
+			XML_OutElement col(os, "TD");
+			os << AsDateTimeString(curr_file_date_time).c_str();
 		}
 	}
 }
