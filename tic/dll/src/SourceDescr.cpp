@@ -46,7 +46,6 @@ granted by an additional written contract for support, assistance and/or develop
 //  -----------------------------------------------------------------------
 //  SourceDescr
 //  -----------------------------------------------------------------------
-
 namespace { // local defs
 
 	typedef SizeT source_seq_index;
@@ -62,13 +61,15 @@ namespace { // local defs
 
 		SourceCalculator(SourceDescrMode sdm, bool bShowHidden);
 
-		SharedStr GetDescr(const TreeItem* ti);
+		auto GetDescr(const TreeItem* ti) -> SharedStr;
+		auto GetSourceSequence(const TreeItem* ti) -> SA_Reference<TokenID>;
+		auto GetFirstErrorItem() -> SharedStr;
+		source_seq_index GetOrCalcSourceSeqIndex(const Actor* ti, bool alsoSubItems);
+		auto GetSourceSecArray() -> source_seq_array_t* { return &m_SourceSecArray; };
 
 	private:
 		source_seq_index Assign0();
-
 		source_seq_index CalcSourceSeqIndex(const Actor* ti, bool alsoSubItems);
-		source_seq_index GetOrCalcSourceSeqIndex(const Actor* ti, bool alsoSubItems);
 
 		SourceDescrMode        m_SDM;
 		bool                   m_bShowHidden;
@@ -208,6 +209,26 @@ namespace { // local defs
 		return mi->second;
 	}
 
+	auto SourceCalculator::GetSourceSequence(const TreeItem* ti) -> SA_Reference<TokenID>
+	{
+		return m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)];
+	}
+
+	auto SourceCalculator::GetFirstErrorItem() -> SharedStr
+	{
+		VectorOutStreamBuff vout;
+		FormattedOutStream fout(&vout, FormattingFlags::ThousandSeparator);
+		if (!m_hasError)
+			return {};
+
+		fout << "\nList may be incomplete due to errors.";
+		if (m_FirstErrorItem)
+			fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
+
+		CharPtr first = vout.GetData();
+		return SharedStr(first, first + vout.CurrPos());
+	}
+
 	SharedStr SourceCalculator::GetDescr(TreeItem const * ti)
 	{
 		VectorOutStreamBuff vout;
@@ -231,11 +252,15 @@ namespace { // local defs
 			for (auto tokenPtr = sourceSequence.begin(), tokenEnd = sourceSequence.end(); tokenPtr != tokenEnd; ++tokenPtr)
 				fout << "\n- " << *tokenPtr;
 
-		if (m_hasError) {
+		auto first_error_item = GetFirstErrorItem();
+		if (!first_error_item.empty())
+			fout << first_error_item;
+
+		/*if (m_hasError) {
 			fout << "\nList may be incomplete due to errors.";
 			if (m_FirstErrorItem)
 				fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
-		}
+		}*/
 
 		//fout << "</BODY>";
 
@@ -253,6 +278,44 @@ SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode s
 	auto source_description_string = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject);
 
 	return source_description_string;
+}
+
+#include "xml/XMLOut.h"
+TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr)
+{
+	assert(xmlOutStrPtr);
+	auto source_calculator = SourceCalculator(sdm, bShowHidden);// .GetDescr(studyObject);
+	auto source_seq_array = source_calculator.GetSourceSecArray();
+	if (source_seq_array->empty())
+		return;
+
+	SA_Reference<TokenID> source_sequence = (*source_seq_array)[source_calculator.GetOrCalcSourceSeqIndex(studyObject, true)];
+	if (!IsDefined(source_sequence))
+		return;
+
+	auto ordered_list = XML_OutElement(*xmlOutStrPtr, "ol");
+	for (auto tokenPtr = source_sequence.begin(), tokenEnd = source_sequence.end(); tokenPtr != tokenEnd; ++tokenPtr)
+	{
+		auto list_item = XML_OutElement(*xmlOutStrPtr, "li");
+		*xmlOutStrPtr << SharedStr(*tokenPtr).c_str();
+	}
+		/*out.WriteAttr("bgcolor", CLR_BODY);
+
+		{
+			XML_OutElement page_title_table(out, "TABLE");
+			out.WriteAttr("width", "100%");
+			//out.WriteAttr("style", "font-size:200%");
+			XML_OutElement table_row(out, "TR");
+			out.WriteAttr("bgcolor", "#89CFF0");
+			XML_OutElement table_col(out, "TD");
+			{
+				XML_OutElement font_size(out, "font");
+				out.WriteAttr("size", "4");
+				out << caption;
+*/
+
+	
+	return ;
 }
 
 //  -----------------------------------------------------------------------

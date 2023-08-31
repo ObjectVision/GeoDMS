@@ -703,7 +703,7 @@ TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlO
 
 	return true;
 }
-
+#include "TreeItemProps.h"
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
@@ -717,8 +717,12 @@ TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDes
 	}
 
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", source_description_subtitle.c_str(), self);
-	auto source_description = TreeItem_GetSourceDescr(self, mode, true);
-	*xmlOutStrPtr << source_description.c_str();
+	TreeItem_DumpSourceCalculator(self, mode, true, xmlOutStrPtr);
+	
+	//auto source_description = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject); 
+	//TreeItem_GetSourceDescr(self, mode, true);
+	//GetSourceSequence(const TreeItem * ti)
+	//*xmlOutStrPtr << source_description.c_str();
 }
 
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
