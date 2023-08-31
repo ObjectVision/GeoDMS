@@ -24,20 +24,6 @@
 //	MakeClassIndexArray
 //----------------------------------------------------------------------
 
-template <typename II, typename T, typename TI>
-typename std::enable_if<has_undefines_v<typename std::iterator_traits<TI>::value_type>, UInt32 >::type
-classify2index_best(II ib, II ie, const T& dataValue, TI classBoundsPtr)
-{
-	return classify2index_checked(ib, ie, dataValue, classBoundsPtr);
-}
-
-template <typename II, typename T, typename TI>
-typename std::enable_if<!has_undefines_v<typename std::iterator_traits<TI>::value_type>, UInt32 >::type
-classify2index_best(II ib, II ie, const T& dataValue, TI classBoundsPtr)
-{
-	return classify2index(ib, ie, dataValue, classBoundsPtr);
-}
-
 template <typename ThemeValuesType, typename IndexType = SizeT>
 struct ClassifyFunc
 {
@@ -54,7 +40,7 @@ struct ClassifyFunc
 	}
 	IndexType operator ()( typename param_type<ThemeValuesType>::type value) const
 	{
-		return Convert<IndexType>(classify2index_best(
+		return Convert<IndexType>(classify2index(
 			begin_ptr(m_Index)
 		,	end_ptr  (m_Index)
 		,	value
@@ -79,14 +65,13 @@ MakeClassIndexArray(ThemeClassPairType tcp)
 	SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type> 
 		resultingArray(SharedArray<typename sequence_traits<ClassIdType>::value_type>::Create(themeData.size(), false) );
 
-	classify2index_range_best(
+	classify2index_range(
 		begin_ptr(resultingArray)
 	,	end_ptr  (resultingArray)
 	,	begin_ptr(classifyFunc.m_Index)
 	,	end_ptr  (classifyFunc.m_Index)
 	,	begin_ptr(themeData)
 	,	begin_ptr(classifyFunc.m_ClassBreakData)
-	,	tcp.first->HasUndefinedValues()
 	);
 
 	return resultingArray; // ownership is transferred to caller

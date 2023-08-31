@@ -77,7 +77,6 @@ struct PenKeyType
 
 template <> constexpr bool has_undefines_v<PenKeyType> = false;
 
-//template <> struct has_undefines<PenKeyType> : boost::false_type {};
 //----------------------------------------------------------------------
 // struct  : PenIndexCache
 //----------------------------------------------------------------------
