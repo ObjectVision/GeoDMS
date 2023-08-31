@@ -292,7 +292,7 @@ template <typename T> struct cardinality_type<Point<T>> : square_type < typename
 template <typename T> struct cardinality_type<Range<T>> : cardinality_type<T> {};
 template <typename T> struct cardinality_type<std::vector<T>> : cardinality_type<T> {};
 
-
+template <typename T> using cardinality_type_t = typename cardinality_type<T>::type;
 //----------------------------------------------------------------------
 // Section      : composite type predicates
 //----------------------------------------------------------------------

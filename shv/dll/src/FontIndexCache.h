@@ -41,9 +41,8 @@ granted by an additional written contract for support, assistance and/or develop
 // struct  : FontIndexCache
 //----------------------------------------------------------------------
 
-typedef boost::tuple<Int32, TokenID, UInt16> FontKeyType; // first == Int32Height of Characters in Pixels; second == TokenID van FontName; third == UInt16 is angle in tenths of degrees counter-clockwise from x-basis
+using FontKeyType = boost::tuple<Int32, TokenID, UInt16>; // first == Int32Height of Characters in Pixels; second == TokenID van FontName; third == UInt16 is angle in tenths of degrees counter-clockwise from x-basis
 template <> constexpr bool has_undefines_v<FontKeyType> = false;
-
 
 struct FontIndexCache : ResourceIndexCache
 {
