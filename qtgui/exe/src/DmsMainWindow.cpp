@@ -2306,4 +2306,4 @@ void MainWindow::forward()
 
 #include "VersionComponent.h"
 
-static VersionComponent notoSansFont("'application font: (derived from) NotoSans-Medium.ttf (c) Noto project");
+static VersionComponent notoSansFont("application font: (derived from) NotoSans-Medium.ttf (c) Noto project");
