@@ -582,9 +582,9 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 			CreateSupplierSet();
 			for (SizeT i = 0; i < m_SupplierArray.size(); ++i)
 			{
-				dms_assert(!m_SupplierArray[i]->IsCacheItem());
-				dms_assert(m_SupplierArray[i]);
-				dms_assert(m_SupplierArray[i]->GetRefCount());
+				assert(!m_SupplierArray[i]->IsCacheItem());
+				assert(m_SupplierArray[i]);
+				assert(m_SupplierArray[i]->GetRefCount());
 				if (visitor.Visit(m_SupplierArray[i]) == AVS_SuspendedOrFailed)
 					return AVS_SuspendedOrFailed;
 			}

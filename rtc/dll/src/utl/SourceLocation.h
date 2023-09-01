@@ -50,8 +50,15 @@ struct FileDescr : SharedBase
 
 	WeakStr GetFileName() const { return m_FileName; }
 
-	FileDateTime m_Fdt;
+	FileDateTime m_ReadFdt, m_LaterFdt = 0;
 	UInt32 m_LoadNumber;
+
+	FileDateTime LastFdt() const 
+	{ 
+		if (m_LaterFdt)
+			return m_LaterFdt;
+		return m_ReadFdt;
+	}
 
 	void Release() const { if (!DecRef()) delete this; }
 

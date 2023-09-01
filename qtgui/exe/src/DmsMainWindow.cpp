@@ -870,7 +870,7 @@ bool MainWindow::event(QEvent* event)
     {
         QTimer::singleShot(0, this, [=]() 
             { 
-                auto vos = ReportChangedFiles(true); // TODO: report changed files not always returning if files are changed.
+                auto vos = ReportChangedFiles(); 
                 if (vos.CurrPos())
                 {
                     auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
@@ -2113,7 +2113,7 @@ void MainWindow::view_calculation_times()
         os << " till " << myAscTime(std::localtime(& std::get<1>(pr)));
         os << ": " << std::get<SharedStr>(pr) << "\n";
     }
-    os << char(0); // ends
+    vosb.WriteByte(char(0)); // ends
 
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
@@ -2136,7 +2136,8 @@ void MainWindow::view_current_config_filelist()
         //    outStreamBuff << "List of currently loaded configuration (*.dms) files\n";
         ReportCurrentConfigFileList(xmlOut);
     }
-    vosb.WriteByte(char(0));
+    vosb.WriteByte(char(0)); // ends
+
     auto viewstyle = ViewStyle::tvsCurrentConfigFileList;
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     mdiSubWindow->setProperty("viewstyle", viewstyle);
@@ -2296,3 +2297,7 @@ void MainWindow::forward()
 
     MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
 }
+
+#include "VersionComponent.h"
+
+static VersionComponent notoSansFont("'application font: (derived from) NotoSans-Medium.ttf (c) Noto project");

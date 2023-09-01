@@ -121,7 +121,7 @@ class DmsFileChangedWindow : public QDialog
 {
     Q_OBJECT
 
-public: //auto changed_files = DMS_ReportChangedFiles(true);
+public:
     DmsFileChangedWindow(QWidget* parent = nullptr);
     void setFileChangedMessage(std::string_view changed_files);
 

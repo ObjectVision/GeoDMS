@@ -212,6 +212,10 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 			"Note that #include statements are relative from the subdir that accompanies the referent"
 			, sourcePathName);
 
+	// read last changed time in the context of an open file to prevent getting the wrong info.
+	reserveThisName.GetFileRef()->m_ReadFdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
+
+	// read the actual file contents
 	if (!stricmp(getFileNameExtension(sourcePathName), "xml"))
 	{
 		auto sfwa = DSM::GetSafeFileWriterArray();
@@ -219,19 +223,14 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
 		XmlTreeParser xmlParse(&streamBuff);
 		result =  xmlParse.ReadTree(context);
-
-		// read last changed time in the context of an open file to prevent getting the wrong info.
-		reserveThisName.GetFileRef()->m_Fdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
 	}
 	else
 	{
 		ConfigProd cp(context);
 		result = cp.ParseFile(sourcePathNameStrFromCurrent.c_str());
 
-		// read last changed time in the context of an open file to prevent getting the wrong info.
-		reserveThisName.GetFileRef()->m_Fdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
 	}
-	
+
 	if (!result)
 		return nullptr;
 

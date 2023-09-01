@@ -230,13 +230,28 @@ exe_type DMS_Appl_GetExeType()
 	return s_ExeType;
 }
 
+void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)
+{
+	while (true)
+	{
+		auto result = AddFontResourceExA(name, fl, res);
+		if (result)
+			break;
+		auto userResponse = MessageBoxA(nullptr, mySSPrintF("Failed to load FontResource %s", name).c_str(), "Warning", MB_ABORTRETRYIGNORE | MB_ICONWARNING);
+		switch (userResponse)
+		{
+		case IDABORT: terminate();
+		case IDIGNORE: break;
+		}
+	}
+}
+
 void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	auto r1 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
-	auto r2 = AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSans-Medium.ttf").c_str(), FR_PRIVATE, 0);
-//	AddFontResourceEx(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSansMath-Regular.ttf").c_str(), FR_PRIVATE, 0);
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSans-Medium.ttf").c_str(), FR_PRIVATE, 0);
 	SetMainThreadID();
 }
 

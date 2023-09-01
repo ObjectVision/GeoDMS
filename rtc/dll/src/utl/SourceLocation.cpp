@@ -61,7 +61,7 @@ std::mutex cs_FDS;
 
 FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 	:	m_FileName(str)
-	,	m_Fdt(fdt)
+	,	m_ReadFdt(fdt)
 	,	m_LoadNumber(loadNumber)
 {
 	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
@@ -90,7 +90,7 @@ FileDescr::~FileDescr()
 #include "utl/Environment.h"
 #include "xml/XmlOut.h"
 
-auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
+auto ReportChangedFiles() -> VectorOutStreamBuff
 {
 	VectorOutStreamBuff vos;
 	FormattedOutStream fos(&vos, FormattingFlags::None);
@@ -103,10 +103,9 @@ auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff
 	{
 		FileDescr* fd = *i;
 		fdt = GetFileOrDirDateTime(fd->GetFileName());
-		if (fdt != fd->m_Fdt)
+		if (fdt != fd->LastFdt())
 		{
-			if (updateFileTimes)
-				fd->m_Fdt = fdt;
+			fd->m_LaterFdt = fdt;
 			fos << fd->GetFileName().c_str() << "\n";
 		}
 		++i;
@@ -134,10 +133,9 @@ void ReportCurrentConfigFileList(OutStreamBase& os)
 		}
 		{
 			XML_OutElement header_col4(os, "TH");
-			os << "File date & time now";
+			os << "... when ignored";
 		}
 	}
-	FileDateTime curr_file_date_time;
 	auto
 		i = s_FDS.begin(),
 		e = s_FDS.end();
@@ -148,7 +146,6 @@ void ReportCurrentConfigFileList(OutStreamBase& os)
 		{
 			XML_OutElement col(os, "TD");
 			os << fd->GetFileName().c_str();
-			curr_file_date_time = GetFileOrDirDateTime(fd->GetFileName());
 		}
 		{
 			XML_OutElement col(os, "TD");
@@ -156,26 +153,14 @@ void ReportCurrentConfigFileList(OutStreamBase& os)
 		}
 		{
 			XML_OutElement col(os, "TD");
-			os << AsDateTimeString(fd->m_Fdt).c_str();
+			os << AsDateTimeString(fd->m_ReadFdt).c_str();
 		}
-		if (curr_file_date_time != fd->m_Fdt) // changed files not used in current configuration instance
+		if (fd->m_LaterFdt) // this files change is only to be notified once in current configuration session
 		{
 			XML_OutElement col(os, "TD");
-			os << AsDateTimeString(curr_file_date_time).c_str();
+			os << AsDateTimeString(fd->m_LaterFdt).c_str();
 		}
 	}
-}
-
-IStringHandle DMS_ReportChangedFiles(bool updateFileTimes) //TODO: remove IStringHandle
-{
-	DMS_CALL_BEGIN
-		auto vos = ReportChangedFiles(updateFileTimes);
-		if (vos.CurrPos() == 0)
-			return nullptr;
-		return IString::Create(vos.GetData(), vos.GetDataEnd());
-
-	DMS_CALL_END
-	return nullptr;
 }
 
 //----------------------------------------------------------------------
