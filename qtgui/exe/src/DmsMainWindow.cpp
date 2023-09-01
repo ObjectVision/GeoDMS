@@ -803,50 +803,48 @@ void MainWindow::updateToolbar()
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
-    if (!active_mdi_subwindow)
-    {
-        clearToolbarUpToDetailPagesTools();
+    if (m_tooled_mdi_subwindow == active_mdi_subwindow) // Do nothing
         return;
-    }
 
-    if (m_tooled_mdi_subwindow == active_mdi_subwindow)
-        return;
+    auto view_style = ViewStyle::tvsUndefined;
 
     m_tooled_mdi_subwindow = active_mdi_subwindow;
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
-    if (!active_dms_view_area)
+
+    DataView* dv = nullptr;
+    if (active_dms_view_area)
     {
-        clearToolbarUpToDetailPagesTools();
-        return;
+        dv = active_dms_view_area->getDataView();
+        if (dv)
+            view_style = dv->GetViewType();
     }
-
-
-
-    // create new actions
-    auto* dv = active_dms_view_area->getDataView();
-    auto view_style = dv->GetViewType();
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
 
     m_current_toolbar_style = view_style;
-    if (view_style == ViewStyle::tvsPaletteEdit)
-    {
-        clearToolbarUpToDetailPagesTools();
-        return;
-    }
 
     // disable/enable coordinate tool
     auto is_mapview = view_style == ViewStyle::tvsMapView;
     m_statusbar_coordinate_label->setVisible(is_mapview);
     m_statusbar_coordinates->setVisible(is_mapview);
-
     clearToolbarUpToDetailPagesTools();
+
     static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
     static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
-    auto& available_buttons = view_style == ViewStyle::tvsTableView ? available_table_buttons : available_map_buttons;
-    
+
+    std::vector < ToolButtonID>* buttons_array_ptr = nullptr;
+
+    switch(view_style)
+    {
+    case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
+    case ViewStyle::tvsMapView:   buttons_array_ptr = &available_map_buttons; break;
+    }
+    if (buttons_array_ptr == nullptr)
+        return;
+
+    assert(dv);
     auto first_toolbar_detail_pages_action = m_dms_toolbar_spacer_action.get();
-    for (auto button_id : available_buttons)
+    for (auto button_id : *buttons_array_ptr)
     {
         if (button_id == TB_Undefined)
         {
