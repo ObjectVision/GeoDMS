@@ -291,16 +291,15 @@ static TokenID thisToken = GetTokenID_st("this");
 
 const TreeItem* AbstrCalculator::FindItem(TokenID itemRef) const
 {
-	dms_assert(!itemRef.empty());
-	dms_assert(m_Holder);
+	assert(!itemRef.empty());
+	assert(m_Holder);
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
-		if (itemRef == thisToken)
-			return m_Holder;
+	if (itemRef == thisToken)
+		return m_Holder;
 
 	SharedStr itemRefStr(itemRef.AsStrRange());
-
 	return SearchContext()->FindItem(itemRefStr);
 }
 
@@ -321,8 +320,8 @@ BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 
 auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly referred persistent object.
 {
-	dms_assert(IsMetaThread());
-	dms_assert(IsSourceRef());
+	assert(IsMetaThread());
+	assert(IsSourceRef());
 
 	TokenID supplRefID = GetLispExprOrg().GetSymbID();
 	auto foundItem = FindItem(supplRefID);
@@ -332,6 +331,19 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 		throwDmsErrD(errMsg.c_str());
 	}
 	return foundItem;
+}
+
+auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const -> ActorVisitState  // directly referred persistent object.
+{
+	assert(IsMetaThread());
+	assert(IsSourceRef());
+
+	if (supplRefID == thisToken)
+		return ActorVisitState::AVS_Ready;
+
+	SharedStr itemRefStr(supplRefID.AsStrRange());
+	auto searchResult = SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
+	return searchResult ? AVS_Ready : AVS_SuspendedOrFailed;
 }
 
 bool AbstrCalculator::IsSourceRef() const
@@ -573,9 +585,8 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	if (Test(svf, SupplierVisitFlag::NamedSuppliers)) {
 		if (IsSourceRef())
 		{
-			auto sourceItem = GetSourceItem();
-			if (visitor.Visit(sourceItem) == AVS_SuspendedOrFailed)
-				return AVS_SuspendedOrFailed;
+			TokenID supplRefID = GetLispExprOrg().GetSymbID();
+			return VisitSourceItem(supplRefID, svf, visitor);
 		}
 		else
 		{

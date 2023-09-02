@@ -128,6 +128,7 @@ public:
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const;
 	TIC_CALL static ActorVisitState VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static const TreeItem* GetSearchContext(const TreeItem* holder, CalcRole cr);
+	auto VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const->ActorVisitState;
 
 	TIC_CALL virtual bool CheckSyntax () const;
 	TIC_CALL BestItemRef FindErrorneousItem() const;

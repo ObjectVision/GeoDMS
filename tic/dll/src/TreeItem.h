@@ -214,6 +214,8 @@ public:
 
 	TIC_CALL const TreeItem* FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
 	TIC_CALL BestItemRef FindBestItem(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	auto FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<const TreeItem*>;  // directly referred persistent object.
+
 	TIC_CALL const TreeItem* CheckObjCls(const Class* requiredClass) const;
 	TIC_CALL       TreeItem* CheckCls   (const Class* requiredClass);
 	TIC_CALL const TreeItem* FollowDots(CharPtrRange dots) const;

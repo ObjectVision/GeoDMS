@@ -1369,7 +1369,7 @@ bool TreeItem::IsDataReadable() const
 
 const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
-	dms_assert(this);
+	assert(this);
 
 	if (!this) 
 		return nullptr;
@@ -1381,7 +1381,7 @@ const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 		{
 			if (mc_RefItem)
 			{
-				dms_assert(mc_RefItem != this);
+				assert(mc_RefItem != this);
 				return mc_RefItem->GetConstSubTreeItemByID(subItemID);
 			}
 			return nullptr;
@@ -1395,7 +1395,7 @@ const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 
 const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 {
-	dms_assert(this);
+	assert(this);
 
 	if (!this)
 		return nullptr;
@@ -1407,7 +1407,7 @@ const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 		{
 			if (mc_RefItem)
 			{
-				dms_assert(mc_RefItem != this);
+				assert(mc_RefItem != this);
 				return mc_RefItem->GetCurrSubTreeItemByID(subItemID);
 			}
 			return nullptr;
@@ -1488,15 +1488,15 @@ const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 
 const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 {
-	dms_assert(this);
-	dms_assert(IsMetaThread());
+	assert(this);
+	assert(IsMetaThread());
 
 	if (subItemNames.empty())
 		return this;
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
-	dms_assert(ids.first.first == subItemNames.first);
-	dms_assert(ids.second.second == subItemNames.second);
+	assert(ids.first.first == subItemNames.first);
+	assert(ids.second.second == subItemNames.second);
 	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
 	{	
 		dms_assert(!ids.second.empty());
@@ -1509,21 +1509,64 @@ const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 			return nullptr;
 		return FindTreeItemByID(this, existingToken);
 	}
+	const TreeItem* parent = nullptr;
 	if (ids.first.empty()) // We start at root.
-	{
-		const TreeItem* configRoot = SessionData::Curr()->GetConfigRoot();
-		if (configRoot)
-		{
-			configRoot->UpdateMetaInfo();
-			return configRoot->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
-		}
-		return nullptr;
-	}
-	const TreeItem* parent = FindItem(ids.first);
+		parent = SessionData::Curr()->GetConfigRoot();
+	else
+		parent = FindItem(ids.first);
+
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfo();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
+}
+
+auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<const TreeItem*>  // directly referred persistent object.
+{
+	assert(this);
+	assert(IsMetaThread());
+
+	if (subItemNames.empty())
+		return nullptr;
+
+	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
+	assert(ids.first.first == subItemNames.first);
+	assert(ids.second.second == subItemNames.second);
+	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
+	{
+		dms_assert(!ids.second.empty());
+		if (ids.second.first[0] == '.')
+			return FollowDots(ids.second);
+
+		UpdateMetaInfo();
+		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
+		if (!IsDefined(existingToken))
+			return nullptr;
+		return FindTreeItemByID(this, existingToken);
+	}
+	const TreeItem* parent = nullptr;
+	if (ids.first.empty()) // We start at root.
+		parent = SessionData::Curr()->GetConfigRoot();
+	else
+	{
+		auto  optionalParent = FindAndVisitItem(ids.first, svf, visitor);
+		if (!optionalParent)
+			return {};
+
+		parent = optionalParent.value();
+	}
+	if (!parent)
+		return nullptr;
+	parent->UpdateMetaInfo();
+	if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+		return {};
+
+	auto result = parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
+	if (!result)
+		return nullptr;
+	if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+		return {};
+	return result;
 }
 
 auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> BestItemRef
@@ -1647,8 +1690,8 @@ TreeItem* TreeItem::CheckCls(const Class* requiredClass)
 
 const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 {
-	dms_assert(this);
-	dms_assert(dots.size());
+	assert(this);
+	assert(dots.size());
 	const TreeItem* result = this;
 	while (true)
 	{
