@@ -303,6 +303,7 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText,
 		out << item->GetName().c_str();*/
 }
 
+// ********** XML_Table                                             *********
 
 void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self)
 {
@@ -318,12 +319,47 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 		Row row(*this);
 		{
 			Row::Cell xmlElemTD(row);
-			row.WriteCellData("Also failed");
+			OutStream().WriteTrimmed("Also failed");
 			NewLine(OutStream());
-			row.WriteCellData("(F2 target)");
+			OutStream().WriteTrimmed("(F2 target)");
 		}
 //		row.ValueCell("Also Failed (F2 target)");
 		row.ItemCell(errSrc.first);
+	}
+}
+
+// ********** XML_Table::Row                                        *********
+
+void XML_Table::Row::ClickableCell(CharPtr value, CharPtr hRef, bool bold /* = false */)
+{
+	Cell xmlElemTD(*this);
+	if (bold)
+	{
+		auto boldElement = XML_OutElement(OutStream(), "B");
+		hRefWithText(OutStream(), value, hRef);
+	}
+	else
+		hRefWithText(OutStream(), value, hRef);
+}
+
+void XML_Table::Row::EditablePropCell(CharPtr propName, CharPtr propLabel /*= ""*/, const TreeItem* item /* = nullptr */)
+{
+	assert(propName);
+	assert(propLabel);
+
+	if (!*propLabel)
+		propLabel = propName;
+	if (item && item->IsCacheItem())
+		ValueCell(propLabel);
+	else
+	{
+		/*SharedStr editUrl = (item)
+			?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
+			:	mySSPrintF("dms:edit!%s", propName);*/
+
+		//ClickableCell(propLabel, editUrl.c_str());
+
+		ValueCell(propLabel);
 	}
 }
 
@@ -432,7 +468,7 @@ void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 	XML_Table::Row exprRow(xmlTable);
 		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
 		XML_Table::Row::Cell xmlElemTD(exprRow);
-		exprRow.WriteCellData("CalculationRule");
+		exprRow.OutStream().WriteTrimmed("CalculationRule");
 		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
 		XML_Table::Row::Cell xmlElemTD1(exprRow);
 			GetExprOrSourceDescr(xmlTable.OutStream(), ti);

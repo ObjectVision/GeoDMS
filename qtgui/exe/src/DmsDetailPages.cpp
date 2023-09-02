@@ -461,14 +461,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
     auto colonPos = std::find(sAction.begin(), sAction.end(), ':');
     auto sMenu = CharPtrRange(sAction.begin(), colonPos);
     auto sPathWithSub = CharPtrRange(colonPos == sAction.end() ? colonPos : colonPos + 1, sAction.end());
-/*
-    if (UpperCase(sMenu) = 'EXECUTE') then
-    begin
-    m_VAT : = ViewActionType::Execute;
-    m_Url: = sPathWithSub;
-    exit; // when called from DoOrCreate, self will be Applied Directly and Destroyed.
-    end;
-    */
+
     auto queryPos = std::find(sPathWithSub.begin(), sPathWithSub.end(), '?');
     auto sPath = CharPtrRange(sPathWithSub.begin(), queryPos);
     auto sSub  = CharPtrRange(queryPos == sPathWithSub.end() ? queryPos : queryPos + 1, sPathWithSub.end());

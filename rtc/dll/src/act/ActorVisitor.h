@@ -84,7 +84,7 @@ struct DerivedProcVisitor : ActorVisitor
 template <typename BoolLambda>
 auto MakeDerivedBoolVisitor(BoolLambda&& func)
 {
-	return DerivedProcVisitor<BoolLambda>(std::forward<BoolLambda>(func));
+	return DerivedBoolVisitor<BoolLambda>(std::forward<BoolLambda>(func));
 }
 
 template <typename ProcLambda>

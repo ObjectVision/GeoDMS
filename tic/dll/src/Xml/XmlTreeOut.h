@@ -85,51 +85,15 @@ struct XML_Table : XML_OutElement
 			Cell(Row& row): XML_OutElement(row.OutStream(), "TD") {}
 		};
 
-
-		void WriteCellData(CharPtr value)
-		{
-			OutStream().WriteTrimmed(value);
-		}
-
 		void ValueCell(CharPtr value)
 		{
 			Cell xmlElemTD(*this);
-				WriteCellData(value);
+			OutStream().WriteTrimmed(value);
 		}
 
-		void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false) // TODO: move implementation to implementation file
-		{
-			Cell xmlElemTD(*this);
-			if (bold)
-			{
-				auto bold = XML_OutElement(OutStream(), "B");
-				XML_hRef xmlElemA(OutStream(), hRef);
-				WriteCellData(value); // TODO: remove duplicate logic
-			}
-			else
-			{
-				XML_hRef xmlElemA(OutStream(), hRef);
-				WriteCellData(value);
-			}
-		}
+		TIC_CALL void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false);
+		TIC_CALL void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = nullptr);
 
-		void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = 0)
-		{
-			if (!*propLabel) 
-				propLabel = propName;
-			if (item && item->IsCacheItem())
-				ValueCell(propLabel);
-			else
-			{
-				/*SharedStr editUrl = (item)
-					?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
-					:	mySSPrintF("dms:edit!%s", propName);*/
-				
-				Cell xmlElemTD(*this);
-				WriteCellData(propLabel);
-				//ClickableCell(propLabel, editUrl.c_str());
-			}
-		}
 		void ItemCell(const TreeItem* item, bool bold = false)
 		{
 			ClickableCell(item->GetFullName().c_str(), ItemUrl(item).c_str(), bold);

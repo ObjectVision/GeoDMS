@@ -275,6 +275,13 @@ struct XML_hRef : XML_OutElement
 	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtrRange url);
 };
 
+inline void hRefWithText(OutStreamBase& xmlStream, CharPtr value, CharPtr hRef)
+{
+	XML_hRef xmlElemA(xmlStream, hRef);
+	xmlStream.WriteTrimmed(value);
+
+}
+
 struct XML_DataBracket
 {
 	RTC_CALL  XML_DataBracket(OutStreamBase& xmlStream);

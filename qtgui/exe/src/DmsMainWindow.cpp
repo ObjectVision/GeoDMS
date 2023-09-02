@@ -1209,6 +1209,8 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
 
 void MainWindow::CloseConfig()
 {
+    TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
+
     if (m_mdi_area)
     {
         bool has_active_dms_views = m_mdi_area->subWindowList().size();
@@ -1224,11 +1226,13 @@ void MainWindow::CloseConfig()
         m_treeview->reset();
 
         m_dms_model->setRoot(nullptr);
-        m_root->EnableAutoDelete();
+        m_root->EnableAutoDelete(); // calls SessionData::ReleaseIt(m_root)
         m_root = nullptr;
         m_current_item.reset();
         m_current_item = nullptr;
     }
+    assert(!SessionData::Curr());
+
     scheduleUpdateToolbar();
 }
 

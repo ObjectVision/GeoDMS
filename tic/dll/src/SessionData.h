@@ -102,10 +102,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 
 	std::shared_ptr<SafeFileWriterArray> GetSafeFileWriterArray() { return { shared_from_this(), &m_SFWA }; }
 
-
-public: // ==== code analysis support: DMS_TreeItem_SetAnalysisSource
-	std::map<const Actor*, supplier_level> m_SupplierLevels;
-	SharedPtr<const TreeItem>      m_SourceItem;
+public:
 
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
 	~SessionData();
