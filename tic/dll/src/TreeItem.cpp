@@ -1210,7 +1210,7 @@ void TreeItem::SetFreeDataState(bool value)
 	}
 }
 
-const TreeItem* TreeItem::GetStorageParent (bool alsoForWrite) const
+SharedTreeItem TreeItem::GetStorageParent (bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
 		return nullptr;
@@ -1229,7 +1229,7 @@ const TreeItem* TreeItem::GetStorageParent (bool alsoForWrite) const
 	return nullptr;
 }
 
-const TreeItem* TreeItem::GetCurrStorageParent(bool alsoForWrite) const
+SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
 		return nullptr;
@@ -1324,7 +1324,7 @@ void TreeItem::RemoveFromConfig() const
 
 	// make this invisible and then exclude from parent to avoid finding them. This should be synchronized with getting new references, but it seems unlikely that this might become a realistic issue
 	NotifyStateChange(this, NC_Deleting);
-	const_cast<TreeItem*>(GetTreeParent())->RemoveItem(self);
+	const_cast<TreeItem*>(GetTreeParent().get())->RemoveItem(self);
 }
 
 void TreeItem::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd)
@@ -1367,7 +1367,7 @@ bool TreeItem::IsDataReadable() const
 // TreeItem Find Functions
 //----------------------------------------------------------------------
 
-const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
+SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
 	assert(this);
 
@@ -1393,14 +1393,14 @@ const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 	}
 }
 
-const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
+SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 {
 	assert(this);
 
 	if (!this)
 		return nullptr;
 
-	const TreeItem* subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
+	auto subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
 	{
 		if (!subItem)
@@ -1468,9 +1468,9 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 	return result ? result : parent;
 }
 
-const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
-	dms_assert(this);
+	assert(this);
 	if (subItemNames.empty())
 		return this;
 
@@ -1481,12 +1481,12 @@ const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 			throwItemError("GetCurrItem is not allowed to look outside the accessible search context");
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
-	const TreeItem* parent = GetCurrItem(ids.first);
+	auto parent = GetCurrItem(ids.first);
 	return (parent) ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)) : nullptr;
 }
 
 
-const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 {
 	assert(this);
 	assert(IsMetaThread());
@@ -1509,7 +1509,7 @@ const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 			return nullptr;
 		return FindTreeItemByID(this, existingToken);
 	}
-	const TreeItem* parent = nullptr;
+	SharedTreeItem parent = nullptr;
 	if (ids.first.empty()) // We start at root.
 		parent = SessionData::Curr()->GetConfigRoot();
 	else
@@ -1521,7 +1521,7 @@ const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
 
-auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<const TreeItem*>  // directly referred persistent object.
+auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>  // directly referred persistent object.
 {
 	assert(this);
 	assert(IsMetaThread());
@@ -1534,7 +1534,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	assert(ids.second.second == subItemNames.second);
 	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
 	{
-		dms_assert(!ids.second.empty());
+		assert(!ids.second.empty());
 		if (ids.second.first[0] == '.')
 			return FollowDots(ids.second);
 
@@ -1544,7 +1544,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 			return nullptr;
 		return FindTreeItemByID(this, existingToken);
 	}
-	const TreeItem* parent = nullptr;
+	SharedTreeItem parent = nullptr;
 	if (ids.first.empty()) // We start at root.
 		parent = SessionData::Curr()->GetConfigRoot();
 	else
@@ -2651,7 +2651,7 @@ inline TreeItem* TreeItem::WalkNext(TreeItem* curr) // this acts as subTreeRoot
 		TreeItem* next = curr->GetNextItem();
 		if (next)
 			return next;
-		curr = const_cast<TreeItem*>(curr->GetTreeParent());
+		curr = const_cast<TreeItem*>(curr->GetTreeParent().get());
 	}
 	return nullptr;
 }

@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -303,6 +307,21 @@ const TreeItem* AbstrCalculator::FindItem(TokenID itemRef) const
 	return SearchContext()->FindItem(itemRefStr);
 }
 
+auto AbstrCalculator::FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem
+{
+	if (buff.optionalVisitor)
+	{
+		auto x = VisitSourceItem(itemRef, buff.svf, *buff.optionalVisitor);
+		if (!x)
+		{
+			buff.avs = AVS_SuspendedOrFailed;
+			return nullptr;
+		}
+		return x.value();
+	}
+	return FindItem(itemRef);
+}
+
 BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 {
 	dms_assert(!itemRef.empty());
@@ -333,17 +352,22 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 	return foundItem;
 }
 
-auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const -> ActorVisitState  // directly referred persistent object.
+auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const -> std::optional<SharedTreeItem>  // directly referred persistent object.
 {
 	assert(IsMetaThread());
-	assert(IsSourceRef());
+//	assert(IsSourceRef());
 
 	if (supplRefID == thisToken)
-		return ActorVisitState::AVS_Ready;
+		return nullptr;
 
 	SharedStr itemRefStr(supplRefID.AsStrRange());
-	auto searchResult = SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
-	return searchResult ? AVS_Ready : AVS_SuspendedOrFailed;
+	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+		return SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
+	auto searchResult = SearchContext()->FindItem(itemRefStr);
+	if (visitor.Visit(searchResult) == AVS_SuspendedOrFailed)
+		return {};
+	return searchResult;
+
 }
 
 bool AbstrCalculator::IsSourceRef() const
@@ -582,24 +606,18 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 
 ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	if (Test(svf, SupplierVisitFlag::NamedSuppliers)) {
+	if (Test(svf, SupplierVisitFlag::NamedSuppliers)) 
+	{
 		if (IsSourceRef())
 		{
 			TokenID supplRefID = GetLispExprOrg().GetSymbID();
-			return VisitSourceItem(supplRefID, svf, visitor);
+			auto optionalSourceItem = VisitSourceItem(supplRefID, svf, visitor);
+			return optionalSourceItem ? AVS_Ready : AVS_SuspendedOrFailed;
 		}
-		else
-		{
-			CreateSupplierSet();
-			for (SizeT i = 0; i < m_SupplierArray.size(); ++i)
-			{
-				assert(!m_SupplierArray[i]->IsCacheItem());
-				assert(m_SupplierArray[i]);
-				assert(m_SupplierArray[i]->GetRefCount());
-				if (visitor.Visit(m_SupplierArray[i]) == AVS_SuspendedOrFailed)
-					return AVS_SuspendedOrFailed;
-			}
-		}
+		SubstitutionBuffer substBuff;
+		substBuff.svf = svf;
+		substBuff.optionalVisitor = &visitor;
+		SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
 	}
 	return AVS_Ready;
 }
@@ -725,9 +743,12 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 	if (token::isConst(supplRefID))
 		return ExprList(supplRefID);
 
-	const TreeItem* supplier = FindItem(supplRefID);
+	auto supplier = FindOrVisitItem(substBuff, supplRefID);
 	if (!supplier || supplier->IsCacheItem())
 	{
+		if (substBuff.optionalVisitor)
+			return {};
+
 		if (!m_BestGuessErrorSuppl.first)
 		{
 			auto x = FindBestItem(supplRefID);
@@ -1102,7 +1123,9 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					, AsString(indexExpr)
 					);
 
-				SharedPtr<const TreeItem> indexItem = FindItem(indexExpr.GetSymbID());
+				auto indexItem = FindOrVisitItem(substBuff, indexExpr.GetSymbID());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
 				if (!indexItem.get_ptr())
 					throwErrorF("Calculation Rule Parser", "reference '%s' not found (as left operand of the arrow operator)"
 					, AsString(indexExpr.GetSymbID())
@@ -1112,7 +1135,6 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 					, AsString(indexExpr.GetSymbID())
 					, AsString(indexItem->GetDynamicClass()->GetID())
 					);
-
 
 				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get_ptr()) );
 				if (!avu)
@@ -1157,7 +1179,10 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			dms_assert(og);
 			if (og->IsTemplateCall())
 			{
-				auto templateItem = FindItem(head.GetSymbID());
+				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
+
 				if (!templateItem)
 					throwErrorF("ExprParser", "'%s': unknown function"
 						, head.GetSymbStr().c_str()
@@ -1233,7 +1258,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 	if (localExpr.IsRealList()) // operator call or calculation scheme instantiation
 	{
-		dms_assert(localExpr.Left().IsSymb());
+		assert(localExpr.Left().IsSymb());
 
 		LispRef head = localExpr.Left();
 		TokenID exprHeadID = head.GetSymbID();
@@ -1241,10 +1266,13 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 			goto skipTemplInst;
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
-		dms_assert(og);
+		assert(og);
 		if (og->IsTemplateCall())
 		{
-			auto templateItem = FindItem(head.GetSymbID());
+			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+			if (substBuff.avs == AVS_SuspendedOrFailed)
+				return {};
+
 			if (!templateItem)
 				throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
 					, head.GetSymbStr().c_str()

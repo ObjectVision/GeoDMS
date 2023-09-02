@@ -358,13 +358,13 @@ struct OdbcMetaInfo : StorageMetaInfo
 {
 	OdbcMetaInfo(const ODBCStorageManager* sm, const TreeItem* storageHolder, const TreeItem* curr)
 		: StorageMetaInfo(storageHolder, curr)
-		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : curr)
+		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeShared(curr))
 	{
 		if (m_TableHolder)
 			m_SqlString = GetOrCreateSqlString(m_TableHolder);
 	}
 
-	SharedPtr<const TreeItem> m_TableHolder;
+	SharedTreeItem m_TableHolder;
 	SharedStr m_SqlString;
 };
 
@@ -626,7 +626,7 @@ private:
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
-	TreeItem*            m_TableHolder; // Maybe we read all columns at once
+	SharedPtr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
 	std::vector<BYTE>    m_CharBuffer;
 };
 
@@ -745,7 +745,7 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	TreeItem* tableHolder = const_cast<TreeItem*>(adi->GetTreeParent());
+	SharedPtr<TreeItem> tableHolder = const_cast<TreeItem*>(adi->GetTreeParent().get());
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder, adi->GetName().c_str(), adi);

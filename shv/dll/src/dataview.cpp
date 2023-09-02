@@ -1442,8 +1442,8 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 
 TreeItem* DataView::GetDesktopContext() const
 {
-	TreeItem* desktopItem = const_cast<TreeItem*>( GetViewContext()->GetTreeParent() ); 
-	dms_assert(desktopItem && !desktopItem->IsCacheItem());
+	TreeItem* desktopItem = const_cast<TreeItem*>( GetViewContext()->GetTreeParent().get() ); 
+	assert(desktopItem && !desktopItem->IsCacheItem());
 	return desktopItem;
 }
 

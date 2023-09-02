@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include <QListWidget>
 
 #include <QObject>
@@ -496,7 +500,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
     {
         sMenu.first += 3;
         auto detail_page_type = dp_FromName(sMenu);
-        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first); // TODO: make result FindBestItem non-const
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
         switch (detail_page_type)
         {
         case ActiveDetailPage::STATISTICS:

@@ -106,7 +106,7 @@ namespace Explain {
 }
 
 using AbstrCalculatorRef = SharedPtr<const AbstrCalculator> ;
-using BestItemRef = std::pair<const TreeItem*, SharedStr>;
+using BestItemRef = std::pair<SharedTreeItem, SharedStr>;
 using AbstrStorageManagerRef = SharedPtr<AbstrStorageManager>;
 
 struct AbstrOperGroup;
@@ -129,15 +129,21 @@ using og_index  = UInt32;
 // casting
 //----------------------------------------------------------------------
 
+template <typename T> inline bool                 IsDataItem(const T* self) { return AsDynamicDataItem(self) != nullptr; }
+template <typename T> inline const AbstrDataItem* AsDataItem(const T* self) { return debug_cast<const AbstrDataItem*>(self); }
+template <typename T> inline       AbstrDataItem* AsDataItem(T* self) { return debug_cast<AbstrDataItem*>(self); }
+template <typename T> inline const AbstrDataItem* AsDynamicDataItem(const T* self) { return dynamic_cast<const AbstrDataItem*>(self); }
+template <typename T> inline       AbstrDataItem* AsDynamicDataItem(T* self) { return dynamic_cast<AbstrDataItem*>(self); }
 template <typename T> inline const AbstrDataItem* AsCheckedDataItem(const T* self) { return checked_cast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCheckedDataItem(T* self) { return checked_cast<AbstrDataItem*>(self); }
 template <typename T> inline const AbstrDataItem* AsCertainDataItem(const T* self) { return checked_valcast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCertainDataItem(T* self) { return checked_valcast<      AbstrDataItem*>(self); }
-template <typename T> inline const AbstrDataItem* AsDynamicDataItem(const T* self) { return dynamic_cast<const AbstrDataItem*>(self); }
-template <typename T> inline       AbstrDataItem* AsDynamicDataItem(T* self) { return dynamic_cast<AbstrDataItem*>(self); }
-template <typename T> inline const AbstrDataItem* AsDataItem(const T* self) { return debug_cast<const AbstrDataItem*>(self); }
-template <typename T> inline       AbstrDataItem* AsDataItem(T* self) { return debug_cast<AbstrDataItem*>(self); }
-template <typename T> inline bool                 IsDataItem(const T* self) { return AsDynamicDataItem(self) != nullptr; }
+
+template <typename T> inline bool IsDataItem(const SharedPtr<T>& self) { return IsDataItem(self.get()); }
+template <typename T> inline auto AsDataItem(const SharedPtr<T>& self) { return MakeShared(AsDataItem(self.get())); }
+template <typename T> inline auto AsDynamicDataItem(const SharedPtr<T>& self) { return MakeShared(AsDynamicDataItem(self.get())); }
+template <typename T> inline auto AsCheckedDataItem(const SharedPtr<T>& self) { return MakeShared(AsCheckedDataItem(self.get())); }
+template <typename T> inline auto AsCertainDataItem(const SharedPtr<T>& self) { return MakeShared(AsCertainDataItem(self.get())); }
 
 //----------------------------------------------------------------------
 // class  : TreeItemAdmLock, inherit from specific Adm's to ensure order of initialization

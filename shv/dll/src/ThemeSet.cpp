@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -109,10 +84,10 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 
 	for (AspectNr aNr = AN_Feature; aNr < AN_AspectCount; ++(UInt32&)aNr)
 	{
-		TreeItem* aspectContext = const_cast<TreeItem*>(
+		SharedPtr<TreeItem> aspectContext = const_cast<TreeItem*>(
 			viewContext->GetConstSubTreeItemByID(
 				GetTokenID_mt(AspectArray[aNr].name)
-			)
+			).get()
 		);
 		if (sm == SM_Load)
 		{
@@ -126,7 +101,7 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 		}
 		else 
 		{
-			dms_assert(sm == SM_Save);
+			assert(sm == SM_Save);
 			if (m_Themes[aNr])
 				m_Themes[aNr]->Sync( viewContext->CreateItem( GetAspectNameID(aNr) ), SM_Save );
 		}

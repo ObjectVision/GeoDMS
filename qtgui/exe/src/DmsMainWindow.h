@@ -62,6 +62,9 @@ public:
 public slots:
     void setPathDirectly(QString path);
     void onEditingFinished();
+
+private:
+    void findItem(const TreeItem* context, QString path);
 };
 
 enum class ButtonType
