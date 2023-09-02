@@ -76,8 +76,10 @@ supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supp
 bool MarkSources(SessionData* dsm, const Actor* a, supplier_level level)
 {
 	assert(a);
+	auto ti = dynamic_cast<const TreeItem*>(a);
 	if (a->IsPassorOrChecked())
-		return false;
+		if (!ti || ti->IsCacheItem())
+			return false;
 
 	supplier_level& currLevel = dsm->m_SupplierLevels[a];
 
@@ -87,7 +89,6 @@ bool MarkSources(SessionData* dsm, const Actor* a, supplier_level level)
 	{
 		currLevel = level; // if Source bit was set, it will be set again.
 
-		auto ti = dynamic_cast<const TreeItem*>(a);
 		if (ti)
 			NotifyStateChange(ti, NC2_InterestChange);
 
