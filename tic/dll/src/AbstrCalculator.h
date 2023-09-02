@@ -63,7 +63,6 @@ struct SubstitutionBuffer
 	ActorVisitState avs = AVS_Ready;
 
 	LispRefAssoc m_SubstituteBuffer[3];
-	TTreeItemSet m_SupplierSet;
 
 	LispRef& BufferedLispRef(metainfo_policy_flags mpf, LispPtr key);
 };
@@ -182,8 +181,7 @@ public:
 protected:
 	mutable LispRef m_LispExprOrg; // TODO G8: required for ExprCalculator and DC_Ptr(ArgCalc), but not for DataBlockTask and maybe also not for DC_Ptr(Calc)
 	mutable MetaInfo m_LispExprSubst;
-	mutable TreeItemCRefArray m_SupplierArray;
-
+	
 	mutable bool     
 		m_HasParsed      : 1 = false,
 		m_HasSubstituted : 1 = false;

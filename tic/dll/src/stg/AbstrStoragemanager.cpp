@@ -749,7 +749,7 @@ void AbstrStorageManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem*
 void AbstrStorageManager::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
 {
 	interest_holders_container interestHolders;
-	auto visitor = MakeDerivedProcVistor([&interestHolders](const Actor* item) { if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); });
+	auto visitor = MakeDerivedProcVisitor([&interestHolders](const Actor* item) { if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); });
 
 	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
 

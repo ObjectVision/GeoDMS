@@ -2765,7 +2765,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		if (Test(svf, SupplierVisitFlag::SourceData))
 		{
 			const TreeItem* sourceItem = GetSourceItem();
-			dms_assert(!sourceItem || sourceItem != this);
+			assert(!sourceItem || sourceItem != this);
 			if (visitor.Visit(sourceItem) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 		}

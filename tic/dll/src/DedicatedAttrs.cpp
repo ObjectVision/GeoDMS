@@ -175,7 +175,7 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 			catch (...) {}
 		};
 
-		VisitConstVisibleSubTrees( context, MakeDerivedProcVistor(std::move(newF)) );
+		VisitConstVisibleSubTrees( context, MakeDerivedProcVisitor(std::move(newF)) );
 
 	DMS_CALL_END
 
@@ -220,7 +220,7 @@ UInt32 DMS_CONV DMS_DomainUnit_VisitPaletteCandidates (const AbstrUnit* domain, 
 
 		VisitAllVisibleSubItems(domain,    f, doneItems);
 
-		VisitConstVisibleSubTrees( domain, MakeDerivedProcVistor(std::move(newF)) );
+		VisitConstVisibleSubTrees( domain, MakeDerivedProcVisitor(std::move(newF)) );
 
 	DMS_CALL_END
 

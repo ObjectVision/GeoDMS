@@ -44,11 +44,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct ActorVisitor
 {
-	typedef ActorVisitState ResultType;
+	virtual ActorVisitState operator ()(const Actor* supplier) const= 0;
 
-	virtual ResultType operator ()(const Actor* supplier) const= 0;
-
-	RTC_CALL ResultType Visit(const Actor* supplier) const;
+	RTC_CALL ActorVisitState Visit(const Actor* supplier) const;
 };
 
 
@@ -83,8 +81,14 @@ struct DerivedProcVisitor : ActorVisitor
 	ProcLambda lfunc;
 };
 
+template <typename BoolLambda>
+auto MakeDerivedBoolVisitor(BoolLambda&& func)
+{
+	return DerivedProcVisitor<BoolLambda>(std::forward<BoolLambda>(func));
+}
+
 template <typename ProcLambda>
-DerivedProcVisitor<ProcLambda> MakeDerivedProcVistor(ProcLambda&& func)
+auto MakeDerivedProcVisitor(ProcLambda&& func)
 {
 	return DerivedProcVisitor<ProcLambda>(std::forward<ProcLambda>(func));
 }
@@ -93,13 +97,13 @@ DerivedProcVisitor<ProcLambda> MakeDerivedProcVistor(ProcLambda&& func)
 template <typename BoolLambda>
 ActorVisitState VisitSupplBoolImpl(const Actor* self, SupplierVisitFlag svf, BoolLambda&& lfunc)
 {
-	return self->VisitSuppliers(svf, DerivedBoolVisitor<BoolLambda>(std::forward<BoolLambda>(lfunc)));
+	return self->VisitSuppliers(svf, MakeDerivedBoolVisitor(std::forward<BoolLambda>(lfunc)));
 }
 
 template <typename ProcLambda>
 ActorVisitState VisitSupplProcImpl(const Actor* self, SupplierVisitFlag svf, ProcLambda&& lfunc)
 {
-	return self->VisitSuppliers(svf, DerivedProcVisitor<ProcLambda>(std::forward<ProcLambda>(lfunc)));
+	return self->VisitSuppliers(svf, MakeDerivedProcVisitor(std::forward<ProcLambda>(lfunc)));
 }
 
 #endif // __RTC_ACT_ACTORVISITOR_H

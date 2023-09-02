@@ -75,7 +75,7 @@ supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supp
 
 bool MarkSources(SessionData* dsm, const Actor* a, supplier_level level)
 {
-	dms_assert(a);
+	assert(a);
 	if (a->IsPassorOrChecked())
 		return false;
 
@@ -93,13 +93,13 @@ bool MarkSources(SessionData* dsm, const Actor* a, supplier_level level)
 
 		if (level == supplier_level::calc)
 		{
-			a->VisitSuppliers(SupplierVisitFlag::CalcAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::calc); }));
-			a->VisitSuppliers(SupplierVisitFlag::MetaAll, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
+			a->VisitSuppliers(SupplierVisitFlag::CalcAll, MakeDerivedProcVisitor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::calc); }));
+			a->VisitSuppliers(SupplierVisitFlag::MetaAll, MakeDerivedProcVisitor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
 		}
 		else
 		{
 			assert(currLevel == supplier_level::meta);
-			a->VisitSuppliers(SupplierVisitFlag::All, MakeDerivedProcVistor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
+			a->VisitSuppliers(SupplierVisitFlag::All, MakeDerivedProcVisitor([dsm, &hasSource](const Actor* s) { hasSource |= MarkSources(dsm, s, supplier_level::meta); }));
 		}
 		if (hasSource)
 			currLevel = currLevel | supplier_level::uses_source_flag;
