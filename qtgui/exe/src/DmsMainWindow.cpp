@@ -258,7 +258,7 @@ void DmsCurrentItemBar::setPath(CharPtr itemPath)
     onEditingFinished();
 }
 
-void DmsCurrentItemBar::findItem(const TreeItem * context, QString path)
+void DmsCurrentItemBar::findItem(const TreeItem * context, QString path, bool updateHistory)
 {
     if (!context)
         return;
@@ -267,18 +267,18 @@ void DmsCurrentItemBar::findItem(const TreeItem * context, QString path)
     auto found_treeitem = best_item_ref.first.get();
     if (!found_treeitem)
         return;
-    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), updateHistory);
 }
 
 void DmsCurrentItemBar::setPathDirectly(QString path)
 {
     setText(path);
-    findItem(MainWindow::TheOne()->getRootTreeItem(), path);
+    findItem(MainWindow::TheOne()->getRootTreeItem(), path, false);
 }
 
 void DmsCurrentItemBar::onEditingFinished()
 {
-    findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8());
+    findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8(), true);
 }
 
 bool MainWindow::IsExisting()

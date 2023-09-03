@@ -64,7 +64,7 @@ public slots:
     void onEditingFinished();
 
 private:
-    void findItem(const TreeItem* context, QString path);
+    void findItem(const TreeItem* context, QString path, bool updateHistory);
 };
 
 enum class ButtonType
