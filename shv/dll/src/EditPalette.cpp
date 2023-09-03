@@ -437,8 +437,8 @@ void EditPaletteControl::ClassifyEqualInterval()
 	}
 
 	AbstrDataItem* breakAttr = const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr());
-	dms_assert(breakAttr);
-	dms_assert(breakAttr->HasInterest());
+	assert(breakAttr);
+	assert(breakAttr->HasInterest());
 
 	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
 
