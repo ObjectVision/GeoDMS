@@ -278,7 +278,7 @@ void DmsCurrentItemBar::setPathDirectly(QString path)
 
 void DmsCurrentItemBar::onEditingFinished()
 {
-    findItem(MainWindow::TheOne()->getCurrentTreeItem(), text().toUtf8());
+    findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8());
 }
 
 bool MainWindow::IsExisting()

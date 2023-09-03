@@ -178,7 +178,7 @@ namespace { // DebugOutStreamBuff is local
 
 			if (m_Data.empty())
 				return;
-			MsgData msgData(m_Severity, m_MsgCat, GetThreadID(), false, StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
+			MsgData msgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
 			AddMainThreadOper([msg = std::move(msgData)]() mutable {
 					if (!s_nrRtcStreamLocks)
 						return;
