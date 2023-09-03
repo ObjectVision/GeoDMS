@@ -103,7 +103,7 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 
 SYNTAX_CALL void annotateExpr(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 
 	HtmlProd prod(outStream, searchContext, expr);
 	expr_grammar<HtmlProd> p(prod);

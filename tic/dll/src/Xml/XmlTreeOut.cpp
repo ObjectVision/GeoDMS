@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -450,8 +454,8 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
 	const TreeItem* si = GetExprOrSourceDescrAndReturnSourceItem(stream, ti);
 	while (si)
 	{
-		dms_assert(si != ti);
-		dms_assert(!si->IsCacheItem());
+		assert(si != ti);
+		assert(!si->IsCacheItem());
 		NewLine(stream);
 		stream << "which refers to";
 		{
