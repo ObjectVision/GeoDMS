@@ -181,6 +181,7 @@ bool WmCopyData(MSG* copyMsgPtr)
 
     case CommandCode::ExpandAll:
         MainWindow::TheOne()->expandAll();
+        return true;
 
     case CommandCode::ExpandRecursive:
         MainWindow::TheOne()->expandRecursiveFromCurrentItem();
