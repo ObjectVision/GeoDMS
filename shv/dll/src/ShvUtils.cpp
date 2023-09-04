@@ -127,6 +127,11 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 		CreateViewAction(tiContext, mySSPrintF("dp.vi.attr!%d", index).c_str(), -1, -1, -1, true, false, mustOpenDetailsPage);
 }
 
+void CreateGotoAction(const TreeItem* tiContext)
+{
+	CreateViewAction(tiContext, "goto", 0, 0, 0, false, false, false);
+}
+
 //----------------------------------------------------------------------
 // section : TPoint & TRect
 //----------------------------------------------------------------------

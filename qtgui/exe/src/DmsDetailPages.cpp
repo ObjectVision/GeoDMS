@@ -489,6 +489,14 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
         return;
     }
 
+    if (!strncmp(sMenu.begin(), "goto", sMenu.size()))
+    {
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+        if (tiContext)
+            MainWindow::TheOne()->setCurrentTreeItem(tiContext);
+        return;
+    }
+
     if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
     {
         sMenu.first += 3;
@@ -507,7 +515,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
             m_active_detail_page = detail_page_type;
             if (tiContext)
                 MainWindow::TheOne()->setCurrentTreeItem(tiContext);
-            drawPage(); // Update
+            scheduleDrawPageImpl(100);
             return;
         }
     }
