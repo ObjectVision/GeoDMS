@@ -27,6 +27,9 @@ public:
 	QSize sizeHint() const override;
 	void connectDetailPagesAnchorClicked();
 
+	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
+	ActiveDetailPage m_last_active_detail_page = ActiveDetailPage::GENERAL;
+
 public slots:
 	void show(ActiveDetailPage new_active_detail_page);
 	void toggleGeneral();
@@ -48,16 +51,15 @@ protected:
 	//bool event(QEvent* event) override;
 public slots:
 	void onAnchorClicked(const QUrl& link);
+	void toggle(ActiveDetailPage new_active_detail_page);
 
 private:
 	void toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle);
-	void toggle(ActiveDetailPage new_active_detail_page);
 	void drawPage();
 	void scheduleDrawPageImpl(int milliseconds);
 
 	std::atomic<bool> m_DrawPageRequestPending = false;
 
-	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 	bool            m_AllProperties = true;
 };
