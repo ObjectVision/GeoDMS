@@ -282,7 +282,16 @@ template <typename P> struct dist_func: binary_func<typename dist_type<P>::type,
 // *****************************************************************************
 
 template <typename T> struct compare_func : binary_func<Bool, T, T> {
+	using base_class = binary_func<Bool, T, T>;
+
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compare_unit_creator(gr, args, true); }
+
+	Bool operator()(T a, T b) const
+	{
+		if (!IsDefined(a) || !IsDefined(b))
+			throwDmsErrD("Invalid attempt to compare undefined values!");
+		return base_class::operator()(a, b);
+	}
 };
 
 template <typename T> struct equal_to     : compare_func<T> { Bool operator ()(typename equal_to::arg1_cref a, typename equal_to::arg2_cref b) const { return a == b; } };

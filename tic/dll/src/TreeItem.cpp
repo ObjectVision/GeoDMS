@@ -2675,7 +2675,7 @@ TreeItem* TreeItem::WalkCurrSubTree(TreeItem* curr) // this acts as subTreeRoot
 
 ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
@@ -2723,7 +2723,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 		}
 	}
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 
 	// =============== look for explicit suppliers
 
@@ -2733,26 +2733,21 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		for  (UInt32 i = 0; i < n; ++i)
 		{
 			const Actor* supplier = GetSupplCache()->begin(this)[i];
-			dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+			assert(!SuspendTrigger::DidSuspend()); // precondition
+			if (!supplier)
+				continue;
 			 if (visitor(supplier) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 
-			dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+			assert(!SuspendTrigger::DidSuspend()); // precondition
 			auto supplTI = debug_cast<const TreeItem*>(supplier); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
 			if (supplTI->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 	// Ask ParseResult for suppliers
-
-//	dms_assert(!Test(svf, SupplierVisitFlag::Calculator));
-	/* REMOVE
-		if (Test(svf, SupplierVisitFlag::Calculator)) // already done by StartInterest
-			if (visitor(GetCalculator()) == AVS_SuspendedOrFailed)
-				return AVS_SuspendedOrFailed;
-	*/
 
 	// =============== m_Calculator related
 	if (Test(svf, SupplierVisitFlag::DetermineCalc))
@@ -2781,7 +2776,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (mc_RefItem)
 	{
 		if (Test(svf, SupplierVisitFlag::SourceData))
-			if (visitor.Visit(mc_RefItem) != AVS_Ready)
+			if (visitor(mc_RefItem) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 	}
 
@@ -2811,9 +2806,9 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
 	{
 		auto icResult = MakeResult(GetIntegrityChecker());
-		if (visitor(icResult) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(icResult) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
-		if (visitor(icResult->GetOld()) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(icResult->GetOld()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 	return base_type::VisitSuppliers(svf, visitor);
