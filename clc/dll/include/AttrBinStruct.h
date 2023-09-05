@@ -205,12 +205,100 @@ void do_binary_func(
 // *****************************************************************************
 #include <functional>
 
-template <typename T> struct plus_func : std_binary_func< std::plus<T>, T, T, T>       
+template <typename T>
+struct safe_plus
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a + b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (result < a)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative == bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative !=resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_plus < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>( scalar_op(a.first, b.first), scalar_op(a.second, b.second) );
+	}
+	safe_plus<T> scalar_op;
+};
+
+template <typename T>
+struct safe_minus
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a - b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (a < b)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative != bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_minus < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>( scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_minus<T> scalar_op;
+};
+
+template <typename T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct minus_func: std_binary_func< std::minus<T>, T, T, T>      
+template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T>      
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
