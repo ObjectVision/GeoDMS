@@ -155,12 +155,12 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
 
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
-    m_ignore = new QPushButton("Ignore", this);
+    m_ignore = new QPushButton(tr("&Ignore"), this);
     m_ignore->setMaximumSize(75, 30);
-    m_terminate = new QPushButton("Terminate", this);
+    m_terminate = new QPushButton(tr("&Terminate"), this);
     m_terminate->setMaximumSize(75, 30);
 
-    m_reopen = new QPushButton("Reopen", this);
+    m_reopen = new QPushButton(tr("&Reopen"), this);
     m_reopen->setAutoDefault(true);
     m_reopen->setDefault(true);
 
