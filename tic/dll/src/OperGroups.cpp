@@ -383,7 +383,7 @@ TemplOperGroup::TemplOperGroup()
 
 oper_arg_policy TemplOperGroup::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const
 {
-	dms_assert(!firstArgValue);
+	assert(firstArgValue == nullptr || *firstArgValue == char(0));
 	return oper_arg_policy::calc_never;
 }
 

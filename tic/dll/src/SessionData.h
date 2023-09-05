@@ -1,31 +1,9 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#pragma once
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_SESSIONDATA_H)
 #define __TIC_SESSIONDATA_H
 
@@ -69,16 +47,18 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 
 	void ActivateThis();
 
-	static void ActivateIt(const TreeItem* configRoot); // for now, assume session to be a singleton
+	static void activateIt(const TreeItem* configRoot); // for now, assume session to be a singleton
 	static std::shared_ptr<SessionData> GetIt(const TreeItem* configRoot);
+	static std::shared_ptr<SessionData> getIt(const TreeItem* configRoot);
 	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
 
 	bool IsCancelling() const { return m_IsCancelling;  }
 
 
 	TIC_CALL static std::shared_ptr<SessionData> Curr();
+	TIC_CALL static void ReleaseCurr();
 
-	TIC_CALL void Release();
+	TIC_CALL void release();
 
 	const TreeItem* GetConfigRoot   () const { return m_ConfigRoot; } 
 	WeakStr         GetConfigLoadDir() const { return m_ConfigLoadDir; }
@@ -88,8 +68,8 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	SharedStr       GetConfigIniFile() const;
 	static SharedStr GetConfigIniFile(CharPtr configDir);
 
-	const TreeItem* GetConfigSettings() const;
-	const TreeItem* GetConfigSettings(CharPtr section, CharPtr key) const;
+	SharedTreeItem GetConfigSettings() const;
+	SharedTreeItem GetConfigSettings(CharPtr section, CharPtr key) const;
 
 	         SharedStr ReadConfigString(CharPtr section, CharPtr key, CharPtr defaultValue) const;
 	TIC_CALL Int32     ReadConfigValue (CharPtr section, CharPtr key, Int32   defaultValue) const;
@@ -109,10 +89,10 @@ public:
 private:
 	SessionData(const SessionData&) = delete;
 
-	void DeactivateThis();
+	void deactivateThis();
 	SafeFileWriterArray           m_SFWA;
 
-	WeakPtr<const TreeItem>       m_ConfigRoot, m_ConfigSettings, m_ActiveDesktop;
+	SharedPtr<const TreeItem>     m_ConfigRoot, m_ConfigSettings, m_ActiveDesktop;
 	SharedStr                     m_ConfigLoadDir;
 	SharedStr                     m_ConfigSubDir;
 	SharedStr                     m_ConfigDir;

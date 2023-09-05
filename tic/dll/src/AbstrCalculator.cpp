@@ -607,6 +607,8 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers));
+	if (dynamic_cast<const DC_Ptr*>(this))
+		return AVS_Ready;
 
 	if (IsSourceRef())
 	{
@@ -618,7 +620,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	SubstitutionBuffer substBuff;
 	substBuff.svf = svf;
 	substBuff.optionalVisitor = &visitor;
-	SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
+	SubstituteExpr(substBuff, GetLispExprOrg());
 	return substBuff.avs;
 }
 
@@ -771,10 +773,11 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 		return ExprList(supplRefID);
 
 	auto supplier = FindOrVisitItem(substBuff, supplRefID);
+	if (substBuff.optionalVisitor)
+		return {};
+
 	if (!supplier || supplier->IsCacheItem())
 	{
-		if (substBuff.optionalVisitor)
-			return {};
 
 		if (!m_BestGuessErrorSuppl.first)
 		{
@@ -846,7 +849,7 @@ LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr l
 	}
 
 	LispRef right = SubstituteArgs(substBuff, localArgs.Right(), og, argNr + 1, firstArgValue);
-	if (substBuff.avs == AVS_SuspendedOrFailed)
+	if (substBuff.optionalVisitor)
 		return {};
 
 	return (right == localArgs.Right() && left == localArgs.Left())
@@ -1217,39 +1220,42 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID()); 
-			dms_assert(og);
-			if (og->IsTemplateCall())
+			assert(og);
+			if (!substBuff.optionalVisitor)
 			{
-				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
-				if (substBuff.avs == AVS_SuspendedOrFailed)
-					return {};
+				if (og->IsTemplateCall())
+				{
+					auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+					if (substBuff.avs == AVS_SuspendedOrFailed)
+						return {};
 
-				if (!templateItem)
-					throwErrorF("ExprParser", "'%s': unknown function"
-						, head.GetSymbStr().c_str()
-					);
+					if (!templateItem)
+						throwErrorF("ExprParser", "'%s': unknown function"
+							, head.GetSymbStr().c_str()
+						);
 
-				if (!templateItem->IsTemplate())
-					throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+					if (!templateItem->IsTemplate())
+						throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+							, head.GetSymbStr().c_str()
+							, templateItem->GetFullName().c_str()
+						);
+
+					throwErrorF("ExprParser", "'%s': template instantiations (of '%s') not allowed as sub-expressions"
 						, head.GetSymbStr().c_str()
 						, templateItem->GetFullName().c_str()
 					);
-
-				throwErrorF("ExprParser", "'%s': template instantiations (of '%s') not allowed as sub-expressions"
-					, head.GetSymbStr().c_str()
-					, templateItem->GetFullName().c_str()
-				);
-			}
-			if (!og->MustCacheResult())
-			{
-				throwErrorF("ExprParser", "'%s': meta function call not allowed as sub-expressions"
-					, head.GetSymbStr().c_str()
-				);
+				}
+				if (!og->MustCacheResult())
+				{
+					throwErrorF("ExprParser", "'%s': meta function call not allowed as sub-expressions"
+						, head.GetSymbStr().c_str()
+					);
+				}
 			}
 
 			// rewrite to at least make a context independent expr.
 			auto args = SubstituteArgs(substBuff, localExpr.Right(), og, 0, {});
-			if (substBuff.avs == AVS_SuspendedOrFailed)
+			if (substBuff.optionalVisitor)
 				return {};
 
 			localExpr = RewriteExprTop(
@@ -1308,28 +1314,31 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
 		assert(og);
-		if (og->IsTemplateCall())
+		if (!substBuff.optionalVisitor)
 		{
-			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
-			if (substBuff.avs == AVS_SuspendedOrFailed)
-				return {};
+			if (og->IsTemplateCall())
+			{
+				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
 
-			if (!templateItem)
-				throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
-					, head.GetSymbStr().c_str()
-				);
+				if (!templateItem)
+					throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
+						, head.GetSymbStr().c_str()
+					);
 
-			if (!templateItem->IsTemplate())
-				throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
-					, head.GetSymbStr().c_str()
-					, templateItem->GetFullName().c_str()
-				);
+				if (!templateItem->IsTemplate())
+					throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+						, head.GetSymbStr().c_str()
+						, templateItem->GetFullName().c_str()
+					);
 
-			// calculation scheme: isTempl, dont-subst templ
-			return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
+				// calculation scheme: isTempl, dont-subst templ
+				return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
+			}
+			if (!og->MustCacheResult())
+				return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };
 		}
-		if (!og->MustCacheResult())
-			return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };
 	}
 skipTemplInst:
 	return SubstituteExpr_impl(substBuff, localExpr, metainfo_policy_flags::is_root_expr);
@@ -1355,7 +1364,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 			SubstitutionBuffer substBuff;
 			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
 		}
-		dms_assert(!m_HasSubstituted); // not allowed to call twice when this results in MetaInfo
+		assert(!m_HasSubstituted); // not allowed to call twice when this results in MetaInfo
 		m_HasSubstituted = true;
 	}
 	return m_LispExprSubst;
@@ -1376,185 +1385,6 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_PropertyValue(TreeItem* context, Ab
 		SuspendTrigger::Resume();
 
 		return IString::Create(TreeItemPropertyValue(context, propDef));
-
-	DMS_CALL_END
-	return nullptr;
-}
-
-extern "C"
-TIC_CALL const AbstrCalculator* DMS_CONV DMS_TreeItem_CreateParseResult(TreeItem* context, CharPtr expr, bool contextIsTarget)
-{
-	DMS_CALL_BEGIN
-
-		TreeItemContextHandle tich(context, TreeItem::GetStaticClass(), "DMS_TreeItem_CreateParseResult");
-		MG_PRECONDITION(expr);
-		MG_PRECONDITION(*expr);
-
-		SharedStr exprPtr(expr);
-		dms_assert(!exprPtr.empty());
-
-		AbstrCalculatorRef result = AbstrCalculator::ConstructFromStr(context, exprPtr, contextIsTarget ? CalcRole::Calculator : CalcRole::Other);
-		result->IncRef(); // must be complemented by a call to DMS_ParseResult_Release
-
-		return result;
-
-	DMS_CALL_END
-	return nullptr;
-}
-
-extern "C"
-TIC_CALL const AbstrCalculator* DMS_CONV DMS_TreeItem_GetParseResult(const TreeItem* context)
-{
-	DMS_CALL_BEGIN
-
-		TreeItemContextHandle tich(context, TreeItem::GetStaticClass(), "DMS_TreeItem_GetParseResult");
-
-		static SharedPtr<const AbstrCalculator> s_ResultHolder; // TODO G8: weg ermee
-		if (context->HasCalculator())
-		{
-			s_ResultHolder = context->GetCalculator();
-			return s_ResultHolder.get();
-		}
-
-	DMS_CALL_END
-	return nullptr;
-}
-
-extern "C"
-TIC_CALL void DMS_CONV DMS_ParseResult_Release(AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "Release", true);
-		MG_PRECONDITION(self);
-		self->Release();
-
-	DMS_CALL_END
-}
-
-extern "C"
-TIC_CALL bool         DMS_CONV DMS_ParseResult_CheckSyntax(AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		ObjectContextHandle oh(self, "DMS_ParseResult_CheckSyntax");
-		MG_PRECONDITION(self);
-		return self->CheckSyntax();
-
-	DMS_CALL_END
-	return false;
-}
-
-extern "C"
-TIC_CALL bool         DMS_CONV DMS_ParseResult_HasFailed              (AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		MG_PRECONDITION(self);
-		return self->GetHolder()->IsFailed();
-
-	DMS_CALL_END
-	return true;
-}
-
-
-extern "C"
-TIC_CALL IStringHandle DMS_CONV DMS_ParseResult_GetFailReasonAsIString(AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		MG_PRECONDITION(self);
-	
-		return IString::Create(self->GetHolder()->GetFailReason()->Why());
-
-	DMS_CALL_END
-	return IString::Create(GetLastErrorMsgStr());
-}
-
-extern "C"
-TIC_CALL CharPtr  DMS_CONV DMS_ParseResult_GetAsSLispExpr(AbstrCalculator* self, bool afterRewrite)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "GetAsFLispExpr", true);
-		MG_PRECONDITION(self);
-
-		static SharedStr result;
-
-		result = afterRewrite
-			? self->GetAsFLispExpr(FormattingFlags::ThousandSeparator)
-			: self->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator);
-		return result.c_str();
-
-	DMS_CALL_END
-	return "";
-}
-
-extern "C"
-TIC_CALL const LispObj* DMS_CONV DMS_ParseResult_GetAsLispObj(AbstrCalculator* self, bool afterRewrite)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "GetAsSLispObj", true);
-		MG_PRECONDITION(self);
-
-		static LispRef resultHolder;
-		
-		if (afterRewrite)
-			resultHolder = GetAsLispRef(self->GetMetaInfo());
-		else
-			resultHolder = self->GetLispExprOrg();
-
-		return resultHolder.get();
-
-	DMS_CALL_END
-	return nullptr;
-}
-
-extern "C"
-TIC_CALL const TreeItem* DMS_CONV DMS_ParseResult_CreateResultingTreeItem(AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "CreateResultingTreeItem", true);
-		MG_PRECONDITION(self);
-
-		static make_result_t resultHolder;
-		resultHolder = MakeResult(self); // TODO G8: REMOVE dangling result
-		return resultHolder->GetOld();
-
-	DMS_CALL_END
-	return nullptr;
-}
-
-extern "C"
-TIC_CALL bool DMS_CONV DMS_ParseResult_CheckResultingTreeItem(AbstrCalculator* self, TreeItem* resultHolder)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "CheckResultingTreeItem", true);
-		MG_PRECONDITION(self);
-
-		auto result = CalcResult(self, resultHolder ? resultHolder->GetDynamicObjClass() : nullptr);
-		if (resultHolder)
-			resultHolder->Unify(result->GetOld(), "Formal ResultHolder", "Calculation Result"); // works like _CheckResulItem but throws and doesn't fail resultHolder.
-		return true;
-
-	DMS_CALL_END
-	return false;
-}
-
-extern "C"
-TIC_CALL const TreeItem* DMS_CONV DMS_ParseResult_CalculateResultingData(AbstrCalculator* self)
-{
-	DMS_CALL_BEGIN
-
-		DBG_START("DMS_ParseResult", "CalculateResultingDataEx", true);
-		MG_PRECONDITION(self);
-
-		static FutureData resultHolder; // TODO G8.5
-		resultHolder = CalcResult(self, nullptr);
-		resultHolder->GetOld();
 
 	DMS_CALL_END
 	return nullptr;

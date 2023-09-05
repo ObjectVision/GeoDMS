@@ -204,7 +204,7 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 	if (!result.empty())
 		return result;
 
-	const TreeItem* configSettings = SessionData::GetIt(configRoot)->GetConfigSettings();
+	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings();
 	if (configSettings)
 	{
 		TokenID tidKey = GetTokenID_mt(key);

@@ -71,7 +71,7 @@ FileDescrPtr ConfigurationFilenameContainer::GetFileRef(CharPtr name)
 
 ConfigurationFilenameContainer* ConfigurationFilenameContainer::GetIt()
 {
-	dms_assert(s_Singleton);
+	assert(s_Singleton);
 	return s_Singleton;
 }
 

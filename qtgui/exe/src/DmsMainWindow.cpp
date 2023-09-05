@@ -1231,7 +1231,8 @@ void MainWindow::CloseConfig()
         m_current_item.reset();
         m_current_item = nullptr;
     }
-    assert(!SessionData::Curr());
+
+    SessionData::ReleaseCurr();
 
     scheduleUpdateToolbar();
 }
@@ -1353,6 +1354,8 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
             m_treeview->setRootIndex(m_treeview->rootIndex().parent());
             m_treeview->scrollTo({});
         }
+        else
+            SessionData::ReleaseCurr();
     }
     catch (...)
     {

@@ -1536,17 +1536,29 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	{
 		assert(!ids.second.empty());
 		if (ids.second.first[0] == '.')
-			return FollowDots(ids.second);
+		{
+			auto item = FollowDots(ids.second);
+			if (visitor.Visit(item) == AVS_SuspendedOrFailed)
+				return {};
+			return item;
+		}
 
 		UpdateMetaInfo();
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
 			return nullptr;
-		return FindTreeItemByID(this, existingToken);
+		auto item = FindTreeItemByID(this, existingToken);
+		if (visitor.Visit(item) == AVS_SuspendedOrFailed)
+			return {};
+		return item;
 	}
 	SharedTreeItem parent = nullptr;
 	if (ids.first.empty()) // We start at root.
+	{
 		parent = SessionData::Curr()->GetConfigRoot();
+		if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+			return {};
+	}
 	else
 	{
 		auto  optionalParent = FindAndVisitItem(ids.first, svf, visitor);
@@ -1558,13 +1570,9 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfo();
-	if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
-		return {};
 
 	auto result = parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
-	if (!result)
-		return nullptr;
-	if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+	if (visitor.Visit(result) == AVS_SuspendedOrFailed)
 		return {};
 	return result;
 }

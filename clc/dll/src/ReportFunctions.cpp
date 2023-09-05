@@ -396,14 +396,14 @@ CLC_CALL void DMS_CONV XML_ReportOperator(OutStreamBase* xmlStr, const Operator*
 	XML_OutElement xml_oper(*xmlStr, "Function", GetTokenStr(oper->GetGroup()->GetNameID()).c_str());
 	{
 		XML_OutElement xml_resulttype(*xmlStr, "ResultType", "");
-		XML_ReportSchema(xmlStr, DMS_Operator_GetResultingClass(oper), false);
+		XML_ReportSchema(xmlStr, oper->GetResultClass(), false);
 	}
 	{
 		XML_OutElement xml_argtypes(*xmlStr, "ArgTypes", "");
-		UInt32 nrArgs = DMS_Operator_GetNrArguments(oper);
+		UInt32 nrArgs = oper->NrSpecifiedArgs();
 		xmlStr->WriteAttr("NrSpecifiedArgs", nrArgs);
 		for (UInt32 i=0; i<nrArgs; ++i)
-			XML_ReportSchema(xmlStr, DMS_Operator_GetArgumentClass(oper, i), false);
+			XML_ReportSchema(xmlStr, oper->GetArgClass(i), false);
 	}
 }
 
@@ -426,5 +426,5 @@ CLC_CALL void DMS_CONV XML_ReportAllOperGroups(OutStreamBase* xmlStr)
 	UInt32 nrFuncs = GetNrOperators();
 	xmlStr->WriteAttr("NrFunctions", nrFuncs);
 	for (UInt32 i=0; i<nrFuncs; ++i)
-		XML_ReportOperGroup(xmlStr, DMS_OperatorSet_GetOperatorGroup(i));
+		XML_ReportOperGroup(xmlStr, AbstrOperGroup::GetOperatorGroup(i));
 }
