@@ -189,9 +189,13 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_mdi_area = new QDmsMdiArea(this);
 
     // fonts
-    QFont dms_text_font(":/res/fonts/dmstext.ttf", 10);
+    int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
+    QString family = QFontDatabase::applicationFontFamilies(id).at(0);
+    QFont dms_text_font(family, 10);
     QApplication::setFont(dms_text_font);
+
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
+    
 
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
