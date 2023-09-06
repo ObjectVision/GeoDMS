@@ -184,7 +184,7 @@ struct std_binary_func: binary_func<R, A1, A2>
 					Convert<A1>(a1)
 				,	Convert<A2>(a2)
 				)
-			); 
+			);
 	}
 
 private:

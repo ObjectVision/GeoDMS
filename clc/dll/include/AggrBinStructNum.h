@@ -185,7 +185,7 @@ struct corr_accumulation_type : cov_accumulation_type<T>
 		var_accumulation_type<T> sx(this->n, this->x, xx);
 		var_accumulation_type<T> sy(this->n, this->y, yy);
 
-		div_func_best<corr_type>     div;
+		div_func<corr_type>     div;
 		sqrt_func_checked<corr_type> sqrt;
 		return div(cov, sqrt(sx*sy));
 	}

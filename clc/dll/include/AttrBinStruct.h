@@ -236,19 +236,47 @@ template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template<typename T> struct is_safe_for_undefines<plus_func<T>> : std::true_type {};
-template<typename T> struct is_safe_for_undefines<minus_func<T>> : std::true_type {};
-
-
-template <typename T> struct mul_func  : std_binary_func< std::multiplies<T>, T, T, T> 
+template <typename T> struct mul_func  : binary_func<T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	typename mul_func::res_type operator()(typename mul_func::arg1_cref a, typename mul_func::arg2_cref b) const
+	{
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(a) || !IsDefined(b))
+				return UNDEFINED_VALUE(T);
+		}
+		T result = a * b;
+
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (a && b && b != result / a)
+				return UNDEFINED_VALUE(T);
+		}
+
+		return result;
+	}
+};
+
+template <typename T> struct mul_func< Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	mul_func<T> scalar_op;
 };
 
 template <typename T>
 struct mulx_func : binary_func<typename acc_type<T>::type, T, T>
 {
-	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const { return typename mulx_func::res_type(a1) * typename mulx_func::res_type(a2); }
+	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const 
+	{ 
+		return typename mulx_func::res_type(a1) * typename mulx_func::res_type(a2); 
+	}
 };
 
 template <typename R, typename T, typename U=T>
@@ -256,18 +284,24 @@ struct div_func_base: binary_func<R, T, U>
 {
 	typename div_func_base::res_type operator()(typename div_func_base::arg1_cref t1, typename div_func_base::arg2_cref t2) const
 	{ 
-		dms_assert(t1 != 0 || t1 == 0); // validates that T is a scalar
-		return
-				(	t2 != 0 // validates that U is a scalar 
-				&&	t2 != UNDEFINED_VALUE(U)
-				&&	t1 != UNDEFINED_VALUE(T)
-				)	
-			?	(Convert<typename div_func_base::res_type>(t1) / Convert<typename div_func_base::res_type>(t2))
-			:	UNDEFINED_VALUE(typename div_func_base::res_type);
+		assert(t1 != 0 || t1 == 0); // validates that T is a scalar
+		if (t2 == 0) // validates that U is a scalar 
+			return UNDEFINED_VALUE(typename div_func_base::res_type);
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(t1))
+				return UNDEFINED_VALUE(typename div_func_base::res_type);
+		}
+		if constexpr (!std::is_floating_point_v<U> && has_undefines_v<U>)
+		{
+			if (!IsDefined(t2))
+				return UNDEFINED_VALUE(typename div_func_base::res_type);
+		}
+		return Convert<typename div_func_base::res_type>(t1) / Convert<typename div_func_base::res_type>(t2);
 	}
 };
 
-template <typename T, typename U = T> struct div_func_best: div_func_base<typename div_type<T>::type, T, U> {};
+template <typename T, typename U = T> struct div_func_best : div_func_base<typename div_type<T>::type, T, U> {};
 
 template <typename T, typename U>
 struct div_func_best<Point<T>, U>
@@ -275,7 +309,7 @@ struct div_func_best<Point<T>, U>
 {
 	typedef typename div_type<T>::type      quotient_type;
 	typedef typename cref<Point<T> >::type  point_ref_type;
-	typedef div_func_base<quotient_type, U> base_func;
+	typedef div_func_best<quotient_type, U> base_func;
 
 	Point<quotient_type> operator()(point_ref_type t1, typename base_func::arg2_cref t2) const
 	{
@@ -289,10 +323,10 @@ template <typename T, typename U>
 struct div_func_best<Point<T>, Point<U> >
 	: binary_func<Point<typename div_type<T>::type>, Point<T>, Point<U> >
 {
-	typedef typename div_type<T>::type      quotient_type;
-	typedef typename cref<Point<T> >::type  point1_ref_type;
-	typedef typename cref<Point<U> >::type  point2_ref_type;
-	typedef div_func_base<quotient_type, T, U> base_func;
+	using quotient_type = typename div_type<T>::type;
+	using point1_ref_type = typename cref<Point<T> >::type  ;
+	using point2_ref_type = typename cref<Point<U> >::type;
+	using base_func = div_func_base<quotient_type, T, U>;
 
 	Point<quotient_type> operator()(point1_ref_type t1, point2_ref_type t2) const
 	{
@@ -301,19 +335,15 @@ struct div_func_best<Point<T>, Point<U> >
 
 	base_func m_BaseFunc;
 };
-
-template <typename T>
-struct div_func: binary_func<T, T, T >
+template <typename T> struct div_func : div_func_best<T, T> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return div_unit_creator(gr, args); }
-
-	typename div_func::res_type operator()(typename div_func::arg1_cref t1, typename div_func::arg2_cref t2) const
-	{ 
-		return (t2 != T())	
-			?	(t1 / t2)
-			:	UNDEFINED_VALUE(typename div_func::res_type);
-	}
 };
+
+template<typename T> struct is_safe_for_undefines<plus_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<minus_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<mul_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<div_func<T> > : std::true_type {};
 
 template <typename T> struct qint_t          { typedef Int64 type; };
 template <>           struct qint_t<Float32> { typedef Int32 type; };
@@ -362,7 +392,6 @@ template <typename T> struct mod_func: binary_func<T, T, T >
 struct strpos_func: binary_func<UInt32, SharedStr, SharedStr>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
-
 
 	UInt32 operator ()(typename strpos_func::arg1_cref arg1, typename strpos_func::arg2_cref arg2) const
 	{
