@@ -29,6 +29,12 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
 
+// *****************************************************************************
+//								Function predicates
+// *****************************************************************************
+
+template <typename Func> struct is_safe_for_undefines : std::false_type {};
+
 namespace has_block_func_details {
 	template< typename U> static char test(typename U::block_func* v);
 	template< typename U> static int  test(...);
@@ -104,8 +110,8 @@ typedef AbstrValueGetter<SizeT> IndexGetter;
 
 // arguments   
 template <typename T> struct cref : param_type<T> {};
-template <typename E> struct cref<std::vector<E> > { typedef typename sequence_traits<std::vector<E> >::container_type::const_reference type; };
-template <>           struct cref<SharedStr     > { typedef          sequence_traits<SharedStr     >::container_type::const_reference type; };
+template <typename E> struct cref<std::vector<E> > { using type = typename sequence_traits<std::vector<E> >::container_type::const_reference; };
+template <>           struct cref<SharedStr     > { using type = typename sequence_traits<SharedStr>::container_type::const_reference; };
 
 // func results
 template <typename T> struct f_ref { using type = typename sequence_traits<T>::container_type::reference; };
@@ -115,6 +121,7 @@ template<typename T> struct v_ref : f_ref<T> {};
 template<>           struct v_ref<OutStreamBuff> { using type = OutStreamBuff&; };
 
 template <typename T> T make_result(const T& output) { return output; }
+template <typename T> using cref_t = typename cref<T>::type;
 
 // *****************************************************************************
 //									FUNCTOR PROTOTYPES
@@ -159,17 +166,7 @@ struct ternary_func
 
 template <typename TUniFunc, typename R, typename A1> 
 struct std_unary_func :	unary_func<R,A1>, TUniFunc
-{
-/* REMOVE
-	typename std_unary_func::res_type operator()(typename std_unary_func::arg1_cref a1) const
-	{ 
-		return m_Func(a1); 
-	}
-
-private:
-	TUniFunc m_Func;
-*/
-};
+{};
 
 template <
 	typename TBinFunc

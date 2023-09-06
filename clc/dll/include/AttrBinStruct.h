@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -67,6 +42,8 @@ struct binary_func_checked: binary_func_checked_base<TBinFunc>
 	binary_func_checked(const TBinFunc& f = TBinFunc()) : binary_func_checked_base<TBinFunc>(f) {}
 };
 
+template <typename Func> struct is_safe_for_undefines< binary_func_checked<Func>> : std::true_type {};
+
 
 // *****************************************************************************
 //								do binary operators
@@ -85,120 +62,75 @@ void do_binary_func(
 	typedef typename cref<typename Arg1Sequence::value_type>::type arg1_cref;
 	typedef typename cref<typename Arg2Sequence::value_type>::type arg2_cref;
 
-	if (e1IsVoid)
-	{
-		dms_assert(arg1Data.size() == 1);
-
-		if (arg1HasMissingData && !IsDefined(arg1Data[0]))
-			fast_undefine(resData.begin(), resData.end());
-		else
-		{
-			arg1_cref arg1Value = arg1Data[0];
-			do_unary_func(
-				resData
-			,	arg2Data
-			,	composition_2_v_p<BinaryOper>(oper, arg1Data[0]) // composition allows for optimizing SIMD
-//			,	[arg1Value, oper](arg2_cref arg2) { return oper(arg1Value, arg2); }
-			,	arg2HasMissingData
-			);
-		}
-		return;
-	}
-
-	dms_assert(arg1Data.size() == resData.size());
-
-	if (e2IsVoid)
-	{
-		dms_assert(arg2Data.size() == 1);
-
-		if (arg2HasMissingData && !IsDefined(arg2Data[0]))
-			fast_fill(resData.begin(), resData.end(), UNDEFINED_OR_ZERO(typename ResSequence::value_type) );
-		else
-		{
-			arg2_cref arg2Value = arg2Data[0];
-			do_unary_func(
-				resData
-			,	arg1Data
-			,	composition_2_p_v<BinaryOper>(oper, arg2Data[0])
-//			,	[arg2Value, oper](arg1_cref arg1) { return oper(arg1, arg2Value); }
-			,	arg1HasMissingData
-			);
-		}
-		return;
-	}
-
-	dms_assert(arg2Data.size() == resData.size());
-
-	if (arg1HasMissingData || arg2HasMissingData)
-	{
-		dms_transform(
-			arg1Data.begin(), arg1Data.end(), 
-			arg2Data.begin(), resData.begin(), 
-			binary_func_checked_base<BinaryOper>(oper)
-		);
-	}
-	else
-	{
-		dms_transform(
-			arg1Data.begin(), arg1Data.end(), 
-			arg2Data.begin(), resData.begin(), 
-			oper
-		);
-	}
-}
-
-// specialization for bit_sequence, use the fact that no missing data elements exist for bit_values
-
-template<typename ResSequence, typename Block, int N, typename BinaryOper>
-void do_binary_func(
-	ResSequence            resData,
-	bit_sequence<N, Block> arg1Data,
-	bit_sequence<N, Block> arg2Data,
-	const BinaryOper& oper,
-	bool e1IsVoid, bool e2IsVoid,
-	bool arg1HasMissingData, 
-	bool arg2HasMissingData)
-{
-	dms_assert(!arg1HasMissingData);
-	dms_assert(!arg2HasMissingData);
+	constexpr bool mustCheckUndefined = !is_safe_for_undefines<BinaryOper>::value 
+		&& (has_undefines_v<typename Arg1Sequence::value_type> || has_undefines_v<typename Arg2Sequence::value_type>);
 
 	if (e1IsVoid)
 	{
-		dms_assert(arg1Data.size() == 1);
+		assert(arg1Data.size() == 1);
 
+		if constexpr (mustCheckUndefined)
+		{
+			if (arg1HasMissingData && !IsDefined(arg1Data[0]))
+			{
+				fast_undefine(resData.begin(), resData.end());
+				return;
+			}
+		}
+		arg1_cref arg1Value = arg1Data[0];
 		do_unary_func(
-			resData, 
-			arg2Data, 
-			composition_2_v_p<BinaryOper>(oper, arg1Data[0]),
-			arg2HasMissingData
+			resData
+		,	arg2Data
+		,	composition_2_v_p<BinaryOper>(oper, arg1Data[0]) // composition allows for optimizing SIMD
+		,	arg2HasMissingData
 		);
 		return;
 	}
 
-	dms_assert(arg1Data.size() == resData.size());
+	assert(arg1Data.size() == resData.size());
 
 	if (e2IsVoid)
 	{
-		dms_assert(arg2Data.size() == 1);
+		assert(arg2Data.size() == 1);
 
+		if constexpr (mustCheckUndefined)
+		{
+			if (arg2HasMissingData && !IsDefined(arg2Data[0]))
+			{
+				fast_fill(resData.begin(), resData.end(), UNDEFINED_OR_ZERO(typename ResSequence::value_type));
+				return;
+			}
+		}
+		arg2_cref arg2Value = arg2Data[0];
 		do_unary_func(
-			resData, 
-			arg1Data, 
-			composition_2_p_v<BinaryOper>(oper, arg2Data[0]), 
-			arg1HasMissingData
+			resData
+		,	arg1Data
+		,	composition_2_p_v<BinaryOper>(oper, arg2Data[0])
+		,	arg1HasMissingData
 		);
 		return;
 	}
 
-	dms_assert(arg2Data.size() == resData.size());
+	assert(arg2Data.size() == resData.size());
 
+	if constexpr (mustCheckUndefined)
+	{
+		if (arg1HasMissingData || arg2HasMissingData)
+		{
+			dms_transform(
+				arg1Data.begin(), arg1Data.end(),
+				arg2Data.begin(), resData.begin(),
+				binary_func_checked_base<BinaryOper>(oper)
+			);
+			return;
+		}
+	}
 	dms_transform(
 		arg1Data.begin(), arg1Data.end(), 
 		arg2Data.begin(), resData.begin(), 
 		oper
 	);
 }
-
 
 // *****************************************************************************
 //						ELEMENTARY BINARY FUNCTORS
@@ -293,6 +225,7 @@ struct safe_minus < Point<T> >
 	safe_minus<T> scalar_op;
 };
 
+
 template <typename T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
@@ -302,6 +235,10 @@ template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
+
+template<typename T> struct is_safe_for_undefines<plus_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<minus_func<T>> : std::true_type {};
+
 
 template <typename T> struct mul_func  : std_binary_func< std::multiplies<T>, T, T, T> 
 {

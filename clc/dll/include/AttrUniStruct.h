@@ -151,42 +151,29 @@ void do_unary_func(
 	typedef typename ResSequence::value_type                      res_value_type;
 	typedef typename cref<typename ArgContainer::value_type>::type arg_cref_type;
 
-	dms_assert(argData.size() == resData.size());
+	constexpr bool mustCheckUndefined = !is_safe_for_undefines<UnaryOper>::value && has_undefines_v<typename ArgContainer::value_type>;
+
+	assert(argData.size() == resData.size());
 	if (!resData.size())
 		return;
-	if (hasUndefinedValues)
-		dms_transform(
-			argData.begin(), 
-			argData.end(), 
-			resData.begin(), 
-			[oper] (arg_cref_type t) -> res_value_type
-			{ 
-				if (!IsDefined(t))
-					return UNDEFINED_OR_ZERO(res_value_type);
-				return oper(t);
-			}
-		);
-	else
-		dms_transform(
-			argData.begin(), 
-			argData.end(), 
-			resData.begin(), 
-			oper
-		);
-}
-
-// specialization for bit_sequence, use the fact that no missing data elements exist for bit_values
-
-template<typename ResSequence, typename Block, int N, typename UnaryOper>
-void do_unary_func(
-	ResSequence resData,
-	const bit_sequence<N, Block>& argData,
-	const UnaryOper& oper,
-	bool hasUndefinedValues)
-{
-	dms_assert(!hasUndefinedValues);
-	dms_assert(argData.size() == resData.size());
-
+	if constexpr (mustCheckUndefined)
+	{
+		if (hasUndefinedValues)
+		{
+			dms_transform(
+				argData.begin(),
+				argData.end(),
+				resData.begin(),
+				[oper](arg_cref_type t) -> res_value_type
+				{
+					if (!IsDefined(t))
+						return UNDEFINED_OR_ZERO(res_value_type);
+					return oper(t);
+				}
+			);
+			return;
+		}
+	}
 	dms_transform(
 		argData.begin(), 
 		argData.end(), 
