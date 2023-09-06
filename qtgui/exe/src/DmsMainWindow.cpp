@@ -934,18 +934,23 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
     }
 }
 
+void MainWindow::openConfigSourceFor(const TreeItem* context)
+{
+    if (!context)
+        return;
+    auto filename = ConvertDmsFileNameAlways(context->GetConfigFileName());
+    std::string line = std::to_string(context->GetConfigFileLineNr());
+    openConfigSourceDirectly(filename.c_str(), line);
+}
+
 void MainWindow::openConfigSource()
 {
-    auto filename =  ConvertDmsFileNameAlways(getCurrentTreeItem()->GetConfigFileName());
-    std::string line = std::to_string(getCurrentTreeItem()->GetConfigFileLineNr());
-    openConfigSourceDirectly(filename.c_str(), line);
+    openConfigSourceFor( getCurrentTreeItemOrRoot() );
 }
 
 void MainWindow::openConfigRootSource()
 {
-    auto filename = ConvertDmsFileNameAlways(getRootTreeItem()->GetConfigFileName());
-    std::string line = std::to_string(getRootTreeItem()->GetConfigFileLineNr());
-    openConfigSourceDirectly(filename.c_str(), line);
+    openConfigSourceFor( getRootTreeItem() );
 }
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);

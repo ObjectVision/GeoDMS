@@ -254,6 +254,7 @@ public:
     void updateToolsMenu();
 
 private:
+    void openConfigSourceFor(const TreeItem* context);
     auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
