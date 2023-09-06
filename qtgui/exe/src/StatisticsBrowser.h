@@ -19,7 +19,7 @@ struct StatisticsBrowser : QUpdatableTextBrowser
         SuspendTrigger::Resume();
         bool done = NumericDataItem_GetStatistics(m_Context, textBuffer);
         textBuffer.emplace_back(char(0));
-        setText(begin_ptr(textBuffer));
+        setHtml(begin_ptr(textBuffer));
         return done;
     }
     SharedTreeItemInterestPtr m_Context;
