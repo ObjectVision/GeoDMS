@@ -1007,23 +1007,7 @@ void MainWindow::toggle_treeview()
 
 void MainWindow::toggle_detailpages()
 {
-    //bool isVisible = m_detail_pages->isVisible();
-    //m_detail_pages->setVisible(!isVisible);
-    
-   // bool isVisible = m_detailpages_dock->isVisible();
-   // if (!isVisible)
-   //     m_detail_pages->setActiveDetailPage(m_detail_pages->m_last_active_detail_page);
-
     m_detail_pages->toggle(m_detail_pages->m_last_active_detail_page);
-
-    //m_detailpages_dock->setVisible(!isVisible);
-
-    //m_general_page_action->setVisible(!isVisible);
-    //m_explore_page_action->setVisible(!isVisible);
-    //m_properties_page_action->setVisible(!isVisible);
-    //m_configuration_page_action->setVisible(!isVisible);
-    //m_sourcedescr_page_action->setVisible(!isVisible);
-    //m_metainfo_page_action->setVisible(!isVisible);
 }
 
 void MainWindow::toggle_eventlog()
