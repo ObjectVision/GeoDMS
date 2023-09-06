@@ -48,7 +48,8 @@ public slots:
 	void scheduleDrawPage();
 	void onTreeItemStateChange();
 protected:
-	//bool event(QEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
+
 public slots:
 	void onAnchorClicked(const QUrl& link);
 	void toggle(ActiveDetailPage new_active_detail_page);
@@ -59,6 +60,7 @@ private:
 	void scheduleDrawPageImpl(int milliseconds);
 
 	std::atomic<bool> m_DrawPageRequestPending = false;
+	UInt32 m_current_width = 500;
 
 	SourceDescrMode m_SDM = SourceDescrMode::Configured;
 	bool            m_AllProperties = true;

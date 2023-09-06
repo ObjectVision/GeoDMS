@@ -27,6 +27,7 @@ ValueInfoPanel::~ValueInfoPanel()
         main_window->m_value_info_dock->setVisible(false);
         main_window->m_detailpages_dock->setVisible(true);
     }
+    main_window->resizeDocks({main_window->m_detailpages_dock}, {500, 0}, Qt::Horizontal);
 }
 
 

@@ -451,6 +451,12 @@ QSize DmsDetailPages::sizeHint() const
     return QSize(500, 0);
 }
 
+void DmsDetailPages::resizeEvent(QResizeEvent* event)
+{
+    m_current_width = width();
+    QTextBrowser::resizeEvent(event);
+}
+
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
     assert(tiContext);
