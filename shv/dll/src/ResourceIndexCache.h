@@ -50,6 +50,7 @@ struct ResourceIndexCache
 {
 	resource_index_t GetKeyIndex(entity_id entityId) const;
 	Int32 GetWidth(entity_id e) const;
+	auto GetDefaultPixelWidth()->Float64 { return m_DefaultPixelWidth; }
 
 protected: 
 	ResourceIndexCache(

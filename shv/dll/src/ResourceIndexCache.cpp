@@ -140,8 +140,6 @@ UInt32 ResourceIndexCache::GetKeyIndex(entity_id entityId) const
 	return m_KeyIndices[entityId];
 }
 
-
-
 Int32 ResourceIndexCache::GetWidth(entity_id e) const
 {
 	assert(m_LastSubPixelFactor >= 0);
