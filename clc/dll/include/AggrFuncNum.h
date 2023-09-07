@@ -52,21 +52,91 @@ struct unary_assign_inc : unary_assign<I, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	void operator()(typename unary_assign_inc::assignee_ref assignee, typename unary_assign_inc::arg1_cref arg) const
+	void operator()(vref_t<I> assignee, typename unary_assign_inc::arg1_cref arg) const
 	{ 
+		if constexpr (has_undefines_v<I>)
+		{
+			if (!IsDefined(assignee))
+				return;
+		}
 		assignee++; 
+		if constexpr (!has_undefines_v<I>)
+		{ 
+			static_assert(!is_signed_v<I>);
+			if (assignee == I())
+				throwDmsErrD("non-representable numerical overflow of sub-byte value");
+		}
 	}
 };
 
-template<typename R, typename T> void SafeAccumulate(R& assignee, const T& arg)
+template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus
 {
+	R orgAssignee = assignee; // may-be used in check
+	if constexpr (has_undefines_v<R>)
+	{
+		if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
+
+		if (!IsDefined(assignee))
+			return;
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+			{
+				assignee = UNDEFINED_VALUE(R);
+				return;
+			}
+
+	}
+	else
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				throwDmsErrD("non-representable undefined value in aggregation into a sub-byte value");
+	}
+
 	assignee += arg;
+
+	if constexpr (!std::is_floating_point_v<T>)
+	{
+		if constexpr (!is_signed_v<R>)
+		{
+			bool hasOverflow = false;
+			if constexpr (is_signed_v<T>)
+				hasOverflow = (arg >= 0 ? assignee < orgAssignee : assignee >= orgAssignee);
+			else
+				hasOverflow = (assignee < arg);
+
+			if (hasOverflow)
+			{
+				if constexpr (has_undefines_v<R>)
+					assignee = UNDEFINED_VALUE(R);
+				else
+					throwDmsErrD("non-representable numerical overflow in aggregation into a sub-byte value");
+				return;
+			}
+		}
+		else
+		{
+			bool aNonnegative = (orgAssignee >= 0);
+			bool bNonnegative = (Convert<R>(arg) >= 0);
+
+			if (aNonnegative == bNonnegative)
+			{
+				auto resultNonnegative = (assignee>= 0);
+				if (aNonnegative != resultNonnegative)
+				{
+					static_assert(has_undefines_v<R>);
+					assignee = UNDEFINED_VALUE(R);
+					return;
+				}
+			}
+		}
+	}
 }
 
-template<typename T, typename U> void SafeAccumulate(Point<T>& assignee, const Point<U>& arg)
+template<typename R, typename T> void SafeAccumulate(Point<R>& assignee, const Point<T>& arg)
 {
-	assignee.first  += arg.first;
-	assignee.second += arg.second;
+	SafeAccumulate(assignee.first, arg.first);
+	SafeAccumulate(assignee.second, arg.second);
 }
 
 template <typename R, typename T>
@@ -75,7 +145,7 @@ struct unary_assign_add : unary_assign<R, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(typename unary_assign_add::assignee_ref assignee, typename unary_assign_add::arg1_cref arg) const
+	void operator()(typename unary_assign_add::assignee_ref assignee, cref_t<T> arg) const
 	{ 	
 		SafeAccumulate(assignee, arg);
 	}
@@ -180,7 +250,7 @@ struct unary_assign_all : unary_assign<Bool, Bool>
 template <typename V, typename I> 
 void count_best_total(I& output, const V* valuesFirst, const V* valuesLast)
 {
-	aggr1_total_best<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast);
+	aggr1_total<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast);
 }
 
 template <bit_size_t N, typename Block, typename I> 
@@ -193,7 +263,7 @@ template<typename CIV, typename OIA>
 void count_best_partial_best(OIA outFirst, CIV valuesFirst, CIV valuesLast, const IndexGetter* indices)
 {
 	typedef typename std::iterator_traits<CIV>::value_type V;
-	aggr_fw_best_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices);
+	aggr_fw_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices);
 }
 
 #endif // !defined(__CLC_AGGRFUNCNUM_H)

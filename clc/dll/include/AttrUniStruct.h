@@ -100,8 +100,8 @@ void do_unary_assign(ResSpan resData, ArgSpan argData, const AttrAssigner& oper,
 	dms_assert(argData.size() == resData.size());
 
 	OrgAttrAssigner::PrepareTile(resData, argData);
-	typedef typename v_ref<typename ResSpan::value_type>::type assignee_ref;
-	typedef typename cref <typename ArgSpan::value_type>::type arg1_cref;
+	using assignee_ref = vref_t<typename ResSpan::value_type>;
+	using arg1_cref = cref_t<typename ArgSpan::value_type>;
 
 	if (hasUndefinedValues)
 		transform_assign(

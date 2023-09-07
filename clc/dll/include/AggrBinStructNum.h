@@ -58,7 +58,7 @@ struct binary_assign_total_accumulation
 
 	void operator()(typename binary_assign_total_accumulation::assignee_ref output, typename binary_assign_total_accumulation::value_cseq1 input1, typename binary_assign_total_accumulation::value_cseq2 input2) const
 	{ 
-		aggr2_total_best<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), m_AssignFunc);
+		aggr2_total<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), m_AssignFunc);
 	}
 
 private:
@@ -94,9 +94,9 @@ struct binary_assign_partial_accumulation
 
 	void operator()(typename binary_assign_partial_accumulation::accumulation_seq outputs, typename binary_assign_partial_accumulation::value_cseq1 input1, typename binary_assign_partial_accumulation::value_cseq2 input2, const IndexGetter* indices) const
 	{ 
-		dms_assert(input1.size() == input2.size());
+		assert(input1.size() == input2.size());
 
-		aggr2_fw_best_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, m_AssignFunc);
+		aggr2_fw_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, m_AssignFunc);
 	}
 
 	TBinAssign     m_AssignFunc;

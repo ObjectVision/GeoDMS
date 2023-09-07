@@ -327,7 +327,7 @@ namespace Cumulate
 	int x;
 
 	template <typename T>
-	struct unary_assign_accumulate : unary_assign_add<typename acc_type<T>::type, T>
+	struct unary_assign_accumulate : unary_assign_add<acc_type_t<T>, T>
 	{};
 
 	template <template <typename> class InitAssigner>

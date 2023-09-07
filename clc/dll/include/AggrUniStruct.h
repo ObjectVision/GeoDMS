@@ -172,7 +172,7 @@ struct unary_assign_total_accumulation
 
 	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input) const
 	{ 
-		aggr1_total_best<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
+		aggr1_total<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
 	}
 
 private:
@@ -210,7 +210,7 @@ struct unary_assign_partial_accumulation
 
 	void operator()(typename unary_assign_partial_accumulation::accumulation_seq outputs, typename unary_assign_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
+		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
 	TUniAssign     m_AssignFunc;
