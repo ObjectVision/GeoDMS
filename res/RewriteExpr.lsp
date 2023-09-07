@@ -23,11 +23,6 @@
 
 [(value _P _VU)                  (convert _P _VU)]
 [(const _P _E _VU)               (const (value _P _VU) _E)]
-[(convert (convert _X _U1) _U2)  (convert _X _U2)]
-
-/*********** Renamed Functions *********/
-
-[(interpolate_linear _D _U) (interpolate_linear _D (SubItem _U "X") (SubItem _U "Y"))]
 
 /*********** selection Functions *********/
 
@@ -81,13 +76,6 @@
 
 [(pow _x _y)                (exp (mul (log _x) _y))]
 
-/*********** Helper functions for lists are OBSOLETE and DEPRECIATED  *********/
-
-[[add_list _T] [add _T]]
-[[mul_list _T] [mul _T]]
-[[or_list  _T] [or  _T]]
-[[and_list _T] [and _T]]
-
 /*********** Associative Binary functions *********/
 
 [(add _a1)                    _a1]
@@ -110,13 +98,6 @@
 [(concat _a1) (MakeDefined _a1 "")]
 [[concat [_a1 _T]] (add (MakeDefined _a1 "") [concat _T] ) ]
 [(concat) ""]
-
-
-//[(add _a (add _b _c))        (add (add _a _b) _c) ]
-//[(mul _a (mul _b _c))        (mul (mul _a _b) _c) ] geeft problemen bij claimHa2 = (10000 *Meter *Meter) * (10000 *Meter *Meter)
-//[(and _a (and _b _c))        (and (and _a _b) _c) ]
-//[(or  _a (or  _b _c))        (or  (or  _a _b) _c) ]
-
 
 /*********** switch case   *********/
 
@@ -157,10 +138,6 @@
 [(convert 0.0 Bool) (false)]
 
 /*********** Predicate functions *********/
-
-// [(isPositive _x)      (gt _x (neg _x))]
-// [(isNegative _x)      (lt _x (neg _x))]
-// [(isZero     _x)      (eq _x (neg _x))]
 
 [(order _A _B) (interval (min_elem _A _B) (max_elem _A _B))]
 
@@ -308,10 +285,6 @@
 [(UInt32 (div _V _V)) (UInt32 1)]                                   // rewrite gridverhouding for 100m
 [(div (pointrow _GRIDIDS) (convert (UInt32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
 [(div (pointcol _GRIDIDS) (convert (UInt32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
-
-//[(point (Float32 (neg (convert _V1 _U))) (Float32 (convert _V2 _U)) _GU) (point (Float32 (neg _V1)) (Float32 _V2) _GU)]
-//[(Float32 (neg (UInt32 _V))) (Float32 (neg _V))]
-//[(Float32      (UInt32 _V) ) (Float32      _V )]
 
 [(div _X (UInt32 1)) _X] // rewrite calculation of #cells of gridset
 
