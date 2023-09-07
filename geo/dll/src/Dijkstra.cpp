@@ -1092,7 +1092,7 @@ class DijkstraMatrOperator : public VariadicOperator
 {
 	typedef T       ImpType;
 	typedef T       MassType;
-	typedef typename div_type<T>::type ParamType;
+	typedef div_type_t<T> ParamType;
 	typedef UInt32 LinkType;
 	typedef UInt32 ZoneType;
 	typedef std::vector<LinkType> EdgeSeq;

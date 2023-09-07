@@ -253,26 +253,26 @@ struct RepeatOperator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 //											DEFINES
 // *****************************************************************************
 
-template <typename P> struct norm_type : product_type<typename scalar_of<P>::type > {};
-template <typename P> struct dist_type : div_type    <typename norm_type<P>::type > {};
+template <typename P> using norm_type_t = product_type_t<scalar_of_t<P>>;
+template <typename P> using dist_type_t = div_type_t<norm_type_t<P>>;
 
-template <typename P> struct sqrdist_func: binary_func<typename norm_type<P>::type, P, P>
+template <typename P> struct sqrdist_func: binary_func<norm_type_t<P>, P, P>
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename sqrdist_func::res_type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<norm_type_t<P>>(); }
 
-	typename sqrdist_func::res_type operator ()(typename sqrdist_func::arg1_cref a, typename sqrdist_func::arg2_cref b) const
+	auto operator ()(cref_t<P> a, cref_t<P> b) const
 	{
-		return Norm<typename sqrdist_func::res_type>(a - b);
+		return Norm<norm_type_t<P>>(a - b);
 	} 
 };
 
-template <typename P> struct dist_func: binary_func<typename dist_type<P>::type, P, P>
+template <typename P> struct dist_func: binary_func<dist_type_t<P>, P, P>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename dist_func::res_type>(); }
 
-	typename dist_func::res_type operator ()(typename dist_func::arg1_cref a, typename dist_func::arg2_cref b) const
+	dist_type_t<P> operator ()(cref_t<P> a, cref_t<P> b) const
 	{
-		return sqrt( typename dist_func::res_type( Norm<Float64>(a - b ) ) );
+		return sqrt( Norm<Float64>(a - b ) );
 	} 
 };
 

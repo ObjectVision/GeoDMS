@@ -281,7 +281,7 @@ struct expectation_accumulation_type
 
 	operator exp_type() const
 	{
-		return div_func_best<sum_type, count_type>()(total, n); 
+		return div_func_best<div_type_t<T>, sum_type, count_type>()(total, n);
 	}
 
 	count_type n;

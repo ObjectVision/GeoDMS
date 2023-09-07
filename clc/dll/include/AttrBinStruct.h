@@ -301,15 +301,15 @@ struct div_func_base: binary_func<R, T, U>
 	}
 };
 
-template <typename T, typename U = T> struct div_func_best : div_func_base<typename div_type<T>::type, T, U> {};
+template <typename R, typename T, typename U = T> struct div_func_best : div_func_base<R, T, U> {};
 
-template <typename T, typename U>
-struct div_func_best<Point<T>, U>
-	:	binary_func<Point<typename div_type<T>::type>, Point<T>, U >
+template <typename R, typename T, typename U>
+struct div_func_best<R, Point<T>, U>
+	:	binary_func<R, Point<T>, U >
 {
-	typedef typename div_type<T>::type      quotient_type;
-	typedef typename cref<Point<T> >::type  point_ref_type;
-	typedef div_func_best<quotient_type, U> base_func;
+	using quotient_type = div_type_t<T>;
+	using point_ref_type = cref<Point<T> >::type;
+	using base_func = div_func_best<quotient_type, U>;
 
 	Point<quotient_type> operator()(point_ref_type t1, typename base_func::arg2_cref t2) const
 	{
@@ -319,12 +319,12 @@ struct div_func_best<Point<T>, U>
 	base_func m_BaseFunc;
 };
 
-template <typename T, typename U>
-struct div_func_best<Point<T>, Point<U> >
-	: binary_func<Point<typename div_type<T>::type>, Point<T>, Point<U> >
+template <typename R, typename T, typename U>
+struct div_func_best<R, Point<T>, Point<U> >
+	: binary_func<R, Point<T>, Point<U> >
 {
-	using quotient_type = typename div_type<T>::type;
-	using point1_ref_type = typename cref<Point<T> >::type  ;
+	using quotient_type = scalar_of_t<R>;
+	using point1_ref_type = typename cref<Point<T> >::type;
 	using point2_ref_type = typename cref<Point<U> >::type;
 	using base_func = div_func_base<quotient_type, T, U>;
 
@@ -335,7 +335,8 @@ struct div_func_best<Point<T>, Point<U> >
 
 	base_func m_BaseFunc;
 };
-template <typename T> struct div_func : div_func_best<T, T> 
+
+template <typename T> struct div_func : div_func_best<T, T, T> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return div_unit_creator(gr, args); }
 };
