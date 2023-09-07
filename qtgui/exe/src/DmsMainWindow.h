@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QTextBrowser>
 #include <QListView>
+#include <QMenu>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -96,18 +97,31 @@ private:
     UInt8 m_state = 0;
 };
 
-class DmsRecentFileEntry : public QWidget
+class DmsConfigTextButton : public QPushButton
 {
     Q_OBJECT
 
 public:
-    DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QWidget* parent = nullptr);
+    DmsConfigTextButton(const QString& text, QWidget* parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent* event);
+};
+
+class DmsRecentFileSubmenu : public QMenu
+{
+    Q_OBJECT
+
+public:
+    DmsRecentFileSubmenu(size_t index, std::string_view dms_file_full_path, QWidget* parent = nullptr);
     std::string m_cfg_file_path;
     size_t m_index = 0;
+    DmsConfigTextButton* m_config_text;
 
 public slots:
-    void onDeleteRecentFileEntry();
-    void onFileEntryPressed();
+    void onDeleteRecentFileEntry(bool checked = false);
+    void onFileEntryPressed(bool checked = false);
+
 };
 
 struct CmdLineSetttings {
@@ -180,6 +194,7 @@ public:
     auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
+    void addRecentFilesMenu(std::string_view recent_file);
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
@@ -247,7 +262,7 @@ protected:
     bool event(QEvent* event) override;
 
 private:
-    auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
+    //auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
@@ -331,10 +346,11 @@ public:
     QPointer<DmsFileChangedWindow> m_file_changed_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
+    //QList<QWidgetAction*> m_recent_files_actions;
+    QList<DmsRecentFileSubmenu*> m_recent_file_submenus;
+
 private:
     std::vector<processing_record> m_processing_records;
-
-    QList<QWidgetAction*> m_recent_files_actions;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
 };
