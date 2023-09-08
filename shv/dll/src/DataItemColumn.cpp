@@ -805,7 +805,7 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 	if (!fontTheme && !*(defFontNames[fr]))
 		return 0;
 
-	dms_assert(m_FontIndexCache || !m_FontArray); // FontArray is only avaiable when FontIndexCache is available
+	assert(m_FontIndexCache || !m_FontArray); // FontArray is only avaiable when FontIndexCache is available
 
 	if (! m_FontArray || m_FontIndexCache->GetLastSubPixelFactor() != subPixelFactor)
 	{

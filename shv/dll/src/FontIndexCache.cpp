@@ -105,7 +105,7 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 	assert( nrPixelsPerWorldUnit > 0.0);
 	assert( subPixelFactor       > 0.0);
 
-	Float64 nrPointsPerPixel = (72.0 / 96.0) * subPixelFactor;
+	Float64 nrPointsPerPixel = /*(72.0 / 96.0) * */ subPixelFactor;
 	assert(nrPointsPerPixel     > 0.0);
 
 	if	((!IsDifferent(nrPixelsPerWorldUnit, subPixelFactor)) && m_LastNrPointsPerPixel == nrPointsPerPixel) // maybe we now render for a different Device (such as Printer)
@@ -188,22 +188,14 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 		assert(m_LastNrPointsPerPixel     >= 0); // does scale with monitor dependent scale factor
 		assert(m_LastNrPixelsPerWorldUnit >= 0);
 
-		Int32 totalFontSize = fontSize;// Round<4>(m_LastSubPixelFactor * fontSize + m_LastNrPixelsPerWorldUnit * worldSize));
-		auto font_scaling = (96.0 / 72.0); 
-		assert(totalFontSize >= 0);
+		Int32 totalFontSize = Round<4>(m_LastNrPointsPerPixel * fontSize + m_LastNrPixelsPerWorldUnit * worldSize);
 		if (totalFontSize == 0)  // avoid multiple versions of hidden font.
 		{
 			fontNameID = TokenID::GetEmptyID();
 			angle = 0;
 		}
 
-		m_Keys.push_back(
-			FontKeyType(
-				totalFontSize * font_scaling,
-				fontNameID,
-				angle
-			)
-		);
+		m_Keys.emplace_back(totalFontSize, fontNameID, angle);
 	}
 	else
 		AddUndefinedKey();
@@ -211,7 +203,7 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 
 void FontIndexCache::AddUndefinedKey() const
 {
-	m_Keys.push_back( FontKeyType(0, TokenID::GetEmptyID(), 0) ); // Extra Font for features with Undefined ClassId
+	m_Keys.emplace_back(0, TokenID::GetEmptyID(), 0); // Extra Font for features with Undefined ClassId
 }
 
 Int32 FontIndexCache::GetMaxFontSize() const
