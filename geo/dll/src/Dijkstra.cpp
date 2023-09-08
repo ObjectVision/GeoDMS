@@ -937,18 +937,21 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 							if (res.DstFactor)
 							{
-								dms_assert(!pot_ij.empty());
+								assert(!pot_ij.empty());
 
 								leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
 								res.DstFactor[dstZone] += pot_ij[j];
 							}
-							if (res.DstSupply)
+							if (res.DstSupply || res.LinkFlow && totalPotential)
 							{
-								dms_assert(!pot_ij.empty());
+								assert(!pot_ij.empty());
 								if (tgDstMass)
 									pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // v_i * D_i^(alpha-1) * w_j * t_ij
-								leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
-								res.DstSupply[dstZone] += pot_ij[j];
+								if (res.DstSupply)
+								{
+									leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
+									res.DstSupply[dstZone] += pot_ij[j];
+								}
 							}
 						}
 					}
