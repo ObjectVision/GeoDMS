@@ -75,7 +75,7 @@ namespace {
 
 
 	template <typename Vec, typename KeyArrayView>
-	void rlookup2index_array(Vec resData, KeyArrayView arg1Data, /* E1->V */ KeyArrayView arg2Data  /* E2->V */ )
+	void rlookup2index_array(Vec& resData, const KeyArrayView& arg1Data, /* E1->V */ const KeyArrayView& arg2Data  /* E2->V */ )
 	{
 		assert(resData.size() == arg1Data.size());
 

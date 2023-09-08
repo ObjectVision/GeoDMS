@@ -1322,6 +1322,8 @@ public:
 			dms_assert(adiDistDecayBetaParam);
 			dms_assert(adiDstMass);
 			orgZonesOrVoid->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMass->GetAbstrValuesUnit())
+				, "value type of the OrgMass attribute doesn't match with the value type of Impedance");
 		}
 		MG_USERCHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
 		MG_USERCHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
@@ -1332,6 +1334,7 @@ public:
 		{
 			dms_assert(adiOrgMass);
 			dstZones->UnifyDomain(adiDstMass->GetAbstrDomainUnit(), "DstZones", "Domain of DstMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiDstMass->GetAbstrValuesUnit()), "value type of the DstMass attribute doesn't match with the value type of Impedance");
 		}
 		if (adiOrgAlpha)
 		{
