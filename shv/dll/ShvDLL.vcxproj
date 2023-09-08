@@ -238,9 +238,7 @@
   <Target Name="AfterBuild">
     <ItemGroup>
         <dms_ttf_file Include="..\..\res\fonts\dms.ttf"/>
-        <NotoSans_ttf_file Include="..\..\res\fonts\NotoSans-Medium.ttf"/>
     </ItemGroup>
     <Copy SourceFiles="@(dms_ttf_file)" DestinationFolder="$(TargetDir)misc\fonts\" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(NotoSans_ttf_file)" DestinationFolder="$(TargetDir)misc\fonts\" SkipUnchangedFiles="true" />
   </Target>
 </Project>
