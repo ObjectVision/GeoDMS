@@ -283,8 +283,6 @@ template <typename P> struct dist_func: binary_func<dist_type_t<P>, P, P>
 
 template <typename T> struct compare_func_base : binary_func<Bool, T, T> 
 {
-//	using base_class = binary_func<Bool, T, T>;
-
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compare_unit_creator(gr, args, true); }
 
 };
@@ -303,9 +301,28 @@ template <typename T, typename Cmp> struct checked_compare_func : compare_func_b
 	Cmp cmp;
 };
 
+template <typename T> struct equal_to : compare_func_base<T>
+{
+	Bool operator ()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(a) || !IsDefined(b))
+				return false;
+		return a == b;
+	}
+};
 
-template <typename T> struct equal_to : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return a == b; }) > {};
-template <typename T> struct not_equal_to : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return !(a == b); }) > {};
+template <typename T> struct not_equal_to : compare_func_base<T>
+{
+	Bool operator ()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(a) || !IsDefined(b))
+				return false;
+		return !(a == b);
+	}
+};
+
 template <typename T> struct greater : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return b < a; }) > {};
 template <typename T> struct greater_equal : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return !(a < b); }) > {};
 template <typename T> struct less: checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return a < b; }) > {};
