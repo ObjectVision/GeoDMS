@@ -213,7 +213,9 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 		dms_assert(m_LastNrPointsPerPixel     >= 0);
 		dms_assert(m_LastNrPixelsPerWorldUnit >= 0);
 
-		Int32 totalFontSize = Round<4>( m_LastNrPointsPerPixel * (fontSize + m_LastNrPixelsPerWorldUnit* worldSize) );
+		Int32 totalFontSize = fontSize;// Round<4>(m_LastNrPointsPerPixel * (fontSize + m_LastNrPixelsPerWorldUnit * worldSize));
+		Float64 dip2pixFactor = 1.0; // TODO: implement dip2pixfactor: GetWindowDip2PixFactorY(GetHWnd())
+		auto font_scaling = dip2pixFactor * (96.0 / 72.0);
 		dms_assert(totalFontSize >= 0);
 		if (totalFontSize == 0)  // avoid multiple versions of hidden font.
 		{
@@ -223,7 +225,7 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 
 		m_Keys.push_back(
 			FontKeyType(
-				totalFontSize,
+				totalFontSize*font_scaling,
 				fontNameID,
 				angle
 			)
@@ -280,6 +282,8 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 	for (auto i = indexCache->m_Keys.begin(), e = indexCache->m_Keys.end(); i!=e; ++i)
 	{
 		Int32  fontSize  = i->get<0>();
+		i->get<0>();
+		
 		if (fontSize == 0)
 			m_FontArray.push_back( GdiHandle<HFONT>() ); // add handle without resource
 		else
@@ -294,8 +298,9 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 		   	fontInfo.lfEscapement    = fontAngle;
 		   	fontInfo.lfOrientation   = fontAngle;
 
-			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)		
-			m_FontArray.push_back( GdiHandle<HFONT>( CreateFontIndirect(&fontInfo) ) );
+			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)
+			auto font = CreateFontIndirect(&fontInfo);
+			m_FontArray.push_back(GdiHandle<HFONT>(font));// CreateFontIndirect(&fontInfo) ) );
 		}
 	}
 	dms_assert(size() > 0);

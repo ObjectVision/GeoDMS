@@ -271,13 +271,14 @@ HFONT DataView::GetDefaultFont(FontSizeCategory fid, Float64 dip2pixFactor) cons
 	if (fid < FontSizeCategory::SMALL || fid >= FontSizeCategory::COUNT)
 		return {};
 
+	auto font_scaling = dip2pixFactor * (96.0 / 72.0);
 	if (! m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor])
 	{
 		m_DefaultFonts[static_cast<int>(fid)][dip2pixFactor] =
 			GdiHandle<HFONT>(
 				CreateFont(
 	//				-10, // nHeight, -MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72) // height, we assume LOGPIXELSY == 96*dip2pixFactor
-					GetDefaultFontHeightDIP(fid)*dip2pixFactor*(96.0 / 72.0),
+					GetDefaultFontHeightDIP(fid)*font_scaling,
 					  0, // nWidth,  match against the digitization aspect ratio of the available fonts 
 					  0, // nEscapement
 					  0, // nOrientaion
@@ -817,7 +818,7 @@ GraphVisitState DataView::UpdateView()
 		dbg_assert(md_IsDrawingCount == 0);
 		MG_DEBUGCODE( DynamicIncrementalLock<decltype(md_IsDrawingCount)> lock(md_IsDrawingCount); )
 
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
+		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM));
 
 		MG_DEBUGCODE( DbgInvalidateDrawLock protectFromViewChanges(this); )
 
@@ -985,7 +986,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	dbg_assert( md_InvalidateDrawLock == 0);
 	assert(src);
 	{
-		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL)); // we could clip on the rcScroll|rcClip region
+		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM)); // we could clip on the rcScroll|rcClip region
 		Region   rgnClip(rcClip);
 		SelectClipRgn(dc, rgnClip.GetHandle());
 
@@ -1308,7 +1309,7 @@ void DataView::OnPaint()
 
 //	======================
 
-	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::SMALL));
+	PaintDcHandle paintDC(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM));
 	if (!paintDC.GetHDC())
 		throwLastSystemError("DataView::OnPaint");
 

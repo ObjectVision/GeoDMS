@@ -611,7 +611,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 		DrawEditText(
 			d.GetDC(),
 			elemDeviceExtents,
-			GetFont(recNo, FR_Label, d.GetSubPixelFactor()),
+			GetFont(recNo, FR_Label, d.GetSubPixelFactor()), //GetWindowDip2PixFactorY(GetHWnd())
 			textInfo.m_Grayed ? RGB(100, 100, 100) : GetColor(recNo, AN_LabelTextColor),
 			bkClr,
 			textInfo.m_Text.c_str(),
@@ -813,15 +813,24 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 		if (HasBorder())
 			cellHeight -= 2*BORDERSIZE;
 
-		if (!m_FontIndexCache)
-			m_FontIndexCache.assign(
+		if (!m_FontIndexCache) // no custom font(s) set in FeatureLayer::GetFontIndexCache(FontRole fr), set default
+		{
+			auto font_height = GetDefaultFontHeightDIP(FontSizeCategory::MEDIUM); // alternative value: cellHeight + 2
+			m_FontIndexCache.assign( // default font
 				new FontIndexCache(
-					nullptr, nullptr, fontTheme.get(), nullptr
-				,	fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault() // theme domain entity
-				,	nullptr
-				,	cellHeight+2, 0, GetTokenID_mt(defFontNames[fr]), 0
+					nullptr,         // fontSizeTheme
+					nullptr,         // worldSizeTheme
+					fontTheme.get(), // fontNameTheme
+					nullptr,		 // fontAngleTheme
+					fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault(), // theme domain entity
+					nullptr,		 // projectionBaseUnit
+					font_height,	 // defFontSize
+					0,			     // defWorldSize
+					GetTokenID_mt(defFontNames[fr]), // defFontNameID
+					0				 // defFontAngle
 				)
 			);
+		}
 		m_FontIndexCache->UpdateForZoomLevel(subPixelFactor, subPixelFactor);
 		m_FontArray.assign(new FontArray(m_FontIndexCache, true) );
 	}

@@ -41,6 +41,7 @@
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ShowDetailPage %d", int(new_active_detail_page));
+    m_last_active_detail_page = m_active_detail_page;
     m_active_detail_page = new_active_detail_page;
 }
 
@@ -116,6 +117,7 @@ void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
     if (!MainWindow::TheOne()->m_detailpages_dock->isVisible() || m_active_detail_page != new_active_detail_page || !isVisible())
     {
+        setActiveDetailPage(new_active_detail_page);
         show(new_active_detail_page);
     }
     else
@@ -123,7 +125,6 @@ void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
         MainWindow::TheOne()->m_detailpages_dock->setVisible(false);
         toggleVisualState(new_active_detail_page, false);
         setActiveDetailPage(ActiveDetailPage::NONE);
-        //setVisible(false);
     }
 
     scheduleDrawPage();
@@ -452,6 +453,12 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 QSize DmsDetailPages::sizeHint() const
 {
     return QSize(500, 0);
+}
+
+void DmsDetailPages::resizeEvent(QResizeEvent* event)
+{
+    m_current_width = width();
+    QTextBrowser::resizeEvent(event);
 }
 
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)

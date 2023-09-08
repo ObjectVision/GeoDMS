@@ -251,7 +251,6 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
 	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/NotoSans-Medium.ttf").c_str(), FR_PRIVATE, 0);
 	SetMainThreadID();
 }
 
