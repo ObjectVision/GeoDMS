@@ -502,14 +502,14 @@ void DmsConfigTextButton::paintEvent(QPaintEvent* event)
     p.drawControl(QStyle::CE_PushButton, option);
 }
 
-void DmsRecentFileSubmenu::onDeleteRecentFileEntry(bool checked)
+void DmsRecentFileSubmenu::onDeleteRecentFileEntry()
 {
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
 }
 
-void DmsRecentFileSubmenu::onFileEntryPressed(bool checked)
+void DmsRecentFileSubmenu::onFileEntryPressed()
 {
     auto main_window = MainWindow::TheOne();
 
@@ -533,10 +533,14 @@ DmsRecentFileSubmenu::DmsRecentFileSubmenu(size_t index, std::string_view dms_fi
 
     connect(open, &QAction::triggered, this, &DmsRecentFileSubmenu::onFileEntryPressed);
     connect(remove, &QAction::triggered, this, &DmsRecentFileSubmenu::onDeleteRecentFileEntry);
-
     setTitle(menu_text.c_str());
     addAction(open);
     addAction(remove);
+}
+
+void DmsRecentFileSubmenu::mousePressEvent(QMouseEvent* event)
+{
+    onFileEntryPressed();
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)

@@ -120,10 +120,12 @@ public:
     std::string m_cfg_file_path;
     size_t m_index = 0;
     DmsConfigTextButton* m_config_text;
+protected:
+    void mousePressEvent(QMouseEvent* event) override;
 
 public slots:
-    void onDeleteRecentFileEntry(bool checked = false);
-    void onFileEntryPressed(bool checked = false);
+    void onDeleteRecentFileEntry();
+    void onFileEntryPressed();
 
 };
 
