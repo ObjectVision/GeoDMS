@@ -697,7 +697,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	auto errorChecker = [&errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (ti && WasInFailed(ti))
+			if (ti && !ti->IsCacheItem() && WasInFailed(ti))
 			{
 				errorneousItem = ti;
 				return  AVS_SuspendedOrFailed;
