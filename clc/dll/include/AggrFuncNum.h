@@ -108,7 +108,10 @@ template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see 
 			if constexpr (is_signed_v<T>)
 				hasOverflow = (arg >= 0 ? assignee < orgAssignee : assignee >= orgAssignee);
 			else
-				hasOverflow = (assignee < arg);
+			{
+				std::conditional_t<is_bitvalue_v<T>, UInt8, T> argCopy = arg;
+				hasOverflow = (assignee < argCopy);
+			}
 
 			if (hasOverflow)
 			{
