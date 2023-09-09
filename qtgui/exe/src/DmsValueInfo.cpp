@@ -21,6 +21,8 @@ ValueInfoPanel::ValueInfoPanel(QWidget* parent)
 ValueInfoPanel::~ValueInfoPanel()
 {
     auto main_window = MainWindow::TheOne();
+    if (!main_window) // main window destructor might already be in session as its base class destructor calls for childWidget destruction
+        return;
     auto active_subwindow = main_window->m_value_info_mdi_area->activeSubWindow();
     if (!active_subwindow)
     {
