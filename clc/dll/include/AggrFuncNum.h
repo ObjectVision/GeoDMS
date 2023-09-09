@@ -52,14 +52,19 @@ struct unary_assign_inc : unary_assign<I, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	void operator()(vref_t<I> assignee, typename unary_assign_inc::arg1_cref arg) const
+	void operator()(vref_t<I> assignee, cref_t<T> arg) const
 	{ 
 		if constexpr (has_undefines_v<I>)
 		{
 			if (!IsDefined(assignee))
 				return;
 		}
-		assignee++; 
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(arg))
+				return;
+		}
+		assignee++;
 		if constexpr (!has_undefines_v<I>)
 		{ 
 			static_assert(!is_signed_v<I>);
@@ -103,7 +108,10 @@ template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see 
 			if constexpr (is_signed_v<T>)
 				hasOverflow = (arg >= 0 ? assignee < orgAssignee : assignee >= orgAssignee);
 			else
-				hasOverflow = (assignee < arg);
+			{
+				std::conditional_t<is_bitvalue_v<T>, UInt8, T> argCopy = arg;
+				hasOverflow = (assignee < argCopy);
+			}
 
 			if (hasOverflow)
 			{
@@ -182,11 +190,14 @@ struct unary_assign_once : unary_assign<OR, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(typename unary_assign_once::assignee_ref assignee, typename unary_assign_once::arg1_cref arg) const
+	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		if ((!IsDefined(assignee)))
-			assignee = arg;
+		if (IsDefined(assignee))
+			return;
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 
@@ -196,10 +207,12 @@ struct unary_assign_overwrite: unary_assign<T, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void operator()(typename unary_assign_overwrite::assignee_ref assignee, typename unary_assign_overwrite::arg1_cref arg) const
+	void operator()(vref_t<T>  assignee, cref_t<T>  arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		assignee = arg; 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 

@@ -1132,7 +1132,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 	{
 		if (localExpr.IsRealList()) // operator call or calculation scheme instantiation
 		{
-			dms_assert(localExpr.Left().IsSymb());
+			MG_CHECK(localExpr.Left().IsSymb());
 
 			LispRef head = localExpr.Left();
 			if (head->GetSymbID() == token::scope)

@@ -151,8 +151,8 @@
 [(neighbourhood _X _Factor) (order _X (mul _Factor _X) )]
 
 [(float_isNearby _A _B _Factor)
-	(isOverlapping (neighbourhood _A _Factor) (neighbourhood _B _Factor))]
-
+	(isOverlapping (neighbourhood (MakeDefined _A (convert -9999.0 (valuesUnit _A))) _Factor) (neighbourhood (MakeDefined _B (convert -9999.0 (valuesUnit _B))) _Factor))]
+   
 [(point_isNearby _A _B _Factor)
 	(and
 		(float_isNearby (pointRow _A) (pointRow _B) _Factor)
@@ -216,9 +216,12 @@
 [(normalize _x )           (normalize _x  0 1 )] /* is rewritten to: (div (sub _x  (mean _x )) (sd   _x )) */
 [(normalize _x _E )        (normalize _x _E 1 )] /* is rewritten to: (add (div (sub _x  (mean _x )) (sd   _x )) _E) */
 
-[(normalize _x _E _SD)     (add (mul (sub _x  (mean _x )) (div _SD (sd   _x ))) _E)]
+[(normalize _x _E _SD)     (recollect_by_cond (IsDefined _x) (normalize_defined (collect_by_cond (select (IsDefined _x)) _x) _E _SD))]
 [(normalize _x _p _E _SD)  (add (mul (sub _x  (lookup _p (mean _x _p))) 
                                (lookup _p (div _SD (sd   _x _p)))) _E)]
+
+[(normalize_defined _x _E _SD)     (add (mul (sub _x  (mean _x )) (div _SD (sd   _x ))) _E)]
+
 
 /*********** Remove symbolic constants from rescale & normalize *********/
 

@@ -53,7 +53,7 @@ struct null_wrap : private std::pair<T, bool>
 {
 	null_wrap()
 	{
-		dms_assert(!IsDefined());
+		assert(!IsDefined());
 	}
 	bool IsDefined() const { return this->second; };
 	operator typename param_type<T>::type () const { return this->first; }
