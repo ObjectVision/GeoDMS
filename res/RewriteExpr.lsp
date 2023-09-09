@@ -151,8 +151,8 @@
 [(neighbourhood _X _Factor) (order _X (mul _Factor _X) )]
 
 [(float_isNearby _A _B _Factor)
-	(isOverlapping (neighbourhood _A _Factor) (neighbourhood _B _Factor))]
-
+	(isOverlapping (neighbourhood (MakeDefined _A (convert -9999.0 (valuesUnit _A))) _Factor) (neighbourhood (MakeDefined _B (convert -9999.0 (valuesUnit _B))) _Factor))]
+   
 [(point_isNearby _A _B _Factor)
 	(and
 		(float_isNearby (pointRow _A) (pointRow _B) _Factor)
