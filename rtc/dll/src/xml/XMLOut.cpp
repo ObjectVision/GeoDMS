@@ -275,8 +275,16 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 		auto round_bracked_open_pos = lineView.find_first_of('(');
 		auto comma_pos = lineView.find_first_of(',');
 		auto round_bracked_close_pos = lineView.find_first_of(')');
+		auto illegal_anglebracketopen_pos = lineView.find_first_of('<');
+		auto illegal_anglebracketclose_pos = lineView.find_first_of('>');
+		auto illegal_placeholder_symbol_pos = lineView.find_first_of('%');
+		auto illegal_symbol_pos = Min(illegal_anglebracketopen_pos, Min(illegal_anglebracketclose_pos, illegal_placeholder_symbol_pos));
+		static_assert(std::string::npos > 0);
 
-		if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
+		if (round_bracked_open_pos < comma_pos 
+			&& comma_pos < round_bracked_close_pos 
+			&& round_bracked_close_pos < illegal_symbol_pos
+			)
 		{
 //			auto filename = lineView.substr(0, round_bracked_open_pos);
 //			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));

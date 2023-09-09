@@ -223,6 +223,7 @@ public slots:
     void code_analysis_add_target();
     void code_analysis_clr_targets();
 
+    static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
     static bool reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
     void runToFailReason();

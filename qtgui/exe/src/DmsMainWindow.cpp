@@ -909,9 +909,7 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
     if (!filename.empty() && !line.empty() && !command.empty())
     {
         unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, std::string(filename), std::string(line));
-        const TreeItem* ti = getCurrentTreeItem();
-        if (!ti)
-            ti = getRootTreeItem();
+        const TreeItem* ti = getCurrentTreeItemOrRoot();
 
         if (!ti)
             open_config_source_command = AbstrStorageManager::Expand("", unexpanded_open_config_source_command.c_str()).c_str();// AbstrStorageManager::GetFullStorageName("", unexpanded_open_config_source_command.c_str()).c_str();
@@ -1096,7 +1094,7 @@ void MainWindow::code_analysis_clr_targets()
 //    TreeItem_SetAnalysisTarget(nullptr, true);  // REMOVE, al gedaan door SetAnalysisSource
 }
 
-bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
+bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr)
 {
     VectorOutStreamBuff buffer;
     auto streamType = OutStreamBase::ST_HTM;
@@ -1110,6 +1108,14 @@ bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
     assert(dialogResult == QDialog::DialogCode::Accepted);
+    return true;
+}
+
+bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
+{
+    bool doReload = reportErrorAndAskToReload(std::move(error_message_ptr));
+    if (!doReload)
+        return false;
     bool reloadResult = TheOne()->reopen();
     return reloadResult;
 }
@@ -1321,6 +1327,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 
 bool MainWindow::LoadConfig(CharPtr configFilePath)
 {
+  retry:
     try
     {
         CloseConfig();
@@ -1357,8 +1364,10 @@ bool MainWindow::LoadConfig(CharPtr configFilePath)
         m_dms_model->setRoot(nullptr);
         setCurrentTreeItem(nullptr);
         auto x = catchException(false);
-        bool reloadSucceeded = reportErrorAndTryReload(x);
-        return reloadSucceeded;
+        bool reloadSucceeded = reportErrorAndAskToReload(x);
+        if (!reloadSucceeded)
+            return false;
+        goto retry;
     }
     m_dms_model->setRoot(m_root);
     clearActionsForEmptyCurrentItem();

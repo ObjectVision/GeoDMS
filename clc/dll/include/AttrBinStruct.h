@@ -420,7 +420,7 @@ struct strcount_func: binary_func<UInt32, SharedStr, SharedStr>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
 
-	UInt32 operator ()(typename strcount_func::arg1_cref arg1, typename strcount_func::arg2_cref arg2) const
+	UInt32 operator ()(cref_t<SharedStr> arg1, cref_t<SharedStr> arg2) const
 	{
 		return StrCount(arg1, arg2);
 	}

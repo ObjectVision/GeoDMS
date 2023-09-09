@@ -577,54 +577,60 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
 #include <QDesktopServices>
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
-    auto linkStr = link.toString().toUtf8();
+    try {
+        auto linkStr = link.toString().toUtf8();
 
-    // log link action
+        // log link action
 #if defined(_DEBUG)
-    MainWindow::TheOne()->m_eventlog_model->addText(
-        SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
-    );
+        MainWindow::TheOne()->m_eventlog_model->addText(
+            SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
+        );
 #endif
 
-    auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
 
-    auto realm = Realm(linkStr);
-    if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
-    {
-        auto clicked_error_link = link.toString().toStdString().substr(17);
-        auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-        MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
-        return;
-    }
+        auto realm = Realm(linkStr);
+        if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
+        {
+            auto clicked_error_link = link.toString().toStdString().substr(17);
+            auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
+            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            return;
+        }
 
-    if (IsPostRequest(link))
-    {
-        auto queryStr = link.query().toUtf8();
-        DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
-        return;
-    }
-    if (!ShowInDetailPage(linkStr))
-    {
-        auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
-        ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
-        auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
-        QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
-        //StartChildProcess(nullptr, linkCStr.begin());
-        return;
-    }
+        if (IsPostRequest(link))
+        {
+            auto queryStr = link.query().toUtf8();
+            DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
+            return;
+        }
+        if (!ShowInDetailPage(linkStr))
+        {
+            auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
+            ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
+            auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
+            QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
+            //StartChildProcess(nullptr, linkCStr.begin());
+            return;
+        }
 
-    if (linkStr.contains(".adms"))
-    {
-        auto queryResult = ProcessADMS(current_item, linkStr.data());
-        setHtml(queryResult.c_str());
-        return;
+        if (linkStr.contains(".adms"))
+        {
+            auto queryResult = ProcessADMS(current_item, linkStr.data());
+            setHtml(queryResult.c_str());
+            return;
+        }
+        auto sPrefix = Realm(linkStr);
+        if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
+        {
+            auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
+            DoViewAction(current_item, sAction);
+            return;
+        }
     }
-    auto sPrefix = Realm(linkStr);
-    if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
+    catch (...)
     {
-        auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
-        DoViewAction(current_item, sAction);
-        return;
+        auto errMsg = catchAndReportException();
     }
 }
 
