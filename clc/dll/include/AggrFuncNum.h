@@ -187,11 +187,14 @@ struct unary_assign_once : unary_assign<OR, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(typename unary_assign_once::assignee_ref assignee, typename unary_assign_once::arg1_cref arg) const
+	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		if ((!IsDefined(assignee)))
-			assignee = arg;
+		if (IsDefined(assignee))
+			return;
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 
@@ -201,10 +204,12 @@ struct unary_assign_overwrite: unary_assign<T, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void operator()(typename unary_assign_overwrite::assignee_ref assignee, typename unary_assign_overwrite::arg1_cref arg) const
+	void operator()(vref_t<T>  assignee, cref_t<T>  arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		assignee = arg; 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 
