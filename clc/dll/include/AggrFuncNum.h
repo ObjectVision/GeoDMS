@@ -52,14 +52,19 @@ struct unary_assign_inc : unary_assign<I, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	void operator()(vref_t<I> assignee, typename unary_assign_inc::arg1_cref arg) const
+	void operator()(vref_t<I> assignee, cref_t<T> arg) const
 	{ 
 		if constexpr (has_undefines_v<I>)
 		{
 			if (!IsDefined(assignee))
 				return;
 		}
-		assignee++; 
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(arg))
+				return;
+		}
+		assignee++;
 		if constexpr (!has_undefines_v<I>)
 		{ 
 			static_assert(!is_signed_v<I>);
