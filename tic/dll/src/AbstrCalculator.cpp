@@ -724,7 +724,7 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 	auto errorChecker = [&errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (ti)
+			if (ti && !ti->IsCacheItem())
 			{
 				if (WasInFailed(ti))
 					goto foundError;
@@ -782,7 +782,7 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 		if (!m_BestGuessErrorSuppl.first)
 		{
 			auto x = FindBestItem(supplRefID);
-			if (x.first && x.first->WasFailed())
+			if (x.first && !x.first->IsCacheItem() && x.first->WasFailed())
 				m_BestGuessErrorSuppl = x;
 
 			auto msg = mySSPrintF("Unknown identifier '%s'", supplRefID.GetStr());

@@ -121,7 +121,7 @@ namespace {
 				// Check
 				MGD_CHECKDATA(
 					(i == ie || dataValue < classBoundsPtr[*i])
-					&& (/*	i == ib ||*/ !(dataValue < classBoundsPtr[i[-1]]))
+					&& (!(dataValue < classBoundsPtr[i[-1]]) || !IsBitValueOrDefined(classBoundsPtr[i[-1]]))
 				);
 
 				// Action

@@ -965,7 +965,12 @@ void MainWindow::stepToFailReason()
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
     if (result.first)
+    {
+        if (result.first->IsCacheItem())
+            return;
+
         setCurrentTreeItem(const_cast<TreeItem*>(result.first.get()));
+    }
 
     if (!result.second.empty())
     {
