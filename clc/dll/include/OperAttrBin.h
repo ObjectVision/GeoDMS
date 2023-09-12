@@ -131,18 +131,18 @@ public:
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-//				if (resultAdi->WasFailed(FR_Data))
-//					resultAdi->ThrowFail();
-//				try {
+				if (resultAdi->WasFailed(FR_Data))
+					resultAdi->ThrowFail();
+				try {
 					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
 					auto tileB = futureData.second->GetTile();
 					this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
-//				}
-//				catch (...)
-//				{
-//					resultAdi->CatchFail(FailType::FR_Data);
-//					throw;
-//				}
+				}
+				catch (...)
+				{
+					resultAdi->CatchFail(FailType::FR_Data);
+					throw;
+				}
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
