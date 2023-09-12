@@ -120,7 +120,7 @@ public:
 		auto tn = entity1->GetNrTiles();
 
 		if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-			res->m_DataObject = CreateFutureTileFunctor(res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A);
+			res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A);
 		else
 		{
 			DataWriteLock resLock(res);
@@ -142,7 +142,7 @@ public:
 		return true;
 	}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<PointType>*>(valuesUnitA);
@@ -150,7 +150,7 @@ public:
 		auto arg2 = MakeShared(const_array_cast<T>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<PointType, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<PointType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2](tile_id t) { return prepare_data{ arg1->GetFutureTile(t), arg2->GetFutureTile(t) }; }
 			, [this](sequence_traits<PointType>::seq_t resData, prepare_data futureData)
 			{

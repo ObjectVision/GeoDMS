@@ -687,11 +687,6 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 {
 	if (m_BestGuessErrorSuppl.first && m_BestGuessErrorSuppl.first->WasFailed())
 		return m_BestGuessErrorSuppl;
-	if (IsSourceRef())
-	{
-		TokenID supplRefID = GetLispExprOrg().GetSymbID();
-		return FindBestItem(supplRefID);
-	}
 
 	const TreeItem* errorneousItem = nullptr;
 	auto errorChecker = [&errorneousItem](const Actor* a)
@@ -703,28 +698,27 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 				return  AVS_SuspendedOrFailed;
 			}
 			return AVS_Ready;
-
 		};
-
 	auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
-	VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
+
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		VisitSourceItem(supplRefID, SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
+	}
+	else
+		VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
 
 	return { errorneousItem, {} };
 }
 
 BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 {
-	if (IsSourceRef())
-	{
-		TokenID supplRefID = GetLispExprOrg().GetSymbID();
-		return FindBestItem(supplRefID);
-	}
-
 	const TreeItem* errorneousItem = nullptr;
 	auto errorChecker = [&errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (ti)
+			if (ti && !ti->IsCacheItem())
 			{
 				if (WasInFailed(ti))
 					goto foundError;
@@ -734,10 +728,19 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 					adi->PrepareDataUsage(DrlType::Certain);
 
 					DataReadLock lock(adi);
-					if (adi->WasFailed(FR_Data))
-						goto foundError;
 				}
-
+				if (IsUnit(ti))
+				{
+					try {
+						AsUnit(ti)->GetCount();
+					}
+					catch (...)
+					{
+						ti->CatchFail(FR_Data);
+					}
+				}
+				if (ti->WasFailed(FR_Data))
+					goto foundError;
 			}
 			return AVS_Ready;
 		foundError:
@@ -745,9 +748,15 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 			return  AVS_SuspendedOrFailed;
 
 		};
-
 	auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
-	VisitSuppliers(SupplierVisitFlag::NamedSuppliers, std::move(visitor));
+
+	if (IsSourceRef())
+	{
+		TokenID supplRefID = GetLispExprOrg().GetSymbID();
+		VisitSourceItem(supplRefID, SupplierVisitFlag::NamedSuppliers, std::move(visitor));
+	}
+	else
+		VisitSuppliers(SupplierVisitFlag::NamedSuppliers, std::move(visitor));
 
 	return { errorneousItem, {} };
 
@@ -782,7 +791,7 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 		if (!m_BestGuessErrorSuppl.first)
 		{
 			auto x = FindBestItem(supplRefID);
-			if (x.first && x.first->WasFailed())
+			if (x.first && !x.first->IsCacheItem() && x.first->WasFailed())
 				m_BestGuessErrorSuppl = x;
 
 			auto msg = mySSPrintF("Unknown identifier '%s'", supplRefID.GetStr());

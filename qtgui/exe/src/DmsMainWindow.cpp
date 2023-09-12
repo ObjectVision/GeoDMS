@@ -53,6 +53,7 @@
 
 
 static MainWindow* s_CurrMainWindow = nullptr;
+UInt32 s_errorWindowActivationCount = 0;
 
 void DmsFileChangedWindow::ignore()
 {
@@ -869,7 +870,7 @@ void MainWindow::updateToolbar()
 
 bool MainWindow::event(QEvent* event)
 {
-    if (event->type() == QEvent::WindowActivate)
+    if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
         QTimer::singleShot(0, this, [=]() 
             { 
@@ -965,7 +966,12 @@ void MainWindow::stepToFailReason()
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
     if (result.first)
+    {
+        if (result.first->IsCacheItem())
+            return;
+
         setCurrentTreeItem(const_cast<TreeItem*>(result.first.get()));
+    }
 
     if (!result.second.empty())
     {
@@ -1107,8 +1113,14 @@ bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr)
     *msgOut << *error_message_ptr;
     buffer.WriteByte(0);
 
+    if (s_errorWindowActivationCount)
+        return false;
+    DynamicIncrementalLock lock(s_errorWindowActivationCount);
+
     TheOne()->m_error_window->setErrorMessageHtml(buffer.GetData());
     auto dialogResult = TheOne()->m_error_window->exec();
+    if (dialogResult == -1) // this appears to be the result when exec is called recursively.
+        return false;
     if (dialogResult == QDialog::DialogCode::Rejected)
         return false;
     assert(dialogResult == QDialog::DialogCode::Accepted);
