@@ -936,7 +936,7 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 const TreeItem* TreeItem::GetCurrRefItem() const
 {
-	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
+//	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem;
 }
 
@@ -2503,29 +2503,30 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				if (WasFailed(FR_Validate))
 					return AVS_SuspendedOrFailed;
 
-				auto result = CalcResult(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
+				auto iCheckerDC = CalcResult(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 				if (SuspendTrigger::DidSuspend())
 					return AVS_SuspendedOrFailed;
 
-				dms_assert(result && result->GetInterestCount());
+				assert(iCheckerDC && iCheckerDC->GetInterestCount());
 
 				DataReadLockContainer c;                                                  // @@@USE
-				if (!result->GetOld() || !c.Add(AsDataItem(result->GetOld()), DrlType::Suspendible))
+				SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
+				if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
 				{
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
-					dms_assert(result->WasFailed(FR_Data));
-					if (result->WasFailed(FR_Data))
-						Fail(result.get_ptr());
+					assert(iCheckerResult->WasFailed(FR_Data));
+					if (iCheckerResult->WasFailed(FR_Data))
+						Fail(iCheckerResult.get());
 					return AVS_SuspendedOrFailed;
 				}
-				SizeT nrFailures = AsDataItem(result->GetOld())->CountValues<Bool>(false);
+				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
 				if (nrFailures)
 				{
 					//	throwError(ICHECK_NAME, "%s", iChecker->GetExpr().c_str()); // will be caught by SuspendibleUpdate who will Fail this.
 					Fail(ICHECK_NAME ": " + AsString(nrFailures) + " element(s) fail the test of " + iCheckerPtr->GetExpr(), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
-					dms_assert(WasFailed(FR_Validate));
+					assert(WasFailed(FR_Validate));
 					return AVS_Ready;
 				}
 			}
