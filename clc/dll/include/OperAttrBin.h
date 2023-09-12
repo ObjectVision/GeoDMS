@@ -1,36 +1,13 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__CLC_OPERATTRBIN_H)
 #define __CLC_OPERATTRBIN_H
 
+#include "dbg/DmsCatch.h"
 #include "mci/ValueWrap.h"
 #include "ASync.h"
 
@@ -98,7 +75,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-				res->m_DataObject = CreateFutureTileFunctor(res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -115,7 +92,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t
 	) const=0;
 
@@ -140,7 +117,7 @@ public:
 		)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto rangedArg = (af & AF1_ISPARAM) ? arg2A : arg1A;
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -150,13 +127,22 @@ public:
 		auto arg2 = MakeShared(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
-				auto tileB = futureData.second->GetTile();
-				this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+//				if (resultAdi->WasFailed(FR_Data))
+//					resultAdi->ThrowFail();
+//				try {
+					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
+					auto tileB = futureData.second->GetTile();
+					this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+//				}
+//				catch (...)
+//				{
+//					resultAdi->CatchFail(FailType::FR_Data);
+//					throw;
+//				}
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);

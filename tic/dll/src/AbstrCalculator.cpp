@@ -736,7 +736,7 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 					}
 					catch (...)
 					{
-						catchAndReportException();
+						ti->CatchFail(FR_Data);
 					}
 				}
 				if (ti->WasFailed(FR_Data))

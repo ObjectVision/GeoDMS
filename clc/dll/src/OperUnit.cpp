@@ -146,7 +146,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount] <typename V> (const Unit<V>* valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, valuesUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd, valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
 						SizeT tileStart = trd->GetFirstRowIndex(t);
