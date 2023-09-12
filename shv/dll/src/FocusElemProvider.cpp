@@ -51,13 +51,13 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ThemeSet.h"
 #include "Theme.h"
 
-typedef std::map<DataView*, ThemeSetArray> ThemeSetArrayMap;
+using ThemeSetArrayMap = std::map<DataView*, ThemeSetArray> ;
 static ThemeSetArrayMap s_ThemeSets;
 
 void SelThemeCreator::UnregisterDataView(DataView* dv)
 {
-	dms_assert(IsMainThread());
-	dms_assert(dv);
+	assert(IsMainThread());
+	assert(dv);
 	ThemeSetArrayMap::iterator p = s_ThemeSets.find(dv);
 	if (p != s_ThemeSets.end())
 	{
@@ -73,14 +73,14 @@ void SelThemeCreator::UnregisterDataView(DataView* dv)
 
 void SelThemeCreator::RegisterThemeSet(DataView* dv, ThemeSet* ts)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_ThemeSets[dv].push_back(ts);
 }
 
 void SelThemeCreator::UnregisterThemeSet(DataView* dv, ThemeSet* ts)
 {
-	dms_assert(IsMainThread());
-	dms_assert(dv);
+	assert(IsMainThread());
+	assert(dv);
 	ThemeSetArrayMap::iterator p = s_ThemeSets.find(dv);
 	if (p != s_ThemeSets.end()) // Insertion on dv must have been done in s_ThemeSets unless read from 
 	{

@@ -464,6 +464,7 @@ void DmsDetailPages::resizeEvent(QResizeEvent* event)
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
     assert(tiContext);
+    SuspendTrigger::Resume();
 
     auto colonPos = std::find(sAction.begin(), sAction.end(), ':');
     auto sMenu = CharPtrRange(sAction.begin(), colonPos);
