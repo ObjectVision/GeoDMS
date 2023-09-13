@@ -1902,26 +1902,26 @@ void MainWindow::createActions()
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
     menuBar()->addMenu(m_window_menu.get());
 
-    m_win_tile_action = new QAction(tr("&Tile Windows"), m_window_menu.get());
+    m_win_tile_action = std::make_unique<QAction>(tr("&Tile Windows"), m_window_menu.get());
     m_win_tile_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
     m_win_tile_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_win_tile_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
-    m_win_cascade_action = new QAction(tr("Ca&scade"), m_window_menu.get());
+    m_win_cascade_action = std::make_unique<QAction>(tr("Ca&scade"), m_window_menu.get());
     m_win_cascade_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
     m_win_cascade_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_win_cascade_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
-    m_win_close_action = new QAction(tr("&Close"), m_window_menu.get());
+    m_win_close_action = std::make_unique<QAction>(tr("&Close"), m_window_menu.get());
     m_win_close_action->setShortcut(QKeySequence(tr("Ctrl+W")));
     connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
 
-    m_win_close_all_action = new QAction(tr("Close &All"), m_window_menu.get());
+    m_win_close_all_action = std::make_unique<QAction>(tr("Close &All"), m_window_menu.get());
     m_win_close_all_action->setShortcut(QKeySequence(tr("Ctrl+L")));
     m_win_close_all_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_win_close_all_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
 
-    m_win_close_but_this_action = new QAction(tr("Close All &But This"), m_window_menu.get());
+    m_win_close_but_this_action = std::make_unique<QAction>(tr("Close All &But This"), m_window_menu.get());
     m_win_close_but_this_action->setShortcut(QKeySequence(tr("Ctrl+B")));
     m_win_close_but_this_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(m_win_close_but_this_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
