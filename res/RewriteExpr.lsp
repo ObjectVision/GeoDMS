@@ -1,4 +1,5 @@
 /* Rules in slisp notation for the rewriting of expr slisps of treeitems.
+/* Rules in slisp notation for the rewriting of expr slisps of treeitems.
 
    Syntax: 
 
@@ -269,7 +270,7 @@
 [(rjoin _a _b _c)            (lookup (rlookup _a _b) _c)]
 [(lookup (rlookup _a _a) _c) _c]
 [(sort_str _a)            (lookup (index _a) _a)]
-[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (convert 1 _D)) (ID _D))]
+[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (ID _D)) (convert 1 _D))]
 [(reverse _a)             (lookup (reversed_id (domainUnit _a)) _a)]
 [[index [_a [_b _R]]]     [subindex [(index _a) [(rank_sorted (index_a) _a) [_b _R]]]] ]
 
