@@ -76,7 +76,7 @@
 [(pow x (neg _y))           (div 1 (pow _x _y))]
 
 [(pow _x _y)                (exp (mul (log _x) _y))]
-
+[(sub_or_null _a _b)        (iif (ge _a _b) (sub _a (min_elem _a _b)) (div (add _a _a) (sub _a _a) ))]
 /*********** Associative Binary functions *********/
 
 [(add _a1)                    _a1]
