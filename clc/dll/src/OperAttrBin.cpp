@@ -294,7 +294,8 @@ template <typename T, typename Cmp> struct checked_compare_func : compare_func_b
 		if constexpr (has_undefines_v<T>)
 		{
 			if (!IsDefined(a) || !IsDefined(b))
-				throwDmsErrD("Invalid attempt to compare undefined values!");
+				return false;
+//				throwDmsErrD("Invalid attempt to compare undefined values!");
 		}
 		return cmp(a, b);
 	}

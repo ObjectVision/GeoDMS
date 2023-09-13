@@ -299,6 +299,10 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 
 	void operator () (typename unary_assign_exp::assignee_ref a, typename unary_assign_exp::arg1_cref x) const
 	{
+		if constexpr (has_undefines_v<typename unary_assign_exp::arg1_type>)
+			if (!IsDefined(x))
+				return;
+
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
 	}

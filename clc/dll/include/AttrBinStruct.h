@@ -7,6 +7,8 @@
 #if !defined(__CLC_ATTRBINSTRUCT_H)
 #define __CLC_ATTRBINSTRUCT_H
 
+#include <functional>
+
 #include "utl/StringFunc.h"
 
 #include "Prototypes.h"
@@ -14,6 +16,7 @@
 #include "composition.h"
 #include "AttrUniStruct.h"
 #include "dms_transform.h"
+#include "mci/ValueWrap.h"
 
 // *****************************************************************************
 //								CHECKED FUNCTORS
@@ -135,7 +138,15 @@ void do_binary_func(
 // *****************************************************************************
 //						ELEMENTARY BINARY FUNCTORS
 // *****************************************************************************
-#include <functional>
+
+template <typename T>
+[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b)
+{
+	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
+	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%"
+		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
+	);
+}
 
 template <typename T>
 struct safe_plus
@@ -152,7 +163,7 @@ struct safe_plus
 			if constexpr (!is_signed_v<T>)
 			{
 				if (result < a)
-					return UNDEFINED_VALUE(T);
+					throwOverflow("adding", a, "and", b);
 			}
 			else
 			{
@@ -163,7 +174,7 @@ struct safe_plus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative !=resultNonnegative)
-						return UNDEFINED_VALUE(T);
+						throwOverflow("adding", a, "and", b);
 				}
 			}
 		}
@@ -196,7 +207,7 @@ struct safe_minus
 			if constexpr (!is_signed_v<T>)
 			{
 				if (a < b)
-					return UNDEFINED_VALUE(T);
+					throwOverflow("subtracting", b, "from", a);
 			}
 			else
 			{
@@ -207,7 +218,7 @@ struct safe_minus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative != resultNonnegative)
-						return UNDEFINED_VALUE(T);
+						throwOverflow("subtracting", b, "from", a);
 				}
 			}
 		}
@@ -247,12 +258,13 @@ template <typename T> struct mul_func  : binary_func<T, T, T>
 			if (!IsDefined(a) || !IsDefined(b))
 				return UNDEFINED_VALUE(T);
 		}
+
 		T result = a * b;
 
 		if constexpr (!std::is_floating_point_v<T>)
 		{
 			if (a && b && b != result / a)
-				return UNDEFINED_VALUE(T);
+				throwOverflow("multiplying", a, "and", b);
 		}
 
 		return result;
