@@ -49,14 +49,14 @@ bool HasVoidDomainGuarantee(const AbstrDataItem* adi)
 
 void CheckFlags(DijkstraFlag df)
 {
-	MG_CHECK(!flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::ProdTraceBack));
-	MG_CHECK(flags(df & DijkstraFlag::OD) || flags(df & DijkstraFlag::OrgNode));
-	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OrgZone));
+	MG_USERCHECK2(!flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::ProdTraceBack), "Cannot produce a TraceBack attribute for an impedance matrix");
+	MG_USERCHECK2(flags(df & DijkstraFlag::OD) || flags(df & DijkstraFlag::OrgNode), "OrgNode required for impedance_table");
+	MG_USERCHECK2(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OrgZone), "OrgZone is not allowed for impedance_table");
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::UInt64_Od));
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OD_Data));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionAlpha));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::OrgMinImp));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp));
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionAlpha), "pointless specification of InteractionAlpha without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::OrgMinImp), "pointless specification of OrgMinImp without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp), "pointless specification of DstMinImp without request for producing trip distribution output.");
 	MG_CHECK(!flags(df & DijkstraFlag::Bidirectional) || !flags(df & DijkstraFlag::BidirFlag));
 	MG_CHECK(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance));
 	MG_CHECK(((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::None) || ((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::EuclidFlags));
