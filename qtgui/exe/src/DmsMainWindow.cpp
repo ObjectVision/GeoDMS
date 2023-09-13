@@ -1901,34 +1901,35 @@ void MainWindow::createActions()
     // window menu
     m_window_menu = std::make_unique<QMenu>(tr("&Window"));
     menuBar()->addMenu(m_window_menu.get());
-    auto win1_action = new QAction(tr("&Tile Windows"), m_window_menu.get());
-    win1_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
-    win1_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win1_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
-    auto win2_action = new QAction(tr("&Cascade"), m_window_menu.get());
-    win2_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    win2_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win2_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
+    m_win_tile_action = new QAction(tr("&Tile Windows"), m_window_menu.get());
+    m_win_tile_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
+    m_win_tile_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_win_tile_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
-    auto win3_action = new QAction(tr("&Close"), m_window_menu.get());
-    win3_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    connect(win3_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
+    m_win_cascade_action = new QAction(tr("Ca&scade"), m_window_menu.get());
+    m_win_cascade_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    m_win_cascade_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_win_cascade_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
-    auto win4_action = new QAction(tr("&Close All"), m_window_menu.get());
-    win4_action->setShortcut(QKeySequence(tr("Ctrl+L")));
-    win4_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win4_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
+    m_win_close_action = new QAction(tr("&Close"), m_window_menu.get());
+    m_win_close_action->setShortcut(QKeySequence(tr("Ctrl+W")));
+    connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
 
-    auto win5_action = new QAction(tr("&Close All But This"), m_window_menu.get());
-    win5_action->setShortcut(QKeySequence(tr("Ctrl+B")));
-    win5_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(win5_action, &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
-    m_window_menu->addAction(win1_action);
-    m_window_menu->addAction(win2_action);
-    m_window_menu->addAction(win3_action);
-    m_window_menu->addAction(win4_action);
-    m_window_menu->addAction(win5_action);
+    m_win_close_all_action = new QAction(tr("Close &All"), m_window_menu.get());
+    m_win_close_all_action->setShortcut(QKeySequence(tr("Ctrl+L")));
+    m_win_close_all_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_win_close_all_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
+
+    m_win_close_but_this_action = new QAction(tr("Close All &But This"), m_window_menu.get());
+    m_win_close_but_this_action->setShortcut(QKeySequence(tr("Ctrl+B")));
+    m_win_close_but_this_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(m_win_close_but_this_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
+    m_window_menu->addAction(m_win_tile_action.get());
+    m_window_menu->addAction(m_win_cascade_action.get());
+    m_window_menu->addAction(m_win_close_action.get());
+    m_window_menu->addAction(m_win_close_all_action.get());
+    m_window_menu->addAction(m_win_close_but_this_action.get());
     connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
     // help menu
     m_help_menu = std::make_unique<QMenu>(tr("&Help"));
@@ -2040,6 +2041,7 @@ void MainWindow::updateWindowMenu()
     m_window_menu->addSeparator();
 
     // reinsert window actions
+    int subWindowCount = 0;
     auto asw = m_mdi_area->currentSubWindow();
     for (auto* sw : m_mdi_area->subWindowList())
     {
@@ -2047,6 +2049,7 @@ void MainWindow::updateWindowMenu()
         ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
         qa->setIcon(getIconFromViewstyle(viewstyle));               
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
+        subWindowCount++;
         if (sw == asw)
         {
             qa->setCheckable(true);
@@ -2054,6 +2057,12 @@ void MainWindow::updateWindowMenu()
         }
         m_window_menu->addAction(qa);
     }
+
+    m_win_tile_action->setEnabled(subWindowCount > 0);
+    m_win_cascade_action->setEnabled(subWindowCount > 0); 
+    m_win_close_action->setEnabled(subWindowCount > 0);
+    m_win_close_all_action->setEnabled(subWindowCount > 0);
+    m_win_close_but_this_action->setEnabled(subWindowCount > 1);
 }
 
 bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName)
