@@ -464,13 +464,20 @@ namespace {
 			, UnitPowerOperator(&cog_pow, Unit<T>::GetStaticClass())
 		{}
 	};
+	CommonOperGroup
+		cog_mul_or_null("mul_or_null"),
+		cog_add_or_null("add_or_null"),
+		cog_sub_or_null("sub_or_null");
 
 	BinaryInstantiation<ranged_unit_objects, mul_func > sMul(&cog_mul);
+	BinaryInstantiation<ranged_unit_objects, mul_or_null_func > sMulOrNull(&cog_mul_or_null);
 	BinaryInstantiation<ranged_unit_objects, div_func > sDiv(&cog_div);
 	BinaryInstantiation<ranged_unit_objects, plus_func> sAdd(&cog_add);
+	BinaryInstantiation<ranged_unit_objects, plus_or_null_func> sAddOrNull(&cog_add_or_null);
 
 	CogBinaryInstantiation<ranged_unit_objects, mod_func  > sMod("mod");
 	BinaryInstantiation<ranged_unit_objects, minus_func> sSub(&cog_sub);
+	BinaryInstantiation<ranged_unit_objects, minus_or_null_func> sSubOrNull(&cog_sub_or_null);
 
 	CogBinaryInstantiation<points, dist_func   > sDist("dist");
 	CogBinaryInstantiation<points, sqrdist_func> sSqrDist("sqrdist");

@@ -236,6 +236,94 @@ struct safe_minus < Point<T> >
 	safe_minus<T> scalar_op;
 };
 
+template <typename T>
+struct safe_plus_or_null
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a + b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (result < a)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative == bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_plus_or_null < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_plus_or_null<T> scalar_op;
+};
+
+template <typename T>
+struct safe_minus_or_null
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a - b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (a < b)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative != bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_minus_or_null < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_minus_or_null<T> scalar_op;
+};
+
 
 template <typename T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
 {
@@ -247,11 +335,21 @@ template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
+template <typename T> struct plus_or_null_func : std_binary_func< safe_plus_or_null<T>, T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
+};
+
+template <typename T> struct minus_or_null_func : std_binary_func< safe_minus_or_null<T>, T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
+};
+
 template <typename T> struct mul_func  : binary_func<T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
 
-	typename mul_func::res_type operator()(typename mul_func::arg1_cref a, typename mul_func::arg2_cref b) const
+	T operator()(cref_t<T> a, cref_t<T> b) const
 	{
 		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
 		{
@@ -280,6 +378,41 @@ template <typename T> struct mul_func< Point<T>> : binary_func<Point<T>, Point<T
 		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
 	}
 	mul_func<T> scalar_op;
+};
+
+template <typename T> struct mul_or_null_func : binary_func<T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	T operator()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(a) || !IsDefined(b))
+				return UNDEFINED_VALUE(T);
+		}
+
+		T result = a * b;
+
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (a && b && b != result / a)
+				return UNDEFINED_VALUE(T);
+		}
+
+		return result;
+	}
+};
+
+template <typename T> struct mul_or_null_func< Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	mul_or_null_func<T> scalar_op;
 };
 
 template <typename T>
