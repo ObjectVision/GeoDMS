@@ -1214,12 +1214,11 @@ bool MainWindow::CloseConfig()
 {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
+    bool has_active_dms_views = false;
     if (m_mdi_area)
     {
-        bool has_active_dms_views = m_mdi_area->subWindowList().size();
+        has_active_dms_views = m_mdi_area->subWindowList().size();
         m_mdi_area->closeAllSubWindows();
-//        if (has_active_dms_views)
-//            m_mdi_area->repaint();
     }
 
     if (m_root)
@@ -1244,8 +1243,6 @@ bool MainWindow::CloseConfig()
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
     std::string cfg_name = cfg.data();
-    //auto dos_cfg = ConvertDmsFileNameAlways(SharedStr(cfg.data()));
-//    std::replace(dos_cfg_name.begin(), dos_cfg_name.end(), '/', '\\');
     auto it = std::find(files.begin(), files.end(), cfg_name.c_str());
     if (it == files.end())
         return -1;
@@ -1255,11 +1252,7 @@ auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>&
 void MainWindow::cleanRecentFilesThatDoNotExist()
 {
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
-/*
-    for (auto& recent_file_name : recent_files_from_registry)
-        for (auto& ch : recent_file_name)
-            ch = std::tolower(ch);
-*/
+
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
     {
         if ((strnicmp(it_rf->c_str(), "file:", 5) != 0))
@@ -1314,18 +1307,9 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 {
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
-    {
         addRecentFilesMenu(cfg);
-        //auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), cfg, m_file_menu.get());
-        //m_file_menu->addAction(new_recent_file_action_widget);
-        //m_recent_files_actions.prepend(new_recent_file_action_widget);
-        //m_recent_files_selection_statuses.prepend(false);
-    }
     else
-    {
         m_recent_file_submenus.move(cfg_index_in_recent_files, 0);
-        //m_recent_files_actions.move(cfg_index_in_recent_files, 0);
-    }
 
     saveRecentFileActionToRegistry();
     updateFileMenu();

@@ -177,8 +177,6 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
-using callable = std::function<void()>;
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT

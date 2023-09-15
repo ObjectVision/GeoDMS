@@ -434,7 +434,7 @@ static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st
 
 SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 {
-	dms_assert(this);
+	assert(this);
 
 	const TreeItem* si = GetConstSubTreeItemByID(s_LabelID);
 	if (!si) 
@@ -456,7 +456,7 @@ SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 
 const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 {
-	dms_assert(au);
+	assert(au);
 
 	const TreeItem* si = const_cast<AbstrUnit*>(au)->GetSubTreeItemByID(s_LabelID);
 	if (!si)
@@ -477,9 +477,10 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 
 SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const
 {
+	assert(IsMainThread());
 	if (!ipHolder)
 		ipHolder = GetLabelAttr();
-	dms_assert(ipHolder == GetCurrLabelAttr(this));
+	assert(ipHolder == GetCurrLabelAttr(this));
 	if (!ipHolder)
 		return SharedStr();
 
@@ -487,19 +488,19 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::BlockIncInterestDetector allowIncInterestsForLabelAccess; // user must choose label wisely; new interest leaks out of this frame.
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
-	if (!ipHolder->PrepareData())
+	if (!ipHolder->PrepareDataUsage(DrlType::Certain))
 		return SharedStr();
 
 	try {
-	DataReadLock drl(ipHolder);
+		DataReadLock drl(ipHolder);
 
-	const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
+		const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
 
-	MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
-	SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false));
-	ado->AsCharArray(index, result.begin(), maxLen, lock, FormattingFlags::ThousandSeparator);
-	result.begin()[maxLen] = char(0);
-	return result;
+		MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
+		SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false));
+		ado->AsCharArray(index, result.begin(), maxLen, lock, FormattingFlags::ThousandSeparator);
+		result.begin()[maxLen] = char(0);
+		return result;
 	}
 	catch (const DmsException& x)
 	{
