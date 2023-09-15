@@ -177,6 +177,7 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
+using callable = std::function<void()>;
 
 class MainWindow : public QMainWindow
 {
@@ -190,7 +191,8 @@ public:
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item : m_root; }
     void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
-    bool LoadConfig(CharPtr configFilePath);
+    void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");
+    bool LoadConfigImpl(CharPtr configFilePath);
     void updateToolbar();
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
@@ -226,7 +228,7 @@ public slots:
     void code_analysis_clr_targets();
 
     static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
-    static bool reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
+    static void reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
     void runToFailReason();
 
@@ -246,7 +248,7 @@ public slots:
 
 public slots:
     void fileOpen();
-    bool reopen();
+    void reopen();
 
     void aboutGeoDms();
     void wiki();
@@ -279,7 +281,7 @@ private:
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
-    void CloseConfig();
+    bool CloseConfig(); // returns true when mdiSubWindows were closed
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
     void createActions();

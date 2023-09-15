@@ -218,18 +218,17 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig)
     {
+        CharPtr currentItemPath = "";
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
+        else
+            currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
         if (!cmdLineSettings.m_ConfigFileName.empty())
-        {
-            QTimer::singleShot(0, this, [=]() { LoadConfig(cmdLineSettings.m_ConfigFileName.c_str()); });
-        }
+           LoadConfig(cmdLineSettings.m_ConfigFileName.c_str(), currentItemPath);
     }
 
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
-    if (!cmdLineSettings.m_CurrItemFullNames.empty())
-        QTimer::singleShot(0, this, [=]() { m_current_item_bar->setPath(cmdLineSettings.m_CurrItemFullNames.back().c_str()); });
 
     scheduleUpdateToolbar();
 
@@ -427,25 +426,17 @@ void MainWindow::fileOpen()
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
         m_eventlog_model->clear();
 
-    bool result = LoadConfig(configFileName.toUtf8().data());
+    LoadConfig(configFileName.toUtf8().data());
 }
 
-bool MainWindow::reopen()
+void MainWindow::reopen()
 {
     auto cip = m_current_item_bar->text();
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
         m_eventlog_model->clear();
 
-    bool result = LoadConfig(m_currConfigFileName.c_str());
-    if (!result)
-        return false;
-
-    if (cip.isEmpty())
-        return true;
-
-    m_current_item_bar->setPath(cip.toUtf8());
-    return true;
+    LoadConfig(m_currConfigFileName.c_str(), cip.toUtf8());
 }
 
 void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
@@ -1127,13 +1118,11 @@ bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr)
     return true;
 }
 
-bool MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
+void MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
 {
     bool doReload = reportErrorAndAskToReload(std::move(error_message_ptr));
-    if (!doReload)
-        return false;
-    bool reloadResult = TheOne()->reopen();
-    return reloadResult;
+    if (doReload)
+        TheOne()->reopen();
 }
 
 void MainWindow::exportPrimaryData()
@@ -1221,7 +1210,7 @@ void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
     return;
 }
 
-void MainWindow::CloseConfig()
+bool MainWindow::CloseConfig()
 {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
@@ -1229,8 +1218,8 @@ void MainWindow::CloseConfig()
     {
         bool has_active_dms_views = m_mdi_area->subWindowList().size();
         m_mdi_area->closeAllSubWindows();
-        if (has_active_dms_views)
-            m_mdi_area->repaint();
+//        if (has_active_dms_views)
+//            m_mdi_area->repaint();
     }
 
     if (m_root)
@@ -1249,6 +1238,7 @@ void MainWindow::CloseConfig()
     SessionData::ReleaseCurr();
 
     scheduleUpdateToolbar();
+    return has_active_dms_views;
 }
 
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
@@ -1341,13 +1331,28 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     updateFileMenu();
 }
 
-bool MainWindow::LoadConfig(CharPtr configFilePath)
+void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath)
+{
+    bool hadSubWindwos = CloseConfig();
+    SharedStr configFilePathStr(configFilePath);
+    SharedStr currentItemPathStr(currentItemPath);
+
+    QTimer::singleShot(100, this, [=]() 
+        { 
+            if (LoadConfigImpl(configFilePathStr.c_str()))
+                QTimer::singleShot(100, this, [=]()
+                    {
+                        m_current_item_bar->setPath(currentItemPathStr.c_str());
+                    }
+                );
+        }
+    );
+}
+
+bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
 {
   retry:
-    try
-    {
-        CloseConfig();
-
+    try {
         auto orgConfigFilePath = SharedStr(configFilePath);
         m_currConfigFileName = ConvertDosFileName(orgConfigFilePath); // replace back-slashes to linux/dms style separators and prefix //SYSTEM/path with 'file:'
         
