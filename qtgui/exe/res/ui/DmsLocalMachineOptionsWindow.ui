@@ -615,6 +615,37 @@
      <item row="10" column="2" colspan="5">
       <widget class="QLineEdit" name="m_editor_parameters_input"/>
      </item>
+     <item row="17" column="7">
+      <widget class="QPushButton" name="m_tmf_info">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Trehsold for memory flushing wait procedure&lt;/span&gt;&lt;BR&gt;&lt;BR&gt;
+
+If your machine is using (almost) all it's memory, it becomes less responsive.
+&lt;BR&gt;&lt;BR&gt;
+With this treshold you can set a percentage of the total memory used at which the GeoDMS starts flushing the memory to stay responsive.
+&lt;BR&gt;&lt;BR&gt;
+In general if you increase the value, the GeoDMS calculates faster, but becomes less responsive for calculations with large datasets. 
+&lt;BR&gt;&lt;BR&gt;
+In most cases we advice to use a value between 80% and 90%.</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../images/DP_ValueInfo.bmp</normaloff>../images/DP_ValueInfo.bmp</iconset>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
   </layout>
