@@ -49,14 +49,14 @@ bool HasVoidDomainGuarantee(const AbstrDataItem* adi)
 
 void CheckFlags(DijkstraFlag df)
 {
-	MG_CHECK(!flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::ProdTraceBack));
-	MG_CHECK(flags(df & DijkstraFlag::OD) || flags(df & DijkstraFlag::OrgNode));
-	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OrgZone));
+	MG_USERCHECK2(!flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::ProdTraceBack), "Cannot produce a TraceBack attribute for an impedance matrix");
+	MG_USERCHECK2(flags(df & DijkstraFlag::OD) || flags(df & DijkstraFlag::OrgNode), "OrgNode required for impedance_table");
+	MG_USERCHECK2(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OrgZone), "OrgZone is not allowed for impedance_table");
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::UInt64_Od));
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OD_Data));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionAlpha));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::OrgMinImp));
-	MG_CHECK(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp));
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionAlpha), "pointless specification of InteractionAlpha without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::OrgMinImp), "pointless specification of OrgMinImp without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp), "pointless specification of DstMinImp without request for producing trip distribution output.");
 	MG_CHECK(!flags(df & DijkstraFlag::Bidirectional) || !flags(df & DijkstraFlag::BidirFlag));
 	MG_CHECK(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance));
 	MG_CHECK(((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::None) || ((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::EuclidFlags));
@@ -937,18 +937,21 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 							if (res.DstFactor)
 							{
-								dms_assert(!pot_ij.empty());
+								assert(!pot_ij.empty());
 
 								leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
 								res.DstFactor[dstZone] += pot_ij[j];
 							}
-							if (res.DstSupply)
+							if (res.DstSupply || res.LinkFlow && totalPotential)
 							{
-								dms_assert(!pot_ij.empty());
+								assert(!pot_ij.empty());
 								if (tgDstMass)
 									pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // v_i * D_i^(alpha-1) * w_j * t_ij
-								leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
-								res.DstSupply[dstZone] += pot_ij[j];
+								if (res.DstSupply)
+								{
+									leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
+									res.DstSupply[dstZone] += pot_ij[j];
+								}
 							}
 						}
 					}
@@ -1092,7 +1095,7 @@ class DijkstraMatrOperator : public VariadicOperator
 {
 	typedef T       ImpType;
 	typedef T       MassType;
-	typedef typename div_type<T>::type ParamType;
+	typedef div_type_t<T> ParamType;
 	typedef UInt32 LinkType;
 	typedef UInt32 ZoneType;
 	typedef std::vector<LinkType> EdgeSeq;
@@ -1322,6 +1325,8 @@ public:
 			dms_assert(adiDistDecayBetaParam);
 			dms_assert(adiDstMass);
 			orgZonesOrVoid->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMass->GetAbstrValuesUnit())
+				, "value type of the OrgMass attribute doesn't match with the value type of Impedance");
 		}
 		MG_USERCHECK(!adiDistDecayBetaParam || adiDistDecayBetaParam->HasVoidDomainGuarantee());
 		MG_USERCHECK(!adiDistLogitAlphaParam || adiDistLogitAlphaParam->HasVoidDomainGuarantee());
@@ -1332,6 +1337,7 @@ public:
 		{
 			dms_assert(adiOrgMass);
 			dstZones->UnifyDomain(adiDstMass->GetAbstrDomainUnit(), "DstZones", "Domain of DstMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiDstMass->GetAbstrValuesUnit()), "value type of the DstMass attribute doesn't match with the value type of Impedance");
 		}
 		if (adiOrgAlpha)
 		{

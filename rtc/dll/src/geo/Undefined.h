@@ -86,6 +86,7 @@ template <>           struct has_min_as_null< Int32> : std::true_type {};
 template <>           struct has_min_as_null< Int16> : std::true_type {};
 template <>           struct has_min_as_null< Int8 > : std::true_type {};
 
+
 #define UNDEFINED_VALUE_STRING "null"
 #define UNDEFINED_VALUE_STRING_LEN (sizeof(UNDEFINED_VALUE_STRING)-1)
 
@@ -93,6 +94,7 @@ inline CharPtr          UndefinedValue(const CharPtr*) { return nullptr; }
 inline std::string_view UndefinedValue(const std::string_view*) { return { UNDEFINED_VALUE_STRING, 4 }; }
 
 template <typename T> constexpr bool has_undefines_v = !is_bitvalue_v<T>;
+template <typename T> constexpr bool has_min_as_null_v = has_min_as_null<T>::value;
 template <typename T> using has_undefines = std::bool_constant<has_undefines_v<T>>;
 
 //----------------------------------------------------------------------

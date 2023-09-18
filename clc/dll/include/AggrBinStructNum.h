@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -58,7 +33,7 @@ struct binary_assign_total_accumulation
 
 	void operator()(typename binary_assign_total_accumulation::assignee_ref output, typename binary_assign_total_accumulation::value_cseq1 input1, typename binary_assign_total_accumulation::value_cseq2 input2) const
 	{ 
-		aggr2_total_best<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), m_AssignFunc);
+		aggr2_total<TBinAssign>(output, input1.begin(), input1.end(), input2.begin(), m_AssignFunc);
 	}
 
 private:
@@ -94,9 +69,9 @@ struct binary_assign_partial_accumulation
 
 	void operator()(typename binary_assign_partial_accumulation::accumulation_seq outputs, typename binary_assign_partial_accumulation::value_cseq1 input1, typename binary_assign_partial_accumulation::value_cseq2 input2, const IndexGetter* indices) const
 	{ 
-		dms_assert(input1.size() == input2.size());
+		assert(input1.size() == input2.size());
 
-		aggr2_fw_best_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, m_AssignFunc);
+		aggr2_fw_partial<TBinAssign>(outputs.begin(), input1.begin(), input1.end(), input2.begin(), indices, m_AssignFunc);
 	}
 
 	TBinAssign     m_AssignFunc;
@@ -143,6 +118,11 @@ struct binary_assign_cov: binary_assign<cov_accumulation_type<T>, T, T>
 
 	void operator () (typename binary_assign_cov::assignee_ref a, typename binary_assign_cov::arg1_cref x, typename binary_assign_cov::arg2_cref y) const
 	{
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(x) || !IsDefined(y))
+				return;
+		}
 		++ a.n;
 		a.x += x;
 		a.y += y;
@@ -185,7 +165,7 @@ struct corr_accumulation_type : cov_accumulation_type<T>
 		var_accumulation_type<T> sx(this->n, this->x, xx);
 		var_accumulation_type<T> sy(this->n, this->y, yy);
 
-		div_func_best<corr_type>     div;
+		div_func<corr_type>     div;
 		sqrt_func_checked<corr_type> sqrt;
 		return div(cov, sqrt(sx*sy));
 	}

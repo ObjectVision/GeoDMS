@@ -1,31 +1,14 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+// include file for standard system include files,
+//  or project specific include files that are used frequently, but
+//      are changed infrequently
+//
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
+#pragma once
 
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_TICBASE_H)
 #define __TIC_TICBASE_H
 
@@ -123,7 +106,7 @@ namespace Explain {
 }
 
 using AbstrCalculatorRef = SharedPtr<const AbstrCalculator> ;
-using BestItemRef = std::pair<const TreeItem*, SharedStr>;
+using BestItemRef = std::pair<SharedTreeItem, SharedStr>;
 using AbstrStorageManagerRef = SharedPtr<AbstrStorageManager>;
 
 struct AbstrOperGroup;
@@ -146,15 +129,21 @@ using og_index  = UInt32;
 // casting
 //----------------------------------------------------------------------
 
+template <typename T> inline bool                 IsDataItem(const T* self) { return AsDynamicDataItem(self) != nullptr; }
+template <typename T> inline const AbstrDataItem* AsDataItem(const T* self) { return debug_cast<const AbstrDataItem*>(self); }
+template <typename T> inline       AbstrDataItem* AsDataItem(T* self) { return debug_cast<AbstrDataItem*>(self); }
+template <typename T> inline const AbstrDataItem* AsDynamicDataItem(const T* self) { return dynamic_cast<const AbstrDataItem*>(self); }
+template <typename T> inline       AbstrDataItem* AsDynamicDataItem(T* self) { return dynamic_cast<AbstrDataItem*>(self); }
 template <typename T> inline const AbstrDataItem* AsCheckedDataItem(const T* self) { return checked_cast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCheckedDataItem(T* self) { return checked_cast<AbstrDataItem*>(self); }
 template <typename T> inline const AbstrDataItem* AsCertainDataItem(const T* self) { return checked_valcast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCertainDataItem(T* self) { return checked_valcast<      AbstrDataItem*>(self); }
-template <typename T> inline const AbstrDataItem* AsDynamicDataItem(const T* self) { return dynamic_cast<const AbstrDataItem*>(self); }
-template <typename T> inline       AbstrDataItem* AsDynamicDataItem(T* self) { return dynamic_cast<AbstrDataItem*>(self); }
-template <typename T> inline const AbstrDataItem* AsDataItem(const T* self) { return debug_cast<const AbstrDataItem*>(self); }
-template <typename T> inline       AbstrDataItem* AsDataItem(T* self) { return debug_cast<AbstrDataItem*>(self); }
-template <typename T> inline bool                 IsDataItem(const T* self) { return AsDynamicDataItem(self) != nullptr; }
+
+template <typename T> inline bool IsDataItem(const SharedPtr<T>& self) { return IsDataItem(self.get()); }
+template <typename T> inline auto AsDataItem(const SharedPtr<T>& self) { return MakeShared(AsDataItem(self.get())); }
+template <typename T> inline auto AsDynamicDataItem(const SharedPtr<T>& self) { return MakeShared(AsDynamicDataItem(self.get())); }
+template <typename T> inline auto AsCheckedDataItem(const SharedPtr<T>& self) { return MakeShared(AsCheckedDataItem(self.get())); }
+template <typename T> inline auto AsCertainDataItem(const SharedPtr<T>& self) { return MakeShared(AsCertainDataItem(self.get())); }
 
 //----------------------------------------------------------------------
 // class  : TreeItemAdmLock, inherit from specific Adm's to ensure order of initialization

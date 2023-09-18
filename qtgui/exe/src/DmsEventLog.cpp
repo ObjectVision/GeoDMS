@@ -342,6 +342,8 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 
 	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);

@@ -53,7 +53,7 @@ struct null_wrap : private std::pair<T, bool>
 {
 	null_wrap()
 	{
-		dms_assert(!IsDefined());
+		assert(!IsDefined());
 	}
 	bool IsDefined() const { return this->second; };
 	operator typename param_type<T>::type () const { return this->first; }
@@ -281,7 +281,7 @@ struct expectation_accumulation_type
 
 	operator exp_type() const
 	{
-		return div_func_best<sum_type, count_type>()(total, n); 
+		return div_func_best<div_type_t<T>, sum_type, count_type>()(total, n);
 	}
 
 	count_type n;
@@ -299,6 +299,10 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 
 	void operator () (typename unary_assign_exp::assignee_ref a, typename unary_assign_exp::arg1_cref x) const
 	{
+		if constexpr (has_undefines_v<typename unary_assign_exp::arg1_type>)
+			if (!IsDefined(x))
+				return;
+
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
 	}

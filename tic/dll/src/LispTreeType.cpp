@@ -346,8 +346,15 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 
 LispRef CreateLispTree(const TreeItem* self, bool inclSubTree)
 {
+	assert(self);
+	UInt32 loadNumber = 0;
+	auto location = self->GetLocation();
+	if (location)
+		loadNumber = location->m_ConfigFileDescr->m_LoadNumber;
+
 	auto result = ExprList(token::sourceDescr
 	,	LispRef(TokenID(self->GetFullName()))
+	,	LispRef(loadNumber)
 	,	CreateLispSubTree(self, inclSubTree)
 	);
 #if defined(MG_DEBUG_LISP_TREE)

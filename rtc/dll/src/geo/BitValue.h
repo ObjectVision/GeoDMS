@@ -117,4 +117,13 @@ template <bit_size_t N> inline bool IsDefined(bit_value<N>)
 	struct dont_instantiate_this; return dont_instantiate_this(); 
 }
 
+template <typename T>
+inline bool IsBitValueOrDefined(const T& v) 
+{ 
+	if constexpr (has_undefines_v<T>)
+		return IsDefined(v);
+	else
+		return true;
+}
+
 #endif // !defined(__RTC_GEO_BITVALUE_H)

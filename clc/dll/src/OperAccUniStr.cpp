@@ -165,7 +165,7 @@ public:
 				{
 					auto arg1Data = arg1->GetLockedDataRead(t);
 
-					aggr1_total_best<unary_ser_aslist>(lengthFinderStreamBuff, arg1Data.begin(), arg1Data.end(), m_SerFunc);
+					aggr1_total<unary_ser_aslist>(lengthFinderStreamBuff, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 				}
 				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 			}
@@ -173,7 +173,7 @@ public:
 			for (tile_id t=0; t!=te; ++t)
 			{
 				auto arg1Data = arg1->GetLockedDataRead(t);
-				aggr1_total_best<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), m_SerFunc);
+				aggr1_total<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 			}
 /////////////////////////////////////////////////////////////////////
 			resLock.Commit();

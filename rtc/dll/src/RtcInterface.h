@@ -74,14 +74,13 @@ RTC_CALL CharPtr DMS_CONV DMS_GetBuildConfig();
 typedef void (DMS_CONV *VersionComponentCallbackFunc)(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName);
 
 RTC_CALL void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionComponentCallbackFunc callBack);
-RTC_CALL IStringHandle DMS_ReportChangedFiles(bool updateFileTimes);
 
 RTC_CALL void DMS_CONV DMS_Rtc_Load();
 RTC_CALL bool DMS_CONV DMS_RTC_Test();
 
 } // end extern "C"
 
-RTC_CALL auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff;
+RTC_CALL auto ReportChangedFiles() -> VectorOutStreamBuff;
 RTC_CALL void ReportCurrentConfigFileList(OutStreamBase& os);
 
 RTC_CALL extern bool g_IsTerminating;

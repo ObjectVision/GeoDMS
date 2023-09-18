@@ -550,7 +550,7 @@ struct ForEachOperGroup : AbstrOperGroup
 
 	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override
 	{
-		dms_assert(firstArgValue == nullptr || *firstArgValue == char(0));
+		assert(firstArgValue == nullptr || *firstArgValue == char(0));
 		return CalcArgPolicy(argNr, m_FS);
 	}
 

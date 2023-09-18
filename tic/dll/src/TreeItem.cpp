@@ -936,7 +936,7 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 const TreeItem* TreeItem::GetCurrRefItem() const
 {
-	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
+//	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem;
 }
 
@@ -1210,7 +1210,7 @@ void TreeItem::SetFreeDataState(bool value)
 	}
 }
 
-const TreeItem* TreeItem::GetStorageParent (bool alsoForWrite) const
+SharedTreeItem TreeItem::GetStorageParent (bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
 		return nullptr;
@@ -1229,7 +1229,7 @@ const TreeItem* TreeItem::GetStorageParent (bool alsoForWrite) const
 	return nullptr;
 }
 
-const TreeItem* TreeItem::GetCurrStorageParent(bool alsoForWrite) const
+SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
 		return nullptr;
@@ -1324,7 +1324,7 @@ void TreeItem::RemoveFromConfig() const
 
 	// make this invisible and then exclude from parent to avoid finding them. This should be synchronized with getting new references, but it seems unlikely that this might become a realistic issue
 	NotifyStateChange(this, NC_Deleting);
-	const_cast<TreeItem*>(GetTreeParent())->RemoveItem(self);
+	const_cast<TreeItem*>(GetTreeParent().get())->RemoveItem(self);
 }
 
 void TreeItem::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd)
@@ -1367,9 +1367,9 @@ bool TreeItem::IsDataReadable() const
 // TreeItem Find Functions
 //----------------------------------------------------------------------
 
-const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
+SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 {
-	dms_assert(this);
+	assert(this);
 
 	if (!this) 
 		return nullptr;
@@ -1381,7 +1381,7 @@ const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 		{
 			if (mc_RefItem)
 			{
-				dms_assert(mc_RefItem != this);
+				assert(mc_RefItem != this);
 				return mc_RefItem->GetConstSubTreeItemByID(subItemID);
 			}
 			return nullptr;
@@ -1393,21 +1393,21 @@ const TreeItem* TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 	}
 }
 
-const TreeItem* TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
+SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 {
-	dms_assert(this);
+	assert(this);
 
 	if (!this)
 		return nullptr;
 
-	const TreeItem* subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
+	auto subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
 	{
 		if (!subItem)
 		{
 			if (mc_RefItem)
 			{
-				dms_assert(mc_RefItem != this);
+				assert(mc_RefItem != this);
 				return mc_RefItem->GetCurrSubTreeItemByID(subItemID);
 			}
 			return nullptr;
@@ -1468,9 +1468,9 @@ TreeItem* TreeItem::GetBestItem(CharPtrRange subItemNames)
 	return result ? result : parent;
 }
 
-const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 {
-	dms_assert(this);
+	assert(this);
 	if (subItemNames.empty())
 		return this;
 
@@ -1481,22 +1481,22 @@ const TreeItem* TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 			throwItemError("GetCurrItem is not allowed to look outside the accessible search context");
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
-	const TreeItem* parent = GetCurrItem(ids.first);
+	auto parent = GetCurrItem(ids.first);
 	return (parent) ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)) : nullptr;
 }
 
 
-const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
+SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 {
-	dms_assert(this);
-	dms_assert(IsMetaThread());
+	assert(this);
+	assert(IsMetaThread());
 
 	if (subItemNames.empty())
 		return this;
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
-	dms_assert(ids.first.first == subItemNames.first);
-	dms_assert(ids.second.second == subItemNames.second);
+	assert(ids.first.first == subItemNames.first);
+	assert(ids.second.second == subItemNames.second);
 	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
 	{	
 		dms_assert(!ids.second.empty());
@@ -1509,21 +1509,72 @@ const TreeItem* TreeItem::FindItem(CharPtrRange subItemNames) const
 			return nullptr;
 		return FindTreeItemByID(this, existingToken);
 	}
+	SharedTreeItem parent = nullptr;
 	if (ids.first.empty()) // We start at root.
-	{
-		const TreeItem* configRoot = SessionData::Curr()->GetConfigRoot();
-		if (configRoot)
-		{
-			configRoot->UpdateMetaInfo();
-			return configRoot->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
-		}
-		return nullptr;
-	}
-	const TreeItem* parent = FindItem(ids.first);
+		parent = SessionData::Curr()->GetConfigRoot();
+	else
+		parent = FindItem(ids.first);
+
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfo();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
+}
+
+auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>  // directly referred persistent object.
+{
+	assert(this);
+	assert(IsMetaThread());
+
+	if (subItemNames.empty())
+		return nullptr;
+
+	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
+	assert(ids.first.first == subItemNames.first);
+	assert(ids.second.second == subItemNames.second);
+	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
+	{
+		assert(!ids.second.empty());
+		if (ids.second.first[0] == '.')
+		{
+			auto item = FollowDots(ids.second);
+			if (visitor.Visit(item) == AVS_SuspendedOrFailed)
+				return {};
+			return item;
+		}
+
+		UpdateMetaInfo();
+		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
+		if (!IsDefined(existingToken))
+			return nullptr;
+		auto item = FindTreeItemByID(this, existingToken);
+		if (visitor.Visit(item) == AVS_SuspendedOrFailed)
+			return {};
+		return item;
+	}
+	SharedTreeItem parent = nullptr;
+	if (ids.first.empty()) // We start at root.
+	{
+		parent = SessionData::Curr()->GetConfigRoot();
+		if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+			return {};
+	}
+	else
+	{
+		auto  optionalParent = FindAndVisitItem(ids.first, svf, visitor);
+		if (!optionalParent)
+			return {};
+
+		parent = optionalParent.value();
+	}
+	if (!parent)
+		return nullptr;
+	parent->UpdateMetaInfo();
+
+	auto result = parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
+	if (visitor.Visit(result) == AVS_SuspendedOrFailed)
+		return {};
+	return result;
 }
 
 auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> BestItemRef
@@ -1647,8 +1698,8 @@ TreeItem* TreeItem::CheckCls(const Class* requiredClass)
 
 const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 {
-	dms_assert(this);
-	dms_assert(dots.size());
+	assert(this);
+	assert(dots.size());
 	const TreeItem* result = this;
 	while (true)
 	{
@@ -2452,29 +2503,30 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				if (WasFailed(FR_Validate))
 					return AVS_SuspendedOrFailed;
 
-				auto result = CalcResult(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
+				auto iCheckerDC = CalcResult(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 				if (SuspendTrigger::DidSuspend())
 					return AVS_SuspendedOrFailed;
 
-				dms_assert(result && result->GetInterestCount());
+				assert(iCheckerDC && iCheckerDC->GetInterestCount());
 
 				DataReadLockContainer c;                                                  // @@@USE
-				if (!result->GetOld() || !c.Add(AsDataItem(result->GetOld()), DrlType::Suspendible))
+				SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
+				if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
 				{
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
-					dms_assert(result->WasFailed(FR_Data));
-					if (result->WasFailed(FR_Data))
-						Fail(result.get_ptr());
+					assert(iCheckerResult->WasFailed(FR_Data));
+					if (iCheckerResult->WasFailed(FR_Data))
+						Fail(iCheckerResult.get());
 					return AVS_SuspendedOrFailed;
 				}
-				SizeT nrFailures = AsDataItem(result->GetOld())->CountValues<Bool>(false);
+				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
 				if (nrFailures)
 				{
 					//	throwError(ICHECK_NAME, "%s", iChecker->GetExpr().c_str()); // will be caught by SuspendibleUpdate who will Fail this.
 					Fail(ICHECK_NAME ": " + AsString(nrFailures) + " element(s) fail the test of " + iCheckerPtr->GetExpr(), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
-					dms_assert(WasFailed(FR_Validate));
+					assert(WasFailed(FR_Validate));
 					return AVS_Ready;
 				}
 			}
@@ -2608,7 +2660,7 @@ inline TreeItem* TreeItem::WalkNext(TreeItem* curr) // this acts as subTreeRoot
 		TreeItem* next = curr->GetNextItem();
 		if (next)
 			return next;
-		curr = const_cast<TreeItem*>(curr->GetTreeParent());
+		curr = const_cast<TreeItem*>(curr->GetTreeParent().get());
 	}
 	return nullptr;
 }
@@ -2624,7 +2676,7 @@ TreeItem* TreeItem::WalkCurrSubTree(TreeItem* curr) // this acts as subTreeRoot
 
 ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 
 	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
@@ -2672,7 +2724,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 		}
 	}
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 
 	// =============== look for explicit suppliers
 
@@ -2682,26 +2734,21 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		for  (UInt32 i = 0; i < n; ++i)
 		{
 			const Actor* supplier = GetSupplCache()->begin(this)[i];
-			dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+			assert(!SuspendTrigger::DidSuspend()); // precondition
+			if (!supplier)
+				continue;
 			 if (visitor(supplier) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 
-			dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+			assert(!SuspendTrigger::DidSuspend()); // precondition
 			auto supplTI = debug_cast<const TreeItem*>(supplier); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
 			if (supplTI->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 	// Ask ParseResult for suppliers
-
-//	dms_assert(!Test(svf, SupplierVisitFlag::Calculator));
-	/* REMOVE
-		if (Test(svf, SupplierVisitFlag::Calculator)) // already done by StartInterest
-			if (visitor(GetCalculator()) == AVS_SuspendedOrFailed)
-				return AVS_SuspendedOrFailed;
-	*/
 
 	// =============== m_Calculator related
 	if (Test(svf, SupplierVisitFlag::DetermineCalc))
@@ -2722,7 +2769,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		if (Test(svf, SupplierVisitFlag::SourceData))
 		{
 			const TreeItem* sourceItem = GetSourceItem();
-			dms_assert(!sourceItem || sourceItem != this);
+			assert(!sourceItem || sourceItem != this);
 			if (visitor.Visit(sourceItem) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 		}
@@ -2730,7 +2777,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (mc_RefItem)
 	{
 		if (Test(svf, SupplierVisitFlag::SourceData))
-			if (visitor.Visit(mc_RefItem) != AVS_Ready)
+			if (visitor(mc_RefItem) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 	}
 
@@ -2760,9 +2807,9 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
 	{
 		auto icResult = MakeResult(GetIntegrityChecker());
-		if (visitor(icResult) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(icResult) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
-		if (visitor(icResult->GetOld()) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(icResult->GetOld()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 	return base_type::VisitSuppliers(svf, visitor);

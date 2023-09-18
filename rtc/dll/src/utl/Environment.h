@@ -168,7 +168,6 @@ struct FindFileBlock
 	RTC_CALL DWORD   GetFileAttr() const;
 	RTC_CALL bool    IsDirectory() const;
 	RTC_CALL FileDateTime GetFileOrDirDateTime() const;
-	RTC_CALL auto GetFileOrDirDateTimeInReadableFormat() -> SharedStr;
 
 	RTC_CALL bool    Next();
 
@@ -179,7 +178,7 @@ private:
 
 using start_process_result_t = std::pair<HANDLE, HANDLE>;
 
-RTC_CALL SharedStr AsDateTimeString(const FileDateTime& t);
+RTC_CALL SharedStr AsDateTimeString(FileDateTime t);
 RTC_CALL SharedStr GetCurrentTimeStr();
 RTC_CALL SharedStr GetSessionStartTimeStr();
 

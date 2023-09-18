@@ -46,6 +46,9 @@ enum class CalcRole : UInt8
 //	MASK       = 0x0003
 };
 
+struct ActorVisitor;
+enum class SupplierVisitFlag;
+
 // *****************************************************************************
 // struct SubstitutionBuffer 
 // *****************************************************************************
@@ -55,13 +58,14 @@ struct SubstitutionBuffer
 	using TTreeItemSet = std::map<const TreeItem*, UInt32>;
 	using LispRefAssoc = std::map<LispRef, LispRef>;
 
+	const ActorVisitor* optionalVisitor = nullptr;
+	SupplierVisitFlag svf = SupplierVisitFlag();
+	ActorVisitState avs = AVS_Ready;
+
 	LispRefAssoc m_SubstituteBuffer[3];
-	TTreeItemSet m_SupplierSet;
 
 	LispRef& BufferedLispRef(metainfo_policy_flags mpf, LispPtr key);
 };
-
-
 
 // *****************************************************************************
 // Section:     Calculator interface with Constructor Factory
@@ -128,6 +132,7 @@ public:
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const;
 	TIC_CALL static ActorVisitState VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr);
 	TIC_CALL static const TreeItem* GetSearchContext(const TreeItem* holder, CalcRole cr);
+	auto VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;
 
 	TIC_CALL virtual bool CheckSyntax () const;
 	TIC_CALL BestItemRef FindErrorneousItem() const;
@@ -158,11 +163,9 @@ public:
 
 	TIC_CALL const TreeItem* SearchContext() const;
 	TIC_CALL const TreeItem* FindItem(TokenID itemRef) const;
+	TIC_CALL auto FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem;
 	TIC_CALL BestItemRef FindBestItem(TokenID itemRef) const;
 	MetaInfo SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const;
-
-//private:
-	void CreateSupplierSet() const { GetMetaInfo(); }
 
 	LispRef slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr supplRef, metainfo_policy_flags mpf) const;
 	LispRef slSupplierExprImpl(SubstitutionBuffer& substBuff, const TreeItem* supplier, metainfo_policy_flags mpf) const;
@@ -178,8 +181,7 @@ public:
 protected:
 	mutable LispRef m_LispExprOrg; // TODO G8: required for ExprCalculator and DC_Ptr(ArgCalc), but not for DataBlockTask and maybe also not for DC_Ptr(Calc)
 	mutable MetaInfo m_LispExprSubst;
-	mutable TreeItemCRefArray m_SupplierArray;
-
+	
 	mutable bool     
 		m_HasParsed      : 1 = false,
 		m_HasSubstituted : 1 = false;

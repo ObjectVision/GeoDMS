@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -52,21 +27,82 @@ struct unary_assign_inc : unary_assign<I, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	void operator()(typename unary_assign_inc::assignee_ref assignee, typename unary_assign_inc::arg1_cref arg) const
+	void operator()(vref_t<I> assignee, cref_t<T> arg) const
 	{ 
-		assignee++; 
+		if constexpr (has_undefines_v<I>)
+		{
+			if (!IsDefined(assignee))
+				return;
+		}
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(arg))
+				return;
+		}
+		assignee++;
+		if constexpr (!has_undefines_v<I>)
+		{ 
+			if (assignee == I())
+				throwDmsErrD("non-representable numerical overflow of sub-byte value");
+		}
+		else
+		{
+			if (!IsDefined(assignee))
+				throwDmsErrD("non-representable numerical overflow of sub-byte value");
+		}
 	}
 };
 
-template<typename R, typename T> void SafeAccumulate(R& assignee, const T& arg)
+template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus
 {
+	R orgAssignee = assignee; // may-be used in check
+	if constexpr (has_undefines_v<R>)
+	{
+		if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
+			if (!IsDefined(assignee))
+				return;
+	}
+	if constexpr (has_undefines_v<T>)
+		if (!IsDefined(arg))
+			return;
+
 	assignee += arg;
+
+	if constexpr (!std::is_floating_point_v<T>)
+	{
+		if constexpr (!is_signed_v<R>)
+		{
+			bool hasOverflow = false;
+			if constexpr (is_signed_v<T>)
+				hasOverflow = (arg >= 0 ? assignee < orgAssignee : assignee >= orgAssignee);
+			else
+			{
+				std::conditional_t<is_bitvalue_v<T>, UInt8, T> argCopy = arg;
+				hasOverflow = (assignee < argCopy);
+			}
+
+			if (hasOverflow)
+				throwDmsErrD("non-representable numerical overflow in aggregation");
+		}
+		else
+		{
+			bool aNonnegative = (orgAssignee >= 0);
+			bool bNonnegative = (Convert<R>(arg) >= 0);
+
+			if (aNonnegative == bNonnegative)
+			{
+				auto resultNonnegative = (assignee>= 0);
+				if (aNonnegative != resultNonnegative)
+					throwDmsErrD("non-representable numerical overflow in aggregation");
+			}
+		}
+	}
 }
 
-template<typename T, typename U> void SafeAccumulate(Point<T>& assignee, const Point<U>& arg)
+template<typename R, typename T> void SafeAccumulate(Point<R>& assignee, const Point<T>& arg)
 {
-	assignee.first  += arg.first;
-	assignee.second += arg.second;
+	SafeAccumulate(assignee.first, arg.first);
+	SafeAccumulate(assignee.second, arg.second);
 }
 
 template <typename R, typename T>
@@ -75,7 +111,7 @@ struct unary_assign_add : unary_assign<R, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(typename unary_assign_add::assignee_ref assignee, typename unary_assign_add::arg1_cref arg) const
+	void operator()(typename unary_assign_add::assignee_ref assignee, cref_t<T> arg) const
 	{ 	
 		SafeAccumulate(assignee, arg);
 	}
@@ -112,11 +148,14 @@ struct unary_assign_once : unary_assign<OR, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(typename unary_assign_once::assignee_ref assignee, typename unary_assign_once::arg1_cref arg) const
+	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		if ((!IsDefined(assignee)))
-			assignee = arg;
+		if (IsDefined(assignee))
+			return;
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 
@@ -126,10 +165,12 @@ struct unary_assign_overwrite: unary_assign<T, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void operator()(typename unary_assign_overwrite::assignee_ref assignee, typename unary_assign_overwrite::arg1_cref arg) const
+	void operator()(vref_t<T>  assignee, cref_t<T>  arg) const
 	{ 
-//		dms_assert(IsDefined(arg)); // caller should check if T is not a bitvalue
-		assignee = arg; 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		assignee = arg;
 	}
 };
 
@@ -180,7 +221,7 @@ struct unary_assign_all : unary_assign<Bool, Bool>
 template <typename V, typename I> 
 void count_best_total(I& output, const V* valuesFirst, const V* valuesLast)
 {
-	aggr1_total_best<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast);
+	aggr1_total<unary_assign_inc<V, I> >(output, valuesFirst, valuesLast);
 }
 
 template <bit_size_t N, typename Block, typename I> 
@@ -193,7 +234,7 @@ template<typename CIV, typename OIA>
 void count_best_partial_best(OIA outFirst, CIV valuesFirst, CIV valuesLast, const IndexGetter* indices)
 {
 	typedef typename std::iterator_traits<CIV>::value_type V;
-	aggr_fw_best_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices);
+	aggr_fw_partial<unary_assign_inc<V, typename value_type_of_iterator<OIA>::type>  >(outFirst, valuesFirst, valuesLast, indices);
 }
 
 #endif // !defined(__CLC_AGGRFUNCNUM_H)

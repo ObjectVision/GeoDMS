@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __CLC_INTERFACE_H
@@ -44,31 +20,6 @@ extern "C" {
 
 CLC_CALL void         DMS_CONV DMS_Clc_Load();
 CLC_CALL CharPtr      DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item, bool* donePtr);
-
-
-CLC_CALL const AbstrCalculator* DMS_CONV DMS_TreeItem_GetParseResult(const TreeItem* context);
-CLC_CALL const AbstrCalculator* DMS_CONV DMS_TreeItem_CreateParseResult(TreeItem* context, CharPtr expr, bool contextIsTarget);
-CLC_CALL void         DMS_CONV DMS_ParseResult_Release                (AbstrCalculator* self);
-
-CLC_CALL bool           DMS_CONV DMS_ParseResult_CheckSyntax            (AbstrCalculator* self);
-CLC_CALL bool           DMS_CONV DMS_ParseResult_HasFailed              (AbstrCalculator* self);
-CLC_CALL CharPtr        DMS_CONV DMS_ParseResult_GetFailReason          (AbstrCalculator* self);
-CLC_CALL CharPtr        DMS_CONV DMS_ParseResult_GetAsSLispExpr         (AbstrCalculator* self, bool afterRewrite);
-CLC_CALL const LispObj* DMS_CONV DMS_ParseResult_GetAsLispObj   (AbstrCalculator* self, bool afterRewrite);
-
-CLC_CALL const TreeItem* DMS_CONV DMS_ParseResult_CreateResultingTreeItem(AbstrCalculator* self);
-CLC_CALL bool            DMS_CONV DMS_ParseResult_CheckResultingTreeItem (AbstrCalculator* self, TreeItem* resultHolder);
-CLC_CALL const TreeItem* DMS_CONV DMS_ParseResult_CalculateResultingData (AbstrCalculator* self);
-
-CLC_CALL UInt32                DMS_CONV DMS_OperatorSet_GetNrOperatorGroups();
-CLC_CALL const AbstrOperGroup* DMS_CONV DMS_OperatorSet_GetOperatorGroup(UInt32 i);
-CLC_CALL CharPtr               DMS_CONV DMS_OperatorGroup_GetName       (const AbstrOperGroup* self);
-CLC_CALL const Operator*       DMS_CONV DMS_OperatorGroup_GetFirstMember(const AbstrOperGroup* self);
-CLC_CALL const Operator*       DMS_CONV DMS_Operator_GetNextGroupMember (const Operator*       self);
-
-CLC_CALL UInt32                DMS_CONV DMS_Operator_GetNrArguments(const Operator* self);
-CLC_CALL const Class*          DMS_CONV DMS_Operator_GetArgumentClass (const Operator* self, arg_index argnr);
-CLC_CALL const Class*          DMS_CONV DMS_Operator_GetResultingClass(const Operator* self);
 
 // function pointers are used to register a client defined operator
 typedef TreeItem* (DMS_CONV *OperatorCreateFunc)(ClientHandle clientHandle, const TreeItem* configRoot, arg_index nrArgs, const TreeItem*const* args);

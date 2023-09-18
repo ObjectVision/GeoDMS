@@ -1,32 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_ELEMTRAITS_H)
@@ -275,8 +250,10 @@ template <>           struct div_type<Float64>   { typedef Float64 type; };
 template <typename T> struct div_type<Range<T> > { typedef Range<typename div_type<T>::type> type; }; 
 template <typename T> struct div_type<Point<T> > { typedef Point<typename div_type<T>::type> type; }; 
 template <typename T> struct div_type<const T>   {}; // illegal use
+template <typename T> using div_type_t = typename div_type<T>::type;
 
 template <typename T> struct product_type { using type = T; };
+template <typename T> using product_type_t = product_type<T>::type;
 
 template <typename T> struct square_type;
 template <> struct square_type<UInt8>  { using type = UInt16; };
@@ -284,7 +261,7 @@ template <> struct square_type<UInt16> { using type = UInt32; };
 template <> struct square_type<UInt32> { using type = UInt64; };
 template <> struct square_type<Float32> { using type = Float32; };
 template <> struct square_type<Float64> { using type = Float64; };
-
+template <typename T> using square_type_t = square_type<T>::type;
 
 template <typename T> struct cardinality_type : unsigned_type < T > {};
 template <bit_size_t N> struct cardinality_type<bit_value<N>> { using type = bit_block_t; };
@@ -292,7 +269,7 @@ template <typename T> struct cardinality_type<Point<T>> : square_type < typename
 template <typename T> struct cardinality_type<Range<T>> : cardinality_type<T> {};
 template <typename T> struct cardinality_type<std::vector<T>> : cardinality_type<T> {};
 
-
+template <typename T> using cardinality_type_t = typename cardinality_type<T>::type;
 //----------------------------------------------------------------------
 // Section      : composite type predicates
 //----------------------------------------------------------------------

@@ -48,6 +48,8 @@ class LayerHeaderControl : public TextControl
 {
 public:
 	LayerHeaderControl(MovableObject* owner);
+
+	bool MouseEvent(MouseEventDispatcher& med) override;
 };
 
 //----------------------------------------------------------------------

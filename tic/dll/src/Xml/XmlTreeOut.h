@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_XML_TREE_OUT_H)
 #define __TIC_XML_TREE_OUT_H
 
@@ -85,51 +61,15 @@ struct XML_Table : XML_OutElement
 			Cell(Row& row): XML_OutElement(row.OutStream(), "TD") {}
 		};
 
-
-		void WriteCellData(CharPtr value)
-		{
-			OutStream().WriteTrimmed(value);
-		}
-
 		void ValueCell(CharPtr value)
 		{
 			Cell xmlElemTD(*this);
-				WriteCellData(value);
+			OutStream().WriteTrimmed(value);
 		}
 
-		void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false) // TODO: move implementation to implementation file
-		{
-			Cell xmlElemTD(*this);
-			if (bold)
-			{
-				auto bold = XML_OutElement(OutStream(), "B");
-				XML_hRef xmlElemA(OutStream(), hRef);
-				WriteCellData(value); // TODO: remove duplicate logic
-			}
-			else
-			{
-				XML_hRef xmlElemA(OutStream(), hRef);
-				WriteCellData(value);
-			}
-		}
+		TIC_CALL void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false);
+		TIC_CALL void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = nullptr);
 
-		void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = 0)
-		{
-			if (!*propLabel) 
-				propLabel = propName;
-			if (item && item->IsCacheItem())
-				ValueCell(propLabel);
-			else
-			{
-				/*SharedStr editUrl = (item)
-					?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
-					:	mySSPrintF("dms:edit!%s", propName);*/
-				
-				Cell xmlElemTD(*this);
-				WriteCellData(propLabel);
-				//ClickableCell(propLabel, editUrl.c_str());
-			}
-		}
 		void ItemCell(const TreeItem* item, bool bold = false)
 		{
 			ClickableCell(item->GetFullName().c_str(), ItemUrl(item).c_str(), bold);

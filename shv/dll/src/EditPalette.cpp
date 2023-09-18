@@ -178,7 +178,7 @@ void EditPaletteControl::Init()
 	m_txtDomain   ->SetText(SharedStr("Domain:"));
 	m_txtNrClasses->SetText(SharedStr("#Classes"));
 	m_PaletteButton->SetBorder(true);
-	m_numNrClasses     ->SetBorder(true);
+	m_numNrClasses ->SetBorder(true);
 
 	m_Line1->SetBorder(true);
 	m_Line2->SetBorder(true);
@@ -437,8 +437,8 @@ void EditPaletteControl::ClassifyEqualInterval()
 	}
 
 	AbstrDataItem* breakAttr = const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr());
-	dms_assert(breakAttr);
-	dms_assert(breakAttr->HasInterest());
+	assert(breakAttr);
+	assert(breakAttr->HasInterest());
 
 	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
 
@@ -604,8 +604,15 @@ void EditPaletteControl::UpdateNrClasses()
 		return;
 
 	const AbstrUnit* domain = GetDomain();
-	if (domain && IsDataReady(domain->GetUltimateItem()))
-		m_numNrClasses->SetValue( domain->GetCount() );
+	if (!domain)
+		return;
+	if (!PrepareDataOrUpdateViewLater(domain))
+		return;
+	assert(IsDataReady(domain->GetUltimateItem()) || domain->WasFailed() || domain->GetUltimateItem()->WasFailed());
+	if (!IsDataReady(domain->GetUltimateItem()))
+		return;
+
+	m_numNrClasses->SetValue( domain->GetCount() );
 }
 
 const AbstrUnit* EditPaletteControl::GetDomain() const

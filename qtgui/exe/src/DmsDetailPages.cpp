@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include <QListWidget>
 
 #include <QObject>
@@ -460,18 +464,12 @@ void DmsDetailPages::resizeEvent(QResizeEvent* event)
 void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
 {
     assert(tiContext);
+    SuspendTrigger::Resume();
 
     auto colonPos = std::find(sAction.begin(), sAction.end(), ':');
     auto sMenu = CharPtrRange(sAction.begin(), colonPos);
     auto sPathWithSub = CharPtrRange(colonPos == sAction.end() ? colonPos : colonPos + 1, sAction.end());
-/*
-    if (UpperCase(sMenu) = 'EXECUTE') then
-    begin
-    m_VAT : = ViewActionType::Execute;
-    m_Url: = sPathWithSub;
-    exit; // when called from DoOrCreate, self will be Applied Directly and Destroyed.
-    end;
-    */
+
     auto queryPos = std::find(sPathWithSub.begin(), sPathWithSub.end(), '?');
     auto sPath = CharPtrRange(sPathWithSub.begin(), queryPos);
     auto sSub  = CharPtrRange(queryPos == sPathWithSub.end() ? queryPos : queryPos + 1, sPathWithSub.end());
@@ -499,11 +497,19 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
         return;
     }
 
+    if (!strncmp(sMenu.begin(), "goto", sMenu.size()))
+    {
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+        if (tiContext)
+            MainWindow::TheOne()->setCurrentTreeItem(tiContext);
+        return;
+    }
+
     if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
     {
         sMenu.first += 3;
         auto detail_page_type = dp_FromName(sMenu);
-        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first); // TODO: make result FindBestItem non-const
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
         switch (detail_page_type)
         {
         case ActiveDetailPage::STATISTICS:
@@ -517,7 +523,7 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
             m_active_detail_page = detail_page_type;
             if (tiContext)
                 MainWindow::TheOne()->setCurrentTreeItem(tiContext);
-            drawPage(); // Update
+            scheduleDrawPageImpl(100);
             return;
         }
     }
@@ -572,54 +578,60 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
 #include <QDesktopServices>
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
-    auto linkStr = link.toString().toUtf8();
+    try {
+        auto linkStr = link.toString().toUtf8();
 
-    // log link action
+        // log link action
 #if defined(_DEBUG)
-    MainWindow::TheOne()->m_eventlog_model->addText(
-        SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
-    );
+        MainWindow::TheOne()->m_eventlog_model->addText(
+            SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
+        );
 #endif
 
-    auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
+        auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
 
-    auto realm = Realm(linkStr);
-    if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
-    {
-        auto clicked_error_link = link.toString().toStdString().substr(17);
-        auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
-        MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
-        return;
-    }
+        auto realm = Realm(linkStr);
+        if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
+        {
+            auto clicked_error_link = link.toString().toStdString().substr(17);
+            auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
+            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            return;
+        }
 
-    if (IsPostRequest(link))
-    {
-        auto queryStr = link.query().toUtf8();
-        DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
-        return;
-    }
-    if (!ShowInDetailPage(linkStr))
-    {
-        auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
-        ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
-        auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
-        QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
-        //StartChildProcess(nullptr, linkCStr.begin());
-        return;
-    }
+        if (IsPostRequest(link))
+        {
+            auto queryStr = link.query().toUtf8();
+            DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
+            return;
+        }
+        if (!ShowInDetailPage(linkStr))
+        {
+            auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
+            ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
+            auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
+            QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
+            //StartChildProcess(nullptr, linkCStr.begin());
+            return;
+        }
 
-    if (linkStr.contains(".adms"))
-    {
-        auto queryResult = ProcessADMS(current_item, linkStr.data());
-        setHtml(queryResult.c_str());
-        return;
+        if (linkStr.contains(".adms"))
+        {
+            auto queryResult = ProcessADMS(current_item, linkStr.data());
+            setHtml(queryResult.c_str());
+            return;
+        }
+        auto sPrefix = Realm(linkStr);
+        if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
+        {
+            auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
+            DoViewAction(current_item, sAction);
+            return;
+        }
     }
-    auto sPrefix = Realm(linkStr);
-    if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
+    catch (...)
     {
-        auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
-        DoViewAction(current_item, sAction);
-        return;
+        auto errMsg = catchAndReportException();
     }
 }
 

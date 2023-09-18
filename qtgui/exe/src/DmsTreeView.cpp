@@ -574,6 +574,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	statistics_view_action->setDisabled(ti_is_or_is_in_template);
 
 	m_context_menu->popup(viewport()->mapToGlobal(pos));
+	MainWindow::TheOne()->updateToolsMenu();
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)

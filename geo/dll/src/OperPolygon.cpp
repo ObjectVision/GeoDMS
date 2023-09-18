@@ -193,11 +193,6 @@ struct AreaFunc : Sequence2ScalarFunc<P>
 };
 
 // *****************************************************************************
-//									Area Operator
-// *****************************************************************************
-
-
-// *****************************************************************************
 //									Points2SequenceOperator
 // *****************************************************************************
 
@@ -406,21 +401,36 @@ namespace {
 		DoCloseLast           = 0x0001
 	,	DoCreateNextPoint     = 0x0002
 	,	DoCreateNrOrgEntity   = 0x0004
-	,	DoCreateOrdinal    = 0x0008
+	,	DoCreateOrdinal       = 0x0008
 	,	DoCreateDistFromStart = 0x0010
 	,	DoIncludeEndPoints    = 0x0020
+	,   CreateUInt64Domain    = 0x0040
 	};
+
+	const UnitClass* ResultDomainClass(TableCreateFlags tcf)
+	{
+		auto resultUnitClass = Unit<UInt32>::GetStaticClass();
+		if (tcf & CreateUInt64Domain)
+			resultUnitClass = Unit<UInt64>::GetStaticClass();
+		return resultUnitClass;
+	}
+
+	AbstrUnit* CreateResultDomain(TreeItem* resultHolder, TableCreateFlags tcf)
+	{
+		auto resultUnitClass = ResultDomainClass(tcf);
+
+		auto* resDomain = resultUnitClass->CreateResultUnit(resultHolder);
+		assert(resDomain);
+		resDomain->SetTSF(TSF_Categorical);
+		return resDomain;
+	}
 }	//	end of anonimous namespace
 
 struct AbstrArcs2SegmentsOperator : public UnaryOperator
 {
-	typedef Unit<UInt32> ResultUnitType;
+//	typedef Unit<UInt32> ResultUnitType;
 	AbstrArcs2SegmentsOperator(AbstrOperGroup* gr, TableCreateFlags createFlags, const Class* arg1Class)
-		:	UnaryOperator(
-				gr
-			,	ResultUnitType::GetStaticClass()
-			,	arg1Class
-			)
+		:	UnaryOperator(gr, ResultDomainClass(createFlags), arg1Class)
 		,	m_CreateFlags(createFlags)
 	{
 		dms_assert(createFlags & (DoCloseLast | DoCreateNextPoint));
@@ -438,10 +448,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 		const AbstrUnit* polyEntity      = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointValuesUnit = arg1A->GetAbstrValuesUnit();
 
-		ResultUnitType* resDomain = debug_cast<ResultUnitType*>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
-		assert(resDomain);
-		resDomain->SetTSF(TSF_Categorical);
-
+		AbstrUnit* resDomain = CreateResultDomain(resultHolder, m_CreateFlags);
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -484,17 +491,12 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 
 			DataReadLock arg1Lock(arg1A);
 
-			Calculate(
-				resDomain
-			,	arg1A
-			,	resSub1, resSub2, resSub3, resSub4
-			);
+			Calculate(resDomain, arg1A, resSub1, resSub2, resSub3, resSub4);
 		}
 		return true;
 	}
 
-	virtual void Calculate(
-		ResultUnitType* resDomain
+	virtual void Calculate(AbstrUnit* resDomain
 	,	const AbstrDataItem* arg1A
 	,	AbstrDataItem* resSub1
 	,	AbstrDataItem* resSub2 
@@ -505,7 +507,7 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 	TableCreateFlags m_CreateFlags;
 };
 
-template <class T>
+template <typename T>
 class Arcs2SegmentsOperator : public AbstrArcs2SegmentsOperator
 {
 	typedef T                         PointType;
@@ -516,15 +518,14 @@ class Arcs2SegmentsOperator : public AbstrArcs2SegmentsOperator
 	typedef DataArray<PointType>      ResultSub1Type; // Point
 	typedef DataArray<PointType>      ResultSub2Type; // NextPoint
 	typedef AbstrDataItem             ResultSub3Type; // nrOrgEntity
-	typedef DataArray<UInt32>         ResultSub4Type; // SequenceId
+	typedef DataArray<UInt32>         ResultSub4Type; // Position in Sequence
 
 public:
 	Arcs2SegmentsOperator(AbstrOperGroup* gr, int createFlags)
 		:	AbstrArcs2SegmentsOperator(gr, TableCreateFlags(createFlags), Arg1Type::GetStaticClass() )
 	{}
 
-	void Calculate(
-		ResultUnitType* resDomain
+	void Calculate(AbstrUnit* resDomain
 	,	const AbstrDataItem* arg1A
 	,	AbstrDataItem* resSub1
 	,	AbstrDataItem* resSub2 
@@ -662,12 +663,10 @@ public:
 
 struct AbstrDynaPointOperator : public TernaryOperator
 {
-	typedef Unit<UInt32> ResultUnitType;
-
 	AbstrDynaPointOperator(AbstrOperGroup* gr, TableCreateFlags createFlags, const Class* pointDataClass, const Class* distDataClass)
 		:	TernaryOperator(
 				gr
-			,	ResultUnitType::GetStaticClass()
+			,	ResultDomainClass(createFlags)
 			,	pointDataClass
 			,	pointDataClass
 			,	distDataClass
@@ -696,13 +695,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		pointEntity->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 		Unit<Void>::GetStaticClass()->CreateDefault()->UnifyDomain(arg3A->GetAbstrDomainUnit(), "Unit<Void>", "e3", UM_Throw);
 
-		ResultUnitType* resDomain
-			=	debug_cast<ResultUnitType*>(
-					ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)
-				);
-		assert(resDomain);
-		resDomain->SetTSF(TSF_Categorical);
-
+		AbstrUnit* resDomain = CreateResultDomain(resultHolder, m_CreateFlags);
 		resultHolder = resDomain;
 
 		AbstrDataItem 
@@ -748,8 +741,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 			DataReadLock arg2Lock(arg2A);
 			DataReadLock arg3Lock(arg3A);
 
-			Calculate(
-				resDomain
+			Calculate(resDomain
 			,	arg1A, arg2A, arg3A
 			,	resSub1, resSub2, resSub3, resSub4
 			);
@@ -757,8 +749,7 @@ struct AbstrDynaPointOperator : public TernaryOperator
 		return true;
 	}
 
-	virtual void Calculate(
-		ResultUnitType* resDomain
+	virtual void Calculate(AbstrUnit* resDomain
 	,	const AbstrDataItem* arg1A
 	,	const AbstrDataItem* arg2A
 	,	const AbstrDataItem* arg3A
@@ -792,8 +783,7 @@ public:
 		:	AbstrDynaPointOperator(gr, TableCreateFlags(createFlags), Arg1Type::GetStaticClass(), Arg3Type::GetStaticClass() )
 	{}
 
-	void Calculate(
-		ResultUnitType* resDomain
+	void Calculate(AbstrUnit* resDomain
 		, const AbstrDataItem* arg1A
 		, const AbstrDataItem* arg2A
 		, const AbstrDataItem* arg3A
@@ -1860,12 +1850,20 @@ namespace
 	CommonOperGroup cogP2P_pso("points2polygon_pso");
 
 	CommonOperGroup cogS2P("sequence2points");
+	CommonOperGroup cogS2P_uint64("sequence2points_uint64");
 
 	CommonOperGroup cogArc2segm("arc2segm");
+	CommonOperGroup cogArc2segm_uint64("arc2segm_uint64");
+
 	CommonOperGroup cogDynaPoint("dyna_point");
 	CommonOperGroup cogDynaPointWithEnds("dyna_point_with_ends");
 	CommonOperGroup cogDynaSegment("dyna_segment");
 	CommonOperGroup cogDynaSegmentWithEnds("dyna_segment_with_ends");
+
+	CommonOperGroup cogDynaPoint_uint64("dyna_point_uint64");
+	CommonOperGroup cogDynaPointWithEnds_uint64("dyna_point_with_ends_uint64");
+	CommonOperGroup cogDynaSegment_uint64("dyna_segment_uint64");
+	CommonOperGroup cogDynaSegmentWithEnds_uint64("dyna_segment_with_ends_uint64");
 
 	template <typename T>
 	struct SequenceOperators
@@ -1883,8 +1881,7 @@ namespace
 		Points2SequenceOperator<T> p2s1, p2s2, p2s3, p2s_p, p2s_ps, p2s_po, p2s_pso;
 		Points2SequenceOperator<T> p2p1, p2p2, p2p3, p2p_p, p2p_ps, p2p_po, p2p_pso;
 
-		Arcs2SegmentsOperator <T> arc2segm;
-		Arcs2SegmentsOperator <T> seq2point;
+		Arcs2SegmentsOperator <T> arc2segm, arc2segm_uint64, seq2point, seq2point_uint64;
 
 		SequenceOperators()
 			: lb(&cogLB)
@@ -1913,7 +1910,9 @@ namespace
 			, p2p_pso(&cogP2P_pso, true, true, ValueComposition::Polygon)
 
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
+			, arc2segm_uint64(&cogArc2segm_uint64, DoCreateNextPoint | DoCreateNrOrgEntity| CreateUInt64Domain)
 			, seq2point(&cogS2P, DoCloseLast | DoCreateNrOrgEntity| DoCreateOrdinal)
+			, seq2point_uint64(&cogS2P_uint64, DoCloseLast | DoCreateNrOrgEntity | DoCreateOrdinal | CreateUInt64Domain)
 		{}
 
 	};
@@ -1941,6 +1940,7 @@ namespace
 
 		PointInAllPolygonsOperator<P> piap;
 		DynaPointOperator<P>      dynaPoint1, dynaPoint2, dynaPoint3, dynaPoint4;
+		DynaPointOperator<P>      dynaPoint1_64, dynaPoint2_64, dynaPoint3_64, dynaPoint4_64;
 
 		GeometricOperators()
 			:	centroid     (&cogCentroid)
@@ -1953,6 +1953,10 @@ namespace
 			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
 			,	dynaPoint3(&cogDynaSegment,         DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal)
 			,	dynaPoint4(&cogDynaSegmentWithEnds, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)
+			,	dynaPoint1_64(&cogDynaPoint_uint64, DoCreateNrOrgEntity | DoCreateOrdinal | CreateUInt64Domain)
+			,	dynaPoint2_64(&cogDynaPointWithEnds_uint64, DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints | CreateUInt64Domain)
+			,	dynaPoint3_64(&cogDynaSegment_uint64, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal | CreateUInt64Domain)
+			,	dynaPoint4_64(&cogDynaSegmentWithEnds_uint64, DoCreateNextPoint | DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints | CreateUInt64Domain)
 		{}
 
 	};

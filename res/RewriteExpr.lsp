@@ -1,4 +1,5 @@
 /* Rules in slisp notation for the rewriting of expr slisps of treeitems.
+/* Rules in slisp notation for the rewriting of expr slisps of treeitems.
 
    Syntax: 
 
@@ -23,11 +24,6 @@
 
 [(value _P _VU)                  (convert _P _VU)]
 [(const _P _E _VU)               (const (value _P _VU) _E)]
-[(convert (convert _X _U1) _U2)  (convert _X _U2)]
-
-/*********** Renamed Functions *********/
-
-[(interpolate_linear _D _U) (interpolate_linear _D (SubItem _U "X") (SubItem _U "Y"))]
 
 /*********** selection Functions *********/
 
@@ -80,14 +76,6 @@
 [(pow x (neg _y))           (div 1 (pow _x _y))]
 
 [(pow _x _y)                (exp (mul (log _x) _y))]
-
-/*********** Helper functions for lists are OBSOLETE and DEPRECIATED  *********/
-
-[[add_list _T] [add _T]]
-[[mul_list _T] [mul _T]]
-[[or_list  _T] [or  _T]]
-[[and_list _T] [and _T]]
-
 /*********** Associative Binary functions *********/
 
 [(add _a1)                    _a1]
@@ -110,13 +98,6 @@
 [(concat _a1) (MakeDefined _a1 "")]
 [[concat [_a1 _T]] (add (MakeDefined _a1 "") [concat _T] ) ]
 [(concat) ""]
-
-
-//[(add _a (add _b _c))        (add (add _a _b) _c) ]
-//[(mul _a (mul _b _c))        (mul (mul _a _b) _c) ] geeft problemen bij claimHa2 = (10000 *Meter *Meter) * (10000 *Meter *Meter)
-//[(and _a (and _b _c))        (and (and _a _b) _c) ]
-//[(or  _a (or  _b _c))        (or  (or  _a _b) _c) ]
-
 
 /*********** switch case   *********/
 
@@ -158,10 +139,6 @@
 
 /*********** Predicate functions *********/
 
-// [(isPositive _x)      (gt _x (neg _x))]
-// [(isNegative _x)      (lt _x (neg _x))]
-// [(isZero     _x)      (eq _x (neg _x))]
-
 [(order _A _B) (interval (min_elem _A _B) (max_elem _A _B))]
 
 [(isOverlapping (interval _A1 _A2)(interval _B1 _B2))
@@ -174,8 +151,8 @@
 [(neighbourhood _X _Factor) (order _X (mul _Factor _X) )]
 
 [(float_isNearby _A _B _Factor)
-	(isOverlapping (neighbourhood _A _Factor) (neighbourhood _B _Factor))]
-
+	(isOverlapping (neighbourhood (MakeDefined _A (convert -9999.0 (valuesUnit _A))) _Factor) (neighbourhood (MakeDefined _B (convert -9999.0 (valuesUnit _B))) _Factor))]
+   
 [(point_isNearby _A _B _Factor)
 	(and
 		(float_isNearby (pointRow _A) (pointRow _B) _Factor)
@@ -239,9 +216,12 @@
 [(normalize _x )           (normalize _x  0 1 )] /* is rewritten to: (div (sub _x  (mean _x )) (sd   _x )) */
 [(normalize _x _E )        (normalize _x _E 1 )] /* is rewritten to: (add (div (sub _x  (mean _x )) (sd   _x )) _E) */
 
-[(normalize _x _E _SD)     (add (mul (sub _x  (mean _x )) (div _SD (sd   _x ))) _E)]
+[(normalize _x _E _SD)     (recollect_by_cond (IsDefined _x) (normalize_defined (collect_by_cond (select (IsDefined _x)) _x) _E _SD))]
 [(normalize _x _p _E _SD)  (add (mul (sub _x  (lookup _p (mean _x _p))) 
                                (lookup _p (div _SD (sd   _x _p)))) _E)]
+
+[(normalize_defined _x _E _SD)     (add (mul (sub _x  (mean _x )) (div _SD (sd   _x ))) _E)]
+
 
 /*********** Remove symbolic constants from rescale & normalize *********/
 
@@ -289,7 +269,7 @@
 [(rjoin _a _b _c)            (lookup (rlookup _a _b) _c)]
 [(lookup (rlookup _a _a) _c) _c]
 [(sort_str _a)            (lookup (index _a) _a)]
-[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (convert 1 _D)) (ID _D))]
+[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (ID _D)) (convert 1 _D))]
 [(reverse _a)             (lookup (reversed_id (domainUnit _a)) _a)]
 [[index [_a [_b _R]]]     [subindex [(index _a) [(rank_sorted (index_a) _a) [_b _R]]]] ]
 
@@ -308,10 +288,6 @@
 [(UInt32 (div _V _V)) (UInt32 1)]                                   // rewrite gridverhouding for 100m
 [(div (pointrow _GRIDIDS) (convert (UInt32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
 [(div (pointcol _GRIDIDS) (convert (UInt32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
-
-//[(point (Float32 (neg (convert _V1 _U))) (Float32 (convert _V2 _U)) _GU) (point (Float32 (neg _V1)) (Float32 _V2) _GU)]
-//[(Float32 (neg (UInt32 _V))) (Float32 (neg _V))]
-//[(Float32      (UInt32 _V) ) (Float32      _V )]
 
 [(div _X (UInt32 1)) _X] // rewrite calculation of #cells of gridset
 

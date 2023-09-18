@@ -63,6 +63,9 @@ public:
 public slots:
     void setPathDirectly(QString path);
     void onEditingFinished();
+
+private:
+    void findItem(const TreeItem* context, QString path, bool updateHistory);
 };
 
 enum class ButtonType
@@ -117,10 +120,12 @@ public:
     std::string m_cfg_file_path;
     size_t m_index = 0;
     DmsConfigTextButton* m_config_text;
+protected:
+    void mousePressEvent(QMouseEvent* event) override;
 
 public slots:
-    void onDeleteRecentFileEntry(bool checked = false);
-    void onFileEntryPressed(bool checked = false);
+    void onDeleteRecentFileEntry();
+    void onFileEntryPressed();
 
 };
 
@@ -135,7 +140,7 @@ class DmsFileChangedWindow : public QDialog
 {
     Q_OBJECT
 
-public: //auto changed_files = DMS_ReportChangedFiles(true);
+public:
     DmsFileChangedWindow(QWidget* parent = nullptr);
     void setFileChangedMessage(std::string_view changed_files);
 
@@ -172,7 +177,6 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -183,8 +187,10 @@ public:
 
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
+    auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item : m_root; }
     void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
-    bool LoadConfig(CharPtr configFilePath);
+    void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");
+    bool LoadConfigImpl(CharPtr configFilePath);
     void updateToolbar();
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExist();
@@ -219,7 +225,8 @@ public slots:
     void code_analysis_add_target();
     void code_analysis_clr_targets();
 
-    static bool reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
+    static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
+    static void reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
     void runToFailReason();
 
@@ -239,7 +246,7 @@ public slots:
 
 public slots:
     void fileOpen();
-    bool reopen();
+    void reopen();
 
     void aboutGeoDms();
     void wiki();
@@ -261,14 +268,18 @@ public slots:
 protected:
     bool event(QEvent* event) override;
 
+public:
+    void updateToolsMenu();
+
 private:
+    void openConfigSourceFor(const TreeItem* context);
     //auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
     void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
-    void CloseConfig();
+    bool CloseConfig(); // returns true when mdiSubWindows were closed
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
     void createActions();
@@ -278,7 +289,7 @@ private:
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();
-    void updateToolsMenu();
+    void updateSettingsMenu();
     void updateWindowMenu();
     void updateCaption();
     void updateTreeItemVisitHistory();
@@ -314,6 +325,7 @@ public:
         , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action, m_toggle_valueinfo_action
         , m_gui_options_action, m_advanced_options_action, m_config_options_action
         , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
+        , m_win_tile_action, m_win_cascade_action, m_win_close_action, m_win_close_all_action, m_win_close_but_this_action
         , m_quit_action
         , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
         , m_eventlog_filter_toggle;

@@ -1125,15 +1125,9 @@ TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 	try {
 		return TreeItem_GetErrorSource(src, true);
 	}
-	catch (const DmsException& x)
+	catch (...)
 	{
-		auto fullName = x.AsErrMsg()->m_FullName;
-		if (!fullName.empty())
-		{
-			src = DSM::Curr()->GetConfigRoot();
-			if (src)
-				return src->FindBestItem(fullName);
-		}
+		catchAndReportException();
 	}
 	return {};
 }

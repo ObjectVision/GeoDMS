@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -278,26 +253,26 @@ struct RepeatOperator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 //											DEFINES
 // *****************************************************************************
 
-template <typename P> struct norm_type : product_type<typename scalar_of<P>::type > {};
-template <typename P> struct dist_type : div_type    <typename norm_type<P>::type > {};
+template <typename P> using norm_type_t = product_type_t<scalar_of_t<P>>;
+template <typename P> using dist_type_t = div_type_t<norm_type_t<P>>;
 
-template <typename P> struct sqrdist_func: binary_func<typename norm_type<P>::type, P, P>
+template <typename P> struct sqrdist_func: binary_func<norm_type_t<P>, P, P>
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename sqrdist_func::res_type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<norm_type_t<P>>(); }
 
-	typename sqrdist_func::res_type operator ()(typename sqrdist_func::arg1_cref a, typename sqrdist_func::arg2_cref b) const
+	auto operator ()(cref_t<P> a, cref_t<P> b) const
 	{
-		return Norm<typename sqrdist_func::res_type>(a - b);
+		return Norm<norm_type_t<P>>(a - b);
 	} 
 };
 
-template <typename P> struct dist_func: binary_func<typename dist_type<P>::type, P, P>
+template <typename P> struct dist_func: binary_func<dist_type_t<P>, P, P>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename dist_func::res_type>(); }
 
-	typename dist_func::res_type operator ()(typename dist_func::arg1_cref a, typename dist_func::arg2_cref b) const
+	dist_type_t<P> operator ()(cref_t<P> a, cref_t<P> b) const
 	{
-		return sqrt( typename dist_func::res_type( Norm<Float64>(a - b ) ) );
+		return sqrt( Norm<Float64>(a - b ) );
 	} 
 };
 
@@ -306,55 +281,102 @@ template <typename P> struct dist_func: binary_func<typename dist_type<P>::type,
 //		BINARY FUNCTORS TAKEN FROM std
 // *****************************************************************************
 
-template <typename T> struct compare_func : binary_func<Bool, T, T> {
+template <typename T> struct compare_func_base : binary_func<Bool, T, T> 
+{
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compare_unit_creator(gr, args, true); }
+
 };
 
-template <typename T> struct equal_to     : compare_func<T> { Bool operator ()(typename equal_to::arg1_cref a, typename equal_to::arg2_cref b) const { return a == b; } };
-template <typename T> struct not_equal_to : compare_func<T> { Bool operator ()(typename not_equal_to::arg1_cref a, typename not_equal_to::arg2_cref b) const { return !(a==b); } };
-template <typename T> struct greater      : compare_func<T> { Bool operator ()(typename greater::arg1_cref a, typename greater::arg2_cref b) const { return   b< a ; } };
-template <typename T> struct greater_equal: compare_func<T> { Bool operator ()(typename greater_equal::arg1_cref a, typename greater_equal::arg2_cref b) const { return !(a< b); } };
-template <typename T> struct less         : compare_func<T> { Bool operator ()(typename less::arg1_cref a, typename less::arg2_cref b) const { return   a< b ; } };
-template <typename T> struct less_equal   : compare_func<T> { Bool operator ()(typename less_equal::arg1_cref a, typename less_equal::arg2_cref b) const { return !(b< a); } };
+template <typename T, typename Cmp> struct checked_compare_func : compare_func_base<T>
+{
+	Bool operator()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(a) || !IsDefined(b))
+				return false;
+//				throwDmsErrD("Invalid attempt to compare undefined values!");
+		}
+		return cmp(a, b);
+	}
+	Cmp cmp;
+};
 
-template <typename T> struct logical_and : compare_func<T> { Bool operator ()(typename logical_and::arg1_cref a, typename logical_and::arg2_cref b) const { return   a && b; } };
-template <typename T> struct logical_or  : compare_func<T> { Bool operator ()(typename logical_or::arg1_cref a, typename logical_or::arg2_cref b) const { return   a || b; } };
+template <typename T> struct equal_to : compare_func_base<T>
+{
+	Bool operator ()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(a) || !IsDefined(b))
+				return false;
+		return a == b;
+	}
+};
+
+template <typename T> struct not_equal_to : compare_func_base<T>
+{
+	Bool operator ()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(a) || !IsDefined(b))
+				return false;
+		return !(a == b);
+	}
+};
+
+template <typename T> struct greater : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return b < a; }) > {};
+template <typename T> struct greater_equal : checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return !(a < b); }) > {};
+template <typename T> struct less: checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return a < b; }) > {};
+template <typename T> struct less_equal: checked_compare_func < T, decltype([](cref_t<T> a, cref_t<T> b) -> Bool { return !(b < a); }) > {};
+
+template <typename T> struct logical_and : compare_func_base<T> { Bool operator ()(cref_t<T> a, cref_t<T> b) const { return a && b; } };
+template <typename T> struct logical_or  : compare_func_base<T> { Bool operator ()(cref_t<T> a, cref_t<T> b) const { return a || b; } };
 
 template <typename T> struct binary_base: binary_func<T, T, T> {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return compatible_values_unit_creator_func(0, gr, args, false); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) 
+	{ 
+		return compatible_values_unit_creator_func(0, gr, args, false); 
+	}
 };
 
-template <typename T> struct binary_and : binary_base<T> { T operator()(typename binary_base<T>::arg1_cref a, typename binary_base<T>::arg2_cref b) const { return a&b; } };
-template <typename T> struct binary_or  : binary_base<T> { T operator()(typename binary_base<T>::arg1_cref a, typename binary_base<T>::arg2_cref b) const { return a|b; } };
-template <typename T> struct binary_eq  : binary_base<T> { T operator()(typename binary_base<T>::arg1_cref a, typename binary_base<T>::arg2_cref b) const { return ~(a^b); } };
-template <typename T> struct binary_ne  : binary_base<T> { T operator()(typename binary_base<T>::arg1_cref a, typename binary_base<T>::arg2_cref b) const { return (a^b); } };
+template<typename T> struct is_safe_for_undefines<equal_to<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<not_equal_to<T>> : std::true_type{};
+template<typename T> struct is_safe_for_undefines<greater<T>> : std::true_type{};
+template<typename T> struct is_safe_for_undefines<greater_equal<T>> : std::true_type{};
+template<typename T> struct is_safe_for_undefines<less<T>> : std::true_type{};
+template<typename T> struct is_safe_for_undefines<less_equal<T>> : std::true_type{};
+
+template <typename T> struct binary_and : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return a&b; } };
+template <typename T> struct binary_or  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return a|b; } };
+template <typename T> struct binary_eq  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return ~(a^b); } };
+template <typename T> struct binary_ne  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return (a^b); } };
 
 
 template <bit_size_t N> struct binary_and<bit_value<N> >   : binary_base<bit_value<N> >
 {
-	typedef binary_and<bit_block_t> block_func;
+	using block_func = binary_and<bit_block_t>;
 
 	block_func m_BlockFunc;
 };
 template <bit_size_t N> struct binary_or<bit_value<N> >   : binary_base<bit_value<N> >
 {
-	typedef binary_or<bit_block_t> block_func;
+	using block_func = binary_or<bit_block_t>;
 
 	block_func m_BlockFunc;
 };
 template <> struct logical_and<Bool> : binary_and<Bool> {};
 template <> struct logical_or <Bool> : binary_or <Bool> {};
 
-template <> struct equal_to<Bool> : compare_func<Bool >
+template <> struct equal_to<Bool> : binary_base<Bool>
 {
-	typedef binary_eq<bit_block_t> block_func;
+	using block_func = binary_eq<bit_block_t>;
 
 	block_func m_BlockFunc;
 };
 
-template <> struct not_equal_to<Bool>: compare_func<Bool>
+template <> struct not_equal_to<Bool>: binary_base<Bool>
 {
-	typedef binary_ne<bit_block_t> block_func;
+	using block_func = binary_ne<bit_block_t>;
 
 	block_func m_BlockFunc;
 };
@@ -442,13 +464,20 @@ namespace {
 			, UnitPowerOperator(&cog_pow, Unit<T>::GetStaticClass())
 		{}
 	};
+	CommonOperGroup
+		cog_mul_or_null("mul_or_null"),
+		cog_add_or_null("add_or_null"),
+		cog_sub_or_null("sub_or_null");
 
 	BinaryInstantiation<ranged_unit_objects, mul_func > sMul(&cog_mul);
+	BinaryInstantiation<ranged_unit_objects, mul_or_null_func > sMulOrNull(&cog_mul_or_null);
 	BinaryInstantiation<ranged_unit_objects, div_func > sDiv(&cog_div);
 	BinaryInstantiation<ranged_unit_objects, plus_func> sAdd(&cog_add);
+	BinaryInstantiation<ranged_unit_objects, plus_or_null_func> sAddOrNull(&cog_add_or_null);
 
 	CogBinaryInstantiation<ranged_unit_objects, mod_func  > sMod("mod");
 	BinaryInstantiation<ranged_unit_objects, minus_func> sSub(&cog_sub);
+	BinaryInstantiation<ranged_unit_objects, minus_or_null_func> sSubOrNull(&cog_sub_or_null);
 
 	CogBinaryInstantiation<points, dist_func   > sDist("dist");
 	CogBinaryInstantiation<points, sqrdist_func> sSqrDist("sqrdist");

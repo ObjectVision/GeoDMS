@@ -39,39 +39,39 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 
 template<typename T>	
-struct sin_func: unary_func<typename div_type<T>::type, T >
+struct sin_func: unary_func<div_type_t<T>, T >
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename div_type<T>::type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<div_type_t<T>>(); }
 
 	typename sin_func::res_type operator()(typename sin_func::arg1_cref arg) const { return sin(arg); }
 };
 
 template<typename T>	
-struct cos_func: unary_func<typename div_type<T>::type, T >
+struct cos_func: unary_func<div_type_t<T>, T >
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename div_type<T>::type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<div_type_t<T>>(); }
 
 	typename cos_func::res_type operator()(typename cos_func::arg1_cref arg) const { return cos(arg); }
 };
 
 template<typename T>	
-struct tan_func: unary_func<typename div_type<T>::type, T >
+struct tan_func: unary_func<div_type_t<T>, T >
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename div_type<T>::type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<div_type_t<T>>(); }
 
 	typename tan_func::res_type operator()(typename tan_func::arg1_cref arg) const { return tan(arg); }
 };
 
 template<typename T>	
-struct atan_func: unary_func<typename div_type<T>::type, T >
+struct atan_func: unary_func<div_type_t<T>, T >
 {
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<typename div_type<T>::type>(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<div_type_t<T>>(); }
 
 	typename atan_func::res_type operator()(typename atan_func::arg1_cref arg) const { return atan(arg); }
 };
 
 template <typename T>
-struct sqrx_func: unary_func<typename acc_type<T>::type, T>
+struct sqrx_func: unary_func<acc_type_t<T>, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return square_unit_creator(gr, args); }
 
@@ -79,11 +79,11 @@ struct sqrx_func: unary_func<typename acc_type<T>::type, T>
 };
 
 template<typename T>
-struct neg_func_unchecked : unary_func<typename signed_type<T>::type, T> 
+struct neg_func_unchecked : unary_func<signed_type_t<T>, T> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<typename neg_func_unchecked::res_type>(args); }
 
-	typename neg_func_unchecked::res_type operator()(typename neg_func_unchecked::arg1_cref x) const { return -neg_func_unchecked::res_type(x); }
+	auto operator()(cref_t<T> x) const { return -signed_type_t<T>(x); }
 };
 
 // *****************************************************************************
@@ -91,7 +91,7 @@ struct neg_func_unchecked : unary_func<typename signed_type<T>::type, T>
 // *****************************************************************************
 
 template <typename T> 
-struct exp_func_checked: unary_func<typename product_type<T>::type, T>
+struct exp_func_checked: unary_func<product_type_t<T>, T>
 {
 	typename exp_func_checked::res_type operator()(typename exp_func_checked::arg1_cref arg) const
 	{ 
@@ -136,11 +136,11 @@ res_type sqrt_func_checked_f(const Point<T>& arg)
 }
 
 template <typename T> 
-struct sqrt_func_checked: unary_func<typename div_type<T>::type, T>
+struct sqrt_func_checked: unary_func<div_type_t<T>, T>
 {
-	typename sqrt_func_checked::res_type operator()(typename sqrt_func_checked::arg1_cref arg) const
+	auto operator()(cref_t<T> arg) const
 	{ 
-		return sqrt_func_checked_f<typename sqrt_func_checked::res_type>(arg);
+		return sqrt_func_checked_f<div_type_t<T>>(arg);
 	}
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return operated_unit_creator(gr, args); }
 };

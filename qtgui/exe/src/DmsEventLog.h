@@ -32,7 +32,7 @@ public:
 	void addText(MsgData&& msgData);
 	void addText(SeverityTypeID st, MsgCategory msgCat, dms_thread_id threadID, StreamableDateTime when, CharPtr msg)
 	{
-		MsgData data{ st, msgCat, threadID, when, SharedStr(msg) };
+		MsgData data{ st, msgCat, false, threadID, when, SharedStr(msg) };
 		addText(std::move(data));
 	}
 

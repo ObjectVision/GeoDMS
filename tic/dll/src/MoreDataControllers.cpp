@@ -317,7 +317,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 //	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	assert(IsMetaThread());
+	assert(IsMetaThread() || m_Data);
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult

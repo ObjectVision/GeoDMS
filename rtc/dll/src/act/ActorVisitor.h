@@ -44,11 +44,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct ActorVisitor
 {
-	typedef ActorVisitState ResultType;
+	virtual ActorVisitState operator ()(const Actor* supplier) const= 0;
 
-	virtual ResultType operator ()(const Actor* supplier) const= 0;
-
-	RTC_CALL ResultType Visit(const Actor* supplier) const;
+	RTC_CALL ActorVisitState Visit(const Actor* supplier) const;
 };
 
 
@@ -62,8 +60,7 @@ struct DerivedBoolVisitor : ActorVisitor
 	DerivedBoolVisitor(BoolLambda&& rhs) : lfunc(std::move(rhs)) {}
 	ActorVisitState operator() (const Actor* self) const override
 	{
-		if (!self)
-			return AVS_Ready;
+		assert(self);
 		return lfunc(self) ? AVS_Ready : AVS_SuspendedOrFailed;
 	}
 	BoolLambda lfunc;
@@ -76,15 +73,21 @@ struct DerivedProcVisitor : ActorVisitor
 
 	ActorVisitState operator() (const Actor* self) const override
 	{
-		if (self)
-			lfunc(self);
+		assert(self);
+		lfunc(self);
 		return AVS_Ready;
 	}
 	ProcLambda lfunc;
 };
 
+template <typename BoolLambda>
+auto MakeDerivedBoolVisitor(BoolLambda&& func)
+{
+	return DerivedBoolVisitor<BoolLambda>(std::forward<BoolLambda>(func));
+}
+
 template <typename ProcLambda>
-DerivedProcVisitor<ProcLambda> MakeDerivedProcVistor(ProcLambda&& func)
+auto MakeDerivedProcVisitor(ProcLambda&& func)
 {
 	return DerivedProcVisitor<ProcLambda>(std::forward<ProcLambda>(func));
 }
@@ -93,13 +96,13 @@ DerivedProcVisitor<ProcLambda> MakeDerivedProcVistor(ProcLambda&& func)
 template <typename BoolLambda>
 ActorVisitState VisitSupplBoolImpl(const Actor* self, SupplierVisitFlag svf, BoolLambda&& lfunc)
 {
-	return self->VisitSuppliers(svf, DerivedBoolVisitor<BoolLambda>(std::forward<BoolLambda>(lfunc)));
+	return self->VisitSuppliers(svf, MakeDerivedBoolVisitor(std::forward<BoolLambda>(lfunc)));
 }
 
 template <typename ProcLambda>
 ActorVisitState VisitSupplProcImpl(const Actor* self, SupplierVisitFlag svf, ProcLambda&& lfunc)
 {
-	return self->VisitSuppliers(svf, DerivedProcVisitor<ProcLambda>(std::forward<ProcLambda>(lfunc)));
+	return self->VisitSuppliers(svf, MakeDerivedProcVisitor(std::forward<ProcLambda>(lfunc)));
 }
 
 #endif // __RTC_ACT_ACTORVISITOR_H

@@ -236,8 +236,8 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 	: m_hDC(hDC)
 {
 	assert(hDC != nullptr);
-	assert(indexCache != 0);
-	assert(indexCache->m_Keys.size() > 0);
+	MG_CHECK(indexCache != 0);
+	MG_CHECK(indexCache->m_Keys.size() > 0);
 
 	m_Collection.reserve(indexCache->m_Keys.size());
 
@@ -268,7 +268,7 @@ PenArray::PenArray(HDC hDC, const PenIndexCache*& indexCache)
 		}
 		m_Collection.emplace_back(pen);
 	}
-	assert(size() > 0);
+	MG_CHECK(size() > 0);
 	if (size() == 1)
 	{
 		indexCache = nullptr; // don't use this penarray in selection

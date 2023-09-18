@@ -204,7 +204,7 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 	if (!result.empty())
 		return result;
 
-	const TreeItem* configSettings = SessionData::GetIt(configRoot)->GetConfigSettings();
+	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings();
 	if (configSettings)
 	{
 		TokenID tidKey = GetTokenID_mt(key);
@@ -749,7 +749,7 @@ void AbstrStorageManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem*
 void AbstrStorageManager::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
 {
 	interest_holders_container interestHolders;
-	auto visitor = MakeDerivedProcVistor([&interestHolders](const Actor* item) { if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); });
+	auto visitor = MakeDerivedProcVisitor([&interestHolders](const Actor* item) { if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); });
 
 	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
 

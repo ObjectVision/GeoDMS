@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "ClcPCH.h"
 #pragma hdrstop
 
@@ -68,19 +72,18 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
 			tile_id nrTiles = arg1_DomainUnit->GetNrTiles();
-			bool arg1HasUndefined = arg1A->HasUndefinedValues();
 
 			auto index = MakeIndex(arg2A, arg2_DomainUnit);
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
 			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
 			if (IsMultiThreaded3() && (nrTiles > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg1HasUndefined, arg2Domain, arg2DomainRange, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res, res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg2Domain, arg2DomainRange, std::move(index) MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + RLookup()"));
 			else
 			{
 				DataWriteLock resLock(res);
-				parallel_tileloop(nrTiles, [this, &resLock, arg1A, arg1HasUndefined, arg2Domain, &index](tile_id t)->void
+				parallel_tileloop(nrTiles, [this, &resLock, arg1A, arg2Domain, &index](tile_id t)->void
 					{
-						this->Calculate(resLock.get(), arg1A, arg1HasUndefined, arg2Domain, index, t);
+						this->Calculate(resLock.get(), arg1A, arg2Domain, index, t);
 					}
 				);
 				resLock.Commit();
@@ -89,8 +92,8 @@ public:
 		return true;
 	}
 	virtual std::any MakeIndex(const AbstrDataItem* arg2A, const AbstrUnit* arg2_DomainUnit) const = 0;
-	virtual auto CreateFutureTileIndexer(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, std::any index MG_DEBUG_ALLOCATOR_SRC_ARG) const->SharedPtr<const AbstrDataObject> = 0;
-	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2Domain, const std::any&, tile_id t) const =0;
+	virtual auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const AbstrTileRangeData* arg2DomainRange, std::any index MG_DEBUG_ALLOCATOR_SRC_ARG) const->SharedPtr<const AbstrDataObject> = 0;
+	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const std::any&, tile_id t) const =0;
 };
 
 template <class V>
@@ -109,22 +112,9 @@ public:
 		std::any result;
 		visit<typelists::domain_elements>(arg2DomainA, [&result, &values]<typename E>(const Unit<E>* arg2Domain) 
 		{
-			using index_type = typename cardinality_type<E>::type;
-			result = make_index_array < index_type, V>(values);
+			result = make_index_array< index_type_t<E>, V>(values);
 		});
 		return result;
-/* REMOVE
-		UInt32 bitSize = arg2_DomainUnit->GetValueType()->GetBitSize();
-		auto values = const_array_cast<V>(arg2A)->GetDataRead();
-		if (bitSize > 32)
-			return make_index_array<UInt64, V>(values);
-		else if (bitSize > 16 || bitSize < 8)
-			return make_index_array<UInt32, V>(values);
-		if (bitSize > 8)
-			return make_index_array<UInt16, V>(values);
-		else
-			return make_index_array<UInt8, V>(values);
-*/
 	}
 };
 
@@ -138,7 +128,7 @@ public:
 		: SearchIndexOperator<V>(og)
 	{}
 
-	auto CreateFutureTileIndexer(bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 //		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
@@ -150,15 +140,15 @@ public:
 		std::unique_ptr<AbstrDataObject> futureTileFunctor;
 
 		visit<typelists::domain_elements>(arg2DomainA
-		,	[&futureTileFunctor, lazy, arg2DomainRange, arg1, arg1HasUndefined, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
+		,	[&futureTileFunctor, resultAdi, lazy, arg2DomainRange, arg1, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
 		{
-			using index_type = typename cardinality_type<E>::type;
+			using index_type = index_type_t<E>;
 			using index_tile = indexed_tile_t<index_type, V>;
 			using res_seq_t = sequence_traits<E>::seq_t;
 
-			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(arg2Domain)
+			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(arg2Domain)
 				, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-				, [arg1HasUndefined, arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
+				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
 				{
 					auto arg1Data = arg1FutureData->GetTile();
 
@@ -166,12 +156,9 @@ public:
 					static_assert(std::is_same_v<index_type, index_tile::first_type::value_type>);
 
 					auto indexPtr = std::any_cast<index_tile>(indexBoxPtr.get());
-					dms_assert(indexPtr);
+					assert(indexPtr);
 
-					IndexApplicator indexApplicator;
-					indexApplicator(resData, arg1Data.get_view(), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first, arg1HasUndefined);
-
-					dms_assert(resData.size() == arg1Data.size());
+					CalcTile<res_seq_t, E>(resData, arg1Data, indexPtr, arg2DomainRange);
 				}
 				MG_DEBUG_ALLOCATOR_SRC_PARAM
 			);
@@ -179,22 +166,31 @@ public:
 
 		return futureTileFunctor.release();
 	}
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrUnit* arg2DomainA, const std::any& indexBox, tile_id t) const override
+
+	template <typename ResultIndexView, typename E>
+	static void CalcTile(ResultIndexView resData, typename sequence_traits<V>::cseq_t arg1Data, const indexed_tile_t<index_type_t<E>, V>* indexPtr, typename Unit<E>::range_t arg2DomainRange)
+	{
+		IndexApplicator indexApplicator;
+		indexApplicator.apply<ResultIndexView, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first);
+
+		assert(resData.size() == arg1Data.size());
+	}
+
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const std::any& indexBox, tile_id t) const override
 	{
 		visit<typelists::domain_elements>(arg2DomainA,
-			[resObj, arg1Data = const_array_cast<V>(arg1A)->GetTile(t), &indexBox, arg1HasUndefined, t]<typename E>(const Unit<E>*arg2Domain)
+			[resObj, arg1Data = const_array_cast<V>(arg1A)->GetTile(t), &indexBox, t]<typename E>(const Unit<E>*arg2Domain)
 		{
 			auto resData = mutable_array_cast<E>(resObj)->GetWritableTile(t);
 
-			using index_type = typename cardinality_type<E>::type;
+			using index_type = index_type_t<E>;
+			using index_tile = indexed_tile_t<index_type, V>;
+			using res_seq_t = sequence_traits<E>::seq_t;
 
-			auto indexedTilePtr = std::any_cast<indexed_tile_t<index_type, V>>(&indexBox);
-			dms_assert(indexedTilePtr);
+			auto indexPtr = std::any_cast<index_tile>(&indexBox);
+			assert(indexPtr);
 
-			IndexApplicator indexApplicator;
-			indexApplicator(resData.get_view(), arg1Data.get_view(), indexedTilePtr->second.get_view(), arg2Domain->GetRange(), indexedTilePtr->first, arg1HasUndefined);
-
-			dms_assert(resData.size() == arg1Data.size());
+			CalcTile<res_seq_t, E>(resData.get_view(), arg1Data.get_view(), indexPtr, arg2Domain->GetRange());
 		}
 		);
 	}

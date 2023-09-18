@@ -198,22 +198,24 @@ public:
 	// Parents
 
 	TIC_CALL const PersistentSharedObj* GetParent () const override;       // override PersistentSharedObj
-	         const TreeItem*   GetTreeParent   () const   { return m_Parent; }
-	TIC_CALL const TreeItem*   GetStorageParent(bool alsoForWrite) const;
-	TIC_CALL const TreeItem* GetCurrStorageParent(bool alsoForWrite) const;
+	         SharedTreeItem GetTreeParent   () const   { return m_Parent; }
+	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
+	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
 
 // Search Items by name
 
-	TIC_CALL const TreeItem*   GetConstSubTreeItemByID(TokenID subItemName) const; // calls UpdateMetaInfo
-	TIC_CALL const TreeItem*   GetCurrSubTreeItemByID(TokenID subItemName) const;
+	TIC_CALL SharedTreeItem   GetConstSubTreeItemByID(TokenID subItemName) const; // calls UpdateMetaInfo
+	TIC_CALL SharedTreeItem   GetCurrSubTreeItemByID(TokenID subItemName) const;
 	TIC_CALL       TreeItem*   GetSubTreeItemByID(TokenID subItemName);
 
 	TIC_CALL       TreeItem* GetItem     (CharPtrRange subItemNames);
 	TIC_CALL       TreeItem* GetBestItem (CharPtrRange subItemNames);
-	TIC_CALL const TreeItem* GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
+	TIC_CALL SharedTreeItem GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
 
-	TIC_CALL const TreeItem* FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	TIC_CALL SharedTreeItem FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
 	TIC_CALL BestItemRef FindBestItem(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	auto FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;  // directly referred persistent object.
+
 	TIC_CALL const TreeItem* CheckObjCls(const Class* requiredClass) const;
 	TIC_CALL       TreeItem* CheckCls   (const Class* requiredClass);
 	TIC_CALL const TreeItem* FollowDots(CharPtrRange dots) const;

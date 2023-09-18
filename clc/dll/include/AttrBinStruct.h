@@ -1,36 +1,13 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #if !defined(__CLC_ATTRBINSTRUCT_H)
 #define __CLC_ATTRBINSTRUCT_H
+
+#include <functional>
 
 #include "utl/StringFunc.h"
 
@@ -39,6 +16,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "composition.h"
 #include "AttrUniStruct.h"
 #include "dms_transform.h"
+#include "mci/ValueWrap.h"
 
 // *****************************************************************************
 //								CHECKED FUNCTORS
@@ -67,6 +45,8 @@ struct binary_func_checked: binary_func_checked_base<TBinFunc>
 	binary_func_checked(const TBinFunc& f = TBinFunc()) : binary_func_checked_base<TBinFunc>(f) {}
 };
 
+template <typename Func> struct is_safe_for_undefines< binary_func_checked<Func>> : std::true_type {};
+
 
 // *****************************************************************************
 //								do binary operators
@@ -85,113 +65,69 @@ void do_binary_func(
 	typedef typename cref<typename Arg1Sequence::value_type>::type arg1_cref;
 	typedef typename cref<typename Arg2Sequence::value_type>::type arg2_cref;
 
-	if (e1IsVoid)
-	{
-		dms_assert(arg1Data.size() == 1);
-
-		if (arg1HasMissingData && !IsDefined(arg1Data[0]))
-			fast_undefine(resData.begin(), resData.end());
-		else
-		{
-			arg1_cref arg1Value = arg1Data[0];
-			do_unary_func(
-				resData
-			,	arg2Data
-			,	composition_2_v_p<BinaryOper>(oper, arg1Data[0]) // composition allows for optimizing SIMD
-//			,	[arg1Value, oper](arg2_cref arg2) { return oper(arg1Value, arg2); }
-			,	arg2HasMissingData
-			);
-		}
-		return;
-	}
-
-	dms_assert(arg1Data.size() == resData.size());
-
-	if (e2IsVoid)
-	{
-		dms_assert(arg2Data.size() == 1);
-
-		if (arg2HasMissingData && !IsDefined(arg2Data[0]))
-			fast_fill(resData.begin(), resData.end(), UNDEFINED_OR_ZERO(typename ResSequence::value_type) );
-		else
-		{
-			arg2_cref arg2Value = arg2Data[0];
-			do_unary_func(
-				resData
-			,	arg1Data
-			,	composition_2_p_v<BinaryOper>(oper, arg2Data[0])
-//			,	[arg2Value, oper](arg1_cref arg1) { return oper(arg1, arg2Value); }
-			,	arg1HasMissingData
-			);
-		}
-		return;
-	}
-
-	dms_assert(arg2Data.size() == resData.size());
-
-	if (arg1HasMissingData || arg2HasMissingData)
-	{
-		dms_transform(
-			arg1Data.begin(), arg1Data.end(), 
-			arg2Data.begin(), resData.begin(), 
-			binary_func_checked_base<BinaryOper>(oper)
-		);
-	}
-	else
-	{
-		dms_transform(
-			arg1Data.begin(), arg1Data.end(), 
-			arg2Data.begin(), resData.begin(), 
-			oper
-		);
-	}
-}
-
-// specialization for bit_sequence, use the fact that no missing data elements exist for bit_values
-
-template<typename ResSequence, typename Block, int N, typename BinaryOper>
-void do_binary_func(
-	ResSequence            resData,
-	bit_sequence<N, Block> arg1Data,
-	bit_sequence<N, Block> arg2Data,
-	const BinaryOper& oper,
-	bool e1IsVoid, bool e2IsVoid,
-	bool arg1HasMissingData, 
-	bool arg2HasMissingData)
-{
-	dms_assert(!arg1HasMissingData);
-	dms_assert(!arg2HasMissingData);
+	constexpr bool mustCheckUndefined = !is_safe_for_undefines<BinaryOper>::value 
+		&& (has_undefines_v<typename Arg1Sequence::value_type> || has_undefines_v<typename Arg2Sequence::value_type>);
 
 	if (e1IsVoid)
 	{
-		dms_assert(arg1Data.size() == 1);
+		assert(arg1Data.size() == 1);
 
+		if constexpr (mustCheckUndefined)
+		{
+			if (arg1HasMissingData && !IsDefined(arg1Data[0]))
+			{
+				fast_undefine(resData.begin(), resData.end());
+				return;
+			}
+		}
+		arg1_cref arg1Value = arg1Data[0];
 		do_unary_func(
-			resData, 
-			arg2Data, 
-			composition_2_v_p<BinaryOper>(oper, arg1Data[0]),
-			arg2HasMissingData
+			resData
+		,	arg2Data
+		,	composition_2_v_p<BinaryOper>(oper, arg1Data[0]) // composition allows for optimizing SIMD
+		,	arg2HasMissingData
 		);
 		return;
 	}
 
-	dms_assert(arg1Data.size() == resData.size());
+	assert(arg1Data.size() == resData.size());
 
 	if (e2IsVoid)
 	{
-		dms_assert(arg2Data.size() == 1);
+		assert(arg2Data.size() == 1);
 
+		if constexpr (mustCheckUndefined)
+		{
+			if (arg2HasMissingData && !IsDefined(arg2Data[0]))
+			{
+				fast_fill(resData.begin(), resData.end(), UNDEFINED_OR_ZERO(typename ResSequence::value_type));
+				return;
+			}
+		}
+		arg2_cref arg2Value = arg2Data[0];
 		do_unary_func(
-			resData, 
-			arg1Data, 
-			composition_2_p_v<BinaryOper>(oper, arg2Data[0]), 
-			arg1HasMissingData
+			resData
+		,	arg1Data
+		,	composition_2_p_v<BinaryOper>(oper, arg2Data[0])
+		,	arg1HasMissingData
 		);
 		return;
 	}
 
-	dms_assert(arg2Data.size() == resData.size());
+	assert(arg2Data.size() == resData.size());
 
+	if constexpr (mustCheckUndefined)
+	{
+		if (arg1HasMissingData || arg2HasMissingData)
+		{
+			dms_transform(
+				arg1Data.begin(), arg1Data.end(),
+				arg2Data.begin(), resData.begin(),
+				binary_func_checked_base<BinaryOper>(oper)
+			);
+			return;
+		}
+	}
 	dms_transform(
 		arg1Data.begin(), arg1Data.end(), 
 		arg2Data.begin(), resData.begin(), 
@@ -199,31 +135,293 @@ void do_binary_func(
 	);
 }
 
-
 // *****************************************************************************
 //						ELEMENTARY BINARY FUNCTORS
 // *****************************************************************************
-#include <functional>
 
-template <typename T> struct plus_func : std_binary_func< std::plus<T>, T, T, T>       
+template <typename T>
+[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b)
+{
+	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
+	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%"
+		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
+	);
+}
+
+template <typename T>
+struct safe_plus
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a + b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (result < a)
+					throwOverflow("adding", a, "and", b);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative == bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative !=resultNonnegative)
+						throwOverflow("adding", a, "and", b);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_plus < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>( scalar_op(a.first, b.first), scalar_op(a.second, b.second) );
+	}
+	safe_plus<T> scalar_op;
+};
+
+template <typename T>
+struct safe_minus
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a - b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (a < b)
+					throwOverflow("subtracting", b, "from", a);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative != bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						throwOverflow("subtracting", b, "from", a);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_minus < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>( scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_minus<T> scalar_op;
+};
+
+template <typename T>
+struct safe_plus_or_null
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a + b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (result < a)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative == bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_plus_or_null < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_plus_or_null<T> scalar_op;
+};
+
+template <typename T>
+struct safe_minus_or_null
+{
+	T operator ()(T a, T b) const
+	{
+		T result = a - b;
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (!IsDefined(a))
+				return UNDEFINED_VALUE(T);
+			if (!IsDefined(b))
+				return UNDEFINED_VALUE(T);
+			if constexpr (!is_signed_v<T>)
+			{
+				if (a < b)
+					return UNDEFINED_VALUE(T);
+			}
+			else
+			{
+				auto aNonnegative = (a >= 0);
+				auto bNonnegative = (b >= 0);
+
+				if (aNonnegative != bNonnegative)
+				{
+					auto resultNonnegative = (result >= 0);
+					if (aNonnegative != resultNonnegative)
+						return UNDEFINED_VALUE(T);
+				}
+			}
+		}
+		return result;
+	}
+};
+
+template <typename T>
+struct safe_minus_or_null < Point<T> >
+{
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	safe_minus_or_null<T> scalar_op;
+};
+
+
+template <typename T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct minus_func: std_binary_func< std::minus<T>, T, T, T>      
+template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T>      
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct mul_func  : std_binary_func< std::multiplies<T>, T, T, T> 
+template <typename T> struct plus_or_null_func : std_binary_func< safe_plus_or_null<T>, T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
+};
+
+template <typename T> struct minus_or_null_func : std_binary_func< safe_minus_or_null<T>, T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
+};
+
+template <typename T> struct mul_func  : binary_func<T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	T operator()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(a) || !IsDefined(b))
+				return UNDEFINED_VALUE(T);
+		}
+
+		T result = a * b;
+
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (a && b && b != result / a)
+				throwOverflow("multiplying", a, "and", b);
+		}
+
+		return result;
+	}
+};
+
+template <typename T> struct mul_func< Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	mul_func<T> scalar_op;
+};
+
+template <typename T> struct mul_or_null_func : binary_func<T, T, T>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	T operator()(cref_t<T> a, cref_t<T> b) const
+	{
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(a) || !IsDefined(b))
+				return UNDEFINED_VALUE(T);
+		}
+
+		T result = a * b;
+
+		if constexpr (!std::is_floating_point_v<T>)
+		{
+			if (a && b && b != result / a)
+				return UNDEFINED_VALUE(T);
+		}
+
+		return result;
+	}
+};
+
+template <typename T> struct mul_or_null_func< Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
+{
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
+
+	Point<T> operator ()(Point<T> a, Point<T> b) const
+	{
+		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
+	}
+	mul_or_null_func<T> scalar_op;
 };
 
 template <typename T>
 struct mulx_func : binary_func<typename acc_type<T>::type, T, T>
 {
-	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const { return typename mulx_func::res_type(a1) * typename mulx_func::res_type(a2); }
+	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const 
+	{ 
+		return typename mulx_func::res_type(a1) * typename mulx_func::res_type(a2); 
+	}
 };
 
 template <typename R, typename T, typename U=T>
@@ -231,26 +429,32 @@ struct div_func_base: binary_func<R, T, U>
 {
 	typename div_func_base::res_type operator()(typename div_func_base::arg1_cref t1, typename div_func_base::arg2_cref t2) const
 	{ 
-		dms_assert(t1 != 0 || t1 == 0); // validates that T is a scalar
-		return
-				(	t2 != 0 // validates that U is a scalar 
-				&&	t2 != UNDEFINED_VALUE(U)
-				&&	t1 != UNDEFINED_VALUE(T)
-				)	
-			?	(Convert<typename div_func_base::res_type>(t1) / Convert<typename div_func_base::res_type>(t2))
-			:	UNDEFINED_VALUE(typename div_func_base::res_type);
+		assert(t1 != 0 || t1 == 0); // validates that T is a scalar
+		if (t2 == 0) // validates that U is a scalar 
+			return UNDEFINED_VALUE(typename div_func_base::res_type);
+		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		{
+			if (!IsDefined(t1))
+				return UNDEFINED_VALUE(typename div_func_base::res_type);
+		}
+		if constexpr (!std::is_floating_point_v<U> && has_undefines_v<U>)
+		{
+			if (!IsDefined(t2))
+				return UNDEFINED_VALUE(typename div_func_base::res_type);
+		}
+		return Convert<typename div_func_base::res_type>(t1) / Convert<typename div_func_base::res_type>(t2);
 	}
 };
 
-template <typename T, typename U = T> struct div_func_best: div_func_base<typename div_type<T>::type, T, U> {};
+template <typename R, typename T, typename U = T> struct div_func_best : div_func_base<R, T, U> {};
 
-template <typename T, typename U>
-struct div_func_best<Point<T>, U>
-	:	binary_func<Point<typename div_type<T>::type>, Point<T>, U >
+template <typename R, typename T, typename U>
+struct div_func_best<R, Point<T>, U>
+	:	binary_func<R, Point<T>, U >
 {
-	typedef typename div_type<T>::type      quotient_type;
-	typedef typename cref<Point<T> >::type  point_ref_type;
-	typedef div_func_base<quotient_type, U> base_func;
+	using quotient_type = div_type_t<T>;
+	using point_ref_type = cref<Point<T> >::type;
+	using base_func = div_func_best<quotient_type, U>;
 
 	Point<quotient_type> operator()(point_ref_type t1, typename base_func::arg2_cref t2) const
 	{
@@ -260,14 +464,14 @@ struct div_func_best<Point<T>, U>
 	base_func m_BaseFunc;
 };
 
-template <typename T, typename U>
-struct div_func_best<Point<T>, Point<U> >
-	: binary_func<Point<typename div_type<T>::type>, Point<T>, Point<U> >
+template <typename R, typename T, typename U>
+struct div_func_best<R, Point<T>, Point<U> >
+	: binary_func<R, Point<T>, Point<U> >
 {
-	typedef typename div_type<T>::type      quotient_type;
-	typedef typename cref<Point<T> >::type  point1_ref_type;
-	typedef typename cref<Point<U> >::type  point2_ref_type;
-	typedef div_func_base<quotient_type, T, U> base_func;
+	using quotient_type = scalar_of_t<R>;
+	using point1_ref_type = typename cref<Point<T> >::type;
+	using point2_ref_type = typename cref<Point<U> >::type;
+	using base_func = div_func_base<quotient_type, T, U>;
 
 	Point<quotient_type> operator()(point1_ref_type t1, point2_ref_type t2) const
 	{
@@ -277,18 +481,15 @@ struct div_func_best<Point<T>, Point<U> >
 	base_func m_BaseFunc;
 };
 
-template <typename T>
-struct div_func: binary_func<T, T, T >
+template <typename T> struct div_func : div_func_best<T, T, T> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return div_unit_creator(gr, args); }
-
-	typename div_func::res_type operator()(typename div_func::arg1_cref t1, typename div_func::arg2_cref t2) const
-	{ 
-		return (t2 != T())	
-			?	(t1 / t2)
-			:	UNDEFINED_VALUE(typename div_func::res_type);
-	}
 };
+
+template<typename T> struct is_safe_for_undefines<plus_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<minus_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<mul_func<T>> : std::true_type {};
+template<typename T> struct is_safe_for_undefines<div_func<T> > : std::true_type {};
 
 template <typename T> struct qint_t          { typedef Int64 type; };
 template <>           struct qint_t<Float32> { typedef Int32 type; };
@@ -338,7 +539,6 @@ struct strpos_func: binary_func<UInt32, SharedStr, SharedStr>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
 
-
 	UInt32 operator ()(typename strpos_func::arg1_cref arg1, typename strpos_func::arg2_cref arg2) const
 	{
 		arg1_cref::const_iterator p = std::search(arg1.begin(), arg1.end(), arg2.begin(), arg2.end());
@@ -365,7 +565,7 @@ struct strcount_func: binary_func<UInt32, SharedStr, SharedStr>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
 
-	UInt32 operator ()(typename strcount_func::arg1_cref arg1, typename strcount_func::arg2_cref arg2) const
+	UInt32 operator ()(cref_t<SharedStr> arg1, cref_t<SharedStr> arg2) const
 	{
 		return StrCount(arg1, arg2);
 	}

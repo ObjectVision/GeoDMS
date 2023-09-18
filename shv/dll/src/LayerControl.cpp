@@ -62,6 +62,17 @@ LayerHeaderControl::LayerHeaderControl(MovableObject* owner)
 	:	TextControl(owner, 2* DEF_TEXT_PIX_WIDTH)
 {}
 
+bool LayerHeaderControl::MouseEvent(MouseEventDispatcher& med)
+{
+	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+		if (auto owner = GetOwner().lock())
+			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
+				if (auto layer = lc->GetLayer())
+					if (auto attr = layer->GetActiveAttr())
+						CreateGotoAction(attr);
+	return false;
+}
+
 //----------------------------------------------------------------------
 // class  : LayerInfoControl
 //----------------------------------------------------------------------
@@ -106,7 +117,7 @@ LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSe
 {
 	SetRowSepHeight(0);
 	SetBorder(true);
-	dms_assert(m_LayerElem);
+	assert(m_LayerElem);
 }
 
 void LayerControlBase::Init()

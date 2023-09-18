@@ -97,12 +97,12 @@ STGDLL_CALL       AbstrUnit* GetGridDataDomainRW(TreeItem* storageHolder);
 
 STGDLL_CALL bool IsGridDomain(const AbstrUnit* au);
 STGDLL_CALL bool HasGridDomain(const AbstrDataItem* adi);
-STGDLL_CALL const AbstrDataItem* GetGridData(const TreeItem* storageHolder);
-STGDLL_CALL const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
-STGDLL_CALL const AbstrUnit* GridDomain(const AbstrDataItem* adi);
-STGDLL_CALL const AbstrUnit* CheckedGridDomain(const AbstrDataItem* adi);
+STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder);
+STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
+STGDLL_CALL SharedUnit GridDomain(const AbstrDataItem* adi);
+STGDLL_CALL SharedUnit CheckedGridDomain(const AbstrDataItem* adi);
 
-STGDLL_CALL const AbstrDataItem* GetPaletteData(const TreeItem* storageHolder);
+STGDLL_CALL SharedDataItem GetPaletteData(const TreeItem* storageHolder);
 
 inline bool HasPaletteData(const TreeItem* storageHolder) { return GetPaletteData(storageHolder) != nullptr; }
 

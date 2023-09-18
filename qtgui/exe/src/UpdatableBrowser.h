@@ -22,12 +22,16 @@ struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
     void restart_updating()
     {
         m_Waiter.start(this);
-        QTimer::singleShot(0, [this]()
+        QPointer<QUpdatableTextBrowser> self = this;
+        QTimer::singleShot(0, [self]()
             {
-                if (!this->update())
-                    this->restart_updating();
-                else
-                    this->m_Waiter.end();
+                if (self)
+                {
+                    if (!self->update())
+                        self->restart_updating();
+                    else
+                        self->m_Waiter.end();
+                }
             }
         );
     }

@@ -110,7 +110,7 @@ public:
 			auto tn = domainA->GetNrTiles();
 			auto wrappedValuesArray = MakeValuesArray(arg2A);
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && tn > arg2DomainA->GetNrTiles())
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res->GetLazyCalculatedState(), arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + : lookup"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), arg1A, dcmArg1, valuesA, arg2DomainA, wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + : lookup"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -126,7 +126,7 @@ public:
 		return true;
 	}
 	virtual bool MustCheckRange(const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain) const =0;
-	virtual auto CreateFutureTileFunctor(bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray, tile_id t) const =0;
 	virtual std::any MakeValuesArray(const AbstrDataItem* arg2A) const = 0;
 };
@@ -169,7 +169,7 @@ public:
 	}
 
 
-	auto CreateFutureTileFunctor(bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* valuesA, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		assert(valuesA);
 		assert(arg2DomainA);
@@ -188,7 +188,7 @@ public:
 		dms_assert(valuesData);
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<V>::seq_t resData, prepare_data futureData)
 			{

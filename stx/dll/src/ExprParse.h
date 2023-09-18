@@ -146,6 +146,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
 			strlit<>    C_OR("||");
 			strlit<>    P_OR("or");
+			strlit<>    P_SCOPE("scope");
 
 
 			chlit<>     C_IF('?');
@@ -238,6 +239,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			element = // expr4
 				numericValueElement
 				| stringValueElement
+				| scopeCall // requires specific production at html, not for keyExpr generation
 				| functionCallOrIdentifier // expr5
 				//				|	dots
 				| (LBRACK >> exprList >> RBRACK)[syntaxError("value-array syntax in expression NYI")]
@@ -270,6 +272,13 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			
 			nonEmptyExprList
 				=	expression % COMMA;
+
+//			if (mustScanScope)
+				scopeCall 
+					= P_SCOPE 
+					>> LPAREN >> identifier[([&](...) { cp.RefocusAfterScope(); })]
+					>> COMMA  >> expression
+					>> RPAREN [([&](...) { cp.ProdScope(); })];
 
 			functionCallOrIdentifier
 				 = identifier 
@@ -304,7 +313,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			element, numericValueElement, suffix, stringValueElement,
 			exprList,
 			nonEmptyExprList,
-			functionCallOrIdentifier, identifier, // dots, 
+			scopeCall, functionCallOrIdentifier, identifier, // dots, 
 			unsignedInteger, unsignedReal;
 	};
 };

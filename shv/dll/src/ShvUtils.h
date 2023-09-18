@@ -82,6 +82,7 @@ SHV_CALL HINSTANCE GetInstance(HWND hWnd);
 //----------------------------------------------------------------------
 
 void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpenDetailsPage);
+void CreateGotoAction(const TreeItem* tiContext);
 
 //----------------------------------------------------------------------
 // section : Transform to projection
