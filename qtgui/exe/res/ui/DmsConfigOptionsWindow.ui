@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>470</width>
+    <width>488</width>
     <height>106</height>
    </rect>
   </property>
@@ -32,7 +32,6 @@
       <widget class="QLabel" name="lbl_configured_or_overridden_value">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -45,7 +44,6 @@
       <widget class="QLabel" name="lbl_override">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -58,7 +56,6 @@
       <widget class="QLabel" name="lbl_option">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -88,7 +85,6 @@
       <widget class="QLabel" name="lbl_title">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
