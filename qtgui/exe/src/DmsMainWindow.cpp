@@ -183,10 +183,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
 
-    m_file_changed_window = new DmsFileChangedWindow(this);
-    m_error_window = new DmsErrorWindow(this);
-    m_export_window = new DmsExportWindow(this);
-
     m_mdi_area = new QDmsMdiArea(this);
 
     // fonts
@@ -197,6 +193,9 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
     
+    m_file_changed_window = new DmsFileChangedWindow(this);
+    m_error_window = new DmsErrorWindow(this);
+    m_export_window = new DmsExportWindow(this);
 
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
