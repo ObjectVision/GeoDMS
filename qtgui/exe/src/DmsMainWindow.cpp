@@ -1042,7 +1042,7 @@ void MainWindow::gui_options()
 void MainWindow::advanced_options()
 {
     // Modal
-    auto optionsWindow = new DmsAdvancedOptionsWindow(this);
+    auto optionsWindow = new DmsLocalMachineOptionsWindow(this);
     optionsWindow->show();
 }
 
