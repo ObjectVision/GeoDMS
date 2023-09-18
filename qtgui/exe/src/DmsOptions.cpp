@@ -244,7 +244,7 @@ void DmsGuiOptionsWindow::cancel()
 //======== BEGIN GUI OPTIONS WINDOW ========
 
 //======== BEGIN ADVANCED OPTIONS WINDOW ========
-DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
+DmsLocalMachineOptionsWindow::DmsLocalMachineOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setupUi(this);
@@ -255,15 +255,15 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_file_dialog = new QFileDialog(this);
     m_file_dialog->setFileMode(QFileDialog::FileMode::ExistingFile);
 
-    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
-    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
-    connect(m_editor_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
-    connect(m_editor_parameters_input, &QLineEdit::textChanged, this, &DmsAdvancedOptionsWindow::onTextChange);
+    connect(m_ld_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
+    connect(m_sd_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
+    connect(m_editor_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
+    connect(m_editor_parameters_input, &QLineEdit::textChanged, this, &DmsLocalMachineOptionsWindow::onTextChange);
 
-    connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog);
-    connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog);
-    connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setEditorProgramThroughDialog);
-    connect(m_set_editor_parameters, &QPushButton::clicked, this, &DmsAdvancedOptionsWindow::setDefaultEditorParameters);
+    connect(m_ld_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setLocalDataDirThroughDialog);
+    connect(m_sd_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setSourceDataDirThroughDialog);
+    connect(m_editor_folder_dialog, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setEditorProgramThroughDialog);
+    connect(m_set_editor_parameters, &QPushButton::clicked, this, &DmsLocalMachineOptionsWindow::setDefaultEditorParameters);
     m_ld_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
     m_ld_folder_dialog->setText("");
     m_sd_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
@@ -271,29 +271,31 @@ DmsAdvancedOptionsWindow::DmsAdvancedOptionsWindow(QWidget* parent)
     m_editor_folder_dialog->setIcon(QIcon(":/res/images/DP_explore.bmp"));
     m_editor_folder_dialog->setText("");
     m_pp_info->setIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+    m_param_info->setIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+    m_tmf_info->setIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
 
     // parallel processing
     m_pp0->setChecked(IsMultiThreaded0());
     m_pp1->setChecked(IsMultiThreaded1());
     m_pp2->setChecked(IsMultiThreaded2());
     m_pp3->setChecked(IsMultiThreaded3());
-    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
-    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
-    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
-    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_pp0, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    connect(m_pp1, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    connect(m_pp2, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
+    connect(m_pp3, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
 
     // flush treshold
     m_flush_treshold->setTickPosition(QSlider::TickPosition::TicksBelow);
-    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsAdvancedOptionsWindow::onFlushTresholdValueChange);
-    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsAdvancedOptionsWindow::onStateChange);
+    connect(m_flush_treshold, &QSlider::valueChanged, this, &DmsLocalMachineOptionsWindow::onFlushTresholdValueChange);
+    connect(m_tracelog, &QCheckBox::stateChanged, this, &DmsLocalMachineOptionsWindow::onStateChange);
 
     // ok/apply/cancel buttons
     m_ok->setAutoDefault(true);
     m_ok->setDefault(true);
     m_undo->setDisabled(true);
-    connect(m_ok, &QPushButton::released, this, &DmsAdvancedOptionsWindow::ok);
-    connect(m_cancel, &QPushButton::released, this, &DmsAdvancedOptionsWindow::cancel);
-    connect(m_undo, &QPushButton::released, this, &DmsAdvancedOptionsWindow::restoreOptions);
+    connect(m_ok, &QPushButton::released, this, &DmsLocalMachineOptionsWindow::ok);
+    connect(m_cancel, &QPushButton::released, this, &DmsLocalMachineOptionsWindow::cancel);
+    connect(m_undo, &QPushButton::released, this, &DmsLocalMachineOptionsWindow::restoreOptions);
 
     restoreOptions();
     onFlushTresholdValueChange(m_flush_treshold->value());
@@ -325,17 +327,17 @@ void setInitialStringValue(string_option so, QLineEdit* widget)
     widget->setText(regKey.c_str());
 }
 
-void DmsAdvancedOptionsWindow::setInitialLocalDataDirValue()
+void DmsLocalMachineOptionsWindow::setInitialLocalDataDirValue()
 {
     setInitialStringValue(string_option::LocalDataDir, m_ld_input);
 }
 
-void DmsAdvancedOptionsWindow::setInitialSourceDatDirValue()
+void DmsLocalMachineOptionsWindow::setInitialSourceDatDirValue()
 {
     setInitialStringValue(string_option::SourceDataDir, m_sd_input);
 }
 
-void DmsAdvancedOptionsWindow::setInitialEditorValue()
+void DmsLocalMachineOptionsWindow::setInitialEditorValue()
 {
     const auto& editorOptionsData = sStringOptionsData[string_option::StartEditorCmd];
     auto regKeyName = editorOptionsData.reg_key;
@@ -368,13 +370,13 @@ void DmsAdvancedOptionsWindow::setInitialEditorValue()
     m_editor_parameters_input->setText(editor_arguments);
 }
 
-void DmsAdvancedOptionsWindow::setInitialMemoryFlushTresholdValue()
+void DmsLocalMachineOptionsWindow::setInitialMemoryFlushTresholdValue()
 {
     auto flush_treshold = RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold);
     m_flush_treshold->setValue(flush_treshold);
 }
 
-void DmsAdvancedOptionsWindow::restoreOptions()
+void DmsLocalMachineOptionsWindow::restoreOptions()
 {
     {
         const QSignalBlocker blocker1(m_ld_input);
@@ -400,13 +402,13 @@ void DmsAdvancedOptionsWindow::restoreOptions()
     setChanged(false);
 }
 
-void DmsAdvancedOptionsWindow::cancel()
+void DmsLocalMachineOptionsWindow::cancel()
 {
     restoreOptions();
     done(QDialog::Accepted);
 }
 
-void DmsAdvancedOptionsWindow::apply()
+void DmsLocalMachineOptionsWindow::apply()
 {
     SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString());
     SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString());
@@ -427,31 +429,31 @@ void DmsAdvancedOptionsWindow::apply()
     setChanged(false);
 }
 
-void DmsAdvancedOptionsWindow::setChanged(bool isChanged)
+void DmsLocalMachineOptionsWindow::setChanged(bool isChanged)
 {
     m_changed = isChanged;
     //m_cancel->setEnabled(isChanged);
     m_undo->setEnabled(isChanged);
 }
 
-void DmsAdvancedOptionsWindow::ok()
+void DmsLocalMachineOptionsWindow::ok()
 {
     if (m_changed)
         apply();
     done(QDialog::Accepted);
 }
 
-void DmsAdvancedOptionsWindow::onStateChange()
+void DmsLocalMachineOptionsWindow::onStateChange()
 {
     setChanged(true);
 }
 
-void DmsAdvancedOptionsWindow::onTextChange()
+void DmsLocalMachineOptionsWindow::onTextChange()
 {
     setChanged(true);
 }
 
-void DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog()
+void DmsLocalMachineOptionsWindow::setLocalDataDirThroughDialog()
 {
     auto new_local_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open LocalData Directory"), m_ld_input->text(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
@@ -460,7 +462,7 @@ void DmsAdvancedOptionsWindow::setLocalDataDirThroughDialog()
         m_ld_input->setText(new_local_data_dir_folder);
 }
 
-void DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog()
+void DmsLocalMachineOptionsWindow::setSourceDataDirThroughDialog()
 {
     auto new_source_data_dir_folder = m_folder_dialog->QFileDialog::getExistingDirectory(this, tr("Open SourceData Directory"), m_sd_input->text(),
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
@@ -468,14 +470,14 @@ void DmsAdvancedOptionsWindow::setSourceDataDirThroughDialog()
         m_sd_input->setText(new_source_data_dir_folder);
 }
 
-void DmsAdvancedOptionsWindow::setEditorProgramThroughDialog()
+void DmsLocalMachineOptionsWindow::setEditorProgramThroughDialog()
 {
     auto new_editor_program = m_folder_dialog->QFileDialog::getOpenFileName(this, tr("Select Editor Program"), "C:/Program Files", tr("Exe files (*.exe)"));;
     if (!new_editor_program.isEmpty())
         m_editor_input->setText("\"" + new_editor_program + "\""); // set quoted .exe editor program
 }
 
-void DmsAdvancedOptionsWindow::setDefaultEditorParameters()
+void DmsLocalMachineOptionsWindow::setDefaultEditorParameters()
 {
     auto editor_program = m_editor_input->text();
     if (editor_program.contains("notepad++", Qt::CaseInsensitive))
@@ -484,7 +486,7 @@ void DmsAdvancedOptionsWindow::setDefaultEditorParameters()
         m_editor_parameters_input->setText("/L:%L \"%F\"");
 }
 
-void DmsAdvancedOptionsWindow::onFlushTresholdValueChange(int value)
+void DmsLocalMachineOptionsWindow::onFlushTresholdValueChange(int value)
 {
     m_flush_treshold_text->setText(QString::number(value).rightJustified(3, ' ') + "%");
     setChanged(true);
