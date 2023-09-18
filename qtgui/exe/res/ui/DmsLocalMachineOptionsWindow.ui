@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>616</width>
-    <height>622</height>
+    <height>628</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -164,6 +164,7 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <bold>true</bold>
         </font>
        </property>
        <property name="autoFillBackground">
@@ -176,7 +177,7 @@
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Paths &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Paths</string>
        </property>
       </widget>
      </item>
@@ -399,7 +400,6 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -413,7 +413,10 @@
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Logging &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Logging</string>
+       </property>
+       <property name="textFormat">
+        <enum>Qt::PlainText</enum>
        </property>
       </widget>
      </item>
@@ -544,6 +547,7 @@ For Notepad ++ the advised default parameters are:
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <bold>true</bold>
         </font>
        </property>
        <property name="autoFillBackground">
@@ -556,7 +560,7 @@ For Notepad ++ the advised default parameters are:
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel Processing&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Parallel Processing</string>
        </property>
       </widget>
      </item>
@@ -598,7 +602,6 @@ For Notepad ++ the advised default parameters are:
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -612,7 +615,7 @@ For Notepad ++ the advised default parameters are:
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Treshold for memory flushing wait procedure &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Treshold for memory flushing wait procedure</string>
        </property>
       </widget>
      </item>
@@ -652,6 +655,7 @@ In most cases we advice to use a value between 80% and 90%.</string>
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <bold>true</bold>
         </font>
        </property>
        <property name="autoFillBackground">
@@ -664,7 +668,7 @@ In most cases we advice to use a value between 80% and 90%.</string>
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Configuration File  Editor &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Configuration File  Editor</string>
        </property>
       </widget>
      </item>
