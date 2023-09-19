@@ -374,6 +374,6 @@ namespace
 	struct GridDistOperSet : tl_oper::inst_tuple<typelists::domain_points, GridDistOperator<Imp, _>>
 	{};
 
-	tl_oper::inst_tuple<typelists::floats, GridDistOperSet<_>> gridDistOperSets;
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets;
 
 }

@@ -968,16 +968,16 @@ struct OuterPolygonOperator : public AbstrOuterOperator
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::points, SimplifyLinestringOperator<_>> simplifyLineStringOperators;
-	tl_oper::inst_tuple<typelists::points, SimplifyMultiPolygonOperator<_>> simplifyMultiPolygonOperators;
-	tl_oper::inst_tuple<typelists::points, SimplifyPolygonOperator<_>> simplifyPolygonOperators;
-	tl_oper::inst_tuple<typelists::points, BufferPointOperator<_>> bufferPointOperators;
-	tl_oper::inst_tuple<typelists::points, BufferMultiPointOperator<_>> bufferMultiPointOperators;
-	tl_oper::inst_tuple<typelists::points, BufferLineStringOperator<_>> bufferLineStringOperators;
-	tl_oper::inst_tuple<typelists::points, BufferPolygonOperator<_>> bufferPolygonOperators;
-	tl_oper::inst_tuple<typelists::points, BufferMultiPolygonOperator<_>> bufferMultiPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
+	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BufferPolygonOperator> bufferPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator> bufferMultiPolygonOperators;
 
-	tl_oper::inst_tuple<typelists::points, OuterPolygonOperator<_>> outerPolygonOperators;
-	tl_oper::inst_tuple<typelists::points, OuterMultiPolygonOperator<_>> outerMultiPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, OuterPolygonOperator> outerPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators;
 }
 

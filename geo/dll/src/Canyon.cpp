@@ -356,7 +356,7 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::seq_signed_points, CanyonOperator<_> > canyonOperators;
+	tl_oper::inst_tuple_templ<typelists::seq_signed_points, CanyonOperator > canyonOperators;
 }
 
 /******************************************************************************/

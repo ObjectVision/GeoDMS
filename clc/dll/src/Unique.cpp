@@ -307,7 +307,7 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::value_elements, UniqueOperator<_>, AbstrOperGroup&, const UnitClass*> 
+	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*>
 		uniqueOperatorsXX(cog_unique, nullptr)
 	, uniqueOperators64(cog_unique64, Unit<UInt64>::GetStaticClass())
 	, uniqueOperators32(cog_unique32, Unit<UInt32>::GetStaticClass())

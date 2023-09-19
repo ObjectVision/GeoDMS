@@ -1961,9 +1961,9 @@ namespace
 
 	};
 
-	tl_oper::inst_tuple<typelists::seq_points , SequenceOperators <_>> seqOperPointInstances;
-	tl_oper::inst_tuple<typelists::num_objects, SequenceOperators <_>> seqOperNumericInstances;
-	tl_oper::inst_tuple<typelists::seq_points , GeometricOperators<_>> pointOperInstances;
+	tl_oper::inst_tuple_templ<typelists::seq_points , SequenceOperators > seqOperPointInstances;
+	tl_oper::inst_tuple_templ<typelists::num_objects, SequenceOperators > seqOperNumericInstances;
+	tl_oper::inst_tuple_templ<typelists::seq_points , GeometricOperators> pointOperInstances;
 }
 
 /******************************************************************************/

@@ -1100,7 +1100,7 @@ namespace
 			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
 		{}
 
-		tl_oper::inst_tuple<typelists::sint_points, PolygonOperator<_>, std::pair<AbstrOperGroup*, PolygonFlags>>
+		tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
 			m_Instances;
 	};
 
@@ -1147,8 +1147,8 @@ namespace
 		{}
 	};
 
-	tl_oper::inst_tuple<typelists::sint_points, PolygonOverlayOperator     <_>> polygonOverlayOperators;
-	tl_oper::inst_tuple<typelists::sint_points, PolygonConnectivityOperator<_>>	polygonConnectivityOperators;
+	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOverlayOperator     > polygonOverlayOperators;
+	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());
 	PolyOperatorGroupsss f2 (SharedStr(""),          PolygonFlags());

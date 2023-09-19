@@ -404,8 +404,13 @@ struct BinaryAttrFuncOper : BinaryAttrOper<typename BinOper::res_type, typename 
 
 template <typename TL, template <typename T> class MetaFunc>
 struct BinaryInstantiation{
-	using OperTemplate = BinaryAttrFuncOper<MetaFunc<_> > ;
-	tl_oper::inst_tuple<TL, OperTemplate, AbstrOperGroup*> m_OperList;
+
+	template <typename T> struct OperTemplate : BinaryAttrFuncOper<MetaFunc<T> > 
+	{
+		using BinaryAttrFuncOper<MetaFunc<T> >::BinaryAttrFuncOper; // <MetaFunc<T> >; // inherit constructors
+	};
+
+	tl_oper::inst_tuple_templ<TL, OperTemplate, AbstrOperGroup*> m_OperList;
 
 	BinaryInstantiation(AbstrOperGroup* gr)
 		: m_OperList(gr)
@@ -600,5 +605,5 @@ namespace {
 	CommonOperGroup cogStrCount("strcount");
 	BinaryAttrFuncOper<strcount_func> g_StrCountU(&cogStrCount);
 
-	tl_oper::inst_tuple<typelists::floats, String2Operator<_> > string2Opers;
+	tl_oper::inst_tuple_templ<typelists::floats, String2Operator > string2Opers;
 } // namespace

@@ -383,7 +383,7 @@ namespace
 		UnionDataOperator<X> unionData;
 	};
 
-	tl_oper::inst_tuple<typelists::value_elements, UnionOpers<_> > instUnionOpers;
+	tl_oper::inst_tuple_templ<typelists::value_elements, UnionOpers > instUnionOpers;
 	UnionUnitOperator<UInt32> unionUnit(cog_unionUnit);
 	UnionUnitOperator<UInt8 > unionUnit08(cog_unionUnit08);
 	UnionUnitOperator<UInt16> unionUnit16(cog_unionUnit16);

@@ -120,7 +120,7 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::domain_elements, IDOperator<_> >
+	tl_oper::inst_tuple_templ<typelists::domain_elements, IDOperator > 
 		operInstances;
 } // end anonymous namespace
 

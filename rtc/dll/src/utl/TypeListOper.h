@@ -69,24 +69,19 @@ namespace tl_oper
 				U m_Second;
 			};
 		};
+		template <template <typename T> typename F, typename... Args>
+		struct constructed_pair_templ_functor {
+			template <typename T, typename U>
+			struct cpair
+			{
+				cpair(typename param_type<Args>::type... args) : m_First(args...), m_Second(args...) {}
+				F<T> m_First;
+				U m_Second;
+			};
+		};
 	}
-/* REMOVE
-	template<typename TL, typename... Args>
-	struct tuple
-		: boost::mpl::fold< TL
-			, impl::empty_base<Args...>
-			, typename impl::constructed_pair_functor<Args...>::template cpair<boost::mpl::_2, boost::mpl::_1>
-		>
-	{
-		using typename fold::type;
 
-		tuple(Args...args)
-			: m_TupleData(std::move(args)...)
-		{}
-
-		type m_TupleData;
-	};
-	*/
+	// =================== using boost::mpl 
 
 	template<typename TL, typename... Args>
 	struct tuple_func
@@ -106,6 +101,32 @@ namespace tl_oper
 
 		typename tuple_func<tl::transform<TL, F>, Args... >::type m_InstTupleData;
 	};
+
+	// =================== end using boost::mpl 
+
+	template<typename TL, template <typename T> typename F, typename... Args>
+	struct tuple_templ_func
+	{
+		using type = typename boost::mpl::fold< TL
+			, impl::empty_base<Args...>
+			, typename impl::constructed_pair_templ_functor<F, Args...>::template cpair<boost::mpl::_2, boost::mpl::_1>
+		>::type;
+	};
+
+	template<typename TL, template <typename T> typename F, typename... Args>
+	using inst_tuple_templ = typename tuple_templ_func<TL, F, Args...>::type;
+
+	/*
+	template<typename TL, template <typename T> typename F, typename... Args>
+	struct inst_tuple_templ
+	{
+		inst_tuple_templ(Args...args)
+			: m_InstTupleData(args...)
+		{}
+
+		tuple_templ_func_t<TL, F, Args... > m_InstTupleData;
+	};
+	*/
 
 }	// namespace tl_oper
 

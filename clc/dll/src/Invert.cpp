@@ -219,6 +219,6 @@ public:
 
 	};
 
-	tl_oper::inst_tuple<typelists::domain_elements, InvertOperators<_> > invertOperators;
+	tl_oper::inst_tuple_templ<typelists::domain_elements, InvertOperators > invertOperators;
 
 } // end anonymous namespace

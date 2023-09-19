@@ -362,4 +362,17 @@ inline ReturnType SqrDist(PU p1, PU p2)
 	return Norm<ReturnType>(p1-p2);
 }
 
+template <typename T> struct is_fixed_size_element : is_numeric<T> {};
+template <typename T> struct is_fixed_size_element<Point<T>> : is_fixed_size_element<T> {};
+template <typename T> struct is_fixed_size_element<Range<T>> : is_fixed_size_element<T> {};
+
+template <typename T> constexpr bool is_fixed_size_element_v = is_fixed_size_element<T>::value;
+template <typename T> concept FixedSizeElement = is_fixed_size_element_v<T>;
+
+template <typename T> struct is_point_type : std::false_type {};
+template <typename T> struct is_point_type<Point<T>> :std::true_type {};
+
+template <typename T> constexpr bool is_point_type_v = is_point_type<T>::value;
+template <typename T> concept PointType = is_point_type_v<T>;
+
 #endif // __RTC_GEO_POINT_H

@@ -352,20 +352,11 @@ private:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> struct make_direct   { typedef OperAccPartUniDirect  <TAcc1Func> type; };
-template <class TAcc1Func> struct make_buffered { typedef OperAccPartUniBuffered<TAcc1Func> type; };
+template <class TAcc1Func> struct make_direct   { using type = OperAccPartUniDirect  <TAcc1Func>; };
+template <class TAcc1Func> struct make_buffered { using type = OperAccPartUniBuffered<TAcc1Func>; };
 
 template <class TAcc1Func> using base_of = std::conditional_t< impl::has_dms_result_type<TAcc1Func>::value,	make_buffered<TAcc1Func>, make_direct<TAcc1Func> >;
-
-template <class TAcc1Func> 
-struct OperAccPartUniBest: base_of<TAcc1Func>
-{
-	OperAccPartUniBest(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	base_of<TAcc1Func>(gr, acc1Func)
-	{}
-};
-
-
+template <class TAcc1Func> using OperAccPartUniBest = typename base_of<TAcc1Func>::type;
 
 template <typename TAcc1Func>
 void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())

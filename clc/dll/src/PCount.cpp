@@ -241,11 +241,11 @@ namespace {
 		};
 	};
 
-	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator<_>, AbstrOperGroup& > partCountOpers(cog_pcount);
-	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator<_>, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
-	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator<_>, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
-	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator<_>, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
-	tl_oper::inst_tuple<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator<_>, AbstrOperGroup& > partCountOpers64(cog_pcount_uint64);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator, AbstrOperGroup& > partCountOpers(cog_pcount);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator, AbstrOperGroup& > partCountOpers64(cog_pcount_uint64);
 
 	tl_oper::inst_tuple<typelists::partition_elements, HasAnyOperatorGenerator::Operator<_>, AbstrOperGroup& > hasAnyOpers(cog_has_any);
 } // end anonymous namespace
