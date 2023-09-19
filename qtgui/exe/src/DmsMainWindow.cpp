@@ -221,7 +221,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
         else
-            currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
+        {
+            if (cmdLineSettings.m_CurrItemFullNames.size())
+                currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
+        }
         if (!cmdLineSettings.m_ConfigFileName.empty())
            LoadConfig(cmdLineSettings.m_ConfigFileName.c_str(), currentItemPath);
     }
