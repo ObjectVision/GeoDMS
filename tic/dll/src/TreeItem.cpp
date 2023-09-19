@@ -1499,7 +1499,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	assert(ids.second.second == subItemNames.second);
 	if (ids.second.first == subItemNames.first) // subItemNames is an atomic token
 	{	
-		dms_assert(!ids.second.empty());
+		assert(!ids.second.empty());
 		if (ids.second.first[0] == '.')
 			return FollowDots(ids.second);
 
@@ -1511,7 +1511,11 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	}
 	SharedTreeItem parent = nullptr;
 	if (ids.first.empty()) // We start at root.
-		parent = SessionData::Curr()->GetConfigRoot();
+	{
+		MG_CHECK(!IsCacheItem());
+		MG_CHECK(!IsPassor());
+		parent = static_cast<const TreeItem*>(GetRoot());
+	}
 	else
 		parent = FindItem(ids.first);
 
