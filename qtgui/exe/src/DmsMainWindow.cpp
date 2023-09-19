@@ -914,6 +914,15 @@ bool MainWindow::event(QEvent* event)
             });
     }
 
+    if (event->type() == QEvent::WindowStateChange && windowState() == Qt::WindowState::WindowMaximized)
+    {
+        int default_treeview_treshold = 100;
+        int default_treeview_width = 200;
+        auto curr_treeview_dock_width = m_treeview_dock->width();
+        if (curr_treeview_dock_width < default_treeview_treshold)
+            resizeDocks({ m_treeview_dock }, { default_treeview_width }, Qt::Horizontal);
+    }
+
     return QMainWindow::event(event);
 }
 
