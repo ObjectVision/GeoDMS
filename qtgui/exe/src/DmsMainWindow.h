@@ -18,6 +18,7 @@
 #include <QTextBrowser>
 #include <QListView>
 #include <QMenu>
+#include <QWidgetAction>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -56,7 +57,7 @@ class DmsCurrentItemBar : public QLineEdit
 {
 Q_OBJECT
 public:
-    using QLineEdit::QLineEdit;
+    DmsCurrentItemBar(QWidget* parent = nullptr);
     void setDmsCompleter();
     void setPath(CharPtr itemPath);
 
@@ -111,22 +112,28 @@ protected:
     void paintEvent(QPaintEvent* event);
 };
 
-class DmsRecentFileSubmenu : public QMenu
+class DmsRecentFileEntry : public QAction
 {
     Q_OBJECT
 
 public:
-    DmsRecentFileSubmenu(size_t index, std::string_view dms_file_full_path, QWidget* parent = nullptr);
+    DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
     std::string m_cfg_file_path;
     size_t m_index = 0;
     DmsConfigTextButton* m_config_text;
+    std::unique_ptr<QMenu> m_context_menu;
+
 protected:
-    void mousePressEvent(QMouseEvent* event) override;
+    bool eventFilter(QObject* obj, QEvent* ev) override;
+
 
 public slots:
     void onDeleteRecentFileEntry();
+    void onFileEntryContextMenuRequested(QPoint pos);
     void onFileEntryPressed();
 
+private:
+    void showRecentFileContextMenu(QPoint pos);
 };
 
 struct CmdLineSetttings {
@@ -359,7 +366,7 @@ public:
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
     //QList<QWidgetAction*> m_recent_files_actions;
-    QList<DmsRecentFileSubmenu*> m_recent_file_submenus;
+    QList<DmsRecentFileEntry*> m_recent_file_entries;
 
 private:
     std::vector<processing_record> m_processing_records;
