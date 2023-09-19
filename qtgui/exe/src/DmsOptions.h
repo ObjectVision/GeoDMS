@@ -70,11 +70,11 @@ private:
     bool m_changed = false;
 };
 
-class DmsAdvancedOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
+class DmsLocalMachineOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
 {
     Q_OBJECT
 public:
-    DmsAdvancedOptionsWindow(QWidget* parent = nullptr);
+    DmsLocalMachineOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
     void onFlushTresholdValueChange(int value);

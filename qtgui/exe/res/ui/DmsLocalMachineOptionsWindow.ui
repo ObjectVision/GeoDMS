@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>607</width>
-    <height>622</height>
+    <width>617</width>
+    <height>628</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -73,7 +73,6 @@
       <widget class="QLabel" name="lbl_max">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -164,6 +163,8 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
         </font>
        </property>
        <property name="autoFillBackground">
@@ -176,7 +177,7 @@
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Paths &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Paths</string>
        </property>
       </widget>
      </item>
@@ -184,33 +185,11 @@
       <widget class="QLabel" name="lbl_title">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
         <string>Settings for your local machine</string>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0" colspan="3">
-      <widget class="QLabel" name="lbl_script">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-        </font>
-       </property>
-       <property name="autoFillBackground">
-        <bool>true</bool>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::Box</enum>
-       </property>
-       <property name="lineWidth">
-        <number>0</number>
-       </property>
-       <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>
@@ -237,7 +216,6 @@
       <widget class="QLabel" name="lbl_applications_2">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -250,7 +228,6 @@
       <widget class="QLabel" name="lbl_applications">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -280,45 +257,23 @@
        </property>
       </widget>
      </item>
-     <item row="12" column="0" colspan="3">
-      <widget class="QLabel" name="lbl_parallel_processing">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-        </font>
-       </property>
-       <property name="autoFillBackground">
-        <bool>true</bool>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::Box</enum>
-       </property>
-       <property name="lineWidth">
-        <number>0</number>
-       </property>
-       <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel Processing&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_localdata">
-       <property name="font">
-        <font>
-         <family>MS Shell Dlg 2</family>
-         <pointsize>10</pointsize>
-        </font>
-       </property>
-       <property name="text">
-        <string>Local Data: </string>
-       </property>
-      </widget>
-     </item>
      <item row="5" column="2" colspan="8">
-      <widget class="QLineEdit" name="m_sd_input"/>
+      <widget class="QLineEdit" name="m_sd_input">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+      </widget>
      </item>
      <item row="9" column="2" colspan="8">
-      <widget class="QLineEdit" name="m_editor_input"/>
+      <widget class="QLineEdit" name="m_editor_input">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+      </widget>
      </item>
      <item row="3" column="0" colspan="11">
       <widget class="Line" name="line">
@@ -343,45 +298,11 @@
       <widget class="QLabel" name="lbl_sourcedata">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
         <string>Source Data: </string>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="3">
-      <widget class="QPushButton" name="m_pp_info">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="cursor">
-        <cursorShape>WhatsThisCursor</cursorShape>
-       </property>
-       <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously by using multiple cores that perform tasks in separate threads.&lt;/p&gt;&lt;p&gt;The current options are:
-&lt;ol&gt;
-&lt;li&gt;keeps the GUI responsive by suspending further calculation steps whenever user events are queued, and resume these when idle.&lt;/li&gt;
-&lt;li&gt;split up operations into separate tasks per data-segment.&lt;/li&gt;
-&lt;li&gt;performs multiple operations simultaneously.&lt;/li&gt;
-&lt;li&gt;pipeline data-segment processing by delaying data-segment production to the taks that requests such segments.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/p&gt;&lt;p&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting.&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>../images/DP_ValueInfo.bmp</normaloff>../images/DP_ValueInfo.bmp</iconset>
-       </property>
-       <property name="flat">
-        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -396,7 +317,6 @@
       <widget class="QLabel" name="lbl_current_flush_value">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -412,7 +332,6 @@
       <widget class="QLabel" name="m_flush_treshold_text">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -432,7 +351,6 @@
       <widget class="QLabel" name="lbl_min">
        <property name="font">
         <font>
-         <family>MS Shell Dlg 2</family>
          <pointsize>10</pointsize>
         </font>
        </property>
@@ -460,29 +378,6 @@
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item row="17" column="0" colspan="7">
-      <widget class="QLabel" name="lbl_memory_flushing">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="autoFillBackground">
-        <bool>true</bool>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::Box</enum>
-       </property>
-       <property name="lineWidth">
-        <number>0</number>
-       </property>
-       <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Treshold for memory flushing wait procedure &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>
@@ -524,7 +419,10 @@
         <number>0</number>
        </property>
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Logging &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Logging</string>
+       </property>
+       <property name="textFormat">
+        <enum>Qt::PlainText</enum>
        </property>
       </widget>
      </item>
@@ -544,10 +442,21 @@
       </widget>
      </item>
      <item row="4" column="2" colspan="8">
-      <widget class="QLineEdit" name="m_ld_input"/>
+      <widget class="QLineEdit" name="m_ld_input">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+      </widget>
      </item>
      <item row="5" column="10">
       <widget class="QPushButton" name="m_sd_folder_dialog">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>...</string>
        </property>
@@ -559,6 +468,11 @@
      </item>
      <item row="4" column="10">
       <widget class="QPushButton" name="m_ld_folder_dialog">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>...</string>
        </property>
@@ -607,13 +521,199 @@
      </item>
      <item row="10" column="7" colspan="4">
       <widget class="QPushButton" name="m_set_editor_parameters">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
-        <string>Set default parameters for application</string>
+        <string>Set default parameters for editor</string>
        </property>
       </widget>
      </item>
-     <item row="10" column="2" colspan="5">
-      <widget class="QLineEdit" name="m_editor_parameters_input"/>
+     <item row="10" column="2" colspan="4">
+      <widget class="QLineEdit" name="m_editor_parameters_input">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="6">
+      <widget class="QPushButton" name="m_param_info">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;B&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor Parameters&lt;/span&gt;&lt;/B&gt;
+
+&lt;BR&gt;&lt;BR&gt;
+These parameters are used to start the Script Editor with the relevant configuration file and at a requested line.
+
+For Notepad ++ the advised default parameters are:
+&lt;ol&gt;
+
+&lt;li&gt;&lt;B&gt;&quot;%F&quot;:&lt;/B&gt; %F is a placeholder for the full path of the configuration file to be opened.The double quotes are added to also support full paths with spaces.&lt;/li&gt;
+&lt;li&gt; &lt;B&gt;-n%L:&lt;/B&gt; -n  is used by Notepad ++ to highlight the line specified. The %L syntax results in the requested line number.&lt;/li&gt; 
+
+&lt;/ol&gt;
+
+&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../images/DP_ValueInfo.bmp</normaloff>../images/DP_ValueInfo.bmp</iconset>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_parallel_processing">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="lineWidth">
+        <number>0</number>
+       </property>
+       <property name="text">
+        <string>Parallel Processing</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="2">
+      <widget class="QPushButton" name="m_pp_info">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="cursor">
+        <cursorShape>WhatsThisCursor</cursorShape>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Parallel processing &lt;/span&gt;is a type of computation in which many calculations are carried out simultaneously by using multiple cores that perform tasks in separate threads.&lt;/p&gt;&lt;p&gt;The current options are:
+&lt;ol&gt;
+&lt;li&gt;keeps the GUI responsive by suspending further calculation steps whenever user events are queued, and resume these when idle.&lt;/li&gt;
+&lt;li&gt;split up operations into separate tasks per data-segment.&lt;/li&gt;
+&lt;li&gt;performs multiple operations simultaneously.&lt;/li&gt;
+&lt;li&gt;pipeline data-segment processing by delaying data-segment production to the taks that requests such segments.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/p&gt;&lt;p&gt;It is advised to use the default settings in most cases. For specific configurations/machines it might be useful to deviate from these setting.&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../images/DP_ValueInfo.bmp</normaloff>../images/DP_ValueInfo.bmp</iconset>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="17" column="0" colspan="6">
+      <widget class="QLabel" name="lbl_memory_flushing">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="lineWidth">
+        <number>0</number>
+       </property>
+       <property name="text">
+        <string>Treshold for memory flushing wait procedure</string>
+       </property>
+      </widget>
+     </item>
+     <item row="17" column="6">
+      <widget class="QPushButton" name="m_tmf_info">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Trehsold for memory flushing wait procedure&lt;/span&gt;&lt;BR&gt;&lt;BR&gt;
+
+If your machine is using (almost) all it's memory, it becomes less responsive.
+&lt;BR&gt;&lt;BR&gt;
+With this treshold you can set a percentage of the total memory used at which the GeoDMS starts flushing the memory to stay responsive.
+&lt;BR&gt;&lt;BR&gt;
+In general if you increase the value, the GeoDMS calculates faster, but becomes less responsive for calculations with large datasets. 
+&lt;BR&gt;&lt;BR&gt;
+In most cases we advice to use a value between 80% and 90%.</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../images/DP_ValueInfo.bmp</normaloff>../images/DP_ValueInfo.bmp</iconset>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0" colspan="4">
+      <widget class="QLabel" name="lbl_script">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="lineWidth">
+        <number>0</number>
+       </property>
+       <property name="text">
+        <string>Configuration File  Editor</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_localdata">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Local Data: </string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
