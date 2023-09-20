@@ -190,12 +190,12 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
     QFont dms_text_font(family, 10);
     QApplication::setFont(dms_text_font);
-
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
-    
+
     m_file_changed_window = new DmsFileChangedWindow(this);
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
+    
 
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
@@ -246,6 +246,15 @@ MainWindow::~MainWindow()
     s_CurrMainWindow = nullptr;
 
     cleanupDmsCallbacks();
+}
+
+DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
+    : QLineEdit(parent)
+{
+    //QRegularExpression rx("^[^0-9<>][a-zA-Z0-9_]+$");
+    //auto rx_validator = new QRegularExpressionValidator(rx, this);
+    //setValidator(rx_validator);
+    setDmsCompleter();
 }
 
 void DmsCurrentItemBar::setDmsCompleter()
@@ -413,9 +422,9 @@ void MainWindow::fileOpen()
         proj_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%projDir%"));
     else
     {
-        if (!m_recent_file_submenus.empty())
+        if (!m_recent_file_entries.empty())
         {
-            auto recent_file_widget = dynamic_cast<DmsRecentFileSubmenu*>(m_recent_file_submenus.at(0));
+            auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(m_recent_file_entries.at(0));
             proj_dir = recent_file_widget->m_cfg_file_path.c_str();
         }
     }
@@ -496,14 +505,66 @@ void DmsConfigTextButton::paintEvent(QPaintEvent* event)
     p.drawControl(QStyle::CE_PushButton, option);
 }
 
-void DmsRecentFileSubmenu::onDeleteRecentFileEntry()
+DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent)
+    : QAction(parent)
+{
+    m_cfg_file_path = dms_file_full_path;
+    m_index = index;
+
+    std::string preprending_spaces = index < 9 ? "   &" : "  ";
+    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
+    setText(menu_text.c_str());
+}
+
+void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
+{
+    std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
+    std::unique_ptr<QAction> pin_action = std::make_unique<QAction>("pin", this);
+    std::unique_ptr<QAction> remove_action = std::make_unique<QAction>("remove", this);
+    recent_file_context_menu->addAction(pin_action.get());
+    recent_file_context_menu->addAction(remove_action.get());
+    connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+    recent_file_context_menu->exec(pos);
+}
+
+bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
+{
+    
+    if (event->type() == QEvent::MouseButtonPress) 
+    {
+        auto mouse_event = dynamic_cast<QMouseEvent*>(event);
+        if (mouse_event && mouse_event->button()==Qt::MouseButton::RightButton)
+        {
+            showRecentFileContextMenu(mouse_event->globalPos());
+            return true;
+        }
+    }
+
+    return QAction::eventFilter(obj, event);
+}
+
+void DmsRecentFileEntry::onDeleteRecentFileEntry()
 {
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
 }
 
-void DmsRecentFileSubmenu::onFileEntryPressed()
+void DmsRecentFileEntry::onFileEntryContextMenuRequested(QPoint pos)
+{
+    if (!m_context_menu)
+    {
+        m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
+        auto* open = new QAction("open", m_context_menu.get());
+        auto* remove = new QAction("remove", m_context_menu.get());
+        connect(open, &QAction::triggered, this, &DmsRecentFileEntry::onFileEntryPressed);
+        connect(remove, &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+    }
+
+    m_context_menu->popup(pos);
+}
+
+void DmsRecentFileEntry::onFileEntryPressed()
 {
     auto main_window = MainWindow::TheOne();
 
@@ -514,28 +575,7 @@ void DmsRecentFileSubmenu::onFileEntryPressed()
     main_window->saveRecentFileActionToRegistry();
 }
 
-DmsRecentFileSubmenu::DmsRecentFileSubmenu(size_t index, std::string_view dms_file_full_path, QWidget* parent)
-    : QMenu(parent)
-{
-    m_cfg_file_path = dms_file_full_path;
-    m_index = index;
 
-    std::string preprending_spaces = index < 9 ? "   &" : "  ";
-    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
-    auto* open = new QAction("open", this);
-    auto* remove = new QAction("remove", this);
-
-    connect(open, &QAction::triggered, this, &DmsRecentFileSubmenu::onFileEntryPressed);
-    connect(remove, &QAction::triggered, this, &DmsRecentFileSubmenu::onDeleteRecentFileEntry);
-    setTitle(menu_text.c_str());
-    addAction(open);
-    addAction(remove);
-}
-
-void DmsRecentFileSubmenu::mousePressEvent(QMouseEvent* event)
-{
-    onFileEntryPressed();
-}
 
 DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
@@ -875,6 +915,15 @@ bool MainWindow::event(QEvent* event)
                     m_file_changed_window->show();
                 }
             });
+    }
+
+    if (event->type() == QEvent::WindowStateChange && windowState() == Qt::WindowState::WindowMaximized)
+    {
+        int default_treeview_treshold = 100;
+        int default_treeview_width = 200;
+        auto curr_treeview_dock_width = m_treeview_dock->width();
+        if (curr_treeview_dock_width < default_treeview_treshold)
+            resizeDocks({ m_treeview_dock }, { default_treeview_width }, Qt::Horizontal);
     }
 
     return QMainWindow::event(event);
@@ -1273,19 +1322,19 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
 
 void MainWindow::removeRecentFileAtIndex(size_t index)
 {
-    if (m_recent_file_submenus.size() <= index)
+    if (m_recent_file_entries.size() <= index)
         return;
 
-    auto menu_to_be_removed = m_recent_file_submenus.at(index);
-    auto rf_action = dynamic_cast<DmsRecentFileSubmenu*>(menu_to_be_removed);
+    auto menu_to_be_removed = m_recent_file_entries.at(index);
+    auto rf_action = dynamic_cast<DmsRecentFileEntry*>(menu_to_be_removed);
     if (!rf_action)
         return;
 
     auto msgTxt = mySSPrintF("Remove %s from the list of recent files ?", rf_action->m_cfg_file_path);
     if (MessageBoxA((HWND)winId(), msgTxt.c_str(), "Confirmation Request", MB_YESNO | MB_ICONQUESTION) == IDYES)
     {
-        m_file_menu->removeAction(menu_to_be_removed->menuAction());
-        m_recent_file_submenus.removeAt(index);
+        m_file_menu->removeAction(menu_to_be_removed);
+        m_recent_file_entries.removeAt(index);
         saveRecentFileActionToRegistry();
     }
 }
@@ -1293,12 +1342,12 @@ void MainWindow::removeRecentFileAtIndex(size_t index)
 void MainWindow::saveRecentFileActionToRegistry()
 {
     std::vector<std::string> recent_files_as_std_strings;
-    for (auto* recent_file_submenu : m_recent_file_submenus)
+    for (auto* recent_file_entry_candidate : m_recent_file_entries)
     {
-        auto recent_file_menu = dynamic_cast<DmsRecentFileSubmenu*>(recent_file_submenu);
-        if (!recent_file_menu)
+        auto recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(recent_file_entry_candidate);
+        if (!recent_file_entry)
             continue;
-        auto dms_string = recent_file_menu->m_cfg_file_path;
+        auto dms_string = recent_file_entry->m_cfg_file_path;
 
         recent_files_as_std_strings.push_back(dms_string);
     }
@@ -1311,7 +1360,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     if (cfg_index_in_recent_files == -1)
         addRecentFilesMenu(cfg);
     else
-        m_recent_file_submenus.move(cfg_index_in_recent_files, 0);
+        m_recent_file_entries.move(cfg_index_in_recent_files, 0);
 
     saveRecentFileActionToRegistry();
     updateFileMenu();
@@ -1379,7 +1428,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
     m_dms_model->setRoot(m_root);
     clearActionsForEmptyCurrentItem();
     //setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
-    m_current_item_bar->setDmsCompleter();
+    
     updateCaption();
     m_dms_model->reset();
     m_eventlog->scrollToBottomThrottled();
@@ -1549,16 +1598,27 @@ void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons,
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
-void MainWindow::addRecentFilesMenu(std::string_view recent_file)
+void MainWindow::addRecentFilesMenu(std::string_view recent_file) // TODO: rename
 {
-    auto index = m_recent_file_submenus.size();
+    auto index = m_recent_file_entries.size();
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
     std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(recent_file.data())).c_str());
-    DmsRecentFileSubmenu* new_recent_file_submenu = new DmsRecentFileSubmenu(index, recent_file.data(), this);
-    m_file_menu->addMenu(new_recent_file_submenu);
-    m_recent_file_submenus.push_back(new_recent_file_submenu);
+    DmsRecentFileEntry* new_recent_file_entry = new DmsRecentFileEntry(index, recent_file.data(), this);
+
+    m_file_menu->addAction(new_recent_file_entry);
+
+    for (auto action_widget_pointer : new_recent_file_entry->associatedWidgets())
+    {
+        action_widget_pointer->installEventFilter(new_recent_file_entry);
+    }
+
+    //auto test_default_widget = new_recent_file_entry->defaultWidget();
+
+    m_recent_file_entries.push_back(new_recent_file_entry);
 
     // connections
+    connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
+    connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -1943,12 +2003,12 @@ void MainWindow::createActions()
 
 void MainWindow::updateFileMenu()
 {
-    for (auto recent_file_menu : m_recent_file_submenus)
+    for (auto recent_file_entry : m_recent_file_entries)
     {
-        m_file_menu->removeAction(recent_file_menu->menuAction());
-        delete recent_file_menu;
+        m_file_menu->removeAction(recent_file_entry);
+        delete recent_file_entry;
     }
-    m_recent_file_submenus.clear();
+    m_recent_file_entries.clear();
     cleanRecentFilesThatDoNotExist();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
     for (std::string_view recent_file : recent_files_from_registry)

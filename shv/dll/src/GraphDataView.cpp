@@ -41,6 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrUnit.h"
 #include "OperationContext.h"
 #include "PropFuncs.h"
+#include "TreeItemProps.h"
 
 #include "AbstrCmd.h"
 #include "GraphicRect.h"
@@ -412,7 +413,14 @@ SharedStr GraphDataView::GetCaption() const // Mapview caption
 		SharedStr spatialRefStr;
 		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
 		if (wcu)
-			spatialRefStr = wcu->GetSpatialReference();
+		{
+			auto world_crd_unit_label_property = TreeItemPropertyValue(wcu, labelPropDefPtr);
+			if (!world_crd_unit_label_property.empty()) // prioritize label over srs def in mapview caption
+				spatialRefStr = world_crd_unit_label_property;
+			else
+				spatialRefStr = wcu->GetSpatialReference();
+		}
+
 		if (spatialRefStr.empty())
 			spatialRefStr = "";
 		else
@@ -420,10 +428,10 @@ SharedStr GraphDataView::GetCaption() const // Mapview caption
 		auto ls = mapContents->GetLayerSet();
 		if (ls)
 		{
-			auto al = ls->GetActiveLayer();
-			if (al)
+			auto active_layer = ls->GetActiveLayer();
+			if (active_layer)
 			{
-				return spatialRefStr + " " + al->GetCaption();
+				return spatialRefStr + ", " + active_layer->GetCaption();
 			}
 		}
 		return spatialRefStr;
