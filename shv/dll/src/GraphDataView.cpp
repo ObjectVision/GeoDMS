@@ -425,15 +425,11 @@ SharedStr GraphDataView::GetCaption() const // Mapview caption
 			spatialRefStr = "";
 		else
 			spatialRefStr = "with " + spatialRefStr;
-		auto ls = mapContents->GetLayerSet();
-		if (ls)
-		{
-			auto active_layer = ls->GetActiveLayer();
-			if (active_layer)
-			{
+
+		if (auto ls = mapContents->GetLayerSet())
+			if (auto active_layer = ls->GetActiveLayer())
 				return spatialRefStr + ", " + active_layer->GetCaption();
-			}
-		}
+
 		return spatialRefStr;
 	}
 	return SharedStr("");
