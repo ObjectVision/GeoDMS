@@ -547,20 +547,6 @@ void DmsRecentFileEntry::onDeleteRecentFileEntry()
     main_window->removeRecentFileAtIndex(m_index);
 }
 
-void DmsRecentFileEntry::onFileEntryContextMenuRequested(QPoint pos)
-{
-    if (!m_context_menu)
-    {
-        m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
-        auto* open = new QAction("open", m_context_menu.get());
-        auto* remove = new QAction("remove", m_context_menu.get());
-        connect(open, &QAction::triggered, this, &DmsRecentFileEntry::onFileEntryPressed);
-        connect(remove, &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
-    }
-
-    m_context_menu->popup(pos);
-}
-
 void DmsRecentFileEntry::onFileEntryPressed()
 {
     auto main_window = MainWindow::TheOne();

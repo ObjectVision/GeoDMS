@@ -126,10 +126,8 @@ public:
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
 
-
 public slots:
     void onDeleteRecentFileEntry();
-    void onFileEntryContextMenuRequested(QPoint pos);
     void onFileEntryPressed();
 
 private:
