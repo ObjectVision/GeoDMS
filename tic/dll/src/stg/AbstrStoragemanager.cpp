@@ -401,7 +401,9 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	{
 		result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
 		if (result.empty())
-			return SharedStr(placeHolder);
+			configStore->throwItemErrorF("Unable to find placeholder: %%%s%%.", placeHolder);
+		//	return SharedStr(placeHolder);
+		
 	}
 	return result;
 }
