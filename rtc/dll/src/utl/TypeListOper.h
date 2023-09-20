@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_UTL_TYPELISTOPER_H)
@@ -35,7 +11,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "cpc/transform.h"
 
 #include <boost/mpl/placeholders.hpp>
-using namespace boost::mpl::placeholders;
 
 //----------------------------------------------------------------------
 // typelist operations
@@ -64,7 +39,7 @@ namespace tl_oper
 			template <typename T, typename U>
 			struct cpair
 			{
-				cpair(typename param_type<Args>::type... args) : m_First(args...), m_Second(args...) {}
+				cpair(param_type_t<Args>... args) : m_First(args...), m_Second(args...) {}
 				T m_First;
 				U m_Second;
 			};
@@ -74,7 +49,7 @@ namespace tl_oper
 			template <typename T, typename U>
 			struct cpair
 			{
-				cpair(typename param_type<Args>::type... args) : m_First(args...), m_Second(args...) {}
+				cpair(param_type_t<Args>... args) : m_First(args...), m_Second(args...) {}
 				F<T> m_First;
 				U m_Second;
 			};
@@ -93,14 +68,7 @@ namespace tl_oper
 	};
 
 	template<typename TL, typename F, typename... Args>
-	struct inst_tuple
-	{
-		inst_tuple(Args...args)
-			: m_InstTupleData(args...)
-		{}
-
-		typename tuple_func<tl::transform<TL, F>, Args... >::type m_InstTupleData;
-	};
+	using inst_tuple = typename tuple_func<tl::transform<TL, F>, Args... >::type;
 
 	// =================== end using boost::mpl 
 
@@ -116,18 +84,7 @@ namespace tl_oper
 	template<typename TL, template <typename T> typename F, typename... Args>
 	using inst_tuple_templ = typename tuple_templ_func<TL, F, Args...>::type;
 
-	/*
-	template<typename TL, template <typename T> typename F, typename... Args>
-	struct inst_tuple_templ
-	{
-		inst_tuple_templ(Args...args)
-			: m_InstTupleData(args...)
-		{}
-
-		tuple_templ_func_t<TL, F, Args... > m_InstTupleData;
-	};
-	*/
-
+	
 }	// namespace tl_oper
 
 //----------------------------------------------------------------------
@@ -150,7 +107,7 @@ struct ClassReg {
 template <typename TypeList>
 struct TypeListClassReg {
 	TypeListClassReg() {
-		boost::mpl::for_each<TypeList, wrap<_> >(ClassReg());
+		boost::mpl::for_each<TypeList, wrap<boost::mpl::placeholders::_> >(ClassReg());
 	}
 };
 
