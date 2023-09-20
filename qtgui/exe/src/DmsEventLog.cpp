@@ -301,17 +301,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_event_filter_toggle->setStatusTip("Turn eventlog filter dialog on or off");
 	m_event_filter_toggle->setCheckable(true);
 	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
+	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleFilter);
 
 	auto eventlog_model_ptr = MainWindow::TheOne()->m_eventlog_model.get();
-
-	/*const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
-	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
-	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
-	m_event_type_filter_toggle->setStatusTip("Turn eventlog type-filter on or off");
-	m_event_type_filter_toggle->setCheckable(true);
-	m_event_type_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);*/
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
@@ -345,14 +337,11 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter.get()->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 
-	//connect(m_dms_type_filter.get()->m_category_filter_system, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
-	//connect(m_dms_type_filter.get()->m_category_filter_progress, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	//connect(m_dms_type_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilterOnToggle);
 
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
@@ -384,7 +373,6 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	auto eventlog_toolbar = new QVBoxLayout(this);
 	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
 	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
-	//eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	QWidget* spacer = new QWidget(this);
@@ -396,8 +384,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	grid_layout->addLayout(eventlog_toolbar, 0, 1);
 	vertical_layout->addLayout(grid_layout);
 	setLayout(vertical_layout);
-	toggleTextFilter(false);
-	toggleTypeFilter(false);
+	toggleFilter(false);
 }
 
 void DmsEventLog::copySelectedEventlogLinesToClipboard()
@@ -496,14 +483,18 @@ void DmsEventLog::scrollToBottomThrottled()
 	scrollToBottomOnTimeout();
 }
 
-void DmsEventLog::toggleTextFilter(bool toggled)
+void DmsEventLog::toggleFilter(bool toggled)
 {
+	auto main_window = MainWindow::TheOne();
 	m_eventlog_filter->setVisible(toggled);
-}
 
-void DmsEventLog::toggleTypeFilter(bool toggled)
-{
-	m_eventlog_filter->setVisible(toggled);
+	auto current_height = height();
+	if (toggled)
+		default_height = current_height;
+	else
+		main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
+
+	
 }
 
 void DmsEventLog::onTextChanged(const QString& text)
@@ -552,12 +543,8 @@ auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 	
 	MainWindow::TheOne()->m_eventlog_dock->setWidget(dms_eventlog_pointer.get());
 	MainWindow::TheOne()->m_eventlog_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_eventlog_dock));
-//    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);
-
-    //viewMenu->addAction(dock->toggleViewAction());
+    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);;
 
 	dms_eventlog_pointer->m_log->setModel(dms_main_window->m_eventlog_model.get());
-	//dock->show();
 	return dms_eventlog_pointer;
 }
