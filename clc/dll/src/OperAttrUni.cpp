@@ -183,5 +183,5 @@ namespace
 	INST(rtrim);
 #undef INST
 
-	tl_oper::inst_tuple<num_objects, UnitSqrtOperator<_>, AbstrOperGroup*> g_UnitSqrtOper(&cog_sqrt);
+	tl_oper::inst_tuple_templ<num_objects, UnitSqrtOperator, AbstrOperGroup*> g_UnitSqrtOper(&cog_sqrt);
 }

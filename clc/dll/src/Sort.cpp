@@ -103,7 +103,7 @@ namespace
 
 	CommonOperGroup cog_sort("sort");
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, SortOperator<_>, AbstrOperGroup* > sortOperators(&cog_sort);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, SortOperator, AbstrOperGroup* > sortOperators(&cog_sort);
 } // end anonymous namespace
 
 

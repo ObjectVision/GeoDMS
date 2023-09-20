@@ -304,7 +304,9 @@ namespace Cumulate
 	private:
 		CumulateTot<UniAssigner, IniAssign> m_AggrTotlOperator;
 
-		tl_oper::inst_tuple<typelists::partition_elements, CumulatePart<UniAssigner, IniAssign, _>,	AbstrOperGroup*>
+		template <typename T> using CumulatePartThis = CumulatePart<UniAssigner, IniAssign, T>;
+
+		tl_oper::inst_tuple_templ<typelists::partition_elements, CumulatePartThis, AbstrOperGroup*>
 			m_AggrPartOperator;
 	};
 
@@ -320,7 +322,9 @@ namespace Cumulate
 		{}
 
 	private:
-		tl_oper::inst_tuple<ValueTypes, CumulOperInstances<UniAssigner<_>, IniAssigner>, AbstrOperGroup*>
+		template <typename T> using ThisCumulOperInstances = CumulOperInstances<UniAssigner<T>, IniAssigner>;
+
+		tl_oper::inst_tuple_templ<ValueTypes, ThisCumulOperInstances, AbstrOperGroup*>
 			m_AggrOperators;
 	};
 

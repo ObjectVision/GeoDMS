@@ -382,9 +382,9 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::floats, MatrMulOperator<_>>	matrMulOperators;
-	tl_oper::inst_tuple<typelists::floats, MatrVarOperator<_>>	matrCovOperators;
-	tl_oper::inst_tuple<typelists::floats, MatrInvOperator<_>> matrInvOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrMulOperator> matrMulOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrVarOperator> matrCovOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrInvOperator> matrInvOperators;
 }
 
 

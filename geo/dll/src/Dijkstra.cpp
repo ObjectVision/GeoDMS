@@ -1743,7 +1743,7 @@ private:
 namespace 
 {
 	typedef boost::mpl::vector<Float64, Float32, UInt32, UInt64> DistTypeList; // Int32 no longer supported as Impedance
-	typedef tl_oper::inst_tuple< DistTypeList, DijkstraMatrOperator<_>, AbstrOperGroup*, DijkstraFlag> DijkstraOperListType;
+	typedef tl_oper::inst_tuple_templ< DistTypeList, DijkstraMatrOperator, AbstrOperGroup*, DijkstraFlag> DijkstraOperListType;
 
 	CommonOperGroup dsGroup("dijkstra_s", oper_policy::allow_extra_args);
 	CommonOperGroup dm32Group("dijkstra_m", oper_policy::allow_extra_args);

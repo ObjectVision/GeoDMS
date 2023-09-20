@@ -88,7 +88,9 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		}
 
 	if (n > 16)
-		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16. Consider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit.");
+		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16."
+			"\nConsider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit."
+		);
 
 	SizeT productSize = 1;
 	if (mustCalc)
@@ -1149,14 +1151,14 @@ namespace
 	};
 
 	CommonOperGroup cog_NrOfRows("NrOfRows");
-	tl_oper::inst_tuple<typelists::domain_elements, NrOfRowsOperator<_>, AbstrOperGroup* > nrOfRowsOpers(&cog_NrOfRows);
+	tl_oper::inst_tuple_templ<typelists::domain_elements, NrOfRowsOperator, AbstrOperGroup* > nrOfRowsOpers(&cog_NrOfRows);
 
-	tl_oper::inst_tuple<typelists::tiled_domain_elements, TiledDomainOperators<_> > tiledDomainOpers;
+	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledDomainOperators > tiledDomainOpers;
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, UnitRangeOperators<_> > unitRangeOpers;
-	tl_oper::inst_tuple<typelists::bints, UnitFixedRangeOperators<_> > unitFixedRangeOpers;
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, UnitRangeOperators > unitRangeOpers;
+	tl_oper::inst_tuple_templ<typelists::bints, UnitFixedRangeOperators > unitFixedRangeOpers;
 
-	tl_oper::inst_tuple<typelists::domain_objects, UnitRangeOperator<_>, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRangeOperator, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
 
 	CommonOperGroup cog_combine("combine", oper_policy::allow_extra_args);
 	CommonOperGroup cog_combine08("combine_uint8", oper_policy::allow_extra_args);

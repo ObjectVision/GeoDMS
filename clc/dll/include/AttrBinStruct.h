@@ -9,6 +9,7 @@
 
 #include <functional>
 
+#include "mci/ValueClass.h"
 #include "utl/StringFunc.h"
 
 #include "Prototypes.h"
@@ -140,30 +141,90 @@ void do_binary_func(
 // *****************************************************************************
 
 template <typename T>
-[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b)
+[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
 {
 	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
-	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%"
+	SharedStr acName;
+	if (alternativeValueClass) 
+		acName = AsString(alternativeValueClass->GetID());
+
+	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%."
+		"\nConsider using %6% if your model deals with overflow as null values%7%%8%."
 		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
+		, alternativeFunc
+		, alternativeValueClass ? " or consider converting the arguments to " : ""
+		, alternativeValueClass ? acName.c_str() : ""
 	);
 }
 
-template <typename T>
+template <IntegralValue T>
+const ValueClass* NextAddIntegral()
+{
+	constexpr auto nrBits = nrbits_of_v<T>;
+	constexpr bool isSigned = is_signed_v<T>;
+	switch (nrBits)
+	{
+		case 1: return ValueWrap<UInt2>::GetStaticClass();
+		case 2: return ValueWrap<UInt4>::GetStaticClass();
+		case 4: return ValueWrap<UInt8>::GetStaticClass();
+		case 8: return isSigned
+			? ValueWrap<Int16>::GetStaticClass()
+			: ValueWrap<UInt16>::GetStaticClass();
+		case 16: return isSigned
+			? ValueWrap<Int32>::GetStaticClass()
+			: ValueWrap<UInt32>::GetStaticClass();
+		case 32: return isSigned
+			? ValueWrap<Int64>::GetStaticClass()
+			: ValueWrap<UInt64>::GetStaticClass();
+		case 64:	return nullptr;
+		default:
+			std::unreachable();
+	}
+}
+
+template <IntegralValue T>
+const ValueClass* NextSubIntegral()
+{
+	constexpr auto nrBits = nrbits_of_v<T>;
+	constexpr bool isSigned = is_signed_v<T>;
+	switch (nrBits)
+	{
+		case 1: return ValueWrap<UInt2>::GetStaticClass();
+		case 2: return ValueWrap<UInt4>::GetStaticClass();
+		case 4: return ValueWrap<Int8>::GetStaticClass();
+		case 8: return isSigned
+			? ValueWrap<Int16>::GetStaticClass()
+			: ValueWrap<Int8>::GetStaticClass();
+		case 16: return isSigned
+			? ValueWrap<Int32>::GetStaticClass()
+			: ValueWrap<Int16>::GetStaticClass();
+		case 32: return isSigned
+			? ValueWrap<Int64>::GetStaticClass()
+			: ValueWrap<Int32>::GetStaticClass();
+		case 64: return isSigned
+			? nullptr
+			: ValueWrap<Int64>::GetStaticClass();
+		default:
+			std::unreachable();
+	}
+}
+
+template <typename V >
 struct safe_plus
 {
-	T operator ()(T a, T b) const
+	V operator ()(V a, V b) const
 	{
-		T result = a + b;
-		if constexpr (!std::is_floating_point_v<T>)
+		V result = a + b;
+		if constexpr (!std::is_floating_point_v<V>)
 		{
 			if (!IsDefined(a))
-				return UNDEFINED_VALUE(T);
+				return UNDEFINED_VALUE(V);
 			if (!IsDefined(b))
-				return UNDEFINED_VALUE(T);
-			if constexpr (!is_signed_v<T>)
+				return UNDEFINED_VALUE(V);
+			if constexpr (!is_signed_v<V>)
 			{
 				if (result < a)
-					throwOverflow("adding", a, "and", b);
+					throwOverflow("adding", a, "and", b, "add_or_null", NextAddIntegral<V>());
 			}
 			else
 			{
@@ -174,7 +235,7 @@ struct safe_plus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative !=resultNonnegative)
-						throwOverflow("adding", a, "and", b);
+						throwOverflow("adding", a, "and", b, "add_or_null", NextAddIntegral<V>());
 				}
 			}
 		}
@@ -182,14 +243,14 @@ struct safe_plus
 	}
 };
 
-template <typename T>
-struct safe_plus < Point<T> >
+template <typename V>
+struct safe_plus < Point<V> >
 {
-	Point<T> operator ()(Point<T> a, Point<T> b) const
+	Point<V> operator ()(Point<V> a, Point<V> b) const
 	{
-		return Point<T>( scalar_op(a.first, b.first), scalar_op(a.second, b.second) );
+		return Point<V>( scalar_op(a.first, b.first), scalar_op(a.second, b.second) );
 	}
-	safe_plus<T> scalar_op;
+	safe_plus<V> scalar_op;
 };
 
 template <typename T>
@@ -207,7 +268,7 @@ struct safe_minus
 			if constexpr (!is_signed_v<T>)
 			{
 				if (a < b)
-					throwOverflow("subtracting", b, "from", a);
+					throwOverflow("subtracting", b, "from", a, "sub_or_null", NextSubIntegral<T>());
 			}
 			else
 			{
@@ -218,7 +279,7 @@ struct safe_minus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative != resultNonnegative)
-						throwOverflow("subtracting", b, "from", a);
+						throwOverflow("subtracting", b, "from", a, "sub_or_null", NextSubIntegral<T>());
 				}
 			}
 		}
@@ -325,51 +386,52 @@ struct safe_minus_or_null < Point<T> >
 };
 
 
-template <typename T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
+template <FixedSizeElement T> struct plus_func : std_binary_func< safe_plus<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T>      
+template <FixedSizeElement T> struct minus_func: std_binary_func< safe_minus<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct plus_or_null_func : std_binary_func< safe_plus_or_null<T>, T, T, T>
+template <FixedSizeElement T> struct plus_or_null_func : std_binary_func< safe_plus_or_null<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct minus_or_null_func : std_binary_func< safe_minus_or_null<T>, T, T, T>
+template <FixedSizeElement T> struct minus_or_null_func : std_binary_func< safe_minus_or_null<T>, T, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return  compatible_values_unit_creator_func(0, gr, args, false); }
 };
 
-template <typename T> struct mul_func  : binary_func<T, T, T>
+template <typename V> 
+struct mul_func_impl  : binary_func<V, V, V>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
 
-	T operator()(cref_t<T> a, cref_t<T> b) const
+	V operator()(cref_t<V> a, cref_t<V> b) const
 	{
-		if constexpr (!std::is_floating_point_v<T> && has_undefines_v<T>)
+		if constexpr (!std::is_floating_point_v<V> && has_undefines_v<V>)
 		{
 			if (!IsDefined(a) || !IsDefined(b))
-				return UNDEFINED_VALUE(T);
+				return UNDEFINED_VALUE(V);
 		}
 
-		T result = a * b;
+		V result = a * b;
 
-		if constexpr (!std::is_floating_point_v<T>)
+		if constexpr (!std::is_floating_point_v<V>)
 		{
 			if (a && b && b != result / a)
-				throwOverflow("multiplying", a, "and", b);
+				throwOverflow("multiplying", a, "and", b, "mul_or_null", NextAddIntegral<V>());
 		}
 
 		return result;
 	}
 };
 
-template <typename T> struct mul_func< Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
+template <typename T> struct mul_func_impl<Point<T>> : binary_func<Point<T>, Point<T>, Point<T>>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return mul2_unit_creator(gr, args); }
 
@@ -377,8 +439,11 @@ template <typename T> struct mul_func< Point<T>> : binary_func<Point<T>, Point<T
 	{
 		return Point<T>(scalar_op(a.first, b.first), scalar_op(a.second, b.second));
 	}
-	mul_func<T> scalar_op;
+	mul_func_impl<T> scalar_op;
 };
+
+
+template <typename T> struct mul_func : mul_func_impl<T> {};
 
 template <typename T> struct mul_or_null_func : binary_func<T, T, T>
 {
@@ -415,7 +480,7 @@ template <typename T> struct mul_or_null_func< Point<T>> : binary_func<Point<T>,
 	mul_or_null_func<T> scalar_op;
 };
 
-template <typename T>
+template <FixedSizeElement T>
 struct mulx_func : binary_func<typename acc_type<T>::type, T, T>
 {
 	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const 

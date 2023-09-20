@@ -120,6 +120,9 @@ template <bit_size_t N> struct is_integral<bit_value<N> > : std::true_type{}; //
 template <>             struct is_integral<Void         > : std::true_type {};
 template <typename T> constexpr bool is_integral_v = is_integral<T>::value;
 
+template <typename T>
+concept IntegralValue = is_integral_v<T> && std::regular<T>;
+
 template <typename T>   struct is_simple : std::is_arithmetic<T> {};
 template <>             struct is_simple<Int64> : std::true_type {};
 template <>             struct is_simple<UInt64> : std::true_type {};
@@ -132,9 +135,13 @@ template <>             struct is_numeric<UInt64> : std::true_type {};
 template <bit_size_t N> struct is_numeric<bit_value<N> > : std::true_type {};
 template <>             struct is_numeric<bit_value<1> > : std::false_type {}; // bit_value<1> (pseudo bool) is not considered as a numeric.
 
+
 template <>           struct is_numeric<bool> {};      // PREVENT USING bool directly
 
 template <typename T> constexpr bool is_numeric_v = is_numeric<T>::value;
+
+template <typename T>
+concept NumericValue = is_numeric_v<T> && std::regular<T>;
 
 template <typename T>   struct is_void : std::false_type {};
 template <>             struct is_void<Void> : std::true_type {};

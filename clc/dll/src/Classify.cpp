@@ -23,6 +23,6 @@ struct ClassifyOperator : SearchIndexOperatorImpl<V, classify_dispatcher>
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::numerics, ClassifyOperator<_>> classifyInstances;
+	tl_oper::inst_tuple_templ<typelists::numerics, ClassifyOperator> classifyInstances;
 } // end anonymous namespace
 

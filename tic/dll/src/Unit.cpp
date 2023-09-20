@@ -1239,10 +1239,10 @@ namespace {
 		IrregularTileRangeData<V>* itr = nullptr;
 	};
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitRangeProps(false);
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitCatRangeProps(true);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitRangeProps(false);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitCatRangeProps(true);
 
-	tl_oper::inst_tuple<typelists::tiled_domain_elements, TiledUnitInstantiator<_> > tui;
+	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledUnitInstantiator > tui;
 }
 
 // Explicit Template Instantiation; TODO G8: Why?

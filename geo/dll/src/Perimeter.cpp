@@ -244,7 +244,7 @@ struct PerimeterOperators : PerimeterOperator<T>
 
 namespace
 {
-	tl_oper::inst_tuple<typelists::domain_ints, PerimeterOperators<_>> perimeterOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_ints, PerimeterOperators> perimeterOpers;
 }
 
 /******************************************************************************/

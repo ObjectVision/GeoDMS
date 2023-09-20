@@ -317,7 +317,7 @@ struct RegCountOperators
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::domain_elements, RegCountOperators<_> > regCountOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_elements, RegCountOperators > regCountOpers;
 }	// end anonymous namespace
 
 /******************************************************************************/

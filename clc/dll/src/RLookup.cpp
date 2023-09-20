@@ -29,7 +29,7 @@ namespace
 	//                               INSTANTIATION
 	// *****************************************************************************
 
-	tl_oper::inst_tuple<typelists::value_elements, RLookupOperator<_>> rlookupInstances;
+	tl_oper::inst_tuple_templ<typelists::value_elements, RLookupOperator> rlookupInstances;
 
 } // end anonymous namespace
 

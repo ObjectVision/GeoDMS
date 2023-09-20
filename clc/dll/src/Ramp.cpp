@@ -190,7 +190,7 @@ namespace
 		RampOperator<RampLinearFunc, Numeric> m_Ramp, m_RampOpen;
 	};
 
-	tl_oper::inst_tuple< typelists::numerics, RampLinearOperator<_> >
+	tl_oper::inst_tuple_templ< typelists::numerics, RampLinearOperator >
 		operRampLinearInstances;
 
 	RampOperator<RampRgbFunc, DmsColor> operRampRgb(&cog_rampRgb, true);

@@ -784,8 +784,8 @@ namespace {
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);
 
-	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
-	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
-	tl_oper::inst_tuple<typelists::value_elements, RecollectByCondOperator<_>, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
+	tl_oper::inst_tuple_templ<typelists::value_elements, CollectByCondOperator, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
+	tl_oper::inst_tuple_templ<typelists::value_elements, CollectByCondOperator, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
+	tl_oper::inst_tuple_templ<typelists::value_elements, RecollectByCondOperator, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
 }
 

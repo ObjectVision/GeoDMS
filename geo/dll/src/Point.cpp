@@ -335,7 +335,7 @@ namespace
 		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col;
 	};
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
-	tl_oper::inst_tuple<typelists::points, PointOpers<_> > pointOpers;
+	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;
 
 	CommonOperGroup dist2("dist2");       
 	Dist2Operator dist2Oper(&dist2);

@@ -249,19 +249,18 @@ namespace
 
 	template <typename V> struct lookup_instances
 	{
-		using typefunc =
-			tl_oper::tuple_func<
-				tl::transform<
-					typelists::domain_elements
-				,	LookupOperator<_, V>
-				>
-			,	AbstrOperGroup&
-			>;
-		using type = typename typefunc::type;
+		template <typename T> struct LookupVOperator : LookupOperator<T, V>
+		{
+			using LookupOperator<T, V>::LookupOperator; // inherit contructors;
+		};
+
+		tl_oper::inst_tuple_templ<typelists::domain_elements, LookupVOperator, AbstrOperGroup&> m_Operators;
+
+		lookup_instances(AbstrOperGroup& aog) : m_Operators(aog) {}
 	};
 
-	tl_oper::inst_tuple<typelists::value_elements, lookup_instances<_>, AbstrOperGroup&> operLookup(cog_lookup);
-	tl_oper::inst_tuple<typelists::value_elements, lookup_instances<_>, AbstrOperGroup&> operCollectByOrgRel(cog_collect_by_org_rel);
+	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances, AbstrOperGroup&> operLookup(cog_lookup);
+	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances, AbstrOperGroup&> operCollectByOrgRel(cog_collect_by_org_rel);
 
 } // end anonymous namespace
 
