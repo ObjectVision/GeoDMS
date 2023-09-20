@@ -148,8 +148,8 @@ template <typename T>
 	if (alternativeValueClass) 
 		acName = AsString(alternativeValueClass->GetID());
 
-	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%;\n"
-		"Consider using %6% if your model deals with overflow as null values%7%%8%."
+	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%."
+		"\nConsider using %6% if your model deals with overflow as null values%7%%8%."
 		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
 		, alternativeFunc
 		, alternativeValueClass ? " or consider converting the arguments to " : ""

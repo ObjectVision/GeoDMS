@@ -88,7 +88,9 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		}
 
 	if (n > 16)
-		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16. Consider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit.");
+		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16."
+			"\nConsider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit."
+		);
 
 	SizeT productSize = 1;
 	if (mustCalc)
