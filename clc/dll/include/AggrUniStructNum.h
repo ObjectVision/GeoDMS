@@ -379,9 +379,12 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 
 	void operator () (typename unary_assign_var::assignee_ref a, typename unary_assign_var::arg1_cref x) const
 	{
-		++ a.n;
-		SafeAccumulate(a.x, x);
-		a.xx += m_SqrFunc(x);
+		if (IsDefined(x))
+		{
+			++a.n;
+			SafeAccumulate(a.x, x);
+			a.xx += m_SqrFunc(x);
+		}
 	}
 
 private:
