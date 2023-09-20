@@ -1513,7 +1513,6 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	if (ids.first.empty()) // We start at root.
 	{
 		MG_CHECK(!IsCacheItem());
-		MG_CHECK(!IsPassor());
 		parent = static_cast<const TreeItem*>(GetRoot());
 	}
 	else
