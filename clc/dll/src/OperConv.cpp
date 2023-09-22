@@ -443,7 +443,6 @@ struct Type1DConversion  : unary_func<TR,TA>
 		}
 		if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
 		{
-			// TODO fix issue #523 here
 			srcUnit->UnifyValues(resUnit, "Base Units of first argument", "Base Units of cast target as specified by the second argument", UM_Throw);
 			dms_assert(0); // if+unify => throw
 		}
