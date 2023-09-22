@@ -37,6 +37,9 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__STG_XDB_STORAGEMANAGER_H)
 #define __STG_XDB_STORAGEMANAGER_H
 
+
+#include "RtcGeneratedVersion.h"
+
 // for AbstactStorageManager interface
 #include "StgBase.h"
 
