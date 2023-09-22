@@ -132,8 +132,6 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
-	//if (ti == m_root)
-	//	return createIndex(row, column, ti);
 
 	ti = ti->_GetFirstSubItem();
 	assert(ti);
@@ -150,9 +148,6 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 		if (ti->GetTSF(TSF_IsHidden))
 			items_to_be_stepped++;
 	}
-
-	//if (ti->GetTSF(TSF_IsHidden))
-	//	return QModelIndex();
 	
 	return createIndex(row, column, ti);
 }
