@@ -137,7 +137,7 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	assert(ti);
 
 	int items_to_be_stepped = row;
-	if (ti->GetTSF(TSF_IsHidden))
+	if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
 		items_to_be_stepped++;
 
 	while (items_to_be_stepped--)
@@ -145,7 +145,7 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 		ti = ti->GetNextItem();
 		assert(ti);
 
-		if (ti->GetTSF(TSF_IsHidden))
+		if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
 			items_to_be_stepped++;
 	}
 	
@@ -183,7 +183,7 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 			continue;
 		}
 
-		if (ti->GetTSF(TSF_IsHidden))
+		if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
 		{
 			//if (number_of_rows > 0) 
 			//	number_of_rows--;
@@ -198,6 +198,11 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 int DmsModel::columnCount(const QModelIndex& /*parent*/) const
 {
 	return 1;
+}
+
+void DmsModel::updateShowHiddenItems()
+{
+	show_hidden_items =  GetRegStatusFlags() & RSF_AdminMode;
 }
 
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
@@ -338,8 +343,8 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (!ti)
 			return;
 
-		if (ti->GetTSF(TSF_IsHidden))
-			return;
+		//if (ti->GetTSF(TSF_IsHidden))
+		//	return;
 
 		const TreeItem* storageHolder = nullptr;
 		if (ti->HasStorageManager())

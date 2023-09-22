@@ -210,6 +210,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setupDmsCallbacks();
 
     m_dms_model = std::make_unique<DmsModel>();
+    m_dms_model->updateShowHiddenItems();
+
     m_treeview->setModel(m_dms_model.get());
 
     createActions();
