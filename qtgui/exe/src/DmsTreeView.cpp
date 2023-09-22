@@ -138,14 +138,22 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	ti = ti->_GetFirstSubItem();
 	assert(ti);
 
-
-
 	int items_to_be_stepped = row;
+	if (ti->GetTSF(TSF_IsHidden))
+		items_to_be_stepped++;
+
 	while (items_to_be_stepped--)
 	{
 		ti = ti->GetNextItem();
 		assert(ti);
+
+		if (ti->GetTSF(TSF_IsHidden))
+			items_to_be_stepped++;
 	}
+
+	//if (ti->GetTSF(TSF_IsHidden))
+	//	return QModelIndex();
+	
 	return createIndex(row, column, ti);
 }
 
@@ -170,13 +178,26 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 		return 0;
 
 	ti = ti->_GetFirstSubItem();
-	int row = 0;
+	int number_of_rows = 0;
 	while (ti)
 	{
 		ti = ti->GetNextItem();
-		++row;
+		if (!ti)
+		{
+			//number_of_rows++;
+			continue;
+		}
+
+		if (ti->GetTSF(TSF_IsHidden))
+		{
+			//if (number_of_rows > 0) 
+			//	number_of_rows--;
+			continue;
+		}
+
+		number_of_rows++;
 	}
-	return row;
+	return number_of_rows;
 }
 
 int DmsModel::columnCount(const QModelIndex& /*parent*/) const
@@ -320,6 +341,9 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 
 		if (!ti)
+			return;
+
+		if (ti->GetTSF(TSF_IsHidden))
 			return;
 
 		const TreeItem* storageHolder = nullptr;
