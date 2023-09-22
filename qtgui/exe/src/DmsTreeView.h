@@ -56,12 +56,14 @@ public:
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
 	auto flags(const QModelIndex& index) const -> Qt::ItemFlags override;
 	QVariant getTreeItemIcon(const QModelIndex& index) const;
+	void updateShowHiddenItems();
 
 private:
 	QVariant getTreeItemColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 
 	const TreeItem* m_root = nullptr;
+	bool show_hidden_items = false;
 };
 
 class TreeItemDelegate : public QStyledItemDelegate

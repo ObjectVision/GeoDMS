@@ -9,6 +9,7 @@
 #include "UnitClass.h"
 #include "utl/Registry.h"
 #include "DmsMainWindow.h"
+#include "DmsTreeView.h"
 
 #include <QCheckBox>
 #include <QPushButton>
@@ -209,6 +210,11 @@ void DmsGuiOptionsWindow::apply()
     saveBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
 
     setChanged(false);
+
+    // hidden items
+    auto main_window = MainWindow::TheOne(); 
+    main_window->m_dms_model->updateShowHiddenItems();
+    main_window->m_dms_model->reset();
 }
 
 void DmsGuiOptionsWindow::restoreOptions()

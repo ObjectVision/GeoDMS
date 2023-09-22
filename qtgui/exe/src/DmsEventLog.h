@@ -82,16 +82,13 @@ public slots:
 	void scrollToBottomThrottled();
 	void toggleScrollToBottom();
 	void toggleScrollToBottomDirectly();
-	void toggleTextFilter(bool toggled);
-	void toggleTypeFilter(bool toggled);
+	void toggleFilter(bool toggled);
 	void onTextChanged(const QString& text);
 	void clearTextFilter();
 
 private:
-
 	bool isScrolledToBottom();
-	//QPointer<QTimer> m_throttle_timer;
-	
+	int default_height = 200;
 };
 
 

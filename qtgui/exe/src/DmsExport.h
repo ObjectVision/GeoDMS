@@ -89,15 +89,16 @@ public:
     DmsExportWindow(QWidget* parent = nullptr);
 
 public slots:
-    void exportActiveTabInfo();
-    void resetExportButton();
+    void exportActiveTabInfoOrCloseAfterExport();
+    void resetExportDialog();
 
 private:
     void exportImpl();
 
     int m_vector_tab_index;
     int m_raster_tab_index;
-    QPointer<QTabWidget> m_tabs;
+    QPointer<QTabWidget>  m_tabs;
     QPointer<QPushButton> m_export_button;
+    QPointer<QPushButton> m_cancel_button;
     bool                  m_export_ready = false;
 };

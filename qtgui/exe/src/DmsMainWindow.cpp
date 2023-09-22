@@ -210,6 +210,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setupDmsCallbacks();
 
     m_dms_model = std::make_unique<DmsModel>();
+    m_dms_model->updateShowHiddenItems();
+
     m_treeview->setModel(m_dms_model.get());
 
     createActions();
@@ -548,20 +550,6 @@ void DmsRecentFileEntry::onDeleteRecentFileEntry()
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
-}
-
-void DmsRecentFileEntry::onFileEntryContextMenuRequested(QPoint pos)
-{
-    if (!m_context_menu)
-    {
-        m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
-        auto* open = new QAction("open", m_context_menu.get());
-        auto* remove = new QAction("remove", m_context_menu.get());
-        connect(open, &QAction::triggered, this, &DmsRecentFileEntry::onFileEntryPressed);
-        connect(remove, &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
-    }
-
-    m_context_menu->popup(pos);
 }
 
 void DmsRecentFileEntry::onFileEntryPressed()

@@ -117,7 +117,15 @@ namespace wms {
 //			m_SslContext.load_verify_file("ca.pem");
 
 			// Look up the domain name
-			m_Results = m_Resolver.resolve(hostName.c_str(), "https");
+			try 
+			{
+				m_Results = m_Resolver.resolve(hostName.c_str(), "https");
+			}
+			catch (...)
+			{
+				auto result = catchException(false);
+				reportF(MsgCategory::background_layer_connection, SeverityTypeID::ST_Error, "Unable to resolve host: %s", hostName); //result->GetAsText().c_str()
+			}
 		}
 
 		template <typename Socket, typename Continuation>
