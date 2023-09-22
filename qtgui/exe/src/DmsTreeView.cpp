@@ -200,9 +200,13 @@ int DmsModel::columnCount(const QModelIndex& /*parent*/) const
 	return 1;
 }
 
-void DmsModel::updateShowHiddenItems()
+bool DmsModel::updateShowHiddenItems()
 {
-	show_hidden_items =  GetRegStatusFlags() & RSF_AdminMode;
+	  bool mustShowAll = GetRegStatusFlags() & RSF_AdminMode;
+	  if (show_hidden_items == mustShowAll)
+		  return false;
+	  show_hidden_items = mustShowAll;
+	  return true;
 }
 
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
