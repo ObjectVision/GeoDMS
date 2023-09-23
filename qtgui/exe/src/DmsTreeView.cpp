@@ -172,26 +172,11 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 	if (!ti)
 		return 0;
 
-	ti = ti->_GetFirstSubItem();
 	int number_of_rows = 0;
-	while (ti)
-	{
-		ti = ti->GetNextItem();
-		if (!ti)
-		{
-			//number_of_rows++;
-			continue;
-		}
+	for (auto si = ti->_GetFirstSubItem(); si; si = si->GetNextItem())
+		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
+			number_of_rows++;
 
-		if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
-		{
-			//if (number_of_rows > 0) 
-			//	number_of_rows--;
-			continue;
-		}
-
-		number_of_rows++;
-	}
 	return number_of_rows;
 }
 
@@ -435,32 +420,37 @@ auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
 	auto root_node_index = rootIndex();
 	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
 		return {};
+	if (new_current_item->GetRoot() != MainWindow::TheOne()->getRootTreeItem())
+		return {};
 
 	ObjectMsgGenerator thisMsgGenerator(new_current_item, "DmsTreeView::expandToCurrentItem");
 	Waiter showWaitingStatus(&thisMsgGenerator);
 
 	auto parent_index = root_node_index;
-	while (true)
-	{
-		auto child_count = model()->rowCount(parent_index);
-		for (int i = 0; i < child_count; i++)
-		{
-			auto child_index = model()->index(i, 0, parent_index);
-			auto ti = GetTreeItem(child_index);
-			if (ti == new_current_item)
-			{
-				setCurrentIndex(child_index);
-				return child_index;
-			}
 
-			if (isAncestor(ti, new_current_item))
-			{
-				if (!isExpanded(child_index))
-					expand(child_index);
-				parent_index = child_index;
-			}
+search_at_parent_index:
+	auto child_count = model()->rowCount(parent_index);
+	for (int i = 0; i < child_count; i++)
+	{
+		auto child_index = model()->index(i, 0, parent_index);
+		auto ti = GetTreeItem(child_index);
+		if (ti == new_current_item)
+		{
+			setCurrentIndex(child_index);
+			return child_index;
+		}
+
+		if (isAncestor(ti, new_current_item))
+		{
+			if (!isExpanded(child_index))
+				expand(child_index);
+			parent_index = child_index;
+			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
 		}
 	}
+	// maybe descendant was hidden
+	setCurrentIndex(parent_index);
+	return parent_index;
 }
 
 bool DmsTreeView::expandActiveNode(bool doExpand)
