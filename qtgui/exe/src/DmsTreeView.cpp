@@ -137,23 +137,19 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
 
-	ti = ti->_GetFirstSubItem();
-	assert(ti);
-
-	int items_to_be_stepped = row;
-	if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
-		items_to_be_stepped++;
-
-	while (items_to_be_stepped--)
+	int currRow = 0;
+	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem())
 	{
-		ti = ti->GetNextItem();
-		assert(ti);
-
-		if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
-			items_to_be_stepped++;
+		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
+		{
+			if (currRow == row)
+				return createIndex(row, column, ti);
+			++currRow;
+		}
 	}
-	
-	return createIndex(row, column, ti);
+
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+	return QModelIndex();
 }
 
 QModelIndex DmsModel::parent(const QModelIndex& child) const
@@ -612,22 +608,34 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	MainWindow::TheOne()->updateToolsMenu();
 }
 
-void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
+void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 {
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
-	if (root_ti == new_current_item)
+	if (root_ti == target_item)
 		return;
 
 	if (current_node_index.isValid())
 	{
 		auto ti = GetTreeItem(current_node_index);
-		if (new_current_item == ti) // treeview already has current item
+		if (target_item == ti) // treeview already has current item
 			return;
 	}
 
-	expandToItem(new_current_item);
+	MG_CHECK(isAncestor(root_ti, target_item));
+	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items)
+	{
+		if (target_item->IsHidden() )
+		reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+			"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+			, target_item->GetFullName().c_str()
+			, currItem->GetFullName().c_str()
+		);
+	}
+
+
+	expandToItem(target_item);
 }
 
 void DmsTreeView::onDoubleClick(const QModelIndex& index)
