@@ -403,17 +403,12 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 	main_window->setCurrentTreeItem(ti);
 }
 
-bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant)
 {
-	if (!descendant)
-		return false;
-	auto ancestorCandidate = descendant->GetParent();
-	while (ancestorCandidate)
-	{
+	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent())
 		if (ancestorCandidate == ancestorTarget)
 			return true;
-		ancestorCandidate = ancestorCandidate->GetParent();
-	}
+
 	return false;
 }
 
@@ -457,9 +452,9 @@ search_at_parent_index:
 	// maybe descendant was hidden
 	MG_CHECK(isAncestor(currItem, target_item));
 	MG_CHECK(!MainWindow::TheOne()->m_dms_model->show_hidden_items);
-
-	reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
-		"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+	MG_CHECK(target_item->GetTSF(TSF_InHidden));
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+		"\nIllegal Target for DmsTreeView::expandToItem"
 		, target_item->GetFullName().c_str()
 		, currItem->GetFullName().c_str()
 	);
@@ -623,7 +618,7 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 			return;
 	}
 
-	MG_CHECK(isAncestor(root_ti, target_item));
+	MG_CHECK(!root_ti || isAncestor(root_ti, target_item));
 	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items)
 	{
 		if (target_item->GetTSF(TSF_InHidden) )
@@ -638,7 +633,6 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 			);
 		}
 	}
-
 
 	expandToItem(target_item);
 }

@@ -94,3 +94,4 @@ private:
 };
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant);
