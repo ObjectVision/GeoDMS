@@ -174,8 +174,10 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 
 	int number_of_rows = 0;
 	for (auto si = ti->_GetFirstSubItem(); si; si = si->GetNextItem())
-		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
+	{
+		if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
 			number_of_rows++;
+	}
 
 	return number_of_rows;
 }
