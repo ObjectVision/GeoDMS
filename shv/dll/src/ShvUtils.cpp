@@ -64,6 +64,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 
 #include "StgBase.h"
 
@@ -919,10 +920,15 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
 		DataWriteLock lock(newResult);
-
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
-		for (SizeT i = 0; i != n; ++i)
-			resultData[i] = AsString(i);
+
+		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+			{
+				auto domainRange = pd->GetRange();
+				for (SizeT i = 0; i != n; ++i)
+					resultData[i] = AsString(Range_GetValue_checked(domainRange, i));
+			}
+		);
 
 		lock.Commit();
 	}
