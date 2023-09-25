@@ -176,7 +176,6 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 	statisticsBuffer.clear();
 
 	ExternalVectorOutStreamBuff outStreamBuff(statisticsBuffer);
-//	FormattedOutStream os(&outStreamBuff, FormattingFlags::ThousandSeparator);
 
 	OutStream_HTM os(&outStreamBuff, "html", nullptr);
 

@@ -224,7 +224,8 @@ SharedStr ReadLine(FormattedInpStream& fis)
 
 int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
 {
-    auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
+	Sleep(1000);
+	auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
 	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{

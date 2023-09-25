@@ -213,8 +213,8 @@ void DmsGuiOptionsWindow::apply()
 
     // hidden items
     auto main_window = MainWindow::TheOne(); 
-    main_window->m_dms_model->updateShowHiddenItems();
-    main_window->m_dms_model->reset();
+    if (main_window->m_dms_model->updateShowHiddenItems())
+        main_window->m_dms_model->reset();
 }
 
 void DmsGuiOptionsWindow::restoreOptions()

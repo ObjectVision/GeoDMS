@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__STG_ASC_STORAGEMANAGER_H)
 #define __STG_ASC_STORAGEMANAGER_H
 
+#include "RtcGeneratedVersion.h"
 
 #include "StgBase.h"
 #include "GridStorageManager.h"
@@ -45,6 +46,12 @@ granted by an additional written contract for support, assistance and/or develop
 class AsciiStorageManager : public AbstrGridStorageManager
 {
 public:
+	AsciiStorageManager()
+	{
+		reportD(SeverityTypeID::ST_Warning, "AsciiStorageManager is depreciated and will be removed in GeoDms version 15.0.0");
+		static_assert(DMS_VERSION_MAJOR != 15);
+	}
+
 //	implement AbstrStorageManager interface
 	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smi) override;

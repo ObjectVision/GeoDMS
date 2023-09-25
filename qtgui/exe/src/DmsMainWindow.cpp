@@ -1380,7 +1380,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
         m_currConfigFileName = ConvertDosFileName(orgConfigFilePath); // replace back-slashes to linux/dms style separators and prefix //SYSTEM/path with 'file:'
         
         auto folderName = splitFullPath(m_currConfigFileName.c_str());
-        if (strnicmp(folderName.c_str(), "file:",5) == 0)
+        if (strnicmp(folderName.c_str(), "file:",5) != 0)
             SetCurrentDir(ConvertDmsFileNameAlways(std::move(folderName)).c_str());
 
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
