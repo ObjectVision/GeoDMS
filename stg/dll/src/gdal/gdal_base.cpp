@@ -304,7 +304,7 @@ void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const Abs
 	std::optional<OGRSpatialReference> ogrSR;
 	if (ogrSR_ptr) 
 		ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
-	CheckSpatialReference(ogrSR, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
+	CheckSpatialReference(ogrSR, treeitem, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
 SharedStr GetAsWkt(const OGRSpatialReference* sr)
@@ -424,7 +424,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	if (ogrSR)
 	{
 		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
-		CheckCompatibility(&*ogrSR, &spOrErr.first);
+		CheckCompatibility(treeitem, &*ogrSR, &spOrErr.first);
 	}
 	else
 		ogrSR = spOrErr.first;

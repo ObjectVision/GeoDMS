@@ -1557,14 +1557,16 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "Unit.h"
 #include "UnitClass.h"
 
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
+void UpdateSpatialRef(const GDALDatasetHandle& hDS, TreeItem* geometry_item, std::optional<OGRSpatialReference>& spatialRef)
 {
+	AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
+
 	if (!spatialRef)
 		return;
 	assert(geometry);
 
 	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
+	CheckSpatialReference(spatialRef, geometry_item, const_cast<AbstrUnit*>(gvu));
 
 	auto wkt = GetAsWkt(&*spatialRef);
 	if (!wkt.empty())
@@ -1589,7 +1591,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
 	{
-		AbstrDataItem* geometry = AsDynamicDataItem(layerDomain->GetSubTreeItemByID(token::geometry));
+		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
 			ValueComposition configured_vc = geometry->GetValueComposition();
@@ -1616,7 +1619,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 			std::optional<OGRSpatialReference> ogrSR; 
 			if (ogrSR_ptr) 
 				ogrSR = *ogrSR_ptr;
-			UpdateSpatialRef(m_hDS, geometry, ogrSR);
+			UpdateSpatialRef(m_hDS, geometry_item, ogrSR);
 		}
 	}
 
