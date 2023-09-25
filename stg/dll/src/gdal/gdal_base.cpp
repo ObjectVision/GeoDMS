@@ -280,7 +280,7 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
-void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
+void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const AbstrUnit* uBase) const
 {
 	assert(uBase);
 	assert(dsh_);
@@ -381,25 +381,19 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
 }
 
-/* REMOVE
-void sr_releaser::operator ()(OGRSpatialReference* p) const
-{
-	OSRRelease(p);
-}
-*/
-
-void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
-	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
+	if (!fromGDAL->IsSame(fromConfig))
 	{
-		/*reportF(SeverityTypeID::ST_Warning, "GDAL: SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
-			"\nDataset's SpatialReference:\n%s"
-			"\nbaseProjectionUnit's SpatialReference:\n%s"
-		, GetAsWkt(fromGDAL).c_str()
-		, GetAsWkt(fromConfig).c_str()
-		);*/ // TODO: make this message more specific and user readable, for instance refer to dataset and epsg code it encompasses.
+		SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
+		SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);;
+		reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+			, treeitem->GetFullName().c_str()
+			, authority_code_from_gdal.c_str()
+			, authority_code_from_value_unit.c_str()
+		);
 	}
 }
 
@@ -408,33 +402,19 @@ auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projecti
 	return {};
 }
 
-void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* uBase)
 {
 	if (!ogrSR) // dataset spatial reference does not exist, no check possible.
 		return;
 
-	// TODO: check of the sr provider code matches the geodms projection
 	assert(IsMainThread());
 	assert(uBase);
 	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());
-
-	/*if (!projection.empty())
-	{
-		auto authority_identifier_and_code = ConvertProjectionStrToAuthorityIdentifierAndCode(projection.c_str());
-		auto srs = GetSpatialReferenceFromUserInput(authority_identifier_and_code);
-		srs.first.IsSame(ogrSR.value());
-	}*/
-	
-
 	
 	if (wktPrjStr.empty())
-	{
-		//TODO: reconsider implementation of this error message, message is unclear as of now.
-		//auto fullName = SharedStr(uBase->GetFullName());
-		//reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
 		return;
-	}
+
 	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
 	if (spOrErr.second != OGRERR_NONE)
 	{
