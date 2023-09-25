@@ -62,6 +62,7 @@ private:
 	QVariant getTreeItemColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 
+public:
 	const TreeItem* m_root = nullptr;
 	bool show_hidden_items = false;
 };
@@ -80,7 +81,7 @@ public:
 	DmsTreeView(QWidget* parent);
 	void showTreeviewContextMenu(const QPoint& pos);
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
-	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
+	auto expandToItem(TreeItem* new_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
 	bool expandActiveNode(bool doExpand);
 	bool expandRecursiveFromCurrentItem();
