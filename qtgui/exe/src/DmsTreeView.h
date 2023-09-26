@@ -85,7 +85,8 @@ public:
 	bool expandActiveNode(bool doExpand);
 	bool expandRecursiveFromCurrentItem();
 	QSize sizeHint() const override;
-	int m_default_size = 300;
+	QSize minimumSizeHint() const override;
+	int m_default_size = 200;
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);

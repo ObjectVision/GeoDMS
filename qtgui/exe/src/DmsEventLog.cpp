@@ -383,6 +383,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	grid_layout->addWidget(m_log.get(), 0, 0);
 	grid_layout->addLayout(eventlog_toolbar, 0, 1);
 	vertical_layout->addLayout(grid_layout);
+	vertical_layout->setContentsMargins(0, 0, 0, 0);
 	setLayout(vertical_layout);
 	toggleFilter(false);
 }
@@ -486,14 +487,22 @@ void DmsEventLog::scrollToBottomThrottled()
 void DmsEventLog::toggleFilter(bool toggled)
 {
 	auto main_window = MainWindow::TheOne();
-	m_eventlog_filter->setVisible(toggled);
 
 	auto current_height = height();
 	if (toggled)
-		default_height = current_height;
+		default_height = current_height + 150;
 	else
-		main_window->resizeDocksToNaturalSize();
-		//main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
+	{
+		default_height = current_height - 150;
+		//main_window->resizeDocksToNaturalSize();
+		
+	}
+	main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
+
+	m_eventlog_filter->setVisible(toggled);
+
+
+	
 
 	
 }
@@ -516,6 +525,11 @@ void DmsEventLog::clearTextFilter()
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 	MainWindow::TheOne()->m_eventlog_model->refilter();
+}
+
+QSize DmsEventLog::sizeHint() const
+{
+	return QSize(0, default_height);
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
@@ -542,9 +556,12 @@ auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 	dms_main_window->m_eventlog_model = std::make_unique<EventLogModel>();
 	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(MainWindow::TheOne()->m_eventlog_dock);
 	
+	dms_eventlog_pointer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
 	MainWindow::TheOne()->m_eventlog_dock->setWidget(dms_eventlog_pointer.get());
 	MainWindow::TheOne()->m_eventlog_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_eventlog_dock));
-    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);;
+	
+    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);
 
 	dms_eventlog_pointer->m_log->setModel(dms_main_window->m_eventlog_model.get());
 	return dms_eventlog_pointer;

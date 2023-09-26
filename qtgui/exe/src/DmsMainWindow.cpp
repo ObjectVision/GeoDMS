@@ -1454,7 +1454,6 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
- 
 
     auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
@@ -2303,7 +2302,7 @@ void MainWindow::createDetailPagesDock()
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
-    m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    m_detail_pages->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
     vertical_layout->addWidget(m_detail_page_properties_buttons->gridLayoutWidget);
     vertical_layout->addWidget(m_detail_page_source_description_buttons->gridLayoutWidget);
@@ -2314,6 +2313,7 @@ void MainWindow::createDetailPagesDock()
     hideDetailPagesRadioButtonWidgets(true, true);
 
     vertical_layout->addWidget(m_detail_pages.get());
+    vertical_layout->setContentsMargins(0, 0, 0, 0);
     detail_pages_holder->setLayout(vertical_layout);
     m_detailpages_dock->setWidget(detail_pages_holder);
 
@@ -2327,14 +2327,9 @@ void MainWindow::createValueInfoDock()
 {
     m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
     m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    //m_value_info_dock->setMinimumWidth(0);
-
-    //m_value_info_dock->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
     m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    //m_value_info_mdi_area->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Ignored);
     m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    //m_value_info_mdi_area->resize(500, 0);
-    //m_value_info_dock->resize(500, 0);
+
     m_value_info_dock->setWidget(m_value_info_mdi_area);
     m_value_info_dock->setVisible(true);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
@@ -2343,7 +2338,6 @@ void MainWindow::createValueInfoDock()
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
-    
     createDetailPagesDock();
 
     m_treeview = createTreeview(this);

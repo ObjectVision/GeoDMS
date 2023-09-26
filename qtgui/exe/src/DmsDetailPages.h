@@ -25,10 +25,12 @@ class DmsDetailPages : public QTextBrowser
 public:
 	DmsDetailPages(QWidget* parent = nullptr);
 	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 	void connectDetailPagesAnchorClicked();
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	ActiveDetailPage m_last_active_detail_page = ActiveDetailPage::GENERAL;
+	int m_default_width = 500;
 
 public slots:
 	void show(ActiveDetailPage new_active_detail_page);
