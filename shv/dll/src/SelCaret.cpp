@@ -227,7 +227,7 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	Region selCaretRgn = regionTower.GetResult();
 	dms_assert((selCaretRgn - clippedUpdateRgn).Empty());
 
-	SetSelCaretRgn(selCaretRgn | (GetSelCaretRgn() - updateRgn));
+	SetSelCaretRgn(selCaretRgn | (GetSelCaretRgn() - updateRgn)); // replace updateRgn with selCaretRgn, leave rest unaltered
 	m_Ready = true;
 }
 

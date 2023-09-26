@@ -178,7 +178,7 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	{
 		DataWriteLock lock(selAttr, CompoundWriteType(eventID));
 		{
-			auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
+			auto selData = mutable_array_cast<T>(lock)->GetDataWrite(no_tile, CompoundWriteType(eventID));
 
 			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(selectRect), Top(selectRect))));
 			UInt32 gridWidth = Width(gridRect);
