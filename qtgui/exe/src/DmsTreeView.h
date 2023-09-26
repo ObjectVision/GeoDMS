@@ -84,6 +84,8 @@ public:
 	void setNewCurrentItem(TreeItem* new_current_item);
 	bool expandActiveNode(bool doExpand);
 	bool expandRecursiveFromCurrentItem();
+	QSize sizeHint() const override;
+	int m_default_size = 300;
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);

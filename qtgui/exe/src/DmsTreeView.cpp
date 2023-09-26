@@ -478,6 +478,11 @@ bool DmsTreeView::expandRecursiveFromCurrentItem()
 	return true;
 }
 
+QSize DmsTreeView::sizeHint() const
+{
+	return QSize(m_default_size, 0);
+}
+
 DmsTreeView::DmsTreeView(QWidget* parent)
 	: QTreeView(parent)
 {

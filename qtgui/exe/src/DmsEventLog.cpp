@@ -492,7 +492,8 @@ void DmsEventLog::toggleFilter(bool toggled)
 	if (toggled)
 		default_height = current_height;
 	else
-		main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
+		main_window->resizeDocksToNaturalSize();
+		//main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
 
 	
 }

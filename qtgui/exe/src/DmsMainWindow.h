@@ -206,6 +206,7 @@ public:
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
     void addRecentFilesMenu(std::string_view recent_file);
+    void resizeDocksToNaturalSize();
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
