@@ -34,6 +34,9 @@
     <Filter Include="GDAL">
       <UniqueIdentifier>{017d85c9-a491-4b8a-b5aa-7fa4b004185b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Memory Mapped Data">
+      <UniqueIdentifier>{86a32c4b-3b59-4ecd-a6eb-e97c4ed79cd0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\asc\AscStorageManager.cpp">
@@ -98,6 +101,9 @@
     </ClCompile>
     <ClCompile Include="src\tif\TifImp.cpp">
       <Filter>TIF</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mmd\MemoryMappedDataStorageManager.cpp">
+      <Filter>Memory Mapped Data</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -170,9 +176,8 @@
     <ClInclude Include="src\tif\TifImp.h">
       <Filter>TIF</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\LICENSE.TXT" />
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\proj.db" />
+    <ClInclude Include="src\mmd\MemoryMappeddataStorageManager.h">
+      <Filter>Memory Mapped Data</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
