@@ -452,7 +452,12 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 
 QSize DmsDetailPages::sizeHint() const
 {
-    return QSize(500, 0);
+    return QSize(m_default_width, 0);
+}
+
+QSize DmsDetailPages::minimumSizeHint() const
+{
+    return QSize(m_default_width, 0);
 }
 
 void DmsDetailPages::resizeEvent(QResizeEvent* event)

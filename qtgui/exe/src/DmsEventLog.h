@@ -73,6 +73,7 @@ public:
 	std::unique_ptr<QPushButton> m_copy_selected_to_clipboard, m_scroll_to_bottom_toggle, m_event_filter_toggle, m_clear;
 	bool m_scroll_to_bottom = true;
 	bool m_text_filter_active = false;
+	QSize sizeHint() const override;
 
 
 public slots:

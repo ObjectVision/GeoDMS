@@ -18,6 +18,8 @@ class ValueInfoPanel : public QMdiSubWindow
 public:
     ValueInfoPanel(QWidget* parent);
     ~ValueInfoPanel();
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 };
 
 struct ValueInfoBrowser : QUpdatableTextBrowser

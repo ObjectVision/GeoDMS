@@ -1564,7 +1564,7 @@ void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std
 	assert(geometry);
 
 	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
+	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu));
 
 	auto wkt = GetAsWkt(&*spatialRef);
 	if (!wkt.empty())
@@ -1589,7 +1589,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
 	{
-		AbstrDataItem* geometry = AsDynamicDataItem(layerDomain->GetSubTreeItemByID(token::geometry));
+		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
 			ValueComposition configured_vc = geometry->GetValueComposition();

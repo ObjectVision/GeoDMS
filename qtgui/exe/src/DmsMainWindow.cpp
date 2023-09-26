@@ -233,10 +233,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
     updateCaption();
     setUnifiedTitleAndToolBarOnMac(true);
-
     scheduleUpdateToolbar();
-
     LoadColors();
+
+    resizeDocksToNaturalSize();
 }
 
 MainWindow::~MainWindow()
@@ -926,10 +926,9 @@ bool MainWindow::event(QEvent* event)
     if (event->type() == QEvent::WindowStateChange && windowState() == Qt::WindowState::WindowMaximized)
     {
         int default_treeview_treshold = 100;
-        int default_treeview_width = 200;
         auto curr_treeview_dock_width = m_treeview_dock->width();
         if (curr_treeview_dock_width < default_treeview_treshold)
-            resizeDocks({ m_treeview_dock }, { default_treeview_width }, Qt::Horizontal);
+            resizeDocksToNaturalSize();
     }
 
     return QMainWindow::event(event);
@@ -1473,7 +1472,6 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
- 
 
     auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
@@ -1625,6 +1623,18 @@ void MainWindow::addRecentFilesMenu(std::string_view recent_file) // TODO: renam
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
     connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
+}
+
+void MainWindow::resizeDocksToNaturalSize()
+{
+    //int default_treeview_width = 500;
+    //int default_detail_pages_width = 500;
+    //int default_value_info_width = 500;
+    //int default_eventlog_height = 600;
+    //resizeDocks({ m_treeview_dock, m_detailpages_dock, m_value_info_dock }, { default_treeview_width, default_detail_pages_width, default_value_info_width }, Qt::Horizontal);
+    
+    //resizeDocks({ m_treeview_dock}, { default_treeview_width}, Qt::Horizontal);
+    //resizeDocks({ m_eventlog_dock }, { default_eventlog_height }, Qt::Vertical);
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -2310,7 +2320,7 @@ void MainWindow::createDetailPagesDock()
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
     m_detail_pages->connectDetailPagesAnchorClicked();
-    m_detail_pages->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    m_detail_pages->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
     vertical_layout->addWidget(m_detail_page_properties_buttons->gridLayoutWidget);
     vertical_layout->addWidget(m_detail_page_source_description_buttons->gridLayoutWidget);
@@ -2321,6 +2331,7 @@ void MainWindow::createDetailPagesDock()
     hideDetailPagesRadioButtonWidgets(true, true);
 
     vertical_layout->addWidget(m_detail_pages.get());
+    vertical_layout->setContentsMargins(0, 0, 0, 0);
     detail_pages_holder->setLayout(vertical_layout);
     m_detailpages_dock->setWidget(detail_pages_holder);
 
@@ -2334,13 +2345,9 @@ void MainWindow::createValueInfoDock()
 {
     m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
     m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    //m_value_info_dock->setMinimumWidth(0);
-
-    //m_value_info_dock->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
     m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Ignored);
-    m_value_info_mdi_area->resize(500, 0);
-    m_value_info_dock->resize(500, 0);
+    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
     m_value_info_dock->setWidget(m_value_info_mdi_area);
     m_value_info_dock->setVisible(true);
     addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
@@ -2349,19 +2356,13 @@ void MainWindow::createValueInfoDock()
 void MainWindow::createDmsHelperWindowDocks()
 {
     createValueInfoDock();
-    
     createDetailPagesDock();
-
-//    m_detail_pages->setDummyText();
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
 
     auto sz_test1 = m_value_info_dock->minimumSize();
     auto sz_test2 = m_value_info_mdi_area->minimumSize();
-    // connections below need constructed treeview and filters to work
-    // TODO: refactor action/pushbutton logic
-
 }
 
 void MainWindow::back()

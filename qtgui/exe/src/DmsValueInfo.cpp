@@ -27,11 +27,22 @@ ValueInfoPanel::~ValueInfoPanel()
     if (!active_subwindow)
     {
         main_window->m_value_info_dock->setVisible(false);
-        main_window->m_detailpages_dock->setVisible(true);
+        main_window->resizeDocks({ main_window->m_detailpages_dock }, { main_window->m_detail_pages->m_default_width}, Qt::Horizontal);
+        //main_window->m_detailpages_dock->setVisible(true);
     }
-    main_window->resizeDocks({main_window->m_detailpages_dock}, {500, 0}, Qt::Horizontal);
+    main_window->resizeDocksToNaturalSize();
+    //main_window->resizeDocks({main_window->m_detailpages_dock}, {500, 0}, Qt::Horizontal);
 }
 
+QSize ValueInfoPanel::sizeHint() const
+{
+    return QSize(500,0);
+}
+
+QSize ValueInfoPanel::minimumSizeHint() const
+{
+    return QSize(500, 0);
+}
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index)
     : QUpdatableTextBrowser(parent)
