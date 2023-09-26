@@ -397,15 +397,15 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	if (!stricmp(placeHolder, "dataDir"          )) return GetDataDir          (SessionData::Curr()->GetConfigRoot());
 
 	SharedStr result = GetPlaceholderValue(SessionData::Curr()->GetConfigDir().c_str(), placeHolder, false);
-	if (result.empty())
-	{
-		result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
-		if (result.empty())
-			configStore->throwItemErrorF("Unable to find placeholder: %%%s%%.", placeHolder);
-		//	return SharedStr(placeHolder);
-		
-	}
-	return result;
+	if (!result.empty())
+		return result;
+
+	result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
+	if (!result.empty())
+		return result;
+
+	reportF(MsgCategory::progress, SeverityTypeID::ST_Warning, "Unable to find placeholder: %%%s%%.", placeHolder);
+	return SharedStr(placeHolder);
 }
 
 SharedStr AbstrStorageManager::Expand(const TreeItem* configStore, SharedStr storageName)
