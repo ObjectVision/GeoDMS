@@ -76,5 +76,6 @@
         <file>res/images/IconCalculationTimeOverview.png</file>
         <file>res/images/TV_default_view.bmp</file>
         <file>res/images/ConfigFileList.png</file>
+        <file>res/images/test_splash_image.jpg</file>
     </qresource>
 </RCC>

@@ -2,6 +2,8 @@
 #include <QAbstractNativeEventFilter>
 #include <QResource>
 #include <QByteArray>
+#include <QSplashScreen>
+#include <qdesktopservices.h>
 #include <memory>
 
 #include "act/Any.h"
@@ -310,18 +312,24 @@ int main_without_SE_handler(int argc, char *argv[])
         DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
 
         QApplication dms_app(argc, argv);
-        //dms_app.setStyle("macos");
 
+        QPixmap pixmap(":/res/images/test_splash_image.jpg");
+        std::unique_ptr<QSplashScreen> splash = std::make_unique<QSplashScreen>(pixmap);
+        auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
+        const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
+        splash->move(currentDesktopsCenter - splash->rect().center());
+        splash->show();
+
+        splash->showMessage("Initialize GeoDMS");
         geoDmsResources |= init_geodms(dms_app, settingsFrame); // destruct resources after app completion
         dms_app.installNativeEventFilter(&navive_event_filter);
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
+        splash->showMessage("Initialize GeoDMS Gui");
         MainWindow main_window(settingsFrame);
         dms_app.setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
-        main_window.showMaximized();
-
         dms_app.installEventFilter(&mouse_forward_backward_event_filter);
-
+        
         auto tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
         if (!tsn.empty())
@@ -330,7 +338,11 @@ int main_without_SE_handler(int argc, char *argv[])
             assert(hwDispatch);
             testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
+
+        splash->finish(&main_window);
+        main_window.showMaximized();
         auto result = dms_app.exec();
+
         if (!tsn.empty() && !result)
         {
             try
