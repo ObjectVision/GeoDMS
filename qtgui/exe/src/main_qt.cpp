@@ -313,7 +313,7 @@ int main_without_SE_handler(int argc, char *argv[])
 
         QApplication dms_app(argc, argv);
 
-        QPixmap pixmap(":/res/images/test_splash_image.jpg");
+        QPixmap pixmap(":/res/images/test_splash_image.jpg"); // https://sustainable-environment.org.uk/Environment/Land_Use.php
         std::unique_ptr<QSplashScreen> splash = std::make_unique<QSplashScreen>(pixmap);
         auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
         const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
