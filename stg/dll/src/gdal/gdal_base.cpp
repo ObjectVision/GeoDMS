@@ -385,16 +385,21 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 {
 	assert(fromGDAL);
 	assert(fromConfig);
-	if (!fromGDAL->IsSame(fromConfig))
-	{
-		SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
-		SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);;
-		reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
-			, treeitem->GetFullName().c_str()
-			, authority_code_from_gdal.c_str()
-			, authority_code_from_value_unit.c_str()
-		);
-	}
+
+	if (fromGDAL->IsSame(fromConfig))
+		return;
+
+	SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
+	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+
+	if (authority_code_from_gdal == authority_code_from_value_unit)
+		return;
+
+	reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+		, treeitem->GetFullName().c_str()
+		, authority_code_from_gdal.c_str()
+		, authority_code_from_value_unit.c_str()
+	);
 }
 
 auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
