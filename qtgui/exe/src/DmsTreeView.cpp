@@ -21,13 +21,17 @@
 #include <QMainWindow>
 #include <QApplication>
 
+#include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
-#include "ShvDllInterface.h"
-#include "TicInterface.h"
 #include "StateChangeNotification.h"
+
+#include "TicInterface.h"
+
+#include "ShvDllInterface.h"
 #include "dataview.h"
 #include "waiter.h"
-#include "dbg/DmsCatch.h"
+
 
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
@@ -133,23 +137,19 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
 
-	ti = ti->_GetFirstSubItem();
-	assert(ti);
-
-	int items_to_be_stepped = row;
-	if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
-		items_to_be_stepped++;
-
-	while (items_to_be_stepped--)
+	int currRow = 0;
+	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem())
 	{
-		ti = ti->GetNextItem();
-		assert(ti);
-
-		if (!show_hidden_items && ti->GetTSF(TSF_IsHidden))
-			items_to_be_stepped++;
+		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
+		{
+			if (currRow == row)
+				return createIndex(row, column, ti);
+			++currRow;
+		}
 	}
-	
-	return createIndex(row, column, ti);
+
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+	return QModelIndex();
 }
 
 QModelIndex DmsModel::parent(const QModelIndex& child) const
@@ -403,29 +403,27 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 	main_window->setCurrentTreeItem(ti);
 }
 
-bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant)
 {
-	if (!descendant)
-		return false;
-	auto ancestorCandidate = descendant->GetParent();
-	while (ancestorCandidate)
-	{
+	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent())
 		if (ancestorCandidate == ancestorTarget)
 			return true;
-		ancestorCandidate = ancestorCandidate->GetParent();
-	}
+
 	return false;
 }
 
-auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
+auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex
 {
 	auto root_node_index = rootIndex();
-	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
+	auto currItem = MainWindow::TheOne()->getRootTreeItem();
+	if (target_item == currItem)
 		return {};
-	if (new_current_item->GetRoot() != MainWindow::TheOne()->getRootTreeItem())
+	if (target_item->GetRoot() != currItem)
 		return {};
 
-	ObjectMsgGenerator thisMsgGenerator(new_current_item, "DmsTreeView::expandToCurrentItem");
+	MG_CHECK(isAncestor(currItem, target_item));
+
+	ObjectMsgGenerator thisMsgGenerator(target_item, "DmsTreeView::expandToItem");
 	Waiter showWaitingStatus(&thisMsgGenerator);
 
 	auto parent_index = root_node_index;
@@ -435,23 +433,31 @@ search_at_parent_index:
 	for (int i = 0; i < child_count; i++)
 	{
 		auto child_index = model()->index(i, 0, parent_index);
-		auto ti = GetTreeItem(child_index);
-		if (ti == new_current_item)
+		auto childItem = GetTreeItem(child_index);
+		if (childItem == target_item)
 		{
 			setCurrentIndex(child_index);
 			return child_index;
 		}
 
-		if (isAncestor(ti, new_current_item))
+		if (isAncestor(childItem, target_item))
 		{
 			if (!isExpanded(child_index))
 				expand(child_index);
+			currItem = childItem;
 			parent_index = child_index;
 			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
 		}
 	}
 	// maybe descendant was hidden
-	setCurrentIndex(parent_index);
+	MG_CHECK(isAncestor(currItem, target_item));
+	MG_CHECK(!MainWindow::TheOne()->m_dms_model->show_hidden_items);
+	MG_CHECK(target_item->GetTSF(TSF_InHidden));
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+		"\nIllegal Target for DmsTreeView::expandToItem"
+		, target_item->GetFullName().c_str()
+		, currItem->GetFullName().c_str()
+	);
 	return parent_index;
 }
 
@@ -607,31 +613,44 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	MainWindow::TheOne()->updateToolsMenu();
 }
 
-void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
+void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 {
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
-	if (root_ti == new_current_item)
+	if (root_ti == target_item)
 		return;
 
 	if (current_node_index.isValid())
 	{
 		auto ti = GetTreeItem(current_node_index);
-		if (new_current_item == ti) // treeview already has current item
+		if (target_item == ti) // treeview already has current item
 			return;
 	}
 
-	expandToCurrentItem(new_current_item);
+	MG_CHECK(!root_ti || isAncestor(root_ti, target_item));
+	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items)
+	{
+		if (target_item->GetTSF(TSF_InHidden) )
+		{
+			const TreeItem* visible_parent = target_item;
+			while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+				visible_parent = visible_parent->GetTreeParent();
+			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+				, target_item->GetFullName().c_str()
+				, visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
+			);
+		}
+	}
+
+	expandToItem(target_item);
 }
 
 void DmsTreeView::onDoubleClick(const QModelIndex& index)
 {
 	if (!index.isValid())
 		return;
-
-	auto ti = GetTreeItem(index);
-	assert(ti);
 
 	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
 }

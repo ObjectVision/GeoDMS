@@ -387,12 +387,30 @@ void MainWindow::updateTreeItemVisitHistory()
     m_treeitem_visit_history->setCurrentIndex(m_treeitem_visit_history->count()-1);
 }
 
-void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_history)
+void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
 {
-    if (m_current_item == new_current_item)
+    if (m_current_item == target_item)
         return;
 
-    m_current_item = new_current_item;
+    MG_CHECK(!m_root || isAncestor(m_root, target_item));
+    if (!m_dms_model->show_hidden_items)
+    {
+        if (target_item->GetTSF(TSF_InHidden))
+        {
+            const TreeItem* visible_parent = target_item;
+            while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+                visible_parent = visible_parent->GetTreeParent();
+            reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '%1%' as Current Item, as it is a hidden sub-item of '%2%'"
+                "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+                , target_item->GetFullName().c_str()
+                , visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
+            );
+            return;
+        }
+    }
+
+
+    m_current_item = target_item;
 
     // update actions based on new current item
     updateActionsForNewCurrentItem();
@@ -408,7 +426,7 @@ void MainWindow::setCurrentTreeItem(TreeItem* new_current_item, bool update_hist
     if (update_history)
         updateTreeItemVisitHistory();
 
-    m_treeview->setNewCurrentItem(new_current_item);
+    m_treeview->setNewCurrentItem(target_item);
     m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
@@ -1355,14 +1373,14 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 
 void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath)
 {
-    bool hadSubWindwos = CloseConfig();
+    bool hadSubWindows = CloseConfig();
     SharedStr configFilePathStr(configFilePath);
     SharedStr currentItemPathStr(currentItemPath);
 
-    QTimer::singleShot(100, this, [=]() 
+    QTimer::singleShot(hadSubWindows ? 100 : 0, this, [=]()
         { 
             if (LoadConfigImpl(configFilePathStr.c_str()))
-                QTimer::singleShot(100, this, [=]()
+                QTimer::singleShot(0, this, [=]()
                     {
                         m_current_item_bar->setPath(currentItemPathStr.c_str());
                     }

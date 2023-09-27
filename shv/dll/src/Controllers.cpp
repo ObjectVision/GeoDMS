@@ -671,7 +671,7 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 
 bool DrawPolygonController::Exec(EventInfo& eventInfo)
 {
-	dms_assert(!m_PolygonCaret);
+	assert(!m_PolygonCaret);
 
 	auto dv = GetOwner().lock(); if (!dv) return true;
 
@@ -697,6 +697,7 @@ bool DrawPolygonController::Exec(EventInfo& eventInfo)
 		worldPoints.emplace_back(m_Transformation.Reverse(g2dms_order<CrdType>(*i++) ) );
 
 	layer	->	SelectPolygon(begin_ptr(worldPoints), end_ptr  (worldPoints), EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
+
 	return true;
 }
 

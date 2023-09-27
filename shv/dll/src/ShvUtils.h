@@ -1,35 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
 #pragma once
 
 #if !defined(_SHV_UTLS_H)
@@ -234,6 +206,11 @@ enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonI
 	OBSOLETE_TB_Pan,                // DualPoint   Tool
 };
 
+inline bool MustQuery(ToolButtonID id)
+{
+	return id == TB_Neutral || id == TB_Info;
+}
+
 enum class PressStatus
 {
 	DontCare,
@@ -266,14 +243,6 @@ SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
 SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
 SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
-
-/* REMOVE
-SHV_CALL Float64 GetDcDIP2pixFactorX(HDC dc);
-SHV_CALL Float64 GetDcDIP2pixFactorY(HDC dc);
-SHV_CALL Point<Float64> GetDcDIP2pixFactorXY(HDC dc);
-SHV_CALL Point<Float64> GetDcPix2DipxFactors(HDC dc);
-SHV_CALL Float64 GetDcDIP2pixFactor(HDC dc);
-*/
 
 //----------------------------------------------------------------------
 // desktop data section

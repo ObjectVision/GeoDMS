@@ -1,35 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -64,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 
 #include "StgBase.h"
 
@@ -83,13 +55,11 @@ granted by an additional written contract for support, assistance and/or develop
 // section : StatusText
 //----------------------------------------------------------------------
 
-
 void StatusTextCaller::operator() (SeverityTypeID st, CharPtr msg) const
 {
 	if (m_Func)
 		m_Func(m_ClientHandle, st, msg);
 }
-
 
 //----------------------------------------------------------------------
 // section : Instance
@@ -919,10 +889,15 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
 		DataWriteLock lock(newResult);
-
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
-		for (SizeT i = 0; i != n; ++i)
-			resultData[i] = AsString(i);
+
+		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+			{
+				auto domainRange = pd->GetRange();
+				for (SizeT i = 0; i != n; ++i)
+					resultData[i] = AsString(Range_GetValue_checked(domainRange, i));
+			}
+		);
 
 		lock.Commit();
 	}

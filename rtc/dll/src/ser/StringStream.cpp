@@ -49,6 +49,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 SizeT StrLen(CharPtr str)
 {
+	assert(str != nullptr);
 	return strlen(str);
 }
 

@@ -637,7 +637,8 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
 		w2dTr *= CrdTransformation(CrdPoint(0, 0), med.GetSubPixelFactors());
 
-		InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
+		if (MustQuery(medOwner->m_ControllerID))
+			InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
 		if (eventID & EID_LBUTTONDOWN) switch (medOwner->m_ControllerID)
 		{

@@ -141,7 +141,7 @@ extern CreateViewActionFunc g_ViewActionFunc;
 
 #if defined(MG_DEBUG)
 #	define MG_CHECK_PAST_BREAK
-	const bool MG_DEBUG_REGION        = true;
+	const bool MG_DEBUG_REGION        = false;
 	const bool MG_DEBUG_CARET         = false;
 	const bool MG_DEBUG_SCROLL        = false  || MG_DEBUG_REGION;
 	const bool MG_DEBUG_INVALIDATE    = false;

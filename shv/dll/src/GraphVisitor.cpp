@@ -830,7 +830,12 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	assert(r_EventInfo.m_EventID & EID_OBJECTFOUND);
+	assert(r_EventInfo.m_EventID & (EID_OBJECTFOUND| EID_SETCURSOR));
+
+	if (r_EventInfo.m_EventID & EID_SETCURSOR)
+		return result; 
+	if (!(r_EventInfo.m_EventID & EID_OBJECTFOUND))
+		return result;
 
 	assert(IsMainThread());
 
