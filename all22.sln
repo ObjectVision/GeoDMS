@@ -97,7 +97,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NSIS", "NSIS", "{F6034506-5
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D30-4E73-8472-758D73FED24A}"
 	ProjectSection(SolutionItems) = preProject
-		doc\MT2-issues.txt = doc\MT2-issues.txt
+		doc\LogisticRegresssion.txt = doc\LogisticRegresssion.txt
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "qtgui\exe\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
