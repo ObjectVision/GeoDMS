@@ -187,8 +187,8 @@ void WriteBinData(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 {
 	if (binCounts.size())
 	{
-		WriteAsCopyAction(os, binCounts, di);
 		WriteAsTable(os, binCounts, di);
+		WriteAsCopyAction(os, binCounts, di);
 	}
 	else
 	{
