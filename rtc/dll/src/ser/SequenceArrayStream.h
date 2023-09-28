@@ -47,7 +47,7 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, IterRange<Iter> seq)
 	}
 	else {
 		if (len != seq.size())
-			throwErrorF("ReadSequence", "stream size %u conflicts with internal size %u"
+			throwErrorF("ReadSequence", "the GeoDms is trying to read %u bytes of data, which does not match the expected size of %u bytes"
 				, len
 				, seq.size()
 			);
