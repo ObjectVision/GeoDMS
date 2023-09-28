@@ -178,6 +178,8 @@ namespace { // DebugOutStreamBuff is local
 
 			if (m_Data.empty())
 				return;
+
+			assert(m_Data.end()[-1] == char(0));
 			MsgData msgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
 			AddMainThreadOper([msg = std::move(msgData)]() mutable {
 					if (!s_nrRtcStreamLocks)
@@ -226,13 +228,16 @@ namespace { // DebugOutStreamBuff is local
 					while (true)
 					{
 						auto eolPtr = std::find(i, e, '\n');
-						if (i != msgData->m_Txt.begin() || eolPtr != msgData->m_Txt.end())
-							msgData->m_Txt = SharedStr(i, eolPtr);
-						MsgDispatch(msgData);
+						if (eolPtr != i)
+						{
+							auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
+							msgData->m_Txt = SharedStr(i, eosPtr); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
+							MsgDispatch(msgData);
+							msgData->m_IsFollowup = true;
+						}
 						if (eolPtr == e)
 							break;
 
-						msgData->m_IsFollowup = true;						
 						i = ++eolPtr;
 					}
 					++printedLines;

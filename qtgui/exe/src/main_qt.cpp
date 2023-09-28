@@ -50,10 +50,9 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
     {
         SharedStr dmsLogFileName = ConvertDosFileName(SharedStr((*argv) + 2));
 
-        auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str())); //TODO: move to appropriate location, with lifetime of app
+        auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()));
         result = make_noncopyable_any<decltype(log_file_handle)>(std::move(log_file_handle));
 
-        SetCachedStatusFlag(RSF_TraceLogFile);
         argc--; argv++;
     }
 

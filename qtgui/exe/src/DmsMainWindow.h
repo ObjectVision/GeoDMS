@@ -276,6 +276,7 @@ protected:
 
 public:
     void updateToolsMenu();
+    void updateTracelogHandle();
 
 private:
     void openConfigSourceFor(const TreeItem* context);
@@ -371,6 +372,7 @@ private:
     std::vector<processing_record> m_processing_records;
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
+    std::unique_ptr<CDebugLog> m_TraceLogHandle;
 };
 
 #endif

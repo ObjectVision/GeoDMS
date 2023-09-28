@@ -232,6 +232,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     }
 
     updateCaption();
+    updateTracelogHandle();
+
     setUnifiedTitleAndToolBarOnMac(true);
     scheduleUpdateToolbar();
     LoadColors();
@@ -2182,6 +2184,19 @@ void MainWindow::updateCaption()
     out << char(0);
 
     setWindowTitle(buff.GetData());
+}
+
+void MainWindow::updateTracelogHandle()
+{
+    if (GetRegStatusFlags() & RSF_TraceLogFile)
+    {
+        if (m_TraceLogHandle)
+            return;
+        auto fileName = AbstrStorageManager::Expand("", "%LocalDataDir%/trace.log");
+        m_TraceLogHandle = std::make_unique<CDebugLog>(fileName);
+    }
+    else
+        m_TraceLogHandle.reset();
 }
 
 void MainWindow::createStatusBar()
