@@ -428,6 +428,8 @@ void DmsLocalMachineOptionsWindow::apply()
     setSF(m_tracelog->isChecked(), dms_reg_status_flags, RSF_TraceLogFile);
     SetRegStatusFlags(dms_reg_status_flags);
 
+    MainWindow::TheOne()->updateTracelogHandle();
+
     auto flushThreshold = m_flush_treshold->value();
     SetGeoDmsRegKeyDWord("MemoryFlushThreshold", flushThreshold);
     RTC_SetCachedDWord(RegDWordEnum::MemoryFlushThreshold, flushThreshold);
