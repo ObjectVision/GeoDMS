@@ -3,8 +3,13 @@
 #include <QResource>
 #include <QByteArray>
 #include <QSplashScreen>
-#include <qdesktopservices.h>
+#include <QThread> // TODO: remove
+#include <QPainter>
+#include <QFontDatabase>
+
 #include <memory>
+
+#include "RtcInterface.h"
 
 #include "act/Any.h"
 #include "dbg/DebugLog.h"
@@ -301,6 +306,42 @@ protected:
 
 #include <future>
 
+class DmsSplashScreen : public QSplashScreen {
+public:
+
+    DmsSplashScreen(const QPixmap& pixmap)
+        : QSplashScreen(pixmap)
+    {
+    }
+
+    ~DmsSplashScreen() {}
+
+    virtual void drawContents(QPainter* painter)
+    {
+        QPixmap textPix = QSplashScreen::pixmap();
+        painter->setPen(this->m_color);
+        painter->drawText(this->m_rect, this->m_alignment, this->m_message);
+    }
+
+    void showStatusMessage(const QString& message, const QColor& color = Qt::black)
+    {
+        this->m_message = message;
+        this->m_color = color;
+        this->showMessage(this->m_message, this->m_alignment, this->m_color);
+    }
+
+    void setMessageRect(QRect rect, int alignment = Qt::AlignLeft)
+    {
+        this->m_rect = rect;
+        this->m_alignment = alignment;
+    }
+
+    QString m_message = DMS_GetVersion();
+    int     m_alignment = Qt::AlignCenter;
+    QColor  m_color;
+    QRect   m_rect;
+};
+
 int main_without_SE_handler(int argc, char *argv[])
 {
     try {
@@ -312,8 +353,17 @@ int main_without_SE_handler(int argc, char *argv[])
 
         QApplication dms_app(argc, argv);
 
+        int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
+        QString family = QFontDatabase::applicationFontFamilies(id).at(0);
+        QFont dms_text_font(family, 25);
+
         QPixmap pixmap(":/res/images/test_splash_image.jpg"); // https://sustainable-environment.org.uk/Environment/Land_Use.php
-        std::unique_ptr<QSplashScreen> splash = std::make_unique<QSplashScreen>(pixmap);
+        std::unique_ptr<DmsSplashScreen> splash = std::make_unique<DmsSplashScreen>(pixmap);
+        splash->setMessageRect(QRect(splash->rect().topLeft(), QSize(800, 500)), Qt::AlignCenter);
+        dms_text_font.setBold(true);
+        splash->setFont(dms_text_font);
+        
+
         auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
         const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
         splash->move(currentDesktopsCenter - splash->rect().center());
@@ -337,6 +387,8 @@ int main_without_SE_handler(int argc, char *argv[])
             assert(hwDispatch);
             testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
+
+        QThread::sleep(5);
 
         splash->finish(&main_window);
         main_window.showMaximized();
