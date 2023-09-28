@@ -3671,7 +3671,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	// Copy of code from Object because xmlElem must live after subItems
 	SharedStr tagName = SharedStr((xmlOutStr->GetSyntaxType() != OutStreamBase::ST_DMS) ? GetXmlClassName().c_str() : GetSignature().c_str());
 
-	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str(), true);
+	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str());
 
 	xmlOutStr->DumpPropList(this);
 	xmlOutStr->DumpSubTags(this);

@@ -373,7 +373,7 @@ void XML_Table::Row::EditablePropCell(CharPtr propName, CharPtr propLabel /*= ""
 
 void NewLine(OutStreamBase& out)
 {
-	XML_OutElement br(out, "BR", "", false);
+	XML_OutElement br(out, "BR", "", ClosePolicy::nonPairedElement);
 }
 
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)

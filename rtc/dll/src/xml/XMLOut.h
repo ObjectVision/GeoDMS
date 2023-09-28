@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 //	OutStream
@@ -53,6 +29,13 @@ granted by an additional written contract for support, assistance and/or develop
 struct XML_OutElement;
 class ImpStreamBuff;
 class OutStreamBuff;
+
+enum class ClosePolicy {
+	nonPairedElement,
+	pairedButWithoutSeparator,
+	pairedWithTabbedSeparator,
+	pairedOnNewline
+};
 
 //----------------------------------------------------------------------
 // OutStreamBase
@@ -114,8 +97,8 @@ private:
 
 	void DumpSubTag(const AbstrPropDef* propDef, CharPtr tagValue, bool isPrimaryTag);
 
-	virtual void OpenTag (CharPtr tagName) =0;
-	virtual void CloseTag(CharPtr tagName) =0;
+	virtual void OpenTag (CharPtr tagName, ClosePolicy cp) =0;
+	virtual void CloseTag(CharPtr tagName, ClosePolicy cp) =0;
 
 	virtual void AttrDelim    () =0;
 	virtual void CloseAttrList() =0;
@@ -161,8 +144,8 @@ public:
 	RTC_CALL void WriteInclude(CharPtr includeHref) override;
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName) override;
-	RTC_CALL void CloseTag(CharPtr tagName) override;
+	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
 	RTC_CALL void AttrDelim    () override;
 	RTC_CALL void CloseAttrList() override;
@@ -211,8 +194,8 @@ struct OutStream_DMS :OutStreamBase
 	SyntaxType GetSyntaxType() override { return ST_DMS; }
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName) override;
-	RTC_CALL void CloseTag(CharPtr tagName) override;
+	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
 	RTC_CALL void AttrDelim    () override;
 	RTC_CALL void CloseAttrList() override;
@@ -225,13 +208,13 @@ private:
 
 struct XML_OutElement
 {
-	RTC_CALL XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName = "", bool isPaired = true);
+	RTC_CALL XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName = "", ClosePolicy cp = ClosePolicy::pairedOnNewline);
 	RTC_CALL void SetHasSubItems();
 	RTC_CALL ~XML_OutElement();
 
 	inline bool IncAttrCount()    { return m_AttrCount++; } 
 	inline bool AttrCount() const { return m_AttrCount;   } 
-	inline bool IsPaired()  const { return m_IsPaired;    }
+	inline bool IsPaired()  const { return m_ClosePolicy != ClosePolicy::nonPairedElement;    }
 	inline OutStreamBase& OutStream() { return m_XmlStream; }
 	inline const OutStreamBase& OutStream() const { return m_XmlStream; }
 
@@ -240,7 +223,7 @@ struct XML_OutElement
   private: 
 	OutStreamBase& m_XmlStream;
 	CharPtr        m_TagName;
-	bool           m_IsPaired;
+	ClosePolicy    m_ClosePolicy;
 	bool           m_HasSubItems;
 	UInt32         m_AttrCount;
 };

@@ -2,3 +2,4 @@
 /TC:\dev\tst\dmsscript\MapViewClassification.dmsscript c:\dev\tst\Operator\cfg\MicroTst.dms
 D:\prj\pbl\SawecWP5\Runs\HestiaRun.dms /Invoer/RuimtelijkeData/BAG/vbo_woonfunctie_studiegebied
 /noconfig
+c:\dev\tst\Operator\cfg\MicroTst.dms /BackgroundLayer/district/unique_hoek_rel
