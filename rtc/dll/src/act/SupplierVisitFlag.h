@@ -31,7 +31,7 @@ enum class SupplierVisitFlag
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
 	Update = Signature | ExplicitSuppliers | SourceData | NamedSuppliers,
-	DetermineState = NamedSuppliers | Update | Calc | Checker | ReadyDcsToo | DetermineCalc,
+	DetermineState = Update | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
 	Explain = NamedSuppliers | SourceData,
 
@@ -49,7 +49,7 @@ enum class SupplierVisitFlag
 	DIALOGDATA  = 0x4000,
 	ImplSuppliers = 0x8000, // implicit suppliers
 
-	CalcErrorSearch   = NamedSuppliers | ImplSuppliers,
+	CalcErrorSearch   = Update | ImplSuppliers,
 
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,

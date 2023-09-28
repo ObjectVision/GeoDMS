@@ -1,5 +1,7 @@
 ﻿Some thoughts on Multinominal Logistic Regression (MNLR) of k factors on j alternatives given i revealed choices.
 
+see also: https://www.youtube.com/watch?v=p-6wUOXaVqs
+
 Assume:
 - Y_ij in Z+, the number of actors in situation i that chose option j.
 - X_ik in R, a value of attribute k for situation i.
@@ -34,7 +36,7 @@ F.O.C.
 - ∂Z_io(β) / ∂β_jk =           X_ik * I(j,o)
 - ∂S_io(β) / ∂β_jk = S_io(β) * X_ik * I(j,o)
 
-- ∂ T_i(β) / ∂β_jk = SUM o: S_io(β) * X_ik * I(j,o) = X_ik * S_ij(β)
+- ∂ T_i(β) / ∂β_jk = SUM o: ∂ S_io(β) / ∂β_jk = SUM o: S_io(β) * X_ik * I(j,o) = X_ik * S_ij(β)
 - ∂L(Y_i.|β) / ∂β_jk = [SUM io: Y_io * ∂Z_io(β) / ∂β_jk] - [SUM i: N_i * ∂log [ SUM o: S_io(β)]/ ∂β_jk]
  = [SUM io: Y_io * X_ik * I(j,o)] - [SUM i: N_i * X_ik * S_ij(β) / SUM o: S_io(β)]
  = [SUM i: Y_ij * X_ik] - [SUM i: N_i * X_ik * S_ij(β) / SUM o: S_io(β)]

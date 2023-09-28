@@ -1107,6 +1107,24 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 				return { sourceItem, {} };
 		}
 
+		// try all suppliers
+		const TreeItem* errorneousItem = nullptr;
+		auto errorChecker = [&errorneousItem](const Actor* a)
+			{
+				auto ti = dynamic_cast<const TreeItem*>(a);
+				if (ti && !ti->IsCacheItem() && WasInFailed(ti))
+				{
+					errorneousItem = ti;
+					return  AVS_SuspendedOrFailed;
+				}
+				return AVS_Ready;
+			};
+		auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
+
+		src->VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
+		if (errorneousItem)
+			return { errorneousItem , {} };
+
 		// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
 		if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
 		{
