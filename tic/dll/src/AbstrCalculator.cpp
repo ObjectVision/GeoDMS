@@ -757,7 +757,8 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 	}
 	else
 		VisitSuppliers(SupplierVisitFlag::NamedSuppliers, std::move(visitor));
-
+	while (errorneousItem && !errorneousItem->WasFailed() && errorneousItem->GetTreeParent())
+		errorneousItem = errorneousItem->GetTreeParent();
 	return { errorneousItem, {} };
 
 }
