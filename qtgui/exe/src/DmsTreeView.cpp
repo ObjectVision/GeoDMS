@@ -600,8 +600,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
-	step_to_failreason->setEnabled(ti && ti->WasFailed());
-	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
+	step_to_failreason->setEnabled(ti && WasInFailed(ti));
+	go_to_causa_prima->setEnabled(ti && WasInFailed(ti));
 	update_treeitem->setDisabled(ti_is_or_is_in_template);
 	update_subtree->setDisabled(ti_is_or_is_in_template);
 	default_view_action->setDisabled(ti_is_or_is_in_template);

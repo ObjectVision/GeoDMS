@@ -1010,8 +1010,11 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		return { nullptr, {} };
 
 	if (!src->WasFailed())
+	{
+		if (WasInFailed(src))
+			return { src->GetTreeParent(), {} };
 		return { nullptr, {} };
-
+	}
 	// parent ?
 	auto context = src->GetTreeParent();
 	if (context)

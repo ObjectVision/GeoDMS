@@ -1010,7 +1010,7 @@ void MainWindow::stepToFailReason()
     if (!ti)
         return;
 
-    if (!ti->WasFailed())
+    if (!WasInFailed(ti))
         return;
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
