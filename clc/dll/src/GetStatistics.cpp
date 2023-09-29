@@ -226,39 +226,13 @@ void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 	}
 }
 
-/* REMOVE
-void WriteAsCopyAction(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
-{
-	VectorOutStreamBuff buff;
-	FormattedOutStream fout(&buff);
-	fout << "clipboard:";
-
-	auto vu = di->GetAbstrValuesUnit();
-	bool useMetric = false;
-	SharedDataItemInterestPtr ipHolder;
-	streamsize_t maxLen = 33;
-	GuiReadLock guiLock;
-
-	fout << "Value\tCount\n";
-
-	for (Int32 i = 0; i != binCounts.size(); ++i)
-	{
-		if (binCounts[i])
-			fout 
-				<< Tablelize(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock)) << "\t" 
-				<< AsString(binCounts[i]).c_str() << "\n";
-	}
-	fout << char(0);
-	hRefWithText(os, "copy-to-clipboard-as-tab-separated-values", buff.GetData());
-}
-*/
-
 void WriteBinData(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	if (binCounts.size())
 	{
+		XML_OutElement extraSpace(os, "BR", "", ClosePolicy::nonPairedElement);
+
 		WriteAsTable(os, binCounts, di);
-//	REMOVE	WriteAsCopyAction(os, binCounts, di);
 	}
 	else
 	{

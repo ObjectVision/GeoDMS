@@ -406,15 +406,20 @@ SharedStr GenerateArgClsDescription(arg_index nrArgs, const ClassCPtr* args)
 	return msg;
 }
 
+UInt32 AbstrOperGroup::GetNrMembers() const
+{
+	UInt32 count = 0;
+	for (auto b = GetFirstMember(); b; b = b->GetNextGroupMember())
+		++count;
+
+	return count;
+}
 
 const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argTypes) const
 {
 	dms_assert(!IsTemplateCall());
 
-	typedef const Operator* oper_cptr_t;
-
-	oper_cptr_t
-		b = GetFirstMember();
+	auto b = GetFirstMember();
 
 	if (!b)
 	{
@@ -422,6 +427,9 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		throwDmsErrF("There is no implemented operator for operator name '%s'. This operator name name might have been reserved for future implementation or might be obsolete."
 			, nameStr);
 	}
+
+	auto best_oper = b; arg_index best_count = 0;
+
 	for (; b; b = b->GetNextGroupMember())
 	{
 		dms_assert(b->m_Group == this);
@@ -445,9 +453,17 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		const ClassCPtr* requiredTypes = b->m_ArgClassesBegin;
 		const ClassCPtr* givenTypes    = argTypes;
 
-		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes)
+		arg_index match_count = 0;
+		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes, ++match_count)
 			if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+			{
+				if (match_count > best_count)
+				{
+					best_count = match_count;
+					best_oper = b;
+				}
 				goto next;
+			}
 
 		return b;
 	next:;
@@ -455,8 +471,15 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	auto nameStr = SharedStr(GetName());
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"%s"
-		"Possible cause: argument type mismatch. Check the types of the used arguments.\n",
-		GenerateArgClsDescription(nrArgs, argTypes).c_str()
+		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
+		"First of %d %s-operator with %d matching argument types has the following signature:\n"
+		"%s%s"
+		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
+		, GetNrMembers()
+		, nameStr.c_str()
+		, best_count
+		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
+		, AllowExtraArgs() ? "\nand supplemental args" : ""
 	);
 
 	return nullptr;
