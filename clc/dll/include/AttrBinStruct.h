@@ -162,23 +162,49 @@ const ValueClass* NextAddIntegral()
 {
 	constexpr auto nrBits = nrbits_of_v<T>;
 	constexpr bool isSigned = is_signed_v<T>;
-	switch (nrBits)
+	if constexpr (nrBits < 8)
 	{
-		case 1: return ValueWrap<UInt2>::GetStaticClass();
-		case 2: return ValueWrap<UInt4>::GetStaticClass();
-		case 4: return ValueWrap<UInt8>::GetStaticClass();
-		case 8: return isSigned
-			? ValueWrap<Int16>::GetStaticClass()
-			: ValueWrap<UInt16>::GetStaticClass();
-		case 16: return isSigned
-			? ValueWrap<Int32>::GetStaticClass()
-			: ValueWrap<UInt32>::GetStaticClass();
-		case 32: return isSigned
-			? ValueWrap<Int64>::GetStaticClass()
-			: ValueWrap<UInt64>::GetStaticClass();
-		case 64:	return nullptr;
-		default:
-			std::unreachable();
+		if constexpr (nrBits == 1)
+			return ValueWrap<UInt2>::GetStaticClass();
+		else if constexpr (nrBits == 2)
+			return ValueWrap<UInt4>::GetStaticClass();
+		else
+		{
+			static_assert(nrBits == 4);
+			return ValueWrap<UInt8>::GetStaticClass();
+		}
+	}
+	else
+	{
+		if constexpr (nrBits <= 16)
+		{
+			if constexpr (nrBits == 8)
+				if constexpr (isSigned)
+					return ValueWrap<Int16>::GetStaticClass();
+				else
+					return ValueWrap<UInt16>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 16);
+				if constexpr (isSigned)
+					return ValueWrap<Int32>::GetStaticClass();
+				else
+					return ValueWrap<UInt32>::GetStaticClass();
+			}
+		}
+		else
+		{
+			if constexpr (nrBits == 32)
+				if constexpr (isSigned)
+					return ValueWrap<Int64>::GetStaticClass();
+				else
+					return ValueWrap<UInt64>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 64);
+				return nullptr;
+			}
+		}
 	}
 }
 
@@ -187,25 +213,52 @@ const ValueClass* NextSubIntegral()
 {
 	constexpr auto nrBits = nrbits_of_v<T>;
 	constexpr bool isSigned = is_signed_v<T>;
-	switch (nrBits)
+	if constexpr (nrBits < 8)
 	{
-		case 1: return ValueWrap<UInt2>::GetStaticClass();
-		case 2: return ValueWrap<UInt4>::GetStaticClass();
-		case 4: return ValueWrap<Int8>::GetStaticClass();
-		case 8: return isSigned
-			? ValueWrap<Int16>::GetStaticClass()
-			: ValueWrap<Int8>::GetStaticClass();
-		case 16: return isSigned
-			? ValueWrap<Int32>::GetStaticClass()
-			: ValueWrap<Int16>::GetStaticClass();
-		case 32: return isSigned
-			? ValueWrap<Int64>::GetStaticClass()
-			: ValueWrap<Int32>::GetStaticClass();
-		case 64: return isSigned
-			? nullptr
-			: ValueWrap<Int64>::GetStaticClass();
-		default:
-			std::unreachable();
+		if constexpr (nrBits == 1)
+			return ValueWrap<UInt2>::GetStaticClass();
+		else if constexpr (nrBits == 2)
+			return ValueWrap<UInt4>::GetStaticClass();
+		else
+		{
+			static_assert(nrBits == 4);
+			return ValueWrap<UInt8>::GetStaticClass();
+		}
+	}
+	else
+	{
+		if constexpr (nrBits <= 16)
+		{
+			if constexpr (nrBits == 8)
+				if constexpr (isSigned)
+					return ValueWrap<Int16>::GetStaticClass();
+				else
+					return ValueWrap<Int8>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 16);
+				if constexpr (isSigned)
+					return ValueWrap<Int32>::GetStaticClass();
+				else
+					return ValueWrap<Int16>::GetStaticClass();
+			}
+		}
+		else
+		{
+			if constexpr (nrBits == 32)
+				if constexpr (isSigned)
+					return ValueWrap<Int64>::GetStaticClass();
+				else
+					return ValueWrap<Int32>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 64);
+				if constexpr (isSigned)
+					return nullptr;
+				else
+					return ValueWrap<Int64>::GetStaticClass();
+			}
+		}
 	}
 }
 

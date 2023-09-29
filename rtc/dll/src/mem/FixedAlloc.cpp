@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 /*
 	FixedAlloc provides an allocator that has an efficient memory management.
 
@@ -55,6 +59,7 @@
 #include "utl/IncrementalLock.h"
 #include "utl/MemGuard.h"
 #include "dbg/SeverityType.h"
+#include "xct/DmsException.h"
 
 #include <memory>
 
@@ -125,6 +130,9 @@ struct VirtualAllocChunk
 	VirtualAllocChunk(SizeT chunkSize_)
 		: chunkSize(chunkSize_)
 	{
+		if (s_BlockNewAllocations)
+			throw MemoryAllocFailure();
+
 		WaitForAvailableMemory(chunkSize_);
 		chunkPtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, chunkSize_, MEM_RESERVE, PAGE_NOACCESS));
 	}
@@ -582,6 +590,9 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 #endif //defined(MG_CACHE_ALLOC)
 
+	if (s_BlockNewAllocations)
+		throw MemoryAllocFailure();
+
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
 	if (i >= FIRST_PAGE_INDEX)
@@ -652,6 +663,7 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 //----------------------------------------------------------------------
 
 std::atomic<bool> s_ReportingRequestPending = false;
+std::atomic<bool> s_BlockNewAllocations = false;
 
 
 void ReportFixedAllocStatus()

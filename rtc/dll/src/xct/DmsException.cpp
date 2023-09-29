@@ -224,7 +224,9 @@ namespace {
 
 MemoryAllocFailure::MemoryAllocFailure()
 	: DmsException(std::make_shared<ErrMsg>(memoryAllocFailureMsg))
-{}
+{
+	s_BlockNewAllocations = true;
+}
 
 //----------------------------------------------------------------------
 // Various exception constructors and reporting
