@@ -477,11 +477,11 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		"%s"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
 		"\nThere are %d operators registered for the %s operator-group."
-		"\n%d have a match for %d arguments, of which the first has the following signature:\n"
+		"\n%d %s a match for %d argument%s, %s the following signature:\n"
 		"%s%s"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
-		, nr_best_match, best_count
+		, nr_best_match, (nr_best_match==1 ? "has": "have"), best_count, best_count == 1 ? "" : "s", (nr_best_match == 1 ? "of which the first has" : "with")
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
 	);
