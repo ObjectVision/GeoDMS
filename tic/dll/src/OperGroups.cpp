@@ -477,7 +477,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		"%s"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
 		"\nThere are %d operators registered for the %s operator-group."
-		"\n%d operator%s correspond%s with this for the first %d argument%s, %s the following signature:\n"
+		"\n%d operator%s correspond%s with these arguments for the first %d argument%s, %s the following signature:\n"
 		"%s%s"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
