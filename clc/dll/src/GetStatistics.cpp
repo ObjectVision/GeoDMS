@@ -32,6 +32,75 @@
 
 #include "pcount.h"
 
+
+SharedStr ReplaceChar(SharedStr src, char ch, char esc)
+{
+	auto pos = std::find(src.begin(), src.end(), ch);
+	if (pos == src.end())
+		return src;
+
+	VectorOutStreamBuff buff;
+	auto cursor = src.begin();
+	while (pos != src.end())
+	{
+		buff.WriteBytes(cursor, pos - cursor);
+		buff.WriteByte('\\');
+		buff.WriteByte(esc);
+		pos = std::find(src.begin(), src.end(), ch);
+	}
+	return { buff.GetData(), buff.GetDataEnd() };
+}
+
+SharedStr Tablelize(SharedStr src)
+{
+	src = ReplaceChar(src, '\\', '\\');
+	src = ReplaceChar(src, '\n', 'n');
+	src = ReplaceChar(src, '\t', 't');
+	return src;
+}
+
+struct PostLinker
+{
+	VectorOutStreamBuff buff;
+	FormattedOutStream fout = FormattedOutStream(&buff);
+	OutStreamBase& os;
+	PostLinker(OutStreamBase& os_)
+		:	os(os_)
+	{
+		fout << "clipboard:";
+	}
+	~PostLinker()
+	{
+		fout << char(0);
+		hRefWithText(os, "copy-to-clipboard-as-tab-separated-values", buff.GetData());
+	}
+
+	void NameValueRow(CharPtr propName, CharPtr propValue)
+	{
+		fout
+			<< Tablelize(SharedStr(propName)) << "\t"
+			<< Tablelize(SharedStr(propValue)) << "\n";
+
+	}
+};
+
+struct PostLinkedTable : PostLinker // hRefWithText will be written after Table-element closure
+{
+	PostLinkedTable(OutStreamBase& os_)
+		: PostLinker(os_)
+		, table(os_)
+	{}
+
+	void NameValueRow(CharPtr propName, CharPtr propValue)
+	{
+		table.NameValueRow(propName, propValue);
+		PostLinker::NameValueRow(propName, propValue);
+	}
+
+private:
+	XML_Table table;
+};
+
 struct f64_accumulator
 {
 	SizeT d = 0;
@@ -75,7 +144,6 @@ void AccumulateData(f64_accumulator& accu, bin_count_type& binCounts, const Abst
 	{
 		ReadableTileLock tileLck(di->GetRefObj(), t);
 
-
 		visit<typelists::numerics>(vu,
 			[di, t, &accu] <typename V> (const Unit<V>*)
 			{
@@ -111,7 +179,7 @@ void AccumulateData(f64_accumulator& accu, bin_count_type& binCounts, const Abst
 	}
 }
 
-void WriteAccuData(XML_Table& table, f64_accumulator& accu, const AbstrDataItem* di)
+void WriteAccuData(PostLinkedTable& table, f64_accumulator& accu, const AbstrDataItem* di)
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
@@ -140,7 +208,7 @@ void WriteAccuData(XML_Table& table, f64_accumulator& accu, const AbstrDataItem*
 
 void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
-	XML_Table table(os);
+	PostLinkedTable table(os);
 	table.NameValueRow("Value", "Count");
 
 	auto vu = di->GetAbstrValuesUnit();
@@ -158,6 +226,7 @@ void WriteAsTable(OutStreamBase& os, const bin_count_type& binCounts, const Abst
 	}
 }
 
+/* REMOVE
 void WriteAsCopyAction(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	VectorOutStreamBuff buff;
@@ -176,19 +245,20 @@ void WriteAsCopyAction(OutStreamBase& os, const bin_count_type& binCounts, const
 	{
 		if (binCounts[i])
 			fout 
-				<< DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock) << "\t" 
+				<< Tablelize(DisplayValue(vu, i, useMetric, ipHolder, maxLen, guiLock)) << "\t" 
 				<< AsString(binCounts[i]).c_str() << "\n";
 	}
 	fout << char(0);
 	hRefWithText(os, "copy-to-clipboard-as-tab-separated-values", buff.GetData());
 }
+*/
 
 void WriteBinData(OutStreamBase& os, const bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	if (binCounts.size())
 	{
 		WriteAsTable(os, binCounts, di);
-		WriteAsCopyAction(os, binCounts, di);
+//	REMOVE	WriteAsCopyAction(os, binCounts, di);
 	}
 	else
 	{
@@ -239,7 +309,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 
 		auto vt = di->GetAbstrValuesUnit()->GetValueType();
 		{
-			XML_Table table(os);
+			PostLinkedTable table(os);
 			SharedStr metricStr = vu->GetCurrMetricStr(os.GetFormattingFlags());
 			if (!metricStr.empty())
 				table.NameValueRow("ValuesMetric", metricStr.c_str());
