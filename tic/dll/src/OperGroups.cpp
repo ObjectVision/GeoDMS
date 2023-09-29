@@ -429,6 +429,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	}
 
 	auto best_oper = b; arg_index best_count = 0;
+	UInt32 nr_best_match = 0;
 
 	for (; b; b = b->GetNextGroupMember())
 	{
@@ -461,7 +462,10 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 				{
 					best_count = match_count;
 					best_oper = b;
+					nr_best_match = 0;
 				}
+				if (match_count == best_count)
+					++nr_best_match;
 				goto next;
 			}
 
@@ -472,12 +476,12 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"%s"
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
-		"First of %d %s-operator with %d matching argument types has the following signature:\n"
+		"\nThere are %d operators registered for the %s operator-group."
+		"\n%d have a match for %d arguments, of which the first has the following signature:\n"
 		"%s%s"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
-		, GetNrMembers()
-		, nameStr.c_str()
-		, best_count
+		, GetNrMembers(), nameStr.c_str()
+		, nr_best_match, best_count
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
 	);
