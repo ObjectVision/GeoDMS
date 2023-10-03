@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
 #pragma hdrstop
 
@@ -160,7 +136,7 @@ OutStream_XmlBase::OutStream_XmlBase(OutStreamBuff* out, CharPtr header, CharPtr
 
 	if (*mainTag)
 	{  
-		m_RootElem = new XML_OutElement(*this, mainTag, mainTagName, true);
+		m_RootElem = new XML_OutElement(*this, mainTag, mainTagName, ClosePolicy::pairedOnNewline);
 		CloseAttrList();
 		--m_Level; // keep level at zero for various purposes.
 	}
@@ -191,6 +167,15 @@ inline void OutStream_XmlBase_WriteChar(OutStream_XmlBase* self, char ch)
 		self->NewLine();
 	}
 	else
+		self->FormattingStream() << ch;
+}
+
+inline void OutStream_XmlBase_WriteAttrChar(OutStream_XmlBase* self, char ch)
+{
+	CharPtr symb = CharGetSymbol(ch);
+	if (symb)
+		self->FormattingStream() << '&' << symb << ';';
+	else 
 		self->FormattingStream() << ch;
 }
 
@@ -251,7 +236,6 @@ void OutStream_XmlBase_WriteEncoded(OutStream_XmlBase* self, CharPtr data, CharP
 		OutStream_XmlBase_WriteChar(self, *data++);
 	}
 }
-
 
 void OutStream_XmlBase::WriteValue(CharPtr data)
 {
@@ -338,7 +322,7 @@ void OutStream_XmlBase::WriteAttr(CharPtr name, CharPtr value)
 
 	m_OutStream << " " << name << "=\"";
 	while (*value != 0)
-		OutStream_XmlBase_WriteChar(this, *value++);
+		OutStream_XmlBase_WriteAttrChar(this, *value++);
 	m_OutStream << "\"";
 }
 
@@ -362,24 +346,31 @@ void OutStream_XmlBase::WriteInclude(CharPtr includeHref)
 {
 	NewLine();
 	// <xinclude:include href="common.xml#xptr(a/b)"/>
-	XML_OutElement elem(*this, "xinclude:include", "", false); // tagName, but no objName and not paired
+	XML_OutElement elem(*this, "xinclude:include", "", ClosePolicy::nonPairedElement); // tagName, but no objName and not paired
 	WriteAttr("href", includeHref);
 }
 
 //=============== private members
 
-void OutStream_XmlBase::OpenTag(CharPtr tagName)
+void OutStream_XmlBase::OpenTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	if (cp == ClosePolicy::nonPairedElement || cp == ClosePolicy::pairedOnNewline)
+		NewLine();
 
 	m_OutStream << "<";
 
 	m_OutStream << tagName;
 }
 
-void OutStream_XmlBase::CloseTag(CharPtr tagName)
+void OutStream_XmlBase::CloseTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	switch (cp)
+	{
+	case ClosePolicy::pairedWithTabbedSeparator:
+		m_OutStream << "\t"; break;
+	case ClosePolicy::pairedOnNewline:
+		NewLine(); break;
+	}
 	m_OutStream << "</" << tagName << ">";
 }
 
@@ -399,7 +390,7 @@ void OutStream_XmlBase::CloseAttrList()
 		m_OutStream << "/";
 	m_OutStream << ">";
 
-	m_CurrElem = 0;
+	m_CurrElem = nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -538,13 +529,14 @@ void OutStream_DMS::WriteAttr(CharPtr name, UInt32 value)
 
 //=============== private members
 
-void OutStream_DMS::OpenTag(CharPtr tagName)
+void OutStream_DMS::OpenTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	if (cp == ClosePolicy::nonPairedElement || cp == ClosePolicy::pairedOnNewline)
+		NewLine();
 	m_OutStream << tagName;
 }
 
-void OutStream_DMS::CloseTag(CharPtr tagName)
+void OutStream_DMS::CloseTag(CharPtr tagName, ClosePolicy cp)
 {
 }
 
@@ -572,9 +564,9 @@ void OutStream_DMS::CloseAttrList()
 // XML_OutElement
 //----------------------------------------------------------------------
 
-XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName, bool isPaired)
+XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName, ClosePolicy cp)
 	: m_XmlStream(xmlStream)
-	, m_IsPaired(isPaired)
+	, m_ClosePolicy(cp)
 	, m_TagName(tagName)
 	, m_AttrCount(0)
 	, m_HasSubItems(false)
@@ -582,10 +574,10 @@ XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPt
 	xmlStream.CloseAttrList();
 	m_XmlStream.m_CurrElem = this;
 
-	m_XmlStream.OpenTag(tagName);
+	m_XmlStream.OpenTag(tagName, cp);
 	m_XmlStream.WriteName(*this, objName);
 
-	if (m_IsPaired) 
+	if (IsPaired())
 		++m_XmlStream.m_Level;
 }
 
@@ -594,11 +586,11 @@ XML_OutElement::~XML_OutElement()
 	m_XmlStream.CloseAttrList();
 	if (!m_HasSubItems)
 		m_XmlStream.ItemEnd();
-	if (m_IsPaired)
+	if (IsPaired())
 	{
 		if (m_XmlStream.m_Level) // prevent underflow due to non-levelled docType tag
 			--m_XmlStream.m_Level;
-		m_XmlStream.CloseTag(m_TagName);
+		m_XmlStream.CloseTag(m_TagName, m_ClosePolicy);
 	}
 }
 void XML_OutElement::SetHasSubItems()
@@ -630,7 +622,7 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtrRange url)
 XML_DataBracket::XML_DataBracket(OutStreamBase& xmlStream) : m_Stream(xmlStream)
 {
 	if (xmlStream.GetSyntaxType() != OutStreamBase::ST_DMS)
-		m_DataElement.assign(new XML_OutElement(xmlStream, "DATA", "",true));
+		m_DataElement.assign(new XML_OutElement(xmlStream, "DATA", ""));
 	else
 		m_Stream << "[";
 }
@@ -682,7 +674,7 @@ DMS_CONV XML_OutStream_WriteText(OutStreamBase* xmlStr, CharPtr txt)
 
 RTC_CALL void DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd)
 {
-	XML_OutElement xml_pd(*xmlStr,"PropDef", pd->GetName().c_str(), false);
+	XML_OutElement xml_pd(*xmlStr,"PropDef", pd->GetName().c_str(), ClosePolicy::nonPairedElement);
 		xmlStr->WriteAttr("ClassName", pd->GetItemClass()->GetName().c_str());
 		xmlStr->WriteAttr("ValueClass", pd->GetValueClass()->GetName().c_str());
 }
@@ -692,7 +684,7 @@ RTC_CALL void DMS_CONV XML_ReportSchema(
 	const Class* cls, 
 	bool withSubclasses )
 {
-	XML_OutElement xml_cls(*xmlStr,"ClassDef", cls->GetName().c_str(), true);
+	XML_OutElement xml_cls(*xmlStr,"ClassDef", cls->GetName().c_str());
 
 	// Report associated property defs
 	AbstrPropDef* pd = cls->GetLastPropDef();
@@ -707,7 +699,7 @@ RTC_CALL void DMS_CONV XML_ReportSchema(
 	// Report Inherited base classes
 	const Class* base= cls->GetBaseClass();
 	if (base)
-		XML_OutElement xml_baseClass(*xmlStr, "BaseClass", base->GetName().c_str(), false);
+		XML_OutElement xml_baseClass(*xmlStr, "BaseClass", base->GetName().c_str(), ClosePolicy::nonPairedElement);
 
 	// Report subClasses
 	cls = cls->GetLastSubClass();

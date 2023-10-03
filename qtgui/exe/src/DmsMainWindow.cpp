@@ -1010,7 +1010,7 @@ void MainWindow::stepToFailReason()
     if (!ti)
         return;
 
-    if (!ti->WasFailed())
+    if (!WasInFailed(ti))
         return;
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
@@ -1454,8 +1454,9 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     if (openErrorOnFailedCurrentItem())
         return;
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get()); // not a DmsViewArea //TODO: memory leak, no parent
+    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     auto* textWidget = new StatisticsBrowser(mdiSubWindow);
+    SuspendTrigger::Resume();
     textWidget->m_Context = tiContext;
     tiContext->PrepareData();
     mdiSubWindow->setWidget(textWidget);

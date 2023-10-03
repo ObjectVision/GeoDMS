@@ -1038,15 +1038,15 @@ bool IsBusy()
 	return g_BusyMode;
 }
 
-extern "C" SHV_CALL void DMS_CONV SHV_SetAdminMode(bool v) 
+SHV_CALL void SetBusy(bool v)
+{
+	g_BusyMode = v;
+}
+
+SHV_CALL void SHV_SetAdminMode(bool v)
 {
 	MG_DEBUGCODE( gd_AdminModeKnown = true; )
 	g_AdminMode = v;
-}
-
-extern "C" SHV_CALL void DMS_CONV SHV_SetBusyMode(bool v) 
-{
-	g_BusyMode = v;
 }
 
 //----------------------------------------------------------------------

@@ -139,7 +139,7 @@ bool AbstrStreamManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 
 void AbstrStreamManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const 
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (curr != storageHolder)
 		return; // noop

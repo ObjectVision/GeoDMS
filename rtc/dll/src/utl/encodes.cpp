@@ -238,9 +238,9 @@ SizeT UrlDecodeSize(WeakStr urlStr)
 			if (++chPtr == chEnd || !isHex(*chPtr ) || ++chPtr == chEnd || !isHex(*chPtr ))
 				throwErrorD("UrlDecode", "invalid escape code");
 		}
-		else if (!url::IsSafeChar(*chPtr))
-			throwErrorF("UrlDecode", "invalid character '%c'", *chPtr);
-	dms_assert(3*c <= urlStr.ssize());
+//		else if (!url::IsSafeChar(*chPtr))
+//			throwErrorF("UrlDecode", "invalid character '%c'", *chPtr);
+	assert(3*c <= urlStr.ssize());
 	return urlStr.ssize() - 2*c;
 }
 
@@ -266,7 +266,7 @@ SharedStr UrlDecode(WeakStr urlStr)
 			ch = ' ';
 		*resultPtr = ch;
 	}
-	dms_assert(resultPtr == resultStr.csend());
+	assert(resultPtr == resultStr.csend());
 	*resultPtr = char(0);
 	return resultStr;
 }

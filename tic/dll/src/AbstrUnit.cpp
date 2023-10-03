@@ -245,7 +245,7 @@ bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
 	assert( GetInterestCount() );
 
-	AbstrStorageManager* sm = smi->StorageManager();
+	auto sm = smi->StorageManager();
 	return sm->WriteUnitRange(std::move(smi));
 }
 

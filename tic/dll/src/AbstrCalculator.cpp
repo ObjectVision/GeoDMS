@@ -523,7 +523,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 			assert(calculator);
 			auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
 			assert(res);
-			if (WasInFailed(res.get_ptr()))
+			if (res->WasFailed())
 				return calculator->FindErrorneousItem();
 
 			auto resItem = res->GetOld();
@@ -532,11 +532,14 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 			irc.Add(resItem);
 
 			const AbstrDataItem* resDataItem = AsDataItem(resItem);
-			dms_assert(resDataItem);
-
+			assert(resDataItem);
 
 			if (WasInFailed(resDataItem))
-				return calculator->FindErrorneousItem();
+				if (resDataItem->WasFailed())
+					return calculator->FindErrorneousItem();
+				else
+					return { resDataItem->GetTreeParent(), {} };
+
 			resultStr = GetValue<SharedStr>(resDataItem, 0);
 
 			UInt32 nrNewEvals = CountIndirections(resultStr.c_str());
@@ -757,7 +760,6 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 	}
 	else
 		VisitSuppliers(SupplierVisitFlag::NamedSuppliers, std::move(visitor));
-
 	return { errorneousItem, {} };
 
 }

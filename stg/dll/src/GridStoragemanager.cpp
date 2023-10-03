@@ -60,7 +60,10 @@ AbstrUnit* GetGridDataDomainRW(TreeItem * storageHolder)
 	if (gdd)
 		return gdd;
 
-	return storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+	if (auto sm = storageHolder->GetStorageManager())
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+			return nmsm->CreateGridDataDomain(storageHolder);
+	return nullptr;
 }
 
 SharedDataItem GetPaletteData(const TreeItem * storageHolder)
@@ -112,7 +115,7 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
 			return AVS_SuspendedOrFailed;
 	}
-	return AbstrStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
+	return NonmappableStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
 }
 
 //  --CLASSES------------------------------------------------------------------

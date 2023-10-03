@@ -289,20 +289,21 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView>, 
 // config section
 //----------------------------------------------------------------------
 
-bool    HasAdminMode();
-bool    IsBusy();
+bool HasAdminMode();
+bool IsBusy();
+SHV_CALL void SetBusy(bool);
 
 //----------------------------------------------------------------------
 // DataContainer section
 //----------------------------------------------------------------------
 
 extern "C" {
-	extern "C" SHV_CALL void DMS_CONV SHV_SetAdminMode(bool v);
 	SHV_CALL const AbstrUnit*     DMS_CONV SHV_DataContainer_GetDomain   (const TreeItem* ti, UInt32 level, bool adminMode);
 	SHV_CALL UInt32               DMS_CONV SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode);
 	SHV_CALL const AbstrDataItem* DMS_CONV SHV_DataContainer_GetItem     (const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode);
 }
 
+SHV_CALL void SHV_SetAdminMode(bool v);
 SHV_CALL auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*;
 
 //----------------------------------------------------------------------

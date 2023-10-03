@@ -288,8 +288,8 @@ inline void MakeBounds(SharedStr& a, SharedStr& b)  { MakeRange<SharedStr>(a, b)
 inline bool IsDefined(WeakStr v)          { return v.IsDefined(); }
 inline bool IsDefined(const SharedStr& v) { return v.IsDefined(); }
 
-inline CharPtr begin_ptr(const std::string& data) { return &*data.begin(); }
-inline CharPtr end_ptr(const std::string& data)   { return &*data.end(); }
+inline CharPtr begin_ptr(const std::string& data) { return data.empty() ? nullptr : &(data.begin()[ 0]); }
+inline CharPtr end_ptr(const std::string& data)   { return data.empty() ? nullptr : &(data.end  ()[-1])+1; }
 
 inline CharPtr begin_ptr(WeakStr data)          { return data.begin(); }
 inline CharPtr end_ptr  (WeakStr data)          { return data.send();  }

@@ -44,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 //		DMS object to store and retrieve ODBC data
 // *****************************************************************************
 
-class ODBCStorageManager : public AbstrStorageManager
+class ODBCStorageManager : public NonmappableStorageManager
 {
 	typedef AbstrStorageManager base_type;
 	friend class ODBCStorageOutStreamBuff; 

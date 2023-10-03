@@ -230,10 +230,12 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 
 	if (pd)
-	{
-		auto paletteWriteMetaInfo = storageHolder->GetStorageManager()->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
-		WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
-	}
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+		{
+			auto paletteWriteMetaInfo = nmsm->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
+			WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
+		}
+
 	return true;
 }
 

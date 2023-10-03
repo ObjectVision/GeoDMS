@@ -58,7 +58,7 @@ struct XML_Table : XML_OutElement
 
 		struct Cell : XML_OutElement
 		{
-			Cell(Row& row): XML_OutElement(row.OutStream(), "TD") {}
+			Cell(Row& row): XML_OutElement(row.OutStream(), "TD", "", ClosePolicy::pairedButWithoutSeparator) {}
 		};
 
 		void ValueCell(CharPtr value)
@@ -102,7 +102,7 @@ struct XML_Table : XML_OutElement
 		Row row(*this);
 			Row::Cell xmlElemTD(row);
 				OutStream().WriteAttr("COLSPAN", colSpan);
-					XML_OutElement hr(OutStream(), "HR", "", false);
+					XML_OutElement hr(OutStream(), "HR", "", ClosePolicy::nonPairedElement);
 	}
 
 	void EditableNameValueRow(CharPtr propName, CharPtr propValue, const TreeItem* context = 0)

@@ -2,12 +2,14 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#include <QApplication>
 #include <QListWidget>
 
 #include <QObject>
 #include <QDockWidget>
 #include <QTextBrowser>
 #include <QTimer>
+#include <Qclipboard.h>
 
 #include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
@@ -51,10 +53,12 @@ void DmsDetailPages::leaveThisConfig() // reset ValueInfo cached results
 
 auto Realm(const auto& x) -> CharPtrRange
 {
-    auto colonPos = std::find(x.begin(), x.end(), ':');
-    if (colonPos == x.end())
+    auto b = begin_ptr(x);
+    auto e = end_ptr(x);
+    auto colonPos = std::find(b, e, ':');
+    if (colonPos == e)
         return {};
-    return { x.begin(), colonPos };
+    return { b, colonPos };
 }
 
 bool ShowInDetailPage(auto x)
@@ -584,7 +588,7 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
     try {
-        auto linkStr = link.toString().toUtf8();
+        auto linkStr = link.toString().toStdString();
 
         // log link action
 #if defined(_DEBUG)
@@ -598,9 +602,18 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
         auto realm = Realm(linkStr);
         if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
         {
-            auto clicked_error_link = link.toString().toStdString().substr(17);
+            auto clicked_error_link = linkStr.substr(17);
             auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
             MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            return;
+        }
+        if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9))
+        {
+            auto dataStr = linkStr.substr(10);
+            auto decodedStr = UrlDecode(SharedStr(dataStr.c_str()));
+            auto qStr = QString(decodedStr.c_str());
+            QGuiApplication::clipboard()->clear();
+            QGuiApplication::clipboard()->setText(qStr, QClipboard::Clipboard);
             return;
         }
 
@@ -612,7 +625,7 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
         }
         if (!ShowInDetailPage(linkStr))
         {
-            auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
+            auto raw_string = SharedStr(begin_ptr(linkStr), end_ptr(linkStr));
             ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
             auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
             QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
@@ -629,7 +642,7 @@ void DmsDetailPages::onAnchorClicked(const QUrl& link)
         auto sPrefix = Realm(linkStr);
         if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
         {
-            auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
+            auto sAction = CharPtrRange(begin_ptr(linkStr) + 4, end_ptr(linkStr));
             DoViewAction(current_item, sAction);
             return;
         }

@@ -604,7 +604,9 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
 	SharedUnitInterestPtr gridDomain = GetGridDataDomainRO(storageHolder);
 	if (!gridDomain && mayCreateDomain)
-		gridDomain = storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+			gridDomain = nmsm->CreateGridDataDomain(storageHolder);
+
 	if (!gridDomain)
 		gridDomain = currDomain;
 

@@ -30,22 +30,17 @@
 // MmdStorageManager implementation
 //////////////////////////////////////////////////////////////////////
 
+/* REMOVE
+MmdStorageManager::MmdStorageManager()
+{
+}
+
 MmdStorageManager::~MmdStorageManager()
 {
-	CloseStorage();
-	dms_assert(!m_FssLockFile.IsOpen());
+//	CloseStorage();
+	assert(!m_MmdLockFile.IsOpen());
 }
-
-void MmdStorageManager::DropStream(const TreeItem* item, CharPtr path)
-{
-	assert(item);
-
-	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss(%s,%s)", GetNameStr().c_str(), path);
-
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (sfwa)
-		sfwa->OpenOrCreate(GetFullFileName(path).c_str(), FCM_Delete);
-}
+*/
 
 SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 {
@@ -62,63 +57,24 @@ FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHol
 	return m_FileTime; 
 }
 
-std::unique_ptr<OutStreamBuff> MmdStorageManager::DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t)
-{
-	const AbstrDataItem* adi = AsDynamicDataItem(smi.CurrRI());
-
-	dms_assert(!m_IsReadOnly);
-
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
-
-	SharedStr fullName = GetFullFileName(path); 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return {};
-
-	if (adi)
-	{
-		assert(t != no_tile);
-		const AbstrDataObject* ado = adi->GetRefObj();
-
-		return std::make_unique<MappedFileOutStreamBuff>(fullName, sfwa.get(), ado->GetNrTileBytesNow(t, true));
-	}
-	assert(t == no_tile);
-	return std::make_unique<FileOutStreamBuff>( fullName, sfwa.get(), false);
-}
-
-std::unique_ptr<InpStreamBuff> MmdStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
-{
-	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
-
-	dms_assert(IsOpen());
-
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return {};
-
-	auto result = std::make_unique<MappedFileInpStreamBuff>(GetFullFileName(path), sfwa.get(), false, false);
-
-	if (!result->IsOpen())
-		return {};
-	return result;
-}
-
+/* REMOVE
 void MmdStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
-	dms_assert(!IsOpen());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(!IsOpen());
+	assert(rwMode != dms_rw_mode::unspecified);
 
 	SharedStr fileName = DelimitedConcat(GetNameStr().c_str(), "LockFile.fss");
 	if (rwMode > dms_rw_mode::read_only)
-		m_FssLockFile.OpenRw(fileName, nullptr, 0, rwMode, true, false, true);
+		m_MmdLockFile.OpenRw(fileName, nullptr, 0, rwMode, true, false, true);
 	else
-		m_FssLockFile.OpenForRead(fileName, nullptr, true, false, true);
+		m_MmdLockFile.OpenForRead(fileName, nullptr, true, false, true);
 }
 
 void MmdStorageManager::DoCloseStorage (bool mustCommit) const
 {
-	m_FssLockFile.CloseFile();
+	m_MmdLockFile.CloseFile();
 }
+*/
 
 //----------------------------------------------------------------------
 // instantiation and registration

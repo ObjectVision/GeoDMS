@@ -128,7 +128,7 @@ StorageMetaInfoPtr DbfStorageManager::GetMetaInfo(const TreeItem* storageHolder,
 
 void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
 		return;
