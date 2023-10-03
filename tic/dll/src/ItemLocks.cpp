@@ -499,8 +499,14 @@ bool IsDataCurrReady(const TreeItem* item)
 
 	if (IsDataItem(item))
 	{
-		if (!AsDataItem(item)->m_DataObject.has_ptr())
+		auto adi = AsDataItem(item);
+		if (!adi->m_DataObject.has_ptr())
 			return false;
+		if (adi->WasFailed(FR_Data))
+		{
+			adi->m_DataObject.reset();
+			return false;
+		}
 	}
 	else if (IsUnit(item))
 	{
