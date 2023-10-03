@@ -259,7 +259,7 @@ namespace Grid {
 	{
 		assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "from", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "to", dataSourceName);
 
 		if (viewPort2Grid.IsNonScaling() && nrbits_of_v<T> == imp.GetNrBitsPerPixel())
 		{
@@ -393,7 +393,7 @@ namespace Grid {
 	{
 		dms_assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData", "from", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData", "to", dataSourceName);
 
 		ColorType countColor = viewPort2tiff.GetCountColor();
 		dms_assert(Negative(countColor) != countColor);
@@ -495,7 +495,7 @@ namespace Grid {
 		UPoint tileSize = imp.GetTileSize(); // size of one tile or strip
 		UInt32 tw_aligned = array_traits<T>::ByteAlign(tileSize.X());
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData", "to", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData", "from", dataSourceName);
 
 		// nr of tiles
 		Int32

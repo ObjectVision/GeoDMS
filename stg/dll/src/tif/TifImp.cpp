@@ -445,9 +445,8 @@ void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, 
 		return;
 	if (nrRasterBitsPerPixel == 24 && nrDmsBitsPerPixel == 32) // UnpackStrip(UInt32* ...) can process this
 		return;
-	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
-		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
-		, dataSourceName
+	throwErrorF(functionName, "TifImp cannot convert %d bits raster data of %s %s %d bits DMS data"
+		, nrRasterBitsPerPixel, dataSourceName, direction, nrDmsBitsPerPixel
 	);
 }
 
