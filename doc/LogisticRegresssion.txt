@@ -3,6 +3,8 @@
 see also: https://www.youtube.com/watch?v=p-6wUOXaVqs
 
 Assume:
+- i: index into the set of observed choice situations
+- j: index into the set of choice/alternatives/options
 - Y_ij in Z+, the number of actors in situation i that chose option j.
 - X_ik in R, a value of attribute k for situation i.
 
@@ -14,10 +16,10 @@ Additionally:
 
 Canonically:
 
-Z_ij(β) := β_jk * X_ik
-S_ij(β) := exp Z_ij(β)
-T_i(β) := SUM o: S_io(β)
-P_ij(β) := S_ij(β) / T_i(β)
+s_ij(β) := β_jk * X_ik     { vector of scores }
+U_ij(β) := exp s_ij(β)
+T_i(β) := SUM o: U_io(β)
+P_ij(β) := U_ij(β) / T_i(β)
 
 P(Y_i.|β) :=  C(Y_i.) * PROD j: P_ij(β)^Y_ij
 C(Y_i.) := (N_i! / PROD j: Y_ij!)
@@ -25,21 +27,22 @@ LC(Y_i.) := log N_i! - SUM j: log Y_ij!
 
 L(Y_i.|β) := log P(Y_i.|β) 
 	= LC(Y_i.) + SUM j: Y_ij * log P_ij(β)
-	= LC(Y_i.) + SUM j: Y_ij * (log S_ij(β) - log T_i(β))
-	= LC(Y_i.) + (SUM j: Y_ij * log S_ij(β)) - N_i*log T_i(β)
-	= LC(Y_i.) + (SUM j: Y_ij * Z_ij(β)) - N_i * log T_i(β)
+	= LC(Y_i.) + SUM j: Y_ij * (log U_ij(β) - log T_i(β))
+	= LC(Y_i.) + (SUM j: Y_ij * log U_ij(β)) - N_i*log T_i(β)
+	= LC(Y_i.) + (SUM j: Y_ij * s_ij(β)) - N_i * log T_i(β)
 L(Y|β) := SUM i: L(Y_i.|β)
-	= SUM i: LC(Y_i.) + [SUM ij: Y_ij * Z_ij(β)] - [SUM i: N_i * log [ T_i(β)]
+	= SUM i: LC(Y_i.) + [SUM ij: Y_ij * s_ij(β)] - [SUM i: N_i * log [ T_i(β)]
 
 
 F.O.C.
-- ∂Z_io(β) / ∂β_jk =           X_ik * I(j,o)
-- ∂S_io(β) / ∂β_jk = S_io(β) * X_ik * I(j,o)
+- ∂s_io(β) / ∂β_jk =           X_ik * I(j,o)
+- ∂U_io(β) / ∂β_jk = U_io(β) * X_ik * I(j,o)
+- ∂L_io(β) / ∂s_ij = Y_ij - N_i * ∂T_i(β) / ∂s_ij = Y_ij - N_i * ∂U_ij(β) / ∂s_ij = Y_ij - N_i * s_ij
 
-- ∂ T_i(β) / ∂β_jk = SUM o: ∂ S_io(β) / ∂β_jk = SUM o: S_io(β) * X_ik * I(j,o) = X_ik * S_ij(β)
-- ∂L(Y_i.|β) / ∂β_jk = [SUM io: Y_io * ∂Z_io(β) / ∂β_jk] - [SUM i: N_i * ∂log [ SUM o: S_io(β)]/ ∂β_jk]
- = [SUM io: Y_io * X_ik * I(j,o)] - [SUM i: N_i * X_ik * S_ij(β) / SUM o: S_io(β)]
- = [SUM i: Y_ij * X_ik] - [SUM i: N_i * X_ik * S_ij(β) / SUM o: S_io(β)]
+- ∂ T_i(β) / ∂β_jk = SUM o: ∂ U_io(β) / ∂β_jk = SUM o: U_io(β) * X_ik * I(j,o) = X_ik * U_ij(β)
+- ∂L(Y_i.|β) / ∂β_jk = [SUM io: Y_io * ∂s_io(β) / ∂β_jk] - [SUM i: N_i * ∂log [ SUM o: U_io(β)]/ ∂β_jk]
+ = [SUM io: Y_io * X_ik * I(j,o)] - [SUM i: N_i * X_ik * U_ij(β) / SUM o: U_io(β)]
+ = [SUM i: Y_ij * X_ik] - [SUM i: N_i * X_ik * U_ij(β) / SUM o: U_io(β)]
 
 
 - ∂L(Y_ij|X_i, β)/∂β_ok = 
