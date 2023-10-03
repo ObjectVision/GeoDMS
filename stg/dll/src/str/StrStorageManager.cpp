@@ -128,7 +128,7 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 void StrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (curr != storageHolder)
 		return; // noop
@@ -224,7 +224,7 @@ ActorVisitState StrFilesStorageManager::VisitSuppliers(SupplierVisitFlag svf, co
 
 void StrFilesStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 	m_FileNameAttr.reset(); // 
 
 	if (curr != storageHolder)

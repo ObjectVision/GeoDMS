@@ -154,7 +154,7 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
 		return;

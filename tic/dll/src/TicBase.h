@@ -64,6 +64,7 @@ enum   DataCheckMode;
 
 // Forward Declarations
 class AbstrStorageManager;
+class NonmappableStorageManager;
 class AbstrStreamManager;
 struct StorageMetaInfo;
 using StorageMetaInfoPtr = std::shared_ptr<StorageMetaInfo>;
@@ -108,6 +109,7 @@ namespace Explain {
 using AbstrCalculatorRef = SharedPtr<const AbstrCalculator> ;
 using BestItemRef = std::pair<SharedTreeItem, SharedStr>;
 using AbstrStorageManagerRef = SharedPtr<AbstrStorageManager>;
+using NonmappableStorageManagerRef = SharedPtr<NonmappableStorageManager>;
 
 struct AbstrOperGroup;
 class Operator;

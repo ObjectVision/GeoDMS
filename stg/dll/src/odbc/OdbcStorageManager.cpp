@@ -779,7 +779,7 @@ bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(sm != SM_None);
 

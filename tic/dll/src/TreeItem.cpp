@@ -2403,8 +2403,11 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		// Update Meta Info according to storage manager
 		const TreeItem* storageParent = GetStorageParent(false);
 		if (storageParent)
-			storageParent->GetStorageManager()->UpdateTree(storageParent, const_cast<TreeItem*>(this));
-
+		{
+			auto sm = storageParent->GetStorageManager();
+			if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+				nmsm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
+		}
 		// validate units with refObject if it wasn't copied by the parent
 
 //		if	(mc_RefItem && !GetTSF(TSF_InheritedRef) && !mc_Expr.empty())
@@ -2799,8 +2802,10 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (storageParent)
 	{
 		auto sm = storageParent->GetStorageManager(false);
-		if (sm && sm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
-			return AVS_SuspendedOrFailed;
+		assert(sm);
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+			if (nmsm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
+				return AVS_SuspendedOrFailed;
 	}
 
 //	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
@@ -3209,37 +3214,38 @@ how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* r
 	dms_assert(!CheckCalculatingOrReady(refItem)); // was tested before and nothing could have started the calculation
 
 	const TreeItem* storageParent = refItem->GetStorageParent(false); dms_assert(storageParent);
-	const AbstrStorageManager* sm = storageParent->GetStorageManager(); dms_assert(sm);
-	StorageMetaInfoPtr readInfo = sm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read);
-	if (readInfo)
-	{
-		auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
-		assert(!readInfo);
-		dms_assert(!CheckCalculatingOrReady(refItem));
-		auto rtc = std::make_shared<OperationContext>();
-		self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
+	auto sm = storageParent->GetStorageManager(); assert(sm);
+	if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
+		{
+			auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
+			assert(!readInfo);
+			dms_assert(!CheckCalculatingOrReady(refItem));
+			auto rtc = std::make_shared<OperationContext>();
+			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
 
-		FutureSuppliers emptyFutureSupplierSet; // TODO G8: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
-		rtc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("TreeItem::PrepareDataUsageImpl for Readable data") const_cast<TreeItem*>(refItem),
-			[storageParent, self, readInfoPtr](Explain::Context* context)
-			{
-				auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
-				assert(readInfoPtr);
-				assert(*readInfoPtr);
-				(*readInfoPtr)->OnPreLock();
-				StorageReadHandle sHandle(std::move(*readInfoPtr)); // locks storage manager
-				assert(!*readInfoPtr);
-				sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
-			}
-			, emptyFutureSupplierSet
-				, false
-				, nullptr
-				);
-		readInfoPtr.reset();
-		assert(!readInfo);
-		assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
-		assert(self->GetInterestCount());
-	}
+			FutureSuppliers emptyFutureSupplierSet; // TODO G8: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
+			rtc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("TreeItem::PrepareDataUsageImpl for Readable data") const_cast<TreeItem*>(refItem),
+				[storageParent, self, readInfoPtr](Explain::Context* context)
+				{
+					auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
+					assert(readInfoPtr);
+					assert(*readInfoPtr);
+					(*readInfoPtr)->OnPreLock();
+					StorageReadHandle sHandle(std::move(*readInfoPtr)); // locks storage manager
+					assert(!*readInfoPtr);
+					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
+				}
+				, emptyFutureSupplierSet
+					, false
+					, nullptr
+					);
+			readInfoPtr.reset();
+			assert(!readInfo);
+			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+			assert(self->GetInterestCount());
+		}
+
 	if (refItem->IsFailed())
 	{
 		if (refItem != self)
@@ -3532,45 +3538,46 @@ bool TreeItem::CommitDataChanges() const
 		const TreeItem* storageHolder = GetStorageParent(true);
 		bool            hasCalculator = HasCalculator();
 		assert(storageHolder); // guaranteed by IsStorable();
-		const AbstrStorageManager* sm = storageHolder->GetStorageManager();
+		auto sm = storageHolder->GetStorageManager();
 		assert(sm); // guaranteed by IsStorable();
 
-		if (hasCalculator || IsDataReady(this) && !GetCurrRangeItem()->WasFailed(FR_Committed))
-		{
-			DBG_START("TreeItem", "CommitDataChanges", false);
-			DBG_TRACE(("self = %s", GetSourceName().c_str()));
-
-			auto interestHolder = GetInterestPtrOrNull();
-			dms_assert(interestHolder); // Commit is Called from DoUpdate
-			if (	(IsCalculatingOrReady(GetCurrRangeItem()) || PrepareDataUsage(DrlType::Suspendible))
-				&&	WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) 
-				&& !GetCurrRangeItem()->WasFailed(FR_Committed)
-				&&	DoWriteItem(sm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
-			)
-			// DoReadDataItem also for calling CreateResultingTreeItem(true, false) for TreeItems without storage ??
-					SetProgress(PS_Committed);
-			else
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+			if (hasCalculator || IsDataReady(this) && !GetCurrRangeItem()->WasFailed(FR_Committed))
 			{
-				// can have failed just because PrepareDataUsage suspended or failed; 
-//				dms_assert(!TriggerOperator::GetLastResult() || GetInterestCount() > 1); // suspension only possible when not called from DecInterestCount
-				// must check suspend trigger to find out
-				if (SuspendTrigger::DidSuspend())
+				DBG_START("TreeItem", "CommitDataChanges", false);
+				DBG_TRACE(("self = %s", GetSourceName().c_str()));
+
+				auto interestHolder = GetInterestPtrOrNull();
+				dms_assert(interestHolder); // Commit is Called from DoUpdate
+				if (	(IsCalculatingOrReady(GetCurrRangeItem()) || PrepareDataUsage(DrlType::Suspendible))
+					&&	WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) 
+					&& !GetCurrRangeItem()->WasFailed(FR_Committed)
+					&&	DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
+				)
+				// DoReadDataItem also for calling CreateResultingTreeItem(true, false) for TreeItems without storage ??
+						SetProgress(PS_Committed);
+				else
 				{
-					if (GetInterestCount() < 2)
-						ReportSuspension();
+					// can have failed just because PrepareDataUsage suspended or failed; 
+	//				dms_assert(!TriggerOperator::GetLastResult() || GetInterestCount() > 1); // suspension only possible when not called from DecInterestCount
+					// must check suspend trigger to find out
+					if (SuspendTrigger::DidSuspend())
+					{
+						if (GetInterestCount() < 2)
+							ReportSuspension();
+					}
+					else if (!WasFailed(FR_Committed))
+						Fail(
+							mySSPrintF("Unable to commit data to storage %s", 
+								DMS_TreeItem_GetAssociatedFilename(this)
+							)
+						,	FR_Committed
+						);
+					dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Committed));
+					if (SuspendTrigger::DidSuspend())
+						return false; // suspended or failed, try again later
 				}
-				else if (!WasFailed(FR_Committed))
-					Fail(
-						mySSPrintF("Unable to commit data to storage %s", 
-							DMS_TreeItem_GetAssociatedFilename(this)
-						)
-					,	FR_Committed
-					);
-				dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Committed));
-				if (SuspendTrigger::DidSuspend())
-					return false; // suspended or failed, try again later
 			}
-		}
 	}
 
 	const TreeItem* uti = _GetHistoricUltimateItem(this);
@@ -3717,9 +3724,11 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	}
 	xmlOutStr->EndSubItems();
 
-afterSubItems:
-	if (m_StorageManager) 
+afterSubItems:;
+	/* REMOVE
+		if (m_StorageManager)
 		m_StorageManager->CloseStorage();
+	*/
 }
 
 
@@ -3851,7 +3860,8 @@ void TreeItem::StartInterest() const
 	if (storageParent)
 	{
 		auto undoActorInterest = make_releasable_scoped_exit([this]() { this->Actor::StopInterest();; });
-		storageParent->GetStorageManager()->StartInterest(storageParent, this);
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
+			nmsm->StartInterest(storageParent, this);
 
 		// nothrow from here
 		undoActorInterest.release();
@@ -3870,11 +3880,9 @@ garbage_t TreeItem::StopInterest() const noexcept
 {
 	const TreeItem* storageParent = GetCurrStorageParent(false);
 	if (storageParent)
-	{
-		auto sm = storageParent->GetCurrStorageManager();
-		if (sm)
-			sm->StopInterest(storageParent, this);
-	}
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
+			nmsm->StopInterest(storageParent, this);
+
 	auto garbage = Actor::StopInterest();
 
 	if (GetTreeParent())

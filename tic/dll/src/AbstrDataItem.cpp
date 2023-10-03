@@ -177,7 +177,7 @@ using semaphore_t = std::counting_semaphore<>;
 struct reader_clone_farm
 {
 	semaphore_t m_Countdown;
-	std::vector<AbstrStorageManagerRef> m_ClonePtrs;
+	std::vector<NonmappableStorageManagerRef> m_ClonePtrs;
 	std::mutex m_CloneCS;
 	std::vector<UInt32> m_Tokens;
 
@@ -213,7 +213,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
-	AbstrStorageManager* sm = smi->StorageManager();
+	auto* sm = smi->StorageManager();
 	assert(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
@@ -233,7 +233,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 				auto token = readerFarm->acquire();
 				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
 
-				AbstrStorageManagerRef& readerClonePtr = readerFarm->m_ClonePtrs[token];
+				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
 				if (!readerClonePtr)
 					readerClonePtr = sharedSm->ReaderClone(*smi);
 				if (!readerClonePtr->ReadDataItem(smi, self, t))
@@ -282,7 +282,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	DataReadLock lockForSave(this);
 
-	AbstrStorageManager* sm = smi->StorageManager();
+	auto sm = smi->StorageManager();
 	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()

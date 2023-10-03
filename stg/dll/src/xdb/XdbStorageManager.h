@@ -43,7 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 // for AbstactStorageManager interface
 #include "StgBase.h"
 
-class XdbStorageManager : public AbstrStorageManager
+class XdbStorageManager : public NonmappableStorageManager
 {
 public:
 	XdbStorageManager(CharPtr datExtension = "txt", bool saveColInfo = true);
