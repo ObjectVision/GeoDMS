@@ -281,30 +281,25 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText,
 		out << subText;
     }
 
-	XML_Table current_item_table(out);
+	/*XML_Table current_item_table(out);
 	XML_OutElement table_row0(out, "TR");
 	XML_Table::Row row = XML_Table::Row(current_item_table);
 	auto cell = XML_Table::Row::Cell(row);
 	row.ValueCell("Active Item");
 	auto cell2 = XML_Table::Row::Cell(row);
-	//XML_OutElement bold(out, "B");
 	row.ItemCell(item, true);
-	XML_OutElement table_row2(out, "TR");
-	
-	/*XML_OutElement table_col(out, "TD");
-	out.ValueCell("");
-	XML_OutElement xmlElemH2(out, "H2");
-	XML_OutElement xmlElemA (out, "A");
-	out.WriteAttr("href", ItemUrl(item).c_str());
-	if (showFullName)
+	XML_OutElement table_row2(out, "TR");*/
+	NewLine(out);
+	NewLine(out);
 	{
-		if (item->GetTreeParent())
+		XML_OutElement bold(out, "B");
+		{
+			XML_hRef supplRef(out, ItemUrl(item->GetFullName().c_str()));
 			out << item->GetFullName().c_str();
-		else
-			out << "(ROOT)";
+		}
 	}
-	else
-		out << item->GetName().c_str();*/
+	NewLine(out);
+
 }
 
 // ********** XML_Table                                             *********

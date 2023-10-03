@@ -52,6 +52,7 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
 {
     setOpenLinks(false);
     setOpenExternalLinks(false);
+    setWordWrapMode(QTextOption::NoWrap);
     connect(this, &QTextBrowser::anchorClicked, MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
 }
 
