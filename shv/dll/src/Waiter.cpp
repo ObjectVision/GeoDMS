@@ -3,6 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
+#include "ShvUtils.h"
 
 #include "Waiter.h"
 
@@ -28,9 +29,12 @@ void Waiter::start(AbstrMsgGenerator* ach)
 
 	if (s_WaiterCount++)
 		return;
+
+	SetBusy(true);
 	for (const auto& we : s_WaitingCallbacks)
 		if (std::get<0>(we))
 			std::get<0>(we)(std::get<2>(we), m_ContextGenerator);
+
 }
 
 void Waiter::end()
@@ -46,6 +50,7 @@ void Waiter::end()
 	for (const auto& we : s_WaitingCallbacks)
 		if (std::get<1>(we))
 			std::get<1>(we)(std::get<2>(we), m_ContextGenerator);
+	SetBusy(false);
 }
 
 
