@@ -244,6 +244,10 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 {
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
+	
+	if (ti->IsFailed() || ti->WasFailed())
+		return QColor(255, 255, 255); // white
+
 	auto co = getColorOption(ti);
 	return GetUserQColor(co);
 }
@@ -280,7 +284,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 	case Qt::BackgroundRole:
 		if (ti->WasFailed())
-			return QColor(192, 16, 16);
+			return QColor(255, 00, 00);
 		switch (TreeItem_GetSupplierLevel(ti))
 		{
 		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
