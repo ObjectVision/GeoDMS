@@ -1266,13 +1266,51 @@ namespace
 
 	#define PI	3.14159265358979323846
 
-	CommonOperGroup cog_true("true");
-	CommonOperGroup cog_false("false");
-	CommonOperGroup cog_pi("pi");
+	CommonOperGroup cog_true(token::true_);
+	CommonOperGroup cog_false(token::false_);
+	CommonOperGroup cog_greekpi(token::pi);
+	CommonOperGroup cog_funcpi("pi");
+
+	CommonOperGroup cog_null_b(token::null_b);
+	CommonOperGroup cog_null_w(token::null_w);
+	CommonOperGroup cog_null_u(token::null_u);
+	CommonOperGroup cog_null_u64(token::null_u64);
+	CommonOperGroup cog_null_c(token::null_c);
+	CommonOperGroup cog_null_s(token::null_s);
+	CommonOperGroup cog_null_i(token::null_i);
+	CommonOperGroup cog_null_i64(token::null_i64);
+	CommonOperGroup cog_null_f(token::null_f);
+	CommonOperGroup cog_null_d(token::null_d);
+	CommonOperGroup cog_null_sp(token::null_sp);
+	CommonOperGroup cog_null_wp(token::null_wp);
+	CommonOperGroup cog_null_ip(token::null_ip);
+	CommonOperGroup cog_null_up(token::null_up);
+	CommonOperGroup cog_null_fp(token::null_fp);
+	CommonOperGroup cog_null_dp(token::null_dp);
 
 	ConstParamOperator<Bool>    cpt(&cog_true, true);
 	ConstParamOperator<Bool>    cpf(&cog_false, false);
-	ConstParamOperator<Float64> cppi(&cog_pi, PI);
+	ConstParamOperator<Float64> cppig(&cog_greekpi, PI);
+	ConstParamOperator<Float64> cppif(&cog_funcpi, PI);
+
+	ConstParamOperator<UInt8> cpp_null_b(&cog_null_b, UNDEFINED_VALUE(UInt8));
+	ConstParamOperator<UInt16> cpp_null_w(&cog_null_w, UNDEFINED_VALUE(UInt16));
+	ConstParamOperator<UInt32> cpp_null_u(&cog_null_u, UNDEFINED_VALUE(UInt32));
+	ConstParamOperator<UInt64> cpp_null_u64(&cog_null_u64, UNDEFINED_VALUE(UInt64));
+	ConstParamOperator<Int8> cpp_null_c(&cog_null_c, UNDEFINED_VALUE(Int8));
+	ConstParamOperator<Int16> cpp_null_s(&cog_null_s, UNDEFINED_VALUE(Int16));
+	ConstParamOperator<Int32> cpp_null_i(&cog_null_i, UNDEFINED_VALUE(Int32));
+	ConstParamOperator<Int64> cpp_null_i64(&cog_null_i64, UNDEFINED_VALUE(Int64));
+
+	ConstParamOperator<Float32> cpp_null_f(&cog_null_f, UNDEFINED_VALUE(Float32));
+	ConstParamOperator<Float64> cpp_null_d(&cog_null_d, UNDEFINED_VALUE(Float64));
+
+	ConstParamOperator<SPoint> cpp_null_sp(&cog_null_sp, UNDEFINED_VALUE(SPoint));
+	ConstParamOperator<WPoint> cpp_null_wp(&cog_null_wp, UNDEFINED_VALUE(WPoint));
+	ConstParamOperator<IPoint> cpp_null_ip(&cog_null_ip, UNDEFINED_VALUE(IPoint));
+	ConstParamOperator<UPoint> cpp_null_up(&cog_null_up, UNDEFINED_VALUE(UPoint));
+	ConstParamOperator<FPoint> cpp_null_fp(&cog_null_fp, UNDEFINED_VALUE(FPoint));
+	ConstParamOperator<DPoint> cpp_null_dp(&cog_null_dp, UNDEFINED_VALUE(DPoint));
 
 	CommonOperGroup cog_asDataString("asDataString");
 	AsDataStringOperator g_AsDataString(&cog_asDataString);
