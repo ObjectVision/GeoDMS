@@ -153,13 +153,13 @@ namespace Explain { // local defs
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override
 		{
-			NewLine(stream);
+			/*NewLine(stream);
 			{
 				XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
 				stream << m_DataItem->GetFullName().c_str();
-			}
+			}*/
 			NewLine(stream);
-			stream << " := "; GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+			stream << "Calculation rule: "; GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			NewLine(stream);
 
 			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());

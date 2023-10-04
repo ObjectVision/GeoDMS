@@ -239,7 +239,7 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalRasterDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID),
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
@@ -656,8 +656,6 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 
 	MG_CHECK(rBand); 
 	ReadBand(rBand, buffer.redBand);
-
-	auto check = rBand->GetRasterDataType();
 
 	auto size = buffer.redBand.size();
 	vector_resize(buffer.combinedBands, size);
