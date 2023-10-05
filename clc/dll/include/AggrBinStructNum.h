@@ -85,11 +85,9 @@ struct binary_assign_partial_accumulation
 template <typename T> 
 struct cov_accumulation_type
 {
-	typedef SizeT                              count_type;
-	typedef typename acc_type<T>::type         sum_type;
-	typedef typename aggr_type<T>::type        cov_type;
-
-	cov_accumulation_type(): n(), x(), y(), xy() {}
+	using count_type = SizeT;
+	using sum_type= acc_type<T>::type;
+	using cov_type = aggr_type<T>::type;
 
 	operator cov_type() const
 	{
@@ -107,8 +105,8 @@ struct cov_accumulation_type
 
 	friend cov_type make_result(const cov_accumulation_type& output) { return output.operator cov_type(); } // move casting stuff here
 
-	count_type n;
-	sum_type   x, y, xy;
+	count_type n = 0;
+	sum_type   x = sum_type(), y = sum_type(), xy = sum_type();
 };
 
 template <typename T>
@@ -124,10 +122,13 @@ struct binary_assign_cov: binary_assign<cov_accumulation_type<T>, T, T>
 				return;
 		}
 		++ a.n;
-		a.x += x;
-		a.y += y;
-		a.xy += m_MulFunc(x, y);
+		MG_CHECK(a.n);
+		a.x = m_SafeAdder(a.x, x);
+		a.y = m_SafeAdder(a.y, y);
+		a.xy = m_SafeAdder(a.xy,  m_MulFunc(x, y));
 	}
+	using sum_type = typename cov_accumulation_type<T>::sum_type;
+	safe_plus<sum_type> m_SafeAdder;
 	mulx_func<T> m_MulFunc;
 };
 

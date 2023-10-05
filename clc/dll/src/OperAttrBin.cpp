@@ -41,12 +41,10 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 		dms_assert(arg2Data.size() == (e2Void ? 1 : cardinality));
 
 		using data_size_type = sequence_traits<SharedStr>::seq_t::data_size_type;
-		data_size_type
-			totalSize =
-				CheckedAdd<data_size_type>(
-					CheckedMul<data_size_type>(e1Void ? cardinality : 1, arg1Data.get_sa().actual_data_size())
-				,	CheckedMul<data_size_type>(e2Void ? cardinality : 1, arg2Data.get_sa().actual_data_size())
-				);
+		data_size_type arg1Size = arg1Data.get_sa().actual_data_size(); if (e1Void) arg1Size = CheckedMul<data_size_type>(cardinality, arg1Size, false);
+		data_size_type arg2Size = arg2Data.get_sa().actual_data_size(); if (e2Void) arg2Size = CheckedMul<data_size_type>(cardinality, arg2Size, false);
+
+		data_size_type totalSize = CheckedAdd<data_size_type>(arg1Size, arg2Size);
 		if (e1Void && !a1i->IsDefined()) totalSize = 0;
 		if (e2Void && !a2i->IsDefined()) totalSize = 0;
 
