@@ -357,16 +357,21 @@ int main_without_SE_handler(int argc, char *argv[])
         QString family = QFontDatabase::applicationFontFamilies(id).at(0);
         QFont dms_text_font(family, 25);
 
-        QPixmap pixmap(":/res/images/test_splash_image.jpg"); // https://sustainable-environment.org.uk/Environment/Land_Use.php
+        QPixmap pixmap(":/res/images/ruralriver.jpg");
         std::unique_ptr<DmsSplashScreen> splash = std::make_unique<DmsSplashScreen>(pixmap);
-        splash->setMessageRect(QRect(splash->rect().topLeft(), QSize(800, 500)), Qt::AlignCenter);
+        splash->setMessageRect(QRect(splash->rect().topLeft(), QSize(1024, 200)), Qt::AlignCenter);
         dms_text_font.setBold(true);
         splash->setFont(dms_text_font);
         
 
         auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
         const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
-        splash->move(currentDesktopsCenter - splash->rect().center());
+        assert(splash->rect().top () == 0);
+        assert(splash->rect().left() == 0);
+        auto projectedTopLeft = currentDesktopsCenter - splash->rect().center();
+        if (projectedTopLeft.y() < screen_at_mouse_pos->geometry().top())
+                projectedTopLeft.setY( screen_at_mouse_pos->geometry().top() );
+        splash->move(projectedTopLeft);
         splash->show();
 
         splash->showMessage("Initialize GeoDMS");
