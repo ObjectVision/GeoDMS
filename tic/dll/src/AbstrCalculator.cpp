@@ -725,22 +725,24 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 			{
 				if (WasInFailed(ti))
 					goto foundError;
-				if (IsDataItem(ti))
-				{
-					SharedDataItemInterestPtr adi = AsDataItem(ti);
-					adi->PrepareDataUsage(DrlType::Certain);
 
-					DataReadLock lock(adi);
-				}
-				if (IsUnit(ti))
-				{
-					try {
-						AsUnit(ti)->GetCount();
-					}
-					catch (...)
+				try {
+					if (IsDataItem(ti))
 					{
-						ti->CatchFail(FR_Data);
+						SharedDataItemInterestPtr adi = AsDataItem(ti);
+						adi->PrepareDataUsage(DrlType::Certain);
+
+						DataReadLock lock(adi);
 					}
+					if (IsUnit(ti))
+					{
+						SharedUnitInterestPtr au = AsUnit(ti);
+						au->GetCount();
+					}
+				}
+				catch (...)
+				{
+					ti->CatchFail(FR_Data);
 				}
 				if (ti->WasFailed(FR_Data))
 					goto foundError;

@@ -128,7 +128,7 @@ namespace token {
 
 	TIC_CALL bool isConst(TokenID t)
 	{ 
-		assert(true_.GetNr() + 19 == null_dp.GetNr());
+		assert(true_.GetNr(TokenID::TokenKey()) + 18 == null_dp.GetNr(TokenID::TokenKey()));
 		return t >= true_ && t <= null_dp;
 	}
 
