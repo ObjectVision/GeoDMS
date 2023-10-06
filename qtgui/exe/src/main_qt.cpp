@@ -363,7 +363,6 @@ int main_without_SE_handler(int argc, char *argv[])
         dms_text_font.setBold(true);
         splash->setFont(dms_text_font);
         
-
         auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
         const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
         assert(splash->rect().top () == 0);
@@ -392,10 +391,8 @@ int main_without_SE_handler(int argc, char *argv[])
             assert(hwDispatch);
             testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
-
-        QThread::sleep(5);
-
         splash->finish(&main_window);
+
         main_window.showMaximized();
         auto result = dms_app.exec();
 
