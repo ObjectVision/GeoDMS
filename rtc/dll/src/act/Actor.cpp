@@ -460,13 +460,16 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 
 	if (updateRes == AVS_SuspendedOrFailed)
 	{
-		dms_assert(SuspendTrigger::DidSuspend());
+		assert(SuspendTrigger::DidSuspend());
 		return AVS_SuspendedOrFailed;
 	}
+	if (m_State.GetProgress() >= ProgressState::PS_Committed)
+		StopSupplInterest();
+
 	if (m_State.GetProgress() >= ps) // a supplier could have been a creator/manager
 		return AVS_Ready;
 
-	dms_assert(m_LastGetStateTS == UpdateMarker::LastTS());
+	assert(m_LastGetStateTS == UpdateMarker::LastTS());
 	UpdateMarker::ChangeSourceLock changeStamp(this,  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
@@ -642,12 +645,13 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 
 ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
 {
-	dms_assert((ps == PS_Committed) || (ps == PS_Validated));
-	dms_assert(ps == PS_Committed); // TODO: clean-up if this holds
+	assert((ps == PS_Committed) || (ps == PS_Validated));
+	assert(ps == PS_Committed); // TODO: clean-up if this holds
 	FailType ft = (ps == PS_Committed) ? FR_Committed : FR_Validate;
 
-	dms_assert(!WasFailed(FR_MetaInfo));
-	dms_assert(!WasFailed(ft)); // precondition
+	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(ft)); // precondition
+	assert(DoesHaveSupplInterest());
 
 	ActorVisitState updateRes = 
 		VisitSupplBoolImpl(this, SupplierVisitFlag::Update,

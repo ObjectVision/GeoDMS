@@ -71,6 +71,8 @@ template <>           struct composition_of<CharPtr>         { static const Valu
 template <typename T> struct composition_of<Range<T> >       { static const ValueComposition value = ValueComposition::Range;    };
 template <typename T> struct composition_of<std::vector<T> > { static const ValueComposition value = ValueComposition::Sequence; };
 
+template <typename T> constexpr ValueComposition composition_of_v = composition_of<T>::value;
+
 //----------------------------------------------------------------------
 // ValueComposition helper functions
 //----------------------------------------------------------------------

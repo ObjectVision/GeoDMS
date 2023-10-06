@@ -204,7 +204,7 @@ struct BinaryPolyAttrAssignOper : BinaryAttrOper< typename PolyAttrOper::assigne
 {
 	BinaryPolyAttrAssignOper(AbstrOperGroup* gr) 
 		: BinaryAttrOper<typename PolyAttrOper::assignee_type, typename PolyAttrOper::arg1_type, typename PolyAttrOper::arg2_type>(gr
-			,	&PolyAttrOper::unit_creator, composition_of<typename PolyAttrOper::assignee_type>::value, ArgFlags()
+			,	&PolyAttrOper::unit_creator, composition_of_v<typename PolyAttrOper::assignee_type>, ArgFlags()
 			)
 	{}
 

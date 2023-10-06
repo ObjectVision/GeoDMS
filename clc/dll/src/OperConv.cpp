@@ -46,7 +46,7 @@ class ConstAttrOperator : public AbstrConstOperator
 
 public:
 	ConstAttrOperator()
-		:	AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of<TR>::value)
+		:	AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of_v<TR>)
 	{}
 
 	// Override Operator
@@ -892,7 +892,7 @@ public:
 			,	ResultType::GetStaticClass() 
 				,	Arg1Type::GetStaticClass()
 				,	Arg2Type::GetStaticClass()
-			,	composition_of<TR>::value
+			,	composition_of_v<TR>
 			,	reverseArgs
 			)
 		{}
@@ -948,7 +948,7 @@ public:
 			,	ResultType::GetStaticClass() 
 				,	Arg1Type::GetStaticClass()
 				,	Arg2Type::GetStaticClass()
-			,	composition_of<TR>::value
+			,	composition_of_v<TR>
 			,	reverseArgs
 			)
 		{}
@@ -1067,7 +1067,7 @@ template <typename TR, typename TA>
 struct CastAttrOperator: UnaryAttrOperator<TR, TA>
 {
 	CastAttrOperator(AbstrOperGroup* gr)
-		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of<TR>::value)
+		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
 	{}
 
 	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override

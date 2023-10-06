@@ -319,7 +319,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 				is_numeric_v<T>,
 				is_integral<T>::value,
 				is_signed<T>::value,
-				composition_of<T>::value,
+				composition_of_v<T>,
 				(const Byte*)(&s_UndefinedValue),
 				is_numeric_v<T> ? ::AsFloat64(s_UndefinedValue):0.0,
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MaxValue(),

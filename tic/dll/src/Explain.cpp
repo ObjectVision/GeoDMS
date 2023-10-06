@@ -1068,17 +1068,18 @@ namespace Explain { // local defs
 	{
 		if (!isFirst)
 			NewLine(stream);
-		switch(m_Expr.size())
-		{
-		case 0:
+
+		if (m_Expr.empty())
 			return;
-		case 1:
-			stream << mySSPrintF("Summary of %d factors", m_Expr[0].second.size()).c_str();
-		default:
-			stream << mySSPrintF("Summary of %d terms ", m_Expr.size()).c_str();
-		}
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size() == 1)
+			stream << mySSPrintF("Summary of values of %d factors", m_Expr[0].second.size()).c_str();
+		else
+			stream << mySSPrintF("Summary of values of %d terms ", m_Expr.size()).c_str();
+
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << " of " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1122,18 +1123,17 @@ namespace Explain { // local defs
 		if (!isFirst)
 			NewLine(stream);
 
-		switch (m_Expr.size())
-		{
-		case 0:
+		if (m_Expr.empty())
 			return;
-		case 1:
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size()==1)
 			stream << mySSPrintF("Summary of %d conjunctions of boolean values", m_Expr[0].size()).c_str();
-		default:
+		else
 			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
-		}
 
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << " of " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);

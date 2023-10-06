@@ -15,7 +15,7 @@
 
 #include <type_traits>
 
-#define COMPOSITION(T)  composition_of<T>::value
+#define COMPOSITION(T)  composition_of_v<T>
 
 #define MG_DEBUG_ELEMTRAITS
 
