@@ -579,7 +579,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, cr);
 		auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
-		dms_assert(res);
+		assert(res);
 		if (res->WasFailed(FR_Data))
 			res->ThrowFail();
 
@@ -594,7 +594,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		if (res->WasFailed(FR_Data))
 			res->ThrowFail();
 
-		dms_assert(resDataItem);
+		assert(resDataItem);
 		if (resDataItem->WasFailed(FR_Data)) resDataItem->ThrowFail();
 		if (resDataItem->WasFailed()) context->Fail(resDataItem);
 		resultStr = GetValue<SharedStr>(resDataItem, 0);
@@ -725,22 +725,24 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 			{
 				if (WasInFailed(ti))
 					goto foundError;
-				if (IsDataItem(ti))
-				{
-					SharedDataItemInterestPtr adi = AsDataItem(ti);
-					adi->PrepareDataUsage(DrlType::Certain);
 
-					DataReadLock lock(adi);
-				}
-				if (IsUnit(ti))
-				{
-					try {
-						AsUnit(ti)->GetCount();
-					}
-					catch (...)
+				try {
+					if (IsDataItem(ti))
 					{
-						ti->CatchFail(FR_Data);
+						SharedDataItemInterestPtr adi = AsDataItem(ti);
+						adi->PrepareDataUsage(DrlType::Certain);
+
+						DataReadLock lock(adi);
 					}
+					if (IsUnit(ti))
+					{
+						SharedUnitInterestPtr au = AsUnit(ti);
+						au->GetCount();
+					}
+				}
+				catch (...)
+				{
+					ti->CatchFail(FR_Data);
 				}
 				if (ti->WasFailed(FR_Data))
 					goto foundError;

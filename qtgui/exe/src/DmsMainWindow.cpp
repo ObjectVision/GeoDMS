@@ -320,7 +320,7 @@ auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu
 MainWindow* MainWindow::TheOne()
 {
     assert(IsMainThread()); // or use a mutex to guard access to TheOne.
-    assert(s_CurrMainWindow);
+//    assert(s_CurrMainWindow);// main window destructor might already be in session, such as when called from the destructor of ValueInfoPanel
     return s_CurrMainWindow;
 }
 

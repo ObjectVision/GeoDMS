@@ -321,7 +321,7 @@ operator /(const Point<T>& a, const Point<U>& b)
 
 
 template <class T> inline
-	SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second)); }
+	SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second), false); }
 
 template <class T> inline
 typename product_type<T>::type

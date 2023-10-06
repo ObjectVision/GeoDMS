@@ -369,7 +369,7 @@ TType CalcNewPos(HWND scrollBarCtl, UInt16 scrollCmd, GType nrTPerG)
 	GType newPos = CalcNewPosBase(scrollBarCtl, scrollCmd);
 	if (newPos < 0)
 		return -1;
-	return CheckedMul<TType>(newPos, nrTPerG);
+	return CheckedMul<TType>(newPos, nrTPerG, false);
 }
 
 void ScrollPort::OnHScroll(UInt16 scollCmd)

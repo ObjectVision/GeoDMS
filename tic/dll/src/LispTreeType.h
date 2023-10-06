@@ -67,10 +67,29 @@ namespace token {
 	extern TIC_CALL TokenID not_;
 
 	extern TIC_CALL TokenID iif;
+
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
+	extern TIC_CALL TokenID pi;
 
-	inline bool isConst(TokenID t) { return t == true_ || t == false_; }
+	extern TIC_CALL TokenID null_b;
+	extern TIC_CALL TokenID null_w;
+	extern TIC_CALL TokenID null_u;
+	extern TIC_CALL TokenID null_u64;
+	extern TIC_CALL TokenID null_c;
+	extern TIC_CALL TokenID null_s;
+	extern TIC_CALL TokenID null_i;
+	extern TIC_CALL TokenID null_i64;
+	extern TIC_CALL TokenID null_f;
+	extern TIC_CALL TokenID null_d;
+	extern TIC_CALL TokenID null_sp;
+	extern TIC_CALL TokenID null_wp;
+	extern TIC_CALL TokenID null_ip;
+	extern TIC_CALL TokenID null_up;
+	extern TIC_CALL TokenID null_fp;
+	extern TIC_CALL TokenID null_dp;
+
+	TIC_CALL bool isConst(TokenID t);
 
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;

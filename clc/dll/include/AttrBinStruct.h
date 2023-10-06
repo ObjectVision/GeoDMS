@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "mci/ValueClass.h"
+#include "utl/mySPrintF.h"
 #include "utl/StringFunc.h"
 
 #include "Prototypes.h"
@@ -141,16 +142,23 @@ void do_binary_func(
 // *****************************************************************************
 
 template <typename T>
-[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
+[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, bool suggestAlternative, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
 {
 	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
 	SharedStr acName;
 	if (alternativeValueClass) 
 		acName = AsString(alternativeValueClass->GetID());
 
-	throwDmsErrF("Numeric overflow when %1% %2% values %3% %4% %5%."
-		"\nConsider using %6% if your model deals with overflow as null values%7%%8%."
+	auto primaryMsg = mySSPrintF("Numeric overflow when %1% %2% values %3% %4% %5%."
 		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
+	);
+
+	if (!suggestAlternative)
+		throwDmsErrD(primaryMsg.c_str());
+
+	throwDmsErrF("%1%"
+		"\nConsider using %2% if your model deals with overflow as null values%3%%4%."
+		, primaryMsg
 		, alternativeFunc
 		, alternativeValueClass ? " or consider converting the arguments to " : ""
 		, alternativeValueClass ? acName.c_str() : ""
@@ -277,7 +285,7 @@ struct safe_plus
 			if constexpr (!is_signed_v<V>)
 			{
 				if (result < a)
-					throwOverflow("adding", a, "and", b, "add_or_null", NextAddIntegral<V>());
+					throwOverflow("adding", a, "and", b, true, "add_or_null", NextAddIntegral<V>());
 			}
 			else
 			{
@@ -288,7 +296,7 @@ struct safe_plus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative !=resultNonnegative)
-						throwOverflow("adding", a, "and", b, "add_or_null", NextAddIntegral<V>());
+						throwOverflow("adding", a, "and", b, true, "add_or_null", NextAddIntegral<V>());
 				}
 			}
 		}
@@ -321,7 +329,7 @@ struct safe_minus
 			if constexpr (!is_signed_v<T>)
 			{
 				if (a < b)
-					throwOverflow("subtracting", b, "from", a, "sub_or_null", NextSubIntegral<T>());
+					throwOverflow("subtracting", b, "from", a, true, "sub_or_null", NextSubIntegral<T>());
 			}
 			else
 			{
@@ -332,7 +340,7 @@ struct safe_minus
 				{
 					auto resultNonnegative = (result >= 0);
 					if (aNonnegative != resultNonnegative)
-						throwOverflow("subtracting", b, "from", a, "sub_or_null", NextSubIntegral<T>());
+						throwOverflow("subtracting", b, "from", a, true, "sub_or_null", NextSubIntegral<T>());
 				}
 			}
 		}
@@ -472,15 +480,10 @@ struct mul_func_impl  : binary_func<V, V, V>
 				return UNDEFINED_VALUE(V);
 		}
 
-		V result = a * b;
-
-		if constexpr (!std::is_floating_point_v<V>)
-		{
-			if (a && b && b != result / a)
-				throwOverflow("multiplying", a, "and", b, "mul_or_null", NextAddIntegral<V>());
-		}
-
-		return result;
+		if constexpr (std::is_floating_point_v<V>)
+			return a * b;
+		else
+			return CheckedMul<V>(a, b, true);
 	}
 };
 
@@ -539,6 +542,24 @@ struct mulx_func : binary_func<typename acc_type<T>::type, T, T>
 	typename mulx_func::res_type operator()(typename mulx_func::arg1_cref a1, typename mulx_func::arg2_cref a2) const 
 	{ 
 		return typename mulx_func::res_type(a1) * typename mulx_func::res_type(a2); 
+	}
+};
+
+template <>
+struct mulx_func<UInt64> : binary_func<UInt64, UInt64, UInt64>
+{
+	typename mulx_func::res_type operator()(UInt64 a1, UInt64 a2) const
+	{
+		return CheckedMul(a1, a2, false);
+	}
+};
+
+template <>
+struct mulx_func<Int64> : binary_func<Int64, Int64, Int64>
+{
+	typename mulx_func::res_type operator()(Int64 a1, Int64 a2) const
+	{
+		return CheckedMul(a1, a2, false);
 	}
 };
 

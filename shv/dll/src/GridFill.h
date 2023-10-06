@@ -214,7 +214,7 @@ void GridFill(
 
 			const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
 
-			SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col());
+			SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col(), false);
 
 			GType currViewCol = viewColBegin;
 			PixelType result;

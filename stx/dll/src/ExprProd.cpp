@@ -104,7 +104,7 @@ void ExprProd::ProdFunctionCall()
 
 void ExprProd::ProdIdentifier(iterator_t first, iterator_t last)
 {
-	dms_assert(first != last);
+	assert(first != last);
 	m_Result.push_back(LispRef(GetTokenID_mt(&*first, &*last)));
 }
 
