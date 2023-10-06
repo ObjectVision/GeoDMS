@@ -371,6 +371,14 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	TreeItem::CopyProps(result, copyContext);
 
 	auto res = debug_cast<AbstrDataItem*>(result);
+	
+	res->m_StatusFlags.SetValueComposition(GetValueComposition());
+	if (copyContext.InFenceOperator())
+	{
+		res->m_DomainUnit = GetAbstrDomainUnit();
+		res->m_ValuesUnit = GetAbstrValuesUnit();
+		return;
+	}
 
 	// only copy unitnames when not defined
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit))
@@ -399,7 +407,6 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 			CatchFail(FR_MetaInfo);
 		}
 	}
-	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 }
 
 ValueComposition AbstrDataItem::GetValueComposition() const
