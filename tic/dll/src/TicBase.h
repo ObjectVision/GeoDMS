@@ -64,6 +64,7 @@ enum   DataCheckMode;
 
 // Forward Declarations
 class AbstrStorageManager;
+class MmdStorageManager;
 class NonmappableStorageManager;
 class AbstrStreamManager;
 struct StorageMetaInfo;

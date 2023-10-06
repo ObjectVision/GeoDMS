@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -40,6 +16,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClassID.h"
 #include "utl/IncrementalLock.h"
+#include "utl/splitPath.h"
 #include "xct/DmsException.h"
 
 #include "AbstrCalculator.h"
@@ -52,6 +29,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
 #include "UnitProcessor.h"
+#include "stg/MemoryMappeddataStorageManager.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DATALOCKS 0
@@ -280,6 +258,19 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
+	if (adi->m_FileName.empty())
+		if (auto sp = adi->GetStorageParent(true))
+		{
+			auto sm = sp->GetStorageManager();
+			assert(sm);
+			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+			{
+				auto fsn = sm->GetNameStr();
+				auto rn = sp->GetRelativeName(adi);
+				
+				adi->m_FileName = DelimitedConcat(fsn, rn);
+			}
+		}
 	if (!adi->m_FileName.empty())
 		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
 	else

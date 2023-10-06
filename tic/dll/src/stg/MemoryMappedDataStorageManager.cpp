@@ -2,15 +2,13 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "StoragePCH.h"
-#pragma hdrstop
-
+#include "TicPCH.h"
 
 // MmdStorageManager.cpp: implementation of the MmdStorageManager class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "mmd/MemoryMappedDataStorageManager.h"
+#include "stg/MemoryMappedDataStorageManager.h"
 
 #include "dbg/Debug.h"
 #include "dbg/SeverityType.h"

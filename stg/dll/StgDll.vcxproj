@@ -61,7 +61,6 @@
     <ClCompile Include="src\gdal\gdal_vect.cpp" />
     <ClCompile Include="src\asc\AsciiImp.cpp" />
     <ClCompile Include="src\bmp\BmpImp.cpp" />
-    <ClCompile Include="src\mmd\MemoryMappedDataStorageManager.cpp" />
     <ClCompile Include="src\odbc\OdbcImp.cpp" />
     <ClCompile Include="src\xdb\XdbImp.cpp" />
     <ClCompile Include="src\shp\ShpImp.cpp" />
@@ -81,7 +80,6 @@
   <ItemGroup>
     <ClInclude Include="src\asc\AsciiImp.h" />
     <ClInclude Include="src\bmp\BmpImp.h" />
-    <ClInclude Include="src\mmd\MemoryMappeddataStorageManager.h" />
     <ClInclude Include="src\odbc\OdbcImp.h" />
     <ClInclude Include="src\viewportinfo.h" />
     <ClInclude Include="src\xdb\XdbImp.h" />

@@ -10,7 +10,6 @@
 #define __STG_MMD_STORAGEMANAGER_H
 
 
-#include "StgBase.h"
 #include "ptr/OlePtr.h"
 #include "ser/SafeFileWriter.h"
 #include "ser/FileMapHandle.h"
@@ -30,10 +29,10 @@ class MmdStorageManager : public AbstrStorageManager
 public:
 	using base_type = AbstrStorageManager;
 
-//	STGDLL_CALL MmdStorageManager();
-//	STGDLL_CALL ~MmdStorageManager();
+//	TIC_CALL MmdStorageManager();
+//	TIC_CALL ~MmdStorageManager();
 
-	STGDLL_CALL SharedStr GetFullFileName(CharPtr name) const;
+	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -42,7 +41,7 @@ protected:
 
 	bool AllowRandomTileAccess() const override { return true; }
 	bool EasyRereadTiles() const override { return true; }
-	STGDLL_CALL virtual bool CanWriteTiles() const { return true; }
+	TIC_CALL virtual bool CanWriteTiles() const { return true; }
 
 
 //	std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t) override;
@@ -56,7 +55,7 @@ protected:
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;
 
-	DECL_RTTI(STGDLL_CALL, StorageClass)
+	DECL_RTTI(TIC_CALL, StorageClass)
 };
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)
