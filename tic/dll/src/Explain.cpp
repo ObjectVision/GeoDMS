@@ -1068,7 +1068,15 @@ namespace Explain { // local defs
 	{
 		if (!isFirst)
 			NewLine(stream);
-		stream << (m_Expr.size() > 1 ? "Addition " : "Factors");
+		switch(m_Expr.size())
+		{
+		case 0:
+			return;
+		case 1:
+			stream << mySSPrintF("Summary of %d factors", m_Expr[0].second.size()).c_str();
+		default:
+			stream << mySSPrintF("Summary of %d terms ", m_Expr.size()).c_str();
+		}
 		PrintSeqNr(stream);
 		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
@@ -1108,12 +1116,22 @@ namespace Explain { // local defs
 			}
 		}
 	}
+
 	void UnionOfAndsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
 		if (!isFirst)
 			NewLine(stream);
 
-		stream << (m_Expr.size() > 1 ? "Union of conditions " : "Conditions");
+		switch (m_Expr.size())
+		{
+		case 0:
+			return;
+		case 1:
+			stream << mySSPrintF("Summary of %d conjunctions of boolean values", m_Expr[0].size()).c_str();
+		default:
+			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
+		}
+
 		PrintSeqNr(stream);
 		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);

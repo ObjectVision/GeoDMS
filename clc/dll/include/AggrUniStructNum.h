@@ -349,7 +349,7 @@ struct var_accumulation_type
 	typedef typename aggr_type<sum_type>::type var_type;
 	typedef typename scalar_of<var_type>::type var_scalar_type;
 
-	var_accumulation_type(): n(), x(), xx() {}
+	var_accumulation_type() {}
 	var_accumulation_type(count_type n_, sum_type x_, sum_type xx_): n(n_), x(x_), xx(xx_) {}
 
 	operator var_type() const
@@ -367,8 +367,8 @@ struct var_accumulation_type
 		return res;
 	}
 
-	count_type  n;
-	sum_type    x, xx;
+	count_type  n = 0;
+	sum_type    x = sum_type(), xx = sum_type();
 };
 
 template <typename T>

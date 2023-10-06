@@ -156,6 +156,7 @@ template <typename T>
 struct corr_accumulation_type : cov_accumulation_type<T>
 {
 	using corr_type = typename cov_accumulation_type<T>::cov_type;
+	using sum_type = typename acc_type<T>::type;
 	using agregator = typename aggr_type<T>::type;
 
 	corr_accumulation_type(): xx(), yy() {}
@@ -172,7 +173,7 @@ struct corr_accumulation_type : cov_accumulation_type<T>
 	}
 	friend corr_type make_result(const corr_accumulation_type& output) { return output.operator corr_type(); } // move casting stuff here
 
-	agregator xx, yy;
+	sum_type xx, yy;
 };
 
 template <typename T>
@@ -180,17 +181,20 @@ struct binary_assign_corr: binary_assign<corr_accumulation_type<T>, T, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<T>(); }
 
-	typedef typename aggr_type<T>::type agregator;
+	using sum_type = typename acc_type<T>::type;
+	using agregator = typename aggr_type<T>::type;
 
-	void operator () (typename binary_assign_corr::assignee_ref a, typename binary_assign_corr::arg1_cref x, typename binary_assign_corr::arg2_cref y) const
+	void operator () (typename binary_assign_corr::assignee_ref a, cref_t<T> x, cref_t<T> y) const
 	{
 		m_CovAssign(a, x, y);
-		a.xx += agregator(x)*agregator(x);
-		a.yy += agregator(y)*agregator(y);
+		a.xx = m_SafePlus(a.xx, m_MulX(x, x));
+		a.yy = m_SafePlus(a.yy, m_MulX(y, y));
 	}
 
 private:
 	binary_assign_cov<T>               m_CovAssign;
+	mulx_func<T> m_MulX;
+	safe_plus<sum_type> m_SafePlus;
 };
 
 template <class T> 
