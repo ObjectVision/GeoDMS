@@ -390,6 +390,7 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 			s_LastItem = nullptr; // invalidate cache contents during processing	
 
 			cacheReady = NumericDataItem_GetStatistics(item, statisticsBuffer);
+			statisticsBuffer.push_back('\0');
 			if (cacheReady)
 			{
 				s_LastItem = item;
