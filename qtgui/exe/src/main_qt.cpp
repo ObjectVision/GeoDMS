@@ -392,6 +392,7 @@ int main_without_SE_handler(int argc, char *argv[])
             testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
         }
         splash->finish(&main_window);
+        splash.reset();
 
         main_window.showMaximized();
         auto result = dms_app.exec();

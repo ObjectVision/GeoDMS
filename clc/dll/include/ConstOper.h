@@ -205,22 +205,16 @@ private:
 template <typename TR, typename TV=TR>
 class ConstParamOperator : public AbstrConstParamOperator
 {
-	typedef DataArray<TR>          ResultType;
-
 public:
 	ConstParamOperator(AbstrOperGroup* gr, TV value)
-		:	AbstrConstParamOperator(gr
-			,	ResultType::GetStaticClass()
-			,	Unit<typename scalar_of<TR>::type>::GetStaticClass()
-			,	composition_of<TR>::value
-			) 
+		:	AbstrConstParamOperator(gr, DataArray<TR>::GetStaticClass(), Unit<field_of_t<TR>>::GetStaticClass(), composition_of_v<TR>) 
 		,	m_Value(value)
 	{}
 
 	// Override Operator
 	void Calculate(DataWriteLock& res) const override
 	{
-		ResultType* result = mutable_array_cast<TR>(res);
+		auto result = mutable_array_cast<TR>(res);
 		Assign( result->GetWritableTile(0)[0], m_Value);
 	}
 
