@@ -541,8 +541,8 @@ DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_f
 void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
 {
     std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
-    std::unique_ptr<QAction> pin_action = std::make_unique<QAction>("pin", this);
-    std::unique_ptr<QAction> remove_action = std::make_unique<QAction>("remove", this);
+    std::unique_ptr<QAction> pin_action = std::make_unique<QAction>(QPixmap(":/res/images/TB_toggle_palette.bmp"), "pin", this);
+    std::unique_ptr<QAction> remove_action = std::make_unique<QAction>(QPixmap(":/res/images/EL_clear.bmp"), "remove", this);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
     connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
