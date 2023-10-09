@@ -549,7 +549,8 @@ bool RangedUnit<V>::PrepareRange() const
 	if (!this->PrepareDataUsage(DrlType::Suspendible))
 		return false;
 
-	return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
+	return true; // TODO: substitute out PrepareRange()
+	//return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
 }
 
 template <class V>
