@@ -12,6 +12,7 @@
 #include <Qclipboard.h>
 
 #include "DmsDetailPages.h"
+#include "DmsValueInfo.h"
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "dbg/DmsCatch.h"
@@ -522,18 +523,33 @@ void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
         switch (detail_page_type)
         {
         case ActiveDetailPage::STATISTICS:
+        {
             MainWindow::TheOne()->showStatisticsDirectly(tiContext);
             return;
+        }
         case ActiveDetailPage::VALUE_INFO:
-            if (IsDataItem(tiContext))
-                MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+        {
+            if (!IsDataItem(tiContext))
+                return;
+
+            auto focused_widget = QApplication::activeWindow();
+            auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(focused_widget);
+            if (value_info_browser) // link clicked from a value info browser window
+            {
+
+            }
+
+            MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
             return;
+        }
         default:
+        {
             m_active_detail_page = detail_page_type;
             if (tiContext)
                 MainWindow::TheOne()->setCurrentTreeItem(tiContext);
             scheduleDrawPageImpl(100);
             return;
+        }
         }
     }
 }
