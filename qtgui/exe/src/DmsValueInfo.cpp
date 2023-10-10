@@ -12,48 +12,78 @@
 
 #include <QDockWidget>
 
-ValueInfoPanel::ValueInfoPanel(QWidget* parent)
-    : QMdiSubWindow(parent)
-{
+StudyObjectHistory::StudyObjectHistory() {}
+StudyObjectHistory::~StudyObjectHistory() {}
 
+auto StudyObjectHistory::currentContext() -> Explain::CalcExplImpl*
+{
+    return explain_contexts.at(current_index).get();
 }
 
-ValueInfoPanel::~ValueInfoPanel()
+auto StudyObjectHistory::currentStudyObject() -> SharedDataItemInterestPtr
 {
-    auto main_window = MainWindow::TheOne();
-    if (!main_window) // main window destructor might already be in session as its base class destructor calls for childWidget destruction
+    return study_objects.at(current_index);
+}
+
+auto StudyObjectHistory::currentIndex() -> Int64
+{
+    return indices.at(current_index);
+}
+
+auto StudyObjectHistory::countPrevious() -> SizeT
+{
+    return current_index;
+}
+
+auto StudyObjectHistory::countNext() -> SizeT
+{
+    SizeT number_of_studyobjects = study_objects.size();
+    return number_of_studyobjects - (current_index+1);
+}
+
+bool StudyObjectHistory::previous()
+{
+    if (!countPrevious())
+        return false;
+
+    current_index--;
+    return true;
+}
+
+bool StudyObjectHistory::next()
+{
+    if (!countNext())
+        return false;
+
+    current_index++;
+    return true;
+}
+
+void StudyObjectHistory::deleteFromCurrentIndexUpToEnd()
+{
+    if (!countNext())
         return;
-    auto active_subwindow = main_window->m_value_info_mdi_area->activeSubWindow();
-    if (!active_subwindow)
-    {
-        main_window->m_value_info_dock->setVisible(false);
-        main_window->resizeDocks({ main_window->m_detailpages_dock }, { main_window->m_detail_pages->m_default_width}, Qt::Horizontal);
-        //main_window->m_detailpages_dock->setVisible(true);
-    }
-    main_window->resizeDocksToNaturalSize();
-    //main_window->resizeDocks({main_window->m_detailpages_dock}, {500, 0}, Qt::Horizontal);
+
+    study_objects.erase(study_objects.begin()+ current_index +1, study_objects.end());
 }
 
-QSize ValueInfoPanel::sizeHint() const
+void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT index)
 {
-    return QSize(500,0);
-}
-
-QSize ValueInfoPanel::minimumSizeHint() const
-{
-    return QSize(500, 0);
+    deleteFromCurrentIndexUpToEnd();
+    study_objects.push_back(studyObject);
+    explain_contexts.push_back(std::move(Explain::CreateContext()));
+    indices.push_back(index);
+    current_index++;
 }
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index)
     : QUpdatableTextBrowser(parent)
-    , m_Context(Explain::CreateContext())
-    , m_StudyObject(studyObject)
-    , m_Index(index)
 {
+    m_history.insert(studyObject, index);
     setOpenLinks(false);
     setOpenExternalLinks(false);
     setWordWrapMode(QTextOption::NoWrap);
-    connect(this, &QTextBrowser::anchorClicked, MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
+    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked); //MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
 }
 
 bool ValueInfoBrowser::update()
@@ -65,7 +95,7 @@ bool ValueInfoBrowser::update()
     auto xmlOut = OutStream_HTM(&outStreamBuff, "html", nullptr);
     SuspendTrigger::Resume();
 
-    bool done = Explain::AttrValueToXML(m_Context.get(), m_StudyObject, &xmlOut, m_Index, "", true);
+    bool done = Explain::AttrValueToXML(m_history.currentContext(), m_history.currentStudyObject(), &xmlOut, m_history.currentIndex(), "", true); // m_Context.get(), m_StudyObject, & xmlOut, m_Index, "", true);
     outStreamBuff.WriteByte(char(0));
 
     setText(outStreamBuff.GetData());
@@ -74,3 +104,23 @@ bool ValueInfoBrowser::update()
     return done;
 }
 
+void ValueInfoBrowser::nextStudyObject()
+{
+    m_history.next();
+}
+
+void ValueInfoBrowser::previousStudyObject()
+{
+    m_history.previous();
+}
+
+void ValueInfoBrowser::addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index)
+{
+    m_history.insert(studyObject, index);
+    update();
+}
+
+void ValueInfoBrowser::onAnchorClicked(const QUrl& link)
+{
+    MainWindow::TheOne()->onInternalLinkClick(link, static_cast<QWidget*>(this));
+}

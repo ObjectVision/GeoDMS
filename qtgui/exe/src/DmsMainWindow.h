@@ -85,6 +85,17 @@ struct ToolbarButtonData
     bool is_global = false;
 };
 
+struct link_info
+{
+    bool is_valid = false;
+    size_t start = 0;
+    size_t stop = 0;
+    size_t endline = 0;
+    std::string filename = "";
+    std::string line = "";
+    std::string col = "";
+};
+
 class DmsToolbuttonAction : public QAction
 {
     Q_OBJECT
@@ -182,6 +193,10 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
+bool IsPostRequest(const QUrl& /*link*/);
+auto Realm(const auto& x) -> CharPtrRange;
+auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -207,6 +222,9 @@ public:
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
     void addRecentFilesMenu(std::string_view recent_file);
     void resizeDocksToNaturalSize();
+    void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
+    void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
+    bool ShowInDetailPage(SharedStr x);
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();

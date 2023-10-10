@@ -10,6 +10,7 @@
 #include <QTextBrowser.h>
 #include <QTimer.h>
 #include <QMdiSubWindow.h>
+#include "DmsMainWindow.h";
 
 #include "dbg/DebugContext.h"
 
@@ -22,7 +23,6 @@ struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
     {
         setOpenLinks(false);
         setOpenExternalLinks(false);
-        connect(this, &QTextBrowser::anchorClicked, MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
     }
 
     void restart_updating()

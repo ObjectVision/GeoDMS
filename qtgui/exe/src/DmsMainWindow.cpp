@@ -14,6 +14,7 @@
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
 
+#include "utl/Encodes.h"
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
 
@@ -70,6 +71,17 @@ void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
 {
     auto clicked_file_link = link.toString().toStdString();
     MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
+}
+
+bool MainWindow::ShowInDetailPage(SharedStr x)
+{
+    auto realm = Realm(x);
+    if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
+        return true;
+    if (!realm.empty())
+        return false;
+    CharPtrRange knownSuffix(".adms");
+    return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
 DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
@@ -1086,8 +1098,8 @@ void MainWindow::toggle_currentitembar()
 
 void MainWindow::toggle_valueinfo()
 {
-    bool isVisible = m_value_info_dock->isVisible();
-    m_value_info_dock->setVisible(!isVisible);
+    //bool isVisible = m_value_info_dock->isVisible();
+    //m_value_info_dock->setVisible(!isVisible);
 }
 
 
@@ -1446,7 +1458,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
 void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 /*nCode*/, Int32 /*x*/, Int32 /*y*/, bool /*doAddHistory*/, bool /*isUrl*/, bool /*mustOpenDetailsPage*/)
 {
     assert(IsMainThread());
-    MainWindow::TheOne()->m_detail_pages->DoViewAction(const_cast<TreeItem*>(tiContext), sAction);
+    MainWindow::TheOne()->doViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
 void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
@@ -1476,7 +1488,19 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
 
-    auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
+    auto* textWidget = new ValueInfoBrowser(this, studyObject, index);
+
+    textWidget->setWindowFlag(Qt::Window, true);
+    textWidget->resize(800,500);
+    auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index); // TODO: move window naming responsibility to ValueInfoBrowser 
+    textWidget->setWindowTitle(title.c_str());
+    textWidget->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+    textWidget->show();
+    textWidget->restart_updating();
+
+    return;
+
+    /*auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
     auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
     mdiSubWindow->setWidget(textWidget);
     auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index);
@@ -1491,7 +1515,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
         m_value_info_dock->setVisible(true);
     }
     mdiSubWindow->showMaximized();
-    textWidget->restart_updating();
+    textWidget->restart_updating();*/
 }
 
 void MainWindow::setStatusMessage(CharPtr msg)
@@ -1638,6 +1662,217 @@ void MainWindow::resizeDocksToNaturalSize()
     
     //resizeDocks({ m_treeview_dock}, { default_treeview_width}, Qt::Horizontal);
     //resizeDocks({ m_eventlog_dock }, { default_eventlog_height }, Qt::Vertical);
+}
+
+auto Realm(const auto& x) -> CharPtrRange
+{
+    auto b = begin_ptr(x);
+    auto e = end_ptr(x);
+    auto colonPos = std::find(b, e, ':');
+    if (colonPos == e)
+        return {};
+    return { b, colonPos };
+}
+
+auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber) -> link_info
+{
+    std::string html_error_message = "";
+    //auto error_message_text = std::string(error_message->Why().c_str());
+    std::size_t currPos = 0, currLineNumber = 0;
+    link_info lastFoundLink;
+    while (currPos < error_message.size())
+    {
+        auto currLineEnd = error_message.find_first_of('\n', currPos);
+        if (currLineEnd == std::string::npos)
+            currLineEnd = error_message.size();
+
+        auto lineView = std::string_view(&error_message[currPos], currLineEnd - currPos);
+        auto round_bracked_open_pos = lineView.find_first_of('(');
+        auto comma_pos = lineView.find_first_of(',');
+        auto round_bracked_close_pos = lineView.find_first_of(')');
+
+        if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
+        {
+            auto filename = lineView.substr(0, round_bracked_open_pos);
+            auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+            auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
+
+            lastFoundLink = link_info(true, currPos, currPos + round_bracked_close_pos, currLineEnd, std::string(filename), std::string(line_number), std::string(col_number));
+        }
+        if (lineNumber <= currLineNumber && lastFoundLink.is_valid)
+            break;
+
+        currPos = currLineEnd + 1;
+        currLineNumber++;
+    }
+
+    return lastFoundLink;
+}
+
+bool IsPostRequest(const QUrl& /*link*/)
+{
+    return false;
+}
+
+void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
+{
+    try {
+        auto linkStr = link.toString().toStdString();
+
+        // log link action
+#if defined(_DEBUG)
+        MainWindow::TheOne()->m_eventlog_model->addText(
+            SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
+        );
+#endif
+
+        auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
+
+        auto realm = Realm(linkStr);
+        if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
+        {
+            auto clicked_error_link = linkStr.substr(17);
+            auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
+            MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
+            return;
+        }
+        if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9))
+        {
+            auto dataStr = linkStr.substr(10);
+            auto decodedStr = UrlDecode(SharedStr(dataStr.c_str()));
+            auto qStr = QString(decodedStr.c_str());
+            QGuiApplication::clipboard()->clear();
+            QGuiApplication::clipboard()->setText(qStr, QClipboard::Clipboard);
+            return;
+        }
+
+        if (IsPostRequest(link))
+        {
+            auto queryStr = link.query().toUtf8();
+            DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
+            return;
+        }
+        if (!ShowInDetailPage(SharedStr(linkStr.c_str())))
+        {
+            auto raw_string = SharedStr(begin_ptr(linkStr), end_ptr(linkStr));
+            ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
+            auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
+            QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
+            return;
+        }
+
+        if (linkStr.contains(".adms"))
+        {
+            auto queryResult = ProcessADMS(current_item, linkStr.data());
+            m_detail_pages->setHtml(queryResult.c_str());
+            return;
+        }
+        auto sPrefix = Realm(linkStr);
+        if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
+        {
+            auto sAction = CharPtrRange(begin_ptr(linkStr) + 4, end_ptr(linkStr));
+            doViewAction(m_current_item, sAction, origin ? origin : nullptr);
+            return;
+        }
+    }
+    catch (...)
+    {
+        auto errMsg = catchAndReportException();
+    }
+}
+
+void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/)
+{
+
+}
+
+void PopupTable(SizeT /*recNo*/)
+{
+
+}
+
+void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin)
+{
+    assert(tiContext);
+    SuspendTrigger::Resume();
+
+    auto colonPos = std::find(sAction.begin(), sAction.end(), ':');
+    auto sMenu = CharPtrRange(sAction.begin(), colonPos);
+    auto sPathWithSub = CharPtrRange(colonPos == sAction.end() ? colonPos : colonPos + 1, sAction.end());
+
+    auto queryPos = std::find(sPathWithSub.begin(), sPathWithSub.end(), '?');
+    auto sPath = CharPtrRange(sPathWithSub.begin(), queryPos);
+    auto sSub = CharPtrRange(queryPos == sPathWithSub.end() ? queryPos : queryPos + 1, sPathWithSub.end());
+
+    //    DMS_TreeItem_RegisterStateChangeNotification(OnTreeItemChanged, m_tiFocus, TClientHandle(self)); // Resource aquisition which must be matched by a call to LooseFocus
+
+    auto separatorPos = std::find(sMenu.begin(), sMenu.end(), '!');
+    //    MakeMin(separatorPos, std::find(sMenu.begin(), sMenu.end(), '#')); // TODO: unify syntax to '#' or '!'
+    auto sRecNr = CharPtrRange(separatorPos < sMenu.end() ? separatorPos + 1 : separatorPos, sMenu.end());
+    sMenu.second = separatorPos;
+
+    SizeT recNo = UNDEFINED_VALUE(SizeT);
+    if (!sRecNr.empty())
+        AssignValueFromCharPtrs(recNo, sRecNr.begin(), sRecNr.end());
+
+    if (!strncmp(sMenu.begin(), "popuptable", sMenu.size()))
+    {
+        PopupTable(recNo);
+        return;
+    }
+
+    if (!strncmp(sMenu.begin(), "edit", sMenu.size()))
+    {
+        EditPropValue(tiContext, sPathWithSub, recNo);
+        return;
+    }
+
+    if (!strncmp(sMenu.begin(), "goto", sMenu.size()))
+    {
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+        if (tiContext)
+            MainWindow::TheOne()->setCurrentTreeItem(tiContext);
+        return;
+    }
+
+    if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
+    {
+        sMenu.first += 3;
+        auto detail_page_type = m_detail_pages->activeDetailPageFromName(sMenu);
+        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+        switch (detail_page_type)
+        {
+        case ActiveDetailPage::STATISTICS:
+        {
+            MainWindow::TheOne()->showStatisticsDirectly(tiContext);
+            return;
+        }
+        case ActiveDetailPage::VALUE_INFO:
+        {
+            if (!IsDataItem(tiContext))
+                return;
+
+            if (!origin)
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+
+            auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
+            if (!value_info_browser)
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+
+            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo);
+
+            return;
+        }
+        default:
+        {
+            m_detail_pages->m_active_detail_page = detail_page_type;
+            if (tiContext)
+                MainWindow::TheOne()->setCurrentTreeItem(tiContext);
+            m_detail_pages->scheduleDrawPageImpl(100);
+            return;
+        }
+        }
+    }
 }
 
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
@@ -2078,8 +2313,8 @@ void MainWindow::updateViewMenu()
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
-    m_toggle_valueinfo_action->setChecked(m_value_info_dock->isVisible());
-    m_toggle_valueinfo_action->setEnabled(m_value_info_mdi_area->subWindowList().size() > 0);
+    //m_toggle_valueinfo_action->setChecked(m_value_info_dock->isVisible());
+    //m_toggle_valueinfo_action->setEnabled(m_value_info_mdi_area->subWindowList().size() > 0);
 
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
@@ -2335,7 +2570,6 @@ void MainWindow::createDetailPagesDock()
 
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
-    m_detail_pages->connectDetailPagesAnchorClicked();
     m_detail_pages->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
     vertical_layout->addWidget(m_detail_page_properties_buttons->gridLayoutWidget);
@@ -2351,22 +2585,22 @@ void MainWindow::createDetailPagesDock()
     detail_pages_holder->setLayout(vertical_layout);
     m_detailpages_dock->setWidget(detail_pages_holder);
 
-    //m_detailpages_dock->setWidget(m_detail_pages);
+    addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
     
-    splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
-    m_value_info_dock->setVisible(false);
+    //splitDockWidget(m_value_info_dock, m_detailpages_dock, Qt::Orientation::Horizontal);
+    //m_value_info_dock->setVisible(false);
 }
 
 void MainWindow::createValueInfoDock()
 {
-    m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
-    m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    //m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
+    //m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
+    //m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
+    //m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    m_value_info_dock->setWidget(m_value_info_mdi_area);
-    m_value_info_dock->setVisible(true);
-    addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
+    //m_value_info_dock->setWidget(m_value_info_mdi_area);
+    //m_value_info_dock->setVisible(true);
+    //addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
@@ -2376,9 +2610,6 @@ void MainWindow::createDmsHelperWindowDocks()
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
-
-    auto sz_test1 = m_value_info_dock->minimumSize();
-    auto sz_test2 = m_value_info_mdi_area->minimumSize();
 }
 
 void MainWindow::back()

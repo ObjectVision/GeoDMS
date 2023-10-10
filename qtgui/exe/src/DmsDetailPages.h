@@ -20,13 +20,16 @@ enum ActiveDetailPage
 	NONE
 };
 
+//auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage;
+
 class DmsDetailPages : public QTextBrowser
 {
+
 public:
 	DmsDetailPages(QWidget* parent = nullptr);
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
-	void connectDetailPagesAnchorClicked();
+	auto activeDetailPageFromName(CharPtrRange sName)->ActiveDetailPage;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	ActiveDetailPage m_last_active_detail_page = ActiveDetailPage::GENERAL;
@@ -44,11 +47,13 @@ public slots:
 	void sourceDescriptionButtonToggled(QAbstractButton* button, bool checked);
 	void newCurrentItem();
 
-	void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
+	//void DoViewAction(TreeItem* tiContext, CharPtrRange sAction);
 	void setActiveDetailPage(ActiveDetailPage new_active_detail_page);
 	void leaveThisConfig();
 	void scheduleDrawPage();
 	void onTreeItemStateChange();
+	void scheduleDrawPageImpl(int milliseconds);
+
 protected:
 	void resizeEvent(QResizeEvent* event) override;
 
@@ -59,7 +64,6 @@ public slots:
 private:
 	void toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle);
 	void drawPage();
-	void scheduleDrawPageImpl(int milliseconds);
 
 	std::atomic<bool> m_DrawPageRequestPending = false;
 	UInt32 m_current_width = 500;
