@@ -1488,34 +1488,33 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
 
-    auto* textWidget = new ValueInfoBrowser(this, studyObject, index);
+    auto* value_info_window = new QWidget(this);
+    value_info_window->setWindowFlag(Qt::Window, true);
+    QVBoxLayout* v_layout = new QVBoxLayout(this);
+    QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    textWidget->setWindowFlag(Qt::Window, true);
-    textWidget->resize(800,500);
+    auto* value_info_browser = new ValueInfoBrowser(this, studyObject, index);
+    QPushButton* back_button = new QPushButton(QIcon(":/res/images/DP_back.bmp"), "", this);
+    QPushButton* forward_button = new QPushButton(QIcon(":/res/images/DP_forward.bmp"), "", this);
+
+    h_layout->addWidget(back_button);
+    h_layout->addWidget(forward_button);
+    v_layout->addLayout(h_layout);
+    v_layout->addWidget(value_info_browser);
+
+    value_info_browser->setWindowFlag(Qt::Window, true);
+    value_info_browser->resize(800,500);
     auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index); // TODO: move window naming responsibility to ValueInfoBrowser 
-    textWidget->setWindowTitle(title.c_str());
-    textWidget->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
-    textWidget->show();
-    textWidget->restart_updating();
+    value_info_browser->setWindowTitle(title.c_str());
+    value_info_browser->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+
+    value_info_window->setLayout(v_layout);
+    value_info_window->show();
+    //value_info_browser->show();
+
+    value_info_browser->restart_updating();
 
     return;
-
-    /*auto* mdiSubWindow = new ValueInfoPanel(m_value_info_mdi_area.get());
-    auto* textWidget = new ValueInfoBrowser(mdiSubWindow, studyObject, index);
-    mdiSubWindow->setWidget(textWidget);
-    auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index);
-    mdiSubWindow->setWindowTitle(title.c_str());
-    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/DP_ValueInfo.bmp"));
-    m_value_info_mdi_area->addSubWindow(mdiSubWindow);
-    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
-    mdiSubWindow->show();
-    if (!m_value_info_dock->isVisible())
-    {
-        m_detailpages_dock->setVisible(false);
-        m_value_info_dock->setVisible(true);
-    }
-    mdiSubWindow->showMaximized();
-    textWidget->restart_updating();*/
 }
 
 void MainWindow::setStatusMessage(CharPtr msg)
