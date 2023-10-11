@@ -43,8 +43,10 @@ private:
 
 struct ValueInfoBrowser : QUpdatableTextBrowser
 {
-    ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index);
+    ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, QWidget* window);
     bool update() override;
+    void updateNavigationButtons();
+    void updateWindowTitle();
 
 public slots:
     void nextStudyObject();
@@ -52,12 +54,11 @@ public slots:
     void addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index);
     void onAnchorClicked(const QUrl& link);
 
+public:
     StudyObjectHistory m_history;
-    //Explain::context_handle m_Context;
-
-    // scenario: history -> back -> back -> click new branch. Here temporarily store history before deletion in light of overlap
-    //SharedDataItemInterestPtr m_StudyObject;
-    //SizeT m_Index;
+    std::unique_ptr<QPushButton> back_button;
+    std::unique_ptr<QPushButton> forward_button;
+    QWidget* value_info_window = nullptr;
 };
 
 #endif //!defined(DMS_QT_VALUE_INFO_H)

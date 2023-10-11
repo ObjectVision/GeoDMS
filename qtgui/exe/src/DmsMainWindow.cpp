@@ -1493,22 +1493,17 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    auto* value_info_browser = new ValueInfoBrowser(this, studyObject, index);
-    QPushButton* back_button = new QPushButton(QIcon(":/res/images/DP_back.bmp"), "", this);
-    QPushButton* forward_button = new QPushButton(QIcon(":/res/images/DP_forward.bmp"), "", this);
-
-    h_layout->addWidget(back_button);
-    h_layout->addWidget(forward_button);
+    auto* value_info_browser = new ValueInfoBrowser(this, studyObject, index, value_info_window);
+    value_info_browser->setWindowFlag(Qt::Window, true);
+    h_layout->addWidget(value_info_browser->back_button.get());
+    h_layout->addWidget(value_info_browser->forward_button.get());
     v_layout->addLayout(h_layout);
     v_layout->addWidget(value_info_browser);
 
-    value_info_browser->setWindowFlag(Qt::Window, true);
-    value_info_browser->resize(800,500);
-    auto title = mySSPrintF("%s row %d", studyObject->GetFullName(), index); // TODO: move window naming responsibility to ValueInfoBrowser 
-    value_info_browser->setWindowTitle(title.c_str());
-    value_info_browser->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+    value_info_window->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
 
     value_info_window->setLayout(v_layout);
+    value_info_window->resize(800, 500);
     value_info_window->show();
     //value_info_browser->show();
 

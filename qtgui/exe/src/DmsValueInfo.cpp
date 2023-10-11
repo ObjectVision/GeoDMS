@@ -65,6 +65,8 @@ void StudyObjectHistory::deleteFromCurrentIndexUpToEnd()
         return;
 
     study_objects.erase(study_objects.begin()+ current_index +1, study_objects.end());
+    explain_contexts.erase(explain_contexts.begin() + current_index + 1, explain_contexts.end());
+    indices.erase(indices.begin() + current_index + 1, indices.end());
 }
 
 void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT index)
@@ -76,14 +78,26 @@ void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT ind
     current_index++;
 }
 
-ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index)
+ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, QWidget* window)
     : QUpdatableTextBrowser(parent)
 {
     m_history.insert(studyObject, index);
+
     setOpenLinks(false);
     setOpenExternalLinks(false);
     setWordWrapMode(QTextOption::NoWrap);
-    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked); //MainWindow::TheOne()->m_detail_pages, &DmsDetailPages::onAnchorClicked);
+    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);
+
+    back_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_back.bmp"), "");
+    forward_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_forward.bmp"), "");
+    value_info_window = window;
+    back_button->setDisabled(true);
+    forward_button->setDisabled(true);
+
+    connect(back_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::previousStudyObject);
+    connect(forward_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::nextStudyObject);
+
+    updateWindowTitle();
 }
 
 bool ValueInfoBrowser::update()
@@ -104,20 +118,43 @@ bool ValueInfoBrowser::update()
     return done;
 }
 
+void ValueInfoBrowser::updateNavigationButtons()
+{
+    back_button->setEnabled(m_history.countPrevious());
+    forward_button->setEnabled(m_history.countNext());
+}
+
+void ValueInfoBrowser::updateWindowTitle()
+{
+    auto title = mySSPrintF("%s row %d", m_history.currentStudyObject()->GetFullName(), m_history.currentIndex());
+    if (!value_info_window)
+        return;
+
+    value_info_window->setWindowTitle(title.c_str());
+}
+
 void ValueInfoBrowser::nextStudyObject()
 {
     m_history.next();
+    restart_updating();
+    updateNavigationButtons();
+    updateWindowTitle();
 }
 
 void ValueInfoBrowser::previousStudyObject()
 {
     m_history.previous();
+    restart_updating();
+    updateNavigationButtons();
+    updateWindowTitle();
 }
 
 void ValueInfoBrowser::addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index)
 {
     m_history.insert(studyObject, index);
-    update();
+    restart_updating();
+    updateNavigationButtons();
+    updateWindowTitle();
 }
 
 void ValueInfoBrowser::onAnchorClicked(const QUrl& link)
