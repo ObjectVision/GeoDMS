@@ -1528,6 +1528,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 {
 	assert(this);
 	assert(IsMetaThread());
+	assert(svf & SupplierVisitFlag::ImplSuppliers);
 
 	if (subItemNames.empty())
 		return nullptr;

@@ -54,7 +54,7 @@ enum class SupplierVisitFlag
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
 	
-	StartSupplInterest = (DetermineState | Checker) & ~Signature // Signature Already explicitly done by StartInterest function
+	StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
 };
 
 #endif // __RTC_ACT_SUPPLIERVISITFLAG_H
