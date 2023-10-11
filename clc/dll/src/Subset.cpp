@@ -373,7 +373,10 @@ struct CollectByCondOperator : AbstrCollectByCondOperator
 				if (*di)
 					goto processDataData;
 			}
-			continue; // process next tile
+			for (DataArray<Bool>::const_iterator i(di, SizeT(0)), e = boolData.end(); i != e; ++i)
+				if (Bool(*i))
+					goto processDataData;
+			continue; // go to next time
 
 		processDataData:
 			auto dataData = data->GetLockedDataRead(t);
@@ -389,6 +392,7 @@ struct CollectByCondOperator : AbstrCollectByCondOperator
 				else
 					count += DataArray<Bool>::const_iterator::nr_elem_per_block;
 			}
+
 			for (DataArray<Bool>::const_iterator i(di, SizeT(0)), e = boolData.end(); i != e; ++count, ++i)
 				if (Bool(*i))
 					resDataChannel.Write(dataData[count]);
