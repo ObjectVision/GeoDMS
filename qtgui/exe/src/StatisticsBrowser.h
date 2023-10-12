@@ -8,10 +8,17 @@
 #define DMS_QT_STATISTICS_BROWSER_H
 
 #include "UpdatableBrowser.h"
+#include "DmsMainWindow.h"
 
 struct StatisticsBrowser : QUpdatableTextBrowser
 {
-    using QUpdatableTextBrowser::QUpdatableTextBrowser;
+    //using QUpdatableTextBrowser::QUpdatableTextBrowser;
+
+    StatisticsBrowser(QWidget* parent = nullptr)
+        : QUpdatableTextBrowser(parent)
+    {
+        connect(this, &StatisticsBrowser::anchorClicked, this, &StatisticsBrowser::onAnchorClicked);
+    }
 
     bool update() override
     {
@@ -22,6 +29,13 @@ struct StatisticsBrowser : QUpdatableTextBrowser
         setHtml(begin_ptr(textBuffer));
         return done;
     }
+
+    public slots:
+    void onAnchorClicked(const QUrl& link)
+    {
+        MainWindow::TheOne()->onInternalLinkClick(link);
+    }
+
     SharedTreeItemInterestPtr m_Context;
 };
 

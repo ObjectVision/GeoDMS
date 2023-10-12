@@ -100,6 +100,18 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
     setTabbedViewModeStyle();
     setTabsClosable(true);
     setAcceptDrops(true);
+
+    auto mdi_children = this->children();
+    for (QObjectList::Iterator i = mdi_children.begin(); i != mdi_children.end(); ++i)
+    {
+        if (QString((*i)->metaObject()->className()) == "QTabBar")
+        {
+            auto mdi_area_tabbar = dynamic_cast<QTabBar*>(*i);
+            mdi_area_tabbar->setElideMode(Qt::ElideMiddle);
+            break;
+        }
+    }
+
 }
 
 void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event)
