@@ -1715,9 +1715,8 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
 
         // log link action
 #if defined(_DEBUG)
-        MainWindow::TheOne()->m_eventlog_model->addText(
-            SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
-        );
+        MsgData data{ SeverityTypeID::ST_MajorTrace, MsgCategory::other, false, GetThreadID(), StreamableDateTime(), SharedStr(linkStr.data()) };
+        MainWindow::TheOne()->m_eventlog_model->addText(std::move(data));
 #endif
 
         auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
