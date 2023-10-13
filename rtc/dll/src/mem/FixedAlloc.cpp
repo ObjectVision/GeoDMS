@@ -238,11 +238,17 @@ struct VirtualAllocChunkArray
 
 // =========================================  FreeStackAllocSummary
 
-using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
+using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT, SizeT>;
 
 FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
 {
-	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
+	return FreeStackAllocSummary(
+		std::get<0>(lhs) + std::get<0>(rhs)
+	,	std::get<1>(lhs) + std::get<1>(rhs)
+	,	std::get<2>(lhs) + std::get<2>(rhs)
+	,	std::get<3>(lhs) + std::get<3>(rhs)
+	,	std::get<4>(lhs) + std::get<4>(rhs)
+	);
 }
 
 // =========================================  FreeStackAllocator definition section
@@ -304,7 +310,7 @@ struct FreeStackAllocator
 	FreeStackAllocSummary ReportStatus() const
 	{
 		if (!inner.objectStoreSize)
-			return FreeStackAllocSummary(0, 0, 0, 0);
+			return FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 		SizeT pageCount, totalBytes = 0;
 		SizeT nrAllocated;
@@ -323,7 +329,7 @@ struct FreeStackAllocator
 		}
 		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
-		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize, 0);
 	}
 };
 
@@ -665,6 +671,18 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 std::atomic<bool> s_ReportingRequestPending = false;
 std::atomic<bool> s_BlockNewAllocations = false;
 
+#include <Psapi.h>
+
+SizeT CommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PagefileUsage;
+}
+
+static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 void ReportFixedAllocStatus()
 {
@@ -677,11 +695,33 @@ void ReportFixedAllocStatus()
 	for (int i=0; i!=fsaa.size(); ++i)
 		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
+	std::get<4>(cumulBytes) = CommittedSize();
+
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]; PageFileUsage: %d[kB]"
 		, std::get<0>(cumulBytes) >> 10
 		, std::get<1>(cumulBytes) >> 10
 		, std::get<2>(cumulBytes) >> 10
 		, std::get<3>(cumulBytes) >> 10
+		, std::get<4>(cumulBytes) >> 10
+	);
+
+	MakeMax(std::get<0>(maxCumulBytes), std::get<0>(cumulBytes));
+	MakeMax(std::get<1>(maxCumulBytes), std::get<1>(cumulBytes));
+	MakeMax(std::get<2>(maxCumulBytes), std::get<2>(cumulBytes));
+	MakeMax(std::get<3>(maxCumulBytes), std::get<3>(cumulBytes));
+	MakeMax(std::get<4>(maxCumulBytes), std::get<4>(cumulBytes));
+}
+
+void ReportFixedAllocFinalSummary()
+{
+	auto cumulBytes = maxCumulBytes;
+
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Highest Reserved in Blocks %d[kB]; Highest allocated: %d[kB]; Highest freed: %d[kB]; Highest uncommitted: %d[kB]; Highest PageFileUsage: %d[kB]"
+		, std::get<0>(cumulBytes) >> 10
+		, std::get<1>(cumulBytes) >> 10
+		, std::get<2>(cumulBytes) >> 10
+		, std::get<3>(cumulBytes) >> 10
+		, std::get<4>(cumulBytes) >> 10
 	);
 }
 
