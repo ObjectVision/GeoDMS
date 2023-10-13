@@ -619,9 +619,10 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 #if defined(MG_CACHE_ALLOC)
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	ConsiderReporting();
 #endif //defined(MG_DEBUG_ALLOCATOR)
 #endif //defined(MG_CACHE_ALLOC)
+
+	ConsiderReporting();
 
 	return result;
 }
@@ -779,13 +780,13 @@ static std::atomic<UInt32> s_ConsiderReportingReentranceCounter = 0;
 
 void ConsiderReporting()
 {
-	static Timer t;
+	static Timer t{ 0 };
 	
 	if (s_ConsiderReportingReentranceCounter)
 		return;
 
 	StaticMtIncrementalLock<s_ConsiderReportingReentranceCounter> preventReentrance;
-	if (t.PassedSecs(30))
+	if (t.PassedSecs(5))
 		PostReporting();
 }
 
