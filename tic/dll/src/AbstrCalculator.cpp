@@ -623,7 +623,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	SubstitutionBuffer substBuff;
 	substBuff.svf = svf;
 	substBuff.optionalVisitor = &visitor;
-	SubstituteExpr(substBuff, GetLispExprOrg());
+	SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
 	return substBuff.avs;
 }
 
@@ -1234,36 +1234,33 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 			// following code duplicates partly the code in AbstrCalculator::SubstituteExpr
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head.GetSymbID()); 
 			assert(og);
-			if (!substBuff.optionalVisitor)
+			if (og->IsTemplateCall())
 			{
-				if (og->IsTemplateCall())
-				{
-					auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
-					if (substBuff.avs == AVS_SuspendedOrFailed)
-						return {};
+				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+				if (substBuff.avs == AVS_SuspendedOrFailed)
+					return {};
 
-					if (!templateItem)
-						throwErrorF("ExprParser", "'%s': unknown function"
-							, head.GetSymbStr().c_str()
-						);
+				if (!templateItem)
+					throwErrorF("ExprParser", "'%s': unknown function"
+						, head.GetSymbStr().c_str()
+					);
 
-					if (!templateItem->IsTemplate())
-						throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
-							, head.GetSymbStr().c_str()
-							, templateItem->GetFullName().c_str()
-						);
-
-					throwErrorF("ExprParser", "'%s': template instantiations (of '%s') not allowed as sub-expressions"
+				if (!templateItem->IsTemplate())
+					throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
 						, head.GetSymbStr().c_str()
 						, templateItem->GetFullName().c_str()
 					);
-				}
-				if (!og->MustCacheResult())
-				{
-					throwErrorF("ExprParser", "'%s': meta function call not allowed as sub-expressions"
-						, head.GetSymbStr().c_str()
-					);
-				}
+
+				throwErrorF("ExprParser", "'%s': template instantiations (of '%s') not allowed as sub-expressions"
+					, head.GetSymbStr().c_str()
+					, templateItem->GetFullName().c_str()
+				);
+			}
+			if (!og->MustCacheResult())
+			{
+				throwErrorF("ExprParser", "'%s': meta function call not allowed as sub-expressions"
+					, head.GetSymbStr().c_str()
+				);
 			}
 
 			// rewrite to at least make a context independent expr.
@@ -1327,31 +1324,28 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 
 		const AbstrOperGroup* og = AbstrOperGroup::FindName(exprHeadID);
 		assert(og);
-		if (!substBuff.optionalVisitor)
+		if (og->IsTemplateCall())
 		{
-			if (og->IsTemplateCall())
-			{
-				auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
-				if (substBuff.avs == AVS_SuspendedOrFailed)
-					return {};
+			auto templateItem = FindOrVisitItem(substBuff, head.GetSymbID());
+			if (substBuff.avs == AVS_SuspendedOrFailed)
+				return {};
 
-				if (!templateItem)
-					throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
-						, head.GetSymbStr().c_str()
-					);
+			if (!templateItem)
+				throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
+					, head.GetSymbStr().c_str()
+				);
 
-				if (!templateItem->IsTemplate())
-					throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
-						, head.GetSymbStr().c_str()
-						, templateItem->GetFullName().c_str()
-					);
+			if (!templateItem->IsTemplate())
+				throwErrorF("ExprParser", "'%s': found item '%s' is not defined as template"
+					, head.GetSymbStr().c_str()
+					, templateItem->GetFullName().c_str()
+				);
 
-				// calculation scheme: isTempl, dont-subst templ
-				return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
-			}
-			if (!og->MustCacheResult())
-				return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };
+			// calculation scheme: isTempl, dont-subst templ
+			return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
 		}
+		if (!og->MustCacheResult())
+			return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };
 	}
 skipTemplInst:
 	return SubstituteExpr_impl(substBuff, localExpr, metainfo_policy_flags::is_root_expr);
