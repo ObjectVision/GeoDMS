@@ -100,7 +100,6 @@ std::map<OperContextGroupNumber, contexts_within_one_fence> s_ScheduledContextsM
 using RunningOperationsCounter = Int32;
 static std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
 static std::atomic<OperContextGroupNumber> s_SchedulingOperContextGroupNumber = 0;
-static OperContextGroupNumber s_ActiveOperContextGroupNumber = 0;
 
 static Int32 s_nrVCPUs = GetNrVCPUs();
 
