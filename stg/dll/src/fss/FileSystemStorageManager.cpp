@@ -92,7 +92,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 	dms_assert(!m_IsReadOnly);
 
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
+//	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
 
 	SharedStr fullName = GetFullFileName(path); 
 	auto sfwa = DSM::GetSafeFileWriterArray();
@@ -112,7 +112,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 
 std::unique_ptr<InpStreamBuff> FileSystemStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 {
-	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
+//	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
 
 	dms_assert(IsOpen());
 
