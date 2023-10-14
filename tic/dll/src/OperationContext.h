@@ -17,6 +17,7 @@
 bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;
+using OperContextGroupNumber = UInt32;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
 template<typename Func>
@@ -130,10 +131,10 @@ private:
 	dms_task m_Task;
 
 public:
+	OperContextGroupNumber m_OperContextGroupNumber;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
 
-//	bool CreateResult();
 	bool ScheduleCalcResult(Explain::Context* context, ArgRefs&& argInterest);
 
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
@@ -142,11 +143,6 @@ public:
 	void RunOperator(Explain::Context* context, ArgRefs allInterests, std::vector<ItemReadLock> readLocks);
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
-
-// private: TODO G8.5
-//	DataControllerRef getArgDC(arg_index i) const;
-//	arg_index getNrSupplOC() const;
-//	std::shared_ptr<OperationContext> getSupplOC(arg_index i) const;
 
 	std::vector<DataControllerRef> m_OtherSuppliers;
 

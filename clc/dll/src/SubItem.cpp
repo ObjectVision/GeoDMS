@@ -145,7 +145,7 @@ struct CheckOperator : public BinaryOperator
 #include "UnitProcessor.h"
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
-SpecialOperGroup sog_FenceContainer("FenceContainer", 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
+SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
 
 using fence_member_pair = std::pair<InterestPtr<SharedPtr<TreeItem>>, InterestPtr<SharedPtr<const TreeItem>>>;
 using fence_work_data = std::vector<fence_member_pair>;
