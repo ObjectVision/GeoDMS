@@ -583,6 +583,9 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 	else
 	{
+		if (s_BlockNewAllocations)
+			throw MemoryAllocFailure();
+
 		if (SpecialSize(objectSize))
 		{
 			i -= FIRST_PAGE_INDEX;
@@ -596,8 +599,6 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 #endif //defined(MG_CACHE_ALLOC)
 
-	if (s_BlockNewAllocations)
-		throw MemoryAllocFailure();
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
@@ -698,12 +699,12 @@ void ReportFixedAllocStatus()
 
 	std::get<4>(cumulBytes) = CommittedSize();
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]; PageFileUsage: %d[kB]"
-		, std::get<0>(cumulBytes) >> 10
-		, std::get<1>(cumulBytes) >> 10
-		, std::get<2>(cumulBytes) >> 10
-		, std::get<3>(cumulBytes) >> 10
-		, std::get<4>(cumulBytes) >> 10
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
 	);
 
 	MakeMax(std::get<0>(maxCumulBytes), std::get<0>(cumulBytes));
@@ -717,12 +718,12 @@ void ReportFixedAllocFinalSummary()
 {
 	auto cumulBytes = maxCumulBytes;
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Highest Reserved in Blocks %d[kB]; Highest allocated: %d[kB]; Highest freed: %d[kB]; Highest uncommitted: %d[kB]; Highest PageFileUsage: %d[kB]"
-		, std::get<0>(cumulBytes) >> 10
-		, std::get<1>(cumulBytes) >> 10
-		, std::get<2>(cumulBytes) >> 10
-		, std::get<3>(cumulBytes) >> 10
-		, std::get<4>(cumulBytes) >> 10
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
 	);
 }
 
