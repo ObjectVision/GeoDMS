@@ -1717,9 +1717,6 @@ void DataView::OnCopyData(UINT cmd, const UInt32* first, const UInt32* last)
 {
 	reportF(SeverityTypeID::ST_MajorTrace, "OnCopyDataPost with cmd %d", cmd);
 
-	//SharedArrayPtr<UInt32> intArray(SharedArray<UInt32>::Create(first, last));
-
-	//reportF(ST_MajorTrace, "OnCopyDataReceive with cmd %d", cmd);
 	switch (cmd)
 	{
 	case 0: OnControlActivate(this, first, last); break;

@@ -569,6 +569,7 @@ CDebugLog::CDebugLog(WeakStr name)
 
 CDebugLog::~CDebugLog() 
 {
+	ReportFixedAllocFinalSummary();
 	{
 		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
 

@@ -219,20 +219,22 @@ SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
 {
 	assert(ado);
 
-retry:
-	auto lockCS = std::unique_lock(sd_shadowPtrSection);
-	if (!ado->m_shadowTilePtr)
+	while (true)
 	{
-		auto csPtr = new const_shadow<V>;
-		csPtr->m_Owner = ado;
-		ado->m_shadowTilePtr = csPtr;
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
+		if (!ado->m_shadowTilePtr)
+		{
+			auto csPtr = new const_shadow<V>;
+			csPtr->m_Owner = ado;
+			ado->m_shadowTilePtr = csPtr;
+		}
+		else if (!ado->m_shadowTilePtr->IsOwned())
+		{
+			sd_shadowPtrSectionWasRevisisted.wait(lockCS);
+			continue;
+		}
+		return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
 	}
-	else if (!ado->m_shadowTilePtr->IsOwned())
-	{
-		sd_shadowPtrSectionWasRevisisted.wait(lockCS);
-		goto retry;
-	}
-	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
 }
 
 template <fixed_elem V>

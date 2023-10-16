@@ -399,7 +399,6 @@ public:
 
 protected:
 	void StartInterest() const override;
-//	bool MustApplyImpl(bool mayInvalidate) const override;
 	garbage_t StopInterest () const noexcept override;
 
 private:

@@ -238,11 +238,17 @@ struct VirtualAllocChunkArray
 
 // =========================================  FreeStackAllocSummary
 
-using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
+using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT, SizeT>;
 
 FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
 {
-	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
+	return FreeStackAllocSummary(
+		std::get<0>(lhs) + std::get<0>(rhs)
+	,	std::get<1>(lhs) + std::get<1>(rhs)
+	,	std::get<2>(lhs) + std::get<2>(rhs)
+	,	std::get<3>(lhs) + std::get<3>(rhs)
+	,	std::get<4>(lhs) + std::get<4>(rhs)
+	);
 }
 
 // =========================================  FreeStackAllocator definition section
@@ -304,7 +310,7 @@ struct FreeStackAllocator
 	FreeStackAllocSummary ReportStatus() const
 	{
 		if (!inner.objectStoreSize)
-			return FreeStackAllocSummary(0, 0, 0, 0);
+			return FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 		SizeT pageCount, totalBytes = 0;
 		SizeT nrAllocated;
@@ -323,7 +329,7 @@ struct FreeStackAllocator
 		}
 		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
-		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize, 0);
 	}
 };
 
@@ -577,6 +583,9 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 	else
 	{
+		if (s_BlockNewAllocations)
+			throw MemoryAllocFailure();
+
 		if (SpecialSize(objectSize))
 		{
 			i -= FIRST_PAGE_INDEX;
@@ -590,8 +599,6 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 #endif //defined(MG_CACHE_ALLOC)
 
-	if (s_BlockNewAllocations)
-		throw MemoryAllocFailure();
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
@@ -613,9 +620,10 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 #if defined(MG_CACHE_ALLOC)
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	ConsiderReporting();
 #endif //defined(MG_DEBUG_ALLOCATOR)
 #endif //defined(MG_CACHE_ALLOC)
+
+	ConsiderReporting();
 
 	return result;
 }
@@ -665,6 +673,18 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 std::atomic<bool> s_ReportingRequestPending = false;
 std::atomic<bool> s_BlockNewAllocations = false;
 
+#include <Psapi.h>
+
+SizeT CommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PagefileUsage;
+}
+
+static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 void ReportFixedAllocStatus()
 {
@@ -677,11 +697,33 @@ void ReportFixedAllocStatus()
 	for (int i=0; i!=fsaa.size(); ++i)
 		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
-		, std::get<0>(cumulBytes) >> 10
-		, std::get<1>(cumulBytes) >> 10
-		, std::get<2>(cumulBytes) >> 10
-		, std::get<3>(cumulBytes) >> 10
+	std::get<4>(cumulBytes) = CommittedSize();
+
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
+	);
+
+	MakeMax(std::get<0>(maxCumulBytes), std::get<0>(cumulBytes));
+	MakeMax(std::get<1>(maxCumulBytes), std::get<1>(cumulBytes));
+	MakeMax(std::get<2>(maxCumulBytes), std::get<2>(cumulBytes));
+	MakeMax(std::get<3>(maxCumulBytes), std::get<3>(cumulBytes));
+	MakeMax(std::get<4>(maxCumulBytes), std::get<4>(cumulBytes));
+}
+
+void ReportFixedAllocFinalSummary()
+{
+	auto cumulBytes = maxCumulBytes;
+
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
 	);
 }
 
@@ -739,13 +781,13 @@ static std::atomic<UInt32> s_ConsiderReportingReentranceCounter = 0;
 
 void ConsiderReporting()
 {
-	static Timer t;
+	static Timer t{ 0 };
 	
 	if (s_ConsiderReportingReentranceCounter)
 		return;
 
 	StaticMtIncrementalLock<s_ConsiderReportingReentranceCounter> preventReentrance;
-	if (t.PassedSecs(30))
+	if (t.PassedSecs(5))
 		PostReporting();
 }
 

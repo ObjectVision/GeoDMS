@@ -259,7 +259,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
 	if (adi->m_FileName.empty())
-		if (auto sp = adi->GetStorageParent(true))
+		if (auto sp = adi->GetCurrStorageParent(true))
 		{
 			auto sm = sp->GetStorageManager();
 			assert(sm);

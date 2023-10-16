@@ -180,7 +180,10 @@ namespace Explain { // local defs
 
 		void PrintSeqNr(OutStreamBase& stream) const override
 		{
-			if (m_Parent) {
+			if (!m_Parent) 
+				stream << "#";
+			else
+			{
 				m_Parent->PrintSeqNr(stream);
 				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
 					stream << "?";
@@ -1078,8 +1081,9 @@ namespace Explain { // local defs
 		else
 			stream << mySSPrintF("Summary of values of %d terms ", m_Expr.size()).c_str();
 
+		stream << " of ";
 		PrintSeqNr(stream);
-		stream << " of " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1132,8 +1136,9 @@ namespace Explain { // local defs
 		else
 			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
 
+		stream << " of ";
 		PrintSeqNr(stream);
-		stream << " of " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
