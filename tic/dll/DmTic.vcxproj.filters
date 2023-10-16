@@ -395,9 +395,6 @@
     <ClInclude Include="src\ExprRewrite.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ItemContext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ItemLocks.h">
       <Filter>Header Files</Filter>
     </ClInclude>

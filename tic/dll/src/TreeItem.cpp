@@ -2762,8 +2762,10 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		MakeCalculator(); // sets mc_Calculator, mc_DC, and mc_RefItem;
 
 	if (mc_Calculator && Test(svf, SupplierVisitFlag::NamedSuppliers))
+	{
 		if (mc_Calculator->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
+	}
 
 	if (Test(svf, SupplierVisitFlag::DetermineCalc))
 		UpdateDC();

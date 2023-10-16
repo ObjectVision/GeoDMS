@@ -63,6 +63,13 @@ struct SubstitutionBuffer
 	ActorVisitState avs = AVS_Ready;
 
 	LispRefAssoc m_SubstituteBuffer[3];
+	TTreeItemSet m_SupplierSet;
+
+	bool m_CollectSuppliers;
+
+	SubstitutionBuffer(bool mustCollectSuppliers = false)
+		: m_CollectSuppliers(mustCollectSuppliers)
+	{}
 
 	LispRef& BufferedLispRef(metainfo_policy_flags mpf, LispPtr key);
 };
@@ -178,16 +185,19 @@ public:
 	mutable WeakPtr<const TreeItem>   m_Holder;
 	mutable SharedPtr<const TreeItem> m_SearchContext; // parent of instantiatior in case of argument binding
 
-protected:
+//protected:
 	mutable LispRef m_LispExprOrg; // TODO G8: required for ExprCalculator and DC_Ptr(ArgCalc), but not for DataBlockTask and maybe also not for DC_Ptr(Calc)
 	mutable MetaInfo m_LispExprSubst;
 	
 	mutable bool     
 		m_HasParsed      : 1 = false,
-		m_HasSubstituted : 1 = false;
+		m_HasSubstituted : 1 = false,
+		m_HasCollectedNamedSuppliers: 1 = false;
+
 	CalcRole m_CalcRole : 2 = CalcRole::Calculator;
 
 	mutable BestItemRef m_BestGuessErrorSuppl;
+	mutable std::vector<SharedTreeItem> m_NamedSuppliers;
 
 	friend struct TreeItem;
 	friend struct InterestReporter;

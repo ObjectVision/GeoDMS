@@ -433,7 +433,9 @@ const TreeItem* AbstrCalculator::GetForEachTemplSource() const
 
 	arg_index i = 0;
 	SharedStr firstArgValue;
-	SubstitutionBuffer substBuffer;
+
+	SubstitutionBuffer substBuffer(false);
+
 	LispPtr argRef = std::get<MetaFuncCurry>(metaInfo).fullLispExpr.Right();
 	while (!argRef.EndP())
 	{
@@ -609,6 +611,9 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 
 ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
+	assert(IsMainThread());
+	GetMetaInfo();
+
 	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers));
 	if (dynamic_cast<const DC_Ptr*>(this))
 		return AVS_Ready;
@@ -620,7 +625,19 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 		return optionalSourceItem ? AVS_Ready : AVS_SuspendedOrFailed;
 	}
 
-	SubstitutionBuffer substBuff;
+	if (!Test(svf, SupplierVisitFlag::ImplSuppliers))
+	{
+		for (const auto& suppl : m_NamedSuppliers)
+		{
+			auto visitResult = visitor(suppl);
+			if (visitResult == AVS_SuspendedOrFailed)
+				return AVS_SuspendedOrFailed;
+		}
+
+		return AVS_Ready;
+	}
+
+	SubstitutionBuffer substBuff(false);
 	substBuff.svf = svf;
 	substBuff.optionalVisitor = &visitor;
 	SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
@@ -791,7 +808,6 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 
 	if (!supplier || supplier->IsCacheItem())
 	{
-
 		if (!m_BestGuessErrorSuppl.first)
 		{
 			auto x = FindBestItem(supplRefID);
@@ -803,8 +819,21 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 		}
 		return supplRef;
 	}
+
 	return slSupplierExprImpl(substBuff, supplier, mpf);
 }
+
+void registerSupplier(SubstitutionBuffer& substBuff, const TreeItem* supplier)
+{
+	if (!substBuff.m_CollectSuppliers)
+		return;
+
+	// register an sequential ordinal for each first occurence of a supplier
+	auto& countref = substBuff.m_SupplierSet[supplier];
+	if (!countref)
+		countref = substBuff.m_SupplierSet.size();
+}
+
 
 LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const TreeItem* supplier, metainfo_policy_flags mpf) const
 {
@@ -825,6 +854,9 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 		auto msg = mySSPrintF("Calulation rule would create a dependency on %s which is (part of) a template", supplier->GetFullName());
 		m_Holder->ThrowFail(msg, FR_MetaInfo);
 	}
+
+	if (m_Holder != supplier)
+		registerSupplier(substBuff, supplier);
 
 	if (mpf & metainfo_policy_flags::subst_never || !supplier->IsPassor() && !supplier->HasCalculator() && !IsDataItem(supplier) && !IsUnit(supplier))
 		return CreateLispTree(supplier, mpf & metainfo_policy_flags::suppl_tree);
@@ -1120,6 +1152,7 @@ auto DeriveSubItem(const AbstrCalculator* ac, SubstitutionBuffer& substBuff, Lis
 		throwErrorD("ExprParser", "left operand of SubExpr doesn't resolve to a configurartion item");
 	assert(!container->IsCacheItem());
 	container->UpdateMetaInfo();
+	registerSupplier(substBuff, container);
 
 	auto subItemNameExpr = subItemExprTail.Right().Left();
 	AbstrCalculatorRef calculator = AbstrCalculator::ConstructFromLispRef(ac->GetHolder(), subItemNameExpr, CalcRole::Other);
@@ -1342,6 +1375,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				);
 
 			// calculation scheme: isTempl, dont-subst templ
+			registerSupplier(substBuff, templateItem);
 			return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
 		}
 		if (!og->MustCacheResult())
@@ -1368,11 +1402,26 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 		}
 		else
 		{
-			SubstitutionBuffer substBuff;
+			assert(!m_HasCollectedNamedSuppliers);
+			SubstitutionBuffer substBuff(true);
+			m_HasCollectedNamedSuppliers = true; // before throw
+
 			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
+
+			// process registered suppliers
+			TreeItemCRefArray supplierArrayCopy; supplierArrayCopy.swap(m_NamedSuppliers);
+			UInt32 count = substBuff.m_SupplierSet.size();
+			m_NamedSuppliers.resize(count);
+			for (auto& tvPair : substBuff.m_SupplierSet)
+			{
+				assert(tvPair.second > 0);
+				assert(tvPair.second <= count);
+				m_NamedSuppliers[tvPair.second - 1] = tvPair.first;
+			}
 		}
 		assert(!m_HasSubstituted); // not allowed to call twice when this results in MetaInfo
 		m_HasSubstituted = true;
+		m_HasCollectedNamedSuppliers = true;
 	}
 	return m_LispExprSubst;
 }
