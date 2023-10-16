@@ -502,8 +502,8 @@ private:
 		UInt32 offset = m_Nodes.size() - nodeIdx;
 		nodePtr->m_OffsetToFirstQuadrant = offset;
 		m_Nodes.push_back(Node(RangeType(box.first, mid), offset++));
-		m_Nodes.push_back(Node(RangeType(PointType(_Top(box), mid.Col()), PointType(mid.Row(), _Right(box) )), offset++));
-		m_Nodes.push_back(Node(RangeType(PointType(mid.Row(), _Left(box)), PointType(_Bottom(box), mid.Col() )), offset++));
+		m_Nodes.push_back(Node(RangeType(PointType(Top(box), mid.Col()), PointType(mid.Row(), Right(box) )), offset++));
+		m_Nodes.push_back(Node(RangeType(PointType(mid.Row(), Left(box)), PointType(Bottom(box), mid.Col() )), offset++));
 		m_Nodes.push_back(Node(RangeType(mid, box.second), offset++));
 
 		nodePtr = &*m_Nodes.begin() + nodeIdx; // m_Nodes could have been grown

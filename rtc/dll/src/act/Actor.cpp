@@ -212,8 +212,8 @@ bool InterestRetainContextBase::IsActive()
 
 void InterestRetainContextBase::Add(const Actor* actor)
 {
-	dms_assert(IsActive()); // PRECONDITION
-	if (IsActive()) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
+//	assert(IsActive()); // PRECONDITION
+	if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
 		push_front(GetRetainContext(), actor);
 }
 
@@ -460,13 +460,16 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 
 	if (updateRes == AVS_SuspendedOrFailed)
 	{
-		dms_assert(SuspendTrigger::DidSuspend());
+		assert(SuspendTrigger::DidSuspend());
 		return AVS_SuspendedOrFailed;
 	}
+	if (m_State.GetProgress() >= ProgressState::PS_Committed)
+		StopSupplInterest();
+
 	if (m_State.GetProgress() >= ps) // a supplier could have been a creator/manager
 		return AVS_Ready;
 
-	dms_assert(m_LastGetStateTS == UpdateMarker::LastTS());
+	assert(m_LastGetStateTS == UpdateMarker::LastTS());
 	UpdateMarker::ChangeSourceLock changeStamp(this,  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
@@ -642,12 +645,17 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 
 ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
 {
-	dms_assert((ps == PS_Committed) || (ps == PS_Validated));
-	dms_assert(ps == PS_Committed); // TODO: clean-up if this holds
+	assert((ps == PS_Committed) || (ps == PS_Validated));
+	assert(ps == PS_Committed); // TODO: clean-up if this holds
+
+	if (!DoesHaveSupplInterest() && GetInterestCount())
+		return AVS_Ready;
+
 	FailType ft = (ps == PS_Committed) ? FR_Committed : FR_Validate;
 
-	dms_assert(!WasFailed(FR_MetaInfo));
-	dms_assert(!WasFailed(ft)); // precondition
+	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(ft)); // precondition
+	assert(DoesHaveSupplInterest() || !GetInterestCount());
 
 	ActorVisitState updateRes = 
 		VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
@@ -830,17 +838,21 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
 		assert(msg->Why().IsDefined() && !msg->Why().empty());
 
-		msg->TellWhere(this);
 		s_ActorFailReasonAssoc.assoc(this, msg);
 		m_State.SetFailure(ft);
-		if (msg->MustReport())
-		{
-			auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
-			if (msg->m_FullName.empty())
-				reportD(st, msg->m_Why.c_str());
-			else
-				reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+		try {
+			msg->TellWhere(this);
+			if (msg->MustReport())
+			{
+				auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
+				if (msg->m_FullName.empty())
+					reportD(st, msg->m_Why.c_str());
+				else
+					reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+			}
 		}
+		catch (...)
+		{}
 
 		// data generation is no longer needed
 		if (ft <= FR_Data)
@@ -1064,13 +1076,13 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 
 void Actor::StartInterest() const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
-	dms_assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
-	dms_assert( !DoesHaveSupplInterest() ); // PRECONDITION
+	assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
+	assert( !DoesHaveSupplInterest() ); // PRECONDITION
 
 	StartSupplInterest();
-	dms_assert(m_InterestCount == 0); // no recursion
+	assert(m_InterestCount == 0); // no recursion
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::AddTempTarget(this);
@@ -1112,13 +1124,13 @@ SupplInterestListPtr Actor::GetSupplInterest() const
 
 void Actor::StartSupplInterest() const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
 	if (IsPassor())
 		return;
 
-	dms_assert(!DoesHaveSupplInterest() ); // PRECONDITION
-	dms_assert(m_State.GetBits(actor_flag_set::AF_TransientMask) == actor_flag_set::AF_ChangingInterest); // PRECONDITION
+	assert(!DoesHaveSupplInterest() ); // PRECONDITION
+	assert(m_State.GetBits(actor_flag_set::AF_TransientMask) == actor_flag_set::AF_ChangingInterest); // PRECONDITION
 
 	//UpdateSupplMetaInfo();
 	SupplInterestListPtr supplInterestListPtr = GetSupplInterest(); // can throw
@@ -1170,7 +1182,7 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 			reportD_without_cancellation_check(SeverityTypeID::ST_MinorTrace, "Concurrent MoveSupplInterest happening");
 		}
 #endif
-		dms_assert( !self->DoesHaveSupplInterest() ) ; // POSTCONDITION
+		assert( !self->DoesHaveSupplInterest() ) ; // POSTCONDITION
 	}
 
 	return localInterestHolder;

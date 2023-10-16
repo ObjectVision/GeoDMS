@@ -51,13 +51,13 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ThemeSet.h"
 #include "Theme.h"
 
-typedef std::map<DataView*, ThemeSetArray> ThemeSetArrayMap;
+using ThemeSetArrayMap = std::map<DataView*, ThemeSetArray> ;
 static ThemeSetArrayMap s_ThemeSets;
 
 void SelThemeCreator::UnregisterDataView(DataView* dv)
 {
-	dms_assert(IsMainThread());
-	dms_assert(dv);
+	assert(IsMainThread());
+	assert(dv);
 	ThemeSetArrayMap::iterator p = s_ThemeSets.find(dv);
 	if (p != s_ThemeSets.end())
 	{
@@ -73,14 +73,14 @@ void SelThemeCreator::UnregisterDataView(DataView* dv)
 
 void SelThemeCreator::RegisterThemeSet(DataView* dv, ThemeSet* ts)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_ThemeSets[dv].push_back(ts);
 }
 
 void SelThemeCreator::UnregisterThemeSet(DataView* dv, ThemeSet* ts)
 {
-	dms_assert(IsMainThread());
-	dms_assert(dv);
+	assert(IsMainThread());
+	assert(dv);
 	ThemeSetArrayMap::iterator p = s_ThemeSets.find(dv);
 	if (p != s_ThemeSets.end()) // Insertion on dv must have been done in s_ThemeSets unless read from 
 	{
@@ -94,9 +94,9 @@ static TokenID valuesUnitID = GetTokenID_st("SelValues");
 
 void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUnit* entity)
 {
-	dms_assert(IsMainThread());
-	dms_assert(dv);
-	dms_assert(entity);
+	assert(IsMainThread());
+	assert(dv);
+	assert(entity);
 
 	TreeItem* desktopItem = dv->GetDesktopContext();
 
@@ -113,11 +113,16 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 
 	auto result = Theme::Create(AN_Selections, newSelData, 0, CreateSystemColorPalette(dv, userValuesUnit, AN_BrushColor, false, false, false, nullptr, nullptr));
 
-	// ===================== Notify all relevant ThemeSets of the creation
+	// ===================== Notify all relevant ThemeSets of the creation and remove them from the s_ThemeSets's ???
 
 	auto selThemeNotifier = [entity, selTheme = result.get()](ThemeSet* candidate)
 	{
-		if (candidate->GetActiveEntity()->UnifyDomain(entity))
+		auto ae = candidate->GetActiveEntity();
+		if (!ae)
+			return false;
+		ae->DetermineState();
+		entity->DetermineState();
+		if (ae->UnifyDomain(entity))
 		{
 			candidate->OnSelectionsThemeCreated(selTheme);
 			return true;

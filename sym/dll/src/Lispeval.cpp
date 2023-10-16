@@ -559,11 +559,12 @@ std::atomic<UInt32> gd_ApplyTopLevel = 0;
 
 LispRef ApplyTopEnv(LispPtr expr)
 {
+	assert(IsMainThread());
 #if defined(MG_DEBUG)
 	StaticMtIncrementalLock<gd_ApplyTopLevel> levelLock;
-	dms_assert(gd_ApplyTopLevel <= MaxAllowedLevel);
+	assert(gd_ApplyTopLevel <= MaxAllowedLevel);
 #endif
-	dms_assert(expr.IsRealList());
+	assert(expr.IsRealList());
 
 	return g_applyTopEnvCache.apply(expr);
 }

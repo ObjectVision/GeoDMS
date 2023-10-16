@@ -105,14 +105,14 @@ void SupplCache::BuildSet(const TreeItem* context) const
 			if (!suppl)
 				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
-			dms_assert(i<m_NrConfigured);
+			assert(i<m_NrConfigured);
 			newSupplArray[i++] = ActorCRef(suppl);
 		}
 		if (iFirstEnd == iEnd)
 			break;
 		iBegin = iFirstEnd + 1;
 	}
-	dms_assert(i == m_NrConfigured);
+	assert(i == m_NrConfigured);
 	newSupplArray.swap(m_SupplArray);
 
 	m_IsDirty = false;

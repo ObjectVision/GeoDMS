@@ -96,34 +96,34 @@ GraphVisitState MapControl::InviteGraphVistor(AbstrVisitor& v)
 	return v.DoMapControl(this);
 }
 
-void MapControl::ProcessSize(TPoint mapControlSize) 
+void MapControl::ProcessSize(CrdPoint mapControlSize)
 {
-	TPoint viewPortSize = mapControlSize;
+	auto viewPortSize = mapControlSize;
 
 	if (m_ScrollPort->IsVisible())
-		viewPortSize.x() -= mapControlSize.x() / 4L;
+		viewPortSize.X() -= mapControlSize.X() / 4L;
 
-	bool viewPortSmaller = (viewPortSize.x() < m_ViewPort->GetCurrClientSize().x());
+	bool viewPortSmaller = (viewPortSize.X() < m_ViewPort->GetCurrClientSize().X());
 	if (viewPortSmaller)
-		m_ViewPort->SetClientRect( TRect( TPoint(0, 0), viewPortSize ) );
+		m_ViewPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), viewPortSize ) );
 
-	TType layerControlStartRow = m_OvViewPort->IsVisible() ? Min<TType>(TType(250), TType(mapControlSize.y() / 3) ) : 0;
-	TType layerControlEndRow   = mapControlSize.y();
+	TType layerControlStartRow = m_OvViewPort->IsVisible() ? Min<CrdType>(250, mapControlSize.Y() / 3) : 0;
+	TType layerControlEndRow   = mapControlSize.Y();
 
-	bool overviewSmaller = (layerControlStartRow < m_OvViewPort->GetCurrClientSize().y());
+	bool overviewSmaller = (layerControlStartRow < m_OvViewPort->GetCurrClientSize().Y());
 	if (overviewSmaller)
-		m_OvViewPort->SetClientRect( TRect( viewPortSize.x(), 0, mapControlSize.x(), layerControlStartRow) );
+		m_OvViewPort->SetClientRect( CrdRect( shp2dms_order<CrdType>(viewPortSize.X(), 0), shp2dms_order<CrdType>(mapControlSize.X(), layerControlStartRow)) );
 
 	m_ScrollPort->SetClientRect(
-		TRect(
-			TPoint(viewPortSize  .x(), layerControlStartRow),
-			TPoint(mapControlSize.x(), layerControlEndRow)
+		CrdRect(
+			shp2dms_order<CrdType>(viewPortSize  .X(), layerControlStartRow),
+			shp2dms_order<CrdType>(mapControlSize.X(), layerControlEndRow)
 		)
 	);
 	if (!overviewSmaller)
-		m_OvViewPort->SetClientRect( TRect( viewPortSize.x(), 0, mapControlSize.x(), layerControlStartRow) );
+		m_OvViewPort->SetClientRect( CrdRect(shp2dms_order<CrdType>(viewPortSize.X(), 0), shp2dms_order<CrdType>(mapControlSize.X(), layerControlStartRow)) );
 	if (!viewPortSmaller)
-		m_ViewPort->SetClientRect( TRect( TPoint(0, 0), viewPortSize ) );
+		m_ViewPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), viewPortSize ) );
 }
 
 void MapControl::OnChildSizeChanged()
@@ -198,7 +198,7 @@ bool MapControl::OnCommand(ToolButtonID id)
 		case TB_SyncScale:
 			VisitSiblingViewPorts(this, [] (const MapControl* self, ViewPort* vp)->void
 				{
-					vp->SetCurrZoomLevel(self->GetViewPort()->GetCurrZoomLevel());
+					vp->SetCurrZoomLevel(self->GetViewPort()->GetCurrLogicalZoomLevel());
 				}
 			);
 			return true;

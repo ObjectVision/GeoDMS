@@ -1345,7 +1345,7 @@ namespace
 		SpatialIndexOper<PointType, Bool,  UInt4>     spatialIndex1;
 	};
 
-	tl_oper::inst_tuple<typelists::seq_points, ConnectOperators<_> > connectOperatorInstances;
+	tl_oper::inst_tuple_templ<typelists::seq_points, ConnectOperators > connectOperatorInstances;
 }
 
 /******************************************************************************/

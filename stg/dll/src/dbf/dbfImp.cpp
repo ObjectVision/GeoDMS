@@ -113,33 +113,33 @@ ValueClassID DbfTypeToValueClassID(const TDbfType dt, const UInt8 len, const UIn
 	{
 		case dtNumeric:
 			return (dc > 0)
-				?	(len > 6 ? VT_Float64 : VT_Float32)
+				?	(len > 6 ? ValueClassID::VT_Float64 : ValueClassID::VT_Float32)
 				:	(len > 4) 
-					?	VT_Int32 
+					?	ValueClassID::VT_Int32 
 					:	(len > 2)
-						?	VT_Int16
-						:	VT_Int8;
+						?	ValueClassID::VT_Int16
+						:	ValueClassID::VT_Int8;
 
 		case dtCharacter:
 		case dtDate:
-			return VT_SharedStr;
+			return ValueClassID::VT_SharedStr;
 
 		case dtLogical:
-			return VT_Bool;
+			return ValueClassID::VT_Bool;
 	}
-	return VT_Unknown;
+	return ValueClassID::VT_Unknown;
 }
 
 TDbfType	ValueClassIDToDbfType(const ValueClassID vc)
 {
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T:
+#define INSTANTIATE(T) case ValueClassID::VT_##T:
 		INSTANTIATE_NUM_ORG
 #undef INSTANTIATE
 			return dtNumeric; 
-		case VT_SharedStr: return dtCharacter;
-		case VT_Bool  : return dtLogical;
+		case ValueClassID::VT_SharedStr: return dtCharacter;
+		case ValueClassID::VT_Bool  : return dtLogical;
 		default       : return dtNotDefined;
 	} // switch
 } // DbfTypeToValueClassID
@@ -626,23 +626,23 @@ void FormatSpecification(ValueClassID vc, UInt8 colwidth, UInt8 deccount, bool r
 
 	switch (vc)
 	{
-		case VT_SharedStr:
-		case VT_Bool   : formatspec	+=	"c"; break;
-		case VT_Int8   :
-		case VT_Int16  : formatspec	+= "hd"; break;
-		case VT_Int32  : formatspec	+= "d";  break;
-		case VT_UInt16 : 
-		case VT_UInt8  : formatspec	+= "hu"; break;
-		case VT_UInt32 : formatspec	+= "u";  break;
-		case VT_Float32:	
-		case VT_Float64: 
+		case ValueClassID::VT_SharedStr:
+		case ValueClassID::VT_Bool   : formatspec	+=	"c"; break;
+		case ValueClassID::VT_Int8   :
+		case ValueClassID::VT_Int16  : formatspec	+= "hd"; break;
+		case ValueClassID::VT_Int32  : formatspec	+= "d";  break;
+		case ValueClassID::VT_UInt16 : 
+		case ValueClassID::VT_UInt8  : formatspec	+= "hu"; break;
+		case ValueClassID::VT_UInt32 : formatspec	+= "u";  break;
+		case ValueClassID::VT_Float32:	
+		case ValueClassID::VT_Float64: 
 			if (! read)
 			{
 				sprintf(s, "%hd", Int16(deccount));
 				formatspec	+=	".";
 				formatspec	+=	s;
 			} 
-			if (vc == VT_Float64)
+			if (vc == ValueClassID::VT_Float64)
 				formatspec += "l";
 			formatspec += "f";
 			break;
@@ -687,7 +687,7 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 
 	switch (vc)
 	{
-		case VT_SharedStr:
+		case ValueClassID::VT_SharedStr:
 		{
 			CharPtr fieldBufferEnd = RightTrimEos(fieldBuffer, fieldBuffer+fieldSize);
 			if ((fieldBufferEnd - fieldBuffer == 4) 
@@ -701,19 +701,19 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 				(* ( StringArray::reference * ) data).assign(fieldBuffer, fieldBufferEnd);
 			break;
 		}
-		case VT_Bool    :
+		case ValueClassID::VT_Bool    :
 			* (sequence_traits<bit_value<1> >::reference*) data	
 				= *fieldBuffer == 'Y' || *fieldBuffer == 'y' || *fieldBuffer == 'T' || *fieldBuffer == 't' ? true : false;
 			break;
 
-		case VT_Int8    : ReadAsFloat64AndConvert(( Int8  *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_UInt8   : ReadAsFloat64AndConvert((UInt8  *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_Int16   : ReadAsFloat64AndConvert(( Int16 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_UInt16  : ReadAsFloat64AndConvert((UInt16 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_Int32   : ReadAsFloat64AndConvert(( Int32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_UInt32  : ReadAsFloat64AndConvert((UInt32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_Float32 : ReadAsFloat64AndConvert((Float32*) data, fieldBuffer, fieldBuffer+fieldSize); break;
-		case VT_Float64 : ReadAsFloat64AndConvert((Float64*) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_Int8    : ReadAsFloat64AndConvert(( Int8  *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_UInt8   : ReadAsFloat64AndConvert((UInt8  *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_Int16   : ReadAsFloat64AndConvert(( Int16 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_UInt16  : ReadAsFloat64AndConvert((UInt16 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_Int32   : ReadAsFloat64AndConvert(( Int32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_UInt32  : ReadAsFloat64AndConvert((UInt32 *) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_Float32 : ReadAsFloat64AndConvert((Float32*) data, fieldBuffer, fieldBuffer+fieldSize); break;
+		case ValueClassID::VT_Float64 : ReadAsFloat64AndConvert((Float64*) data, fieldBuffer, fieldBuffer+fieldSize); break;
 	}
 }
 
@@ -728,7 +728,7 @@ bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 colu
 	CharPtrRange strRange("");
 	switch (vc)
 	{
-		case VT_SharedStr:
+		case ValueClassID::VT_SharedStr:
 			{
 				StringArray::const_reference& s	= *(StringArray::const_reference*) data;
 				if (s.IsDefined())
@@ -742,15 +742,15 @@ bool DbfImpl::WriteDataElement(const void *data, UInt32 recordindex, UInt32 colu
 				}
 			}
 			break;
-		case VT_Bool    : strRange.first = bit_value<1>(* (bit_sequence<1>::const_reference*) data) ? "T" : "F"; strRange.second = strRange.first + 1; break;
-		case VT_Int8    : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec,  Int16(*( Int8*) data)); break;
-		case VT_UInt8   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, UInt16(*(UInt8*) data)); break;
-		case VT_Int16   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int16*) data);	break;
-		case VT_UInt16  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt16*) data);	break;
-		case VT_Int32   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int32*) data);	break;
-		case VT_UInt32  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt32*) data);	break;
-		case VT_Float32 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float32*) data);	break;
-		case VT_Float64 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float64*) data);	break;
+		case ValueClassID::VT_Bool    : strRange.first = bit_value<1>(* (bit_sequence<1>::const_reference*) data) ? "T" : "F"; strRange.second = strRange.first + 1; break;
+		case ValueClassID::VT_Int8    : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec,  Int16(*( Int8*) data)); break;
+		case ValueClassID::VT_UInt8   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, UInt16(*(UInt8*) data)); break;
+		case ValueClassID::VT_Int16   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int16*) data);	break;
+		case ValueClassID::VT_UInt16  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt16*) data);	break;
+		case ValueClassID::VT_Int32   : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Int32*) data);	break;
+		case ValueClassID::VT_UInt32  : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (UInt32*) data);	break;
+		case ValueClassID::VT_Float32 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float32*) data);	break;
+		case ValueClassID::VT_Float64 : strRange = myFixedBufferAsCharPtrRange(buff, BUFFER_SIZE, formatspec, * (Float64*) data);	break;
 		default         : return false;
 	} // switch
 	UInt32 sz = strRange.size();
@@ -784,7 +784,7 @@ bool DbfImpl::ReadData(void* data, CharPtr columnName, ValueClassID vc)
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T: READ_DATA_TYPE(T)
+#define INSTANTIATE(T) case ValueClassID::VT_##T: READ_DATA_TYPE(T)
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
@@ -804,7 +804,7 @@ bool DbfImpl::WriteData(WeakStr filename, SafeFileWriterArray* sfwa, const void 
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T	: WRITE_DATA_TYPE(T)	
+#define INSTANTIATE(T) case ValueClassID::VT_##T	: WRITE_DATA_TYPE(T)	
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

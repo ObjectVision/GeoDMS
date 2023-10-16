@@ -19,6 +19,7 @@
 #include "utl/IncrementalLock.h"
 
 #include "LockLevels.h"
+#include "LispTreeType.h"
 
 #include "Parallel.h"
 
@@ -93,9 +94,13 @@ void OperatorContextHandle::GenerateDescription()
 leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
 std::condition_variable cv_TaskCompleted;
 
-std::deque<OperationContextWPtr> s_ScheduledContexts;
+using contexts_within_one_fence = std::deque<OperationContextWPtr>;
+std::map<OperContextGroupNumber, contexts_within_one_fence> s_ScheduledContextsMap;
 
-static std::atomic<Int32> s_NrRunningOperations = 0;
+using RunningOperationsCounter = Int32;
+static std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
+static std::atomic<OperContextGroupNumber> s_SchedulingOperContextGroupNumber = 0;
+
 static Int32 s_nrVCPUs = GetNrVCPUs();
 
 //using dep_link = Point<OperationContext * > ;
@@ -106,9 +111,8 @@ static std::set<const OperationContext*> sd_ManagedContexts;
 struct ReportOnExit {
 	~ReportOnExit()
 	{
-		assert(sd_ManagedContexts.empty());
+		assert(s_ScheduledContextsMap.empty());
 		assert(s_NrRunningOperations == 0);
-		assert(s_ScheduledContexts.empty());
 	}
 
 };
@@ -235,7 +239,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		DBG_TRACE(("add to queue %s", AsText(wptr_this_waiter)));
 
 		if (m_Status == task_status::scheduled)
-			s_ScheduledContexts.emplace_back(shared_from_this());
+			s_ScheduledContextsMap[m_OperContextGroupNumber].emplace_back(shared_from_this());
 		break;
 
 	case task_status::exception:
@@ -290,64 +294,75 @@ UInt32 s_RunOperationContextsCount = 0;
 
 garbage_t runOperationContexts()
 {
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 
-	dms_assert(!s_RunOperationContextsCount);
+	assert(!s_RunOperationContextsCount);
 
 	DynamicIncrementalLock s_ActivationGuard(s_RunOperationContextsCount);
 
 	garbage_t cancelGarbage;
 
-	auto lastProcessedContext = s_ScheduledContexts.begin();
-	auto currContext = lastProcessedContext;
-	bool isLowOnFreeRamTested = false;
-
-	for (; s_NrRunningOperations < s_nrVCPUs && currContext != s_ScheduledContexts.end(); ++currContext)
+	while (!s_ScheduledContextsMap.empty())
 	{
-		if (s_NrRunningOperations >= 2 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 2 operations when RAM isn't being exausted
+		auto& scheduledContexts = s_ScheduledContextsMap.begin()->second;
+
+		auto lastProcessedContext = scheduledContexts.begin();
+		auto currContext = lastProcessedContext;
+		bool isLowOnFreeRamTested = false;
+
+		for (; s_NrRunningOperations < s_nrVCPUs && currContext != scheduledContexts.end(); ++currContext)
 		{
-			if (IsLowOnFreeRAM())
-				break;
-			isLowOnFreeRamTested = true;
-		}
-		auto operContext = currContext->lock();
-		if (operContext)
-		{
-			cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
-			dms_assert(operContext->m_Status >= task_status::scheduled);
-			if (operContext->m_Status < task_status::activated)
+			if (s_NrRunningOperations >= 2 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 2 operations when RAM isn't being exausted
 			{
-				dms_assert(operContext->m_TaskFunc);
-				if (DSM::IsCancelling())
+				if (IsLowOnFreeRAM())
+					break;
+				isLowOnFreeRamTested = true;
+			}
+			auto operContext = currContext->lock();
+			if (operContext)
+			{
+				cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
+				assert(operContext->m_Status >= task_status::scheduled);
+				if (operContext->m_Status < task_status::activated)
 				{
-					cancelGarbage |= operContext->separateResources(task_status::cancelled);
-					continue;
+					assert(operContext->m_TaskFunc);
+					if (DSM::IsCancelling())
+					{
+						cancelGarbage |= operContext->separateResources(task_status::cancelled);
+						continue;
+					}
+					auto funcDC = operContext->m_FuncDC;
+					SharedActorInterestPtr resKeeper;
+					if (funcDC)
+						resKeeper = funcDC->GetInterestPtrOrNull();
+					else
+						resKeeper = operContext->GetResult()->GetInterestPtrOrNull();
+
+					if (!resKeeper)
+						continue;
+
+					dms_assert(operContext->m_Status < task_status::activated);
+					dms_assert(operContext->m_TaskFunc);
+
+					operContext->activateTaskImpl(std::move(resKeeper));
+					assert(s_NrRunningOperations >= 0);
 				}
-				auto funcDC = operContext->m_FuncDC;
-				SharedActorInterestPtr resKeeper;
-				if (funcDC)
-					resKeeper = funcDC->GetInterestPtrOrNull();
-				else
-					resKeeper = operContext->GetResult()->GetInterestPtrOrNull();
-
-				if (!resKeeper)
-					continue;
-
-				dms_assert(operContext->m_Status < task_status::activated);
-				dms_assert(operContext->m_TaskFunc);
-
-				operContext->activateTaskImpl(std::move(resKeeper));
-				dms_assert(s_NrRunningOperations >= 0);
 			}
 		}
-	}
-	s_ScheduledContexts.erase(lastProcessedContext, currContext);
+		scheduledContexts.erase(lastProcessedContext, currContext);
+		if (!scheduledContexts.empty())
+			break;
 
-	dbg_assert(s_NrRunningOperations >= 0 || s_ScheduledContexts.size() == 0);
-	if (!s_NrRunningOperations)
-	{
+		s_ScheduledContextsMap.erase(s_ScheduledContextsMap.begin());
+
+		if (s_NrRunningOperations)
+			break;
+
 		NotifyCurrentTargetCount();
 	}
+
+	if (!s_NrRunningOperations)
+		NotifyCurrentTargetCount();
 
 	return cancelGarbage;
 }
@@ -376,7 +391,7 @@ void RunOperationContexts()
 	void reportOC(CharPtr source, OperationContext* ocPtr)
 	{
 		auto item = ocPtr->GetResult();
-		reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
+		reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
 	}
 	auto reportRemaingOcOnExit = make_scoped_exit([]()
 		{
@@ -387,7 +402,11 @@ void RunOperationContexts()
 #endif
 
 OperationContext::OperationContext()
+	: m_OperContextGroupNumber(s_SchedulingOperContextGroupNumber)
 {
+	assert(IsMetaThread());
+	
+
 	#if defined(MG_DEBUG)
 
 		leveled_critical_section::scoped_lock lock(cs_OcAdm);
@@ -400,6 +419,7 @@ OperationContext::OperationContext()
 OperationContext::OperationContext(const FuncDC* self, const AbstrOperGroup* og)
 	: m_FuncDC(self)
 	, m_OperGroup(og)
+	, m_OperContextGroupNumber(s_SchedulingOperContextGroupNumber)
 {
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
@@ -469,7 +489,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			m_Status = task_status::scheduled;
 			if (!connectedArgs)
 			{
-				s_ScheduledContexts.emplace_back(shared_from_this());
+				s_ScheduledContextsMap[m_OperContextGroupNumber].emplace_back(shared_from_this());
 				mustConsiderRun = true;
 			}
 		}
@@ -1131,8 +1151,9 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	DBG_START("OperationContext", "CalcResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
 
-	dms_assert(m_Oper);
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(m_Oper);
+	assert(!SuspendTrigger::DidSuspend());
+	assert(m_OperGroup);
 
 	OperatorContextHandle operContext(m_OperGroup->GetNameID(), true, m_FuncDC);
 
@@ -1149,10 +1170,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 	bool doASync = m_Oper->CanRunParallel() && resultHolder.DoesHaveSupplInterest() && !context;
 
-	dms_assert(m_Result);
-//	bool dataReady = CheckDataReady(m_Result);
-//	bool dataReady = CheckAllSubDataReady(m_Result);
-//	dms_assert(context || !dataReady); future XXX
+	assert(m_Result);
 
 	if (m_Result->WasFailed(FR_Data))
 	{
@@ -1160,8 +1178,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		return false;
 	}
 
-	dms_assert(IsMetaThread() || doASync);
-	dms_assert(IsMetaThread()); // ???
+	assert(IsMetaThread());
 	if (!resultHolder.DoesHaveSupplInterest())
 	{
 		dms_assert(!doASync);
@@ -1238,7 +1255,6 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 			}
 		};
-//		auto func = Func{ this, std::move(argRefs), std::move(allInterests) };
 		auto func = Func{ this, std::move(argRefs), allInterests };
 
 		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::CalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
@@ -1246,6 +1262,13 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 			,	allInterests
 			,	!doASync, context
 		);
+
+		if (m_OperGroup->GetNameID() == token::FenceContainer)
+		{
+			++s_SchedulingOperContextGroupNumber;
+			MG_CHECK(s_SchedulingOperContextGroupNumber); // hoho we do not count on overflow
+		}
+
 		assert(!argRefs.size()); // moved in ?
 
 		dms_assert(!SuspendTrigger::DidSuspend() || !doASync || !IsMultiThreaded2());
@@ -1278,13 +1301,13 @@ bool RunQueuedTaskInline()
 
 SizeT getScheduledContextsPos(OperationContextSPtr self)
 {
-	auto pos = s_ScheduledContexts.begin(), end = s_ScheduledContexts.end();
+	auto& queue = s_ScheduledContextsMap[self->m_OperContextGroupNumber];
+	auto pos = queue.begin(), end = queue.end();
 	for (; pos != end; ++pos)
 		if (pos->lock() == self)
-			return pos - s_ScheduledContexts.begin();
+			return pos - queue.begin();
 	return UNDEFINED_VALUE(SizeT);
 }
-
 
 void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 {
@@ -1299,11 +1322,11 @@ void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 	if (self->m_Suppliers.empty())
 	{
 		auto pos = getScheduledContextsPos(self);
-		dms_assert(IsDefined(pos));
+		assert(IsDefined(pos));
 
 		if(IsDefined(pos))
-			s_ScheduledContexts.erase(s_ScheduledContexts.begin() + pos);
-		s_ScheduledContexts.push_front(self->weak_from_this());
+			s_ScheduledContextsMap[self->m_OperContextGroupNumber].erase(s_ScheduledContextsMap[self->m_OperContextGroupNumber].begin() + pos);
+		s_ScheduledContextsMap[self->m_OperContextGroupNumber].push_front(self->weak_from_this());
 		return;
 	}
 
@@ -1314,7 +1337,7 @@ void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 task_status OperationContext::Join()
 {
 	if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
-		reportF(SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
@@ -1335,7 +1358,7 @@ task_status OperationContext::Join()
 		if (m_Status > task_status::running)
 			break;
 
-		dms_assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
+		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
 
 		if (isFirstTime && IsMainThread())
 		{

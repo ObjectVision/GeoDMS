@@ -206,7 +206,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		pd->UpdateMetaInfo();
 		ValueClassID streamTypeID = GetStreamType(pd)->GetValueClassID();
-		if (streamTypeID == VT_UInt32 || streamTypeID == VT_Int32
+		if (streamTypeID == ValueClassID::VT_UInt32 || streamTypeID == ValueClassID::VT_Int32
 			&& pd->GetID() == PALETTE_DATA_ID
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			)
@@ -230,10 +230,12 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 
 	if (pd)
-	{
-		auto paletteWriteMetaInfo = storageHolder->GetStorageManager()->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
-		WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
-	}
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+		{
+			auto paletteWriteMetaInfo = nmsm->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
+			WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
+		}
+
 	return true;
 }
 

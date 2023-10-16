@@ -230,9 +230,9 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	uDomain->throwItemErrorF("Error reading geographic reference info from %s", geoRefFileName.c_str());
 }
 
-const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
 {
-	const AbstrUnit* uBase = nullptr;
+	SharedUnit uBase = nullptr;
 	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (!coordRef.empty())
 	{
@@ -254,9 +254,9 @@ const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUni
 	return uBase;
 }
 
-const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
 {
-	dms_assert(storageHolder); // PRECONDITION
+	assert(storageHolder); // PRECONDITION
 	if (!gridDataDomain)
 		return nullptr;
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
@@ -295,7 +295,7 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 
 void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 {
-	dms_assert(storageHolder); // PRECONDITION
+	assert(storageHolder); // PRECONDITION
 /* 
 	const AbstrUnit* gridDataDomainRO = GetGridDataDomainRO(storageHolder); 
 	if (!storageHolder->DoesContain(gridDataDomainRO))
@@ -321,11 +321,9 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 
 SharedStr ToUpperCase(SharedStr src)
 {
-	SharedStr result(src.begin(), src.send());
-	typedef char* charPtr;
-	for (charPtr chPtr = result.begin(), chEnd = result.send(); chPtr != chEnd; ++chPtr)
-		*chPtr = toupper(*chPtr);
-	return result;
+	for (auto& ch: src) // non-const begin and end quarantee unique access
+		ch = std::toupper(ch);
+	return src;
 }
 
 TNameSet::TNameSet(const UInt32 len)
@@ -606,7 +604,9 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
 	SharedUnitInterestPtr gridDomain = GetGridDataDomainRO(storageHolder);
 	if (!gridDomain && mayCreateDomain)
-		gridDomain = storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+			gridDomain = nmsm->CreateGridDataDomain(storageHolder);
+
 	if (!gridDomain)
 		gridDomain = currDomain;
 

@@ -344,5 +344,5 @@ namespace
 	RndUniformOperator<UInt32>  rndUniU32;
 	RndUniformOperator<UInt8>   rndUniU8;
 
-	tl_oper::inst_tuple<typelists::domain_int_objects, RndPermutationOperator<_> > rndPermOperators;
+	tl_oper::inst_tuple_templ<typelists::domain_int_objects, RndPermutationOperator > rndPermOperators;
 }

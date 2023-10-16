@@ -66,6 +66,7 @@
     <ClCompile Include="src\stg\AbstrStoragemanager.cpp" />
     <ClCompile Include="src\stg\AbstrStreamManager.cpp" />
     <ClCompile Include="src\stg\AsmUtil.cpp" />
+    <ClCompile Include="src\stg\MemoryMappedDataStorageManager.cpp" />
     <ClCompile Include="src\stg\StorageClass.cpp" />
     <ClCompile Include="src\stg\StorageInterface.cpp" />
     <ClCompile Include="src\AbstrCalculator.cpp" />
@@ -127,6 +128,7 @@
     <ClInclude Include="src\propfuncs.h" />
     <ClInclude Include="src\stg\AbstrStorageManager.h" />
     <ClInclude Include="src\stg\AsmUtil.h" />
+    <ClInclude Include="src\stg\MemoryMappeddataStorageManager.h" />
     <ClInclude Include="src\stg\StorageClass.h" />
     <ClInclude Include="src\stg\StorageInterface.h" />
     <ClInclude Include="src\AbstrCalculator.h" />

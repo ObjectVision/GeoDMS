@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "ClcPCH.h"
 #pragma hdrstop
 
@@ -23,6 +27,6 @@ struct ClassifyOperator : SearchIndexOperatorImpl<V, classify_dispatcher>
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::numerics, ClassifyOperator<_>> classifyInstances;
+	tl_oper::inst_tuple_templ<typelists::numerics, ClassifyOperator> classifyInstances;
 } // end anonymous namespace
 

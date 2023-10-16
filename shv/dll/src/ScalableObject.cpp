@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 
 #include "ShvDllPch.h"
 #pragma hdrstop
@@ -83,20 +59,15 @@ ScalableObject::ScalableObject(GraphicObject* owner)
 // class: ScalableObject --- size and positioning
 //----------------------------------------------------------------------
 
-TRect ScalableObject::CalcFullAbsRect(const GraphVisitor& v) const
-{
-	auto wr = CalcWorldClientRect();
-	return DRect2TRect( v.GetTransformation().Apply( wr ) ) + TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
-}
-
-TRect ScalableObject::GetCurrFullAbsRect(const GraphVisitor& v) const
+CrdRect ScalableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const
 {
 	auto cwcr = GetCurrWorldClientRect();
 	if (cwcr.empty())
-		return TRect();
+		return CrdRect();
 
-	return DRect2TRect( v.GetTransformation().Apply( cwcr ) ) 
-		+ TRect(GetBorderPixelExtents(v.GetSubPixelFactor()));
+	auto cwDeviceRect = v.GetTransformation().Apply(cwcr);
+	auto borderDeviceExtents = TRect2CrdRect(GetBorderLogicalExtents(), v.GetSubPixelFactors());
+	return cwDeviceRect + borderDeviceExtents;
 }
 
 CrdRect ScalableObject::CalcWorldClientRect() const
@@ -124,17 +95,9 @@ CrdRect ScalableObject::GetCurrWorldClientRect() const
 	return m_WorldClientRect;
 }
 
-GRect ScalableObject::GetBorderPixelExtents(CrdType subPixelFactor) const
+TRect ScalableObject::GetBorderLogicalExtents() const
 {
-	return GRect(0, 0, 0, 0);
-}
-
-CrdRect ScalableObject::CalcFullWorldRect(const CrdTransformation& tr, CrdType subPixelFactor) const
-{
-	CrdRect result = CalcWorldClientRect();
-	result += tr.WorldScale(Convert<CrdRect>(GetBorderPixelExtents(subPixelFactor)));
-
-	return result;
+	return TRect(0, 0, 0, 0);
 }
 
 //----------------------------------------------------------------------
@@ -156,16 +119,18 @@ const ViewPort* ScalableObject::GetViewPort() const
 	return nullptr;
 }
 
-void ScalableObject::InvalidateWorldRect(const CrdRect& rect, const GRect* borderExtentsPtr) const 
+void ScalableObject::InvalidateWorldRect(CrdRect rect, const TRect* borderExtentsPtr) const 
 {
 	const ViewPort* vp = GetViewPort();
-	if (vp)
-		vp->InvalidateWorldRect(
-			rect
-		,	borderExtentsPtr
-			?	*borderExtentsPtr
-			:	GetBorderPixelExtents(vp->GetSubPixelFactor())
-		);
+	if (!vp)
+		return;
+
+	vp->InvalidateWorldRect(
+		rect
+	,	borderExtentsPtr
+		?	*borderExtentsPtr
+		: GetBorderLogicalExtents()
+	);
 }
 
 ScalableObject* ScalableObject::GetEntry(SizeT i)

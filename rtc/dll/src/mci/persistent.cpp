@@ -459,7 +459,7 @@ void  Object::throwItemError(const PersistentSharedObj* self, CharPtr msg)
 
 void Object::XML_Dump(OutStreamBase* xmlOutStr) const
 { 
-	XML_OutElement xmlElem(*xmlOutStr, GetXmlClassName().c_str(), GetName().c_str(), true);
+	XML_OutElement xmlElem(*xmlOutStr, GetXmlClassName().c_str(), GetName().c_str(), ClosePolicy::pairedOnNewline);
 
 	xmlOutStr->DumpPropList(this);
 	xmlOutStr->DumpSubTags(this);

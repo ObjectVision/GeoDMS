@@ -824,5 +824,5 @@ namespace
 		RthElementPart<ValueType>                  m_RPartOperator;
 	};
 
-	tl_oper::inst_tuple<typelists::num_objects, AggrOperInstances <_>> s_PthElemOperators;
+	tl_oper::inst_tuple_templ<typelists::num_objects, AggrOperInstances> s_PthElemOperators;
 }

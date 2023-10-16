@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -87,7 +63,7 @@ AbstrDataItem::AbstrDataItem()
 AbstrDataItem::~AbstrDataItem() noexcept
 {
 	assert(!GetInterestCount());
-	assert(!GetRefCount());
+	assert(!IsOwned());
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);
@@ -111,6 +87,7 @@ inline const AbstrUnit* AbstrDataItem::GetAbstrDomainUnit() const
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
 	return m_DomainUnit;
 }
+
 inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const 
 { 
 	if (!m_ValuesUnit && IsMetaThread())
@@ -200,7 +177,7 @@ using semaphore_t = std::counting_semaphore<>;
 struct reader_clone_farm
 {
 	semaphore_t m_Countdown;
-	std::vector<AbstrStorageManagerRef> m_ClonePtrs;
+	std::vector<NonmappableStorageManagerRef> m_ClonePtrs;
 	std::mutex m_CloneCS;
 	std::vector<UInt32> m_Tokens;
 
@@ -217,7 +194,7 @@ struct reader_clone_farm
 	UInt32 acquire()
 	{
 		m_Countdown.acquire();
-		auto csLock = std::lock_guard(m_CloneCS);
+		std::lock_guard csLock(m_CloneCS);
 		auto token = m_Tokens.back();
 		m_Tokens.pop_back();
 		return token;
@@ -225,7 +202,7 @@ struct reader_clone_farm
 	void release(UInt32 token)
 	{
 		{
-			auto csLock = std::lock_guard(m_CloneCS);
+			std::lock_guard csLock(m_CloneCS);
 			m_Tokens.emplace_back(token);
 		}
 		m_Countdown.release();
@@ -236,7 +213,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
-	AbstrStorageManager* sm = smi->StorageManager();
+	auto* sm = smi->StorageManager();
 	assert(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
@@ -256,7 +233,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 				auto token = readerFarm->acquire();
 				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
 
-				AbstrStorageManagerRef& readerClonePtr = readerFarm->m_ClonePtrs[token];
+				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
 				if (!readerClonePtr)
 					readerClonePtr = sharedSm->ReaderClone(*smi);
 				if (!readerClonePtr->ReadDataItem(smi, self, t))
@@ -269,24 +246,10 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			if (true || sm->EasyRereadTiles())
 			{
 				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
-					this->m_DataObject = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
 						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();
 				});
-			}
-			else
-			{
-				throwNYI(MG_POS, "AbstrDataItem::DoReadItem of random read-once tiles");
-				/* TODO, NYI
-								struct prepare_data {};
-				visit<typelists::numerics>(GetAbstrValuesUnit(), [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>* valuesUnit) {
-					this->m_DataObject = make_unique_FutureTileFunctor<V, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
-						, [](tile_id t) { return prepare_data{}; }
-						, std::move(tileGenerator)
-						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random read-once tiles")
-					).release();
-				});
-				*/
 			}
 		}
 		else
@@ -319,8 +282,8 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	DataReadLock lockForSave(this);
 
-	AbstrStorageManager* sm = smi->StorageManager();
-	reportF(SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+	auto sm = smi->StorageManager();
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()
 	);
@@ -408,34 +371,42 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	TreeItem::CopyProps(result, copyContext);
 
 	auto res = debug_cast<AbstrDataItem*>(result);
+	
+	res->m_StatusFlags.SetValueComposition(GetValueComposition());
+	if (copyContext.InFenceOperator())
+	{
+		res->m_DomainUnit = GetAbstrDomainUnit();
+		res->m_ValuesUnit = GetAbstrValuesUnit();
+		return;
+	}
 
 	// only copy unitnames when not defined
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit))
 	{
+		res->m_tDomainUnit = m_tDomainUnit;
 		try {
 			auto adu = GetAbstrDomainUnit();
-			assert(adu);
-			res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
+			if (adu)
+				res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tDomainUnit = m_tDomainUnit;
 		}
 	}
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit))
 	{
+		res->m_tValuesUnit = m_tValuesUnit;
 		try {
 			auto avu = GetAbstrValuesUnit();
-			res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
+			if (avu)
+				res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tValuesUnit = m_tValuesUnit;
 		}
 	}
-	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 }
 
 ValueComposition AbstrDataItem::GetValueComposition() const
@@ -540,7 +511,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined %s unit", role), FR_MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
-	if (!result)
+	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
 		ThrowFail(msg, FR_MetaInfo);
@@ -826,13 +797,35 @@ garbage_t AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes
 	return garbageCan;
 }
 
+bool FindAndVisitUnit(const AbstrDataItem* adi, TokenID t, SupplierVisitFlag svf, const ActorVisitor& visitor)
+{
+	const ValueClass* vc = ValueClass::FindByScriptName(t);
+	if (vc)
+		return true;
+	auto context = adi->GetTreeParent();
+	if (!context)
+		return true;
+
+	SharedStr itemRefStr(t.AsStrRange());
+	return context->FindAndVisitItem(itemRefStr, svf, visitor).has_value();
+}
+
 //	override virtuals of Actor
 ActorVisitState AbstrDataItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	if (Test(svf, SupplierVisitFlag::DomainValues)) // already done by StartInterest
+	if (!InTemplate())
 	{
-		if (visitor.Visit(GetAbstrDomainUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
-		if (visitor.Visit(GetAbstrValuesUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+
+		if (Test(svf, SupplierVisitFlag::DomainValues)) // already done by StartInterest
+		{
+			if (visitor.Visit(GetAbstrDomainUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+			if (visitor.Visit(GetAbstrValuesUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+		}
+		if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+		{
+			if (m_tDomainUnit) if (!FindAndVisitUnit(this, m_tDomainUnit, svf, visitor)) return AVS_SuspendedOrFailed;
+			if (m_tValuesUnit) if (!FindAndVisitUnit(this, m_tValuesUnit, svf, visitor)) return AVS_SuspendedOrFailed;
+		}
 	}
 	return TreeItem::VisitSuppliers(svf, visitor);
 }
@@ -1186,7 +1179,7 @@ struct InterestReporter : DebugReporter
 
 #if defined(MG_DEBUG_DCDATA)
 		auto dc = dynamic_cast<const DataController*>(focusItem);
-		reportF(SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
 			focusItem->GetInterestCount(),
 			YesNo(ti ? ti->GetKeepDataState() : false),
 			YesNo(focusItem->DoesHaveSupplInterest()),

@@ -108,6 +108,29 @@ namespace token {
 
 	TIC_CALL TokenID true_ = GetTokenID_st("true");
 	TIC_CALL TokenID false_ = GetTokenID_st("false");
+	TIC_CALL TokenID pi = GetTokenID_st("?");
+	TIC_CALL TokenID null_b = GetTokenID_st("null_b");
+	TIC_CALL TokenID null_w = GetTokenID_st("null_w");
+	TIC_CALL TokenID null_u = GetTokenID_st("null_u");
+	TIC_CALL TokenID null_u64 = GetTokenID_st("null_u64");
+	TIC_CALL TokenID null_c = GetTokenID_st("null_c");
+	TIC_CALL TokenID null_s = GetTokenID_st("null_s");
+	TIC_CALL TokenID null_i = GetTokenID_st("null_i");
+	TIC_CALL TokenID null_i64 = GetTokenID_st("null_i64");
+	TIC_CALL TokenID null_f = GetTokenID_st("null_f");
+	TIC_CALL TokenID null_d = GetTokenID_st("null_d");
+	TIC_CALL TokenID null_sp = GetTokenID_st("null_sp");
+	TIC_CALL TokenID null_wp = GetTokenID_st("null_wp");
+	TIC_CALL TokenID null_ip = GetTokenID_st("null_ip");
+	TIC_CALL TokenID null_up = GetTokenID_st("null_up");
+	TIC_CALL TokenID null_fp = GetTokenID_st("null_fp");
+	TIC_CALL TokenID null_dp = GetTokenID_st("null_dp");
+
+	TIC_CALL bool isConst(TokenID t)
+	{ 
+		assert(true_.GetNr(TokenID::TokenKey()) + 18 == null_dp.GetNr(TokenID::TokenKey()));
+		return t >= true_ && t <= null_dp;
+	}
 
 	TIC_CALL TokenID arrow = GetTokenID_st("arrow");
 	TIC_CALL TokenID lookup = GetTokenID_st("lookup");
@@ -213,6 +236,8 @@ namespace token {
 
 	TIC_CALL TokenID map = GetTokenID_st("map");
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
+	TIC_CALL TokenID FenceContainer = GetTokenID_st("FenceContainer");
+
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)
@@ -346,8 +371,15 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 
 LispRef CreateLispTree(const TreeItem* self, bool inclSubTree)
 {
+	assert(self);
+	UInt32 loadNumber = 0;
+	auto location = self->GetLocation();
+	if (location)
+		loadNumber = location->m_ConfigFileDescr->m_LoadNumber;
+
 	auto result = ExprList(token::sourceDescr
 	,	LispRef(TokenID(self->GetFullName()))
+	,	LispRef(loadNumber)
 	,	CreateLispSubTree(self, inclSubTree)
 	);
 #if defined(MG_DEBUG_LISP_TREE)

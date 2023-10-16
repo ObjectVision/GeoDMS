@@ -167,11 +167,11 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 									[([&cp](auto _1, auto _2) { cp.DoItemHeading(_1, _2);})];
 
 								itemSignature =
-									as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(ST_TreeItem);})]
-									| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(ST_Template);})]
+									as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
+									| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
 									| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
-									| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(ST_Parameter);})]
-									| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(ST_Unit);})]
+									| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]
+									| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Unit);})]
 									| (as_lower_d[ENTITY])[([&cp](...) { cp.DoEntitySignature();})]
 									;
 

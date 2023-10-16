@@ -54,7 +54,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 // To handle ESRI shapefile (*.shp)
 // For now only ShapeType = 5 is supported (Polygons)
-enum ShapeTypes {
+enum class ShapeTypes {
 	ST_None       = 0,
 	ST_Point      = 1,
 	ST_Polyline   = 3,
@@ -62,10 +62,10 @@ enum ShapeTypes {
 	ST_MultiPoint = 8
 };
 
-inline bool IsNone           (ShapeTypes st) { return st== ST_None; }
-inline bool IsComposite      (ShapeTypes st) { return (st== ST_Polygon) || (st== ST_Polyline) || (st== ST_MultiPoint); }
+inline bool IsNone           (ShapeTypes st) { return st== ShapeTypes::ST_None; }
+inline bool IsComposite      (ShapeTypes st) { return (st== ShapeTypes::ST_Polygon) || (st== ShapeTypes::ST_Polyline) || (st== ShapeTypes::ST_MultiPoint); }
 inline bool IsCompositeOrNone(ShapeTypes st) { return IsComposite(st) || IsNone(st); }
-inline bool IsPoint          (ShapeTypes st) { return st== ST_Point; }
+inline bool IsPoint          (ShapeTypes st) { return st== ShapeTypes::ST_Point; }
 inline bool IsPointOrNone    (ShapeTypes st) { return IsPoint(st) || IsNone(st); }
 inline bool IsKnown          (ShapeTypes st) { return IsPoint(st) || IsComposite(st); }
 inline bool IsKnownOrNone    (ShapeTypes st) { return IsKnown(st) || IsNone(st); }
@@ -124,7 +124,7 @@ struct ShpRecordHeader
 struct ShpPolygonHeader
 {
 	ShpPolygonHeader(ShapeTypes shapeType)
-		:	m_ShapeType(shapeType)
+		:	m_ShapeType(long(shapeType))
 		,	m_Box(ShpPoint(0, 0), ShpPoint(0, 0))
 		,	m_NumParts(0)
 		,	m_NumPoints(0)
@@ -132,7 +132,7 @@ struct ShpPolygonHeader
 		dms_assert(IsCompositeOrNone(shapeType));
 	};
 
-	bool HasParts() const { return m_ShapeType != ST_MultiPoint; }
+	bool HasParts() const { return m_ShapeType != long(ShapeTypes::ST_MultiPoint); }
 
 	STGIMPL_CALL std::size_t Read (FILE * fp);
 	STGIMPL_CALL std::size_t Write(FILE * fp) const;
@@ -340,7 +340,7 @@ void ShpPolygon::AddPoints(InIter first, InIter last)
 template <typename InIter> 
 void ShpImp::PointSet_AddPoints(InIter first, InIter last)
 {
-	MG_DEBUGCODE( CheckShapeType(ST_Point) );
+	MG_DEBUGCODE( CheckShapeType(ShapeTypes::ST_Point) );
 
 	UInt32 nrOrgPoints = m_Points.size();
 

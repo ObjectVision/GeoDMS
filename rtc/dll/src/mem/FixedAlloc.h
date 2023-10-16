@@ -1,3 +1,9 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
 #if !defined(__RTC_MEM_FIXED_ALLOC_H)
 #define __RTC_MEM_FIXED_ALLOC_H
 
@@ -58,7 +64,8 @@
 RTC_CALL void* AllocateFromStock(size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
 extern std::atomic<bool> s_ReportingRequestPending;
+extern std::atomic<bool> s_BlockNewAllocations;
 void ReportFixedAllocStatus();
-
+RTC_CALL void ReportFixedAllocFinalSummary();
 
 #endif // __RTC_MEM_FIXED_ALLOC_H

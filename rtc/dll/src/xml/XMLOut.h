@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 //	OutStream
@@ -54,6 +30,13 @@ struct XML_OutElement;
 class ImpStreamBuff;
 class OutStreamBuff;
 
+enum class ClosePolicy {
+	nonPairedElement,
+	pairedButWithoutSeparator,
+	pairedWithTabbedSeparator,
+	pairedOnNewline
+};
+
 //----------------------------------------------------------------------
 // OutStreamBase
 //----------------------------------------------------------------------
@@ -79,6 +62,7 @@ struct OutStreamBase {
 	OutStreamBase& operator << (CharPtr data) { WriteValue(data); return *this; }
 
 	virtual void WriteValue (CharPtr data) = 0;
+	RTC_CALL virtual void WriteValueWithConfigSourceDecorations(CharPtr data);
 	virtual void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) = 0;
 	void WriteTrimmed(CharPtr data) { WriteValueN(data, MAX_TEXTOUT_SIZE - 3, "..."); }
 	void WriteRange(CharPtr first, CharPtr last) { WriteValueN(first, last - first, ""); }
@@ -104,7 +88,6 @@ struct OutStreamBase {
 	auto&           FormattingStream() { return m_OutStream; }
 	FormattingFlags GetFormattingFlags() const { return m_OutStream.GetFormattingFlags();  }
 
-protected:
 	void NewLine();
 
 private:
@@ -114,8 +97,8 @@ private:
 
 	void DumpSubTag(const AbstrPropDef* propDef, CharPtr tagValue, bool isPrimaryTag);
 
-	virtual void OpenTag (CharPtr tagName) =0;
-	virtual void CloseTag(CharPtr tagName) =0;
+	virtual void OpenTag (CharPtr tagName, ClosePolicy cp) =0;
+	virtual void CloseTag(CharPtr tagName, ClosePolicy cp) =0;
 
 	virtual void AttrDelim    () =0;
 	virtual void CloseAttrList() =0;
@@ -152,6 +135,7 @@ public:
 
 	RTC_CALL void WriteValue (CharPtr data) override;
 	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
+	RTC_CALL void WriteValueWithConfigSourceDecorations(CharPtr data) override;
 
 	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
 	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
@@ -160,14 +144,11 @@ public:
 	RTC_CALL void WriteInclude(CharPtr includeHref) override;
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName) override;
-	RTC_CALL void CloseTag(CharPtr tagName) override;
+	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
 	RTC_CALL void AttrDelim    () override;
 	RTC_CALL void CloseAttrList() override;
-
-	bool IsSpecialChar(char);
-	void WriteChar(char);
 
 private:
 	XML_OutElement* m_RootElem;
@@ -213,64 +194,13 @@ struct OutStream_DMS :OutStreamBase
 	SyntaxType GetSyntaxType() override { return ST_DMS; }
 
 private:
-	RTC_CALL void OpenTag (CharPtr tagName) override;
-	RTC_CALL void CloseTag(CharPtr tagName) override;
+	RTC_CALL void OpenTag (CharPtr tagName, ClosePolicy cp) override;
+	RTC_CALL void CloseTag(CharPtr tagName, ClosePolicy cp) override;
 
 	RTC_CALL void AttrDelim    () override;
 	RTC_CALL void CloseAttrList() override;
 
 };
-
-using row_data   = std::vector<std::string>;
-using table_data = std::vector<row_data>;
-using href_data  = std::pair<std::string, std::string>;
-using dropdown_data = std::pair<std::string, row_data>;
-
-struct OutStream_MD :OutStreamBase
-{
-	RTC_CALL OutStream_MD(OutStreamBuff* out, const AbstrPropDef* primaryPropDef);
-
-	RTC_CALL void WriteName(XML_OutElement& elem, CharPtr itemName) override;
-
-	RTC_CALL void BeginSubItems() override;
-	RTC_CALL void ItemEnd() override;
-	RTC_CALL void EndSubItems() override;
-
-	RTC_CALL void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) override;
-	RTC_CALL void DumpSubTagDelim() override;
-
-	RTC_CALL void WriteValue(CharPtr data) override;
-	RTC_CALL void WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr) override;
-
-	RTC_CALL void WriteAttr(CharPtr name, CharPtr value) override;
-	RTC_CALL void WriteAttr(CharPtr name, bool value) override;
-	RTC_CALL void WriteAttr(CharPtr name, UInt32 value) override;
-
-	RTC_CALL void WriteInclude(CharPtr includeHref) override;
-
-	SyntaxType GetSyntaxType() override { return ST_DMS; }
-
-private:
-	RTC_CALL void OpenTag(CharPtr tagName) override;
-	RTC_CALL void CloseTag(CharPtr tagName) override;
-
-	RTC_CALL void AttrDelim() override;
-	RTC_CALL void CloseAttrList() override;
-
-	bool      m_in_table = false;
-	bool      m_in_href  = false;
-	bool      m_in_row = false;
-	bool      m_in_row_data = false;
-	bool      m_in_dropdown = false;
-
-	row_data      m_table_row;
-	table_data    m_table;
-	href_data     m_href;
-	dropdown_data m_dropdown;
-	std::string   m_cell_data;
-};
-
-
 
 //----------------------------------------------------------------------
 // XML_OutElement
@@ -278,13 +208,13 @@ private:
 
 struct XML_OutElement
 {
-	RTC_CALL XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName = "", bool isPaired = true);
+	RTC_CALL XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName = "", ClosePolicy cp = ClosePolicy::pairedOnNewline);
 	RTC_CALL void SetHasSubItems();
 	RTC_CALL ~XML_OutElement();
 
 	inline bool IncAttrCount()    { return m_AttrCount++; } 
 	inline bool AttrCount() const { return m_AttrCount;   } 
-	inline bool IsPaired()  const { return m_IsPaired;    }
+	inline bool IsPaired()  const { return m_ClosePolicy != ClosePolicy::nonPairedElement;    }
 	inline OutStreamBase& OutStream() { return m_XmlStream; }
 	inline const OutStreamBase& OutStream() const { return m_XmlStream; }
 
@@ -293,15 +223,47 @@ struct XML_OutElement
   private: 
 	OutStreamBase& m_XmlStream;
 	CharPtr        m_TagName;
-	bool           m_IsPaired;
+	ClosePolicy    m_ClosePolicy;
 	bool           m_HasSubItems;
 	UInt32         m_AttrCount;
+};
+
+struct XML_h1 : XML_OutElement
+{
+	XML_h1(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h1")
+	{
+		xmlStream << caption;
+	}
+};
+
+struct XML_h2 : XML_OutElement
+{
+	XML_h2(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h2")
+	{
+		xmlStream << caption;
+	}
+};
+
+struct XML_h3 : XML_OutElement
+{
+	XML_h3(OutStreamBase& xmlStream, CharPtr caption) : XML_OutElement(xmlStream, "h3")
+	{
+		xmlStream << caption;
+	}
 };
 
 struct XML_hRef : XML_OutElement
 {
 	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtr url);
+	RTC_CALL XML_hRef(OutStreamBase& xmlStream, CharPtrRange url);
 };
+
+inline void hRefWithText(OutStreamBase& xmlStream, CharPtr value, CharPtr hRef)
+{
+	XML_hRef xmlElemA(xmlStream, hRef);
+	xmlStream.WriteTrimmed(value);
+
+}
 
 struct XML_DataBracket
 {

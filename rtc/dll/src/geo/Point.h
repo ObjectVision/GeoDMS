@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_POINT_H)
@@ -53,37 +25,49 @@ struct Point: Couple<T>
 	using Couple<T>::second;
 
 //	Constructors (specified)
-	Point() {} // default initialisastion results in valid possibly non-zero objects too
-	Point(T first, T second): Couple<T>(first, second) {}
-	Point(Undefined): Couple<T>(Undefined()) {}
-	template <typename U>
+	constexpr Point() {} // default initialisastion results in valid possibly non-zero objects too
+	constexpr Point(T first, T second): Couple<T>(first, second) {}
+	constexpr Point(Undefined): Couple<T>(Undefined()) {}
+
+	template <std::convertible_to<T> U>
 	Point(const Point<U>& rhs): Couple<T>(rhs.first, rhs.second) {}
 
-	template <typename U>
+	template <std::convertible_to<T> U>
 	void operator =(const Point<U>& rhs) { first = rhs.first; second = rhs.second; }
 
+	template <std::convertible_to<T> U>
+	void operator *=(Point<U> rhs) { first = first * rhs.first; second = second * rhs.second; }
+
+	template <std::convertible_to<T> U>
+	void operator *=(U rhs) { first = first * rhs; second = second * rhs; }
+
 #if defined(DMS_POINT_ROWCOL)
-	const T& Row() const { return first;  }
-	const T& Col() const { return second; }
-	      T& Row()       { return first;  }
-	      T& Col()       { return second; }
+	T Row() const { return first;  }
+	T Col() const { return second; }
+	T& Row()       { return first;  }
+	T& Col()       { return second; }
 
-	const T& Y() const { return first;  }
-	const T& X() const { return second; }
-	      T& Y()       { return first;  }
-	      T& X()       { return second; }
+	T Y() const { return first;  }
+	T X() const { return second; }
+	T& Y()       { return first;  }
+	T& X()       { return second; }
 #else
-	const T& Row() const { return second;  }
-	const T& Col() const { return first; }
-	      T& Row()       { return second;  }
-	      T& Col()       { return first; }
+	T Row() const { return second;  }
+	T Col() const { return first; }
+	T& Row()       { return second;  }
+	T& Col()       { return first; }
 
-	const T& X() const { return first;  }
-	const T& Y() const { return second; }
-	      T& X()       { return first;  }
-	      T& Y()       { return second; }
+	T X() const { return first;  }
+	T Y() const { return second; }
+	T& X()       { return first;  }
+	T& Y()       { return second; }
 #endif
 };
+
+template<class T> inline auto get_x(Point<T>&& p) noexcept -> T { return p.X(); }
+template<class T> inline auto get_y(Point<T>&& p) noexcept -> T { return p.Y(); }
+template<class T> inline auto get_x(Point<T>& p) noexcept-> T& { return p.X(); }
+template<class T> inline auto get_y(Point<T>& p) noexcept-> T& { return p.Y(); }
 
 //----------------------------------------------------------------------
 // Main Section   PointBounds
@@ -233,7 +217,6 @@ const Point<T>& operator X(Point<T>& self, T other)                  \
 
 DEFINE_ASSIGNMENT_OPERATOR(+=)
 DEFINE_ASSIGNMENT_OPERATOR(-=)
-DEFINE_ASSIGNMENT_OPERATOR(*=)
 DEFINE_ASSIGNMENT_OPERATOR(/=)
 DEFINE_ASSIGNMENT_OPERATOR(%=)
 DEFINE_ASSIGNMENT_OPERATOR(^=)
@@ -338,7 +321,7 @@ operator /(const Point<T>& a, const Point<U>& b)
 
 
 template <class T> inline
-	SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second)); }
+	SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second), false); }
 
 template <class T> inline
 typename product_type<T>::type
@@ -351,12 +334,12 @@ Area(const Point<T>& v)
 // Section      : Distance Measures
 //----------------------------------------------------------------------
 
-template <typename ReturnType, typename T, typename U>
-inline ReturnType InProduct(Point<T> p1, Point<U> p2)
+template <typename ReturnType, typename PU>
+inline ReturnType InProduct(PU p1, PU p2)
 {
 	return
-		ReturnType(p1.first ) * ReturnType(p2.first )
-	+	ReturnType(p1.second) * ReturnType(p2.second);
+		ReturnType(get_x(p1)) * ReturnType(get_x(p2))
+	+	ReturnType(get_y(p1)) * ReturnType(get_y(p2));
 }
 
 template <typename ReturnType, typename U>
@@ -367,16 +350,29 @@ inline ReturnType OutProduct(Point<U> p1, Point<U> p2)
 	-	ReturnType(p1.Row()) * ReturnType(p2.Col());
 }
 
-template <typename ReturnType, typename U>
-inline ReturnType Norm(Point<U> point)
+template <typename ReturnType, typename PU>
+inline ReturnType Norm(PU point)
 {
 	return InProduct<ReturnType>(point, point);
 }
 
-template <typename ReturnType, typename U>
-inline ReturnType SqrDist(Point<U> p1, Point<U> p2)
+template <typename ReturnType, typename PU>
+inline ReturnType SqrDist(PU p1, PU p2)
 {
 	return Norm<ReturnType>(p1-p2);
 }
+
+template <typename T> struct is_fixed_size_element : is_numeric<T> {};
+template <typename T> struct is_fixed_size_element<Point<T>> : is_fixed_size_element<T> {};
+template <typename T> struct is_fixed_size_element<Range<T>> : is_fixed_size_element<T> {};
+
+template <typename T> constexpr bool is_fixed_size_element_v = is_fixed_size_element<T>::value;
+template <typename T> concept FixedSizeElement = is_fixed_size_element_v<T>;
+
+template <typename T> struct is_point_type : std::false_type {};
+template <typename T> struct is_point_type<Point<T>> :std::true_type {};
+
+template <typename T> constexpr bool is_point_type_v = is_point_type<T>::value;
+template <typename T> concept PointType = is_point_type_v<T>;
 
 #endif // __RTC_GEO_POINT_H

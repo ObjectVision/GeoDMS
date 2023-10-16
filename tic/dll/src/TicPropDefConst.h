@@ -41,6 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define STORAGEOPTIONS_NAME     "StorageOptions"
 #define DISABLESTORAGE_NAME     "DisableStorage"
 #define KEEPDATA_NAME           "KeepData"
+#define LAZYCALC_NAME           "LazyCalculated"
 #define FREEDATA_NAME           "FreeData"
 #define ISHIDDEN_NAME           "IsHidden"
 #define INHIDDEN_NAME           "InHidden"

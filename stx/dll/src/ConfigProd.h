@@ -42,13 +42,14 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ExprProd.h"
 
 
-enum SignatureType {
-	ST_TreeItem,
-	ST_Template,
-	ST_Function,
-	ST_Unit,
-	ST_Attribute,
-	ST_Parameter
+enum class SignatureType {
+	Undefined,
+	TreeItem,
+	Template,
+	Function,
+	Unit,
+	Attribute,
+	Parameter
 };
 
 
@@ -131,13 +132,13 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 	TokenID                          m_strIdentifierID;
 
 	// Signature support
-	SignatureType                    m_eSignatureType;    // see enum above
+	SignatureType                    m_eSignatureType = SignatureType::Undefined;
 	WeakPtr<const ValueClass>        m_eValueClass;        // signature of unit definition
 	TokenID                          m_pSignatureUnit;
 
 	// param support
 	TokenID                          m_pParamEntity;
-	ValueComposition                 m_eParamVC;
+	ValueComposition                 m_eParamVC = ValueComposition::Unknown;
 
 	// property support
 	TokenID                          m_sPropFileTypeID;

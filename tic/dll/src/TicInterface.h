@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_INTERFACE_H)
 #define __TIC_INTERFACE_H
 
@@ -37,6 +13,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/ElemTraits.h"
 #include "utl/instantiate.h"
 #include "act/ActorEnums.h"
+#include "TreeItemProps.h"
 
 //----------------------------------------------------------------------
 // C++ style Interface functions for TreeItem retrieval
@@ -138,12 +115,10 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Commit(TreeItem* self); // stores unsaved pr
 TIC_CALL void DMS_CONV DMS_TreeItem_DisableStorage(TreeItem* self); // disable storage for 'self' and subitems
 
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* out);
-TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden);
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName); // creates a temp. XML_Stream on a temp. FileOutBuff
-TIC_CALL bool DMS_CONV DMS_XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 
 //----------------------------------------------------------------------
 // C style Interface functions for TreeItem retrieval
@@ -203,6 +178,7 @@ TIC_CALL void     DMS_CONV DMS_TreeItem_SetDescr(TreeItem* self, CharPtr descrip
 TIC_CALL void     DMS_CONV DMS_TreeItem_SetExpr (TreeItem* self, CharPtr expression);
 
 // TreeItem status management
+TIC_CALL UInt32		 DMS_CONV TreeItem_GetProgressState(const TreeItem* self);
 TIC_CALL void        DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self);
 TIC_CALL UInt32      DMS_CONV DMS_TreeItem_GetProgressState(const TreeItem* self);
 TIC_CALL bool        DMS_CONV DMS_TreeItem_IsFailed(const TreeItem* self);
@@ -352,4 +328,7 @@ TIC_CALL void DMS_CONV DMS_Tic_Load();
 
 } // end extern "C"
 
+TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
+TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
+TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr);
 #endif // __TIC_INTERFACE_H

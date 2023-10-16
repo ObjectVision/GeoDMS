@@ -100,11 +100,11 @@ namespace gdalComponentImpl
 			fullFileName = ConvertDmsFileNameAlways(DelimitedConcat(GetExeDir().c_str(), DelimitedConcat(subFolder, fileName).c_str()));
 
 			MG_DEBUGCODE(
-				reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
 			
 			)
 			if (!IsFileOrDirAccessible(fullFileName))
-				reportF_without_cancellation_check(SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
+				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
 		}
 		return fullFileName.c_str();
 	}
@@ -254,17 +254,33 @@ gdalDynamicLoader::gdalDynamicLoader()
 {
 }
 
+bool AuthorityCodeIsValidCrs(std::string_view wkt)
+{
+	auto srs = OGRSpatialReference();
+	srs.SetFromUserInput(wkt.data());
+	
+	auto is_geographic = srs.IsGeographic();
+	auto is_derived_geographic = srs.IsDerivedGeographic();
+	auto is_projected = srs.IsProjected();
+	auto is_local = srs.IsLocal();
+	auto is_dynamic = srs.IsDynamic();
+	auto is_geocentric = srs.IsGeocentric();
+	auto is_vertical = srs.IsVertical();
+	auto is_compound = srs.IsCompound();
+	return is_geographic || is_derived_geographic || is_projected || is_local || is_dynamic || is_geocentric || is_vertical || is_compound;
+}
+
 void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str)
 {
 	assert(ogrSR);
 	ogrSR->Validate();
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
-	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str))
-		reportF(SeverityTypeID::ST_Warning, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
+	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str)) // TODO: replace hardcoded 20 characters to get past strings that are ie. EPSG:XXXX
+		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
-void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
+void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const AbstrUnit* uBase) const
 {
 	assert(uBase);
 	assert(dsh_);
@@ -288,7 +304,7 @@ void GDALDatasetHandle::UpdateBaseProjection(const AbstrUnit* uBase) const
 	std::optional<OGRSpatialReference> ogrSR;
 	if (ogrSR_ptr) 
 		ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
-	CheckSpatialReference(ogrSR, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
+	CheckSpatialReference(ogrSR, treeitem, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
 
 SharedStr GetAsWkt(const OGRSpatialReference* sr)
@@ -365,51 +381,55 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
 }
 
-/* REMOVE
-void sr_releaser::operator ()(OGRSpatialReference* p) const
-{
-	OSRRelease(p);
-}
-*/
-
-void CheckCompatibility(OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
-	if (GetAsWkt(fromGDAL) != GetAsWkt(fromConfig))
-	{
-		/*reportF(SeverityTypeID::ST_Warning, "GDAL: SpatialReferenceSystem that GDAL obtained from Dataset differs from baseProjectionUnit's SpatialReference."
-			"\nDataset's SpatialReference:\n%s"
-			"\nbaseProjectionUnit's SpatialReference:\n%s"
-		, GetAsWkt(fromGDAL).c_str()
-		, GetAsWkt(fromConfig).c_str()
-		);*/ // TODO: make this message more specific and user readable, for instance refer to dataset and epsg code it encompasses.
-	}
+
+	if (fromGDAL->IsSame(fromConfig))
+		return;
+
+	SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
+	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+
+	if (authority_code_from_gdal == authority_code_from_value_unit)
+		return;
+
+	reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+		, treeitem->GetFullName().c_str()
+		, authority_code_from_gdal.c_str()
+		, authority_code_from_value_unit.c_str()
+	);
 }
 
-void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* uBase)
+auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
 {
+	return {};
+}
+
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* uBase)
+{
+	if (!ogrSR) // dataset spatial reference does not exist, no check possible.
+		return;
+
 	assert(IsMainThread());
 	assert(uBase);
-//	uBase->UpdateMetaInfo();
-
+	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());
+	
 	if (wktPrjStr.empty())
-	{
-		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has no projection", fullName);
 		return;
-	}
+
 	auto spOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
 	if (spOrErr.second != OGRERR_NONE)
 	{
 		auto fullName = SharedStr(uBase->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "BaseProjection %s has projection with error %d", fullName, spOrErr.second);
+		reportF(SeverityTypeID::ST_Warning, "BaseProjection unit %s has projection with error %d", fullName, spOrErr.second);
 	}
 	if (ogrSR)
 	{
 		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
-		CheckCompatibility(&*ogrSR, &spOrErr.first);
+		CheckCompatibility(treeitem, &*ogrSR, &spOrErr.first);
 	}
 	else
 		ogrSR = spOrErr.first;
@@ -628,30 +648,35 @@ struct gdalVersionComponent : AbstrVersionComponent
 
 gdalVersionComponent s_gdalComponent;
 
+#include "proj.h"
+
+#define PROJ_VERSION_STRING "Proj " BOOST_STRINGIZE(PROJ_VERSION_MAJOR) "." BOOST_STRINGIZE(PROJ_VERSION_MINOR) "." BOOST_STRINGIZE(PROJ_VERSION_PATCH)
+VersionComponent s_ProjComponent(PROJ_VERSION_STRING);
+
 // *****************************************************************************
 
 GDALDataType gdalRasterDataType(ValueClassID tid)
 {
 	switch (tid) {
 		//		case Int8: 
-	case VT_Bool:
-	case VT_UInt2:
-	case VT_UInt4:
-	case VT_UInt8:   return GDT_Byte;
-	case VT_UInt16:  return GDT_UInt16;
-	case VT_Int16:   return GDT_Int16;
+	case ValueClassID::VT_Bool:
+	case ValueClassID::VT_UInt2:
+	case ValueClassID::VT_UInt4:
+	case ValueClassID::VT_UInt8:   return GDT_Byte;
+	case ValueClassID::VT_UInt16:  return GDT_UInt16;
+	case ValueClassID::VT_Int16:   return GDT_Int16;
 
-	case VT_UInt32:  return GDT_UInt32;
-	case VT_Int32:   return GDT_Int32;
-	case VT_UInt64:  return GDT_UInt64;
-	case VT_Int64:   return GDT_Int64;
-	case VT_Float32: return GDT_Float32;
-	case VT_Float64: return GDT_Float64;
+	case ValueClassID::VT_UInt32:  return GDT_UInt32;
+	case ValueClassID::VT_Int32:   return GDT_Int32;
+	case ValueClassID::VT_UInt64:  return GDT_UInt64;
+	case ValueClassID::VT_Int64:   return GDT_Int64;
+	case ValueClassID::VT_Float32: return GDT_Float32;
+	case ValueClassID::VT_Float64: return GDT_Float64;
 
-	case VT_SPoint:  return GDT_CInt16;   // Complex Int16
-	case VT_IPoint:  return GDT_CInt32;   // Complex Int32
-	case VT_FPoint:  return GDT_CFloat32; // Complex Float32
-	case VT_DPoint:  return GDT_CFloat64; // Complex Float64
+	case ValueClassID::VT_SPoint:  return GDT_CInt16;   // Complex Int16
+	case ValueClassID::VT_IPoint:  return GDT_CInt32;   // Complex Int32
+	case ValueClassID::VT_FPoint:  return GDT_CFloat32; // Complex Float32
+	case ValueClassID::VT_DPoint:  return GDT_CFloat64; // Complex Float64
 	}
 	return GDT_Unknown;
 }
@@ -818,7 +843,7 @@ CPLStringList GetOptionArray(const TreeItem* optionsItem)
 	if (optionsItem)
 	{ 
 		MG_CHECK(IsDataItem(optionsItem));
-		MG_CHECK(AsDataItem(optionsItem)->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == VT_String);
+		MG_CHECK(AsDataItem(optionsItem)->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String);
 
 		DataReadLock lock(AsDataItem(optionsItem));
 		auto data = const_array_cast<SharedStr>(optionsItem)->GetLockedDataRead();
@@ -934,9 +959,8 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 		{
 			const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
 			auto unit_projection = colDomain->GetProjection();
-			auto factor = unit_projection->Factor();
-			auto offset = unit_projection->Offset();
-			wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
+			if (unit_projection)
+				wktString = unit_projection->GetBaseUnit()->GetNameOrCurrMetric(FormattingFlags::None);
 		}
 
 		if (!wktString.empty())
@@ -1080,7 +1104,6 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::strin
 
 auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
 {
-
 	if (knownDriverShortName == "ESRI Shapefile")
 		RegisterOGRShape();
 
@@ -1148,7 +1171,7 @@ auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> std::st
 
 bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDALDriver* driver)
 {
-	if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
+	if (gdalOpenFlags & GDAL_OF_RASTER)
 	{
 		if (GDALGetMetadataItem(driver, GDAL_DCAP_RASTER, nullptr) == nullptr) // this driver does not support raster
 			return false;
@@ -1219,8 +1242,6 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDALDataType eType = GDT_Unknown;
 	auto optionArray = GetOptionArray(gmi.m_OptionsItem);
 	auto driverArray = GetOptionArray(gmi.m_DriverItem);
-	auto layerOptionArray = GetOptionArray(gmi.m_LayerCreationOptions);
-	//auto configurationOptionsArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions);
 
 	if (!gmi.m_Options.empty())
 		optionArray.AddString(gmi.m_Options.c_str());
@@ -1231,16 +1252,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
 
-	// test configuration options array
-	//const char* CPLParseNameValue(const char* pszNameValue, char** ppszKey)
-	//CPLStringList pszConfigurationOptionsArray;
-	//for (const auto& option : configurationOptionsArray)
-	//	pszConfigurationOptionsArray.AddString(option.c_str());
-
-	//if (pszConfigurationOptionsArray)
-	//	CPLSetConfigOptions(pszConfigurationOptionsArray);
-
-	auto valuesTypeID = VT_Unknown;
+	auto valuesTypeID = ValueClassID::VT_Unknown;
 	auto value_composition = ValueComposition::Unknown;
 	if (IsDataItem(smi.CurrRI()))
 	{
@@ -1269,9 +1281,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nBands = 1;
 			
 			eType = gdalRasterDataType(valuesTypeID);
-			if (valuesTypeID == VT_Bool) optionArray.AddString("NBITS=1");
-			if (valuesTypeID == VT_UInt2) optionArray.AddString("NBITS=2");
-			if (valuesTypeID == VT_UInt4) optionArray.AddString("NBITS=3");
+			if (valuesTypeID == ValueClassID::VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
+			if (valuesTypeID == ValueClassID::VT_UInt2) optionArray.AddString("NBITS=2");
+			if (valuesTypeID == ValueClassID::VT_UInt4) optionArray.AddString("NBITS=3");
 			optionArray.AddString("COMPRESS=LZW");
 			optionArray.AddString("BIGTIFF=IF_SAFER");
 			optionArray.AddString("TFW=YES");
@@ -1345,13 +1357,14 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());//driverArray[0]);
 	if (!driver)
-		throwErrorF("GDAL", "Cannot find driver for %s", driverArray[0]);
+		throwErrorF("GDAL", "Cannot find driver for %s", datasourceName);
 
 	GDALDatasetHandle result = nullptr;
 
  	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
-		driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+		if (std::filesystem::exists(datasourceName.c_str()))
+			driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 		
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
@@ -1359,10 +1372,6 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
 			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driverShortName.c_str(), dms_value_type_token_str.c_str());
 		}
-
-		//osgeo.ogr.GetFieldSubTypeName(OGRFieldSubType type) -> char const*
-		//osgeo.ogr.GetFieldTypeName(OGRFieldType type) -> char const*
-		//poDriver->GetMetadataItem(GDAL_DMD_CREATIONDATATYPES);
 
 		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);		
 		

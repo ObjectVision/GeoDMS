@@ -103,7 +103,7 @@ UInt32 UsingCache::GetNrUsings() const
 }
 const TreeItem* UsingCache::GetUsing(UInt32 i) const
 {
-	dms_assert(m_UsingUrls.empty());
+	assert(m_UsingUrls.empty());
 	MG_PRECONDITION(i < m_Usings.size());
 	return m_Usings[i];
 }

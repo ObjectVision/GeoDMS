@@ -1,33 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ShvDllPch.h"
 
 #include "EditPalette.h"
@@ -116,10 +86,10 @@ Float64 NumericEditControl::GetValue() const
 //----------------------------------------------------------------------
 
 
-const TPoint editPaletteButtonClientSize(DEF_TEXT_PIX_WIDTH*2, DEF_TEXT_PIX_HEIGHT);
+const TPoint editPaletteButtonClientSize = shp2dms_order<TType>(DEF_TEXT_PIX_WIDTH*2, DEF_TEXT_PIX_HEIGHT);
 
 PaletteButton::PaletteButton(MovableObject* owner,const AbstrUnit* paletteDomain)
-	:	TextControl(owner, editPaletteButtonClientSize.x(), editPaletteButtonClientSize.y(),  "")
+	:	TextControl(owner, editPaletteButtonClientSize.X(), editPaletteButtonClientSize.Y(),  "")
 	,	m_PaletteDomain(nullptr)
 {
 	if(paletteDomain)
@@ -173,7 +143,7 @@ void EditPaletteControl::AddBreakColumn(AbstrDataItem* classAttr, const AbstrDat
 }
 SharedStr EditPaletteControl::GetCaption() const
 {
-	return mySSPrintF("PaletteEditor for %s: %s"
+	return mySSPrintF("PaletteEditor for %s (%s)"
 		,	m_ThemeAttr ? m_ThemeAttr->GetDisplayName() : SharedStr()
 		,	m_PaletteControl ? m_PaletteControl->GetCaption() : SharedStr()
 		);
@@ -181,6 +151,8 @@ SharedStr EditPaletteControl::GetCaption() const
 
 bool EditPaletteControl::CanContain(const AbstrDataItem* attr) const
 {
+	return false; // edit palette control can never accept another dataitem
+
 	if (!attr)
 		return false;
 	if (m_PaletteControl)
@@ -206,7 +178,7 @@ void EditPaletteControl::Init()
 	m_txtDomain   ->SetText(SharedStr("Domain:"));
 	m_txtNrClasses->SetText(SharedStr("#Classes"));
 	m_PaletteButton->SetBorder(true);
-	m_numNrClasses     ->SetBorder(true);
+	m_numNrClasses ->SetBorder(true);
 
 	m_Line1->SetBorder(true);
 	m_Line2->SetBorder(true);
@@ -219,47 +191,49 @@ void EditPaletteControl::Init()
 	InsertEntry(m_TableView.get());
 	InsertEntry(m_Line2.get());
 
+/*
 	auto dv = GetDataView().lock();
 	if (dv)
-		SetClientSize(TPoint(dv->ViewRect().Size()));
+		SetClientSize(TPoint(dv->ViewLogicalRect().Size()));
+*/
+
 }
 
-void EditPaletteControl::ProcessSize(TPoint viewClientSize)
+void EditPaletteControl::ProcessSize(CrdPoint viewClientSize)
 {
 	if (!m_PaletteButton)
 		return;
 
-	TRect clientRect = TRect(TPoint(0,0), viewClientSize);
+	auto clientRect = CrdRect(Point<CrdType>(0,0), viewClientSize);
 
-	m_txtDomain        ->MoveTo(TPoint(0, BORDERSIZE));
-	m_PaletteButton->MoveTo(TPoint(BORDERSIZE, 0) + m_txtDomain        ->GetCurrClientRelRect().TopRight()); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
-	m_txtNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_PaletteButton->GetCurrClientRelRect().TopRight());
-	m_numNrClasses     ->MoveTo(TPoint(BORDERSIZE, 0) + m_txtNrClasses     ->GetCurrClientRelRect().TopRight());
-
-
-	clientRect.Top   () += editPaletteButtonClientSize.y() + 3*BORDERSIZE;
-	clientRect.Bottom() -= editPaletteButtonClientSize.y() + 3*BORDERSIZE; 
-
-	MakeMin(clientRect.Bottom(), viewClientSize.y());
-	MakeMin(clientRect.Top   (), clientRect.Bottom());
-
-	if (clientRect.Left () < clientRect.Right()) ++clientRect.Left ();
-	if (clientRect.Left () < clientRect.Right()) --clientRect.Right();
-
-	m_Line1            ->SetClientRect(TRect(clientRect.TopLeft   (), clientRect.TopRight   ()));
-	m_Line2            ->SetClientRect(TRect(clientRect.BottomLeft(), clientRect.BottomRight()));
-
-	clientRect.Top   () += BORDERSIZE;
-	clientRect.Bottom() -= BORDERSIZE; 
+	m_txtDomain    ->MoveTo(shp2dms_order<CrdType>(0, BORDERSIZE));
+	m_PaletteButton->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_txtDomain    ->GetCurrClientRelLogicalRect())); m_PaletteButton->SetClientSize(editPaletteButtonClientSize);
+	m_txtNrClasses ->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_PaletteButton->GetCurrClientRelLogicalRect()));
+	m_numNrClasses ->MoveTo(shp2dms_order<CrdType>(BORDERSIZE, 0) + TopRight(m_txtNrClasses ->GetCurrClientRelLogicalRect()));
 
 
-	MakeMin(clientRect.Bottom(), viewClientSize.y());
-	MakeMin(clientRect.Top   (), clientRect.Bottom());
+	clientRect.first .Y() += editPaletteButtonClientSize.Y() + 3*BORDERSIZE;
+	clientRect.second.Y() -= editPaletteButtonClientSize.Y() + 3*BORDERSIZE; 
 
-	if (clientRect.Left () > 0                 ) --clientRect.Left ();
-	if (clientRect.Right() < viewClientSize.x()) ++clientRect.Right();
+	MakeMin(clientRect.second.Y(), viewClientSize.Y());
+	MakeMin(clientRect.first.Y(), clientRect.second.Y());
 
-	m_TableView       ->SetClientRect(clientRect);
+	if (clientRect.first.X() < clientRect.second.X()) ++clientRect.first .X();
+	if (clientRect.first.X() < clientRect.second.X()) --clientRect.second.X();
+
+	m_Line1->SetClientRect(CrdRect(TopLeft   (clientRect), TopRight   (clientRect)));
+	m_Line2->SetClientRect(CrdRect(BottomLeft(clientRect), BottomRight(clientRect)));
+
+	clientRect.first.Y() += BORDERSIZE;
+	clientRect.second.Y() -= BORDERSIZE;
+
+	MakeMin(clientRect.second.Y(), viewClientSize.Y());
+	MakeMin(clientRect.first .Y(), clientRect.second.Y());
+
+	if (clientRect.first .X() > 0                 ) --clientRect.first.X();
+	if (clientRect.second.X() < viewClientSize.X()) ++clientRect.second.X();
+
+	m_TableView->SetClientRect(clientRect);
 }
 
 void EditPaletteControl::DoUpdateView() 
@@ -367,13 +341,13 @@ void EditPaletteControl::ClassMerge()
 	UpdateNrClasses();
 }
 
-TPoint EditPaletteControl::CalcMaxSize() const
+CrdPoint EditPaletteControl::CalcMaxSize() const
 {
-	TPoint buttonSize    = ConcatHorizontal(m_txtDomain   ->CalcMaxSize(), m_PaletteButton->CalcMaxSize());
-	TPoint nrClassesSize = ConcatHorizontal(m_txtNrClasses->CalcMaxSize(), m_numNrClasses     ->CalcMaxSize());
+	CrdPoint buttonSize    = ConcatHorizontal(m_txtDomain   ->CalcMaxSize(), m_PaletteButton->CalcMaxSize());
+	CrdPoint nrClassesSize = ConcatHorizontal(m_txtNrClasses->CalcMaxSize(), m_numNrClasses     ->CalcMaxSize());
 	buttonSize = ConcatHorizontal(buttonSize, nrClassesSize);
-	buttonSize.y() *= 2;
-	buttonSize.y() += 4*BORDERSIZE;
+	buttonSize.Y() *= 2;
+	buttonSize.Y() += 4*BORDERSIZE;
 	return ConcatVertical(
 		buttonSize,
 		m_TableView->CalcMaxSize()
@@ -463,8 +437,8 @@ void EditPaletteControl::ClassifyEqualInterval()
 	}
 
 	AbstrDataItem* breakAttr = const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr());
-	dms_assert(breakAttr);
-	dms_assert(breakAttr->HasInterest());
+	assert(breakAttr);
+	assert(breakAttr->HasInterest());
 
 	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
 
@@ -630,8 +604,15 @@ void EditPaletteControl::UpdateNrClasses()
 		return;
 
 	const AbstrUnit* domain = GetDomain();
-	if (domain && IsDataReady(domain->GetUltimateItem()))
-		m_numNrClasses->SetValue( domain->GetCount() );
+	if (!domain)
+		return;
+	if (!PrepareDataOrUpdateViewLater(domain))
+		return;
+	assert(IsDataReady(domain->GetUltimateItem()) || domain->WasFailed() || domain->GetUltimateItem()->WasFailed());
+	if (!IsDataReady(domain->GetUltimateItem()))
+		return;
+
+	m_numNrClasses->SetValue( domain->GetCount() );
 }
 
 const AbstrUnit* EditPaletteControl::GetDomain() const

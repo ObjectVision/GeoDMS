@@ -143,15 +143,17 @@ int main2(int argc, char** argv)
 }
 
 
-void DMS_CONV logMsg(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData)
 {
-	dms_assert(clientHandle == nullptr);
-	if (st < SeverityTypeID::ST_MajorTrace)
+	assert(msgData);
+	assert(clientHandle == nullptr);
+	if (msgData->m_SeverityType < SeverityTypeID::ST_MajorTrace)
 		return;
 
-	if (msgCat != MsgCategory::nonspecific)
+	auto msgCat = msgData->m_MsgCategory;
+	if (msgCat != MsgCategory::other)
 		std::cout << AsString(msgCat);
-	std::cout << msg << std::endl;
+	std::cout << msgData->m_Txt << std::endl;
 }
 
 void DMS_CONV reportMsg(CharPtr msg)
@@ -159,29 +161,43 @@ void DMS_CONV reportMsg(CharPtr msg)
 	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
 
+struct installLogMsg
+{
+	installLogMsg()
+	{
+		DMS_RegisterMsgCallback(logMsg, nullptr);
+
+	}
+	~installLogMsg()
+	{
+		ReportFixedAllocFinalSummary();
+		DMS_ReleaseMsgCallback(logMsg, nullptr);
+	}
+};
+
 int main_without_se(int argc, char** argv)
 {
 	DMS_CALL_BEGIN
-		DMS_RegisterMsgCallback(logMsg, nullptr);
+		installLogMsg msgCallbackHandle;
 
-	auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
+		auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
 
-	if (argc > 0)
-		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
+		if (argc > 0)
+			DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
 
-	DBG_START("Main", "", true);
-	SuspendTrigger::FencedBlocker lockSuspend;
-	--argc; ++argv;
-	CharPtr firstParam = argv[0];
-	if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
-	{
-		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+		DBG_START("Main", "", true);
+		SuspendTrigger::FencedBlocker lockSuspend;
+		--argc; ++argv;
+		CharPtr firstParam = argv[0];
+		if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+		{
+			SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
 
-		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
-		SetCachedStatusFlag(RSF_TraceLogFile);
-		return main2(argc - 1, argv + 1);
-	}
-	return main2(argc, argv);
+			CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
+			SetCachedStatusFlag(RSF_TraceLogFile);
+			return main2(argc - 1, argv + 1);
+		}
+		return main2(argc, argv);
 
 	DMS_CALL_END
 	return 2;

@@ -38,20 +38,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct Timer
 {
-	Timer()
-	{
-		time_t t;
-		time(&t);
-//		begin_time = t;
-		last_time = t; // begin_time;
-	}
 	bool PassedSecs(time_t nrSecs)
 	{
-		time_t curr_time;
-		time(&curr_time);
+		time_t curr_time = time(nullptr);
 //		time_t delta_time = curr_time - begin_time;
 //		MakeMax(nrSecs, delta_time / 5);
-		MakeMin(nrSecs, 600);
+		MakeMin<time_t>(nrSecs, 600);
 
 		if (curr_time < last_time + nrSecs)
 			return false;
@@ -62,9 +54,9 @@ struct Timer
 		return curr_time >= old_time + nrSecs;
 	}
 
-private:
+
 //	time_t begin_time;
-	std::atomic<time_t> last_time;
+	std::atomic<time_t> last_time = time(nullptr);
 };
 
 #endif // __RTC_DBG_TIMER_H

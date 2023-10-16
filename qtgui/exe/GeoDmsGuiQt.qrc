@@ -4,8 +4,6 @@
         <file>res/images/print.png</file>
         <file>res/images/save.png</file>
         <file>res/images/undo.png</file>
-        <file>res/images/GeoDmsGui-0.png</file>
-        <file>res/images/default.txt</file>
         <file>res/images/DP_properties.bmp</file>
         <file>res/images/DP_explore.bmp</file>
         <file>res/images/DP_configuration.bmp</file>
@@ -69,5 +67,15 @@
         <file>res/images/TV_palette_bw.bmp</file>
         <file>res/images/TV_table_bw.bmp</file>
         <file>res/images/TV_unit_transparant_bw.bmp</file>
+        <file>res/images/DP_history.bmp</file>
+        <file>res/images/arrow_down.png</file>
+        <file>res/images/EL_selection.bmp</file>
+        <file>res/images/GeoDmsGuiQt.png</file>
+        <file>res/images/TV_storage_unstored.png</file>
+        <file>res/fonts/remixicon.ttf</file>
+        <file>res/images/IconCalculationTimeOverview.png</file>
+        <file>res/images/TV_default_view.bmp</file>
+        <file>res/images/ConfigFileList.png</file>
+        <file>res/images/ruralriver.jpg</file>
     </qresource>
 </RCC>

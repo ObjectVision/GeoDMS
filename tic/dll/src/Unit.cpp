@@ -54,9 +54,9 @@ namespace {
 		dms_assert(self->GetNrDimensions() == 2);
 		dms_assert(dimNr < 2);
 		if (!dimNr)
-			return _Height(self->GetRange());// case 0
+			return Height(self->GetRange());// case 0
 		else 
-			return _Width(self->GetRange()); // case 1
+			return Width(self->GetRange()); // case 1
 	}
 
 } // end anonymous namespace
@@ -549,7 +549,8 @@ bool RangedUnit<V>::PrepareRange() const
 	if (!this->PrepareDataUsage(DrlType::Suspendible))
 		return false;
 
-	return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
+	return true; // TODO: substitute out PrepareRange()
+	//return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
 }
 
 template <class V>
@@ -1050,10 +1051,9 @@ bool CountableUnitBase<V>::IsCurrTiled() const
 }
 
 template <typename V>
-auto CountableUnitBase<V>::GetTiledRangeData() const -> const AbstrTileRangeData* 
+auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData>
 { 
-//	dms_assert(this->m_RangeDataPtr);
-	return this->m_RangeDataPtr;
+	return this->m_RangeDataPtr.get();
 }
 
 template <typename V>
@@ -1240,10 +1240,10 @@ namespace {
 		IrregularTileRangeData<V>* itr = nullptr;
 	};
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitRangeProps(false);
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, RangeProp<_>, bool > unitCatRangeProps(true);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitRangeProps(false);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitCatRangeProps(true);
 
-	tl_oper::inst_tuple<typelists::tiled_domain_elements, TiledUnitInstantiator<_> > tui;
+	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledUnitInstantiator > tui;
 }
 
 // Explicit Template Instantiation; TODO G8: Why?

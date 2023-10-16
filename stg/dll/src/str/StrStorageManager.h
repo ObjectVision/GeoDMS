@@ -41,7 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "StgBase.h"
 
 // storagemanager for saving string info
-class StrStorageManager : public AbstrStorageManager
+class StrStorageManager : public NonmappableStorageManager
 {
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 

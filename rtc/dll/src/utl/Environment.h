@@ -89,31 +89,42 @@ RTC_CALL void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char de
 
 enum RegStatusFlags
 {
-// flags only used in GeoDmsClient.exe
-	RSF_AdminMode       =  1,
-	RSF_SuspendForGUI   =  2,
-	RSF_ShowStateColors =  4,
-	RSF_TraceLogFile    =  8,
+	// flags only used in GeoDmsClient.exe
+	RSF_AdminMode = 1,
+	RSF_SuspendForGUI = 2,
+	RSF_ShowStateColors = 4,
+	RSF_TraceLogFile = 8,
 
-	RSF_TreeViewVisible =  16,
-	RSF_DetailsVisible  =  32,
-	RSF_EventLogVisible =  64,
-	RSF_ToolBarVisible  = 128,
-	RSF_CurrentItemBarHidden = 2048,
+	RSF_TreeViewVisible = 16,
+	RSF_DetailsVisible = 32,
+	RSF_EventLogVisible = 64,
+	RSF_ToolBarVisible = 128,
+	RSF_CurrentItemBarHidden = 0x800,
 	RSF_AllPanelsVisible = RSF_TreeViewVisible + RSF_DetailsVisible + RSF_EventLogVisible + RSF_ToolBarVisible,
 
-	RSF_DynamicROI           = 4096,
+	RSF_DynamicROI = 0x1000,
 
-//  Flags really in use by the GeoDMS C++ Engine
-	RSF_MultiThreading1 = 256,
-//	RSF_MultiThreading2 = 512,
-	RSF_MultiThreading2 = 1024,
-	RSF_MultiThreading3 = 8192,
+	//  Flags really in use by the GeoDMS C++ Engine
+	RSF_MultiThreading0 = RSF_SuspendForGUI,
+	RSF_MultiThreading1 = 0x100,
+	//	RSF_MultiThreading2 = 0x200,
+	RSF_MultiThreading2 = 0x400,
+	RSF_MultiThreading3 = 0x2000,
 	RSF_AllMultiThreading = RSF_SuspendForGUI | RSF_MultiThreading1 | RSF_MultiThreading2 | RSF_MultiThreading3,
 
-	RSF_ShowThousandSeparator = 16384,
-	RSF_WasRead         = 0x80000000,
-	RSF_Default         = RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
+	RSF_ShowThousandSeparator = 0x4000,
+
+	RSF_EventLog_ShowDateTime = 0x8000,
+	RSF_EventLog_ShowThreadID = 0x10000,
+	RSF_EventLog_ShowCategory = 0x20000,
+	RSF_EventLog_ShowAnyExtra = RSF_EventLog_ShowDateTime | RSF_EventLog_ShowThreadID | RSF_EventLog_ShowCategory,
+
+	RSF_EventLog_ClearOnLoad = 0x40000,
+	RSF_EventLog_ClearOnReLoad = 0x80000,
+
+	RSF_WasRead = 0x80000000,
+	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
+		| RSF_EventLog_ClearOnLoad | RSF_EventLog_ShowDateTime | RSF_EventLog_ShowCategory,
 };
 
 RTC_CALL UInt32 GetRegStatusFlags();
@@ -130,9 +141,9 @@ enum class RegDWordEnum
 	SwapFileMinSize   = 1,
 };
 
-extern "C" RTC_CALL UInt32 DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
-extern "C" RTC_CALL void   DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
-extern "C" RTC_CALL bool   DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
+extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
+extern "C" RTC_CALL void  DMS_CONV RTC_SetCachedDWord(RegDWordEnum i, DWORD dw);
+extern "C" RTC_CALL bool  DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
 
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 
@@ -167,7 +178,7 @@ private:
 
 using start_process_result_t = std::pair<HANDLE, HANDLE>;
 
-RTC_CALL SharedStr AsDateTimeString(const FileDateTime& t);
+RTC_CALL SharedStr AsDateTimeString(FileDateTime t);
 RTC_CALL SharedStr GetCurrentTimeStr();
 RTC_CALL SharedStr GetSessionStartTimeStr();
 
@@ -188,6 +199,7 @@ RTC_CALL bool   IsFileOrDirAccessible(WeakStr fileOrDirName);
 RTC_CALL bool   IsFileOrDirWritable(WeakStr fileOrDirName);
 RTC_CALL void   GetWritePermission(WeakStr fileName);
 RTC_CALL FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName);
+RTC_CALL auto   GetFileOrDirDateTimeAsReadableString(WeakStr fileOrDirName) -> SharedStr;
 RTC_CALL void   MakeDirsForFile(WeakStr fileName);
 RTC_CALL start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine = nullptr);
 RTC_CALL DWORD  ExecuteChildProcess(CharPtr moduleName, Char* cmdLine);

@@ -84,8 +84,8 @@ public:
 			auto inputVec   = inputGrid->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
-			assert(_Left(rect) < _Right (rect));
-			assert(_Top (rect) < _Bottom(rect));
+			assert(Left(rect) < Right (rect));
+			assert(Top (rect) < Bottom(rect));
 			assert(inputVec .size() == Cardinality(rect));
 
 
@@ -101,8 +101,8 @@ public:
 			auto outputVec = mutable_array_checkedcast<count_type>(resLock)->GetDataWrite();
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
-			Int32 e = _Width(rect), pe = e-1;
-			for (Int32 j = 0, f = _Height(rect), pf = f-1; j != f; ++j)
+			Int32 e = Width(rect), pe = e-1;
+			for (Int32 j = 0, f = Height(rect), pf = f-1; j != f; ++j)
 				for (Int32 i = 0; i != e; ++pos, ++i)
 				{
 					T v = inputVec[pos];
@@ -195,8 +195,8 @@ public:
 				westVec  = const_array_cast<R>(args[4])->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
-			dms_assert(_Left(rect) < _Right (rect));
-			dms_assert(_Top (rect) < _Bottom(rect));
+			dms_assert(Left(rect) < Right (rect));
+			dms_assert(Top (rect) < Bottom(rect));
 			dms_assert(inputVec .size() == Cardinality(rect));
 
 			const Unit<R>* resultUnit = debug_cast<const Unit<R>*>(resUnit);
@@ -206,8 +206,8 @@ public:
 			auto outputVec = mutable_array_checkedcast<R>(resLock)->GetDataWrite();
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
-			Int32 e = _Width(rect), pe = e-1;
-			for (Int32 j = 0, f = _Height(rect), pf = f-1; j != f; ++j)
+			Int32 e = Width(rect), pe = e-1;
+			for (Int32 j = 0, f = Height(rect), pf = f-1; j != f; ++j)
 				for (Int32 i = 0; i != e; ++pos, ++i)
 				{
 					T v = inputVec[pos];
@@ -244,7 +244,7 @@ struct PerimeterOperators : PerimeterOperator<T>
 
 namespace
 {
-	tl_oper::inst_tuple<typelists::domain_ints, PerimeterOperators<_>> perimeterOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_ints, PerimeterOperators> perimeterOpers;
 }
 
 /******************************************************************************/

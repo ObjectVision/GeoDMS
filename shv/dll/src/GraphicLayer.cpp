@@ -169,14 +169,15 @@ SharedStr GraphicLayer::GetCaption() const
 
 	const AbstrUnit* domain = GetActiveEntity();
 	if (!domain)
-		return mgFormat2SharedStr("MapView %s", GetThemeDisplayName(this));
+		return mgFormat2SharedStr("%s", GetThemeDisplayName(this)); // Map View 
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
+
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("active layer: %s with %s %s rows"
+	return mgFormat2SharedStr("Active layer: %s (#%s = %s)"
 		, GetThemeDisplayName(this)
-		, AsString(nrRecs, FormattingFlags::ThousandSeparator)
 		, domainName
+		, IsDefined(nrRecs) ? AsString(nrRecs, FormattingFlags::ThousandSeparator).c_str() : "..."
 	);
 }
 
@@ -401,7 +402,7 @@ TokenID GraphicLayer::GetID() const
 
 bool GraphicLayer::VisibleLevel(GraphDrawer& d) const
 {
-	Float64 currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
+	auto currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
 	return VisibleLevel(currNrPixelsPerUnit);
 }
 

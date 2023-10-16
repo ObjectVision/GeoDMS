@@ -638,10 +638,10 @@ struct Poly2GridOperator : public BinaryOperator
 		typedef std::vector<CrdPoint> PolygonType;
 		typedef DataArray<PolygonType> PolygonDataType;
 
-		tl_oper::inst_tuple<typelists::domain_points, DomainInst<_>, const DataItemClass*> m_AllDomainsInst = PolygonDataType::GetStaticClass();
+		tl_oper::inst_tuple_templ<typelists::domain_points, DomainInst, const DataItemClass*> m_AllDomainsInst = PolygonDataType::GetStaticClass();
 	};
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::seq_points, Poly2gridOperators<_>> operInstances;
+	tl_oper::inst_tuple_templ<typelists::seq_points, Poly2gridOperators> operInstances;
 }

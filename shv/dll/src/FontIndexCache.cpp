@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -130,7 +105,7 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 	assert( nrPixelsPerWorldUnit > 0.0);
 	assert( subPixelFactor       > 0.0);
 
-	Float64 nrPointsPerPixel = (72.0 / 96.0) * subPixelFactor;
+	Float64 nrPointsPerPixel = /*(72.0 / 96.0) * */ subPixelFactor;
 	assert(nrPointsPerPixel     > 0.0);
 
 	if	((!IsDifferent(nrPixelsPerWorldUnit, subPixelFactor)) && m_LastNrPointsPerPixel == nrPointsPerPixel) // maybe we now render for a different Device (such as Printer)
@@ -176,7 +151,7 @@ void FontIndexCache::UpdateForZoomLevel(Float64 nrPixelsPerWorldUnit, Float64 su
 void FontIndexCache::AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const AbstrThemeValueGetter* worldSizeValueGetter, const AbstrThemeValueGetter* nameValueGetter, const AbstrThemeValueGetter* angleValueGetter, UInt32 n) const
 {
 	TokenID fontNameID = m_DefaultFontNameId;
-	Float64 fontSize   = m_DefaultPixelWidth, 
+	Float64 fontSize   = m_DefaultPixelWidth, // does scale with monitor dependent scale factor
 			worldSize  = m_DefaultWorldWidth;
 	UInt16  angle      = m_DefaultFontAngle;
 
@@ -186,7 +161,7 @@ void FontIndexCache::AddKeys(const AbstrThemeValueGetter* sizeValueGetter, const
 	for (UInt32 i = 0; i != n; ++i)
 	{
 		if (sizeValueGetter)
-			fontSize  = sizeValueGetter->GetNumericValue(i);
+			fontSize = sizeValueGetter->GetNumericValue(i) * m_LastSubPixelFactor;
 		if (worldSizeValueGetter)
 			worldSize  = worldSizeValueGetter->GetNumericValue(i);
 		if (nameValueGetter)
@@ -207,27 +182,20 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 {
 	if (IsDefined(fontNameID) && IsDefined(fontSize) && IsDefined(worldSize) && IsDefined(angle))
 	{
-		dms_assert(fontSize >= 0.0);
-		dms_assert(worldSize >= 0.0);
+		assert(fontSize >= 0.0);
+		assert(worldSize >= 0.0);
 
-		dms_assert(m_LastNrPointsPerPixel     >= 0);
-		dms_assert(m_LastNrPixelsPerWorldUnit >= 0);
+		assert(m_LastNrPointsPerPixel     >= 0); // does scale with monitor dependent scale factor
+		assert(m_LastNrPixelsPerWorldUnit >= 0);
 
-		Int32 totalFontSize = Round<4>( m_LastNrPointsPerPixel * (fontSize + m_LastNrPixelsPerWorldUnit* worldSize) );
-		dms_assert(totalFontSize >= 0);
+		Int32 totalFontSize = Round<4>(m_LastNrPointsPerPixel * fontSize + m_LastNrPixelsPerWorldUnit * worldSize);
 		if (totalFontSize == 0)  // avoid multiple versions of hidden font.
 		{
 			fontNameID = TokenID::GetEmptyID();
 			angle = 0;
 		}
 
-		m_Keys.push_back(
-			FontKeyType(
-				totalFontSize,
-				fontNameID,
-				angle
-			)
-		);
+		m_Keys.emplace_back(totalFontSize, fontNameID, angle);
 	}
 	else
 		AddUndefinedKey();
@@ -235,7 +203,7 @@ void FontIndexCache::AddKey(Float64 fontSize, Float64 worldSize, TokenID fontNam
 
 void FontIndexCache::AddUndefinedKey() const
 {
-	m_Keys.push_back( FontKeyType(0, TokenID::GetEmptyID(), 0) ); // Extra Font for features with Undefined ClassId
+	m_Keys.emplace_back(0, TokenID::GetEmptyID(), 0); // Extra Font for features with Undefined ClassId
 }
 
 Int32 FontIndexCache::GetMaxFontSize() const
@@ -280,6 +248,8 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 	for (auto i = indexCache->m_Keys.begin(), e = indexCache->m_Keys.end(); i!=e; ++i)
 	{
 		Int32  fontSize  = i->get<0>();
+		i->get<0>();
+		
 		if (fontSize == 0)
 			m_FontArray.push_back( GdiHandle<HFONT>() ); // add handle without resource
 		else
@@ -294,8 +264,9 @@ FontArray::FontArray(const FontIndexCache* indexCache, bool sizesAreCellHeights)
 		   	fontInfo.lfEscapement    = fontAngle;
 		   	fontInfo.lfOrientation   = fontAngle;
 
-			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)		
-			m_FontArray.push_back( GdiHandle<HFONT>( CreateFontIndirect(&fontInfo) ) );
+			//	CreatePointFont(UInt32(fontSize) * 10, fontName, NULL)
+			auto font = CreateFontIndirect(&fontInfo);
+			m_FontArray.push_back(GdiHandle<HFONT>(font));// CreateFontIndirect(&fontInfo) ) );
 		}
 	}
 	dms_assert(size() > 0);

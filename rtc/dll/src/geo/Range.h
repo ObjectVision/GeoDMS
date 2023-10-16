@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_RANGE_H)
@@ -180,21 +156,21 @@ Range<T> operator &(Range<T> a, Range<T> b)
 	return a;
 }
 
-template <typename T, typename U> inline
-void operator |= (Range<T>& a, Range<U> b)
+template <typename T, std::convertible_to<T> U> inline
+void operator |= (Range<T>& a, const Range<U>& b)
 {
 	MakeLowerBound(a.first,  Convert<T>(b.first));
 	MakeUpperBound(a.second, Convert<T>(b.second));
 }
 
-template <typename T, typename U> inline
-Range<T> operator |(Range<T> a, Range<U> b)
+template <typename T, std::convertible_to<T> U> inline
+Range<T> operator |(Range<T> a, const Range<U>& b)
 {
 	a |= b;
 	return a;
 }
 
-template <typename T, typename U> inline
+template <typename T, std::convertible_to<T> U> inline
 void operator |= (Range<T>& a, U b)
 {
 	MakeLowerBound(a.first,  Convert<T>(b));
@@ -367,11 +343,16 @@ Range<T> Deflate(Range<T> r, T p) { return Range<T>(r.first+p, r.second-p); }
 template <class T> inline
 Range<T> Inflate(T center, T radius) { return Range<T>(center-radius, center+radius); }
 
-template <class T> inline T _Left  (Range<Point<T> > r) { return r.first .Col(); }
-template <class T> inline T _Top   (Range<Point<T> > r) { return r.first .Row(); }
-template <class T> inline T _Right (Range<Point<T> > r) { return r.second.Col(); }
-template <class T> inline T _Bottom(Range<Point<T> > r) { return r.second.Row(); }
-template <class T> inline T _Width (Range<Point<T> > r) { return _Right (r) - _Left(r); }
-template <class T> inline T _Height(Range<Point<T> > r) { return _Bottom(r) - _Top (r); }
+template <class T> inline T Left  (Range<Point<T> > r) { return r.first .Col(); }
+template <class T> inline T Top   (Range<Point<T> > r) { return r.first .Row(); }
+template <class T> inline T Right (Range<Point<T> > r) { return r.second.Col(); }
+template <class T> inline T Bottom(Range<Point<T> > r) { return r.second.Row(); }
+template <class T> inline T Width (Range<Point<T> > r) { return Right (r) - Left(r); }
+template <class T> inline T Height(Range<Point<T> > r) { return Bottom(r) - Top (r); }
+
+template <class T> inline Point<T> TopLeft(Range<Point<T> > r) { return r.first;  }
+template <class T> inline Point<T> BottomRight(Range<Point<T> > r) { return r.second; }
+template <class T> inline Point<T> TopRight(Range<Point<T> > r) { return shp2dms_order(r.second.X(), r.first.Y()); }
+template <class T> inline Point<T> BottomLeft(Range<Point<T> > r) { return shp2dms_order(r.first.X(), r.second.Y()); }
 
 #endif // __RTC_GEO_RANGE_H

@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__TIC_ABSTRUNIT_H)
@@ -110,7 +86,7 @@ public:
 	virtual bool IsCurrTiled() const { return false; }
 
 	virtual bool HasTiledRangeData() const = 0;
-	virtual const AbstrTileRangeData* GetTiledRangeData() const;
+	virtual SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 	TIC_CALL bool HasVarRangeData() const;
 	TIC_CALL void SetSpatialReference(TokenID format);
 
@@ -243,16 +219,21 @@ private:
 
 #include "dbg/DebugCast.h"
 
+template <typename T> inline bool             IsUnit(const T* self) { return AsDynamicUnit(self) != 0; }
+template <typename T> inline const AbstrUnit* AsUnit(const T* self) { return debug_cast  <const AbstrUnit*>(self); }
+template <typename T> inline       AbstrUnit* AsUnit(T* self) { return debug_cast  <AbstrUnit*>(self); }
 template <typename T> inline const AbstrUnit* AsDynamicUnit(const T* self) { return dynamic_cast<const AbstrUnit*>(self); }
 template <typename T> inline       AbstrUnit* AsDynamicUnit(      T* self) { return dynamic_cast<      AbstrUnit*>(self); }
 template <typename T> inline const AbstrUnit* AsCheckedUnit(const T* self) { return checked_cast<const AbstrUnit*>(self); }
 template <typename T> inline       AbstrUnit* AsCheckedUnit(      T* self) { return checked_cast<      AbstrUnit*>(self); }
 template <typename T> inline const AbstrUnit* AsCertainUnit(const T* self) { return checked_valcast<const AbstrUnit*>(self); }
 template <typename T> inline       AbstrUnit* AsCertainUnit(      T* self) { return checked_valcast<      AbstrUnit*>(self); }
-template <typename T> inline const AbstrUnit* AsUnit       (const T* self) { return debug_cast  <const AbstrUnit*>(self); }
-template <typename T> inline       AbstrUnit* AsUnit       (      T* self) { return debug_cast  <      AbstrUnit*>(self); }
-template <typename T> inline bool             IsUnit       (const T* self) { return AsDynamicUnit(self) != 0;             }
 
+template <typename T> inline bool IsUnit(const SharedPtr<T>& self) { return IsUnit(self.get()); }
+template <typename T> inline auto AsUnit(const SharedPtr<T>& self) { return MakeShared(AsUnit(self.get())); }
+template <typename T> inline auto AsDynamicUnit(const SharedPtr<T>& self) { return MakeShared(AsDynamicUnit(self.get())); }
+template <typename T> inline auto AsCheckedUnit(const SharedPtr<T>& self) { return MakeShared(AsCheckedUnit(self.get())); }
+template <typename T> inline auto AsCertainUnit(const SharedPtr<T>& self) { return MakeShared(AsCertainUnit(self.get())); }
 
 
 #endif // !defined(__TIC_ABSTRUNIT_H)

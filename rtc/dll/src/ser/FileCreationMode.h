@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 // dms_rw_mode
 //----------------------------------------------------------------------
 
-enum class dms_rw_mode
+enum class dms_rw_mode : Int8
 {
 	read_only  = 0,
 	read_write = 1,      // must keep existing data 
@@ -51,7 +51,7 @@ inline bool dms_must_keep(dms_rw_mode rwMode) { return rwMode == dms_rw_mode::re
 // enumeration type for File Handling as required by SafeFileWriter, FileHandle and FileMapHandle
 //----------------------------------------------------------------------
 
-enum FileCreationMode
+enum FileCreationMode : UInt8
 {
 	FCM_Undefined,
 	FCM_CreateNew,

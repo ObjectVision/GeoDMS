@@ -29,13 +29,13 @@ public:
 	void SetTableControl(TableControl* tableControl);
 
 protected: // override GraphicObject virtuals
-	void ProcessSize(TPoint newSize) override;
+	void ProcessSize(CrdPoint newSize) override;
 
 public:
 	void Sync(TreeItem* context, ShvSyncMode sm) override;
 
 public:
-	TPoint CalcMaxSize() const override;
+	CrdPoint CalcMaxSize() const override;
 	bool OnCommand(ToolButtonID id) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
 

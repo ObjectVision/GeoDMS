@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -52,11 +27,6 @@ inline void LineTo(HDC dc, GPoint p)
 {
 	LineTo  (dc, p.x, p.y);
 }
-
-AbstrCaret::AbstrCaret()
-	:	m_StartPoint( UNDEFINED_VALUE(GPoint) )
-	,	m_UsedObject(0)
-{}
 
 void AbstrCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
 {
@@ -284,18 +254,18 @@ void RectCaret::GetRgn(Region& rgn, HDC dc) const
 // class  : MovableRectCaret
 //----------------------------------------------------------------------
 
-MovableRectCaret::MovableRectCaret(const TRect& objRect)
+MovableRectCaret::MovableRectCaret(GRect objRect)
 	:	m_ObjRect(objRect)
 {
 	if (m_ObjRect.Width() > 4 && m_ObjRect.Height() > 4)
-		m_SubRect = TRect(m_ObjRect.Left()+2, m_ObjRect.Top()+2, m_ObjRect.Right()-2, m_ObjRect.Bottom()-2);
+		m_SubRect = GRect(m_ObjRect.Left()+2, m_ObjRect.Top()+2, m_ObjRect.Right()-2, m_ObjRect.Bottom()-2);
 }
 
 void MovableRectCaret::GetRgn(Region& rgn, HDC dc) const
 {
 	if (m_StartPoint != m_EndPoint)
 	{
-		TPoint diff = TPoint(m_EndPoint) - TPoint(m_StartPoint);
+		GPoint diff = GPoint(m_EndPoint) - GPoint(m_StartPoint);
 		rgn = Region(dc, m_ObjRect + diff );
 		if (!m_SubRect.empty())
 			rgn ^= Region(dc, m_SubRect + diff );
@@ -309,7 +279,7 @@ void MovableRectCaret::GetRgn(Region& rgn, HDC dc) const
 #include "MovableObject.h"
 
 BoundaryCaret::BoundaryCaret(MovableObject* obj)
-	:	MovableRectCaret(obj->GetCurrClientAbsRect())
+	:	MovableRectCaret(CrdRect2GRect(obj->GetCurrClientAbsDeviceRect()))
 {}
 
 //----------------------------------------------------------------------
@@ -327,17 +297,23 @@ void RoiCaret::GetRgn(Region& rgn, HDC dc) const
 
 	if (m_StartPoint != m_EndPoint)
 	{
-		const ViewPort* view = debug_cast<const ViewPort*>(m_UsedObject);
-		CrdRect vp  = CrdRect(CrdPoint(0, 0), Convert<CrdPoint>(view->GetCurrClientSize()));
-		CrdRect dvp = 
-			CrdTransformation(
-				Convert<CrdRect>(GRect(m_StartPoint, m_EndPoint)), 
-				vp, OrientationType::Default
-			).Reverse(vp);
+		const ViewPort* vp = dynamic_cast<const ViewPort*>(m_UsedObject);
+		MG_CHECK(vp);
 
-		SRect viewPortRect = Inflate(Convert<SRect>(dvp),SPoint(1, 1));
+		auto rubberBandDRect = DRect(shp2dms_order(m_StartPoint.x, m_StartPoint.y), shp2dms_order(m_EndPoint.x, m_EndPoint.y));
 
-		rgn ^= Region(Convert<GRect>(viewPortRect) );
+		auto sf = GetWindowDip2PixFactors(WindowFromDC(dc));
+
+		auto vpLogicalSize  = CrdRect(CrdPoint(0, 0), Convert<CrdPoint>(vp->GetCurrClientSize()));
+		auto vpDeviceSize = DRect2GRect(vpLogicalSize, CrdTransformation(CrdPoint(0.0, 0.0), sf));
+		auto vpDeviceSizeAsDRect = DRect(shp2dms_order(vpDeviceSize.left, vpDeviceSize.top), shp2dms_order(vpDeviceSize.right, vpDeviceSize.bottom));
+
+		auto rb2vTr = CrdTransformation(rubberBandDRect, vpLogicalSize, OrientationType::Default);
+		auto dvp = rb2vTr.Reverse(vpLogicalSize);
+		auto viewPortTRect = Inflate<TPoint>(Convert<TRect>(dvp), Point<TType>(1, 1));
+		auto viewPortGRect = TRect2GRect(viewPortTRect, CrdPoint(1.0, 1.0));
+
+		rgn ^= Region(viewPortGRect);
 	}
 }
 
@@ -345,20 +321,16 @@ void RoiCaret::GetRgn(Region& rgn, HDC dc) const
 // class  : CircleCaret
 //----------------------------------------------------------------------
 
-CrdType CircleCaret::Radius() const
+GType CircleCaret::Radius() const
 {
-	return sqrt( 
-		SqrDist<CrdType>(
-			Convert<CrdPoint>(m_EndPoint  ), 
-			Convert<CrdPoint>(m_StartPoint)
-		)
-	);
+	auto sqrDist = SqrDist<GType>(m_EndPoint, m_StartPoint);
+	return sqrt(sqrDist);
 }
 
 // override InvertRgnCaret interface
 void CircleCaret::GetRgn(Region& rgn, HDC dc) const
 {
-	UInt32 radius = Radius();
+	auto radius = Radius();
 
 	rgn = 
 		Region(

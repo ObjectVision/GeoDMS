@@ -83,7 +83,6 @@ struct CopyTreeContext
 	bool MustUpdateMetaInfo() const { return (m_Dcm & DataCopyMode::DontUpdateMetaInfo) == false; }
 	bool InFenceOperator   () const { return (m_Dcm & DataCopyMode::InFenceOperator); }
 	bool CopyReferredItems () const { return (m_Dcm & DataCopyMode::CopyAlsoReferredItems); }
-
 	DataCopyMode GetDCM()          const { return m_Dcm; }
 
 	cpy_mode  MinCpyMode        (bool isRoot) const 

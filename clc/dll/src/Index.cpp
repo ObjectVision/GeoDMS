@@ -332,6 +332,6 @@ namespace
 	   SubIndexOperator<X>    m_SubIndex;
 	};
 
-	tl_oper::inst_tuple<typelists::fields, Operators<_> > indexOperators;
-	tl_oper::inst_tuple<typelists::domain_elements, OrdinalOperator <_> > ordinalOperators;
+	tl_oper::inst_tuple_templ<typelists::fields, Operators > indexOperators;
+	tl_oper::inst_tuple_templ<typelists::domain_elements, OrdinalOperator > ordinalOperators;
 } // end anonymous namespace

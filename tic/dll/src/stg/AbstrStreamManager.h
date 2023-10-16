@@ -46,7 +46,7 @@ class OutStreamBuff;
 //
 // *****************************************************************************
 
-class AbstrStreamManager : public AbstrStorageManager
+class AbstrStreamManager : public NonmappableStorageManager
 {
 public:
 	TIC_CALL AbstrStreamManager();

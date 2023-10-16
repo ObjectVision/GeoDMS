@@ -69,14 +69,17 @@ void ProgressMsg(CharPtr msg)
 }
 
 /********** MsgCategory **********/
-
 CharPtr AsString(MsgCategory msgCat)
 {
 	switch (msgCat) {
-	case MsgCategory::system: return "[system]";
-	case MsgCategory::wms: return "[wms]";
-	case MsgCategory::disposable: return "[disposable]";
-	case MsgCategory::progress: return "[progress]";
+	case MsgCategory::other: {return "[other]"; }
+	case MsgCategory::storage_read: {return "[storage read]"; }
+	case MsgCategory::storage_write: {return "[storage write]";}
+	case MsgCategory::background_layer_connection: {return "[background layer connection]"; }
+	case MsgCategory::background_layer_request: {return "[background layer request]"; }
+	case MsgCategory::progress: {return "[progress]"; }
+	case MsgCategory::memory: {return "[memory]"; }
+	case MsgCategory::commands: { return "[commands]"; }
 	}
 	return "";
 }
@@ -192,12 +195,16 @@ void ObjectContextPolicy<Base>::GenerateDescription()
 	if (!m_Role) 
 		m_Role = "Object";
 	if (m_Obj)
+	{
+		auto pso = dynamic_cast<const PersistentSharedObj*>(m_Obj);
+		auto name = pso ? pso->GetFullName() : m_Obj->GetSourceName();
 		this->SetText(
 			mySSPrintF("while in %s for %s"
-			,	m_Role
-			,	m_Obj->GetSourceName().c_str()
+				, m_Role
+				, name.c_str()
 			)
 		);
+	}
 	else
 		this->SetText(mySSPrintF("while in %s('null')", m_Role));
 }

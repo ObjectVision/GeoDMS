@@ -1006,117 +1006,138 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
+	if (!src)
+		return { nullptr, {} };
 
-	if (src)
+	if (!src->WasFailed())
 	{
-		assert(src->WasFailed());
+		if (WasInFailed(src))
+			return { src->GetTreeParent(), {} };
+		return { nullptr, {} };
+	}
+	// parent ?
+	auto context = src->GetTreeParent();
+	if (context)
+	{
+		if (WasInFailed(context))
+			return { context, {} };
 
-		// parent ?
-		auto context = src->GetTreeParent();
-		if (context)
+		// using refs ?
+		if (src->CurrHasUsingCache())
 		{
-			if (WasInFailed(context))
-				return { context, {} };
-
-			// using refs ?
-			if (src->CurrHasUsingCache())
+			auto usingCache = src->GetUsingCache();
+			assert(usingCache);
+			for (auto usingUrl : usingCache->UsingUrls())
 			{
-				auto usingCache = src->GetUsingCache();
-				assert(usingCache);
-				for (auto usingUrl : usingCache->UsingUrls())
-				{
-					auto usingUrlStr = SharedStr(usingUrl);
-					auto ur = context->FindBestItem(usingUrlStr);
-					if (ur.first && WasInFailed(ur.first))
-						return ur;
-				}
-			}
-
-			// explicit Suppliers ?
-			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
-			if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
-			{
-				auto result = AbstrCalculator::GetErrorSource(src, strConfigured);
-				if (result.first)
-					return result;
-				strConfigured = AbstrCalculator::EvaluatePossibleStringExpr(src, strConfigured, CalcRole::Other);
-			}
-
-
-			CharPtr
-				iBegin = strConfigured.begin(),
-				iEnd = strConfigured.send();
-			while (iBegin != iEnd)
-			{
-				CharPtr iFirstEnd = std::find(iBegin, iEnd, ';');
-				CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
-				Trim(explicitSupplierName);
-				if (!explicitSupplierName.empty())
-				{
-					auto ur = context->FindBestItem(explicitSupplierName);
-					if (ur.first && WasInFailed(ur.first))
-						return ur;
-				}
-				if (iFirstEnd == iEnd)
-					break;
-				iBegin = iFirstEnd + 1;
+				auto usingUrlStr = SharedStr(usingUrl);
+				auto ur = context->FindBestItem(usingUrlStr);
+				if (ur.first && WasInFailed(ur.first))
+					return ur;
 			}
 		}
 
-		// domain and values units ?
-		if (IsDataItem(src))
+		// explicit Suppliers ?
+		SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
+		if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
 		{
-			BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
-			if (!result.first)
-				result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
-
-			if (result.first && WasInFailed(result.first))
+			auto result = AbstrCalculator::GetErrorSource(src, strConfigured);
+			if (result.first)
 				return result;
+			strConfigured = AbstrCalculator::EvaluatePossibleStringExpr(src, strConfigured, CalcRole::Other);
+		}
 
-			result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
-			if (!result.first)
-				result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
-			if (result.first && WasInFailed(result.first))
+
+		CharPtr
+			iBegin = strConfigured.begin(),
+			iEnd = strConfigured.send();
+		while (iBegin != iEnd)
+		{
+			CharPtr iFirstEnd = std::find(iBegin, iEnd, ';');
+			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
+			Trim(explicitSupplierName);
+			if (!explicitSupplierName.empty())
+			{
+				auto ur = context->FindBestItem(explicitSupplierName);
+				if (ur.first && WasInFailed(ur.first))
+					return ur;
+			}
+			if (iFirstEnd == iEnd)
+				break;
+			iBegin = iFirstEnd + 1;
+		}
+	}
+
+	// domain and values units ?
+	if (IsDataItem(src))
+	{
+		BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
+		if (!result.first)
+			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
+
+		if (result.first && WasInFailed(result.first))
+			return result;
+
+		result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
+		if (!result.first)
+			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
+		if (result.first && WasInFailed(result.first))
+			return result;
+	}
+
+	// CalcRule ?
+	if (src->HasCalculator())
+	{
+		if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
+		{
+			auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
+			if (result.first)
 				return result;
 		}
 
-		// CalcRule ?
+		auto sc = src->GetCalculator();
+		if (sc)
+		{
+			BestItemRef si = sc->FindErrorneousItem();
+			if (si.first && WasInFailed(si.first))
+				return si;
+		}
+	}
+
+	// SourceItem
+	auto sourceItem = src->GetCurrSourceItem();
+	if (sourceItem)
+	{
+		assert(!sourceItem->IsCacheItem());
+		assert(sourceItem != src);
+		if (WasInFailed(sourceItem))
+			return { sourceItem, {} };
+	}
+
+	// try all suppliers
+	const TreeItem* errorneousItem = nullptr;
+	auto errorChecker = [&errorneousItem](const Actor* a)
+		{
+			auto ti = dynamic_cast<const TreeItem*>(a);
+			if (ti && !ti->IsCacheItem() && WasInFailed(ti))
+			{
+				errorneousItem = ti;
+				return  AVS_SuspendedOrFailed;
+			}
+			return AVS_Ready;
+		};
+	auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
+
+	src->VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
+	if (errorneousItem)
+		return { errorneousItem , {} };
+
+	// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
+	if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
+	{
 		if (src->HasCalculator())
 		{
-			if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
-			{
-				auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
-				if (result.first)
-					return result;
-			}
-
 			auto sc = src->GetCalculator();
-			if (sc)
-			{
-				BestItemRef si = sc->FindErrorneousItem();
-				if (si.first && WasInFailed(si.first))
-					return si;
-			}
-		}
-
-		// SourceItem
-		auto sourceItem = src->GetCurrSourceItem();
-		if (sourceItem)
-		{
-			assert(!sourceItem->IsCacheItem());
-			assert(sourceItem != src);
-			if (WasInFailed(sourceItem))
-				return { sourceItem, {} };
-		}
-
-		// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
-		if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
-		{
-			if (src->HasCalculator())
-			{
-				auto sc = src->GetCalculator();
-				return sc->FindPrimaryDataFailedItem();
-			}
+			return sc->FindPrimaryDataFailedItem();
 		}
 	}
 	return { nullptr, {} };
@@ -1127,15 +1148,9 @@ TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 	try {
 		return TreeItem_GetErrorSource(src, true);
 	}
-	catch (const DmsException& x)
+	catch (...)
 	{
-		auto fullName = x.AsErrMsg()->m_FullName;
-		if (!fullName.empty())
-		{
-			src = DSM::Curr()->GetConfigRoot();
-			if (src)
-				return src->FindBestItem(fullName);
-		}
+		catchAndReportException();
 	}
 	return {};
 }

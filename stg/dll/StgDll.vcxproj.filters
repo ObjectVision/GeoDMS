@@ -171,8 +171,4 @@
       <Filter>TIF</Filter>
     </ClInclude>
   </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\LICENSE.TXT" />
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\proj.db" />
-  </ItemGroup>
 </Project>

@@ -1,35 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -64,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 
 #include "StgBase.h"
 
@@ -83,13 +55,11 @@ granted by an additional written contract for support, assistance and/or develop
 // section : StatusText
 //----------------------------------------------------------------------
 
-
 void StatusTextCaller::operator() (SeverityTypeID st, CharPtr msg) const
 {
 	if (m_Func)
 		m_Func(m_ClientHandle, st, msg);
 }
-
 
 //----------------------------------------------------------------------
 // section : Instance
@@ -127,6 +97,11 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 		CreateViewAction(tiContext, mySSPrintF("dp.vi.attr!%d", index).c_str(), -1, -1, -1, true, false, mustOpenDetailsPage);
 }
 
+void CreateGotoAction(const TreeItem* tiContext)
+{
+	CreateViewAction(tiContext, "goto", 0, 0, 0, false, false, false);
+}
+
 //----------------------------------------------------------------------
 // section : TPoint & TRect
 //----------------------------------------------------------------------
@@ -134,11 +109,9 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 GPoint GPoint::ScreenToClient(HWND hWnd) const 
 {
 	GPoint result = *this;
-	CheckedGdiCall( 
-		::ScreenToClient(hWnd, &result),
+	CheckedGdiCall( ::ScreenToClient(hWnd, &result),
 		"ScreenToClient"
 	);
-//	result /= GetWindowDIP2pixFactorXY(hWnd);
 	return result;
 }		
 
@@ -147,12 +120,12 @@ GPoint GPoint::ScreenToClient(HWND hWnd) const
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GRect& rect)
 {
-	return os << Convert<IRect>(rect);
+	return os << g2dms_order<TType>(rect);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GPoint& point)
 {
-	return os << Convert<IPoint>(point);
+	return os << g2dms_order<TType>(point);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point)
@@ -561,35 +534,36 @@ void ShadowRect(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
 	FillRectWithBrush(dc, GRect(rect.left, nextTop,  nextLeft, prevBottom), lightBrush );  // left vertical line
 }
 
-void DrawButtonBorder(HDC dc, GRect& clientRect)
+void DrawButtonBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, lightBrush, blackBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, lightBrush, blackBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, whiteBrush, shadowBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, whiteBrush, shadowBrush);
+	clientDeviceRect.Shrink(1);
 }
 
-void DrawReversedBorder(HDC dc, GRect& clientRect)
+void DrawReversedBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, blackBrush, lightBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, blackBrush, lightBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, shadowBrush, whiteBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, shadowBrush, whiteBrush);
+	clientDeviceRect.Shrink(1);
 }
+
 void DrawRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 {
 	GdiHandle<HBRUSH> brush(
@@ -636,29 +610,6 @@ UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 	return g_DefaultFontHDIP[static_cast<int>(fid)];
 }
 
-
-Float64 GetDcDIP2pixFactorX(HDC dc)
-{
-	return GetDeviceCaps(dc, LOGPIXELSX) / 96.0;
-}
-
-Float64 GetDcDIP2pixFactorY(HDC dc)
-{
-	return GetDeviceCaps(dc, LOGPIXELSY) / 96.0;
-}
-
-Point<Float64> GetDcDIP2pixFactorXY(HDC dc)
-{
-	return { GetDeviceCaps(dc, LOGPIXELSX) / 96.0 , GetDeviceCaps(dc, LOGPIXELSY) / 96.0 };
-}
-
-Float64 GetDcDIP2pixFactor(HDC dc)
-{
-	auto xyFactors = GetDcDIP2pixFactorXY(dc);
-	Float64 dip2PixFactor = (xyFactors.first + xyFactors.second) / 2;
-	return dip2PixFactor;
-}
-
 Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 {
 	assert(hWnd);
@@ -670,31 +621,37 @@ Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 
 	auto result = GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
 	assert(result == S_OK);
-	return { dpiX, dpiY };
+	return shp2dms_order<UINT>( dpiX, dpiY );
 }
 
-Float64 GetWindowDIP2pixFactorX(HWND hWnd)
+Float64 GetWindowDip2PixFactorX(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
-	return dpi.first / 96.0;
+	return dpi.X() / 96.0;
 }
 
-Float64 GetWindowDIP2pixFactorY(HWND hWnd)
+Float64 GetWindowDip2PixFactorY(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
-	return dpi.second / 96.0;
+	return dpi.Y() / 96.0;
 }
 
-Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd)
+Point<Float64> GetWindowDip2PixFactors(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return { dpi.first / 96.0, dpi.second / 96.0 };
 }
 
-Float64 GetWindowDIP2pixFactor(HWND hWnd)
+Float64 GetWindowDip2PixFactor(HWND hWnd)
 {
 	auto dpi = GetWindowEffectiveDPI(hWnd);
 	return (dpi.first + dpi.second) / (2.0*96.0);
+}
+
+Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return shp2dms_order<Float64>(96.0 / dpi.first, 96.0 / dpi.second);
 }
 
 //----------------------------------------------------------------------
@@ -932,10 +889,15 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
 		DataWriteLock lock(newResult);
-
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
-		for (SizeT i = 0; i != n; ++i)
-			resultData[i] = AsString(i);
+
+		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+			{
+				auto domainRange = pd->GetRange();
+				for (SizeT i = 0; i != n; ++i)
+					resultData[i] = AsString(Range_GetValue_checked(domainRange, i));
+			}
+		);
 
 		lock.Commit();
 	}
@@ -1034,6 +996,11 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
 			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
 			*siwlMovedPaletteDomain = ItemWriteLock(); 
+			auto paletteInterest = SharedTreeItemInterestPtr(paletteDomain.get());
+			auto tryReadLock = ItemReadLock(std::move(paletteInterest), try_token);
+			if (!tryReadLock.has_ptr())
+				return; // no accces because of other classifying action, pray for the other action to fill this palette
+
 			breakAttrPtr->MarkTS(tsActive);
 
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
@@ -1071,15 +1038,15 @@ bool IsBusy()
 	return g_BusyMode;
 }
 
-extern "C" SHV_CALL void DMS_CONV SHV_SetAdminMode(bool v) 
+SHV_CALL void SetBusy(bool v)
+{
+	g_BusyMode = v;
+}
+
+SHV_CALL void SHV_SetAdminMode(bool v)
 {
 	MG_DEBUGCODE( gd_AdminModeKnown = true; )
 	g_AdminMode = v;
-}
-
-extern "C" SHV_CALL void DMS_CONV SHV_SetBusyMode(bool v) 
-{
-	g_BusyMode = v;
 }
 
 //----------------------------------------------------------------------

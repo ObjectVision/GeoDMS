@@ -53,7 +53,7 @@ struct null_wrap : private std::pair<T, bool>
 {
 	null_wrap()
 	{
-		dms_assert(!IsDefined());
+		assert(!IsDefined());
 	}
 	bool IsDefined() const { return this->second; };
 	operator typename param_type<T>::type () const { return this->first; }
@@ -281,7 +281,7 @@ struct expectation_accumulation_type
 
 	operator exp_type() const
 	{
-		return div_func_best<sum_type, count_type>()(total, n); 
+		return div_func_best<div_type_t<T>, sum_type, count_type>()(total, n);
 	}
 
 	count_type n;
@@ -299,6 +299,10 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 
 	void operator () (typename unary_assign_exp::assignee_ref a, typename unary_assign_exp::arg1_cref x) const
 	{
+		if constexpr (has_undefines_v<typename unary_assign_exp::arg1_type>)
+			if (!IsDefined(x))
+				return;
+
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
 	}
@@ -345,7 +349,7 @@ struct var_accumulation_type
 	typedef typename aggr_type<sum_type>::type var_type;
 	typedef typename scalar_of<var_type>::type var_scalar_type;
 
-	var_accumulation_type(): n(), x(), xx() {}
+	var_accumulation_type() {}
 	var_accumulation_type(count_type n_, sum_type x_, sum_type xx_): n(n_), x(x_), xx(xx_) {}
 
 	operator var_type() const
@@ -363,8 +367,8 @@ struct var_accumulation_type
 		return res;
 	}
 
-	count_type  n;
-	sum_type    x, xx;
+	count_type  n = 0;
+	sum_type    x = sum_type(), xx = sum_type();
 };
 
 template <typename T>
@@ -375,9 +379,12 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 
 	void operator () (typename unary_assign_var::assignee_ref a, typename unary_assign_var::arg1_cref x) const
 	{
-		++ a.n;
-		SafeAccumulate(a.x, x);
-		a.xx += m_SqrFunc(x);
+		if (IsDefined(x))
+		{
+			++a.n;
+			SafeAccumulate(a.x, x);
+			a.xx += m_SqrFunc(x);
+		}
 	}
 
 private:

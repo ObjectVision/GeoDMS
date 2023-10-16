@@ -71,14 +71,14 @@ struct AbstrDataBlockProd : private boost::noncopyable
 	// data collection support
 	row_id              m_nIndexValue = 0;
 
-	ValueClassID        m_eAssignmentDomainType = VT_Unknown;     // type of interval or selector value
+	ValueClassID        m_eAssignmentDomainType = ValueClassID::VT_Unknown;     // type of interval or selector value
 
 	Range<Float64>      m_FloatInterval;
 	Range<DPoint>       m_DPointInterval;
 
 
 	// basicValue elements
-	ValueClassID        m_eValueType = VT_Unknown;   // type of basicValue
+	ValueClassID        m_eValueType = ValueClassID::VT_Unknown;   // type of basicValue
 	StringProd          m_StringVal;
 	bool                m_BoolVal = false;
 	DPoint              m_DPointVal;

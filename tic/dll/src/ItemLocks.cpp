@@ -126,11 +126,13 @@ namespace treeitem_production_task
 
 		DBG_TRACE(("count=%d, producer = %s", self->m_ItemCount, self->m_Producer.lock() ? "available" : "null"));
 
-		assert(self->m_ItemCount == -1);
-		++self->m_ItemCount;
+		assert(self->m_ItemCount < 0);
+		auto newCount = ++self->m_ItemCount;
 		DBG_TRACE(("count=%d", self->m_ItemCount));
-		self->m_Producer.reset();
+		if (newCount < 0)
+			return;
 
+		self->m_Producer.reset();
 		cv_lockrelease.notify_all();
 	}
 
@@ -497,8 +499,14 @@ bool IsDataCurrReady(const TreeItem* item)
 
 	if (IsDataItem(item))
 	{
-		if (!AsDataItem(item)->m_DataObject.has_ptr())
+		auto adi = AsDataItem(item);
+		if (!adi->m_DataObject.has_ptr())
 			return false;
+		if (adi->WasFailed(FR_Data))
+		{
+			adi->m_DataObject.reset();
+			return false;
+		}
 	}
 	else if (IsUnit(item))
 	{
@@ -723,6 +731,8 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 
 		assert(IsMultiThreaded2());
 		WaitForCompletedTaskOrTimeout(); // max 300 milliseconds
+		if (IsMainThread())
+			ProcessMainThreadOpers();
 		SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
 		if (counter++ == 34) // sporadious wakeup at least every 10 secs to release from mysterious hang
 			SuspendTrigger::DoSuspend();

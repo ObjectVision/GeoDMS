@@ -206,66 +206,7 @@ RTC_CALL UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, Cha
 }
 
 
-typedef bool (DMS_CONV *TReduceResourcesFunc)(ClientHandle clientHandle);
-
-// *****************************************************************************
-// Section:     RegisterReduceResourcesFunc
-//
-// *****************************************************************************
-
 #include "RtcInterface.h"
-
-typedef std::pair<TReduceResourcesFunc, ClientHandle> TReduceResourcesSink;
-typedef std::vector<TReduceResourcesSink>             TReduceResourcesSinkContainer; 
-TReduceResourcesSinkContainer* g_ReduceResources=0;
-
-extern "C" RTC_CALL void DMS_CONV DMS_RegisterReduceResourcesFunc(TReduceResourcesFunc fcb, ClientHandle clientHandle)
-{
-	DMS_CALL_BEGIN
-		if (g_ReduceResources == 0) 
-			g_ReduceResources = new TReduceResourcesSinkContainer;
-		g_ReduceResources->push_back(TReduceResourcesSink(fcb, clientHandle));
-	DMS_CALL_END
-}
-
-extern "C" RTC_CALL void DMS_CONV DMS_ReleaseReduceResourcesFunc (TReduceResourcesFunc fcb, ClientHandle clientHandle)
-{
-	DMS_CALL_BEGIN
-		MG_CHECK(g_ReduceResources)
-		vector_erase(*g_ReduceResources, TReduceResourcesSink(fcb, clientHandle));
-		if (g_ReduceResources->size() == 0)
-		{
-			delete g_ReduceResources;
-			g_ReduceResources = 0;
-		}
-	DMS_CALL_END
-}
-
-RTC_CALL bool DMS_CONV DMS_ReduceResources()
-{
-	bool result = true;
-	if (g_ReduceResources)
-	{
-		TReduceResourcesSinkContainer::iterator
-			current = g_ReduceResources->begin(),
-			last    = g_ReduceResources->end();
-
-		for (;current != last; ++current)
-			if (!current->first(current->second))
-				result = false;
-	}
-	if (!result)
-		reportD(SeverityTypeID::ST_MajorTrace, "Not all resource holders were able to return the requested resources.\n"
-		                      "This may cause problems during the execution of the external module.");
-	return result;
-}
-
-RTC_CALL void DMS_CONV DMS_FreeResources()
-{
-	DMS_CALL_BEGIN
-		DMS_ReduceResources();
-	DMS_CALL_END
-}
 
 bool g_IsTerminating = false;
 

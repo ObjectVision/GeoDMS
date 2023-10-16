@@ -46,7 +46,7 @@ public:
 	RTC_CALL ~CDebugLog();
 
 private:
-	static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
+	static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData);
 
 	FileOutStreamBuff   m_FileBuff;
 	FormattedOutStream  m_Stream;
