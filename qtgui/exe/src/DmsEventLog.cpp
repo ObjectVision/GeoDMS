@@ -249,10 +249,6 @@ void EventLogModel::writeSettingsOnToggle(bool newValue)
 void EventLogModel::addText(MsgData&& msgData)
 {
 	auto rowCount_ = rowCount();
-//	auto new_eventlog_item = item_t{ st, msgCat, threadID, when, msg };
-	//if (m_Items.empty() || m_Items.back().m_Msg.compare(new_eventlog_item.m_Msg)) // exact duplicate log message, skip
-	//	return;
-
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 
 	eventlog->m_clear->setEnabled(true);
@@ -270,7 +266,6 @@ void EventLogModel::addText(MsgData&& msgData)
 	index = this->index(rowCount_, 0, QModelIndex());
 
 	emit dataChanged(index, index);
-	//eventlog->repaint(); // TODO: also repaints treeview.
 }
 
 DmsTypeFilter::DmsTypeFilter(QWidget* parent)
