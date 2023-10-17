@@ -367,7 +367,7 @@ public:
 
     // unique application objects
     QPointer<QDmsMdiArea> m_mdi_area;
-    std::unique_ptr<QMdiSubWindow> m_calculation_times_window;
+    std::unique_ptr<CalculationTimesWindow> m_calculation_times_window;
     std::unique_ptr<QTextBrowser> m_calculation_times_browser;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
