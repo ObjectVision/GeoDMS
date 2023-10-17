@@ -163,7 +163,7 @@ void ReportDataItem(const AbstrDataItem* di)
 	std::size_t c = ado->GetNrBytesNow(false);
 	if (c<1000) return;
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, NrBytes=%Iu, Name=%s",
 		di->GetRefCount(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
