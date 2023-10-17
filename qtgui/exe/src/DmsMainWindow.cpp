@@ -192,6 +192,7 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
 }
 
 CalculationTimesWindow::CalculationTimesWindow()
+:   QMdiSubWindow::QMdiSubWindow()
 {
     setAttribute(Qt::WA_DeleteOnClose, false);
     setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
@@ -209,19 +210,14 @@ bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e)
     {
     case QEvent::Close:
     {
-        QMdiSubWindow* subwindow= dynamic_cast<QMdiSubWindow*>(obj);
-        if (subwindow)
-            MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
-
-        QTextBrowser* browser = dynamic_cast<QTextBrowser*>(obj);
-        if (browser)
-            MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
-
-        break;
-    }
-    case QEvent::Show:
-    {
-        MainWindow::TheOne()->m_calculation_times_browser->show();
+        MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
+        auto dms_mdi_subwindow_list = MainWindow::TheOne()->m_mdi_area->subWindowList();
+        if (!dms_mdi_subwindow_list.empty())
+        {
+            MainWindow::TheOne()->m_mdi_area->setActiveSubWindow(dms_mdi_subwindow_list[0]);
+            dms_mdi_subwindow_list[0]->showMaximized();
+        }
+        
         break;
     }
     }
@@ -247,13 +243,15 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
 
+
+
+    setCentralWidget(m_mdi_area.get());
+    m_mdi_area->show();
+
     // calculation times
     m_calculation_times_window = std::make_unique<CalculationTimesWindow>();
     m_calculation_times_browser = std::make_unique<QTextBrowser>();
     m_calculation_times_window->setWidget(m_calculation_times_browser.get());
-
-    setCentralWidget(m_mdi_area.get());
-    m_mdi_area->show();
 
     createStatusBar();
     createDmsHelperWindowDocks();
@@ -2540,17 +2538,15 @@ void MainWindow::view_calculation_times()
         os << ": " << std::get<SharedStr>(pr) << "\n";
     }
     vosb.WriteByte(char(0)); // ends
-    // test if calc times is in mdi area already
-    for (auto subwindow : m_mdi_area->subWindowList())
-    {
-        if (subwindow == m_calculation_times_window.get())
-            return;
-    }
+
+    if (!m_mdi_area->subWindowList().contains(m_calculation_times_window.get()))
+        m_mdi_area->addSubWindow(m_calculation_times_window.get());
 
     m_calculation_times_browser->setText(vosb.GetData());
+    m_calculation_times_browser->show();
     m_calculation_times_window->setWindowTitle("Calculation time overview");
     m_calculation_times_window->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    m_mdi_area->addSubWindow(m_calculation_times_window.get());
+    
     //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
     m_calculation_times_window->show();
 }
