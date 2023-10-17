@@ -163,14 +163,14 @@ void ReportDataItem(const AbstrDataItem* di)
 	std::size_t c = ado->GetNrBytesNow(false);
 	if (c<1000) return;
 
-	MG_TRACE(("RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
 		di->GetRefCount(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
 		di->GetDataObjLockCount(),
 		c,
 		di->GetFullName().c_str()
-	));
+	);
 }
 
 TIC_CALL void TreeItemWithMemReport()

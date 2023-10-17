@@ -2586,15 +2586,13 @@ void MainWindow::expandAll()
     m_treeview->expandAll();
 }
 
-#ifdef DEBUG
+#ifdef MG_DEBUG
 TIC_CALL void TreeItemWithMemReport();
 #endif // DEBUG
 
-
-
 void MainWindow::debugTreeItemWithMemoryReport()
 {
-#ifdef DEBUG
+#ifdef MG_DEBUG
     TreeItemWithMemReport();
 #endif // DEBUG
 }
