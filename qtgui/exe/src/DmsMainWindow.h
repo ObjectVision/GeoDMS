@@ -271,6 +271,7 @@ public slots:
 
     void view_calculation_times();
     void view_current_config_filelist();
+    void update_calculation_times_report();
 
     void expandAll();
     void debugTreeItemWithMemoryReport();

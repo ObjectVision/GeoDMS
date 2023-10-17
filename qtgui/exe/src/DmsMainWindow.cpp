@@ -2525,7 +2525,7 @@ CharPtrRange myAscTime(const struct tm* timeptr)
         1900 + timeptr->tm_year);
 }
 
-void MainWindow::view_calculation_times()
+void MainWindow::update_calculation_times_report()
 {
     VectorOutStreamBuff vosb;
     FormattedOutStream os(&vosb, FormattingFlags());
@@ -2543,11 +2543,16 @@ void MainWindow::view_calculation_times()
         m_mdi_area->addSubWindow(m_calculation_times_window.get());
 
     m_calculation_times_browser->setText(vosb.GetData());
+}
+
+void MainWindow::view_calculation_times()
+{
+    update_calculation_times_report();
+    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
+
     m_calculation_times_browser->show();
     m_calculation_times_window->setWindowTitle("Calculation time overview");
     m_calculation_times_window->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    
-    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
     m_calculation_times_window->show();
 }
 

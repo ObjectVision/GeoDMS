@@ -1079,8 +1079,8 @@ retry:
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection); // check and swap or try again
 		if (m_InterestCount) // still interested?
 		{
-			dms_assert(newRefItemCounter || !refItem); // Starting Interest only allowed from this main thread. 
-			if (refItem && !newRefItemCounter) // situation has changed 
+			assert(newRefItemCounter || !refItem); // Starting Interest only allowed from this main thread. 
+			if (refItem && !newRefItemCounter) // situation had changed anyway
 				goto retry;
 			// point of certain return, prepare settlement upon destruction
 			newRefItemCounter.release();
