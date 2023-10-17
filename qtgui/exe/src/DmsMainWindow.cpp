@@ -2229,10 +2229,12 @@ void MainWindow::createActions()
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_tools_menu->addAction(m_expand_all_action.get());
     
-
+    // debug tools
+#ifdef MG_DEBUG
     m_debug_treeitem_with_mem_report = std::make_unique<QAction>(tr("Debug: treeitem with memory report"));
     connect(m_debug_treeitem_with_mem_report.get(), &QAction::triggered, this, &MainWindow::debugTreeItemWithMemoryReport);
     m_tools_menu->addAction(m_debug_treeitem_with_mem_report.get());
+#endif
 
     // settings menu
     m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
