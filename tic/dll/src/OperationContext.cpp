@@ -1367,6 +1367,8 @@ task_status OperationContext::Join()
 		}
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200), [this]() { return m_Status > task_status::running; });
 		isFirstTime = false;
+		if (IsMainThread())
+			ProcessMainThreadOpers();
 	}
 
 	RunOperationContexts();
