@@ -449,8 +449,8 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     if (m_current_item == target_item)
         return;
 
-    MG_CHECK(!m_root || isAncestor(m_root, target_item));
-    if (!m_dms_model->show_hidden_items)
+    MG_CHECK(!m_root || !target_item || isAncestor(m_root, target_item));
+    if (target_item && !m_dms_model->show_hidden_items)
     {
         if (target_item->GetTSF(TSF_InHidden))
         {
@@ -1767,9 +1767,8 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
 
         // log link action
 #if defined(_DEBUG)
-        MainWindow::TheOne()->m_eventlog_model->addText(
-            SeverityTypeID::ST_MajorTrace, MsgCategory::other, GetThreadID(), StreamableDateTime(), linkStr.data()
-        );
+        MsgData data{ SeverityTypeID::ST_MajorTrace, MsgCategory::other, false, GetThreadID(), StreamableDateTime(), SharedStr(linkStr.data()) };
+        MainWindow::TheOne()->m_eventlog_model->addText(std::move(data));
 #endif
 
         auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();

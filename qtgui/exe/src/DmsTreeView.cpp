@@ -47,7 +47,7 @@ namespace {
 			return 0;
 
 		SuspendTrigger::Resume();
-		ObjectMsgGenerator thisMsgGenerator(ti, "update TreeView");
+		ObjectMsgGenerator thisMsgGenerator(ti, "CountSubItems");
 		Waiter showWaitingStatus;
 		if (!p->Is(PS_MetaInfo) && !p->WasFailed())
 			showWaitingStatus.start(&thisMsgGenerator);
@@ -265,7 +265,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	SuspendTrigger::Resume();
 	if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
 	{
-		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");
+		ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 		Waiter showWaitingStatus(&thisMsgGenerator);
 
 		ti->UpdateMetaInfo();
@@ -313,6 +313,10 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 bool DmsModel::hasChildren(const QModelIndex& parent) const
 {
 	auto ti = GetTreeItemOrRoot(parent);
+	if (!ti)
+		return false;
+	ObjectMsgGenerator context(ti, "HasSubItems");
+	Waiter monitor(&context);
 	return ti && ti->HasSubItems();
 }
 
@@ -427,7 +431,7 @@ auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex
 
 	MG_CHECK(isAncestor(currItem, target_item));
 
-	ObjectMsgGenerator thisMsgGenerator(target_item, "DmsTreeView::expandToItem");
+	ObjectMsgGenerator thisMsgGenerator(target_item, "TreeView::expandToItem");
 	Waiter showWaitingStatus(&thisMsgGenerator);
 
 	auto parent_index = root_node_index;

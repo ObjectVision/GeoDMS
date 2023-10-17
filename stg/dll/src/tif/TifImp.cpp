@@ -52,7 +52,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/BitVector.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
-#include "ptr/SharedArrayPtr.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification
 #include <tiffio.h> 

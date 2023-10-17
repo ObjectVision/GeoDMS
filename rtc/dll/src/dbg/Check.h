@@ -154,7 +154,10 @@ RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTyp
 
 inline void reportD_impl(SeverityTypeID st, const CharPtrRange& msg) { reportD_impl(MsgCategory::progress, st, msg); }
 inline void reportD(SeverityTypeID st, CharPtr msg) { reportD(MsgCategory::progress, st, msg); }
-inline void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2) { reportD(MsgCategory::progress, st, msg1, msg2); }
+inline void reportD(SeverityTypeID st, CharPtr msg1, CharPtr msg2) 
+{ 
+	reportD(st >= SeverityTypeID::ST_Warning ? MsgCategory::other : MsgCategory::progress, st, msg1, msg2); 
+}
 inline void reportD_without_cancellation_check(SeverityTypeID st, CharPtr msg) { reportD_without_cancellation_check(MsgCategory::progress, st, msg); }
 
 struct CharPtrRange;

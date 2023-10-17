@@ -157,9 +157,13 @@ namespace {
 
 void ReportDataItem(const AbstrDataItem* di)
 {
-	std::size_t c = di->GetDataObj()->GetNrBytesNow(false);
+	assert(di);
+	auto ado = di->GetDataObj();
+	assert(ado);
+	std::size_t c = ado->GetNrBytesNow(false);
 	if (c<1000) return;
-	MGD_TRACE(("RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
+
+	MG_TRACE(("RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
 		di->GetRefCount(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
@@ -169,7 +173,7 @@ void ReportDataItem(const AbstrDataItem* di)
 	));
 }
 
-void TreeItemWithMemReport()
+TIC_CALL void TreeItemWithMemReport()
 {
 	if (!s_TreeItems)
 		return;
@@ -183,7 +187,7 @@ void TreeItemWithMemReport()
 		auto ado = di->m_DataObject;
 		if (!ado)
 			continue;
-			ReportDataItem(di);
+		ReportDataItem(di);
 	}
 }
 
@@ -2762,8 +2766,10 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		MakeCalculator(); // sets mc_Calculator, mc_DC, and mc_RefItem;
 
 	if (mc_Calculator && Test(svf, SupplierVisitFlag::NamedSuppliers))
+	{
 		if (mc_Calculator->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
+	}
 
 	if (Test(svf, SupplierVisitFlag::DetermineCalc))
 		UpdateDC();

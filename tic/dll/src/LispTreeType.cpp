@@ -236,6 +236,8 @@ namespace token {
 
 	TIC_CALL TokenID map = GetTokenID_st("map");
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
+	TIC_CALL TokenID FenceContainer = GetTokenID_st("FenceContainer");
+
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)

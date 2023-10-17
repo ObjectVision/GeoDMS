@@ -66,7 +66,6 @@ RTC_CALL void  LeaveToStock(void* ptr, size_t sz);
 extern std::atomic<bool> s_ReportingRequestPending;
 extern std::atomic<bool> s_BlockNewAllocations;
 void ReportFixedAllocStatus();
-void ReportFixedAllocFinalSummary();
-
+RTC_CALL void ReportFixedAllocFinalSummary();
 
 #endif // __RTC_MEM_FIXED_ALLOC_H
