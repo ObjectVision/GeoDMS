@@ -30,6 +30,7 @@
 #include <QMdiArea>
 #include <QPixmap>
 #include <QWidgetAction>
+#include <QObject>
 
 
 #include "DmsMainWindow.h"
@@ -190,6 +191,43 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     setWindowModality(Qt::ApplicationModal);
 }
 
+CalculationTimesWindow::CalculationTimesWindow()
+{
+    setAttribute(Qt::WA_DeleteOnClose, false);
+    setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
+    installEventFilter(this);
+}
+
+CalculationTimesWindow::~CalculationTimesWindow()
+{
+
+}
+
+bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e)
+{
+    switch (e->type())
+    {
+    case QEvent::Close:
+    {
+        QMdiSubWindow* subwindow= dynamic_cast<QMdiSubWindow*>(obj);
+        if (subwindow)
+            MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
+
+        QTextBrowser* browser = dynamic_cast<QTextBrowser*>(obj);
+        if (browser)
+            MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
+
+        break;
+    }
+    case QEvent::Show:
+    {
+        MainWindow::TheOne()->m_calculation_times_browser->show();
+        break;
+    }
+    }
+    return QObject::eventFilter(obj, e);
+}
+
 MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 { 
     assert(s_CurrMainWindow == nullptr);
@@ -204,10 +242,15 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QApplication::setFont(dms_text_font);
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
+    // helper dialogues
     m_file_changed_window = new DmsFileChangedWindow(this);
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
-    
+
+    // calculation times
+    m_calculation_times_window = std::make_unique<CalculationTimesWindow>();
+    m_calculation_times_browser = std::make_unique<QTextBrowser>();
+    m_calculation_times_window->setWidget(m_calculation_times_browser.get());
 
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
@@ -555,6 +598,7 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
     std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
     std::unique_ptr<QAction> pin_action = std::make_unique<QAction>(QPixmap(":/res/images/TB_toggle_palette.bmp"), "pin", this);
     std::unique_ptr<QAction> remove_action = std::make_unique<QAction>(QPixmap(":/res/images/EL_clear.bmp"), "remove", this);
+    pin_action->setDisabled(true);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
     connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
@@ -563,7 +607,7 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
 
 bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
 {
-    
+    auto main_window = MainWindow::TheOne();
     if (event->type() == QEvent::MouseButtonPress) 
     {
         auto mouse_event = dynamic_cast<QMouseEvent*>(event);
@@ -575,6 +619,12 @@ bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
     }
 
     return QAction::eventFilter(obj, event);
+}
+
+bool DmsRecentFileEntry::event(QEvent* e)
+{
+    int i = 0;
+    return QAction::event(e);
 }
 
 void DmsRecentFileEntry::onDeleteRecentFileEntry()
@@ -1377,7 +1427,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
 {
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
-        addRecentFilesMenu(cfg);
+        addRecentFilesEntry(cfg);
     else
         m_recent_file_entries.move(cfg_index_in_recent_files, 0);
 
@@ -1623,7 +1673,7 @@ void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons,
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
-void MainWindow::addRecentFilesMenu(std::string_view recent_file) // TODO: rename
+void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 {
     auto index = m_recent_file_entries.size();
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
@@ -1632,10 +1682,12 @@ void MainWindow::addRecentFilesMenu(std::string_view recent_file) // TODO: renam
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    for (auto action_widget_pointer : new_recent_file_entry->associatedWidgets())
-    {
-        action_widget_pointer->installEventFilter(new_recent_file_entry);
-    }
+    auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
+    new_recent_file_entry->installEventFilter(new_recent_file_entry);
+    //for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
+    //{
+    //   action_object_pointer->installEventFilter(new_recent_file_entry);
+    //}
 
     //auto test_default_widget = new_recent_file_entry->defaultWidget();
 
@@ -1967,9 +2019,9 @@ void MainWindow::createActions()
 
     m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
     m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
+    m_current_item_bar_container->addWidget(m_current_item_bar.get());
     m_current_item_bar_container->addAction(m_back_action.get());
     m_current_item_bar_container->addAction(m_forward_action.get());
-    m_current_item_bar_container->addWidget(m_current_item_bar.get());
 
     connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
     connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_current_item_bar.get(), &DmsCurrentItemBar::setPathDirectly);
@@ -2178,7 +2230,10 @@ void MainWindow::createActions()
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_tools_menu->addAction(m_expand_all_action.get());
     
-    
+
+    m_debug_treeitem_with_mem_report = std::make_unique<QAction>(tr("Debug: treeitem with memory report"));
+    connect(m_debug_treeitem_with_mem_report.get(), &QAction::triggered, this, &MainWindow::debugTreeItemWithMemoryReport);
+    m_tools_menu->addAction(m_debug_treeitem_with_mem_report.get());
 
     // settings menu
     m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
@@ -2261,7 +2316,7 @@ void MainWindow::updateFileMenu()
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
     for (std::string_view recent_file : recent_files_from_registry)
     {
-        addRecentFilesMenu(recent_file);
+        addRecentFilesEntry(recent_file);
 
     }
 
@@ -2484,18 +2539,19 @@ void MainWindow::view_calculation_times()
         os << ": " << std::get<SharedStr>(pr) << "\n";
     }
     vosb.WriteByte(char(0)); // ends
+    // test if calc times is in mdi area already
+    for (auto subwindow : m_mdi_area->subWindowList())
+    {
+        if (subwindow == m_calculation_times_window.get())
+            return;
+    }
 
-    auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
-    auto* textWidget = new QTextBrowser(mdiSubWindow);
-    mdiSubWindow->setWidget(textWidget);
-    textWidget->setText(vosb.GetData());
-
-    mdiSubWindow->setWindowTitle("Calculation time overview");
-    mdiSubWindow->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    m_mdi_area->addSubWindow(mdiSubWindow);
-    mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
-    mdiSubWindow->show();
+    m_calculation_times_browser->setText(vosb.GetData());
+    m_calculation_times_window->setWindowTitle("Calculation time overview");
+    m_calculation_times_window->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
+    m_mdi_area->addSubWindow(m_calculation_times_window.get());
+    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
+    m_calculation_times_window->show();
 }
 
 void MainWindow::view_current_config_filelist()
@@ -2530,6 +2586,21 @@ void MainWindow::expandAll()
 
     m_treeview->expandAll();
 }
+
+#ifdef DEBUG
+TIC_CALL void TreeItemWithMemReport();
+#endif // DEBUG
+
+
+
+void MainWindow::debugTreeItemWithMemoryReport()
+{
+#ifdef DEBUG
+    TreeItemWithMemReport();
+#endif // DEBUG
+}
+
+
 
 void MainWindow::expandActiveNode(bool doExpand)
 {

@@ -19,6 +19,7 @@
 #include <QListView>
 #include <QMenu>
 #include <QWidgetAction>
+#include <QMdiSubWindow>
 
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
@@ -133,9 +134,8 @@ public:
     size_t m_index = 0;
     DmsConfigTextButton* m_config_text;
     std::unique_ptr<QMenu> m_context_menu;
-
-protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
+    bool event(QEvent* e) override;
 
 public slots:
     void onDeleteRecentFileEntry();
@@ -193,6 +193,14 @@ private:
     QPointer<QTextBrowser> m_message;
 };
 
+class CalculationTimesWindow : public QMdiSubWindow
+{
+public:
+    CalculationTimesWindow();
+    ~CalculationTimesWindow();
+    bool eventFilter(QObject* obj, QEvent* e) override;
+};
+
 bool IsPostRequest(const QUrl& /*link*/);
 auto Realm(const auto& x) -> CharPtrRange;
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
@@ -220,7 +228,7 @@ public:
     auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
-    void addRecentFilesMenu(std::string_view recent_file);
+    void addRecentFilesEntry(std::string_view recent_file);
     void resizeDocksToNaturalSize();
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
@@ -265,6 +273,7 @@ public slots:
     void view_current_config_filelist();
 
     void expandAll();
+    void debugTreeItemWithMemoryReport();
     void expandActiveNode(bool doExpand);
     void expandRecursiveFromCurrentItem();
 
@@ -353,11 +362,13 @@ public:
         , m_win_tile_action, m_win_cascade_action, m_win_close_action, m_win_close_all_action, m_win_close_but_this_action
         , m_quit_action
         , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
-        , m_eventlog_filter_toggle;
+        , m_eventlog_filter_toggle, m_debug_treeitem_with_mem_report;
 
 
     // unique application objects
     QPointer<QDmsMdiArea> m_mdi_area;
+    std::unique_ptr<QMdiSubWindow> m_calculation_times_window;
+    std::unique_ptr<QTextBrowser> m_calculation_times_browser;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
     std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
