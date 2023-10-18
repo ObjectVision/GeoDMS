@@ -13,6 +13,7 @@
 #include "dbg/Timer.h"
 
 #include "DmsEventLog.h"
+#include "DmsTreeView.h"
 #include "DmsOptions.h"
 #include "DmsMainWindow.h"
 #include <QMainWindow>
@@ -277,8 +278,11 @@ void EventLogModel::updateOnNewMessages()
 	last_updated_message_index = m_Items.size();
 
 	// update view
-	MainWindow::TheOne()->m_eventlog->scrollToBottomThrottled();
-	MainWindow::TheOne()->m_eventlog->m_log->repaint();
+	auto main_window = MainWindow::TheOne();
+	main_window->m_treeview->setUpdatesEnabled(false);
+	main_window->m_eventlog->scrollToBottomThrottled();
+	main_window->m_eventlog->m_log->repaint();
+	main_window->m_treeview->setUpdatesEnabled(true);
 }
 
 void EventLogModel::addText(MsgData&& msgData)
