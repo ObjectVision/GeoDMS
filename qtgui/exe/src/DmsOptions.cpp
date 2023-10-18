@@ -1,4 +1,5 @@
 #include "DmsOptions.h"
+#include "DmsEventLog.h"
 #include "utl/Environment.h"
 #include "Parallel.h"
 #include "ptr/SharedStr.h"
@@ -212,7 +213,8 @@ void DmsGuiOptionsWindow::apply()
     setChanged(false);
 
     // hidden items
-    auto main_window = MainWindow::TheOne(); 
+    auto main_window = MainWindow::TheOne();
+    main_window->m_eventlog_model->cached_reg_flags = dms_reg_status_flags;
     if (main_window->m_dms_model->updateShowHiddenItems())
         main_window->m_dms_model->reset();
 }
