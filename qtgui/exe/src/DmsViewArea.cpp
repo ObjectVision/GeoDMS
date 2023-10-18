@@ -197,6 +197,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 {
     assert(currItem); // Precondition
     setAcceptDrops(true);
+    setUpdatesEnabled(false);
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
@@ -230,6 +231,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
     :   QMdiSubWindow(parent)
     ,   m_DataView(createStruct->dataView)
 {
+    setUpdatesEnabled(false);
     setWindowTitle(createStruct->caption);
     CreateDmsView(parent, createStruct->ct);
     createStruct->hWnd = (HWND)m_DataViewHWnd;
@@ -354,6 +356,13 @@ void QDmsViewArea::resizeEvent(QResizeEvent* event)
 {
     base_class::resizeEvent(event);
     UpdatePosAndSize();
+}
+
+bool QDmsViewArea::eventFilter(QObject* object, QEvent* event)
+{
+    if (event->type() == QEvent::Paint) 
+        return true;
+    return false;
 }
 
 auto QDmsViewArea::contentsRectInPixelUnits()->QRect
