@@ -40,6 +40,7 @@ void EventLogModel::clear()
 	m_filtered_indices.clear();
 	m_Items.clear();
 	refilter();
+	last_updated_message_index = 0;
 	MainWindow::TheOne()->m_eventlog->m_clear->setDisabled(true);
 }
 
@@ -244,7 +245,40 @@ void EventLogModel::writeSettingsOnToggle(bool newValue)
 	SetRegStatusFlags(dms_reg_status_flags);
 }
 
+void EventLogModel::updateOnNewMessages()
+{
+	has_queued_update = false;
+	time_since_last_direct_update = QDateTime::currentDateTime();
+	
+	auto number_of_new_messages = m_Items.size() - last_updated_message_index;
+	if (!number_of_new_messages) // no new messages
+		return;
 
+	size_t number_of_added_filtered_indices = 0;
+	for (int i = last_updated_message_index; i < m_Items.size(); i++)
+	{
+		auto& item = m_Items.at(i);
+		bool new_item_passes_filter = itemPassesFilter(item);
+		if (!new_item_passes_filter)
+			continue;
+
+		m_filtered_indices.push_back(i);
+		number_of_added_filtered_indices++;
+	}
+	if (!number_of_added_filtered_indices)
+		return;
+
+	auto rowCount_ = rowCount();
+
+	beginInsertRows(QModelIndex(), rowCount_, rowCount_+number_of_added_filtered_indices-1);
+	endInsertRows();
+
+	last_updated_message_index = m_Items.size();
+
+	// update view
+	MainWindow::TheOne()->m_eventlog->update();
+	MainWindow::TheOne()->m_eventlog->scrollToBottomThrottled();
+}
 
 void EventLogModel::addText(MsgData&& msgData)
 {
@@ -253,19 +287,28 @@ void EventLogModel::addText(MsgData&& msgData)
 
 	eventlog->m_clear->setEnabled(true);
 	m_Items.emplace_back(std::move(msgData));
-	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
-	if (!new_item_passes_filter)
+
+	if (has_queued_update)
 		return;
 
-	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
+	// direct update
+	auto current_time = QDateTime::currentDateTime();
+	auto do_direct_update = time_since_last_direct_update.secsTo(current_time) > direct_update_interval;
+	if (do_direct_update)
+	{
+		updateOnNewMessages();
+		return;
+	}
 
-	m_filtered_indices.push_back(m_Items.size()-1);
+	if (has_queued_update)
+		return;
 
-	endInsertRows();
-	QModelIndex index;
-	index = this->index(rowCount_, 0, QModelIndex());
-
-	emit dataChanged(index, index);
+	// idle time update
+	has_queued_update = true;
+	QTimer::singleShot(5000, this, [=]()
+		{
+			updateOnNewMessages();
+		});
 }
 
 DmsTypeFilter::DmsTypeFilter(QWidget* parent)
@@ -492,11 +535,6 @@ void DmsEventLog::toggleFilter(bool toggled)
 	main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
 
 	m_eventlog_filter->setVisible(toggled);
-
-
-	
-
-	
 }
 
 void DmsEventLog::onTextChanged(const QString& text)
@@ -539,7 +577,6 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
 	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
 	eventlog_model->addText(MsgData(*msgData));
-	eventlog_view->scrollToBottomThrottled();
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
