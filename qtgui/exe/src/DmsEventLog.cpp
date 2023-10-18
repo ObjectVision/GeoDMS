@@ -277,8 +277,8 @@ void EventLogModel::updateOnNewMessages()
 	last_updated_message_index = m_Items.size();
 
 	// update view
-	MainWindow::TheOne()->m_eventlog->repaint();
 	MainWindow::TheOne()->m_eventlog->scrollToBottomThrottled();
+	MainWindow::TheOne()->m_eventlog->m_log->repaint();
 }
 
 void EventLogModel::addText(MsgData&& msgData)
