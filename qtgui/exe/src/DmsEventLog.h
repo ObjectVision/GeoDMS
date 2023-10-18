@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QModelIndexList>
 #include <QPushButton>
+#include <QDateTime>
 
 class MainWindow;
 using BYTE = unsigned char;
@@ -38,6 +39,7 @@ public slots:
 	void refilter();
 	void refilterForTextFilter();
 	void writeSettingsOnToggle(bool newValue);
+	void updateOnNewMessages();
 
 private:
 	auto dataFiltered(int row) const -> const EventLogModel::item_t&;
@@ -48,6 +50,11 @@ private:
 
 	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
+
+	bool has_queued_update = false;
+	size_t last_updated_message_index = 0;
+	QDateTime time_since_last_direct_update = QDateTime::currentDateTime();
+	size_t direct_update_interval = 5;
 };
 
 class DmsTypeFilter : public QWidget, public Ui::DmsEventLogTypeSelection
