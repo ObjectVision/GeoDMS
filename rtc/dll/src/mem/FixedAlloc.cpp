@@ -686,6 +686,15 @@ SizeT CommittedSize()
 	return processInfo.PagefileUsage;
 }
 
+SizeT MaxCommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PeakPagefileUsage;
+}
+
 static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr
