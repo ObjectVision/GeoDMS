@@ -670,10 +670,12 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 // Reporting
 //----------------------------------------------------------------------
 
+#include "utl/mySPrintF.h"
+#include <Psapi.h>
+
 std::atomic<bool> s_ReportingRequestPending = false;
 std::atomic<bool> s_BlockNewAllocations = false;
 
-#include <Psapi.h>
 
 SizeT CommittedSize()
 {
@@ -686,7 +688,7 @@ SizeT CommittedSize()
 
 static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
-void ReportFixedAllocStatus()
+RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr
 {
 	s_ReportingRequestPending = false;
 
@@ -699,32 +701,47 @@ void ReportFixedAllocStatus()
 
 	std::get<4>(cumulBytes) = CommittedSize();
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
-		, std::get<0>(cumulBytes) >> 20
-		, std::get<1>(cumulBytes) >> 20
-		, std::get<2>(cumulBytes) >> 20
-		, std::get<3>(cumulBytes) >> 20
-		, std::get<4>(cumulBytes) >> 20
-	);
-
 	MakeMax(std::get<0>(maxCumulBytes), std::get<0>(cumulBytes));
 	MakeMax(std::get<1>(maxCumulBytes), std::get<1>(cumulBytes));
 	MakeMax(std::get<2>(maxCumulBytes), std::get<2>(cumulBytes));
 	MakeMax(std::get<3>(maxCumulBytes), std::get<3>(cumulBytes));
 	MakeMax(std::get<4>(maxCumulBytes), std::get<4>(cumulBytes));
-}
 
-void ReportFixedAllocFinalSummary()
-{
-	auto cumulBytes = maxCumulBytes;
-
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
 		, std::get<3>(cumulBytes) >> 20
 		, std::get<4>(cumulBytes) >> 20
 	);
+}
+
+void ReportFixedAllocStatus()
+{
+	auto reportStr = UpdateAndGetFixedAllocStatus();
+
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+}
+
+RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
+{
+	auto cumulBytes = maxCumulBytes;
+
+	return mySSPrintF( "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
+	);
+}
+
+void ReportFixedAllocFinalSummary()
+{
+	auto msgStr = UpdateAndGetFixedAllocFinalSummary();
+
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
+
 }
 
 //----------------------------------------------------------------------

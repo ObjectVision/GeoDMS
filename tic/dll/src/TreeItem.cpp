@@ -163,7 +163,7 @@ void ReportDataItem(const AbstrDataItem* di)
 	std::size_t c = ado->GetNrBytesNow(false);
 	if (c<1000) return;
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RC=%d; IC=%d; KE=%d; DL=%d, Nr=%Iu, Nm=%s",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, NrBytes=%Iu, Name=%s",
 		di->GetRefCount(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
@@ -1079,8 +1079,8 @@ retry:
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection); // check and swap or try again
 		if (m_InterestCount) // still interested?
 		{
-			dms_assert(newRefItemCounter || !refItem); // Starting Interest only allowed from this main thread. 
-			if (refItem && !newRefItemCounter) // situation has changed 
+			assert(newRefItemCounter || !refItem); // Starting Interest only allowed from this main thread. 
+			if (refItem && !newRefItemCounter) // situation had changed anyway
 				goto retry;
 			// point of certain return, prepare settlement upon destruction
 			newRefItemCounter.release();

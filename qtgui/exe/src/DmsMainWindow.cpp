@@ -1597,13 +1597,15 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime)
         passedTime %= 24 * 3600;
     }
     assert(passedTime <= (24 * 3600));
-    result = mySSPrintF("%s%s%02d:%02d:%02d"
+    result = mySSPrintF("%s%s%02d:%02d:%02d "
         , preFix
         , result.c_str()
         , passedTime / 3600, (passedTime / 60) % 60, passedTime % 60
     );
     return result;
 }
+
+RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr;
 
 void MainWindow::end_timing(AbstrMsgGenerator* ach)
 {
@@ -1622,8 +1624,10 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
     if (m_processing_records.size() >= 10 && passedTime < passed_time(m_processing_records.front()))
         return;
 
+    auto msgStr = UpdateAndGetFixedAllocStatus();
     if (ach)
-        std::get<SharedStr>(current_processing_record) = SharedStr(ach->GetDescription());
+        msgStr = SharedStr(ach->GetDescription()) + " " + msgStr;
+    std::get<SharedStr>(current_processing_record) = msgStr;
 
     auto comparator = [](std::time_t passedTime, const processing_record& rhs) { return passedTime <= passed_time(rhs);  };
     auto insertionPoint = std::upper_bound(m_processing_records.begin(), m_processing_records.end(), passedTime, comparator);
@@ -1644,13 +1648,15 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
     updateStatusMessage();
 }
 
+RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr;
+
 static UInt32 s_ReentrancyCount = 0;
 void MainWindow::updateStatusMessage()
 {
     if (s_ReentrancyCount)
         return;
 
-    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt;
+    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + UpdateAndGetFixedAllocFinalSummary();
 
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     
@@ -2530,7 +2536,7 @@ CharPtrRange myAscTime(const struct tm* timeptr)
         1900 + timeptr->tm_year);
 }
 
-void MainWindow::view_calculation_times()
+void MainWindow::update_calculation_times_report()
 {
     VectorOutStreamBuff vosb;
     FormattedOutStream os(&vosb, FormattingFlags());
@@ -2548,11 +2554,16 @@ void MainWindow::view_calculation_times()
         m_mdi_area->addSubWindow(m_calculation_times_window.get());
 
     m_calculation_times_browser->setText(vosb.GetData());
+}
+
+void MainWindow::view_calculation_times()
+{
+    update_calculation_times_report();
+    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
+
     m_calculation_times_browser->show();
     m_calculation_times_window->setWindowTitle("Calculation time overview");
     m_calculation_times_window->setWindowIcon(QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    
-    //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
     m_calculation_times_window->show();
 }
 
