@@ -60,13 +60,14 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	case Qt::DisplayRole:
 	{
 		SharedStr msgTxt = item_data.m_Txt;
-		auto dms_reg_status_flags = GetRegStatusFlags();
-		if ((dms_reg_status_flags & RSF_EventLog_ShowAnyExtra) == 0)
+		//auto dms_reg_status_flags = GetRegStatusFlags();
+		
+		if ((cached_reg_flags & RSF_EventLog_ShowAnyExtra) == 0)
 			return QString(msgTxt.c_str());
 
-		bool showDateTime = (dms_reg_status_flags & RSF_EventLog_ShowDateTime);
-		bool showThreadID = (dms_reg_status_flags & RSF_EventLog_ShowThreadID);
-		bool showCategory = (dms_reg_status_flags & RSF_EventLog_ShowCategory);
+		bool showDateTime = (cached_reg_flags & RSF_EventLog_ShowDateTime);
+		bool showThreadID = (cached_reg_flags & RSF_EventLog_ShowThreadID);
+		bool showCategory = (cached_reg_flags & RSF_EventLog_ShowCategory);
 
 		VectorOutStreamBuff buff;
 		FormattedOutStream fout(&buff, {});
@@ -276,7 +277,7 @@ void EventLogModel::updateOnNewMessages()
 	last_updated_message_index = m_Items.size();
 
 	// update view
-	MainWindow::TheOne()->m_eventlog->update();
+	MainWindow::TheOne()->m_eventlog->repaint();
 	MainWindow::TheOne()->m_eventlog->scrollToBottomThrottled();
 }
 
@@ -287,9 +288,6 @@ void EventLogModel::addText(MsgData&& msgData)
 
 	eventlog->m_clear->setEnabled(true);
 	m_Items.emplace_back(std::move(msgData));
-
-	if (has_queued_update)
-		return;
 
 	// direct update
 	auto current_time = QDateTime::currentDateTime();

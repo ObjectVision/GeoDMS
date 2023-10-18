@@ -2,6 +2,7 @@
 #include "dbg/SeverityType.h"
 #include "ptr/SharedStr.h"
 #include "ui_DmsEventLogSelection.h"
+#include "utl/Environment.h"
 
 #include <QPointer>
 #include <QAbstractListModel>
@@ -33,6 +34,7 @@ public:
 	void addText(MsgData&& msgData);
 
 	QByteArray m_TextFilterAsByteArray;
+	UInt32 cached_reg_flags = GetRegStatusFlags();
 
 public slots:
 	void clear();
