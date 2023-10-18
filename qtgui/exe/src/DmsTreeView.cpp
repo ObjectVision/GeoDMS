@@ -173,7 +173,7 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 		return 0;
 
 	int number_of_rows = 0;
-	for (auto si = ti->_GetFirstSubItem(); si; si = si->GetNextItem())
+	for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem())
 	{
 		if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
 			number_of_rows++;
@@ -315,9 +315,13 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 	auto ti = GetTreeItemOrRoot(parent);
 	if (!ti)
 		return false;
+
+	if (ti->Was(PS_MetaInfo))
+		return ti->_GetFirstSubItem() != nullptr;
+
 	ObjectMsgGenerator context(ti, "HasSubItems");
 	Waiter monitor(&context);
-	return ti && ti->HasSubItems();
+	return ti->HasSubItems();
 }
 
 auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags

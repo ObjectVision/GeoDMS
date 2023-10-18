@@ -593,12 +593,17 @@ DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_f
 
 void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
 {
+    auto main_window = MainWindow::TheOne();
+    
     std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
     std::unique_ptr<QAction> pin_action = std::make_unique<QAction>(QPixmap(":/res/images/TB_toggle_palette.bmp"), "pin", this);
     std::unique_ptr<QAction> remove_action = std::make_unique<QAction>(QPixmap(":/res/images/EL_clear.bmp"), "remove", this);
     pin_action->setDisabled(true);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
+    
+    auto test_child = main_window->m_file_menu->childAt(pos);
+
     connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
     recent_file_context_menu->exec(pos);
 }
@@ -1686,12 +1691,12 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
-    new_recent_file_entry->installEventFilter(new_recent_file_entry);
-    //for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
-    //{
-    //   action_object_pointer->installEventFilter(new_recent_file_entry);
-    //}
+    //auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
+    //new_recent_file_entry->installEventFilter(new_recent_file_entry);
+    for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
+    {
+       action_object_pointer->installEventFilter(new_recent_file_entry);
+    }
 
     //auto test_default_widget = new_recent_file_entry->defaultWidget();
 

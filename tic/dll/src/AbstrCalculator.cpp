@@ -1391,7 +1391,10 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 	if (!m_HasSubstituted)
 	{
 		dms_assert(IsMetaThread());
+		m_HasSubstituted = true; // before any throw
+
 		MG_SIGNAL_ON_UPDATEMETAINFO
+
 
 		auto lispRefOrg = GetLispExprOrg();
 		if (IsSourceRef())
@@ -1402,9 +1405,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 		}
 		else
 		{
-			assert(!m_HasCollectedNamedSuppliers);
 			SubstitutionBuffer substBuff(true);
-			m_HasCollectedNamedSuppliers = true; // before throw
 
 			m_LispExprSubst = SubstituteExpr(substBuff, RewriteExpr(GetLispExprOrg()));
 
@@ -1419,9 +1420,6 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 				m_NamedSuppliers[tvPair.second - 1] = tvPair.first;
 			}
 		}
-		assert(!m_HasSubstituted); // not allowed to call twice when this results in MetaInfo
-		m_HasSubstituted = true;
-		m_HasCollectedNamedSuppliers = true;
 	}
 	return m_LispExprSubst;
 }
