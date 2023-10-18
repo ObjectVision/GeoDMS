@@ -9,6 +9,8 @@
 #include <QBoxLayout>
 #include <QShortcut>
 #include <QHeaderView>
+#include <QScrollbar>
+
 #include <variant>
 
 #include "DmsMainWindow.h"
@@ -520,6 +522,11 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
+	
+	horizontalScrollBar()->setEnabled(true);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	//header()->setStretchLastSection(false);
+
 	setStyleSheet(
 		"QTreeView::branch:has-siblings:!adjoins-item {\n"
 		"    border-image: url(:/res/images/TV_vline.png) 0;\n"
