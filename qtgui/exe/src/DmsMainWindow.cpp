@@ -1656,11 +1656,12 @@ void MainWindow::updateStatusMessage()
     if (s_ReentrancyCount)
         return;
 
-    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + UpdateAndGetFixedAllocFinalSummary();
+    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + "- max memory (Bytes): " + MaxCommittedSize(); //UpdateAndGetFixedAllocFinalSummary();
 
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     
     statusBar()->showMessage(fullMsg.c_str());
+    //statusBar()->repaint();
 }
 
 auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
