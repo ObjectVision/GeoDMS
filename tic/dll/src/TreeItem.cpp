@@ -191,6 +191,9 @@ TIC_CALL void TreeItemWithMemReport()
 	}
 }
 
+#include "dbg/DebugReporter.h"
+static auto treeItemWithMemReporter = MakeDebugCaller(TreeItemWithMemReport);
+
 #endif //defined(MG_DEBUG_DATA)
 
 
