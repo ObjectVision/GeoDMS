@@ -2432,8 +2432,13 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
+RTC_CALL bool IsProcessingMainThreadOpers();
+
 void TreeItem::UpdateMetaInfo() const
 {
+	if (IsProcessingMainThreadOpers())
+		return;
+
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
 	assert(IsMetaThread());

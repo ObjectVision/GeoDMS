@@ -123,6 +123,12 @@ void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
+RTC_CALL bool IsProcessingMainThreadOpers()
+{
+	assert(IsMainThread());
+	return s_ProcessMainThreadOperLevel != 0;
+}
+
 void ProcessMainThreadOpers()
 {
 	assert(IsMainThread());
