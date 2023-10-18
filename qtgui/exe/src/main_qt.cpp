@@ -300,7 +300,7 @@ protected:
             default: break;
             }
         }
-        return QObject::eventFilter(obj, event);
+        return false; // QObject::eventFilter(obj, event);
     }
 };
 

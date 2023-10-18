@@ -2241,9 +2241,9 @@ void MainWindow::createActions()
     
     // debug tools
 #ifdef MG_DEBUG
-    m_debug_treeitem_with_mem_report = std::make_unique<QAction>(tr("Debug: treeitem with memory report"));
-    connect(m_debug_treeitem_with_mem_report.get(), &QAction::triggered, this, &MainWindow::debugTreeItemWithMemoryReport);
-    m_tools_menu->addAction(m_debug_treeitem_with_mem_report.get());
+    m_debug_reports = std::make_unique<QAction>(tr("Debug: produce internal report(s)"));
+    connect(m_debug_reports.get(), &QAction::triggered, this, &MainWindow::debugReports);
+    m_tools_menu->addAction(m_debug_reports.get());
 #endif
 
     // settings menu
@@ -2601,15 +2601,15 @@ void MainWindow::expandAll()
     m_treeview->expandAll();
 }
 
-#ifdef MG_DEBUG
-TIC_CALL void TreeItemWithMemReport();
-#endif // DEBUG
+#include "dbg/DebugReporter.h"
 
-void MainWindow::debugTreeItemWithMemoryReport()
+void MainWindow::debugReports()
 {
-#ifdef MG_DEBUG
-    TreeItemWithMemReport();
-#endif // DEBUG
+
+#if defined(MG_DEBUGREPORTER)
+    DebugReporter::ReportAll();
+#endif defined(MG_DEBUGREPORTER)
+
 }
 
 

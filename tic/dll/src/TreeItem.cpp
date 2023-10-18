@@ -191,6 +191,9 @@ TIC_CALL void TreeItemWithMemReport()
 	}
 }
 
+#include "dbg/DebugReporter.h"
+static auto treeItemWithMemReporter = MakeDebugCaller(TreeItemWithMemReport);
+
 #endif //defined(MG_DEBUG_DATA)
 
 
@@ -2429,8 +2432,13 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
+RTC_CALL bool IsProcessingMainThreadOpers();
+
 void TreeItem::UpdateMetaInfo() const
 {
+	if (IsProcessingMainThreadOpers())
+		return;
+
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
 	assert(IsMetaThread());

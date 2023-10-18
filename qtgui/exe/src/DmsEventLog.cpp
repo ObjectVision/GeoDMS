@@ -283,7 +283,6 @@ void EventLogModel::updateOnNewMessages()
 
 void EventLogModel::addText(MsgData&& msgData)
 {
-	auto rowCount_ = rowCount();
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 
 	eventlog->m_clear->setEnabled(true);
@@ -573,7 +572,6 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 
 	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
-	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
 	eventlog_model->addText(MsgData(*msgData));
 }
 

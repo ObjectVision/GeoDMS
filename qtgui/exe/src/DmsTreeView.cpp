@@ -270,7 +270,11 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 		Waiter showWaitingStatus(&thisMsgGenerator);
 
-		ti->UpdateMetaInfo();
+		try {
+			ti->UpdateMetaInfo();
+		}
+		catch (...)
+		{}
 	}
 	switch (role)
 	{

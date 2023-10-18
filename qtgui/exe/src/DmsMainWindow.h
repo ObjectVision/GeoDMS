@@ -274,7 +274,8 @@ public slots:
     void update_calculation_times_report();
 
     void expandAll();
-    void debugTreeItemWithMemoryReport();
+
+    void debugReports();
     void expandActiveNode(bool doExpand);
     void expandRecursiveFromCurrentItem();
 
@@ -363,7 +364,7 @@ public:
         , m_win_tile_action, m_win_cascade_action, m_win_close_action, m_win_close_all_action, m_win_close_but_this_action
         , m_quit_action
         , m_back_action, m_forward_action, m_general_page_action, m_explore_page_action, m_properties_page_action, m_configuration_page_action, m_sourcedescr_page_action, m_metainfo_page_action
-        , m_eventlog_filter_toggle, m_debug_treeitem_with_mem_report;
+        , m_eventlog_filter_toggle, m_debug_reports;
 
 
     // unique application objects
