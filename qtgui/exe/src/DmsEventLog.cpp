@@ -247,6 +247,8 @@ void EventLogModel::writeSettingsOnToggle(bool newValue)
 	SetRegStatusFlags(dms_reg_status_flags);
 }
 
+RTC_CALL bool IsProcessingMainThreadOpers();
+
 void EventLogModel::updateOnNewMessages()
 {
 	has_queued_update = false;
@@ -279,10 +281,14 @@ void EventLogModel::updateOnNewMessages()
 
 	// update view
 	auto main_window = MainWindow::TheOne();
-	main_window->m_treeview->setUpdatesEnabled(false);
+	if (IsProcessingMainThreadOpers())
+		main_window->m_treeview->setUpdatesEnabled(false);
 	main_window->m_eventlog->scrollToBottomThrottled();
-	main_window->m_eventlog->m_log->repaint();
-	main_window->m_treeview->setUpdatesEnabled(true);
+	if (IsProcessingMainThreadOpers())
+	{
+		main_window->m_eventlog->m_log->repaint();
+		main_window->m_treeview->setUpdatesEnabled(true);
+	}
 }
 
 void EventLogModel::addText(MsgData&& msgData)

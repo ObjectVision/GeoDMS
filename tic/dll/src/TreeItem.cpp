@@ -2436,8 +2436,7 @@ RTC_CALL bool IsProcessingMainThreadOpers();
 
 void TreeItem::UpdateMetaInfo() const
 {
-	if (IsProcessingMainThreadOpers())
-		return;
+	MG_CHECK(!IsProcessingMainThreadOpers());
 
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
