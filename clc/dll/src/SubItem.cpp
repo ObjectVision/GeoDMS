@@ -220,7 +220,7 @@ struct FenceContainerOperator : BinaryOperator
 						
 				}
 			}
-			else if (IsDataItem(srcItem))
+			else if (IsDataItem(srcItem) && resWalker->GetInterestCount())
 			{
 				DataReadLock readLock(AsDataItem(srcItem));
 				AsDataItem(resWalker)->m_DataObject = readLock;
