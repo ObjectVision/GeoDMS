@@ -488,8 +488,16 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::BlockIncInterestDetector allowIncInterestsForLabelAccess; // user must choose label wisely; new interest leaks out of this frame.
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
-	if (!ipHolder->PrepareDataUsage(DrlType::Certain))
-		return SharedStr();
+	if (IsMainThread())
+	{
+		if (!ipHolder->PrepareDataUsage(DrlType::Certain))
+			return SharedStr();
+	}
+	else
+	{
+		if (!IsDataReady(ipHolder.get_ptr()))
+			return SharedStr();
+	}
 
 	try {
 		DataReadLock drl(ipHolder);

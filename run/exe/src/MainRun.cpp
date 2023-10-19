@@ -161,26 +161,17 @@ void DMS_CONV reportMsg(CharPtr msg)
 	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
 
-struct installLogMsg
-{
-	installLogMsg()
-	{
-		DMS_RegisterMsgCallback(logMsg, nullptr);
-
-	}
-	~installLogMsg()
-	{
-		ReportFixedAllocFinalSummary();
-		DMS_ReleaseMsgCallback(logMsg, nullptr);
-	}
-};
-
 int main_without_se(int argc, char** argv)
 {
 	DMS_CALL_BEGIN
-		installLogMsg msgCallbackHandle;
 
-		auto exitGuard = make_scoped_exit([] { DMS_ReleaseMsgCallback(logMsg, nullptr); });
+		DMS_RegisterMsgCallback(logMsg, nullptr);
+		auto exitGuard = make_scoped_exit([]
+			{ 
+				ReportFixedAllocFinalSummary();
+				DMS_ReleaseMsgCallback(logMsg, nullptr);
+			}
+		);
 
 		if (argc > 0)
 			DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
