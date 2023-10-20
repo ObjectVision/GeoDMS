@@ -1231,7 +1231,7 @@ SupplInterestListPtr::~SupplInterestListPtr()
 
 SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
-	dms_assert(this);
+	assert(this);
 
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 	if (!m_InterestCount)
@@ -1245,7 +1245,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 
 	SharedPtr<const Actor> result = this;
 
-	dms_assert(m_InterestCount);
+	assert(m_InterestCount);
 	++m_InterestCount;
 
 	return std::move(*reinterpret_cast<SharedActorInterestPtr*>(&result));

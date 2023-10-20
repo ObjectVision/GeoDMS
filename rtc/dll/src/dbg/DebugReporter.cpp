@@ -112,8 +112,4 @@ auto test = MakeDebugCaller(
 	[]() { dms_assert(1 + 1 == 2);  }
 );
 
-auto test2 = MakeDebugCaller(
-	[]() { dms_assert(1 + 1 == 2);  }
-);
-
 #endif defined(MG_DEBUGREPORTER)

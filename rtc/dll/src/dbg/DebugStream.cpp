@@ -501,11 +501,13 @@ RtcStreamLock::RtcStreamLock()
 	}
 }
 
+void ReportFixedAllocFinalSummary(); // defined in FixedAlloc.cpp
+
 RtcStreamLock::~RtcStreamLock()
 {
 	if (!--s_nrRtcStreamLocks)
 	{
-		ReportFixedAllocStatus();
+		ReportFixedAllocFinalSummary();
 
 		// Clear Tracing system
 #if defined(MG_CRTLOG)

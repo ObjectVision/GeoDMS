@@ -469,7 +469,6 @@ public:
 	mutable AbstrStorageManagerRef m_StorageManager; 
 	mutable rtc::any::Any          m_ReadAssets; friend struct OperationContext;
 
-protected: friend struct CalcDestroyer;
 public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate ConfigTreeItem class
 
 	mutable treeitem_flag_set      m_StatusFlags;
