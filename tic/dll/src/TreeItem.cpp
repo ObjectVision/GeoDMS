@@ -2847,8 +2847,6 @@ void TreeItem::DoInvalidate() const
 
 	SetReferredItem(nullptr);
 
-//	CalcDestroyer destroyer(this, !GetTSF(TSF_InheritedRef)  && (!HasConfigData() || !IsDataItem(this)) && (!mc_Calculator || !mc_Calculator->IsDataBlock()));
-
 	if (IsCacheItem())
 		const_cast<TreeItem*>(this)->DropValue();
 
