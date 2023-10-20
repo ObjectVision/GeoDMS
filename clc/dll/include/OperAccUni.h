@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -97,7 +72,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		{
 			const AbstrUnit* adu = arg1A->GetAbstrDomainUnit();
 			SizeT n = adu->GetCount();
-			MakeMin(n, Explain::MaxNrEntries);
+			MakeMin<SizeT>(n, Explain::MaxNrEntries);
 			for (SizeT i=0; i!=n; ++i)
 				Explain::AddQueueEntry(context->m_CalcExpl, adu, i);
 		}
@@ -377,20 +352,11 @@ private:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> struct make_direct   { typedef OperAccPartUniDirect  <TAcc1Func> type; };
-template <class TAcc1Func> struct make_buffered { typedef OperAccPartUniBuffered<TAcc1Func> type; };
+template <class TAcc1Func> struct make_direct   { using type = OperAccPartUniDirect  <TAcc1Func>; };
+template <class TAcc1Func> struct make_buffered { using type = OperAccPartUniBuffered<TAcc1Func>; };
 
 template <class TAcc1Func> using base_of = std::conditional_t< impl::has_dms_result_type<TAcc1Func>::value,	make_buffered<TAcc1Func>, make_direct<TAcc1Func> >;
-
-template <class TAcc1Func> 
-struct OperAccPartUniBest: base_of<TAcc1Func>
-{
-	OperAccPartUniBest(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	base_of<TAcc1Func>(gr, acc1Func)
-	{}
-};
-
-
+template <class TAcc1Func> using OperAccPartUniBest = typename base_of<TAcc1Func>::type;
 
 template <typename TAcc1Func>
 void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())

@@ -73,14 +73,14 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 		InfiniteNullOutStreamBuff lengthFinderStreamBuff;
 		lengthFinderStreamBuff.m_CurrPos += sz;
 
-		aggr1_total_best(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
+		aggr1_total<TSerFunc>(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
 
 		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 
 		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr( output ), end_ptr( output )));
 		writerStreamBuff.m_Curr += sz;
 		
-		aggr1_total_best(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
+		aggr1_total<TSerFunc>(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
 	}
 
 	TSerFunc m_SerFunc;
@@ -121,7 +121,7 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 
 	void InspectData(length_finder_array& lengthFinderArray, value_cseq input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
+		aggr_fw_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
 	void ReserveData(memo_out_stream_array& outStreamArray, accumulator_seq outputs) const
@@ -134,7 +134,7 @@ struct unary_assign_string_partial_accumulation : unary_partial_accumulation<Sha
 	void ProcessTileData(memo_out_stream_array& outStreamArray, value_cseq input, const IndexGetter* indices) const
 	{ 
 		// re-write everything into the allocated buffers.
-		aggr_fw_best_partial(outStreamArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
+		aggr_fw_partial(outStreamArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 private:
 	TSerFunc m_AssignFunc;
@@ -188,6 +188,9 @@ struct unary_ser_aslist: unary_assign<OutStreamBuff, SharedStr>
 
 	void operator()(OutStreamBuff& assignee, cref<SharedStr>::type arg) const	
 	{ 
+		if (!IsDefined(arg))
+			return;
+
 		if (assignee.CurrPos() && arg.size())
 			assignee.WriteBytes(begin_ptr( m_Separator ), m_Separator.size());
 		assignee.WriteBytes(begin_ptr( arg ), arg.size());

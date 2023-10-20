@@ -41,6 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrUnit.h"
 #include "OperationContext.h"
 #include "PropFuncs.h"
+#include "TreeItemProps.h"
 
 #include "AbstrCmd.h"
 #include "GraphicRect.h"
@@ -404,7 +405,7 @@ ExportInfo GraphDataView::GetExportInfo()
 	return GetContents()->GetViewPort()->GetExportInfo();
 }
 
-SharedStr GraphDataView::GetCaption() const
+SharedStr GraphDataView::GetCaption() const // Mapview caption
 {
 	auto mapContents = GetContents();
 	if (mapContents)
@@ -412,23 +413,26 @@ SharedStr GraphDataView::GetCaption() const
 		SharedStr spatialRefStr;
 		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
 		if (wcu)
-			spatialRefStr = wcu->GetSpatialReference();
-		if (spatialRefStr.empty())
-			spatialRefStr = "MapView";
-		else
-			spatialRefStr = "MapView with " + spatialRefStr;
-		auto ls = mapContents->GetLayerSet();
-		if (ls)
 		{
-			auto al = ls->GetActiveLayer();
-			if (al)
-			{
-				return spatialRefStr + ", " + al->GetCaption();
-			}
+			auto world_crd_unit_label_property = TreeItemPropertyValue(wcu, labelPropDefPtr);
+			if (!world_crd_unit_label_property.empty()) // prioritize label over srs def in mapview caption
+				spatialRefStr = world_crd_unit_label_property;
+			else
+				spatialRefStr = wcu->GetSpatialReference();
 		}
+
+		if (spatialRefStr.empty())
+			spatialRefStr = "";
+		else
+			spatialRefStr = "with " + spatialRefStr;
+
+		if (auto ls = mapContents->GetLayerSet())
+			if (auto active_layer = ls->GetActiveLayer())
+				return spatialRefStr + ", " + active_layer->GetCaption();
+
 		return spatialRefStr;
 	}
-	return SharedStr("MapView");
+	return SharedStr("");
 }
 
 LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const

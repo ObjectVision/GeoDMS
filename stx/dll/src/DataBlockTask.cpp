@@ -45,8 +45,7 @@ DataBlockTask::DataBlockTask(AbstrDataItem* adiContext,
 	,	m_NrElems(nrElems)
 	,	m_DataBlock(LispRef(begin, end))
 {
-	dms_assert(adiContext);
-	adiContext->DisableStorage();
+	assert(adiContext);
 }
 
 DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, const DataBlockTask& src)
@@ -55,7 +54,6 @@ DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, const DataBlockTask& src
 	,	m_DataBlock(src.m_DataBlock)
 {
 	dms_assert(adiContext);
-	adiContext->DisableStorage();
 }
 
 DataBlockTask::~DataBlockTask()

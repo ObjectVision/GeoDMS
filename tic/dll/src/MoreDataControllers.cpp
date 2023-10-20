@@ -317,7 +317,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 //	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	assert(IsMetaThread());
+	assert(IsMetaThread() || m_Data);
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -727,7 +727,7 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 
 ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to curr DcRefListElem
+	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to currently uniquely owned DcRefListElem
 	SharedStr firstArgValue;
 	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
 	{
@@ -735,7 +735,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo) && !MustCalcArg(argNr, true, firstArgValue.begin()) && !m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin()))
 			continue;
 
-		const DataController* dc = dcRefElem->m_DC;
+		const DataController* dc = dcRefElem->m_DC; // borrow shared owned dc;
 
 		if (visitor(dc) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;

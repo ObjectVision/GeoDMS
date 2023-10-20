@@ -52,27 +52,27 @@ template <typename T>
 typename boost::disable_if<is_signed<T>, T >::type
 CheckedAdd(T a, T b)
 {
-	dms_assert(a>=0);
-	dms_assert(b>=0);
+	assert(a>=0);
+	assert(b>=0);
 	T r = a+b;
-	dms_assert(r>=0);
+	assert(r>=0);
 	if (r < a || r < b)
 		throwDmsErrD("Overflow in addition");
 	return r;
 }
 
 template <typename T> T
-CheckedMul(T a,T b)
+CheckedMul(T a,T b, bool suggestAlternative)
 {
 	typename mul_type<T>::type r = a;
 	r *= b;
 	if (r != T(r))
-		throwDmsErrD("Overflow in multiplication");
+		throwOverflow("multiplying", a, "and", b, suggestAlternative, "mul_or_null", NextAddIntegral<T>());
 	return r;
 }
 
 template <>
-inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b)
+inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b, bool suggestAlternative)
 {
 	UInt64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))
@@ -81,27 +81,12 @@ inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b)
 }
 
 template <>
-inline Int64 CheckedMul<Int64>(Int64 a, Int64 b)
+inline Int64 CheckedMul<Int64>(Int64 a, Int64 b, bool suggestAlternative)
 {
 	Int64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))
 		throwDmsErrD("Overflow in multiplication");
 	return res;
-}
-
-inline UInt64 CheckedMul(UInt64 a, UInt64 b, UInt64*)
-{
-	return CheckedMul<UInt64>(a, b);
-}
-
-inline UInt64 CheckedMul(UInt32 a, UInt32 b, UInt64*)
-{
-	return UInt64(a) * UInt64(b);
-}
-
-inline UInt32 CheckedMul(UInt32 a, UInt32 b, UInt32*)
-{
-	return CheckedMul<UInt32>(a, b);
 }
 
 #endif // __RTC_GEO_CHECKEDCALC_H

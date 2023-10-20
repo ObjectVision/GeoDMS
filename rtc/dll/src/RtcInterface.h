@@ -43,18 +43,6 @@ RTC_CALL CharPtr DMS_CONV DMS_GetLastErrorMsg();
 
 RTC_CALL void DMS_CONV DMS_SetGlobalCppExceptionTranslator(TCppExceptionTranslator trFunc);
 
-// The following typedef defines the type TReduceResourcesFunc
-// which is a pointer to a function type that takes 
-//		clientHandle: a client suppplied DWord to identify a client object that handles the message
-// and returns nothing. It is used before calling an external proc to reduce locks etc.
-// ODBCStorageManagers subscribe here to close recordsets and database connections.
-
-
-typedef bool (DMS_CONV *TReduceResourcesFunc)(ClientHandle clientHandle);
-RTC_CALL void DMS_CONV DMS_RegisterReduceResourcesFunc(TReduceResourcesFunc fcb, ClientHandle clientHandle);
-RTC_CALL void DMS_CONV DMS_ReleaseReduceResourcesFunc (TReduceResourcesFunc fcb, ClientHandle clientHandle);
-RTC_CALL bool DMS_CONV DMS_ReduceResources();
-RTC_CALL void DMS_CONV DMS_FreeResources();
 RTC_CALL void DMS_CONV DMS_Terminate();
 
 //----------------------------------------------------------------------
@@ -86,14 +74,14 @@ RTC_CALL CharPtr DMS_CONV DMS_GetBuildConfig();
 typedef void (DMS_CONV *VersionComponentCallbackFunc)(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName);
 
 RTC_CALL void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionComponentCallbackFunc callBack);
-RTC_CALL IStringHandle DMS_ReportChangedFiles(bool updateFileTimes);
 
 RTC_CALL void DMS_CONV DMS_Rtc_Load();
 RTC_CALL bool DMS_CONV DMS_RTC_Test();
 
 } // end extern "C"
 
-RTC_CALL auto ReportChangedFiles(bool updateFileTimes) -> VectorOutStreamBuff;
+RTC_CALL auto ReportChangedFiles() -> VectorOutStreamBuff;
+RTC_CALL void ReportCurrentConfigFileList(OutStreamBase& os);
 
 RTC_CALL extern bool g_IsTerminating;
 

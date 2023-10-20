@@ -64,7 +64,7 @@ class AbstrCaretOperator
 class PointCaretOperator : public AbstrCaretOperator
 {
 public:
-	PointCaretOperator(const GPoint& point, GraphicObject* givenObject);
+	PointCaretOperator(GPoint point, GraphicObject* givenObject);
   	void operator() (AbstrCaret* caret) const override;
 
 private:
@@ -81,7 +81,7 @@ class DualPointCaretOperator : public PointCaretOperator
 	typedef PointCaretOperator base_type;
 
 public:
-	DualPointCaretOperator(const GPoint& start, const GPoint& end, GraphicObject* givenObject);
+	DualPointCaretOperator(GPoint start, GPoint end, GraphicObject* givenObject);
   	void operator() (AbstrCaret* caret) const override;
 
 private:

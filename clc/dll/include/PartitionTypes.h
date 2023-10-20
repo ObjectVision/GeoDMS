@@ -64,8 +64,8 @@ struct crd_partition
 
 	crd_partition(const Range& indexValueRange): m_Domain(indexValueRange) {}
 
-	ordinal_t GetIndexBase() const             { return ordinal_t(m_Domain.first.Row()) * _Width(m_Domain) + m_Domain.first.Col(); }
-	ordinal_t GetIndex(typename Range::value_cref point) const { return ordinal_t(point.Row()) * _Width(m_Domain) + point.Col(); }
+	ordinal_t GetIndexBase() const             { return ordinal_t(m_Domain.first.Row()) * Width(m_Domain) + m_Domain.first.Col(); }
+	ordinal_t GetIndex(typename Range::value_cref point) const { return ordinal_t(point.Row()) * Width(m_Domain) + point.Col(); }
 
 	Range m_Domain;
 };

@@ -323,8 +323,8 @@ namespace
 		DualTernaryAttrOperator<rgb_assign<X> > m_OperData;
 	};
 
-	tl_oper::inst_tuple<typelists::value_elements, iifOperator<_>> s_iifOperators;
-	tl_oper::inst_tuple<typelists::ints          , rgbOperator<_>> s_rgbOperators;
+	tl_oper::inst_tuple_templ<typelists::value_elements, iifOperator> s_iifOperators;
+	tl_oper::inst_tuple_templ<typelists::ints          , rgbOperator> s_rgbOperators;
 
 
 	DualTernaryAttrOperator<substr_assign3>	s_subStrOperatorU (&cog_substr);

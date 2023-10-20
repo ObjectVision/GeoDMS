@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -19,7 +23,8 @@ leveled_counted_section s_SessionUsageCounter(item_level_type(0), ord_level_type
 // struct SessionData for near singleton management: implementation of statics
 //----------------------------------------------------------------------
 
-std::recursive_mutex sd_SessionDataCriticalSection;
+std::mutex sd_SessionDataCriticalSection;
+
 static std::shared_ptr<SessionData> s_CurrSD;
 
 //----------------------------------------------------------------------
@@ -38,22 +43,20 @@ SessionData::~SessionData()
 {
 }
 
-void SessionData::Release()
+void SessionData::release()
 {
-	if (Curr().get() != this)
+	if (s_CurrSD.get() != this)
 		return;
 
 	m_SFWA.Commit();
-	DeactivateThis();
+	deactivateThis();
 }
 
-void SessionData::DeactivateThis()
+void SessionData::deactivateThis()
 {
-	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
-
 	m_IsCancelling = true;
 
-	assert(Curr().get() == this);
+	assert(s_CurrSD.get() == this);
 	
 	// save curr globals to the deactivating session
 	assert(s_CurrSD->m_cfgColFirst == g_cfgColFirst);
@@ -71,7 +74,7 @@ void SessionData::ActivateThis()
 		return;
 
 	if (s_CurrSD)
-		s_CurrSD->DeactivateThis();
+		s_CurrSD->deactivateThis();
 
 	s_CurrSD = shared_from_this();
 	assert(s_CurrSD);
@@ -84,20 +87,6 @@ SharedStr SessionData::GetConfigDir() const
 {
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
 
-#if defined(MG_DEBUG_DATA)
-//	reportF(ST_MinorTrace, "m_ConfigDir: %s\n", m_ConfigDir.c_str());
-	if (GetConfigRoot())
-	{
-//		reportF(ST_MinorTrace, "casedir: %s\n", GetCaseDir(GetConfigRoot()).c_str());
-		dbg_assert(!stricmp(m_ConfigDir.c_str(), GetCaseDir(GetConfigRoot()).c_str()));
-	}
-	else
-	{
-//		reportF(ST_MinorTrace, "GetConfigLoadDir: %s\n", GetConfigLoadDir().c_str());
-//		reportF(ST_MinorTrace, "casedir: %s\n", m_ConfigSubDir.c_str());
-		dbg_assert(!stricmp(m_ConfigDir.c_str(), DelimitedConcat(GetConfigLoadDir().c_str(), m_ConfigSubDir.c_str()).c_str()));
-	}
-#endif
 	return m_ConfigDir;
 }
 
@@ -115,8 +104,8 @@ bool DMS_IsConfigDirty(const TreeItem* configRoot)
 
 		auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
 
-		SessionData::ActivateIt(configRoot);
-		return SessionData::Curr()->IsConfigDirty();
+		SessionData::activateIt(configRoot);
+		return s_CurrSD->IsConfigDirty();
 
 	DMS_CALL_END
 	return false;
@@ -132,15 +121,15 @@ SharedStr SessionData::GetConfigIniFile(CharPtr configDir)
 	return DelimitedConcat(configDir, "config.ini");
 }
 
-const TreeItem* SessionData::GetConfigSettings() const
+SharedTreeItem SessionData::GetConfigSettings() const
 {
-	return m_ConfigSettings;
+	return m_ConfigSettings.get();
 }
 
-const TreeItem* SessionData::GetConfigSettings(CharPtr section, CharPtr key) const
+SharedTreeItem SessionData::GetConfigSettings(CharPtr section, CharPtr key) const
 {
 	dms_assert(section && *section);
-	const TreeItem* result = GetConfigSettings();
+	auto result = GetConfigSettings();
 	if (result)
 	{
 		result = result->GetConstSubTreeItemByID(GetTokenID_mt(section));
@@ -197,8 +186,10 @@ const TreeItem* SessionData::GetActiveDesktop() const
 
 std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr configSubDir)
 {
+	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
+
 	if (s_CurrSD)
-		Curr()->DeactivateThis();
+		Curr()->deactivateThis();
 
 	assert(!s_CurrSD);
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
@@ -222,28 +213,41 @@ void SessionData::Open(const TreeItem* configRoot)
 	m_ConfigRoot = configRoot;
 	dms_assert(this);
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
-	WeakPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
+	SharedPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
 	m_ConfigSettings = configSettings.get_ptr();
 }
 
 std::shared_ptr<SessionData> SessionData::Curr()
 {
-	auto dcLock = std::lock_guard(sd_SessionDataCriticalSection);
+	std::lock_guard dcLock(sd_SessionDataCriticalSection);
 	return s_CurrSD;
 }
 
+void SessionData::ReleaseCurr()
+{
+	std::lock_guard dcLock(sd_SessionDataCriticalSection);
+	if (s_CurrSD)
+		s_CurrSD->release();
+	assert(s_CurrSD == nullptr);
+}
 
-void SessionData::ActivateIt(const TreeItem* configRoot) // for now, assume session to be a singleton
+void SessionData::activateIt(const TreeItem* configRoot) // for now, assume session to be a singleton
 {
 	assert(s_CurrSD && (s_CurrSD->GetConfigRoot() == configRoot || s_CurrSD->m_ConfigRoot.is_null()));
 }
 
 std::shared_ptr<SessionData> SessionData::GetIt(const TreeItem* configRoot)
 {
-	if (Curr()) // Assumes SessionData is a singleton
-		ActivateIt(configRoot);
-	return Curr();
+	std::lock_guard dcLock(sd_SessionDataCriticalSection);
+	return getIt(configRoot);
+}
+
+std::shared_ptr<SessionData> SessionData::getIt(const TreeItem* configRoot)
+{
+	if (s_CurrSD) // Assumes SessionData is a singleton
+		activateIt(configRoot);
+	return s_CurrSD;
 }
 
 
@@ -251,9 +255,9 @@ void SessionData::ReleaseIt(const TreeItem* configRoot) // WARNING: this might p
 {
 	auto dcLock = std::scoped_lock(sd_SessionDataCriticalSection);
 
-	auto sd = GetIt(configRoot);
+	auto sd = getIt(configRoot);
 	if (sd)
-		sd->Release();
+		sd->release();
 }
 
 //----------------------------------------------------------------------

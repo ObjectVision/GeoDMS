@@ -17,11 +17,13 @@ class QTextBrowser;
 
 enum class driver_characteristics : UInt32
 {
-    none = 0,
-    is_raster = 0x01,
-    native_is_default = 0x02,
-    tableset_is_folder = 0x04,
-    disable_with_no_geometry = 0x08,
+    none                     = 0,
+    is_raster                = 1,
+    native_is_default        = 2,
+    tableset_is_folder       = 4,
+    disable_with_no_geometry = 8,
+    disable_with_geometry    = 16,
+    only_native_driver       = 32
 };
 inline bool operator &(driver_characteristics lhs, driver_characteristics rhs) { return UInt32(lhs) & UInt32(rhs); }
 inline driver_characteristics operator |(driver_characteristics lhs, driver_characteristics rhs) { return driver_characteristics(UInt32(lhs) | UInt32(rhs)); }
@@ -36,9 +38,8 @@ struct gdal_driver_id
 
     CharPtr Caption() const
     {
-        if (name)
-            return name;
-        return shortname;
+        assert(name);
+        return name;
     }
 
     bool HasNativeVersion() const { return nativeName; }
@@ -58,15 +59,17 @@ class ExportTab : public QWidget
 
 public:
     ExportTab(bool is_raster, DmsExportWindow* exportWindow);
+    void setNativeDriverCheckbox();
     bool m_is_raster = false;
     std::vector<gdal_driver_id> m_available_drivers;
+    QPointer<QLineEdit> m_foldername_entry;
     QPointer<QLineEdit> m_filename_entry;
     QPointer<QCheckBox> m_native_driver_checkbox;
     QPointer<QComboBox> m_driver_selection;
     QPointer<QTextBrowser> m_final_filename;
 
 private slots:
-    void setFilenameUsingFileDialog();
+    void setFoldernameUsingFileDialog();
     void onComboBoxItemActivate(int index);
     void onFilenameEntryTextChanged(const QString& new_filename);
 
@@ -75,8 +78,6 @@ protected:
 
 private:
     auto createFinalFileNameText() -> QString;
-    void resetFilenameExtension();
-    void setNativeDriverCheckbox();
     void repopulateDriverSelection();
 };
 
@@ -88,15 +89,16 @@ public:
     DmsExportWindow(QWidget* parent = nullptr);
 
 public slots:
-    void exportActiveTabInfo();
-    void resetExportButton();
+    void exportActiveTabInfoOrCloseAfterExport();
+    void resetExportDialog();
 
 private:
     void exportImpl();
 
     int m_vector_tab_index;
     int m_raster_tab_index;
-    QPointer<QTabWidget> m_tabs;
+    QPointer<QTabWidget>  m_tabs;
     QPointer<QPushButton> m_export_button;
+    QPointer<QPushButton> m_cancel_button;
     bool                  m_export_ready = false;
 };

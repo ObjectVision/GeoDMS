@@ -4,6 +4,10 @@
 #include <QDialog>
 #include "geo/color.h"
 #include "ptr/SharedStr.h"
+#include "ui_DmsLocalMachineOptionsWindow.h"
+#include "ui_DmsGuiOptionsWindow.h"
+#include "ui_DmsConfigOptionsWindow.h"
+
 struct TreeItem;
 
 enum string_option
@@ -39,7 +43,7 @@ class QLabel;
 class QFileDialog;
 class QLineEdit;
 
-class DmsGuiOptionsWindow : public QDialog
+class DmsGuiOptionsWindow : public QDialog, Ui::DmsGuiOptionsWindow
 {
     Q_OBJECT
 public:
@@ -53,6 +57,7 @@ private slots:
     void changeClassificationStartColor();
     void changeClassificationEndColor();
     void ok();
+    void cancel();
     void apply();
     void restoreOptions();
 
@@ -63,36 +68,26 @@ private:
     void hasChanged() { return setChanged(true); }
 
     bool m_changed = false;
-    QPointer<QCheckBox> m_show_hidden_items;
-    QPointer<QCheckBox> m_show_thousand_separator;
-    QPointer<QCheckBox> m_show_state_colors_in_treeview;
-
-    QPointer<QPushButton> m_valid_color_ti_button;
-    QPointer<QPushButton> m_not_calculated_color_ti_button;
-    QPointer<QPushButton> m_failed_color_ti_button;
-    QPointer<QPushButton> m_background_color_button;
-    QPointer<QPushButton> m_start_color_button;
-    QPointer<QPushButton> m_end_color_button;
-    QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
 };
 
-class DmsAdvancedOptionsWindow : public QDialog
+class DmsLocalMachineOptionsWindow : public QDialog, Ui::DmsLocalMachineOptionsWindow
 {
     Q_OBJECT
 public:
-    DmsAdvancedOptionsWindow(QWidget* parent = nullptr);
+    DmsLocalMachineOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
     void onFlushTresholdValueChange(int value);
     void restoreOptions();
     void ok();
+    void cancel();
     void apply();
     void onStateChange();
     void onTextChange();
     void setLocalDataDirThroughDialog();
     void setSourceDataDirThroughDialog();
+    void setEditorProgramThroughDialog();
+    void setDefaultEditorParameters();
 
 private:
     void setInitialLocalDataDirValue();
@@ -102,21 +97,8 @@ private:
     void setChanged(bool isChanged);
 
     bool m_changed = false;
-
     QPointer<QFileDialog> m_folder_dialog;
-    QPointer<QLabel> m_flush_treshold_text;
-    QPointer<QCheckBox> m_pp0;
-    QPointer<QCheckBox> m_pp1;
-    QPointer<QCheckBox> m_pp2;
-    QPointer<QCheckBox> m_pp3;
-    QPointer<QCheckBox> m_tracelog;
-    QPointer<QLineEdit> m_ld_input;
-    QPointer<QLineEdit> m_sd_input;
-    QPointer<QLineEdit> m_editor_input;
-    QPointer<QSlider>   m_flush_treshold;
-    QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
-    QPointer<QPushButton> m_undo;
+    QPointer<QFileDialog> m_file_dialog;
 };
 
 //======== CONFIG OPTIONS WINDOW ========
@@ -127,7 +109,7 @@ struct ConfigOption {
     QPointer< QLineEdit>      override_value;
 };
 
-class DmsConfigOptionsWindow : public QDialog
+class DmsConfigOptionsWindow : public QDialog, Ui::DmsConfigOptionsWindow
 {
     Q_OBJECT
 public:
@@ -137,6 +119,7 @@ public:
 
 private slots:
     void ok();
+    void cancel();
     void apply();
     void resetValues();
     void onTextChange();
@@ -151,6 +134,17 @@ private:
     std::vector<ConfigOption> m_Options;
 
     QPointer<QPushButton> m_ok;
-    QPointer<QPushButton> m_apply;
+    QPointer<QPushButton> m_cancel;
     QPointer<QPushButton> m_undo;
 };
+
+inline void setSF(bool value, UInt32& rsf, UInt32 flag)
+{
+    if (value)
+        rsf |= flag;
+    else
+        rsf &= ~flag;
+}
+
+void SetRegStatusFlags(UInt32 newSF);
+

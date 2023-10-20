@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -71,7 +46,7 @@ class ConstAttrOperator : public AbstrConstOperator
 
 public:
 	ConstAttrOperator()
-		:	AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of<TR>::value)
+		:	AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of_v<TR>)
 	{}
 
 	// Override Operator
@@ -359,7 +334,7 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 	OGRCoordinateTransformation* m_Transformer = nullptr; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
 	SpatialRefBlock() 
 	{
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		m_ProjCtx = proj_context_create();
 	}
 
@@ -368,14 +343,17 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 		if (m_Transformer)
 			OGRCoordinateTransformation::DestroyCT(m_Transformer);
 
-		auto lock = std::lock_guard(s_projMutex);
+		std::lock_guard guard(s_projMutex);
 		proj_context_destroy(m_ProjCtx);
 	}
 
 	void CreateTransformer()
 	{
 		assert(!m_Transformer);
-		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
+		OGRCoordinateTransformationOptions options;
+		//options.SetBallparkAllowed(true);
+		CPLSetConfigOption("OGR_CT_OP_SELECTION", "BEST_ACCURACY");
+		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
 	}
 
 	void Release() const { if (!DecRef()) delete this; }
@@ -465,7 +443,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 		}
 		if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
 		{
-			srcUnit->UnifyValues(resUnit, "Values of first argument", "cast target as specified by the second argument", UM_Throw);
+			srcUnit->UnifyValues(resUnit, "Base Units of first argument", "Base Units of cast target as specified by the second argument", UM_Throw);
 			dms_assert(0); // if+unify => throw
 		}
 		m_Factor = srcUnit->GetCurrMetric()->m_Factor / resUnit->GetCurrMetric()->m_Factor;
@@ -516,6 +494,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 	Float64 m_Factor;
 };
 
+const int PROJ_BLOCK_SIZE = 1024;
 
 template<typename TR, typename TA>
 void DispatchMapping(Type1DConversion<TR, TA>& functor, typename Type1DConversion<TR, TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
@@ -546,6 +525,21 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				GDAL_ErrorFrame frame;
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
+				
+				if (!AuthorityCodeIsValidCrs(srcFormatStr.c_str()))
+				{
+					reportF(MsgCategory::progress, SeverityTypeID::ST_Error, 
+						"The 'src' unit in projection conversion from 'src' unit %s to res unit %s is not a valid projection.",
+						srcUnit->GetFullName(), resUnit->GetFullName());
+				}
+
+				if (!AuthorityCodeIsValidCrs(resFormatStr.c_str()))
+				{
+					reportF(MsgCategory::progress, SeverityTypeID::ST_Error,
+						"The 'res' unit in projection conversion from src unit %s to 'res' unit %s is not a valid projection.",
+						srcUnit->GetFullName(), resUnit->GetFullName());
+				}
+
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();
@@ -611,12 +605,38 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
 	{
 		if (m_OgrComponentHolder) 
-			if (m_PreRescaler.IsIdentity() && m_PostRescaler.IsIdentity())
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyProjection(*ai) );
-			else
-				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyScaledProjection(*ai) );
+		{
+			Float64 resX[PROJ_BLOCK_SIZE];
+			Float64 resY[PROJ_BLOCK_SIZE];
+			int     successFlags[PROJ_BLOCK_SIZE];
+
+			auto n = ae - ai;
+			while (n)
+			{
+				auto s = n;
+				MakeMin(s, PROJ_BLOCK_SIZE);
+				for (int i = 0; i != s; ++ai, ++i)
+				{
+					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
+					resX[i] = rescaledA.Col();
+					resY[i] = rescaledA.Row();
+				}
+				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+				for (int i = 0; i != s; ++ri, ++i)
+				{
+					if (successFlags[i])
+					{
+						auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+						Assign(*ri, Convert<TR>(rescaledPoint));
+					}
+					else
+						Assign(*ri, Undefined());
+				}
+				n -= s;
+			}
+		}
 		else 
 			if (m_PreRescaler.IsIdentity())
 				for (; ai != ae; ++ai, ++ri)
@@ -652,12 +672,37 @@ template<typename TR, typename TA>
 void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion<TR,TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
 {
 	if (functor.m_OgrComponentHolder) 
-		if (functor.m_PreRescaler.IsIdentity() && functor.m_PostRescaler.IsIdentity())
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyProjection(Range_GetValue_naked(tileRange, i)) );
-		else
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyScaledProjection(Range_GetValue_naked(tileRange, i)) );
+	{
+		Float64 resX[PROJ_BLOCK_SIZE];
+		Float64 resY[PROJ_BLOCK_SIZE];
+		int     successFlags[PROJ_BLOCK_SIZE];
+
+		while (n)
+		{
+			auto s = n;
+			MakeMin(s, PROJ_BLOCK_SIZE);
+			for (SizeT i = 0; i != n; ++i)
+			{
+				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
+				resX[i] = rescaledA.Col();
+				resY[i] = rescaledA.Row();
+			}
+			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+			for (SizeT i = 0; i != n; ++ri, ++i)
+			{
+				if (successFlags[i])
+				{
+					auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
+					Assign(*ri, Convert<TR>(rescaledPoint));
+				}
+				else
+					Assign(*ri, Undefined());
+			}
+			n -= s;
+		}
+	}
 	else 
 		if (functor.m_PreRescaler.IsIdentity())
 			for (SizeT i=0; i!=n; ++ri, ++i)
@@ -847,13 +892,13 @@ public:
 			,	ResultType::GetStaticClass() 
 				,	Arg1Type::GetStaticClass()
 				,	Arg2Type::GetStaticClass()
-			,	composition_of<TR>::value
+			,	composition_of_v<TR>
 			,	reverseArgs
 			)
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -863,7 +908,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
@@ -903,13 +948,13 @@ public:
 			,	ResultType::GetStaticClass() 
 				,	Arg1Type::GetStaticClass()
 				,	Arg2Type::GetStaticClass()
-			,	composition_of<TR>::value
+			,	composition_of_v<TR>
 			,	reverseArgs
 			)
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -920,7 +965,7 @@ public:
 		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
@@ -1022,7 +1067,7 @@ template <typename TR, typename TA>
 struct CastAttrOperator: UnaryAttrOperator<TR, TA>
 {
 	CastAttrOperator(AbstrOperGroup* gr)
-		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of<TR>::value)
+		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
 	{}
 
 	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
@@ -1194,18 +1239,9 @@ namespace
 	Rd2LlOpersWithSeq<DPoint, FPoint> rd2llDF;
 	Rd2LlOpersWithSeq<FPoint, FPoint> rd2llFF;
 
-	// type(unit) casting
-	#define INSTANTIATE(X) \
-		CastUnitOperator g_CastUnitOper##X(GetUnitGroup<X>(), Unit<X>::GetStaticClass() );
-
-	INSTANTIATE_NUM_ELEM
-	INSTANTIATE(Bool)
-	//INSTANTIATE(SharedStr)
-	#undef INSTANTIATE
-
+	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
-	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;
@@ -1230,13 +1266,51 @@ namespace
 
 	#define PI	3.14159265358979323846
 
-	CommonOperGroup cog_true("true");
-	CommonOperGroup cog_false("false");
-	CommonOperGroup cog_pi("pi");
+	CommonOperGroup cog_true(token::true_);
+	CommonOperGroup cog_false(token::false_);
+	CommonOperGroup cog_greekpi(token::pi);
+	CommonOperGroup cog_funcpi("pi");
+
+	CommonOperGroup cog_null_b(token::null_b);
+	CommonOperGroup cog_null_w(token::null_w);
+	CommonOperGroup cog_null_u(token::null_u);
+	CommonOperGroup cog_null_u64(token::null_u64);
+	CommonOperGroup cog_null_c(token::null_c);
+	CommonOperGroup cog_null_s(token::null_s);
+	CommonOperGroup cog_null_i(token::null_i);
+	CommonOperGroup cog_null_i64(token::null_i64);
+	CommonOperGroup cog_null_f(token::null_f);
+	CommonOperGroup cog_null_d(token::null_d);
+	CommonOperGroup cog_null_sp(token::null_sp);
+	CommonOperGroup cog_null_wp(token::null_wp);
+	CommonOperGroup cog_null_ip(token::null_ip);
+	CommonOperGroup cog_null_up(token::null_up);
+	CommonOperGroup cog_null_fp(token::null_fp);
+	CommonOperGroup cog_null_dp(token::null_dp);
 
 	ConstParamOperator<Bool>    cpt(&cog_true, true);
 	ConstParamOperator<Bool>    cpf(&cog_false, false);
-	ConstParamOperator<Float64> cppi(&cog_pi, PI);
+	ConstParamOperator<Float64> cppig(&cog_greekpi, PI);
+	ConstParamOperator<Float64> cppif(&cog_funcpi, PI);
+
+	ConstParamOperator<UInt8> cpp_null_b(&cog_null_b, UNDEFINED_VALUE(UInt8));
+	ConstParamOperator<UInt16> cpp_null_w(&cog_null_w, UNDEFINED_VALUE(UInt16));
+	ConstParamOperator<UInt32> cpp_null_u(&cog_null_u, UNDEFINED_VALUE(UInt32));
+	ConstParamOperator<UInt64> cpp_null_u64(&cog_null_u64, UNDEFINED_VALUE(UInt64));
+	ConstParamOperator<Int8> cpp_null_c(&cog_null_c, UNDEFINED_VALUE(Int8));
+	ConstParamOperator<Int16> cpp_null_s(&cog_null_s, UNDEFINED_VALUE(Int16));
+	ConstParamOperator<Int32> cpp_null_i(&cog_null_i, UNDEFINED_VALUE(Int32));
+	ConstParamOperator<Int64> cpp_null_i64(&cog_null_i64, UNDEFINED_VALUE(Int64));
+
+	ConstParamOperator<Float32> cpp_null_f(&cog_null_f, UNDEFINED_VALUE(Float32));
+	ConstParamOperator<Float64> cpp_null_d(&cog_null_d, UNDEFINED_VALUE(Float64));
+
+	ConstParamOperator<SPoint> cpp_null_sp(&cog_null_sp, UNDEFINED_VALUE(SPoint));
+	ConstParamOperator<WPoint> cpp_null_wp(&cog_null_wp, UNDEFINED_VALUE(WPoint));
+	ConstParamOperator<IPoint> cpp_null_ip(&cog_null_ip, UNDEFINED_VALUE(IPoint));
+	ConstParamOperator<UPoint> cpp_null_up(&cog_null_up, UNDEFINED_VALUE(UPoint));
+	ConstParamOperator<FPoint> cpp_null_fp(&cog_null_fp, UNDEFINED_VALUE(FPoint));
+	ConstParamOperator<DPoint> cpp_null_dp(&cog_null_dp, UNDEFINED_VALUE(DPoint));
 
 	CommonOperGroup cog_asDataString("asDataString");
 	AsDataStringOperator g_AsDataString(&cog_asDataString);

@@ -79,7 +79,7 @@ bool ViewControl::OnKeyDown(UInt32 virtKey)
 	return base_type::OnKeyDown(virtKey);
 }
 
-void ViewControl::SetClientSize(TPoint newSize)
+void ViewControl::SetClientSize(CrdPoint newSize)
 {
 	ProcessSize(LowerBound( newSize, GetCurrClientSize()));
 	base_type::SetClientSize(newSize);

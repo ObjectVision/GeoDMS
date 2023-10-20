@@ -79,7 +79,7 @@ struct GdalVectlMetaInfo : GdalMetaInfo
 
 
 // storagemanager for GDal vector data
-struct GdalVectSM : AbstrStorageManager, gdalVectComponent
+struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 {
 #if defined(MG_DEBUG)
 	GdalVectSM();

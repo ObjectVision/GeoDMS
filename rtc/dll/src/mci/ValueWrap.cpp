@@ -284,7 +284,7 @@ template <typename T> ValueClassID GetTypeID();
 typedef SharedStr String;
 #define INSTANTIATE(T) \
 	template <> CharPtr      GetScriptName<T>() { return #T; } \
-	template <> ValueClassID GetTypeID    <T>() { return VT_##T; }
+	template <> ValueClassID GetTypeID    <T>() { return ValueClassID::VT_##T; }
 
 INSTANTIATE_ALL_VC
 
@@ -292,7 +292,7 @@ INSTANTIATE_ALL_VC
 
 #define INSTANTIATE(T) \
 	template <> CharPtr      GetScriptName<Range<T> >() { return "Range" #T;  } \
-	template <> ValueClassID GetTypeID    <Range<T> >() { return VT_Range##T; }
+	template <> ValueClassID GetTypeID    <Range<T> >() { return ValueClassID::VT_Range##T; }
 
 INSTANTIATE_NUM_ORG
 
@@ -319,7 +319,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 				is_numeric_v<T>,
 				is_integral<T>::value,
 				is_signed<T>::value,
-				composition_of<T>::value,
+				composition_of_v<T>,
 				(const Byte*)(&s_UndefinedValue),
 				is_numeric_v<T> ? ::AsFloat64(s_UndefinedValue):0.0,
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MaxValue(),
@@ -357,14 +357,14 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& os, const ValueClas
 
 const ValueClass* ValueClass::GetUnsignedClass() const
 {
-	dms_assert(IsIntegral() && IsSigned()); 
-	return FindByValueClassID(ValueClassID(m_ValueClassID-1));
+	assert(IsIntegral() && IsSigned()); 
+	return FindByValueClassID(ValueClassID(UInt8(m_ValueClassID)-1));
 }
 
 const ValueClass* ValueClass::GetSignedClass()   const
 {
 	dms_assert(IsIntegral() && !IsSigned()); 
-	return FindByValueClassID(ValueClassID(m_ValueClassID+1));
+	return FindByValueClassID(ValueClassID(UInt8(m_ValueClassID)+1));
 }
 
 const ValueClass* ValueClass::GetCrdClass() const // ord version for Countable
@@ -397,7 +397,7 @@ const ValueClass* ValueClass::FindByValueClassID(ValueClassID vt)
 {
 	switch (vt) {
 
-#	define INSTANTIATE(T) case VT_##T:  return ValueWrap<T> ::GetStaticClass();
+#	define INSTANTIATE(T) case ValueClassID::VT_##T:  return ValueWrap<T> ::GetStaticClass();
 
 	INSTANTIATE_ALL_VC
 
@@ -422,7 +422,7 @@ RTC_CALL ValueClassID DMS_CONV DMS_ValueType_GetID(const ValueClass* vc)
 		ObjectContextHandle checkPtr(vc, ValueClass::GetStaticClass(), "DMS_ValueType_GetID");
 		return vc->GetValueClassID();
 	DMS_CALL_END
-	return VT_Unknown;
+	return ValueClassID::VT_Unknown;
 }
 
 RTC_CALL Float64  DMS_CONV DMS_ValueType_GetUndefinedValueAsFloat64(const ValueClass* vc)

@@ -95,7 +95,7 @@ struct CounterStacks : private boost::noncopyable
 	void AddDrawRegion   (Region&& drawRegion);
 	void LimitDrawRegions(const GPoint& maxSize);
 
-	void Scroll(GPoint delta, const GRect& scrollRect, const GRect& clipRect);
+	void ScrollDevice(GPoint delta, const GRect& scrollRect, const GRect& clipRect);
 	void PopBack();
 
 	bool Empty()               const { return m_Stacks.empty(); }

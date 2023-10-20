@@ -113,14 +113,14 @@ void do_binary_poly_assign(
 	const AttrOper&      oper,
 	bool e1IsVoid, bool e2IsVoid)
 {
-	typedef typename Arg1Sequence::value_type Poly;
-	typedef typename cref<Poly>::type arg1_cref;
-	typedef typename cref<Poly>::type arg2_cref;
-	typedef typename v_ref<Poly>::type res_ref;
+	using Poly = typename Arg1Sequence::value_type;
+	using arg1_cref =cref_t<Poly>;
+	using arg2_cref = cref_t<Poly>;
+	using res_ref = vref_t<Poly> ;
 
-	typedef field_of_t<Poly> PointType;
-	typedef typename scalar_of<Poly>::type CrdType;
-	typedef typename union_poly_traits<PointType>::polygon_set_data_type polygon_set_data_type;
+	using PointType = field_of_t<Poly> ;
+	using CrdType = scalar_of_t<Poly>;
+	using polygon_set_data_type = typename union_poly_traits<PointType>::polygon_set_data_type ;
 
 	if (e1IsVoid)
 	{
@@ -204,7 +204,7 @@ struct BinaryPolyAttrAssignOper : BinaryAttrOper< typename PolyAttrOper::assigne
 {
 	BinaryPolyAttrAssignOper(AbstrOperGroup* gr) 
 		: BinaryAttrOper<typename PolyAttrOper::assignee_type, typename PolyAttrOper::arg1_type, typename PolyAttrOper::arg2_type>(gr
-			,	&PolyAttrOper::unit_creator, composition_of<typename PolyAttrOper::assignee_type>::value, ArgFlags()
+			,	&PolyAttrOper::unit_creator, composition_of_v<typename PolyAttrOper::assignee_type>, ArgFlags()
 			)
 	{}
 

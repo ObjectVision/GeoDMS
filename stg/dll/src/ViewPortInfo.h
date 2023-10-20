@@ -55,7 +55,7 @@ struct ViewPortInfo : CrdTransformation
 	const rect_type&  GetViewPortExtents() const { return m_ViewPortExtents; }
 	const point_type& GetViewPortOrigin () const { return m_ViewPortExtents.first; }
 	      upoint_type  GetViewPortSize   () const { return Size(m_ViewPortExtents); }
-		  DRect   GetViewPortInGrid() const  { return Apply( Convert<DRect>(m_ViewPortExtents) ); }
+		  DRect   GetViewPortInGrid() const  { return this->Apply( Convert<DRect>(m_ViewPortExtents) ); }
 		  rect_type GetViewPortInGridAsIRect() const  { return Round<sizeof(signed_type)>(GetViewPortInGrid()); }
 
 	countcolor_t GetCountColor() const { return m_CountColor;  }

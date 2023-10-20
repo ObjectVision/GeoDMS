@@ -3,6 +3,7 @@
 
 #include "GridStorageManager.h"
 #include "TreeItemProps.h"
+#include "AbstrDataItem.h"
 
 #include "act/ActorVisitor.h"
 #include "act/MainThread.h"
@@ -54,19 +55,22 @@ AbstrUnit* GetGridDataDomainRW(TreeItem * storageHolder)
 
 	AbstrDataItem* gridData = AsDynamicDataItem(storageHolder->GetSubTreeItemByID(GRID_DATA_ID));
 	if (gridData)
-		return InheritMutability(storageHolder, CheckedGridDomain(gridData));
+		return InheritMutability(storageHolder, CheckedGridDomain(gridData).get());
 	gdd = AsDynamicUnit(storageHolder->GetSubTreeItemByID(GRID_DOMAIN_ID));
 	if (gdd)
 		return gdd;
 
-	return storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+	if (auto sm = storageHolder->GetStorageManager())
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+			return nmsm->CreateGridDataDomain(storageHolder);
+	return nullptr;
 }
 
-const AbstrDataItem* GetPaletteData(const TreeItem * storageHolder)
+SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 {
 	dms_assert(storageHolder);
 
-	return AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID));
+	return AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get());
 }
 
 // *****************************************************************************
@@ -111,7 +115,7 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
 			return AVS_SuspendedOrFailed;
 	}
-	return AbstrStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
+	return NonmappableStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
 }
 
 //  --CLASSES------------------------------------------------------------------
@@ -195,20 +199,20 @@ bool HasGridDomain(const AbstrDataItem* adi)
 	return IsGridDomain( adi->GetAbstrDomainUnit() );
 }
 
-const AbstrDataItem* GetGridData(const TreeItem* storageHolder) // Look up the 'GridData' item
+SharedDataItem GetGridData(const TreeItem* storageHolder) // Look up the 'GridData' item
 {
 	dms_assert(storageHolder);
 
-	const AbstrDataItem* pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
+	SharedDataItem pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
 	if (pData && !GridDomain(pData)) 
-		pData = 0;
+		return nullptr;
 
 	return pData;
 }
 
-const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable)
+SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable)
 {
-	const AbstrDataItem* pData = GetGridData(storageHolder);
+	auto pData = GetGridData(storageHolder);
 
 	// try storageHolder
 	if (!pData)
@@ -223,20 +227,20 @@ const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionS
 	return pData;
 }
 
-const AbstrUnit* GridDomain(const AbstrDataItem* adi)
+SharedUnit GridDomain(const AbstrDataItem* adi)
 {
-	dms_assert(adi);
-	const AbstrUnit* gridDomain = adi->GetAbstrDomainUnit();
-	dms_assert(gridDomain);
-	return IsGridDomain(gridDomain)
-		?	gridDomain
-		:	0;
+	assert(adi);
+	auto gridDomain = adi->GetAbstrDomainUnit();
+	assert(gridDomain);
+	if (!IsGridDomain(gridDomain))
+		return {};
+	return gridDomain;
 }
 
-const AbstrUnit* CheckedGridDomain(const AbstrDataItem* adi)
+SharedUnit CheckedGridDomain(const AbstrDataItem* adi)
 {
-	dms_assert(adi); // PRECONDITION
-	const AbstrUnit* gridDomain = GridDomain(adi);
+	assert(adi); // PRECONDITION
+	auto gridDomain = GridDomain(adi);
 	if (!gridDomain)
 		adi->throwItemErrorF(
 			"ViewPortInfo expected a GridDataItem but the domain of this DataItem is %s"

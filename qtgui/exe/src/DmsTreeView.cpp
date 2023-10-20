@@ -9,6 +9,8 @@
 #include <QBoxLayout>
 #include <QShortcut>
 #include <QHeaderView>
+#include <QScrollbar>
+
 #include <variant>
 
 #include "DmsMainWindow.h"
@@ -21,12 +23,17 @@
 #include <QMainWindow>
 #include <QApplication>
 
+#include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
-#include "ShvDllInterface.h"
-#include "TicInterface.h"
 #include "StateChangeNotification.h"
+
+#include "TicInterface.h"
+
+#include "ShvDllInterface.h"
 #include "dataview.h"
 #include "waiter.h"
+
 
 namespace {
 	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
@@ -42,7 +49,7 @@ namespace {
 			return 0;
 
 		SuspendTrigger::Resume();
-		ObjectMsgGenerator thisMsgGenerator(ti, "update TreeView");
+		ObjectMsgGenerator thisMsgGenerator(ti, "CountSubItems");
 		Waiter showWaitingStatus;
 		if (!p->Is(PS_MetaInfo) && !p->WasFailed())
 			showWaitingStatus.start(&thisMsgGenerator);
@@ -116,7 +123,7 @@ void DmsModel::reset()
 	endResetModel();
 }
 
-QVariant DmsModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant DmsModel::headerData(int /*section*/, Qt::Orientation orientation, int role) const
 {
 	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
 		return data({}, role);
@@ -131,21 +138,20 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 
 	auto ti = GetTreeItemOrRoot(parent);
 	assert(ti);
-	//if (ti == m_root)
-	//	return createIndex(row, column, ti);
 
-	ti = ti->_GetFirstSubItem();
-	assert(ti);
-
-
-
-	int items_to_be_stepped = row;
-	while (items_to_be_stepped--)
+	int currRow = 0;
+	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem())
 	{
-		ti = ti->GetNextItem();
-		assert(ti);
+		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
+		{
+			if (currRow == row)
+				return createIndex(row, column, ti);
+			++currRow;
+		}
 	}
-	return createIndex(row, column, ti);
+
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "Invalid row at DmsModel::index");
+	return QModelIndex();
 }
 
 QModelIndex DmsModel::parent(const QModelIndex& child) const
@@ -168,19 +174,28 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 	if (!ti)
 		return 0;
 
-	ti = ti->_GetFirstSubItem();
-	int row = 0;
-	while (ti)
+	int number_of_rows = 0;
+	for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem())
 	{
-		ti = ti->GetNextItem();
-		++row;
+		if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
+			number_of_rows++;
 	}
-	return row;
+
+	return number_of_rows;
 }
 
-int DmsModel::columnCount(const QModelIndex& parent) const
+int DmsModel::columnCount(const QModelIndex& /*parent*/) const
 {
 	return 1;
+}
+
+bool DmsModel::updateShowHiddenItems()
+{
+	  bool mustShowAll = GetRegStatusFlags() & RSF_AdminMode;
+	  if (show_hidden_items == mustShowAll)
+		  return false;
+	  show_hidden_items = mustShowAll;
+	  return true;
 }
 
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
@@ -215,10 +230,14 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-	if (IsDataCurrReady(ti->GetCurrRangeItem()))
-		return color_option::tv_valid;
-	if (ti->m_State.GetProgress() >= PS_Validated)
-		return color_option::tv_exogenic;
+	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
+	if (ti->Was(PS_MetaInfo))
+	{
+		if (IsDataCurrReady(ti->GetCurrRangeItem()))
+			return color_option::tv_valid;
+		if (ti->m_State.GetProgress() >= PS_Validated)
+			return color_option::tv_exogenic;
+	}
 
 	return color_option::tv_not_calculated;
 }
@@ -227,6 +246,10 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 {
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
+	
+	if (ti->IsFailed() || ti->WasFailed())
+		return QColor(255, 255, 255); // white
+
 	auto co = getColorOption(ti);
 	return GetUserQColor(co);
 }
@@ -242,12 +265,16 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return QVariant();
 
 	SuspendTrigger::Resume();
-	if (!ti->Is(PS_MetaInfo) && !ti->WasFailed())
+	if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
 	{
-		ObjectMsgGenerator thisMsgGenerator(ti, "TreeItem::UpdateMetaInfo");
+		ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 		Waiter showWaitingStatus(&thisMsgGenerator);
 
-		ti->UpdateMetaInfo();
+		try {
+			ti->UpdateMetaInfo();
+		}
+		catch (...)
+		{}
 	}
 	switch (role)
 	{
@@ -255,17 +282,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return getTreeItemIcon(index);
 
 	case Qt::EditRole: 
+	case Qt::DisplayRole:
 		return QString(ti->GetName().c_str());
-
-	case Qt::DisplayRole: 
-		return  QString(ti->GetName().c_str());
 
 	case Qt::ForegroundRole:
 		return getTreeItemColor(index);
 
 	case Qt::BackgroundRole:
 		if (ti->WasFailed())
-			return QColor(192, 16, 16);
+			return QColor(255, 00, 00);
 		switch (TreeItem_GetSupplierLevel(ti))
 		{
 		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
@@ -294,7 +319,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 bool DmsModel::hasChildren(const QModelIndex& parent) const
 {
 	auto ti = GetTreeItemOrRoot(parent);
-	return ti && ti->HasSubItems();
+	if (!ti)
+		return false;
+
+	if (ti->Was(PS_MetaInfo))
+		return ti->_GetFirstSubItem() != nullptr;
+
+	ObjectMsgGenerator context(ti, "HasSubItems");
+	Waiter monitor(&context);
+	return ti->HasSubItems();
 }
 
 auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
@@ -308,25 +341,74 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
 	QStyledItemDelegate::paint(painter, option, index);
+
+	// draw storage icon applicable
+	TreeItem* ti = nullptr;
+	try
+	{
+		ti = GetTreeItem(index);
+
+
+		if (!ti)
+			return;
+
+		//if (ti->GetTSF(TSF_IsHidden))
+		//	return;
+
+		const TreeItem* storageHolder = nullptr;
+		if (ti->HasStorageManager())
+			storageHolder = ti;
+		else
+		{
+			auto parent = ti->GetTreeParent();
+			if (!parent) // root has no parent
+				return;
+			if (parent->HasStorageManager())
+				storageHolder = parent;
+		}
+
+		if (!storageHolder)
+			return;
+
+		bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
+		if (is_read_only && ti->HasCalculator())
+			return;
+
+		if (ti->IsDisabledStorage())
+			return;
+
+		painter->save();
+		QFontMetrics fm(QApplication::font());
+		int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
+
+		auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
+		int offset_icon = item_icon.width();
+		auto rect = option.rect;
+		auto cur_brush = painter->brush();
+		auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
+
+		QFont font;
+		font.setFamily("remixicon");
+		painter->setFont(font);
+
+		// set transparancy if not committed yet
+		NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
+		if (ti_state < NotificationCode::NC2_DataReady)
+			painter->setOpacity(0.5);
+
+	
+		if (ti->IsDataFailed())
+			painter->setPen(QColor(255,0,0,255));
+		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uEC15":"\uF0B0");
+
+		painter->restore();
+	}
+	catch (...)
+	{
+		auto errMsg = catchException(false);
+		return;
+	}
 	return;
-	//QStyleOptionViewItem opt = option;
-	//initStyleOption(&opt, index);
-
-	
-
-	painter->save();
-	auto ti = GetTreeItem(index);
-	painter->setRenderHint(QPainter::Antialiasing, true);
-	if (option.state & QStyle::State_Selected)
-		painter->fillRect(option.rect, option.palette.highlightedText());
-
-	//if (option.state & QStyle::State_MouseOver)
-	//	painter->fillRect(option.rect, option.palette.highlightedText());
-
-	//painter->translate(option.rect.x(), option.rect.y());
-	
-	painter->drawText(option.rect.topLeft().x(), option.rect.topLeft().y(), option.rect.topRight().x()-option.rect.topLeft().x(), option.rect.topLeft().y()-option.rect.bottomLeft().y(), Qt::AlignCenter, ti->GetName().c_str());
-	painter->restore();
 }
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
@@ -339,51 +421,95 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 	main_window->setCurrentTreeItem(ti);
 }
 
-bool isAncestor(TreeItem* ancestorTarget, TreeItem* descendant)
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant)
 {
-	if (!descendant)
-		return false;
-	auto ancestorCandidate = descendant->GetParent();
-	while (ancestorCandidate)
-	{
+	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent())
 		if (ancestorCandidate == ancestorTarget)
 			return true;
-		ancestorCandidate = ancestorCandidate->GetParent();
-	}
+
 	return false;
 }
 
-auto DmsTreeView::expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex
+auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex
 {
 	auto root_node_index = rootIndex();
-	if (new_current_item == MainWindow::TheOne()->getRootTreeItem())
+	auto currItem = MainWindow::TheOne()->getRootTreeItem();
+	if (target_item == currItem)
+		return {};
+	if (target_item->GetRoot() != currItem)
 		return {};
 
-	ObjectMsgGenerator thisMsgGenerator(new_current_item, "DmsTreeView::expandToCurrentItem");
+	MG_CHECK(isAncestor(currItem, target_item));
+
+	ObjectMsgGenerator thisMsgGenerator(target_item, "TreeView::expandToItem");
 	Waiter showWaitingStatus(&thisMsgGenerator);
 
 	auto parent_index = root_node_index;
-	while (true)
-	{
-		auto child_count = model()->rowCount(parent_index);
-		for (int i = 0; i < child_count; i++)
-		{
-			auto child_index = model()->index(i, 0, parent_index);
-			auto ti = GetTreeItem(child_index);
-			if (ti == new_current_item)
-			{
-				setCurrentIndex(child_index);
-				return child_index;
-			}
 
-			if (isAncestor(ti, new_current_item))
-			{
-				if (!isExpanded(child_index))
-					expand(child_index);
-				parent_index = child_index;
-			}
+search_at_parent_index:
+	auto child_count = model()->rowCount(parent_index);
+	for (int i = 0; i < child_count; i++)
+	{
+		auto child_index = model()->index(i, 0, parent_index);
+		auto childItem = GetTreeItem(child_index);
+		if (childItem == target_item)
+		{
+			setCurrentIndex(child_index);
+			return child_index;
+		}
+
+		if (isAncestor(childItem, target_item))
+		{
+			if (!isExpanded(child_index))
+				expand(child_index);
+			currItem = childItem;
+			parent_index = child_index;
+			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
 		}
 	}
+	// maybe descendant was hidden
+	MG_CHECK(isAncestor(currItem, target_item));
+	MG_CHECK(!MainWindow::TheOne()->m_dms_model->show_hidden_items);
+	MG_CHECK(target_item->GetTSF(TSF_InHidden));
+	reportF(MsgCategory::other, SeverityTypeID::ST_FatalError, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+		"\nIllegal Target for DmsTreeView::expandToItem"
+		, target_item->GetFullName().c_str()
+		, currItem->GetFullName().c_str()
+	);
+	return parent_index;
+}
+
+bool DmsTreeView::expandActiveNode(bool doExpand)
+{
+	auto index = currentIndex();
+	if (!index.isValid())
+		return false;
+
+	if (doExpand)
+		expand(index);
+	else
+		collapse(index);
+	return true;
+}
+
+bool DmsTreeView::expandRecursiveFromCurrentItem()
+{
+	auto index = currentIndex();
+	if (!index.isValid())
+		return false;
+
+	expandRecursively(index);
+	return true;
+}
+
+QSize DmsTreeView::sizeHint() const
+{
+	return QSize(m_default_size, 0);
+}
+
+QSize DmsTreeView::minimumSizeHint() const
+{
+	return QSize(m_default_size, 0);
 }
 
 DmsTreeView::DmsTreeView(QWidget* parent)
@@ -399,6 +525,44 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
+	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
+	
+	horizontalScrollBar()->setEnabled(true);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	//header()->setStretchLastSection(false);
+
+	setStyleSheet(
+		"QTreeView::branch:has-siblings:!adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_vline.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:!has-children:!has-siblings:adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_branch_end.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:has-siblings:adjoins-item {\n"
+		"    border-image: url(:/res/images/TV_branch_more.png) 0;\n"
+		"}\n"
+		"QTreeView::branch:has-children:!has-siblings:closed,"
+		"QTreeView::branch:closed:has-children:has-siblings {"
+		"        border-image: none;"
+		"        image: url(:/res/images/right_arrow.png);"
+		"}"
+		"QTreeView::branch:closed:hover:has-children {"
+		"        border-image: none;"
+		"        image: url(:/res/images/right_arrow_hover.png);"
+		"}"
+		"QTreeView::branch:open:has-children:!has-siblings,"
+		"QTreeView::branch:open:has-children:has-siblings {"
+		"           border-image: none;"
+		"           image: url(:/res/images/down_arrow.png);"
+		"}"
+		"QTreeView::branch:open:hover:has-children {"
+		"           border-image: none;"
+		"           image: url(:/res/images/down_arrow_hover.png);"
+		"}"
+		"QTreeView {"
+		"           padding-top: 5px;"
+		"           background-color: transparent;"
+		"}");
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
@@ -407,98 +571,103 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	if (!index.isValid())
 		return;
 
+	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
+	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
+	auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
+	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
+	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
+	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
+	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
+	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
+	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
+	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
+
 	if (!m_context_menu)
-		m_context_menu = new QMenu(MainWindow::TheOne()); // TODO: does this get properly destroyed if parent gets destroyed?
+	{
+		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
 
-	m_context_menu->clear();
+		m_context_menu->addAction(export_primary_data_action);
+		m_context_menu->addSeparator();
 
-	connect(m_context_menu, &QMenu::aboutToHide, m_context_menu, &QMenu::deleteLater);
+		m_context_menu->addAction(step_to_failreason);
+		m_context_menu->addAction(go_to_causa_prima);
+		m_context_menu->addSeparator();
 
+		// edit config source
+		m_context_menu->addAction(edit_config_source);
+		m_context_menu->addSeparator();
+
+		m_context_menu->addAction(update_treeitem);
+		m_context_menu->addAction(update_subtree);
+		m_code_analysis_submenu = MainWindow::TheOne()->CreateCodeAnalysisSubMenu(m_context_menu.get());
+		m_context_menu->addSeparator();
+
+		m_context_menu->addAction(default_view_action);
+		m_context_menu->addAction(table_view_action);
+		m_context_menu->addAction(map_view_action);
+		m_context_menu->addAction(statistics_view_action);
+		//	m_context_menu->exec(viewport()->mapToGlobal(pos));
+
+		// histogram view
+		//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
+		//	histogramview->setDisabled(true);
+		//	m_context_menu->addAction(histogramview);
+
+		// process scheme
+		//	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get(); //TODO: to be implemented or not..
+		//	m_context_menu->addAction(process_scheme);
+	}
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
+	auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
 
-	auto viewstyle_flags = SHV_GetViewStyleFlags(ti);
-
-	// export primary data
-	auto export_primary_data_action = MainWindow::TheOne()->m_export_primary_data_action.get();
-	auto item_can_be_exported = !ti->InTemplate() && !ti->IsTemplate() && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
+	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
-	m_context_menu->addAction(export_primary_data_action);
+	step_to_failreason->setEnabled(ti && WasInFailed(ti));
+	go_to_causa_prima->setEnabled(ti && WasInFailed(ti));
+	update_treeitem->setDisabled(ti_is_or_is_in_template);
+	update_subtree->setDisabled(ti_is_or_is_in_template);
+	default_view_action->setDisabled(ti_is_or_is_in_template);
+	table_view_action->setDisabled(ti_is_or_is_in_template);
+	map_view_action->setDisabled(ti_is_or_is_in_template);
+	statistics_view_action->setDisabled(ti_is_or_is_in_template);
 
-	m_context_menu->addSeparator();
-
-	// step to failreason
-	auto step_to_failreason = MainWindow::TheOne()->m_step_to_failreason_action.get();
-	step_to_failreason->setEnabled(ti && ti->WasFailed());
-	m_context_menu->addAction(step_to_failreason);
-
-	// go to causa prima
-	auto go_to_causa_prima = MainWindow::TheOne()->m_go_to_causa_prima_action.get();
-	go_to_causa_prima->setEnabled(ti && ti->WasFailed());
-	m_context_menu->addAction(go_to_causa_prima);
-
-	m_context_menu->addSeparator();
-
-	// edit config source
-	auto edit_config_source = MainWindow::TheOne()->m_edit_config_source_action.get();
-	m_context_menu->addAction(edit_config_source);
-	m_context_menu->addSeparator();
-	// update treeitem
-	auto update_treeitem = MainWindow::TheOne()->m_update_treeitem_action.get();
-	m_context_menu->addAction(update_treeitem);
-
-	// update subtree
-	auto update_subtree = MainWindow::TheOne()->m_update_subtree_action.get();
-	m_context_menu->addAction(update_subtree);
-
-	// invalidate 
-	auto invalidate = MainWindow::TheOne()->m_invalidate_action.get();
-	m_context_menu->addAction(invalidate);
-	m_context_menu->addSeparator();
-	// default view
-	auto default_view_action = MainWindow::TheOne()->m_defaultview_action.get();
-	m_context_menu->addAction(default_view_action);
-
-	// table view
-	auto table_view_action = MainWindow::TheOne()->m_tableview_action.get();
-	m_context_menu->addAction(table_view_action);
-
-	// map view
-	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
-	m_context_menu->addAction(map_view_action);
-
-	// statistics view
-	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
-	m_context_menu->addAction(statistics_view_action);
-//	m_context_menu->exec(viewport()->mapToGlobal(pos));
-
-	// histogram view
-//	auto histogramview = MainWindow::TheOne()->m_histogramview_action.get();
-//	histogramview->setDisabled(true);
-//	m_context_menu->addAction(histogramview);
-
-	// process scheme
-	auto process_scheme = MainWindow::TheOne()->m_process_schemes_action.get();
-	m_context_menu->addAction(process_scheme);
-	m_context_menu->exec(viewport()->mapToGlobal(pos));
+	m_context_menu->popup(viewport()->mapToGlobal(pos));
+	MainWindow::TheOne()->updateToolsMenu();
 }
 
-void DmsTreeView::setNewCurrentItem(TreeItem* new_current_item)
+void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 {
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
-	if (root_ti == new_current_item)
+	if (root_ti == target_item)
 		return;
 
 	if (current_node_index.isValid())
 	{
 		auto ti = GetTreeItem(current_node_index);
-		if (new_current_item == ti) // treeview already has current item
+		if (target_item == ti) // treeview already has current item
 			return;
 	}
 
-	expandToCurrentItem(new_current_item);
+	MG_CHECK(!root_ti || isAncestor(root_ti, target_item));
+	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items)
+	{
+		if (target_item->GetTSF(TSF_InHidden) )
+		{
+			const TreeItem* visible_parent = target_item;
+			while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+				visible_parent = visible_parent->GetTreeParent();
+			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
+				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
+				, target_item->GetFullName().c_str()
+				, visible_parent ? visible_parent->GetFullName().c_str() : "a hidden root"
+			);
+		}
+	}
+
+	expandToItem(target_item);
 }
 
 void DmsTreeView::onDoubleClick(const QModelIndex& index)
@@ -506,24 +675,18 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 	if (!index.isValid())
 		return;
 
-	auto ti = GetTreeItem(index);
-	assert(ti);
-
-	MainWindow::TheOne()->defaultView();
+	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 {
-    auto dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
-	dock->setTitleBarWidget(new QWidget(dock));
-	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(dock);
-    dock->setWidget(dms_eventlog_widget_pointer);
-	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, dock);
-//	dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+	auto main_window = MainWindow::TheOne();
 
-	//auto box_layout = new QBoxLayout(QBoxLayout::Direction::TopToBottom);
+	main_window->m_treeview_dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
+	main_window->m_treeview_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_treeview_dock));
+	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(MainWindow::TheOne()->m_treeview_dock);
+	main_window->m_treeview_dock->setWidget(dms_eventlog_widget_pointer);
+	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, MainWindow::TheOne()->m_treeview_dock);
 
-
-    //viewMenu->addAction(dock->toggleViewAction());
     return dms_eventlog_widget_pointer;
 }

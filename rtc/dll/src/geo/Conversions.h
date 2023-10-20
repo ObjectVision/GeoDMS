@@ -252,7 +252,7 @@ struct NumericCheckedConverter // converts undefined values
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
-Convert4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
+Convert4(const T& val, const U* /*dummy*/, const ExceptFunc*, const ConvertFunc*)
 {
 	using CDefF = typename check_def_mf<T, U>::type;
 	using CMinF = typename check_min_mf<T, U>::type;
@@ -265,7 +265,7 @@ Convert4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
-ConvertNonNull4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
+ConvertNonNull4(const T& val, const U* /*dummy*/, const ExceptFunc*, const ConvertFunc*)
 {
 	return NumericNonnullConverter<T, U, typename check_min_mf<T, U>::type, typename check_max_mf<T, U>::type, ExceptFunc, ConvertFunc>()(val);
 }
@@ -277,7 +277,7 @@ ConvertNonNull4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFu
 //}
 
 template <typename Dst, bit_size_t N, typename Block, typename ExceptFunc, typename ConvertFunc>
-Dst Convert4(const bit_reference<N, Block>& ref, const Dst* dummy, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+Dst Convert4(const bit_reference<N, Block>& ref, const Dst* /*dummy*/, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
 {
 	return Convert4(bit_value<N>(ref), TYPEID(Dst), dummyExceptFunc, dummyConvertFunc);
 }

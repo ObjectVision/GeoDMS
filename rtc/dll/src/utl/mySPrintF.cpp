@@ -117,43 +117,43 @@ CharPtr getFileName(CharPtr fullPath)
 	if (*fullPath)
 	{
 		CharPtr fullPathEnd = fullPath + StrLen(fullPath); // go to end of null-terminated fullPath
-		dms_assert(!*fullPathEnd);
+		assert(!*fullPathEnd);
 		while (--fullPathEnd != fullPath)
 		{
-			dms_assert(*fullPathEnd != '\\');
+			assert(*fullPathEnd != '\\');
 			if (*fullPathEnd == DELIMITER_CHAR)
 				return fullPathEnd+1; // return extracted file-name and return path base without last delimiter
 		}
-		dms_assert(fullPathEnd == fullPath);
+		assert(fullPathEnd == fullPath);
 	}
 	return fullPath;
 }
 
 CharPtr getFileName(CharPtr fullPath, CharPtr fullPathEnd)
 {
-	dms_assert(!*fullPathEnd);
+	assert(!*fullPathEnd);
 	while (--fullPathEnd != fullPath)
 	{
-		dms_assert(*fullPathEnd != '\\');
+		assert(*fullPathEnd != '\\');
 		if (*fullPathEnd == DELIMITER_CHAR)
 			return fullPathEnd+1; // return extracted file-name and return path base without last delimiter
 	}
-	dms_assert(fullPathEnd == fullPath);
+	assert(fullPathEnd == fullPath);
 	return fullPath;
 }
 
 SharedStr splitFullPath(CharPtr full_path)
 {
 	CharPtr new_path = full_path + StrLen(full_path); // go to end of null-terminated full_path
-	dms_assert(!*new_path);
+	assert(!*new_path);
 	if (new_path != full_path)
 		while (--new_path != full_path)
 		{
-			dms_assert(*new_path != '\\');
+			assert(*new_path != '\\');
 			if (*new_path == DELIMITER_CHAR)
 				return SharedStr(full_path, new_path); // return extracted file-name and return path base without last delimiter
 		}
-	dms_assert(new_path == full_path);
+	assert(new_path == full_path);
 	return SharedStr();
 }
 

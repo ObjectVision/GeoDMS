@@ -46,8 +46,8 @@ STGDLL_CALL const ValueClass* GetStreamType(const AbstrDataItem* adi);
 const AbstrUnit*  StorageHolder_GetTableDomain(const TreeItem* storageHolder);
 bool              TableDomain_IsAttr(const AbstrUnit* domain, const AbstrDataItem* adi);
 
-STGDLL_CALL const AbstrUnit* FindProjectionRef (const TreeItem* storageHolder, const AbstrUnit* uDomain);
-STGDLL_CALL const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* uDomain);
+STGDLL_CALL SharedUnit FindProjectionRef (const TreeItem* storageHolder, const AbstrUnit* uDomain);
+STGDLL_CALL SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* uDomain);
 
 bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName);
 void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName);

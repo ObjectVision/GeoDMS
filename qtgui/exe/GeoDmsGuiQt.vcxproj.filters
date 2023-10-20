@@ -13,6 +13,9 @@
     <Filter Include="Qt Advanced Docking System">
       <UniqueIdentifier>{68516755-fb05-41dd-b695-d88a36dcfb5e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Forms">
+      <UniqueIdentifier>{2bd3e7a2-1d43-490f-9613-0a217601b832}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DmsMainWindow.cpp">
@@ -103,6 +106,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\main_qt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TestScript.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DmsValueInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -205,11 +214,49 @@
       <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="src\DmsValueInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TestScript.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dms_memory_leak_debugging.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\StatisticsBrowser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\UpdatableBrowser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GeoDmsGuiQt.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="res\icons\GeoDmsGui.ico" />
+    <Image Include="res\icons\GeoDmsGuiQt.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="res\ui\DmsConfigOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsEventLogSelection.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsGuiOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsLocalMachineOptionsWindow.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsDetailPageProperties.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+    <QtUic Include="res\ui\DmsDetailPageSourceDescription.ui">
+      <Filter>Forms</Filter>
+    </QtUic>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DebugSettings.txt" />
   </ItemGroup>
 </Project>

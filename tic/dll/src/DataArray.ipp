@@ -499,7 +499,7 @@ DRect GeoArrayAdapter<Base>::GetActualRangeAsDRect(bool checkForNulls) const
 				,	checkForNulls
 				,	false // don't call MakeStrictlyGreater on upper bound of the range
 				);
-			auto exclusiveAccessLock = std::lock_guard(resultMutationCS);
+			std::lock_guard exclusiveAccessLock(resultMutationCS);
 			result |= range;
 		}
 	);

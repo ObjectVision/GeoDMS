@@ -52,7 +52,7 @@ CharPtr myFixedBufferAsCString(char* buf, SizeT size, CharPtr format, Args&&... 
 	std::ostrstream os(buf, size);
 	os << mgFormat(format, std::forward<Args>(args)...) << std::ends;
 	CharPtr str = os.str();
-	dms_assert(SizeT(os.pcount()) <= size);
+	assert(SizeT(os.pcount()) <= size);
 	return str;
 }
 
@@ -60,8 +60,7 @@ template<typename ...Args>
 SizeT myFixedBufferWrite(char* buf, SizeT size, CharPtr format, Args&&... args) {
 	std::ostrstream os(buf, size);
 	os << mgFormat(format, std::forward<Args>(args)...);
-	CharPtr str = os.str();
- 	dms_assert(SizeT(os.pcount()) < size);
+ 	assert(SizeT(os.pcount()) < size);
 	return os.pcount();
 }
 

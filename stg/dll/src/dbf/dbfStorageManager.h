@@ -48,7 +48,7 @@ class DbfImpl;
 struct TNameSet;
 
 // storagemanager for 'Dbf-grids'
-class DbfStorageManager : public AbstrStorageManager
+class DbfStorageManager : public NonmappableStorageManager
 {
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;

@@ -1,34 +1,9 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
 #pragma hdrstop
-
 
 // *****************************************************************************
 //
@@ -40,6 +15,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "gdal_grid.h"
 
 #include <gdal_priv.h>
+
+#include "RtcGeneratedVersion.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
@@ -262,7 +239,7 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 		sx, sy,
 		stripBuff,
 		sx, sy,
-		gdalRasterDataType(m_ValueClassID), //poBand->GetRasterDataType(), //gdalDataType(m_ValueClassID),
+		gdalRasterDataType(m_ValueClassID),
 		0,					//nPixelSpace,
 		GetTileByteWidth()  //nLineSpace,
 	);
@@ -311,7 +288,7 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	auto nBandCount = m_hDS->GetRasterCount();
 	auto bandType = poBand->GetRasterDataType();
 
-	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
+	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == ValueClassID::VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
 		resultCode = ReadInterleavedMultiBandTile(stripBuff, tile_x, tile_y, sx, sy, nBandCount);
 	else // single band
 		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, poBand);
@@ -473,7 +450,7 @@ struct netCDFSubdatasetInfo
 	UInt32 nx = 0;
 	UInt32 ny = 0;
 	UInt32 nz = 0;
-	ValueClassID vc = VT_Unknown;
+	ValueClassID vc = ValueClassID::VT_Unknown;
 };
 
 std::string GetNetCDFItemName(std::string rawItemName)
@@ -515,6 +492,9 @@ netCDFSubdatasetInfo GetNetCDFSubdatasetInfo(std::string subDatasetItem)
 // Property description for Tif
 void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
+	if (dynamic_cast<const GdalWritableGridSM*>(this))
+		return;
+
 	AbstrGridStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
@@ -536,29 +516,23 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 	
-	if (uBase)
+	if (uBase && IsOpen() && m_hDS->GetRasterCount())
 	{
-		if (IsOpen())
+		try {
+			GDAL_ErrorFrame frame;
+			gdal_transform gdalTr;
+			m_hDS->GetGeoTransform(gdalTr);
+
+			gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
+
+			// spatial ref info
+			m_hDS.UpdateBaseProjection(curr, uBase);
+
+			frame.ThrowUpWhateverCameUp();
+		}
+		catch (...)
 		{
-			if (m_hDS->GetRasterCount())
-			{
-				try {
-					GDAL_ErrorFrame frame;
-					gdal_transform gdalTr;
-					m_hDS->GetGeoTransform(gdalTr);
-
-					gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-
-					// spatial ref info
-					m_hDS.UpdateBaseProjection(uBase);
-
-					frame.ThrowUpWhateverCameUp();
-				}
-				catch (...)
-				{
-					gridDataDomain->CatchFail(FR_MetaInfo);
-				}
-			}
+			gridDataDomain->CatchFail(FR_MetaInfo);
 		}
 	}
 
@@ -642,7 +616,7 @@ void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
 		width, height, // roi size
 		&buffer[0],
 		width, height, // buffer size
-		gdalRasterDataType(VT_UInt8),
+		gdalRasterDataType(ValueClassID::VT_UInt8),
 		0, //nPixelSpace,
 		0 //nLineSpace
 	);
@@ -682,8 +656,6 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 
 	MG_CHECK(rBand); 
 	ReadBand(rBand, buffer.redBand);
-
-	auto check = rBand->GetRasterDataType();
 
 	auto size = buffer.redBand.size();
 	vector_resize(buffer.combinedBands, size);
@@ -765,6 +737,11 @@ IMPL_DYNC_STORAGECLASS(GdalWritableGridSM, "gdalwrite.grid")
 
 struct GdalGridSM2 : GdalGridSM
 {
+	GdalGridSM2()
+	{
+		reportD(SeverityTypeID::ST_Warning, "StorageManager gdal2.grid is depreciated and will be removed in GeoDms version 15.0.0");
+		static_assert(DMS_VERSION_MAJOR != 15);
+	}
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };
 

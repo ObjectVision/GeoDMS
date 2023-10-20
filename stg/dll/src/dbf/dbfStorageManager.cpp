@@ -128,7 +128,7 @@ StorageMetaInfoPtr DbfStorageManager::GetMetaInfo(const TreeItem* storageHolder,
 
 void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
 		return;
@@ -171,8 +171,8 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			const ValueClass* vc = adi->GetDynamicObjClass()->GetValuesType();
 			if (! 
 					(	vc->IsNumeric()                    && ValueClass::FindByValueClassID(dbf.ColumnType(i))->IsNumeric()
-					||	vc->GetValueClassID() == VT_SharedStr && dbf.ColumnType(i) == VT_SharedStr
-					||	vc->GetValueClassID() == VT_Bool   && dbf.ColumnType(i) == VT_Bool
+					||	vc->GetValueClassID() == ValueClassID::VT_SharedStr && dbf.ColumnType(i) == ValueClassID::VT_SharedStr
+					||	vc->GetValueClassID() == ValueClassID::VT_Bool   && dbf.ColumnType(i) == ValueClassID::VT_Bool
 					)
 				)
 				ti->throwItemErrorF(
@@ -234,7 +234,7 @@ bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case VT_##T: return DbfImplStub<T>(&dbf, debug_cast<DataArray<T>*>(borrowedReadResultHolder)->GetDataWrite(), fieldName.begin(), vcID).m_Result;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, debug_cast<DataArray<T>*>(borrowedReadResultHolder)->GetDataWrite(), fieldName.begin(), vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
@@ -275,7 +275,7 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), sfwa.get(), debug_cast<const DataArray<T>*>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), sfwa.get(), debug_cast<const DataArray<T>*>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

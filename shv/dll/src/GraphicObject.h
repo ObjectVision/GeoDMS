@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __SHV_GRAPHICOBJECT_H
@@ -211,7 +187,7 @@ public:
 	virtual bool OnCommand(ToolButtonID id);
 	virtual CommandStatus OnCommandEnable(ToolButtonID id)  const;
 	virtual std::weak_ptr<DataView> GetDataView() const;
-
+	CrdPoint GetScaleFactors() const;
 
 	virtual void Sync(TreeItem* viewContext, ShvSyncMode sm);
 	void SyncShowSelOnly(ShvSyncMode sm);
@@ -220,13 +196,12 @@ public:
 	virtual void FillMenu(MouseEventDispatcher& med);
 
 //	Size and Position
-	virtual TRect CalcFullAbsRect   (const GraphVisitor&) const=0;
-	virtual TRect GetCurrFullAbsRect(const GraphVisitor&) const=0;
+	virtual CrdRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const=0;
 
-	GRect GetClippedCurrFullAbsRect(const GraphVisitor& v) const;
-	GRect GetDrawnFullAbsRect  () const;
+	CrdRect GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const;
+	CrdRect GetDrawnFullAbsDeviceRect  () const;
 
-	virtual GRect GetDrawnNettAbsRect() const { return GetDrawnFullAbsRect(); }
+	virtual CrdRect GetDrawnNettAbsDeviceRect() const { return GetDrawnFullAbsDeviceRect(); }
 	virtual bool HasDefinedExtent() const { return true; }
 
 	void SetOwner(GraphicObject* owner);
@@ -235,9 +210,9 @@ public:
 	static DmsColor GetDefaultTextColor      () { return CombineRGB(0, 0, 0); }
 	static DmsColor GetDefaultBackColor      () { return COLORREF2DmsColor(TRANSPARENT_COLORREF); }
 
-	void TranslateDrawnRect(const GRect& clipRect, const GPoint& delta);
-	void ClipDrawnRect     (const GRect& clipRect);
-	void ResizeDrawnRect   (const GRect& clipRect, GPoint delta, GPoint invarantLimit);
+	void TranslateDrawnRect(CrdRect clipRect, GPoint delta);
+	void ClipDrawnRect     (CrdRect clipRect);
+	void ResizeDrawnRect   (CrdRect clipRect, GPoint delta, GPoint invarantLimit);
 
 	//  helper functions
 	bool PrepareDataOrUpdateViewLater(const TreeItem* item);
@@ -267,7 +242,7 @@ private:
 private:
 	SharedPtr<TreeItem> m_ViewContext;
 	weakPtrGO m_Owner;
-	GRect     m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
+	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 
 	DECL_ABSTR(SHV_CALL, Class);
 };

@@ -1,3 +1,7 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 /*
 	FixedAlloc provides an allocator that has an efficient memory management.
 
@@ -55,6 +59,7 @@
 #include "utl/IncrementalLock.h"
 #include "utl/MemGuard.h"
 #include "dbg/SeverityType.h"
+#include "xct/DmsException.h"
 
 #include <memory>
 
@@ -125,6 +130,9 @@ struct VirtualAllocChunk
 	VirtualAllocChunk(SizeT chunkSize_)
 		: chunkSize(chunkSize_)
 	{
+		if (s_BlockNewAllocations)
+			throw MemoryAllocFailure();
+
 		WaitForAvailableMemory(chunkSize_);
 		chunkPtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, chunkSize_, MEM_RESERVE, PAGE_NOACCESS));
 	}
@@ -191,7 +199,7 @@ struct VirtualAllocChunkArray
 		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2.
 		nextChunkSize = objectStoreSize;
 		nextChunkSize *= 2;
-		MakeMax(nextChunkSize, MIN_CHUNK_SIZE);
+		MakeMax<SizeT>(nextChunkSize, MIN_CHUNK_SIZE);
 	}
 
 	BYTE_PTR get_reserved_objectstore()
@@ -230,11 +238,17 @@ struct VirtualAllocChunkArray
 
 // =========================================  FreeStackAllocSummary
 
-using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT>;
+using FreeStackAllocSummary = std::tuple<SizeT, SizeT, SizeT, SizeT, SizeT>;
 
 FreeStackAllocSummary operator +(FreeStackAllocSummary lhs, FreeStackAllocSummary rhs)
 {
-	return FreeStackAllocSummary(std::get<0>(lhs) + std::get<0>(rhs), std::get<1>(lhs) + std::get<1>(rhs), std::get<2>(lhs) + std::get<2>(rhs), std::get<3>(lhs) + std::get<3>(rhs));
+	return FreeStackAllocSummary(
+		std::get<0>(lhs) + std::get<0>(rhs)
+	,	std::get<1>(lhs) + std::get<1>(rhs)
+	,	std::get<2>(lhs) + std::get<2>(rhs)
+	,	std::get<3>(lhs) + std::get<3>(rhs)
+	,	std::get<4>(lhs) + std::get<4>(rhs)
+	);
 }
 
 // =========================================  FreeStackAllocator definition section
@@ -254,7 +268,7 @@ struct FreeStackAllocator
 	std::pair<BYTE_PTR, bool> get_reserved_or_reset_objectstore()
 	{
 		// critical section from here to result in thread-local ownership of to be committed or recommitted span of [ptr, ptr+objectSize]
-		std::lock_guard lock(allocSection);
+		std::lock_guard guard(allocSection);
 
 		objectCount++;
 
@@ -279,7 +293,7 @@ struct FreeStackAllocator
 
 	void add_to_freestack(BYTE_PTR ptr)
 	{
-		std::lock_guard lock(allocSection); // critical section here too
+		std::lock_guard guard(allocSection); // critical section here too
 		objectCount--;
 		freeStack.emplace_back(ptr);
 	}
@@ -296,7 +310,7 @@ struct FreeStackAllocator
 	FreeStackAllocSummary ReportStatus() const
 	{
 		if (!inner.objectStoreSize)
-			return FreeStackAllocSummary(0, 0, 0, 0);
+			return FreeStackAllocSummary(0, 0, 0, 0, 0);
 
 		SizeT pageCount, totalBytes = 0;
 		SizeT nrAllocated;
@@ -315,7 +329,7 @@ struct FreeStackAllocator
 		}
 		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
-		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize);
+		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize, 0);
 	}
 };
 
@@ -440,7 +454,7 @@ struct FreeListAllocator
 			}
 
 			// critical section from here: allocate a ObjectStore from freeStackAllocator
-			std::lock_guard lock(allocSection);
+			std::lock_guard guard(allocSection);
 			// already done ?
 			if (currTaggedNrReservedSosses == taggedNrReservedSosses)
 			{
@@ -569,6 +583,9 @@ void* AllocateFromStock_impl(size_t objectSize)
 	}
 	else
 	{
+		if (s_BlockNewAllocations)
+			throw MemoryAllocFailure();
+
 		if (SpecialSize(objectSize))
 		{
 			i -= FIRST_PAGE_INDEX;
@@ -581,6 +598,7 @@ void* AllocateFromStock_impl(size_t objectSize)
 		}
 	}
 #endif //defined(MG_CACHE_ALLOC)
+
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
@@ -602,9 +620,10 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 #if defined(MG_CACHE_ALLOC)
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	ConsiderReporting();
 #endif //defined(MG_DEBUG_ALLOCATOR)
 #endif //defined(MG_CACHE_ALLOC)
+
+	ConsiderReporting();
 
 	return result;
 }
@@ -651,10 +670,34 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 // Reporting
 //----------------------------------------------------------------------
 
+#include "utl/mySPrintF.h"
+#include <Psapi.h>
+
 std::atomic<bool> s_ReportingRequestPending = false;
+std::atomic<bool> s_BlockNewAllocations = false;
 
 
-void ReportFixedAllocStatus()
+SizeT CommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PagefileUsage;
+}
+
+SizeT MaxCommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PeakPagefileUsage;
+}
+
+static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
+
+RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr
 {
 	s_ReportingRequestPending = false;
 
@@ -665,12 +708,49 @@ void ReportFixedAllocStatus()
 	for (int i=0; i!=fsaa.size(); ++i)
 		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "Reserved in Blocks %d[kB]; allocated: %d[kB]; freed: %d[kB]; uncommitted: %d[kB]"
-		, std::get<0>(cumulBytes) >> 10
-		, std::get<1>(cumulBytes) >> 10
-		, std::get<2>(cumulBytes) >> 10
-		, std::get<3>(cumulBytes) >> 10
+	std::get<4>(cumulBytes) = CommittedSize();
+
+	MakeMax(std::get<0>(maxCumulBytes), std::get<0>(cumulBytes));
+	MakeMax(std::get<1>(maxCumulBytes), std::get<1>(cumulBytes));
+	MakeMax(std::get<2>(maxCumulBytes), std::get<2>(cumulBytes));
+	MakeMax(std::get<3>(maxCumulBytes), std::get<3>(cumulBytes));
+	MakeMax(std::get<4>(maxCumulBytes), std::get<4>(cumulBytes));
+
+	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
 	);
+}
+
+void ReportFixedAllocStatus()
+{
+	auto reportStr = UpdateAndGetFixedAllocStatus();
+
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+}
+
+RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
+{
+	auto cumulBytes = maxCumulBytes;
+
+	return mySSPrintF( "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+		, std::get<0>(cumulBytes) >> 20
+		, std::get<1>(cumulBytes) >> 20
+		, std::get<2>(cumulBytes) >> 20
+		, std::get<3>(cumulBytes) >> 20
+		, std::get<4>(cumulBytes) >> 20
+	);
+}
+
+void ReportFixedAllocFinalSummary()
+{
+	auto msgStr = UpdateAndGetFixedAllocFinalSummary();
+
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
+
 }
 
 //----------------------------------------------------------------------
@@ -727,13 +807,13 @@ static std::atomic<UInt32> s_ConsiderReportingReentranceCounter = 0;
 
 void ConsiderReporting()
 {
-	static Timer t;
+	static Timer t{ 0 };
 	
 	if (s_ConsiderReportingReentranceCounter)
 		return;
 
 	StaticMtIncrementalLock<s_ConsiderReportingReentranceCounter> preventReentrance;
-	if (t.PassedSecs(30))
+	if (t.PassedSecs(5))
 		PostReporting();
 }
 
@@ -758,7 +838,7 @@ auto& GetAllocRegister()
 void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::lock_guard(reg.mutex);
+	std::lock_guard guard(reg.mutex);
 
 	assert(reg.map.find(ptr) == reg.map.end()); // check that its not already assigned
 	reg.map[ptr] = std::pair<CharPtr, size_t>{ srcStr, sz };
@@ -767,7 +847,7 @@ void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 void RemoveAlloc(void* ptr, size_t sz)
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::lock_guard(reg.mutex);
+	std::lock_guard guard(reg.mutex);
 
 	auto pos = reg.map.find(ptr);
 	assert(pos != reg.map.end() && pos->first == ptr && pos->second.second == sz); // check that it was assigned as now assumed
@@ -777,7 +857,7 @@ void RemoveAlloc(void* ptr, size_t sz)
 void ReportAllocs()
 {
 	auto& reg = GetAllocRegister();
-	auto lock = std::lock_guard(reg.mutex);
+	std::lock_guard guard(reg.mutex);
 	objectstore_count_t i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;

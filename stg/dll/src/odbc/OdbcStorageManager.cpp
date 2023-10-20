@@ -124,16 +124,16 @@ SQLSMALLINT	ValueClassID2CType(ValueClassID vid)
 {
 	switch (vid)
 	{
-		case VT_SharedStr:	return SQL_C_CHAR;
-		case VT_UInt32: return SQL_C_ULONG;
-		case VT_Int32:  return SQL_C_SLONG;
-		case VT_UInt16: return SQL_C_USHORT;
-		case VT_Int16:  return SQL_C_SSHORT;
-		case VT_UInt8:  return SQL_C_UTINYINT;
-		case VT_Int8:   return SQL_C_STINYINT;
-		case VT_Bool:   return SQL_C_BIT;
-		case VT_Float64:return SQL_C_DOUBLE;
-		case VT_Float32:return SQL_C_FLOAT;
+		case ValueClassID::VT_SharedStr:	return SQL_C_CHAR;
+		case ValueClassID::VT_UInt32: return SQL_C_ULONG;
+		case ValueClassID::VT_Int32:  return SQL_C_SLONG;
+		case ValueClassID::VT_UInt16: return SQL_C_USHORT;
+		case ValueClassID::VT_Int16:  return SQL_C_SSHORT;
+		case ValueClassID::VT_UInt8:  return SQL_C_UTINYINT;
+		case ValueClassID::VT_Int8:   return SQL_C_STINYINT;
+		case ValueClassID::VT_Bool:   return SQL_C_BIT;
+		case ValueClassID::VT_Float64:return SQL_C_DOUBLE;
+		case ValueClassID::VT_Float32:return SQL_C_FLOAT;
 
 	}
 	throwErrorF("ODBC", "ValueType %s has no equivalent SQL_C type",
@@ -358,13 +358,13 @@ struct OdbcMetaInfo : StorageMetaInfo
 {
 	OdbcMetaInfo(const ODBCStorageManager* sm, const TreeItem* storageHolder, const TreeItem* curr)
 		: StorageMetaInfo(storageHolder, curr)
-		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : curr)
+		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeShared(curr))
 	{
 		if (m_TableHolder)
 			m_SqlString = GetOrCreateSqlString(m_TableHolder);
 	}
 
-	SharedPtr<const TreeItem> m_TableHolder;
+	SharedTreeItem m_TableHolder;
 	SharedStr m_SqlString;
 };
 
@@ -626,7 +626,7 @@ private:
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
-	TreeItem*            m_TableHolder; // Maybe we read all columns at once
+	SharedPtr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
 	std::vector<BYTE>    m_CharBuffer;
 };
 
@@ -745,7 +745,7 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	TreeItem* tableHolder = const_cast<TreeItem*>(adi->GetTreeParent());
+	SharedPtr<TreeItem> tableHolder = const_cast<TreeItem*>(adi->GetTreeParent().get());
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
 	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder, adi->GetName().c_str(), adi);
@@ -756,7 +756,7 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
@@ -779,7 +779,7 @@ bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(sm != SM_None);
 

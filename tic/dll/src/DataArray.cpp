@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -188,7 +164,8 @@ template <sequence_or_string V> struct const_tile_type<V> { using type = const_s
 
 template <typename V> using const_tile_t = typename const_tile_type<V>::type;
 
-std::mutex shadowPtrSection;
+static std::mutex              sd_shadowPtrSection;
+static std::condition_variable sd_shadowPtrSectionWasRevisisted;
 
 template <typename V> 
 struct const_shadow : const_tile_t<V>
@@ -199,11 +176,12 @@ struct const_shadow : const_tile_t<V>
 
 	void Disconnect()
 	{
-		auto lockCS = std::unique_lock(shadowPtrSection);
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
 		if (!m_Owner)
 			return;
 		m_Owner->m_shadowTilePtr = nullptr;
 		m_Owner = nullptr;
+		sd_shadowPtrSectionWasRevisisted.notify_all();
 	}
 
 	void DecoupleShadowFromOwner() override
@@ -220,27 +198,43 @@ struct const_shadow : const_tile_t<V>
 
 AbstrDataObject::~AbstrDataObject()
 {
-	if (!m_shadowTilePtr)
+	while (m_shadowTilePtr)
+	{
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
+		if (!m_shadowTilePtr)
+			return;
+		if (!m_shadowTilePtr->IsOwned())
+		{
+			sd_shadowPtrSectionWasRevisisted.wait(lockCS);
+			continue;
+		}
+		m_shadowTilePtr->DecoupleShadowFromOwner();
+		m_shadowTilePtr = nullptr;
 		return;
-	auto lockCS = std::unique_lock(shadowPtrSection);
-	if (!m_shadowTilePtr)
-		return;
-	m_shadowTilePtr->DecoupleShadowFromOwner();
-	m_shadowTilePtr = nullptr;
+	}
 }
 
 template<typename V>
 SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
 {
 	assert(ado);
-	auto lockCS = std::unique_lock(shadowPtrSection);
-	if (!ado->m_shadowTilePtr)
+
+	while (true)
 	{
-		auto csPtr = new const_shadow<V>;
-		csPtr->m_Owner = ado;
-		ado->m_shadowTilePtr = csPtr;
+		auto lockCS = std::unique_lock(sd_shadowPtrSection);
+		if (!ado->m_shadowTilePtr)
+		{
+			auto csPtr = new const_shadow<V>;
+			csPtr->m_Owner = ado;
+			ado->m_shadowTilePtr = csPtr;
+		}
+		else if (!ado->m_shadowTilePtr->IsOwned())
+		{
+			sd_shadowPtrSectionWasRevisisted.wait(lockCS);
+			continue;
+		}
+		return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
 	}
-	return static_cast<const_shadow<V>*>(ado->m_shadowTilePtr);
 }
 
 template <fixed_elem V>
@@ -888,7 +882,7 @@ TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
@@ -900,7 +894,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstr
 
 	// DEBUG: SEVERE TILING
 	if (currTRD->GetNrTiles() > 1 && !adi->IsCacheItem())
-		reportF(SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "CreateAbstrHeapTileFunctor(attribute<%s> %s(%d tiles))", adi->GetAbstrValuesUnit()->GetValueType()->GetName(), adi->GetFullName().c_str(), currTRD->GetNrTiles());
 
 	if (!abstrValuesRangeData)
 		abstrValuesRangeData = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -912,7 +906,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstr
 		visit<typelists::fields>(valuesUnit, 
 			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
-				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
@@ -923,7 +917,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstr
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
-				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;

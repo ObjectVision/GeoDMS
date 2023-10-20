@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -135,7 +110,7 @@ struct assign_partial_output_from_buffer
 	template<typename Container>
 	void AssignOutput(dms_seq res, const Container& outputs) const
 	{
-		dms_assert(res.size() == outputs.size());
+		assert(res.size() == outputs.size());
 		auto ri = res.begin();
 		auto
 			oi = outputs.begin(),
@@ -172,7 +147,7 @@ struct unary_assign_total_accumulation
 
 	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input) const
 	{ 
-		aggr1_total_best<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
+		aggr1_total<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
 	}
 
 private:
@@ -210,7 +185,7 @@ struct unary_assign_partial_accumulation
 
 	void operator()(typename unary_assign_partial_accumulation::accumulation_seq outputs, typename unary_assign_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
+		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
 	TUniAssign     m_AssignFunc;

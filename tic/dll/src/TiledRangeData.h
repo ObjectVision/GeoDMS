@@ -177,7 +177,7 @@ struct FixedRange : AbstrTileRangeData
 		return localIndex;
 	}
 
-	LispRef GetAsLispRef(LispPtr base, bool asCategorical) const override { return base; }
+	LispRef GetAsLispRef(LispPtr base, bool /*asCategorical*/) const override { return base; }
 };
 
 template <typename V>

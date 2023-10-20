@@ -38,7 +38,6 @@
   <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
     <Import Project="..\..\DmsRelease.props" />
   </ImportGroup>
-
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../stgimpl/dll/src;../../rtc/dll/src;../../tic/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -46,10 +45,10 @@
     <Link>
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <Link Condition="'$(Configuration)'=='Release'" >
+    <Link Condition="'$(Configuration)'=='Release'">
       <DelayLoadDLLs>gdal.dll</DelayLoadDLLs>
     </Link>
-    <Link Condition="'$(Configuration)'=='Debug'" >
+    <Link Condition="'$(Configuration)'=='Debug'">
       <DelayLoadDLLs>gdald.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
@@ -89,7 +88,7 @@
     <ClInclude Include="src\dbf\dbfImpl.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
-	<ClInclude Include="src\cfs\CompoundStorageManager.h" />
+    <ClInclude Include="src\cfs\CompoundStorageManager.h" />
     <ClInclude Include="src\asc\AscStorageManager.h" />
     <ClInclude Include="src\bmp\BmpStorageManager.h" />
     <ClInclude Include="src\gdal\gdal_base.h" />
@@ -122,10 +121,10 @@
   </ImportGroup>
   <Target Name="AfterBuild">
     <ItemGroup>
-      <gdaldata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\**\*.*"/>
-      <projdata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\**\*.*"/>
+      <gdaldata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\**\*.*" />
+      <projdata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\**\*.*" />
     </ItemGroup>
-    <Copy SourceFiles="@(gdaldata)" DestinationFolder="$(TargetDir)gdaldata"/>
-    <Copy SourceFiles="@(projdata)" DestinationFolder="$(TargetDir)proj4data"/>
+    <Copy SourceFiles="@(gdaldata)" DestinationFolder="$(TargetDir)gdaldata" />
+    <Copy SourceFiles="@(projdata)" DestinationFolder="$(TargetDir)proj4data" />
   </Target>
 </Project>

@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -86,16 +61,18 @@ void make_subset_container(ResContainer* resultSub, const DataArray<Bool>* boolA
 {
 	dms_assert(resultSub);
 
-	typedef DataArray<Bool>                ArgType;
-	typedef Unit<typename ResContainer::value_type> ArgDomain;
+	using ArgType = DataArray<Bool>;
+	using org_value_t = typename ResContainer::value_type;
+	using ArgDomain = Unit< org_value_t>;
+	using ArgTileType = range_or_void_data<org_value_t>;
+	auto orgAbstrTiling = boolArray->GetTiledRangeData();
+	auto orgTiling = checked_cast<const ArgTileType*>(orgAbstrTiling.get());
 
-	auto orgEntity = resultSub->GetValueRangeData();
-	
-	tile_write_channel<typename ResContainer::value_type> resDataChannel(resultSub);
-	auto tn = orgEntity->GetNrTiles();
+	tile_write_channel<org_value_t> resDataChannel(resultSub);
+	auto tn = orgTiling->GetNrTiles();
 	for (tile_id t = 0; t!=tn; ++t)
 	{
-		auto resValuesRange = orgEntity->GetTileRange(t);
+		auto resValuesRange = orgTiling->GetTileRange(t);
 		auto boolData = boolArray->GetTile(t);
 
 		dms_assert(!boolData.begin().m_NrElems);
@@ -200,7 +177,7 @@ struct SubsetOperator: public UnaryOperator
 
 		if (resSub)
 		{
-			DataWriteLock resSubLock(resSub);
+			DataWriteLock resSubLock(resSub, dms_rw_mode::write_only_all, arg1Domain->GetTiledRangeData());
 
 			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 
@@ -387,12 +364,23 @@ struct CollectByCondOperator : AbstrCollectByCondOperator
 //			ReadableTileLock condLock(cond, t), dataLock(data, t);
 
 			auto boolData = cond->GetLockedDataRead(t);
-			auto dataData = data->GetLockedDataRead(t);
 
 			auto di = boolData.begin().m_BlockData;
 			auto de = boolData.end().m_BlockData;
 
-			SizeT count = 0;
+			for (; di != de; ++di)
+			{
+				if (*di)
+					goto processDataData;
+			}
+			for (DataArray<Bool>::const_iterator i(di, SizeT(0)), e = boolData.end(); i != e; ++i)
+				if (Bool(*i))
+					goto processDataData;
+			continue; // go to next time
+
+		processDataData:
+			auto dataData = data->GetLockedDataRead(t);
+			SizeT count = (di - boolData.begin().m_BlockData) * DataArray<Bool>::const_iterator::nr_elem_per_block;
 			for (; di != de; ++di)
 			{
 				if (*di)
@@ -404,6 +392,7 @@ struct CollectByCondOperator : AbstrCollectByCondOperator
 				else
 					count += DataArray<Bool>::const_iterator::nr_elem_per_block;
 			}
+
 			for (DataArray<Bool>::const_iterator i(di, SizeT(0)), e = boolData.end(); i != e; ++count, ++i)
 				if (Bool(*i))
 					resDataChannel.Write(dataData[count]);
@@ -782,8 +771,8 @@ namespace {
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);
 
-	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
-	tl_oper::inst_tuple<typelists::value_elements, CollectByCondOperator<_>, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
-	tl_oper::inst_tuple<typelists::value_elements, RecollectByCondOperator<_>, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
+	tl_oper::inst_tuple_templ<typelists::value_elements, CollectByCondOperator, AbstrOperGroup&> selectDataOperInstances(cog_select_data);
+	tl_oper::inst_tuple_templ<typelists::value_elements, CollectByCondOperator, AbstrOperGroup&> collectByCondOperInstances(cog_collect_by_cond);
+	tl_oper::inst_tuple_templ<typelists::value_elements, RecollectByCondOperator, AbstrOperGroup&> recollectByCondOperInstances(cog_recollect_by_cond);
 }
 

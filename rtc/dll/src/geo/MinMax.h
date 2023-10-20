@@ -43,18 +43,18 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 template <class T>
-inline T Min(typename param_type<T>::type a, typename param_type<T>::type b) { return (a<b) ? a : b; } 
+inline T Min(T a, T b) { return (a<b) ? a : b; }
 
 template <class T>
-inline T Max(typename param_type<T>::type a, typename param_type<T>::type b) { return (a<b) ? b : a; } 
+inline T Max(T a, T b) { return (a<b) ? b : a; }
 
 template <class T>
-inline bool MakeMin(T& a, typename param_type<T>::type b) { if (!(b<a)) return false; a=b; return true; }
+inline bool MakeMin(T& a, std::type_identity_t<T> b) { if (!(b<a)) return false; a=b; return true; }
 
 template <class T>
-inline bool MakeMax(T& a, typename param_type<T>::type b) { if (!(a<b)) return false; a=b; return true; }
+inline bool MakeMax(T& a, std::type_identity_t<T> b) { if (!(a<b)) return false; a=b; return true; }
 
 template <class T> 
-inline void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b);} 
+inline void MakeRange(T& a, T& b) { if (b<a) omni::swap(a, b); }
 
 #endif // !defined(__RTC_GEO_MINMAX_H)

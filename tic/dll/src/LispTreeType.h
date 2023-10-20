@@ -1,31 +1,8 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#pragma once
 
 #ifndef __TIC_LISPTREETYPE_H
 #define __TIC_LISPTREETYPE_H
@@ -67,10 +44,29 @@ namespace token {
 	extern TIC_CALL TokenID not_;
 
 	extern TIC_CALL TokenID iif;
+
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
+	extern TIC_CALL TokenID pi;
 
-	inline bool isConst(TokenID t) { return t == true_ || t == false_; }
+	extern TIC_CALL TokenID null_b;
+	extern TIC_CALL TokenID null_w;
+	extern TIC_CALL TokenID null_u;
+	extern TIC_CALL TokenID null_u64;
+	extern TIC_CALL TokenID null_c;
+	extern TIC_CALL TokenID null_s;
+	extern TIC_CALL TokenID null_i;
+	extern TIC_CALL TokenID null_i64;
+	extern TIC_CALL TokenID null_f;
+	extern TIC_CALL TokenID null_d;
+	extern TIC_CALL TokenID null_sp;
+	extern TIC_CALL TokenID null_wp;
+	extern TIC_CALL TokenID null_ip;
+	extern TIC_CALL TokenID null_up;
+	extern TIC_CALL TokenID null_fp;
+	extern TIC_CALL TokenID null_dp;
+
+	TIC_CALL bool isConst(TokenID t);
 
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
@@ -176,6 +172,7 @@ namespace token {
 
 	extern TIC_CALL TokenID map;
 	extern TIC_CALL TokenID geometry;
+	extern TIC_CALL TokenID FenceContainer;
 
 }
 

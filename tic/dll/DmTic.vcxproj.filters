@@ -168,6 +168,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FileName.cpp" />
+    <ClCompile Include="src\stg\MemoryMappedDataStorageManager.cpp">
+      <Filter>Storage Handling</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCalculator.h">
@@ -392,9 +395,6 @@
     <ClInclude Include="src\ExprRewrite.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ItemContext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ItemLocks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -405,6 +405,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\FutureTileArray.h" />
+    <ClInclude Include="src\stg\MemoryMappeddataStorageManager.h">
+      <Filter>Storage Handling</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\DataArray.ipp">

@@ -119,7 +119,7 @@ namespace
 		ClassifyFixedOperator cfoNZJF, cfoCRJF;
 	};
 
-	tl_oper::inst_tuple<typelists::num_objects, ClassBreakOperators<_>> classBreakInstances;
+	tl_oper::inst_tuple_templ<typelists::num_objects, ClassBreakOperators> classBreakInstances;
 } // end anonymous namespace
 
 /******************************************************************************/

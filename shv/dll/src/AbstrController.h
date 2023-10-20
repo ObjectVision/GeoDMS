@@ -98,10 +98,10 @@ inline auto CompoundWriteType(EventID eid) { return DmsRwChangeType(IsCreateNewE
 
 struct EventInfo
 {
-	EventInfo(EventID eventID, UINT wParam, GPoint point = GPoint())
+	EventInfo(EventID eventID, UINT wParam, GPoint devicePoint = GPoint())
 		:	m_EventID(eventID)
 		,	m_wParam(wParam)
-		,	m_Point(point)
+		,	m_Point(devicePoint)
 	{}
 
 	EventID GetID() const { return EventID(m_EventID); }

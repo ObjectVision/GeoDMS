@@ -1,35 +1,8 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
-// AStorageManager.h: interface for the AStorageManager class.
-//
-//////////////////////////////////////////////////////////////////////
 
 #if !defined(__TIC_STG_GRIDSTORAGEMANAGER_H)
 #define __TIC_STG_GRIDSTORAGEMANAGER_H
@@ -97,18 +70,18 @@ STGDLL_CALL       AbstrUnit* GetGridDataDomainRW(TreeItem* storageHolder);
 
 STGDLL_CALL bool IsGridDomain(const AbstrUnit* au);
 STGDLL_CALL bool HasGridDomain(const AbstrDataItem* adi);
-STGDLL_CALL const AbstrDataItem* GetGridData(const TreeItem* storageHolder);
-STGDLL_CALL const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
-STGDLL_CALL const AbstrUnit* GridDomain(const AbstrDataItem* adi);
-STGDLL_CALL const AbstrUnit* CheckedGridDomain(const AbstrDataItem* adi);
+STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder);
+STGDLL_CALL SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable);
+STGDLL_CALL SharedUnit GridDomain(const AbstrDataItem* adi);
+STGDLL_CALL SharedUnit CheckedGridDomain(const AbstrDataItem* adi);
 
-STGDLL_CALL const AbstrDataItem* GetPaletteData(const TreeItem* storageHolder);
+STGDLL_CALL SharedDataItem GetPaletteData(const TreeItem* storageHolder);
 
 inline bool HasPaletteData(const TreeItem* storageHolder) { return GetPaletteData(storageHolder) != nullptr; }
 
 //  ---------------------------------------------------------------------------
 
-class AbstrGridStorageManager : public AbstrStorageManager
+class AbstrGridStorageManager : public NonmappableStorageManager
 {
 	typedef AbstrStorageManager base_type;
 public:
@@ -259,7 +232,7 @@ namespace Grid {
 	{
 		assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "from", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "to", dataSourceName);
 
 		if (viewPort2Grid.IsNonScaling() && nrbits_of_v<T> == imp.GetNrBitsPerPixel())
 		{
@@ -276,8 +249,8 @@ namespace Grid {
 		readRectInGrid.second += IPoint(1, 1);
 
 		//	tilestrip height (tiff pixels)
-		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRectInGrid));
-		UInt32 stripWidth = _Width(readRectInGrid);
+		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRectInGrid));
+		UInt32 stripWidth = Width(readRectInGrid);
 		UInt32 stripBufferSize = stripWidth * stripHeight;
 		//	buffer for reading from m_TiffHandle
 		OwningPtrSizedArray<T> stripBuffer( stripBufferSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
@@ -355,7 +328,7 @@ namespace Grid {
 
 			//	next strip
 			readRectInGrid.first.Row() += stripHeight; // TODO: GENERALIZE FOR VERTICAL MIRRORING
-			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRectInGrid));
+			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRectInGrid));
 		}
 	};
 
@@ -393,15 +366,15 @@ namespace Grid {
 	{
 		dms_assert(pixels);
 
-		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData", "from", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<ColorType>, imp.GetNrBitsPerPixel(), "GridData::CountData", "to", dataSourceName);
 
 		ColorType countColor = viewPort2tiff.GetCountColor();
 		dms_assert(Negative(countColor) != countColor);
 		DRect viewRectInGrid = viewPort2tiff.Apply(Convert<DRect>(viewPort2tiff.GetViewPortExtents()));
 		IRect readRect = Round<4>(viewRectInGrid); // & IRect(IPoint(0,0), GetSize());
 
-		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRect));
-		UInt32 stripWidth = _Width(readRect);
+		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRect));
+		UInt32 stripWidth = Width(readRect);
 
 		//	buffer for reading from m_TiffHandle
 		OwningPtrSizedArray<ColorType> stripBuffer(SizeT(stripWidth) * stripHeight, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.CountDataImpl: stripBuffer"));
@@ -443,7 +416,7 @@ namespace Grid {
 						Increment(pixelPtr[viewRectOffsets[c]]);
 			}
 			readRect.first.Row() += stripHeight; // TODO: GENERALIZE FOR VERTICAL MIRRORING
-			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, _Height(readRect));
+			stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRect));
 		}
 	};
 
@@ -495,7 +468,7 @@ namespace Grid {
 		UPoint tileSize = imp.GetTileSize(); // size of one tile or strip
 		UInt32 tw_aligned = array_traits<T>::ByteAlign(tileSize.X());
 
-		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData", "to", dataSourceName);
+		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::WriteData", "from", dataSourceName);
 
 		// nr of tiles
 		Int32
@@ -564,7 +537,7 @@ namespace Grid {
 		MG_CHECK(vpi.IsNonScaling());
 
 		UInt8 bitsPerPixel = streamType->GetBitSize();
-		UInt8 samplesPerPixel = (streamType->GetValueClassID() == VT_UInt32) ? 4 : 1;
+		UInt8 samplesPerPixel = (streamType->GetValueClassID() == ValueClassID::VT_UInt32) ? 4 : 1;
 		UInt8 bitsPerSample = bitsPerPixel / samplesPerPixel;
 
 		imp.SetDataMode(bitsPerSample, samplesPerPixel, HasPaletteData(storageHolder), SAMPLEFORMAT(adi->GetAbstrValuesUnit()->GetValueType()));
@@ -572,8 +545,8 @@ namespace Grid {
 		auto trd = adi->GetCurrRefObj()->GetTiledRangeData();
 		IRect entireRect = ThrowingConvert<IRect>(trd->GetRangeAsI64Rect());
 		UInt32
-			width = _Width(entireRect),
-			height = _Height(entireRect);
+			width = Width(entireRect),
+			height = Height(entireRect);
 		imp.SetTiled();
 		imp.SetWidth(width);
 		imp.SetHeight(height);
@@ -596,22 +569,22 @@ namespace Grid {
 		const AbstrDataObject* ado = adi->GetRefObj();
 		switch (streamType->GetValueClassID())
 		{
-		case VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;
-		case VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado), dataSourceName); return;
-		case VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado), dataSourceName); return;
+		case ValueClassID::VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;
+		case ValueClassID::VT_UInt2:   WriteTiles< UInt2 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt2 >(ado), dataSourceName); return;
+		case ValueClassID::VT_UInt4:   WriteTiles< UInt4 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt4 >(ado), dataSourceName); return;
 
-		case VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado), dataSourceName); return;
-		case VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt8:   WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt8 >(ado), dataSourceName); return;
+		case ValueClassID::VT_Int8:    WriteTiles< UInt8 >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt8 >*>(const_array_cast<  Int8 >(ado)), dataSourceName); return;
 
-		case VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado), dataSourceName); return;
-		case VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt16:  WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt16>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int16:   WriteTiles< UInt16>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt16>*>(const_array_cast<  Int16>(ado)), dataSourceName); return;
 
-		case VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado)), dataSourceName); return;
-		case VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado), dataSourceName); return;
-		case VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado)), dataSourceName); return;
-		case VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado), dataSourceName); return;
-		case VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado)), dataSourceName); return;
-		case VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
+		case ValueClassID::VT_Float32: WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<Float32>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt32:  WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< UInt32>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int32:   WriteTiles< UInt32>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<UInt32>*>(const_array_cast<  Int32>(ado)), dataSourceName); return;
+		case ValueClassID::VT_Float64: WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast<Float64>(ado), dataSourceName); return;
+		case ValueClassID::VT_Int64:   WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<Int64>(ado)), dataSourceName); return;
+		case ValueClassID::VT_UInt64:  WriteTiles<Float64>(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, reinterpret_cast<const TileFunctor<Float64>*>(const_array_cast<UInt64>(ado)), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(streamType->GetName());
 		throwErrorF("GRID::WriteGridData", "cannot store %s elements as raster data ", streamTypeName);

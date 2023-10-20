@@ -45,12 +45,20 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct FileDescr : SharedBase
 {
-	RTC_CALL FileDescr(WeakStr str, FileDateTime fdt = 0);
+	RTC_CALL FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber);
 	RTC_CALL ~FileDescr();
 
 	WeakStr GetFileName() const { return m_FileName; }
 
-	FileDateTime m_Fdt;
+	FileDateTime m_ReadFdt, m_LaterFdt = 0;
+	UInt32 m_LoadNumber;
+
+	FileDateTime LastFdt() const 
+	{ 
+		if (m_LaterFdt)
+			return m_LaterFdt;
+		return m_ReadFdt;
+	}
 
 	void Release() const { if (!DecRef()) delete this; }
 
@@ -58,7 +66,7 @@ private:
 	SharedStr m_FileName;
 };
 
-typedef SharedPtr<FileDescr> FileDescrPtr;
+using FileDescrPtr = SharedPtr<FileDescr>;
 
 
 struct SourceLocation : SharedBase
@@ -72,8 +80,7 @@ struct SourceLocation : SharedBase
 
 	FileDescrPtr m_ConfigFileDescr;
 	UInt32       m_ConfigFileLineNr; 
-	UInt32       m_ConfigFileColNr;  
-
+	UInt32       m_ConfigFileColNr;
 };
 
 #endif // __RTC_UTL_SOURCELOCATION_H

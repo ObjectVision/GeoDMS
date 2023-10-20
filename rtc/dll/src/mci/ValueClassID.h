@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcTypeModel.h"
 
-enum ValueClassID {
+enum class ValueClassID : UInt8 {
 	VT_UInt32 = 0,
 	VT_Int32 = 1,
 	VT_UInt16 = 2,

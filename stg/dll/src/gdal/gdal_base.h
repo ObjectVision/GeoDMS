@@ -165,6 +165,9 @@ GDALDataType gdalRasterDataType(ValueClassID tid);
 
 // *****************************************************************************
 
+// Proj specific tests
+STGDLL_CALL bool AuthorityCodeIsValidCrs(std::string_view wkt);
+
 auto DmsType2OGRFieldType(ValueClassID id) -> OGRFieldType; // TODO move OGR helper funcs to gdal_vect.cpp
 auto DmsType2OGRSubFieldType(ValueClassID id) -> OGRFieldSubType;
 auto DmsType2OGRGeometryType(ValueComposition vc) -> OGRwkbGeometryType;
@@ -177,7 +180,7 @@ auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeome
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
 auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
-void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const AbstrUnit* mutBase);
+void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
 
@@ -202,7 +205,7 @@ struct GDALDatasetHandle
 		};
 	};
 
-	void UpdateBaseProjection(const AbstrUnit* uBase) const;
+	void UpdateBaseProjection(const TreeItem* treeitem, const AbstrUnit* uBase) const;
 
 	std::unique_ptr < GDALDataset, deleter > dsh_;
 };

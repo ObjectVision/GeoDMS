@@ -1,13 +1,21 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#include <QApplication>
 #include <QListWidget>
 
 #include <QObject>
 #include <QDockWidget>
 #include <QTextBrowser>
 #include <QTimer>
+#include <Qclipboard.h>
 
-#include "DmsDetailPages.h"
 #include "DmsMainWindow.h"
+#include "DmsDetailPages.h"
+#include "DmsValueInfo.h"
 #include "DmsEventLog.h"
+#include "dbg/DmsCatch.h"
 #include <QMainWindow>
 
 #include "dbg/SeverityType.h"
@@ -28,32 +36,20 @@
 
 #include "StxInterface.h"
 
+#include "dms_memory_leak_debugging.h"
+#ifdef _DEBUG
+#define new MYDEBUG_NEW 
+#endif
+
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ShowDetailPage %d", int(new_active_detail_page));
+    m_last_active_detail_page = m_active_detail_page;
     m_active_detail_page = new_active_detail_page;
 }
 
 void DmsDetailPages::leaveThisConfig() // reset ValueInfo cached results
 {
-}
-
-auto Realm(const auto& x) -> CharPtrRange
-{
-    auto colonPos = std::find(x.begin(), x.end(), ':');
-    if (colonPos == x.end())
-        return {};
-    return { x.begin(), colonPos };
-}
-
-bool ShowInDetailPage(auto x)
-{
-    auto realm = Realm(x);
-    if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
-        return true;
-    if (!realm.empty())
-        return false;
-    CharPtrRange knownSuffix(".adms");
-    return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
 void DmsDetailPages::newCurrentItem()
@@ -93,22 +89,26 @@ void DmsDetailPages::toggleVisualState(ActiveDetailPage new_active_detail_page, 
     }
 }
 
+void DmsDetailPages::show(ActiveDetailPage new_active_detail_page)
+{
+    MainWindow::TheOne()->m_detailpages_dock->setVisible(true);
+    toggleVisualState(new_active_detail_page, true);
+    setActiveDetailPage(new_active_detail_page);
+    scheduleDrawPage();
+}
+
 void DmsDetailPages::toggle(ActiveDetailPage new_active_detail_page)
 {
-    auto* detail_pages_dock = static_cast<QDockWidget*>(parent());
-    if (detail_pages_dock->isHidden() || m_active_detail_page != new_active_detail_page || !isVisible())
+    if (!MainWindow::TheOne()->m_detailpages_dock->isVisible() || m_active_detail_page != new_active_detail_page || !isVisible())
     {
-        detail_pages_dock->show();
-        toggleVisualState(new_active_detail_page, true);
         setActiveDetailPage(new_active_detail_page);
-        setVisible(true);
+        show(new_active_detail_page);
     }
     else
     {
-        detail_pages_dock->hide();
+        MainWindow::TheOne()->m_detailpages_dock->setVisible(false);
         toggleVisualState(new_active_detail_page, false);
         setActiveDetailPage(ActiveDetailPage::NONE);
-        setVisible(false);
     }
 
     scheduleDrawPage();
@@ -136,16 +136,7 @@ void DmsDetailPages::toggleConfiguration()
 
 void DmsDetailPages::toggleSourceDescr()
 {
-    if (m_active_detail_page != ActiveDetailPage::SOURCEDESCR || m_SDM == SourceDescrMode::All)
-    {
-        m_SDM = SourceDescrMode::Configured;
-        toggle(ActiveDetailPage::SOURCEDESCR);
-    }
-    else
-    {
-        reinterpret_cast<int&>(m_SDM)++;
-        scheduleDrawPageImpl(1000);
-    }
+    toggle(ActiveDetailPage::SOURCEDESCR);
 }
 
 void DmsDetailPages::toggleMetaInfo()
@@ -153,6 +144,41 @@ void DmsDetailPages::toggleMetaInfo()
     toggle(ActiveDetailPage::METADATA);
 }
 
+void DmsDetailPages::propertiesButtonToggled(QAbstractButton* button, bool checked)
+{
+    if (!checked)
+        return;
+
+    auto main_window = MainWindow::TheOne();
+    if (main_window->m_detail_page_properties_buttons->pr_nondefault == button) // non default
+        m_AllProperties = false;
+
+    if (main_window->m_detail_page_properties_buttons->pr_all == button) // all
+        m_AllProperties = true;
+
+    scheduleDrawPageImpl(0);
+}
+
+void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, bool checked)
+{
+    if (!checked)
+        return;
+
+    auto main_window = MainWindow::TheOne();
+    if (main_window->m_detail_page_source_description_buttons->sd_readonly == button) // read only
+        m_SDM = SourceDescrMode::ReadOnly;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_configured == button) // configured
+        m_SDM = SourceDescrMode::Configured;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_nonreadonly == button) // non read only
+        m_SDM = SourceDescrMode::WriteOnly;
+
+    if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
+        m_SDM = SourceDescrMode::All;
+
+    scheduleDrawPageImpl(0);
+}
 
 auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 {
@@ -169,21 +195,40 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    if (m_DrawPageRequestPending)
-        return;
+    bool oldValue = false;
+    if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    {
+        assert(m_DrawPageRequestPending);
+        AddMainThreadOper(
+            [this, milliseconds]()
+            {
+                assert(IsMainThread());
+                static std::time_t pendingDeadline = 0;
+                auto deadline = std::time(nullptr) + milliseconds / 1000;
+                if (!pendingDeadline || deadline < pendingDeadline)
+                {
+                    pendingDeadline = deadline;
+                    QTimer::singleShot(milliseconds, [this]()
+                        {
+                            assert(IsMainThread());
+                            pendingDeadline = 0;
 
-    m_DrawPageRequestPending = true;
-    QTimer::singleShot(milliseconds, [this]()
-        {
-            m_DrawPageRequestPending = false;
-            this->drawPage();
-        }
-    );
+                            bool oldValue = true;
+                            if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, false))
+                            {
+                                this->drawPage();
+                            }
+                        }
+                    );
+                }
+            }
+        );
+    }
 }
 
 void DmsDetailPages::scheduleDrawPage()
 {
-    scheduleDrawPageImpl(0);
+    scheduleDrawPageImpl(10);
 }
 
 void DmsDetailPages::onTreeItemStateChange()
@@ -209,6 +254,10 @@ SharedStr FindURL(const TreeItem* ti)
 
 void DmsDetailPages::drawPage()
 {
+    if (!MainWindow::IsExisting())
+        return;
+
+    auto main_window = MainWindow::TheOne();
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (!current_item)
         return;
@@ -222,13 +271,15 @@ void DmsDetailPages::drawPage()
     auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
     bool result = true;
     bool showAll = true;
+    main_window->hideDetailPagesRadioButtonWidgets(true, true);
     switch (m_active_detail_page)
     {
     case ActiveDetailPage::GENERAL:
-        result = DMS_TreeItem_XML_DumpGeneral(current_item, xmlOut.get(), showAll);
+        result = TreeItem_XML_DumpGeneral(current_item, xmlOut.get());
         break;
     case ActiveDetailPage::PROPERTIES:
-        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), showAll);
+        main_window->hideDetailPagesRadioButtonWidgets(false, true);
+        result = DMS_TreeItem_XML_DumpAllProps(current_item, xmlOut.get(), m_AllProperties);
         break;
     case ActiveDetailPage::EXPLORE:
         DMS_TreeItem_XML_DumpExplore(current_item, xmlOut.get(), showAll);
@@ -240,14 +291,27 @@ void DmsDetailPages::drawPage()
     }
     case ActiveDetailPage::SOURCEDESCR:
     {
-        (*xmlOut) << TreeItem_GetSourceDescr(current_item, m_SDM, true).c_str();
+        //(*xmlOut) << TreeItem_GetSourceDescr(current_item, m_SDM, true).c_str();
+        main_window->hideDetailPagesRadioButtonWidgets(true, false);
+        TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
         break;
     }
     case ActiveDetailPage::METADATA:
     {
-        auto url = FindURL(current_item);
+        SharedStr url = {};
+        try
+        {
+            url = FindURL(current_item);
+        }
+        catch (...)
+        {
+            auto errMsg = catchException(false);
+            MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
+        }
+
         if (!url.empty())
-            if (ShowInDetailPage(url))
+        {
+            if (main_window->ShowInDetailPage(url))
             {
                 FilePtrHandle file;
                 auto sfwa = DSM::GetSafeFileWriterArray();
@@ -263,7 +327,8 @@ void DmsDetailPages::drawPage()
                 }
                 return;
             }
-        DMS_XML_MetaInfoRef(current_item, xmlOut.get());
+        }
+        XML_MetaInfoRef(current_item, xmlOut.get());
         break;
     }
     }
@@ -281,11 +346,6 @@ void DmsDetailPages::drawPage()
         scheduleDrawPageImpl(500);
 }
 
-bool IsPostRequest(const QUrl& /*link*/)
-{
-    return false;
-}
-
 enum class ViewActionType {
     Execute,
     PopupTable,
@@ -295,53 +355,7 @@ enum class ViewActionType {
     Url
 };
 
-void PopupTable(SizeT /*recNo*/)
-//var diCode, diLabel, diAction: TAbstrDataItem;
-//rlCode, rlLabel, rlAction: TDataReadLock;
-//pm: TPopupMenu;
-//mi: TMenuItem;
-//i, n: SizeT;
-{
-/*
-    Assert(m_oSender is TFrame);
-    diCode: = DMS_TreeItem_GetItem(m_tiFocus, 'code', DMS_AbstrDataItem_GetStaticClass);
-    diLabel: = DMS_TreeItem_GetItem(m_tiFocus, 'label', DMS_AbstrDataItem_GetStaticClass);
-    diAction: = DMS_TreeItem_GetItem(m_tiFocus, 'action', DMS_AbstrDataItem_GetStaticClass);
-
-    rlCode: = DMS_DataReadLock_Create(diCode, true); try
-    rlLabel : = DMS_DataReadLock_Create(diLabel, true); try
-    rlAction: = DMS_DataReadLock_Create(diAction, true); try
-    if (not Assigned(TFrame(m_oSender).PopupMenu)) then
-    TFrame(m_oSender).PopupMenu : = TPopupMenu.Create(TFrame(m_oSender));
-    pm: = TFrame(m_oSender).PopupMenu;
-    pm.Items.Clear;
-    pm.Items.Tag : = Integer(diAction);
-    n: = DMS_Unit_GetCount(DMS_DataItem_GetDomainUnit(diCode));
-    i: = 0; while i <> n do
-    begin
-    if DMS_NumericAttr_GetValueAsInt32(diCode, i) = m_RecNo then
-    begin
-    mi : = TMenuItem.Create(pm);
-    mi.Caption : = AnyDataItem_GetValueAsString(diLabel, i);
-    mi.OnClick : = PopupAction;
-    mi.Tag     : = i;
-    pm.Items.Add(mi);
-    end;
-    INC(i);
-    end;
-    pm.Popup(m_X, m_Y);
-    finally DMS_DataReadLock_Release(rlAction); end
-    finally DMS_DataReadLock_Release(rlLabel); end
-    finally DMS_DataReadLock_Release(rlCode); end
-*/
-}
-
-void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/)
-{
-
-}
-
-auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
+auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetailPage
 {
     if (sName.size() >=3 && !strncmp(sName.begin(), "vi.attr", 3)) return ActiveDetailPage::VALUE_INFO;
     if (!strncmp(sName.begin(), "stat", sName.size())) return ActiveDetailPage::STATISTICS;
@@ -356,123 +370,30 @@ auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
     : QTextBrowser(parent)
-{}
+{
+    setOpenLinks(false);
+    setOpenExternalLinks(false);
+    connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
+}
 
 QSize DmsDetailPages::sizeHint() const
 {
-    return QSize(500, 20);
+    return QSize(m_default_width, 0);
 }
 
-void DmsDetailPages::DoViewAction(TreeItem* tiContext, CharPtrRange sAction)
+QSize DmsDetailPages::minimumSizeHint() const
 {
-    assert(tiContext);
+    return QSize(m_default_width, 0);
+}
 
-    auto colonPos = std::find(sAction.begin(), sAction.end(), ':');
-    auto sMenu = CharPtrRange(sAction.begin(), colonPos);
-    auto sPathWithSub = CharPtrRange(colonPos == sAction.end() ? colonPos : colonPos + 1, sAction.end());
-/*
-    if (UpperCase(sMenu) = 'EXECUTE') then
-    begin
-    m_VAT : = ViewActionType::Execute;
-    m_Url: = sPathWithSub;
-    exit; // when called from DoOrCreate, self will be Applied Directly and Destroyed.
-    end;
-    */
-    auto queryPos = std::find(sPathWithSub.begin(), sPathWithSub.end(), '?');
-    auto sPath = CharPtrRange(sPathWithSub.begin(), queryPos);
-    auto sSub  = CharPtrRange(queryPos == sPathWithSub.end() ? queryPos : queryPos + 1, sPathWithSub.end());
-
-//    DMS_TreeItem_RegisterStateChangeNotification(OnTreeItemChanged, m_tiFocus, TClientHandle(self)); // Resource aquisition which must be matched by a call to LooseFocus
-
-    auto separatorPos = std::find(sMenu.begin(), sMenu.end(), '!');
-//    MakeMin(separatorPos, std::find(sMenu.begin(), sMenu.end(), '#')); // TODO: unify syntax to '#' or '!'
-    auto sRecNr = CharPtrRange(separatorPos < sMenu.end() ? separatorPos + 1 : separatorPos, sMenu.end());
-    sMenu.second = separatorPos;
-
-    SizeT recNo = UNDEFINED_VALUE(SizeT);
-    if (!sRecNr.empty())
-        AssignValueFromCharPtrs(recNo, sRecNr.begin(), sRecNr.end());
-
-    if (!strncmp(sMenu.begin(), "popuptable", sMenu.size()))
-    {
-        PopupTable(recNo);
-        return;
-    }
-
-    if (!strncmp(sMenu.begin(), "edit", sMenu.size()))
-    {
-        EditPropValue(tiContext, sPathWithSub, recNo);
-        return;
-    }
-
-    if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
-    {
-        sMenu.first += 3;
-        auto detail_page_type = dp_FromName(sMenu);
-        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first); // TODO: make result FindBestItem non-const
-        switch (detail_page_type)
-        {
-        case ActiveDetailPage::STATISTICS:
-            MainWindow::TheOne()->showStatisticsDirectly(tiContext);
-            return;
-        case ActiveDetailPage::VALUE_INFO:
-            if (IsDataItem(tiContext))
-                MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
-            return;
-        default:
-            m_active_detail_page = detail_page_type;
-            if (tiContext)
-                MainWindow::TheOne()->setCurrentTreeItem(tiContext);
-            drawPage(); // Update
-            return;
-        }
-    }
+void DmsDetailPages::resizeEvent(QResizeEvent* event)
+{
+    m_current_width = width();
+    QTextBrowser::resizeEvent(event);
 }
 
 #include <QDesktopServices>
 void DmsDetailPages::onAnchorClicked(const QUrl& link)
 {
-    auto linkStr = link.toString().toUtf8();
-
-    // log link action
-#if defined(_DEBUG)
-    MainWindow::TheOne()->m_eventlog_model->addText(SeverityTypeID::ST_MajorTrace, MsgCategory::nonspecific, linkStr.data());
-#endif
-    auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    if (IsPostRequest(link))
-    {
-        auto queryStr = link.query().toUtf8();
-        DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
-        return;
-    }
-    if (!ShowInDetailPage(linkStr))
-    {
-        auto raw_string = SharedStr(linkStr.begin(), linkStr.end());
-        ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
-        auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
-        QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));
-        //StartChildProcess(nullptr, linkCStr.begin());
-        return;
-    }
-
-    if (linkStr.contains(".adms"))
-    {
-        auto queryResult = ProcessADMS(current_item, linkStr.data());
-        setHtml(queryResult.c_str());
-        return;
-    }
-    auto sPrefix = Realm(linkStr);
-    if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
-    {
-        auto sAction = CharPtrRange(linkStr.begin() + 4, linkStr.end());
-        DoViewAction(current_item, sAction);
-        return;
-    }
-}
-
-void DmsDetailPages::connectDetailPagesAnchorClicked()
-{
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
-    connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
+    MainWindow::TheOne()->onInternalLinkClick(link);
 }

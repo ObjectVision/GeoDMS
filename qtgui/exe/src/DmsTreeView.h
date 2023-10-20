@@ -1,3 +1,4 @@
+#include <QMenu.h>
 #include <QPointer.h>
 #include <QTreeView>
 #include <QCompleter>
@@ -9,7 +10,7 @@ class QTreeView;
 QT_END_NAMESPACE
 struct TreeItem;
 class MainWindow;
-class Waiter;
+struct Waiter;
 
 struct InvisibleRootTreeItem
 {
@@ -54,13 +55,16 @@ public:
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 	bool hasChildren(const QModelIndex& parent = QModelIndex()) const override;
 	auto flags(const QModelIndex& index) const -> Qt::ItemFlags override;
+	QVariant getTreeItemIcon(const QModelIndex& index) const;
+	bool updateShowHiddenItems();
 
 private:
-	QVariant getTreeItemIcon(const QModelIndex& index) const;
 	QVariant getTreeItemColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 
+public:
 	const TreeItem* m_root = nullptr;
+	bool show_hidden_items = false;
 };
 
 class TreeItemDelegate : public QStyledItemDelegate
@@ -77,14 +81,20 @@ public:
 	DmsTreeView(QWidget* parent);
 	void showTreeviewContextMenu(const QPoint& pos);
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
-	auto expandToCurrentItem(TreeItem* new_current_item) -> QModelIndex;
+	auto expandToItem(TreeItem* new_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
+	bool expandActiveNode(bool doExpand);
+	bool expandRecursiveFromCurrentItem();
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
+	int m_default_size = 200;
 
 private slots:
 	void onDoubleClick(const QModelIndex& index);
 
 private:
-	QPointer<QMenu> m_context_menu;
+	std::unique_ptr<QMenu> m_context_menu, m_code_analysis_submenu;
 };
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>;
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant);

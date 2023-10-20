@@ -131,7 +131,7 @@ struct CharPtrRange : IterRange<CharPtr> {
 	CharPtrRange() {}
 	CharPtrRange(Undefined) {} // creates an Undefined values, for an empty string, construct from ""
 
-	CharPtrRange(CharPtr str) : IterRange(str, str + StrLen(str)) {}
+	CharPtrRange(CharPtr str) : IterRange(str, (str != nullptr) ? str + StrLen(str) : str) {}
 
 //	template <typename Char, int N>
 //	CharPtrRange(Char str[N]) : IterRange(str, str + (N > 0 && !str[N - 1] ? N - 1 : N))

@@ -44,8 +44,6 @@ public:
 //	override AbstrCalculator
 	LispRef GetLispExprOrg() const override; 
 
-//	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
-
 	bool      CheckSyntax() const override;
 	SharedStr GetExpr    () const override { return m_Expression; }
 	void WriteHtmlExpr(OutStreamBase& outStream) const override;

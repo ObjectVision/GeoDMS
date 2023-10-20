@@ -108,16 +108,14 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 
 	if (m_TableControl->IsDrawn())
 	{
-		TRect newSelRect = GetSelRect();
+		auto newSelRect = GetSelRect();
 		if (m_OldSelRect != newSelRect)
 		{
-			auto scaleFactor = GetWindowDIP2pixFactorXY( dv->GetHWnd() );
-			auto gRect = TRect2GRect(m_OldSelRect);
-			gRect *= scaleFactor;
-			Region selChange( gRect );
-			gRect = TRect2GRect(newSelRect);
-			gRect *= scaleFactor;
-			selChange ^= Region( gRect );
+			auto sf = dv->GetScaleFactors();
+			auto devRect = ScaleCrdRect(m_OldSelRect, sf);
+			Region selChange( CrdRect2GRect(devRect) );
+			devRect = ScaleCrdRect(newSelRect, sf);
+			selChange ^= Region(CrdRect2GRect(devRect));
 			dv->InvalidateRgn(selChange);
 		}
 	}
@@ -136,17 +134,16 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 	m_TableControl = nullptr;
 }
 
-TRect SelChangeInvalidatorBase::GetSelRect() const
+CrdRect SelChangeInvalidatorBase::GetSelRect() const
 {
 	dms_assert(m_TableControl);
 	dms_assert(m_TableControl->m_Rows.IsDefined() == m_TableControl->m_Cols.IsDefined());
 	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined())
-		return TRect(0, 0, 0, 0);
+		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
 
 	// topleft corner
 	const DataItemColumn* dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_Begin);
-	TRect 
-		result  = dic->GetElemFullRelRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
+	auto result = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
 
 	// expand to bottom right corner if any direction is a strict range (aka open)
 	if (!m_TableControl->m_Cols.IsClosed() || !m_TableControl->m_Rows.IsClosed())
@@ -155,16 +152,16 @@ TRect SelChangeInvalidatorBase::GetSelRect() const
 		gr_elem_index DEBUG2 = DEBUG;
 
 		dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_End  );
-		result |= TRect(dic->GetElemFullRelRect(m_TableControl->m_Rows.m_End  ) + dic->GetCurrClientRelPos());
+		auto elemFullAbsLogicalRect = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_End) + dic->GetCurrClientRelPos();
+		result |= elemFullAbsLogicalRect;
 	}
 
 	// clip
-	result &= TRect(TPoint(0,0), m_TableControl->GetCurrClientSize());
-	result += m_TableControl->GetCurrClientAbsPos();
-	result &= TRect(m_TableControl->GetDrawnFullAbsRect());
+	result &= CrdRect(CrdPoint(0,0), m_TableControl->GetCurrClientSize());
+	result += m_TableControl->GetCurrClientAbsLogicalPos();
 	if (result.empty())
-		return TRect(0, 0, 0, 0);
-	
+		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
+
 	return result;
 }
 
@@ -484,11 +481,12 @@ SharedStr TableControl::GetCaption() const
 
 	SizeT nrRows = NrRows();
 	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
+	
 	if (m_GroupByEntity)
-		return mgFormat2SharedStr("%d recs in %s grouped in %d rows by %s ", nrRecs, domain->GetName(), nrRows, m_GroupByEntity->GetExpr());
+		return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
 	if (nrRows == nrRecs)
-		return mgFormat2SharedStr("%s recs in %s", AsString(nrRecs), domain->GetName());
-	return mgFormat2SharedStr("%s/%s recs in %s", AsString(nrRows), AsString(nrRecs), domain->GetName());
+		return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
+	return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
 }
 
 void TableControl::NotifyCaptionChange()
@@ -646,8 +644,8 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 	auto activeCol = FirstActiveCol();
 	if (activeCol < NrEntries())
 	{
-		if (firstActiveCol)
-			m_Cols.Go(shift,  activeCol);
+//		if (firstActiveCol)
+//			m_Cols.Go(shift,  activeCol);
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);
@@ -662,7 +660,7 @@ void TableControl::GoEnd(bool shift)
 
 	SelChangeInvalidator sci(this);
 	m_Rows.GoEnd(shift, NrRows()-1);
-	m_Cols.GoEnd(shift, NrEntries()-1);
+//	m_Cols.GoEnd(shift, NrEntries()-1);
 	sci.ProcessChange(true);
 }
 
@@ -1044,7 +1042,7 @@ void TableControl::Export()
 	SaveTo(&buff);
 }
 
-void TableControl::SetRowHeight(UInt32 height)
+void TableControl::SetRowHeight(UInt16 height)
 {
 	SizeT n = NrEntries(); 
 	while (n)
@@ -1055,9 +1053,9 @@ void TableControl::SetRowHeight(UInt32 height)
 		if (dic->HasElemBorder())
 			elemHeight -= 2*BORDERSIZE;
 
-		GPoint elemSize(elemHeight, elemHeight);
+		WPoint elemSize(elemHeight, elemHeight);
 		if (dic->GetTheme(AN_LabelText))
-			elemSize.x= dic->ElemSize().x;
+			elemSize.X() = dic->ElemSize().X();
 		dic->SetElemSize(elemSize);
 	}
 }
@@ -1358,13 +1356,13 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		GType curX = med.GetEventInfo().m_Point.x;
+		auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position
 		for (SizeT i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsRect().Right();
-			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
+			auto x = chc->GetCurrFullAbsLogicalRect().second.Y();
+			if ((x <= curX) && (curX < x + ColSepWidth()))
 			{
 				debug_cast<DataItemColumn*>(chc)->StartResize(med);
 				break;

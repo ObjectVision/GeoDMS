@@ -52,7 +52,7 @@ public:
 	};
 	struct scoped_lock : flush_after, leveled_critical_section::scoped_lock
 	{
-		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::nonspecific);
+		RTC_CALL scoped_lock(DebugOutStream* str, SeverityTypeID st = SeverityTypeID::ST_MinorTrace, MsgCategory = MsgCategory::progress);
 		RTC_CALL ~scoped_lock();
 	private:
 		WeakPtr<DebugOutStream> m_Str;

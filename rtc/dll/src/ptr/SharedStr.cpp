@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/iterrangefuncs.h"
 #include "geo/StringBounds.h"
 
+#include <algorithm>
+
 //============================= SharedStr Creators
 
 SharedCharArray* SharedCharArray_Create(CharPtr str)
@@ -222,6 +224,29 @@ void SharedStr::resize(SizeT sz)
 		,	result->end()
 		);
 	}
+}
+
+bool SharedStr::contains(CharPtrRange subStr)
+{
+	assert(!subStr.empty());
+	return std::search(begin(), end(), subStr.first, subStr.second) != end();
+//	return std::contains_subrange(begin(), end(), subStr.first, subStr.second);
+}
+
+bool SharedStr::contains_case_insensitive(CharPtrRange subStr)
+{
+	bool str_contains_substr = std::search(begin(), end(), subStr.first, subStr.second
+		, [](unsigned char a, unsigned char b) { 
+			return std::tolower(a) == std::tolower(b); 
+		}
+	) != end();
+	return str_contains_substr;
+
+/*
+	return std::contains_subrange(begin(), end(), subStr.first, subStr.second
+		, std::equal_to(), std::tolower, std::tolower);
+*/
+
 }
 
 void SharedStr::insert(SizeT pos, char ch) 

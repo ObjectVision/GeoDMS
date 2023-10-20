@@ -58,7 +58,7 @@ void fillPointBuffer(pointBuffer_t& buf, PI ii, PI ie, CrdTransformation transfo
 	pointBuffer_t::iterator 
 		bi = buf.begin();
 	for(;ii!=ie; ++ii, ++bi)
-		*bi = DPoint2GPoint( transformer.Apply(*ii) );
+		*bi = DPoint2GPoint(*ii, transformer);
 }
 
 inline void CorrectHatchStyle(Int32& hatchStyle)
@@ -151,7 +151,7 @@ bool DrawPolygonInterior(
 					return true;
 			}
 		auto ri = rectArray.begin() + itemCounter;
-		if	(i->size() >= 3 && IsIntersecting(clipRect, *ri ) && _Width (*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
+		if	(i->size() >= 3 && IsIntersecting(clipRect, *ri ) && Width (*ri) >= minWorldWidth && Height(*ri) >= minWorldHeight)
 		{
 			COLORREF brushColor = defBrushColor;
 			Int32    hatchStyle = -1;
@@ -378,7 +378,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						}
 					auto featurePtr = b + itemCounter;
 					auto ri = rectArray.begin() + itemCounter;
-					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && _Width(*ri) >= minWorldWidth && _Height(*ri) >= minWorldHeight)
+					if (featurePtr->size() >= 3 && IsIntersecting(clipRect, *ri) && Width(*ri) >= minWorldWidth && Height(*ri) >= minWorldHeight)
 					{
 						if (penIndices || selectedOnly)
 						{
@@ -470,8 +470,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 				UInt32 nrPoints = i->size();		
 				if	(	nrPoints >= 3
 					&&	IsIntersecting(clipRect, *ri )
-					&&	_Width (*ri) >= minWorldWidth
-					&&	_Height(*ri) >= minWorldHeight
+					&&	Width (*ri) >= minWorldWidth
+					&&	Height(*ri) >= minWorldHeight
 					)
 				{
 					typename p_traits::PointType centroid = (nrPoints < 4096)
@@ -489,7 +489,8 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					}
 					if (selectedOnly && !(selectionsArray && SelectionID(selectionsArray[entityIndex])))
 						goto nextLabel;
-					ld.DrawLabel(entityIndex, Convert<GPoint>(d.GetTransformation().Apply(centroid)));
+					auto dp = d.GetTransformation().Apply(centroid);
+					ld.DrawLabel(entityIndex, GPoint(dp.X(), dp.Y()));
 				}
 			nextLabel:
 				++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;

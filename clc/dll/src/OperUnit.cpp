@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 #pragma hdrstop
@@ -113,7 +88,9 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		}
 
 	if (n > 16)
-		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16. Consider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit.");
+		throwErrorD("combine_unit", "the number of arguments exceeds the maximum of 16."
+			"\nConsider splitting up the arguments into separate sub-combines and check that the product of the number of values doesn't exceed the possible range of the resulting unit."
+		);
 
 	SizeT productSize = 1;
 	if (mustCalc)
@@ -171,7 +148,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount] <typename V> (const Unit<V>* valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(trd, valuesUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd, valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
 						SizeT tileStart = trd->GetFirstRowIndex(t);
@@ -239,26 +216,41 @@ public:
 // CastUnitOperator
 // *****************************************************************************
 
-CastUnitOperator::CastUnitOperator(AbstrOperGroup* gr, const UnitClass* resultUnitClass)
+class CastUnitOperatorBase : public UnaryOperator
+{
+	typedef AbstrUnit Arg1Type;
+	const UnitClass* m_ResultUnitClass;
+public:
+	CastUnitOperatorBase(AbstrOperGroup* gr, const UnitClass* resultUnitClass);
+
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
+};
+
+// *****************************************************************************
+// CastUnitOperator
+// *****************************************************************************
+
+CastUnitOperatorBase::CastUnitOperatorBase(AbstrOperGroup* gr, const UnitClass* resultUnitClass)
 	:	UnaryOperator(gr, resultUnitClass,  Arg1Type::GetStaticClass())
 	,	m_ResultUnitClass(resultUnitClass)
 {
-	dms_assert(m_ResultUnitClass == GetUnitClass(gr->GetNameID()));
+	assert(m_ResultUnitClass == GetUnitClass(gr->GetNameID()));
 }
 
 // Override Operator
-bool CastUnitOperator::CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc)  const
+bool CastUnitOperatorBase::CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc)  const
 {
-	dms_assert(args.size() == 1);
+	assert(args.size() == 1);
 
 	const Arg1Type* arg1 = debug_cast<const Arg1Type*>(args[0]);
-	dms_assert(arg1);
+	assert(arg1);
 
 	// TODO G8: Niet Tmp, want dat roept SetMaxRange aan, roep CreateResultUnit aan en copy range en intersect als onderdeel van DuplFrom met mustCalc conform Range(srcUnit, lb, ub);
 	// TODO G8: Of schedule geen calc phase voor dit soort operator die in meta-info tijd een compleet resultaat geven (dus zonder range output) 
 	if (!resultHolder)
 	{
-		dms_assert(!mustCalc);
+		assert(!mustCalc);
 		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder);
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		dms_assert(resUnit);
@@ -1159,14 +1151,14 @@ namespace
 	};
 
 	CommonOperGroup cog_NrOfRows("NrOfRows");
-	tl_oper::inst_tuple<typelists::domain_elements, NrOfRowsOperator<_>, AbstrOperGroup* > nrOfRowsOpers(&cog_NrOfRows);
+	tl_oper::inst_tuple_templ<typelists::domain_elements, NrOfRowsOperator, AbstrOperGroup* > nrOfRowsOpers(&cog_NrOfRows);
 
-	tl_oper::inst_tuple<typelists::tiled_domain_elements, TiledDomainOperators<_> > tiledDomainOpers;
+	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledDomainOperators > tiledDomainOpers;
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, UnitRangeOperators<_> > unitRangeOpers;
-	tl_oper::inst_tuple<typelists::bints, UnitFixedRangeOperators<_> > unitFixedRangeOpers;
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, UnitRangeOperators > unitRangeOpers;
+	tl_oper::inst_tuple_templ<typelists::bints, UnitFixedRangeOperators > unitFixedRangeOpers;
 
-	tl_oper::inst_tuple<typelists::domain_objects, UnitRangeOperator<_>, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRangeOperator, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
 
 	CommonOperGroup cog_combine("combine", oper_policy::allow_extra_args);
 	CommonOperGroup cog_combine08("combine_uint8", oper_policy::allow_extra_args);
@@ -1211,4 +1203,13 @@ namespace
 
 	DomainUnitOperator  domOper(&sog_DomainUnit);
 	ValuesUnitOperator  valOper(&sog_ValuesUnit);
+
+	template<typename V>
+	struct castUnitOperator: CastUnitOperatorBase
+	{
+		castUnitOperator() : CastUnitOperatorBase(GetUnitGroup<V>(), Unit<V>::GetStaticClass())
+		{}
+	};
+	tl_oper::inst_tuple<typelists::numerics, castUnitOperator<_> > castUnitOpers;
+
 }

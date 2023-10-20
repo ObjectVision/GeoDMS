@@ -177,7 +177,7 @@ SharedStr GetCurrentTimeStr()
 {
 	VectorOutStreamBuff outBuff;
 	FormattedOutStream fout(&outBuff, FormattingFlags::None);
-	fout << StreamableDataTime();
+	fout << StreamableDateTime();
 	return SharedStr(outBuff.GetData(), outBuff.GetDataEnd());
 }
 

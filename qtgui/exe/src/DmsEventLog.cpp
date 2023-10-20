@@ -8,13 +8,28 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
+#include <QClipBoard>
 
 #include "dbg/Timer.h"
 
 #include "DmsEventLog.h"
+#include "DmsTreeView.h"
+#include "DmsOptions.h"
 #include "DmsMainWindow.h"
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
+
+static QColor html_ForestGreen = QColor(34, 139, 34); // EventLog: minor in Calculation Progress
+static QColor html_DarkGreen = QColor(0, 100, 0); // EventLog: major in Calculation Progress
+static QColor html_blue = QColor(0, 0, 255); // EventLog: read in Storage
+static QColor html_navy = QColor(0, 0, 128); // EventLog: write in Storage
+static QColor html_fuchsia = QColor(255, 0, 255); // EventLog: connection in Background layer
+static QColor html_purple = QColor(128, 0, 128); // EventLog: request in Background layer
+static QColor html_black = QColor(0, 0, 0); // EventLog: commands
+static QColor html_gray = QColor(128, 128, 128); // EventLog: other
+static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
+static QColor html_red = QColor(255, 0, 0); // EventLog: error
+static QColor html_brown = QColor(165, 42, 42); // EventLog: memory
 
 auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
 {
@@ -26,6 +41,7 @@ void EventLogModel::clear()
 	m_filtered_indices.clear();
 	m_Items.clear();
 	refilter();
+	last_updated_message_index = 0;
 	MainWindow::TheOne()->m_eventlog->m_clear->setDisabled(true);
 }
 
@@ -34,31 +50,73 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	if (!index.isValid())
 		return QVariant();
 
-	if (m_filter_active && m_filtered_indices.empty()) // filter active, but no item passed filter
+	if (m_filtered_indices.empty()) // no item passed filter
 		return QVariant();
 
 	auto row = index.row();
-	const item_t& item_data = m_filter_active ? dataFiltered(row) : m_Items[row];
+	const item_t& item_data = dataFiltered(row);
 
 	switch (role)
 	{
 	case Qt::DisplayRole:
-		return item_data.m_Msg;
+	{
+		SharedStr msgTxt = item_data.m_Txt;
+		//auto dms_reg_status_flags = GetRegStatusFlags();
+		
+		if ((cached_reg_flags & RSF_EventLog_ShowAnyExtra) == 0)
+			return QString(msgTxt.c_str());
+
+		bool showDateTime = (cached_reg_flags & RSF_EventLog_ShowDateTime);
+		bool showThreadID = (cached_reg_flags & RSF_EventLog_ShowThreadID);
+		bool showCategory = (cached_reg_flags & RSF_EventLog_ShowCategory);
+
+		VectorOutStreamBuff buff;
+		FormattedOutStream fout(&buff, {});
+		if (showDateTime)
+			fout << item_data.m_DateTime;
+		if (showThreadID)
+		{
+			if (showDateTime)
+				fout << " ";
+			fout << "[" << item_data.m_ThreadID << "]";
+		}
+		if (showCategory)
+		{
+			if (showDateTime || showThreadID)
+				fout << " ";
+			fout << AsString(item_data.m_MsgCategory);
+		}
+		fout << " ";
+		fout << msgTxt;
+		fout << char(0);
+		return QString(buff.GetData());
+	}
 
 	case Qt::ForegroundRole:
 	{
-		switch (item_data.GetSeverityType()) {
+		auto return_color = QColor();
+		switch (item_data.m_SeverityType) 
+		{
+		case SeverityTypeID::ST_DispError:// error
 		case SeverityTypeID::ST_FatalError:
-		case SeverityTypeID::ST_Error:
-			return QColor(Qt::red);
-		case SeverityTypeID::ST_Warning:
-			return QColor(255, 127, 80);
-		case SeverityTypeID::ST_MajorTrace:
-			return QColor(Qt::black);
+		case SeverityTypeID::ST_Error: {return html_red; }
+		case SeverityTypeID::ST_Warning: {return html_darkorange; }// warning
+		case SeverityTypeID::ST_MinorTrace: {return_color = html_ForestGreen; break; } // minor trace							  
+		case SeverityTypeID::ST_MajorTrace: { return_color = html_DarkGreen; break; }// major trace
 		}
-		break;
-	}
 
+		switch (item_data.m_MsgCategory)
+		{
+		case MsgCategory::storage_read: {return html_blue;}
+		case MsgCategory::storage_write: {return html_navy; }
+		case MsgCategory::background_layer_connection: {return html_fuchsia; }
+		case MsgCategory::background_layer_request: {return html_purple; }
+		case MsgCategory::commands: { return html_black; }
+		case MsgCategory::memory: {return html_brown; }
+		case MsgCategory::other: {return html_gray; }
+		}
+		return return_color;
+	}
 	case Qt::SizeHintRole:
 	{
 		static int pixels_high = QFontMetrics(QApplication::font()).height();
@@ -68,40 +126,87 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
+bool itemIsError(EventLogModel::item_t& item)
+{
+	switch (item.m_SeverityType)
+	{
+	case SeverityTypeID::ST_Warning:
+	case SeverityTypeID::ST_Error:
+		return true;
+	}
+	return false;
+}
+
 bool EventLogModel::itemPassesTypeFilter(item_t& item)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.GetSeverityType())
+	switch (item.m_SeverityType)
 	{
-	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_minor_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_major_trace_filter->isChecked(); };
-	case SeverityTypeID::ST_Warning: {return eventlog->m_warning_filter->isChecked(); };
-	case SeverityTypeID::ST_Error: {return eventlog->m_error_filter->isChecked(); };
+	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_eventlog_filter->m_minor_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_eventlog_filter->m_major_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_Warning: {return eventlog->m_eventlog_filter->m_warning_filter->isChecked(); };
+	case SeverityTypeID::ST_Error: {return eventlog->m_eventlog_filter->m_error_filter->isChecked(); };
 	default: return true;
 	}
 }
 
+bool EventLogModel::itemPassesCategoryFilter(item_t& item)
+{
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	switch (item.m_MsgCategory)
+	{
+	case MsgCategory::storage_read: {return eventlog->m_eventlog_filter->m_read_filter->isChecked(); }
+	case MsgCategory::storage_write: {return eventlog->m_eventlog_filter->m_write_filter->isChecked(); }
+	case MsgCategory::background_layer_connection: {return eventlog->m_eventlog_filter->m_connection_filter->isChecked(); }
+	case MsgCategory::background_layer_request: {return eventlog->m_eventlog_filter->m_request_filter->isChecked(); }
+	case MsgCategory::memory: {return eventlog->m_eventlog_filter->m_category_filter_memory->isChecked(); }
+	case MsgCategory::other: {return eventlog->m_eventlog_filter->m_category_filter_other->isChecked(); }
+	case MsgCategory::commands: {return eventlog->m_eventlog_filter->m_category_filter_commands->isChecked(); }
+	}
+	return false;
+}
+
 bool EventLogModel::itemPassesTextFilter(item_t& item)
 {
-	auto text_filter_string = MainWindow::TheOne()->m_eventlog.get()->m_text_filter->text();
-	if (text_filter_string.isEmpty())
+	if (m_TextFilterAsByteArray.isEmpty())
 		return true;
 
-	return item.m_Msg.contains(text_filter_string, Qt::CaseSensitivity::CaseInsensitive);
+	CharPtr textBegin = m_TextFilterAsByteArray.constData();
+	auto searchText = CharPtrRange(textBegin, m_TextFilterAsByteArray.size());
+	return item.m_Txt.contains_case_insensitive(searchText);
 }
 
 bool EventLogModel::itemPassesFilter(item_t& item)
 {
-	return itemPassesTypeFilter(item) && itemPassesTextFilter(item);
+	auto item_passes_type_filter = itemPassesTypeFilter(item);
+	auto item_passes_category_filter = itemPassesCategoryFilter(item);
+	auto item_passes_text_filter = itemPassesTextFilter(item);
+	auto item_is_warning_or_error = (item.m_SeverityType == SeverityTypeID::ST_Warning || item.m_SeverityType == SeverityTypeID::ST_Error);
+	if (item.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
+		return item_passes_type_filter && item_passes_text_filter;
+
+	return item_passes_category_filter && item_passes_text_filter;
 }
 
 void EventLogModel::refilter()
 {
 	beginResetModel();
-	m_filter_active = true;
 	m_filtered_indices.clear();
 
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+
+	auto dms_reg_status_flags = GetRegStatusFlags();
+	setSF(eventlog_filter_ptr->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
+	setSF(eventlog_filter_ptr->m_thread   ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
+	setSF(eventlog_filter_ptr->m_category ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
+	SetRegStatusFlags(dms_reg_status_flags);
+
 	UInt64 index = 0;
+
+	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
+	m_TextFilterAsByteArray = text_filter_string.toUtf8();
+	
 	for (auto& item : m_Items)
 	{
 		if (itemPassesFilter(item))
@@ -114,52 +219,136 @@ void EventLogModel::refilter()
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
 }
 
-void EventLogModel::refilterOnToggle(bool checked)
+void EventLogModel::refilterForTextFilter()
 {
+	MainWindow::TheOne()->m_eventlog->m_text_filter_active = true;
+	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_clear_text_filter->setDisabled(false);
+	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 	refilter();
 }
 
-void EventLogModel::addText(SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void EventLogModel::writeSettingsOnToggle(bool newValue)
 {
-	auto rowCount_ = rowCount();
-	auto new_eventlog_item = item_t{ BYTE(st), BYTE(msgCat), msg };
-	MainWindow::TheOne()->m_eventlog->m_clear->setEnabled(true);
-	m_Items.insert(m_Items.end(), std::move(new_eventlog_item));
-	bool new_item_passes_filter = itemPassesFilter(m_Items.back());
-	if (!new_item_passes_filter)
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+	bool clearOnOpen = eventlog_filter_ptr->m_opening_new_configuration->isChecked();
+	bool clearOnReopen = eventlog_filter_ptr->m_reopening_current_configuration->isChecked();
+	if (clearOnReopen && !clearOnOpen)
+	{
+		clearOnReopen = newValue;
+		clearOnOpen = newValue;
+		eventlog_filter_ptr->m_opening_new_configuration->setChecked(newValue);
+		eventlog_filter_ptr->m_reopening_current_configuration->setChecked(newValue);
+	}
+
+	auto dms_reg_status_flags = GetRegStatusFlags();
+	setSF(clearOnOpen, dms_reg_status_flags, RSF_EventLog_ClearOnLoad);
+	setSF(clearOnReopen, dms_reg_status_flags, RSF_EventLog_ClearOnReLoad);
+	SetRegStatusFlags(dms_reg_status_flags);
+}
+
+RTC_CALL bool IsProcessingMainThreadOpers();
+
+void EventLogModel::updateOnNewMessages()
+{
+	has_queued_update = false;
+	time_since_last_direct_update = QDateTime::currentDateTime();
+	
+	auto number_of_new_messages = m_Items.size() - last_updated_message_index;
+	if (!number_of_new_messages) // no new messages
 		return;
 
-	beginInsertRows(QModelIndex(), rowCount_, rowCount_);
+	size_t number_of_added_filtered_indices = 0;
+	for (int i = last_updated_message_index; i < m_Items.size(); i++)
+	{
+		auto& item = m_Items.at(i);
+		bool new_item_passes_filter = itemPassesFilter(item);
+		if (!new_item_passes_filter)
+			continue;
 
-	m_filtered_indices.push_back(m_Items.size()-1);
+		m_filtered_indices.push_back(i);
+		number_of_added_filtered_indices++;
+	}
+	if (!number_of_added_filtered_indices)
+		return;
 
+	auto rowCount_ = rowCount();
+
+	beginInsertRows(QModelIndex(), rowCount_, rowCount_+number_of_added_filtered_indices-1);
 	endInsertRows();
-	QModelIndex index;
-	index = this->index(rowCount_, 0, QModelIndex());
 
-	emit dataChanged(index, index);
+	last_updated_message_index = m_Items.size();
+
+	// update view
+	auto main_window = MainWindow::TheOne();
+	if (IsProcessingMainThreadOpers())
+		main_window->m_treeview->setUpdatesEnabled(false);
+	main_window->m_eventlog->scrollToBottomThrottled();
+	if (IsProcessingMainThreadOpers())
+	{
+		main_window->m_eventlog->m_log->repaint();
+		main_window->m_treeview->setUpdatesEnabled(true);
+	}
+}
+
+void EventLogModel::addText(MsgData&& msgData)
+{
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+
+	eventlog->m_clear->setEnabled(true);
+	m_Items.emplace_back(std::move(msgData));
+
+	// direct update
+	auto current_time = QDateTime::currentDateTime();
+	auto do_direct_update = time_since_last_direct_update.secsTo(current_time) > direct_update_interval;
+	if (do_direct_update)
+	{
+		updateOnNewMessages();
+		return;
+	}
+
+	if (has_queued_update)
+		return;
+
+	// idle time update
+	has_queued_update = true;
+	QTimer::singleShot(5000, this, [=]()
+		{
+			updateOnNewMessages();
+		});
+}
+
+DmsTypeFilter::DmsTypeFilter(QWidget* parent)
+	: QWidget(parent)
+{
+	setupUi(this);
+}
+
+QSize DmsTypeFilter::sizeHint() const
+{
+	auto type_filter_size_hint = groupBox->size();
+	return type_filter_size_hint;
 }
 
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
-	// actions
-	const QIcon event_text_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_text.bmp"));
-	m_event_text_filter_toggle = std::make_unique<QPushButton>(event_text_filter_icon, "");
-	m_event_text_filter_toggle->setToolTip(tr("Text filter"));
-	m_event_text_filter_toggle->setStatusTip("Turn eventlog text-filter on or off");
-	m_event_text_filter_toggle->setCheckable(true);
-	m_event_text_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	
-	connect(m_event_text_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTextFilter);
+	const QIcon copy_icon = QIcon(":/res/images/TB_copy.bmp");
+	m_copy_selected_to_clipboard = std::make_unique<QPushButton>(copy_icon, "");
+	m_copy_selected_to_clipboard->setToolTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStatusTip(tr("Copy selected eventlog lines to clipboard"));
+	m_copy_selected_to_clipboard->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_copy_selected_to_clipboard.get(), &QPushButton::pressed, this, &DmsEventLog::copySelectedEventlogLinesToClipboard);
 
-	const QIcon eventlog_type_filter_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_selection_type.bmp"));
-	m_event_type_filter_toggle = std::make_unique<QPushButton>(eventlog_type_filter_icon, "");
-	m_event_type_filter_toggle->setToolTip(tr("Type filter"));
-	m_event_type_filter_toggle->setStatusTip("Turn eventlog type-filter on or off");
-	m_event_type_filter_toggle->setCheckable(true);
-	m_event_type_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_event_type_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleTypeFilter);
+	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
+	m_event_filter_toggle = std::make_unique<QPushButton>(event_filter_icon, "");
+	m_event_filter_toggle->setToolTip(tr("Filters"));
+	m_event_filter_toggle->setStatusTip("Turn eventlog filter dialog on or off");
+	m_event_filter_toggle->setCheckable(true);
+	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleFilter);
+
+	auto eventlog_model_ptr = MainWindow::TheOne()->m_eventlog_model.get();
 
 	const QIcon eventlog_type_clear_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_clear.bmp"));
 	m_clear = std::make_unique<QPushButton>(eventlog_type_clear_icon, "");
@@ -167,7 +356,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_clear->setStatusTip("Clear all eventlog messages");
 	m_clear->setDisabled(true);
 	m_clear->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
-	connect(m_clear.get(), &QPushButton::pressed, MainWindow::TheOne()->m_eventlog_model.get(), &EventLogModel::clear);
+	connect(m_clear.get(), &QPushButton::pressed, eventlog_model_ptr, &EventLogModel::clear);
 
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
 	m_scroll_to_bottom_toggle = std::make_unique<QPushButton>(eventlog_scroll_to_bottom_icon, "");
@@ -177,26 +366,45 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_scroll_to_bottom_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
-	// throttle
-	//m_throttle_timer = new QTimer(this);
-	//m_throttle_timer->setSingleShot(true);
-	//connect(m_throttle_timer, &QTimer::timeout, this, &DmsEventLog::scrollToBottomOnTimeout);
-
 	// filters
-	m_text_filter = std::make_unique<QLineEdit>();
-	m_minor_trace_filter = std::make_unique<QCheckBox>("Minor");
-	m_minor_trace_filter->setCheckable(true);
-	m_minor_trace_filter->setChecked(false);
-	//m_filter
-	m_major_trace_filter = std::make_unique<QCheckBox>("Major");
-	m_major_trace_filter->setCheckable(true);
-	m_major_trace_filter->setChecked(true);
-	m_warning_filter = std::make_unique<QCheckBox>("Warning");
-	m_warning_filter->setCheckable(true);
-	m_warning_filter->setChecked(true);
-	m_error_filter = std::make_unique<QCheckBox>("Error");
-	m_error_filter->setCheckable(true);
-	m_error_filter->setChecked(true);
+	//m_text_filter = std::make_unique<QLineEdit>();
+	m_eventlog_filter = std::make_unique<DmsTypeFilter>();
+	auto dms_reg_status_flags = GetRegStatusFlags();
+
+	m_eventlog_filter->m_date_time->setChecked(dms_reg_status_flags & RSF_EventLog_ShowDateTime);
+	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
+	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
+
+	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+
+	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+
+	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
+	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::returnPressed, eventlog_model_ptr, &EventLogModel::refilterForTextFilter);
+	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, eventlog_model_ptr, &EventLogModel::refilterForTextFilter);
+	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
+	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
+
+	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_thread   , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_category , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+
+	m_eventlog_filter->m_opening_new_configuration      ->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnLoad);
+	m_eventlog_filter->m_reopening_current_configuration->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnReLoad);
+
+	connect(m_eventlog_filter->m_opening_new_configuration      , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
+	connect(m_eventlog_filter->m_reopening_current_configuration, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
 
 	// eventlog
 	m_log = std::make_unique<QListView>();
@@ -205,41 +413,67 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setUniformItemSizes(true);
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
-	auto grid_layout = new QGridLayout();
-	auto eventlog_toolbar = new QVBoxLayout();
-
-	auto type_filter_layout = new QHBoxLayout();
-
-	eventlog_toolbar->addWidget(m_event_text_filter_toggle.get());
-	eventlog_toolbar->addWidget(m_event_type_filter_toggle.get());
+	auto vertical_layout = new QVBoxLayout(this);
+	auto grid_layout = new QGridLayout(this);
+	auto eventlog_toolbar = new QVBoxLayout(this);
+	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
+	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	QWidget* spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 	eventlog_toolbar->addWidget(spacer);
-	
-	//QWidget* spacer = new QWidget(this);
-	//spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
-	//eventlog_toolbar->addWidget(spacer);
+	vertical_layout->addWidget(m_eventlog_filter.get(), 0);
 
-	grid_layout->addWidget(m_text_filter.get(), 0, 0, 1, 2);
-	type_filter_layout->addWidget(m_minor_trace_filter.get());
-	type_filter_layout->addWidget(m_major_trace_filter.get());
-	type_filter_layout->addWidget(m_warning_filter.get());
-	type_filter_layout->addWidget(m_error_filter.get());
-	grid_layout->addLayout(type_filter_layout, 1, 0, 1, 2);
+	grid_layout->addWidget(m_log.get(), 0, 0);
+	grid_layout->addLayout(eventlog_toolbar, 0, 1);
+	vertical_layout->addLayout(grid_layout);
+	vertical_layout->setContentsMargins(0, 0, 0, 0);
+	setLayout(vertical_layout);
+	toggleFilter(false);
+}
 
-	//grid_layout->addWidget(m_minor_trace_filter.get(), 1, 0);
-	//grid_layout->addWidget(m_major_trace_filter.get(), 1, 1);
-	//grid_layout->addWidget(m_warning_filter.get(), 1, 2);
-	//grid_layout->addWidget(m_error_filter.get(), 1, 3);
-	grid_layout->addWidget(m_log.get(), 2, 0);
-	m_log->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	grid_layout->addLayout(eventlog_toolbar, 2, 1); // , Qt::AlignmentFlag::AlignRight
-	setLayout(grid_layout);
+void DmsEventLog::copySelectedEventlogLinesToClipboard()
+{
+	auto eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
+	auto selected_indexes = m_log->selectionModel()->selectedIndexes();
 
-	toggleTextFilter(false);
-	toggleTypeFilter(false);
+	if (selected_indexes.isEmpty())
+		return;
+
+	std::sort(selected_indexes.begin(), selected_indexes.end());
+
+	QString new_cliboard_text = "";
+
+	for (auto& index : selected_indexes)
+	{
+		auto eventlog_item = eventlog_model->data(index, Qt::DisplayRole);
+		if (!eventlog_item.isValid())
+			continue;
+
+		auto item_text = eventlog_item.toString();
+		if (item_text.isEmpty())
+			continue;
+
+		new_cliboard_text = new_cliboard_text + item_text + "\n";
+	}
+	if (new_cliboard_text.isEmpty())
+		return;
+
+	QGuiApplication::clipboard()->clear();
+	QGuiApplication::clipboard()->setText(new_cliboard_text, QClipboard::Clipboard);
+}
+
+void DmsEventLog::keyPressEvent(QKeyEvent* event)
+{
+	if (event == QKeySequence::Copy)
+	{
+		//return QWidget::keyPressEvent(event);
+		copySelectedEventlogLinesToClipboard();
+		event->accept();
+		return;
+	}
+	return QWidget::keyPressEvent(event);
 }
 
 void DmsEventLog::onVerticalScrollbarValueChanged(int value)
@@ -293,57 +527,77 @@ void DmsEventLog::scrollToBottomThrottled()
 		return;
 
 	scrollToBottomOnTimeout();
-	
-	//if (m_throttle_timer->isActive())
-	//	return;
-
-	//m_throttle_timer->start(1000);
 }
 
-void DmsEventLog::toggleTextFilter(bool toggled)
+void DmsEventLog::toggleFilter(bool toggled)
 {
-	toggled ? m_text_filter->show() : m_text_filter->hide();
+	auto main_window = MainWindow::TheOne();
+
+	auto current_height = height();
+	if (toggled)
+		default_height = current_height + 150;
+	else
+		default_height = current_height - 150;
+
+	main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
+
+	m_eventlog_filter->setVisible(toggled);
 }
 
-void DmsEventLog::toggleTypeFilter(bool toggled)
+void DmsEventLog::onTextChanged(const QString& text)
 {
-	toggled ? m_minor_trace_filter->show() : m_minor_trace_filter->hide();
-	toggled ? m_major_trace_filter->show() : m_major_trace_filter->hide();
-	toggled ? m_warning_filter->show() : m_warning_filter->hide();
-	toggled ? m_error_filter->show() : m_error_filter->hide();
+	bool filter_button_is_disabled = false;
+	bool clear_button_is_disabled = !m_text_filter_active;
+	if (MainWindow::TheOne()->m_eventlog_model->m_TextFilterAsByteArray == text)
+		filter_button_is_disabled = true;
+
+	m_eventlog_filter->m_activate_text_filter->setDisabled(filter_button_is_disabled);
+	m_eventlog_filter->m_clear_text_filter->setDisabled(clear_button_is_disabled);
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, SeverityTypeID st, MsgCategory msgCat, CharPtr msg)
+void DmsEventLog::clearTextFilter()
 {
-//	assert(IsMainThread());
+	m_eventlog_filter->m_text_filter->clear();
+	m_text_filter_active = false;
+	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
+	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+	MainWindow::TheOne()->m_eventlog_model->refilter();
+}
+
+QSize DmsEventLog::sizeHint() const
+{
+	return QSize(0, default_height);
+}
+
+void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
+{
+	assert(msgData);
+	SeverityTypeID st = msgData->m_SeverityType;
+
 	if (st == SeverityTypeID::ST_Nothing)
 	{
-		// assume async call to notify desire to call ProcessMainThreadOpers() in a near future
-//		QTimer::singleShot(0, [] { ProcessMainThreadOpers();  });
 		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
 	}
+
 	assert(IsMainThread());
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
-	auto* eventlog_view = MainWindow::TheOne()->m_eventlog.get(); assert(eventlog_view);
-	eventlog_model->addText(st, msgCat, msg);
-	eventlog_view->scrollToBottomThrottled();
+	eventlog_model->addText(MsgData(*msgData));
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
 {
-    auto dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
+    MainWindow::TheOne()->m_eventlog_dock = new QDockWidget(QObject::tr("EventLog"), dms_main_window);
 	dms_main_window->m_eventlog_model = std::make_unique<EventLogModel>();
-	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(dock);
+	auto dms_eventlog_pointer = std::make_unique<DmsEventLog>(MainWindow::TheOne()->m_eventlog_dock);
 	
-    dock->setWidget(dms_eventlog_pointer.get());
-    dock->setTitleBarWidget(new QWidget(dock));
-//    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, dock);
+	dms_eventlog_pointer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    //viewMenu->addAction(dock->toggleViewAction());
+	MainWindow::TheOne()->m_eventlog_dock->setWidget(dms_eventlog_pointer.get());
+	MainWindow::TheOne()->m_eventlog_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_eventlog_dock));
+	
+    dms_main_window->addDockWidget(Qt::BottomDockWidgetArea, MainWindow::TheOne()->m_eventlog_dock);
 
 	dms_eventlog_pointer->m_log->setModel(dms_main_window->m_eventlog_model.get());
-	//dock->show();
 	return dms_eventlog_pointer;
 }

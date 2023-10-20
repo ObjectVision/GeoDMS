@@ -1,35 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
 #pragma once
 
 #if !defined(_SHV_UTLS_H)
@@ -82,6 +54,7 @@ SHV_CALL HINSTANCE GetInstance(HWND hWnd);
 //----------------------------------------------------------------------
 
 void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpenDetailsPage);
+void CreateGotoAction(const TreeItem* tiContext);
 
 //----------------------------------------------------------------------
 // section : Transform to projection
@@ -233,6 +206,11 @@ enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonI
 	OBSOLETE_TB_Pan,                // DualPoint   Tool
 };
 
+inline bool MustQuery(ToolButtonID id)
+{
+	return id == TB_Neutral || id == TB_Info;
+}
+
 enum class PressStatus
 {
 	DontCare,
@@ -260,14 +238,11 @@ UInt32  GetDefaultFontHeightDIP(FontSizeCategory fid); // in Device Independent 
 
 const WCHAR UNDEFINED_WCHAR = 0xFFFF;
 
-SHV_CALL Float64 GetWindowDIP2pixFactorX(HWND hWnd);
-SHV_CALL Float64 GetWindowDIP2pixFactorY(HWND hWnd);
-SHV_CALL Point<Float64> GetWindowDIP2pixFactorXY(HWND hWnd);
-SHV_CALL Float64 GetWindowDIP2pixFactor(HWND hWnd);
-SHV_CALL Float64 GetDcDIP2pixFactorX(HDC dc);
-SHV_CALL Float64 GetDcDIP2pixFactorY(HDC dc);
-SHV_CALL Point<Float64> GetDcDIP2pixFactorXY(HDC dc);
-SHV_CALL Float64 GetDcDIP2pixFactor(HDC dc);
+SHV_CALL Float64 GetWindowDip2PixFactorX(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactorY(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowDip2PixFactors(HWND hWnd);
+SHV_CALL Float64 GetWindowDip2PixFactor(HWND hWnd);
+SHV_CALL Point<Float64> GetWindowPix2DipFactors(HWND hWnd);
 
 //----------------------------------------------------------------------
 // desktop data section
@@ -314,20 +289,21 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView>, 
 // config section
 //----------------------------------------------------------------------
 
-bool    HasAdminMode();
-bool    IsBusy();
+bool HasAdminMode();
+bool IsBusy();
+SHV_CALL void SetBusy(bool);
 
 //----------------------------------------------------------------------
 // DataContainer section
 //----------------------------------------------------------------------
 
 extern "C" {
-	extern "C" SHV_CALL void DMS_CONV SHV_SetAdminMode(bool v);
 	SHV_CALL const AbstrUnit*     DMS_CONV SHV_DataContainer_GetDomain   (const TreeItem* ti, UInt32 level, bool adminMode);
 	SHV_CALL UInt32               DMS_CONV SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode);
 	SHV_CALL const AbstrDataItem* DMS_CONV SHV_DataContainer_GetItem     (const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode);
 }
 
+SHV_CALL void SHV_SetAdminMode(bool v);
 SHV_CALL auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*;
 
 //----------------------------------------------------------------------

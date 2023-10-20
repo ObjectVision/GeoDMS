@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_PTR_SHAREDCHARARRAY_H)
@@ -258,6 +234,8 @@ public:
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz);
+	RTC_CALL bool contains(CharPtrRange subStr);
+	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr);
 
 private:
 	RTC_CALL void MakeUnique();
@@ -310,8 +288,8 @@ inline void MakeBounds(SharedStr& a, SharedStr& b)  { MakeRange<SharedStr>(a, b)
 inline bool IsDefined(WeakStr v)          { return v.IsDefined(); }
 inline bool IsDefined(const SharedStr& v) { return v.IsDefined(); }
 
-inline CharPtr begin_ptr(const std::string& data) { return &*data.begin(); }
-inline CharPtr end_ptr(const std::string& data)   { return &*data.end(); }
+inline CharPtr begin_ptr(const std::string& data) { return data.empty() ? nullptr : &(data.begin()[ 0]); }
+inline CharPtr end_ptr(const std::string& data)   { return data.empty() ? nullptr : &(data.end  ()[-1])+1; }
 
 inline CharPtr begin_ptr(WeakStr data)          { return data.begin(); }
 inline CharPtr end_ptr  (WeakStr data)          { return data.send();  }
@@ -353,6 +331,33 @@ SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
 
 #endif defined(MG_DEBUG_ALLOCATOR)
 
+//----------------------------------------------------------------------
+// StreamableDataTime
+//----------------------------------------------------------------------
+
+struct StreamableDateTime // Display operating system-style date and time. 
+{
+	RTC_CALL StreamableDateTime();
+
+private:
+	time_t m_time;
+	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDateTime& self);
+};
+
+//----------------------------------------------------------------------
+// Section      : MsgData
+//----------------------------------------------------------------------
+
+struct MsgData {
+	SeverityTypeID m_SeverityType;
+	MsgCategory m_MsgCategory : 7;
+	bool        m_IsFollowup : 1 = false;
+	dms_thread_id m_ThreadID;
+	StreamableDateTime m_DateTime;
+	SharedStr m_Txt;
+};
+
+extern "C" RTC_CALL CharPtr DMS_CONV RTC_MsgData_GetMsgAsCStr(MsgData * msgData);
 
 #endif // __RTC_PTR_SHAREDCHARARRAY_H
 

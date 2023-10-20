@@ -43,7 +43,7 @@ struct LifetimeProtector
 	~LifetimeProtector()
 	{
 		m_Object.DecRef();
-		dms_assert(m_Object.GetRefCount() == 0);
+		assert(!m_Object.IsOwned());
 	}
 
 	OBJECT* operator -> () { return &m_Object; }

@@ -78,7 +78,7 @@ public:
 protected:
 	// Override virtuals of GraphicObject
 	bool OnKeyDown(UInt32 nVirtKey) override;
-	void ProcessSize(TPoint mapControlSize) override;
+	void ProcessSize(CrdPoint mapControlSize) override;
 
 private:
 	void SetLayout(ToolButtonID id);

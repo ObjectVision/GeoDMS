@@ -1,33 +1,16 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#pragma once
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
+
+// *****************************************************************************
+//								Function predicates
+// *****************************************************************************
+
+template <typename Func> struct is_safe_for_undefines : std::false_type {};
 
 namespace has_block_func_details {
 	template< typename U> static char test(typename U::block_func* v);
@@ -104,17 +87,20 @@ typedef AbstrValueGetter<SizeT> IndexGetter;
 
 // arguments   
 template <typename T> struct cref : param_type<T> {};
-template <typename E> struct cref<std::vector<E> > { typedef typename sequence_traits<std::vector<E> >::container_type::const_reference type; };
-template <>           struct cref<SharedStr     > { typedef          sequence_traits<SharedStr     >::container_type::const_reference type; };
+template <typename E> struct cref<std::vector<E> > { using type = typename sequence_traits<std::vector<E> >::container_type::const_reference; };
+template <>           struct cref<SharedStr     > { using type = typename sequence_traits<SharedStr>::container_type::const_reference; };
 
 // func results
-template <typename T> struct f_ref { using type = typename sequence_traits<T>::container_type::reference; };
+template <typename T> struct fref { using type = typename sequence_traits<T>::container_type::reference; };
+template <typename T> using fref_t = typename fref<T>::type;
 
 // assign results
-template<typename T> struct v_ref : f_ref<T> {};
-template<>           struct v_ref<OutStreamBuff> { using type = OutStreamBuff&; };
+template<typename T> struct vref : fref<T> {};
+template<>           struct vref<OutStreamBuff> { using type = OutStreamBuff&; };
+template <typename T> using vref_t = typename vref<T>::type;
 
 template <typename T> T make_result(const T& output) { return output; }
+template <typename T> using cref_t = typename cref<T>::type;
 
 // *****************************************************************************
 //									FUNCTOR PROTOTYPES
@@ -123,8 +109,8 @@ template <typename T> T make_result(const T& output) { return output; }
 template <typename _R>
 struct nullary_func
 {
-	typedef _R                             res_type; 
-	typedef typename f_ref<res_type>::type res_ref;
+	typedef _R                            res_type; 
+	typedef typename fref<res_type>::type res_ref;
 };
 
 template<typename _R, typename _A1>
@@ -159,17 +145,7 @@ struct ternary_func
 
 template <typename TUniFunc, typename R, typename A1> 
 struct std_unary_func :	unary_func<R,A1>, TUniFunc
-{
-/* REMOVE
-	typename std_unary_func::res_type operator()(typename std_unary_func::arg1_cref a1) const
-	{ 
-		return m_Func(a1); 
-	}
-
-private:
-	TUniFunc m_Func;
-*/
-};
+{};
 
 template <
 	typename TBinFunc
@@ -187,7 +163,7 @@ struct std_binary_func: binary_func<R, A1, A2>
 					Convert<A1>(a1)
 				,	Convert<A2>(a2)
 				)
-			); 
+			);
 	}
 
 private:
@@ -201,15 +177,15 @@ private:
 template<typename TAssigneeType>
 struct nullary_assign 
 {
-	typedef TAssigneeType                        assignee_type;
-	typedef typename v_ref<assignee_type>::type  assignee_ref;
+	using assignee_type = TAssigneeType;
+	using assignee_ref = vref_t<assignee_type>;
 };
 
 template<typename TAssigneeType, typename TArgumentType>
 struct unary_assign : nullary_assign<TAssigneeType>
 {
-	using arg1_type = TArgumentType                  ;
-	using arg1_cref = typename cref<arg1_type>::type ;
+	using arg1_type = TArgumentType;
+	using arg1_cref = cref_t<arg1_type>;
 
 	static void PrepareTile(typename sequence_traits<TAssigneeType>::seq_t res, typename sequence_traits<TArgumentType>::cseq_t a1)
 	{ /* NOP */ }

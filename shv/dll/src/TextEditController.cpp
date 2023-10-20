@@ -42,12 +42,6 @@ granted by an additional written contract for support, assistance and/or develop
 // class  : SelRange
 //----------------------------------------------------------------------
 
-SelRange::SelRange()
-	:	m_Begin(UNDEFINED_VALUE(SizeT))
-	,	m_Curr (UNDEFINED_VALUE(SizeT)) 
-	,	m_End  (UNDEFINED_VALUE(SizeT))
-{}
-
 void SelRange::Go(bool shift, SizeT p)
 {
 	dms_assert(m_Begin <= m_Curr && m_Curr <= m_End);

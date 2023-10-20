@@ -99,16 +99,16 @@ protected:
 			auto domain2Size = domain2Unit->GetRangeAsIRect();
 			auto resDomainSize = resDomainUnit->GetRangeAsIRect();
 
-			MG_CHECK(_Height(domain1Size) == _Height(resDomainSize));
-			MG_CHECK(_Width (domain2Size) == _Width (resDomainSize));
-			MG_CHECK(_Width (domain1Size) == _Height(domain2Size  ));
+			MG_CHECK(Height(domain1Size) == Height(resDomainSize));
+			MG_CHECK(Width (domain2Size) == Width (resDomainSize));
+			MG_CHECK(Width (domain1Size) == Height(domain2Size  ));
 
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
-			Calculate(resLock.get(), arg1A, arg2A, _Height(domain1Size), _Width(domain2Size), _Width(domain1Size));
+			Calculate(resLock.get(), arg1A, arg2A, Height(domain1Size), Width(domain2Size), Width(domain1Size));
 
 			resLock.Commit();
 		}
@@ -204,14 +204,14 @@ protected:
 
 			auto domain1Size = domain1Unit->GetRangeAsIRect();
 			auto resDomainSize = resDomainUnit->GetRangeAsIRect();
-			MG_CHECK(_Width (domain1Size) == _Width (resDomainSize));
-			MG_CHECK(_Width (domain1Size) == _Height(resDomainSize));
+			MG_CHECK(Width (domain1Size) == Width (resDomainSize));
+			MG_CHECK(Width (domain1Size) == Height(resDomainSize));
 
 			DataReadLock arg1Lock(arg1A);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
-			Calculate(resLock.get(), arg1A, _Width(domain1Size), _Height(domain1Size));
+			Calculate(resLock.get(), arg1A, Width(domain1Size), Height(domain1Size));
 
 			resLock.Commit();
 		}
@@ -291,13 +291,13 @@ protected:
 		if (mustCalc)
 		{
 			auto domain1Size = domain1Unit->GetRangeAsIRect();
-			MG_CHECK(_Width (domain1Size) == _Height(domain1Size));
+			MG_CHECK(Width (domain1Size) == Height(domain1Size));
 
 			DataReadLock arg1Lock(arg1A);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
-			Calculate(resLock.get(), arg1A, _Width(domain1Size));
+			Calculate(resLock.get(), arg1A, Width(domain1Size));
 
 			resLock.Commit();
 		}
@@ -382,9 +382,9 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::floats, MatrMulOperator<_>>	matrMulOperators;
-	tl_oper::inst_tuple<typelists::floats, MatrVarOperator<_>>	matrCovOperators;
-	tl_oper::inst_tuple<typelists::floats, MatrInvOperator<_>> matrInvOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrMulOperator> matrMulOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrVarOperator> matrCovOperators;
+	tl_oper::inst_tuple_templ<typelists::floats, MatrInvOperator> matrInvOperators;
 }
 
 

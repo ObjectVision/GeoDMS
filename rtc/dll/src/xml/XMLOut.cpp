@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
 #pragma hdrstop
 
@@ -35,6 +11,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/PropDef.h"
 #include "mci/PropDefEnums.h"
 #include "xml/XmlConst.h"
+#include "utl/mySPrintF.h"
 #include "utl/Quotes.h"
 
 //----------------------------------------------------------------------
@@ -56,6 +33,11 @@ void OutStreamBase::ItemEnd()
 
 void OutStreamBase::EndSubItems()
 {}
+
+void OutStreamBase::WriteValueWithConfigSourceDecorations(CharPtr data)
+{
+	WriteValue(data);
+}
 
 void OutStreamBase::DumpPropList(const Object* self, const Class* cls)
 {
@@ -154,7 +136,7 @@ OutStream_XmlBase::OutStream_XmlBase(OutStreamBuff* out, CharPtr header, CharPtr
 
 	if (*mainTag)
 	{  
-		m_RootElem = new XML_OutElement(*this, mainTag, mainTagName, true);
+		m_RootElem = new XML_OutElement(*this, mainTag, mainTagName, ClosePolicy::pairedOnNewline);
 		CloseAttrList();
 		--m_Level; // keep level at zero for various purposes.
 	}
@@ -166,6 +148,36 @@ OutStream_XmlBase::~OutStream_XmlBase()
 		delete m_RootElem;
 }
 
+
+//=============== private pseudo members
+
+bool OutStream_XmlBase_IsSpecialChar(char ch)
+{
+	return (!ch) || CharGetSymbol(ch) || (ch == '\n');
+}
+
+inline void OutStream_XmlBase_WriteChar(OutStream_XmlBase* self, char ch)
+{
+	CharPtr symb = CharGetSymbol(ch);
+	if (symb)
+		self->FormattingStream() << '&' << symb << ';';
+	else if (ch == '\n')
+	{
+		self->FormattingStream() << "<BR/>";
+		self->NewLine();
+	}
+	else
+		self->FormattingStream() << ch;
+}
+
+inline void OutStream_XmlBase_WriteAttrChar(OutStream_XmlBase* self, char ch)
+{
+	CharPtr symb = CharGetSymbol(ch);
+	if (symb)
+		self->FormattingStream() << '&' << symb << ';';
+	else 
+		self->FormattingStream() << ch;
+}
 
 //=============== public members
 
@@ -193,19 +205,90 @@ void OutStream_XmlBase::DumpSubTagDelim()
 }
 
 
-void OutStream_XmlBase::WriteValue(CharPtr data)
+void OutStream_XmlBase_WriteEncoded(OutStream_XmlBase* self, CharPtr data)
 {
-	CloseAttrList();
+	auto& buffer = self->FormattingStream().Buffer();
 	while (true)
 	{
 		SizeT i = 0;
-		while (!IsSpecialChar(data[i]))
+		while (!OutStream_XmlBase_IsSpecialChar(data[i]))
 			++i;
-		m_OutStream.Buffer().WriteBytes(data, i);
+		buffer.WriteBytes(data, i);
 		data += i;
 		if (!*data)
 			return;
-		WriteChar(*data++);
+		OutStream_XmlBase_WriteChar(self, *data++);
+	}
+}
+
+void OutStream_XmlBase_WriteEncoded(OutStream_XmlBase* self, CharPtr data, CharPtr dataEnd)
+{
+	auto& buffer = self->FormattingStream().Buffer();
+	while (true)
+	{
+		SizeT i = 0;
+		while ((data+i) != dataEnd && !OutStream_XmlBase_IsSpecialChar(data[i]))
+			++i;
+		buffer.WriteBytes(data, i);
+		data += i;
+		if (data == dataEnd || !*data)
+			return;
+		OutStream_XmlBase_WriteChar(self, *data++);
+	}
+}
+
+void OutStream_XmlBase::WriteValue(CharPtr data)
+{
+	CloseAttrList();
+	OutStream_XmlBase_WriteEncoded(this, data);
+}
+
+
+void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
+{
+	CloseAttrList();
+
+	std::size_t dataSize = StrLen(data);
+	std::size_t currPos = 0, currLineNumber = 0;
+
+	while (currPos < dataSize)
+	{
+		auto currLineEnd = std::find(data+currPos, data+dataSize, '\n')-data;
+
+		auto lineView = std::string_view(data + currPos, data+currLineEnd);
+		auto round_bracked_open_pos = lineView.find_first_of('(');
+		auto comma_pos = lineView.find_first_of(',');
+		auto round_bracked_close_pos = lineView.find_first_of(')');
+		auto illegal_anglebracketopen_pos = lineView.find_first_of('<');
+		auto illegal_anglebracketclose_pos = lineView.find_first_of('>');
+		auto illegal_placeholder_symbol_pos = lineView.find_first_of('%');
+		auto illegal_symbol_pos = Min(illegal_anglebracketopen_pos, Min(illegal_anglebracketclose_pos, illegal_placeholder_symbol_pos));
+		static_assert(std::string::npos > 0);
+
+		if (round_bracked_open_pos < comma_pos 
+			&& comma_pos < round_bracked_close_pos 
+			&& round_bracked_close_pos < illegal_symbol_pos
+			)
+		{
+//			auto filename = lineView.substr(0, round_bracked_open_pos);
+//			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+//			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
+
+			auto currEnd = currPos + round_bracked_close_pos + 1;
+			auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
+			auto ecsURL = mySSPrintF("editConfigSource:%s", ecfRef);
+
+			XML_hRef hRef(*this, ecsURL.AsRange());
+			CloseAttrList();
+
+			OutStream_XmlBase_WriteEncoded(this, ecfRef.first, ecfRef.second);
+			currPos = currEnd;
+		}
+
+		OutStream_XmlBase_WriteEncoded(this, data+currPos, data + currLineEnd + 1);
+		currPos = currLineEnd + 1;
+
+		currLineNumber++;
 	}
 }
 
@@ -215,7 +298,7 @@ void OutStream_XmlBase::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIn
 	while (true)
 	{
 		SizeT i = 0; 
-		while (maxSize && !IsSpecialChar(data[i]))
+		while (maxSize && !OutStream_XmlBase_IsSpecialChar(data[i]))
 			++i, --maxSize;
 		m_OutStream.Buffer().WriteBytes(data, i);
 		data += i;
@@ -226,7 +309,7 @@ void OutStream_XmlBase::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIn
 			(*this) << moreIndicationStr;
 			break;
 		}
-		WriteChar(*data++);
+		OutStream_XmlBase_WriteChar(this, *data++);
 	}
 }
 
@@ -239,7 +322,7 @@ void OutStream_XmlBase::WriteAttr(CharPtr name, CharPtr value)
 
 	m_OutStream << " " << name << "=\"";
 	while (*value != 0)
-		WriteChar(*value++);
+		OutStream_XmlBase_WriteAttrChar(this, *value++);
 	m_OutStream << "\"";
 }
 
@@ -263,24 +346,31 @@ void OutStream_XmlBase::WriteInclude(CharPtr includeHref)
 {
 	NewLine();
 	// <xinclude:include href="common.xml#xptr(a/b)"/>
-	XML_OutElement elem(*this, "xinclude:include", "", false); // tagName, but no objName and not paired
+	XML_OutElement elem(*this, "xinclude:include", "", ClosePolicy::nonPairedElement); // tagName, but no objName and not paired
 	WriteAttr("href", includeHref);
 }
 
 //=============== private members
 
-void OutStream_XmlBase::OpenTag(CharPtr tagName)
+void OutStream_XmlBase::OpenTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	if (cp == ClosePolicy::nonPairedElement || cp == ClosePolicy::pairedOnNewline)
+		NewLine();
 
 	m_OutStream << "<";
 
 	m_OutStream << tagName;
 }
 
-void OutStream_XmlBase::CloseTag(CharPtr tagName)
+void OutStream_XmlBase::CloseTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	switch (cp)
+	{
+	case ClosePolicy::pairedWithTabbedSeparator:
+		m_OutStream << "\t"; break;
+	case ClosePolicy::pairedOnNewline:
+		NewLine(); break;
+	}
 	m_OutStream << "</" << tagName << ">";
 }
 
@@ -300,26 +390,7 @@ void OutStream_XmlBase::CloseAttrList()
 		m_OutStream << "/";
 	m_OutStream << ">";
 
-	m_CurrElem = 0;
-}
-
-inline bool OutStream_XmlBase::IsSpecialChar(char ch) 
-{
-	return (!ch) || CharGetSymbol(ch) || (ch == '\n');
-}
-
-inline void OutStream_XmlBase::WriteChar(char ch) 
-{
-	CharPtr symb = CharGetSymbol(ch);
-	if (symb) 
-		m_OutStream << '&' << symb << ';';
-	else if (ch == '\n')
-	{
-		m_OutStream << "<BR/>";
-		NewLine();
-	}
-	else
-		m_OutStream << ch;
+	m_CurrElem = nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -458,13 +529,14 @@ void OutStream_DMS::WriteAttr(CharPtr name, UInt32 value)
 
 //=============== private members
 
-void OutStream_DMS::OpenTag(CharPtr tagName)
+void OutStream_DMS::OpenTag(CharPtr tagName, ClosePolicy cp)
 {
-	NewLine();
+	if (cp == ClosePolicy::nonPairedElement || cp == ClosePolicy::pairedOnNewline)
+		NewLine();
 	m_OutStream << tagName;
 }
 
-void OutStream_DMS::CloseTag(CharPtr tagName)
+void OutStream_DMS::CloseTag(CharPtr tagName, ClosePolicy cp)
 {
 }
 
@@ -489,342 +561,12 @@ void OutStream_DMS::CloseAttrList()
 }
 
 //----------------------------------------------------------------------
-// OutStream_MD
-//----------------------------------------------------------------------
-
-OutStream_MD::OutStream_MD(OutStreamBuff* out, const AbstrPropDef* primaryPropDef)
-	: OutStreamBase(out, false /*needsIndent*/, primaryPropDef, FormattingFlags::None)
-{
-}
-
-void OutStream_MD::WriteInclude(CharPtr includeHref)
-{
-	NewLine();
-	m_OutStream << "#include <" << includeHref << ">";
-}
-
-//=============== public members
-
-void OutStream_MD::WriteName(XML_OutElement& elem, CharPtr itemName)
-{
-	m_OutStream << "" << itemName;
-	m_NrSubTags = 0;
-}
-
-void OutStream_MD::BeginSubItems()
-{
-	--m_Level;
-	NewLine();
-	*this << "{";
-	++m_Level;
-}
-
-void OutStream_MD::ItemEnd()
-{
-	//m_OutStream << ";";
-	//NewLine();
-}
-
-void OutStream_MD::EndSubItems()
-{
-	--m_Level;
-	NewLine();
-	*this << "}";
-	++m_Level;
-}
-
-void OutStream_MD::DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag)
-{
-	dms_assert(tagName);
-	dms_assert(tagValue);
-	if (!tagValue || !*tagValue)
-		return;
-
-	DumpSubTagDelim();
-	if (isPrimaryTag)
-		*this << " = " << tagValue;
-	else
-		*this << tagName << " = " << DoubleQuote(tagValue).c_str();
-}
-
-void OutStream_MD::DumpSubTagDelim()
-{
-	*this << ((!m_NrSubTags) ? ":" : ",");
-	NewLine();
-	m_NrSubTags++;
-}
-
-void OutStream_MD::WriteValue(CharPtr data)
-{
-	CloseAttrList();
-	if (m_in_href)
-		m_href.first = data;
-	else
-		m_cell_data += data;//m_OutStream << data;
-}
-
-void WriteTableToStream(FormattedOutStream& out, table_data& table)
-{
-	// write empty table header rows
-	for (int j = 0; j < table[0].size(); j++)
-	{
-		out << "|   ";
-	}
-	out << "|\n";
-	for (int j = 0; j < table[0].size(); j++)
-	{
-		out << "|---";
-	}
-	out << "|\n";
-
-	for (auto& row : table)
-	{
-		if (row.empty())
-			continue;
-
-		for (auto& element : row)
-		{
-			out << "|" << element.c_str();
-		}
-		out << "|\n";
-	}
-}
-
-void WriteDropdownToStream(FormattedOutStream& out, dropdown_data& dropdown)
-{
-	/*<details>
-
-		<summary>Tips for collapsed sections< / summary>
-
-		### You can add a header
-
-		You can add text within a collapsed section.
-
-		You can add an image or a code block, too.
-
-		```ruby
-		puts "Hello World"
-		```
-
-	< / details>*/
-
-	out << "<details>\n";
-	out << "<summary>" << dropdown.first.c_str() << "</summary>" << "\n";
-	for (int i = 0; i < dropdown.second.size(); i++)
-	{
-		out << std::to_string(i).c_str() << ". " << dropdown.second.at(i).c_str() << "\n";
-	}
-	out << "</details>\n";
-
-}
-
-void OutStream_MD::WriteValueN(CharPtr data, UInt32 maxSize, CharPtr moreIndicationStr)
-{
-	CloseAttrList();
-	if (!maxSize)
-		return;
-
-	if (std::string(data).compare("ExplicitSuppliers") == 0)
-	{
-		if (m_in_table)
-		{
-			WriteTableToStream(m_OutStream, m_table);
-			m_table.clear();
-		}
-
-		m_in_dropdown = true;
-		m_dropdown.first = data;
-		return;
-	}
-
-	UInt32 strLen = StrLen(data);
-	if (strLen <= maxSize)
-	{
-		if (m_in_href)
-			m_href.first = data;
-		else
-			m_cell_data += data;
-		//m_OutStream.Buffer().WriteBytes(data, strLen);
-	}
-	else
-	{
-		if (m_in_href)
-			m_href.first = data + std::string("...");
-		else
-			m_cell_data += data + std::string("...");
-		//m_OutStream.Buffer().WriteBytes(data, maxSize);
-		//m_OutStream << moreIndicationStr;
-	}
-}
-
-void OutStream_MD::WriteAttr(CharPtr name, CharPtr value)
-{
-	if (!value || !*value)
-		return;
-
-	auto name_str = std::string(name);
-	if (name_str.compare("bgcolor") == 0)
-		return;
-
-	else if (name_str.compare("href") == 0)
-		m_href.second = value;
-	else 
-	{
-		AttrDelim();
-		m_OutStream << value;
-	}
-}
-
-void OutStream_MD::WriteAttr(CharPtr name, bool value)
-{
-	AttrDelim();
-	m_OutStream
-		<< "" << name << "="
-		<< (value ? "\"TRUE\"" : "\"FALSE\"");
-}
-
-void OutStream_MD::WriteAttr(CharPtr name, UInt32 value)
-{
-	if (std::string(name).compare("COLSPAN") == 0)
-		m_cell_data = "";
-	else 
-		m_cell_data = " ";
-	//AttrDelim();
-	//m_OutStream << "" << name << "=\"" << value << "\"";
-}
-
-//=============== private members
-
-void OutStream_MD::OpenTag(CharPtr tagName)
-{
-	//NewLine();
-	auto tag = std::string(tagName);
-	if (tag.compare("H2") == 0)
-		m_OutStream << "# ";
-	else if(tag.compare("A") == 0)
-	{
-		m_in_href = true;
-	}
-	else if (tag.compare("HR") == 0)
-	{
-		//m_OutStream << "\n"
-		m_OutStream << "\n";
-
-		if (m_in_dropdown)
-		{
-			WriteDropdownToStream(m_OutStream, m_dropdown);
-			m_dropdown.first.clear();
-			m_dropdown.second.clear();
-			m_in_dropdown = false;
-		}
-		else if (m_in_table)
-		{
-			WriteTableToStream(m_OutStream, m_table);
-			m_table.clear();
-		}
-
-		m_OutStream << "---\n";
-	}
-	else if (tag.compare("TD") == 0)
-	{
-		m_in_row_data = true;
-		//m_OutStream << "|";
-	}
-	else if (tag.compare("TR") == 0)
-	{
-		m_in_row = true;
-	}
-	else if (tag.compare("TABLE") == 0)
-	{
-		m_in_table = true;
-		return;
-	}
-	else if (tag.compare("BODY") == 0)
-		return;
-	else 
-		m_OutStream << tagName;
-}
-
-void OutStream_MD::CloseTag(CharPtr tagName)
-{
-	auto tag = std::string(tagName);
-	if (tag.compare("TABLE") == 0)
-	{
-		WriteTableToStream(m_OutStream, m_table);
-		m_table.clear();
-		m_in_table = false;
-		return;
-	}
-	else if (tag.compare("TD")==0)
-	{
-		if (!m_cell_data.empty())
-			m_table_row.push_back(m_cell_data);
-
-		m_cell_data.clear();
-		m_in_row_data = false;
-	}
-	else if (tag.compare("TR") == 0)
-	{
-		if (m_in_dropdown)
-		{
-			if (!m_table_row.empty() && m_table_row.size() > 1)
-				m_dropdown.second.push_back(m_table_row[1]);
-		}
-		else
-		{
-			if (!m_table_row.empty() && m_table_row.size() > 1)
-				m_table.push_back(m_table_row);
-			
-		}
-		m_table_row.clear();
-		m_in_row = false;
-	}
-	else if (tag.compare("A") == 0)
-	{
-		m_in_href = false;
-		std::string markdown_href = "[" + m_href.first + "]" + "(" + m_href.second + ")";
-		m_href.first.clear();
-		m_href.second.clear();
-
-		if (m_in_row_data)
-			m_cell_data += markdown_href;
-		else
-			m_OutStream << markdown_href.c_str();
-		return;
-	}
-	else
-	{
-		int i = 0;
-	}
-}
-
-void OutStream_MD::AttrDelim()
-{
-	dms_assert(m_CurrElem);
-	if (!m_CurrElem->IncAttrCount())
-		m_OutStream << "";
-	else
-		m_OutStream << ",";
-}
-
-void OutStream_MD::CloseAttrList()
-{
-	if (!m_CurrElem)
-		return; // already Closed or never opened.
-
-	if (m_CurrElem->AttrCount())
-		m_OutStream << ""; //)
-
-	m_CurrElem = nullptr;
-}
-
-//----------------------------------------------------------------------
 // XML_OutElement
 //----------------------------------------------------------------------
 
-XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName, bool isPaired)
+XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPtr objName, ClosePolicy cp)
 	: m_XmlStream(xmlStream)
-	, m_IsPaired(isPaired)
+	, m_ClosePolicy(cp)
 	, m_TagName(tagName)
 	, m_AttrCount(0)
 	, m_HasSubItems(false)
@@ -832,10 +574,10 @@ XML_OutElement::XML_OutElement(OutStreamBase& xmlStream, CharPtr tagName, CharPt
 	xmlStream.CloseAttrList();
 	m_XmlStream.m_CurrElem = this;
 
-	m_XmlStream.OpenTag(tagName);
+	m_XmlStream.OpenTag(tagName, cp);
 	m_XmlStream.WriteName(*this, objName);
 
-	if (m_IsPaired) 
+	if (IsPaired())
 		++m_XmlStream.m_Level;
 }
 
@@ -844,11 +586,11 @@ XML_OutElement::~XML_OutElement()
 	m_XmlStream.CloseAttrList();
 	if (!m_HasSubItems)
 		m_XmlStream.ItemEnd();
-	if (m_IsPaired)
+	if (IsPaired())
 	{
 		if (m_XmlStream.m_Level) // prevent underflow due to non-levelled docType tag
 			--m_XmlStream.m_Level;
-		m_XmlStream.CloseTag(m_TagName);
+		m_XmlStream.CloseTag(m_TagName, m_ClosePolicy);
 	}
 }
 void XML_OutElement::SetHasSubItems()
@@ -866,6 +608,13 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtr url)
 	xmlStream.WriteAttr("href", url);
 }
 
+XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtrRange url)
+	: XML_OutElement(xmlStream, "A")
+{
+	SharedStr urlStr(url); // TODO: make progres with CharPtrRange as primary string-in type.
+	xmlStream.WriteAttr("href", urlStr.c_str());
+}
+
 //----------------------------------------------------------------------
 // XML_DataBracket
 //----------------------------------------------------------------------
@@ -873,7 +622,7 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtr url)
 XML_DataBracket::XML_DataBracket(OutStreamBase& xmlStream) : m_Stream(xmlStream)
 {
 	if (xmlStream.GetSyntaxType() != OutStreamBase::ST_DMS)
-		m_DataElement.assign(new XML_OutElement(xmlStream, "DATA", "",true));
+		m_DataElement.assign(new XML_OutElement(xmlStream, "DATA", ""));
 	else
 		m_Stream << "[";
 }
@@ -898,7 +647,6 @@ DMS_CONV XML_OutStream_Create(OutStreamBuff* out, OutStreamBase::SyntaxType st, 
 			case OutStreamBase::ST_XML: return new OutStream_XML(out, docType, primaryPropDef);
 			case OutStreamBase::ST_HTM: return new OutStream_HTM(out, docType, primaryPropDef);
 			case OutStreamBase::ST_DMS: return new OutStream_DMS(out, primaryPropDef);
-			case OutStreamBase::ST_MD:  return new OutStream_MD(out, primaryPropDef);
 		}
 	DMS_CALL_END
 	return nullptr;
@@ -926,7 +674,7 @@ DMS_CONV XML_OutStream_WriteText(OutStreamBase* xmlStr, CharPtr txt)
 
 RTC_CALL void DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd)
 {
-	XML_OutElement xml_pd(*xmlStr,"PropDef", pd->GetName().c_str(), false);
+	XML_OutElement xml_pd(*xmlStr,"PropDef", pd->GetName().c_str(), ClosePolicy::nonPairedElement);
 		xmlStr->WriteAttr("ClassName", pd->GetItemClass()->GetName().c_str());
 		xmlStr->WriteAttr("ValueClass", pd->GetValueClass()->GetName().c_str());
 }
@@ -936,7 +684,7 @@ RTC_CALL void DMS_CONV XML_ReportSchema(
 	const Class* cls, 
 	bool withSubclasses )
 {
-	XML_OutElement xml_cls(*xmlStr,"ClassDef", cls->GetName().c_str(), true);
+	XML_OutElement xml_cls(*xmlStr,"ClassDef", cls->GetName().c_str());
 
 	// Report associated property defs
 	AbstrPropDef* pd = cls->GetLastPropDef();
@@ -951,7 +699,7 @@ RTC_CALL void DMS_CONV XML_ReportSchema(
 	// Report Inherited base classes
 	const Class* base= cls->GetBaseClass();
 	if (base)
-		XML_OutElement xml_baseClass(*xmlStr, "BaseClass", base->GetName().c_str(), false);
+		XML_OutElement xml_baseClass(*xmlStr, "BaseClass", base->GetName().c_str(), ClosePolicy::nonPairedElement);
 
 	// Report subClasses
 	cls = cls->GetLastSubClass();

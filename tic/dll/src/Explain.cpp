@@ -1,31 +1,7 @@
-﻿//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+﻿// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 #pragma hdrstop
 
@@ -156,10 +132,9 @@ namespace Explain { // local defs
 			NewLine(stream);
 			{
 				XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
-				stream << m_DataItem->GetFullName().c_str();
+				stream << m_DataItem->GetName().c_str();
 			}
-			NewLine(stream);
-			stream << " := "; GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+			stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			NewLine(stream);
 
 			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
@@ -205,7 +180,10 @@ namespace Explain { // local defs
 
 		void PrintSeqNr(OutStreamBase& stream) const override
 		{
-			if (m_Parent) {
+			if (!m_Parent) 
+				stream << "#";
+			else
+			{
 				m_Parent->PrintSeqNr(stream);
 				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
 					stream << "?";
@@ -1093,9 +1071,19 @@ namespace Explain { // local defs
 	{
 		if (!isFirst)
 			NewLine(stream);
-		stream << (m_Expr.size() > 1 ? "Addition " : "Factors");
+
+		if (m_Expr.empty())
+			return;
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size() == 1)
+			stream << mySSPrintF("Summary of values of %d factors", m_Expr[0].second.size()).c_str();
+		else
+			stream << mySSPrintF("Summary of values of %d terms ", m_Expr.size()).c_str();
+
+		stream << " of ";
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1133,14 +1121,24 @@ namespace Explain { // local defs
 			}
 		}
 	}
+
 	void UnionOfAndsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
 		if (!isFirst)
 			NewLine(stream);
 
-		stream << (m_Expr.size() > 1 ? "Union of conditions " : "Conditions");
+		if (m_Expr.empty())
+			return;
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size()==1)
+			stream << mySSPrintF("Summary of %d conjunctions of boolean values", m_Expr[0].size()).c_str();
+		else
+			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
+
+		stream << " of ";
 		PrintSeqNr(stream);
-		stream << ": " << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
 		DescrValue(stream);
@@ -1208,7 +1206,7 @@ namespace Explain
 
 	bool AttrValueToXML(Explain::CalcExplImpl* context, const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
 	{
-		XML_ItemBody itemBody(*xmlOutStrPtr, studyObject);
+		XML_ItemBody itemBody(*xmlOutStrPtr, "Value Info", "", studyObject);
 		try {
 			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainAttrValue");
 

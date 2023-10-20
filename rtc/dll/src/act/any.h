@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include <memory>
 #include <type_traits>
 
+#include "dbg/Check.h"
+
 //----------------------------------------------------------------------
 // class template  : rtc::any::Any<T>
 // 

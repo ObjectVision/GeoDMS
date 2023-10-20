@@ -196,7 +196,7 @@ public:
 
 					DijkstraHeap<NodeType, LinkType, ZoneType, ImpType> dh(nrV, false);
 
-					UInt32 nrC = _Width(range);
+					UInt32 nrC = Width(range);
 					int offsets[9]; for (UInt32 i=1; i!=9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
 
 					dms_assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
@@ -374,6 +374,6 @@ namespace
 	struct GridDistOperSet : tl_oper::inst_tuple<typelists::domain_points, GridDistOperator<Imp, _>>
 	{};
 
-	tl_oper::inst_tuple<typelists::floats, GridDistOperSet<_>> gridDistOperSets;
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets;
 
 }

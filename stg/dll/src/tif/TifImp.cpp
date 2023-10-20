@@ -52,7 +52,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/BitVector.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
-#include "ptr/SharedArrayPtr.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification
 #include <tiffio.h> 
@@ -177,80 +176,6 @@ bool TifImp::IsPalettedImage()
 	return (TIFFGetField(m_TiffHandle, TIFFTAG_PHOTOMETRIC, &result) == 1)
 		&& (result == PHOTOMETRIC_PALETTE);
 }
-
-/* REMOVE
-void TifImp::ReportFieldInfo()
-{
-	int i;
-	TIFF* tif = m_TiffHandle;
-	dms_assert(m_TiffHandle);
-
-	reportD(ST_MinorTrace, TIFFFileName(tif));
-
-	for (i = 0; i < tif->tif_nfields; i++)
-	{
-		const TIFFFieldInfo* fip = tif->tif_fieldinfo[i];
-		if (!TIFFFieldSet(tif, fip->field_bit))
-			continue;
-		reportF(ST_MinorTrace, "field[%2d] %5lu, %2d, %2d, %d, %2d, %5s, %5s, %tx"
-			, i
-			, (unsigned long) fip->field_tag
-			, fip->field_readcount, fip->field_writecount
-			, fip->field_type
-			, fip->field_bit
-			, fip->field_oktochange ? "TRUE" : "FALSE"
-			, fip->field_passcount ? "TRUE" : "FALSE"
-			, fip->field_name
-		);
-		switch (fip->field_type)
-		{
-			case TIFF_NOTYPE:    // placeholder
-			   break;
-			case TIFF_SBYTE:     // !8-bit signed integer
-			case TIFF_BYTE:      // 8-bit unsigned integer
-			{
-				UInt8 result = 0;
-				TIFFGetField(m_TiffHandle, fip->field_tag, &result);
-				if (result)
-					reportF(ST_MinorTrace, "value = %d", UInt32(result));
-				break;
-			}
-			case TIFF_ASCII:     // 8-bit bytes w/ last byte null
-			{
-				char* result = 0;
-				TIFFGetField(m_TiffHandle, fip->field_tag, &result);
-				if (result)
-					reportF(ST_MinorTrace, "value = %tx", result);
-				break;
-			}
-			case TIFF_SHORT:     // 16-bit unsigned integer
-			case TIFF_SSHORT:    // !16-bit signed integer
-			{
-				UInt16 result = 0;
-				TIFFGetField(m_TiffHandle, fip->field_tag, &result);
-				reportF(ST_MinorTrace, "value = %d", UInt32(result));
-				break;
-			}
-			case TIFF_LONG:      // 32-bit unsigned integer
-			case TIFF_SLONG:     // !32-bit signed integer
-			{
-				UInt32 result = 0;
-				TIFFGetField(m_TiffHandle, fip->field_tag, &result);
-				reportF(ST_MinorTrace, "value = %d", result);
-				break;
-			}
-			case TIFF_RATIONAL:  // 64-bit unsigned fraction
-			case TIFF_UNDEFINED: // !8-bit untyped data
-			case TIFF_SRATIONAL: // !64-bit signed fraction
-			case TIFF_FLOAT:     // !32-bit IEEE floating point
-			case TIFF_DOUBLE:    // !64-bit IEEE floating point
-				break;
-		default:
-			reportF(ST_MajorTrace, "Field with unknown type %d", fip->field_type);
-		}
-	}
-}
-*/
 
 UInt32 TifImp::GetWidth() const
 {
@@ -519,9 +444,8 @@ void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, 
 		return;
 	if (nrRasterBitsPerPixel == 24 && nrDmsBitsPerPixel == 32) // UnpackStrip(UInt32* ...) can process this
 		return;
-	throwErrorF(functionName, "TifImp cannot convert %d bits DMS data %s %d bits raster data of %s"
-		, nrDmsBitsPerPixel, direction, nrRasterBitsPerPixel
-		, dataSourceName
+	throwErrorF(functionName, "TifImp cannot convert %d bits raster data of %s %s %d bits DMS data"
+		, nrRasterBitsPerPixel, dataSourceName, direction, nrDmsBitsPerPixel
 	);
 }
 

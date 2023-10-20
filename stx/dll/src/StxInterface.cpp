@@ -72,8 +72,12 @@ SYNTAX_CALL void DMS_CONV DMS_Stx_Load()
 // Returns:           TreeItem*: root of the tree
 // *****************************************************************************
 
+static UInt32 s_LoadNumber = 0;
+
 SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 {
+	assert(IsMainThread());
+
 	//auto current_dir = GetCurrentDir();
 	TreeItem* res = nullptr;
 	try {
@@ -89,7 +93,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 		auto currSession = SessionData::Create(configLoadDir.c_str(), getFileNameBase(fileName).c_str());
 		currSession->SetConfigPointColFirst(GetConfigPointColFirst());
 
-		ConfigurationFilenameContainer filenameContainer(configLoadDir);
+		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
 		{
 			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
@@ -130,11 +134,11 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromString(CharPtr configString)
 {
 	DMS_CALL_BEGIN
 
-		TreeItem* res = 0;
+		TreeItem* res = nullptr;
 		CDebugContextHandle debugContext("DMS_CreateTreeFromString", configString, false);
 
 		SessionData::Create(GetCurrentDir().c_str(), "" );
-		ConfigurationFilenameContainer filenameContainer(SharedStr::SharedStr());
+		ConfigurationFilenameContainer filenameContainer(SharedStr::SharedStr(), ++s_LoadNumber);
 		{
 			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
@@ -208,6 +212,10 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 			"Note that #include statements are relative from the subdir that accompanies the referent"
 			, sourcePathName);
 
+	// read last changed time in the context of an open file to prevent getting the wrong info.
+	reserveThisName.GetFileRef()->m_ReadFdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
+
+	// read the actual file contents
 	if (!stricmp(getFileNameExtension(sourcePathName), "xml"))
 	{
 		auto sfwa = DSM::GetSafeFileWriterArray();
@@ -215,19 +223,14 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
 		XmlTreeParser xmlParse(&streamBuff);
 		result =  xmlParse.ReadTree(context);
-
-		// read last changed time in the context of an open file to prevent getting the wrong info.
-		reserveThisName.GetFileRef()->m_Fdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
 	}
 	else
 	{
 		ConfigProd cp(context);
 		result = cp.ParseFile(sourcePathNameStrFromCurrent.c_str());
 
-		// read last changed time in the context of an open file to prevent getting the wrong info.
-		reserveThisName.GetFileRef()->m_Fdt = GetFileOrDirDateTime(sourcePathNameStrFromCurrent);
 	}
-	
+
 	if (!result)
 		return nullptr;
 

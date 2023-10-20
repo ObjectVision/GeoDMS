@@ -97,10 +97,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NSIS", "NSIS", "{F6034506-5
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D30-4E73-8472-758D73FED24A}"
 	ProjectSection(SolutionItems) = preProject
-		doc\MT2-issues.txt = doc\MT2-issues.txt
+		doc\LogisticRegresssion.txt = doc\LogisticRegresssion.txt
 	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsCaller", "caller\exe\DmsCaller.vcxproj", "{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "qtgui\exe\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
 EndProject
@@ -192,14 +190,6 @@ Global
 		{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}.Release|Win32.Build.0 = Release|Win32
 		{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}.Release|x64.ActiveCfg = Release|x64
 		{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}.Release|x64.Build.0 = Release|x64
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Debug|Win32.ActiveCfg = Debug|Win32
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Debug|Win32.Build.0 = Debug|Win32
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Debug|x64.ActiveCfg = Debug|x64
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Debug|x64.Build.0 = Debug|x64
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Release|Win32.ActiveCfg = Release|Win32
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Release|Win32.Build.0 = Release|Win32
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Release|x64.ActiveCfg = Release|x64
-		{B7B1AD93-96EB-41C2-AD17-273DAC762A2F}.Release|x64.Build.0 = Release|x64
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Debug|Win32.ActiveCfg = Debug|x64
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Debug|Win32.Build.0 = Debug|x64
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Debug|x64.ActiveCfg = Debug|x64

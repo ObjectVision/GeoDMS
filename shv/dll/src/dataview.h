@@ -64,6 +64,10 @@ enum ViewStyle {
 ,	tvsSupplierSchema
 ,	tvsExprSchema
 ,	tvsUndefined
+,   tvsStatistics
+//  Non treeitem related styles
+,   tvsCalculationTimes
+,	tvsCurrentConfigFileList
 };
 	
 enum ViewStyleFlags {
@@ -190,7 +194,7 @@ public:
 
 //	Operations
 	bool DispatchMsg(const MsgStruct& msg);
-	bool OnKeyDown(UInt32 nVirtKey);
+	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
 
 //	Attributes
 	std::shared_ptr<MovableObject> GetContents()             { dms_assert(m_Contents); return m_Contents; }
@@ -199,9 +203,13 @@ public:
 	TreeItem*      GetDesktopContext() const;
 
 	SHV_CALL void ResetHWnd(HWND hWnd);
-	HWND  GetHWnd()        const { return m_hWnd; }
-
-	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 subPixelFactor = 1.0) const;
+	HWND     GetHWnd()        const { return m_hWnd; }
+	CrdPoint GetScaleFactors() const { assert(m_CurrScaleFactors.X() > 0.0 && m_CurrScaleFactors.Y() > 0.0);  return m_CurrScaleFactors; }
+	CrdPoint GetReverseFactors() const { auto sf = GetScaleFactors(); return { 1.0 / sf.first, 1.0 / sf.second }; }
+	CrdPoint Reverse(CrdPoint pnt) const { auto rf = GetReverseFactors();  pnt.X() *= rf.first; pnt.Y() *= rf.second; return pnt; }
+	CrdRect  Reverse(CrdRect rect) const { return CrdRect(Reverse(rect.first), Reverse(rect.second)); }
+	HFONT   GetDefaultFont(FontSizeCategory fid, Float64 scaleFactor) const;
+	HFONT   GetDefaultFont(FontSizeCategory fid) const { return GetDefaultFont(fid, GetWindowDip2PixFactorY(GetHWnd())); }
 
 	void SendStatusText(SeverityTypeID st, CharPtr msg) const;
 	SHV_CALL void SetStatusTextFunc(ClientHandle clientHandle, StatusTextFunc stf);
@@ -227,21 +235,22 @@ public:
 
 	SHV_CALL auto OnCommandEnable(ToolButtonID id) const->CommandStatus;
 
-	SHV_CALL void InvalidateRect(GRect  rect);
+	SHV_CALL void InvalidateDeviceRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
 	void ValidateRect  (const GRect& pixRect);
 //	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();
-	void Scroll(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
+	void ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
 	void SetCursorPos(GPoint clientPoint);
 
-	GRect ViewRect() const { return GRect(GPoint(0, 0), m_ViewSize); }
+	GRect ViewDeviceRect() const { return GRect(GPoint(0, 0), m_ViewDeviceSize); }
+	TRect ViewLogicalRect() const { return Convert<TRect>(Reverse(GRect2CrdRect(ViewDeviceRect()))); }
 
-	void ShowPopupMenu(const GPoint& point, const MenuData& menuData) const;
-	void SetFocusRect(const GRect& focusRect);
+	void ShowPopupMenu(GPoint point, const MenuData& menuData) const;
+	void SetFocusRect(GRect focusRect);
 	void SetScrollEventsReceiver(ScrollPort* sp);
 
 	virtual ExportInfo GetExportInfo(); // overruled by TableView and MapView, but not EditPaletteView
@@ -264,15 +273,15 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState); // creates a new tmp dc if pdc==0
 	void ReverseCaretsImpl(HDC  dc, bool newVisibleState);
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
-	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, const GPoint& point);
+	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
 	void SetUpdateTimer();
 
-	void OnMouseMove(WPARAM nFlags, const GPoint& point);
-	void OnSize     (WPARAM nType,  const GPoint& point);
+	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);
+	void OnSize     (WPARAM nType,  GPoint deviceSize);
 	void OnCaptureChanged(HWND hWnd);
 	void OnActivate(bool becomeActive);
 	void ProcessGuiOpers();
@@ -293,7 +302,8 @@ protected:
 
 	controller_vector             m_ControllerVector;
 
-	GPoint                        m_ViewSize;
+	CrdPoint                      m_CurrScaleFactors = CrdPoint(-1.0, -1.0);
+	GPoint                        m_ViewDeviceSize = GPoint(0, 0);
 	TimeStamp                     m_CheckedTS;
 	mutable CounterStacks         m_DoneGraphics;
 	HWND                          m_hWnd;
