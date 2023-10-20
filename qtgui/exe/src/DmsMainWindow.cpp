@@ -1635,14 +1635,15 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
     m_processing_records.insert(insertionPoint, current_processing_record);
     if (m_processing_records.size() > 10)
         m_processing_records.erase(m_processing_records.begin());
+
     if (!top_of_records_is_changing)
         return;
+
+    if (m_calculation_times_window->isVisible())
+        update_calculation_times_report();
+
     assert(passedTime == passed_time(m_processing_records.back()));
-   
-
-//    SHV_SetBusyMode(false);
-//    ChangeCursor(g_OldCursor);
-
+ 
     m_LongestProcessingRecordTxt = passed_time_str(" - max processing time: ", passedTime);
 
     updateStatusMessage();
