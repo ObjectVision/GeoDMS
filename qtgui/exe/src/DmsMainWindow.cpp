@@ -1605,7 +1605,7 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime)
     return result;
 }
 
-RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr;
+RTC_CALL auto GetMemoryStatus() -> SharedStr;
 
 void MainWindow::end_timing(AbstrMsgGenerator* ach)
 {
@@ -1624,7 +1624,7 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
     if (m_processing_records.size() >= 10 && passedTime < passed_time(m_processing_records.front()))
         return;
 
-    auto msgStr = UpdateAndGetFixedAllocStatus();
+    auto msgStr = GetMemoryStatus();
     if (ach)
         msgStr = SharedStr(ach->GetDescription()) + " " + msgStr;
     std::get<SharedStr>(current_processing_record) = msgStr;
@@ -1648,7 +1648,7 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
     updateStatusMessage();
 }
 
-RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr;
+RTC_CALL auto GetMemoryStatus() -> SharedStr;
 
 static UInt32 s_ReentrancyCount = 0;
 void MainWindow::updateStatusMessage()
@@ -1656,7 +1656,7 @@ void MainWindow::updateStatusMessage()
     if (s_ReentrancyCount)
         return;
 
-    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + "- max memory (Bytes): " + MaxCommittedSize(); //UpdateAndGetFixedAllocFinalSummary();
+    auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + " - " + GetMemoryStatus();
 
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     
