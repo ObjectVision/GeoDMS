@@ -102,6 +102,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D3
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "qtgui\exe\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsPython", "python\dll\DmsPython.vcxproj", "{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -198,6 +200,14 @@ Global
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Release|Win32.Build.0 = Release|x64
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Release|x64.ActiveCfg = Release|x64
 		{77EDB66F-676D-45ED-8421-044B2689D85A}.Release|x64.Build.0 = Release|x64
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Debug|Win32.Build.0 = Debug|Win32
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Debug|x64.ActiveCfg = Debug|x64
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Debug|x64.Build.0 = Debug|x64
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Release|Win32.ActiveCfg = Release|Win32
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Release|Win32.Build.0 = Release|Win32
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Release|x64.ActiveCfg = Release|x64
+		{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
