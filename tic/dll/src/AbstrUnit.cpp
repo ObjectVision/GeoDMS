@@ -677,11 +677,6 @@ SizeT AbstrUnit::GetPreparedCount(bool throwOnUndefined) const  // Returns 0 if 
 	return GetCount();
 }
 
-bool AbstrUnit::PrepareRange() const  // Returns 0 if non-countable unit
-{
-	return true;
-}
-
 SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit
 {
 	return 0;

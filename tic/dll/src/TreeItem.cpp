@@ -3328,7 +3328,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		auto avu = AbstrValuesUnit( AsDataItem(this) );
 		if (avu && !avu->IsCacheItem())
 		{
-			if (!avu->PrepareDataUsage(drlFlags) || !avu->PrepareRange())
+			if (!avu->PrepareDataUsage(drlFlags))
 			{
 				if (!SuspendTrigger::DidSuspend())
 					Fail(avu);
