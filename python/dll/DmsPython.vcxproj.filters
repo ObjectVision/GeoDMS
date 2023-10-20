@@ -7,7 +7,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\MainRun.cpp">
+    <ClCompile Include="src\Bindings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

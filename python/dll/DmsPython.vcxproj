@@ -55,6 +55,7 @@
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
       <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Cicada\AppData\Local\Programs\Python\Python310\libs\*.lib;user32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)geodms.pyd</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
@@ -63,7 +64,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\MainRun.cpp" />
+    <ClCompile Include="src\Bindings.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
