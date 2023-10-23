@@ -308,9 +308,9 @@ MainWindow::~MainWindow()
 DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
     : QLineEdit(parent)
 {
-    //QRegularExpression rx("^[^0-9<>][a-zA-Z0-9_]+$");
-    //auto rx_validator = new QRegularExpressionValidator(rx, this);
-    //setValidator(rx_validator);
+    QRegularExpression rx("^[^0-9=+\\-|&!><,.{}();\\]\\[][^=+\\-|&!><,.{}();\\]\\[]+$");
+    auto rx_validator = new QRegularExpressionValidator(rx, this);
+    setValidator(rx_validator);
     setDmsCompleter();
 }
 
