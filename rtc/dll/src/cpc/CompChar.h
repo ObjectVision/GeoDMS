@@ -70,7 +70,6 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_COMPILER_NAME "Intel C++"
 #	define CC_PROCESSOR_INTEL
 #	define CC_BYTEORDER_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 #	define CC_NO_VTAB_BY_EXPLICIT_INSTANTIATION
 #	define CC_UNWINDING_ADM_PROBLEM
 // for some reasons my Intel C++ 8.0 in MSVC6.0 has _WCHAR_T_DEFINED but no intrinsic wchar_c,
@@ -124,7 +123,6 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_DOUBLE_64
 #	define CC_LONGDOUBLE_64
 #	define CC_PROCESSOR_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 // See http://msdn.microsoft.com/en-us/library/vstudio/hh697468.aspx
 //#	define _ITERATOR_DEBUG_LEVEL 0
 //# define _HAS_ITERATOR_DEBUGGING	0
@@ -153,10 +151,27 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_DOUBLE_64
 //#	define CC_LONGDOUBLE_80
 #	define CC_PROCESSOR_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 
-#  define CC_COMPILER_NAME "gcc compiler"
+#  define CC_COMPILER_NAME "gcc compiler (on Windwows)"
 #endif
+
+#ifdef __GNUC__
+
+#  ifdef CC_COMPILER_NAME
+#    error Second compiler recognized!
+#  endif
+#	define CC_BYTEORDER_INTEL
+#	define CC_SHORT_16
+#	define CC_INT_32
+#	define CC_LONG_32
+#	define CC_FLOAT_32
+#	define CC_DOUBLE_64
+//#	define CC_LONGDOUBLE_80
+#	define CC_PROCESSOR_INTEL
+
+#  define CC_COMPILER_NAME "gcc compiler (on Linux)"
+#endif
+
 
 // Stop compiling if there is no compiler recognized in the above statements.
 #if ! defined(CC_COMPILER_NAME)
