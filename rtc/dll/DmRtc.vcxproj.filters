@@ -1001,9 +1001,6 @@
     <ClCompile Include="src\utl\SourceLocation.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="FileName.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\mci\SingleLinkedList.inc">

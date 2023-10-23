@@ -324,7 +324,6 @@
     <ClInclude Include="src\mem\ManagedAllocData.ipp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FileName.cpp" />
     <ClCompile Include="src\act\ActorEnums.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
