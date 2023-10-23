@@ -712,7 +712,7 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 
 		if (mc_DC)
 		{
-			MG_DEBUGCODE(UInt32 dcIC = mc_DC->GetInterestCount());
+			MG_DEBUGCODE(auto dcIC = mc_DC->GetInterestCount());
 			dbg_assert(dcIC >= 1);
 			oldDC = std::move(mc_DC);
 			dms_assert(!mc_DC);
@@ -721,10 +721,10 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 		}
 		if (mc_RefItem)
 		{
-			MG_DEBUGCODE(UInt32 refIC = mc_RefItem->GetInterestCount());
+			MG_DEBUGCODE(auto refIC = mc_RefItem->GetInterestCount());
 			dbg_assert(refIC >= 1);
 			oldRefItem = std::move(mc_RefItem);
-			dms_assert(!mc_RefItem);
+			assert(!mc_RefItem);
 			oldRefItem->DecInterestCount();
 			dbg_assert(oldRefItem->GetInterestCount() == refIC);
 		}
@@ -2847,8 +2847,6 @@ void TreeItem::DoInvalidate() const
 
 	SetReferredItem(nullptr);
 
-//	CalcDestroyer destroyer(this, !GetTSF(TSF_InheritedRef)  && (!HasConfigData() || !IsDataItem(this)) && (!mc_Calculator || !mc_Calculator->IsDataBlock()));
-
 	if (IsCacheItem())
 		const_cast<TreeItem*>(this)->DropValue();
 
@@ -3328,7 +3326,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		auto avu = AbstrValuesUnit( AsDataItem(this) );
 		if (avu && !avu->IsCacheItem())
 		{
-			if (!avu->PrepareDataUsage(drlFlags) || !avu->PrepareRange())
+			if (!avu->PrepareDataUsage(drlFlags))
 			{
 				if (!SuspendTrigger::DidSuspend())
 					Fail(avu);
