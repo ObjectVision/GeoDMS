@@ -97,7 +97,6 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // 
     DMS_Shv_Load();
     SHV_SetAdminMode(true);
     auto exe_path = dms_app.applicationDirPath().toUtf8();
-    DMS_Appl_SetExeType(exe_type::geodms_qt_gui);
     DMS_Appl_SetExeDir(exe_path);
     return interpret_command_line_parameters(settingsFrame);
 }

@@ -218,18 +218,6 @@ void SetCurrentDir(CharPtr dir)
 	SetCurrentDirectory(dir);
 }
 
-static exe_type s_ExeType = exe_type::unknown_run_or_dephi;
-
-void DMS_Appl_SetExeType(exe_type t)
-{
-	s_ExeType = t;
-}
-
-exe_type DMS_Appl_GetExeType()
-{
-	return s_ExeType;
-}
-
 void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)
 {
 	while (true)
