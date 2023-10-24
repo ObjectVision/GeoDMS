@@ -32,13 +32,25 @@ namespace py = pybind11;
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
-class Engine
+struct Item
 {
-public:
-	Engine() {}
-	~Engine() {}
+	auto find(CharPtr itemPath) const
+	{
+		auto foundItem = m_item->FindItem(CharPtrRange(itemPath));
+		return Item{ foundItem };
+	}
+	auto name() const
+	{
+		std::string name = m_item->GetName().c_str();
+		return name;
+	}
 
-	void init()
+	SharedPtr<const TreeItem> m_item;
+};
+
+struct Engine
+{
+	Engine() 
 	{
 		TCHAR szPath[MAX_PATH];
 		::GetModuleFileName((HINSTANCE)&__ImageBase, szPath, _MAX_PATH);
@@ -49,32 +61,51 @@ public:
 		DMS_Appl_SetExeType(exe_type::unknown_run_or_dephi);
 		DMS_Appl_SetExeDir(dll_path.string().c_str());
 	}
-
-	void load(const std::string& config_name)
+	~Engine() 
 	{
+		if (m_root)
+			m_root->EnableAutoDelete();
+	}
+
+	void init()
+	{
+	}
+
+	void load_config(const std::string& config_name)
+	{
+		MG_CHECK(!m_root); // only init once
 		m_root = CreateTreeFromConfiguration(config_name.c_str());
+	}
+	void create_config_root(CharPtr akaName)
+	{
+		MG_CHECK(!m_root); // only init once
+		TokenID configName = GetTokenID_mt(akaName);
+		m_root = TreeItem::CreateConfigRoot(configName);
+	}
+
+	Item get_root()
+	{
+		return Item{ m_root.get()};
 	}
 
 private:
 	SharedPtr<TreeItem> m_root;
 };
 
-/*int add(int i, int j)
-{
-	return i + j;
-}
-
-PYBIND11_MODULE(example, m) {
-	m.doc() = "pybind11 example plugin";
-
-	m.def("add", &add, "A function that adds two numbers");
-}*/
 
 
-PYBIND11_MODULE(geodms, m) {
+PYBIND11_MODULE(GeoDmsPython, m) {
+	py::class_<Item>(m, "Item")
+		.def("find", &Item::find)
+		.def("name", &Item::name)
+		;
+
 	py::class_<Engine>(m, "Engine")
 		.def(py::init())
-		.def("init", &Engine::init)
-		.def("load", &Engine::load);
+		.def("loadConfig", &Engine::load_config)
+		.def("createRoot", &Engine::create_config_root)
+		.def("getRoot", &Engine::get_root)
+	;
+
 	m.def("version", DMS_GetVersion);
 }

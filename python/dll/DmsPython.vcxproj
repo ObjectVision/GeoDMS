@@ -46,7 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\Cicada\AppData\Local\Programs\Python\Python310\Include;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\Include;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -54,13 +54,17 @@
       <StackReserveSize Condition="'$(Platform)'=='x64'">67108864</StackReserveSize>
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Cicada\AppData\Local\Programs\Python\Python310\libs\*.lib;user32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)geodms.pyd</OutputFile>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
