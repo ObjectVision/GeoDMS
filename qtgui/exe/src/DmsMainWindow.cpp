@@ -1697,16 +1697,12 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    //auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
-    //new_recent_file_entry->installEventFilter(new_recent_file_entry);
     for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
     {
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
 
-    //auto test_default_widget = new_recent_file_entry->defaultWidget();
-
-    m_recent_file_entries.push_back(new_recent_file_entry);
+    m_recent_file_entries.push_front(new_recent_file_entry);
 
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
