@@ -601,10 +601,14 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
     pin_action->setDisabled(true);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
-    
-    auto test_child = main_window->m_file_menu->childAt(pos);
 
-    connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+
+    auto active_action = main_window->m_file_menu->activeAction();
+    auto dms_recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(active_action);
+    if (!dms_recent_file_entry)
+        return;
+
+    connect(remove_action.get(), &QAction::triggered, dms_recent_file_entry, &DmsRecentFileEntry::onDeleteRecentFileEntry);
     recent_file_context_menu->exec(pos);
 }
 
