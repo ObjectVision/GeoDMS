@@ -193,6 +193,10 @@ DmsException::~DmsException()
 static int sd_ThrowItemErrorCount = 0;
 #endif
 
+RTC_CALL const char* DmsException::what() const noexcept
+{
+	return get()->m_Why.c_str();
+}
 
 [[noreturn]] RTC_CALL void DmsException::throwMsg(ErrMsgPtr msg)
 {
