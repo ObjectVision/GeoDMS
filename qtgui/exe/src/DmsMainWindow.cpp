@@ -1370,10 +1370,21 @@ bool MainWindow::CloseConfig()
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
     std::string cfg_name = cfg.data();
-    auto it = std::find(files.begin(), files.end(), cfg_name.c_str());
-    if (it == files.end())
-        return -1;
-    return it - files.begin();
+    //auto pos = std::find(files.begin(), files.end(), cfg_name) - files.begin();
+    UInt32 pos = 0;
+    for (auto& recent_file : files)
+    {
+        if (recent_file.compare(cfg_name) == 0)
+        {
+            return pos;
+        }
+        pos++;
+    }
+    
+    return -1;
+    //if (pos >= files.size())
+    //    return -1;
+    //return pos;
 }
 
 void MainWindow::cleanRecentFilesThatDoNotExist()
@@ -1702,7 +1713,7 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
 
-    m_recent_file_entries.push_front(new_recent_file_entry);
+    m_recent_file_entries.push_back(new_recent_file_entry);
 
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
