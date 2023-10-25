@@ -10,9 +10,6 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{eae31f11-c500-4265-b71d-49b61769b853}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Qt Advanced Docking System">
-      <UniqueIdentifier>{68516755-fb05-41dd-b695-d88a36dcfb5e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Forms">
       <UniqueIdentifier>{2bd3e7a2-1d43-490f-9613-0a217601b832}</UniqueIdentifier>
     </Filter>
@@ -26,72 +23,6 @@
     </ClCompile>
     <ClCompile Include="src\DmsTreeView.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\ads_globals.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\AutoHideDockContainer.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\AutoHideSideBar.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\AutoHideTab.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockAreaTabBar.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockAreaTitleBar.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockAreaWidget.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockComponentsFactory.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockContainerWidget.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockFocusController.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockingStateReader.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockManager.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockOverlay.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockSplitter.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockWidget.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\DockWidgetTab.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\ElidingLabel.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\FloatingDockContainer.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\FloatingDragPreview.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\IconProvider.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\PushButton.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClCompile>
-    <ClCompile Include="src\qt_advanced_docking_system\ResizeHandle.cpp">
-      <Filter>Qt Advanced Docking System</Filter>
     </ClCompile>
     <ClCompile Include="src\DmsViewArea.cpp">
       <Filter>Source Files</Filter>
@@ -119,66 +50,6 @@
     <QtMoc Include="src\DmsMainWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\ads_globals.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\AutoHideDockContainer.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\AutoHideSideBar.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\AutoHideTab.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTabBar.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTitleBar.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockAreaTitleBar_p.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockAreaWidget.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockContainerWidget.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockFocusController.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockManager.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockOverlay.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockSplitter.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockWidget.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\DockWidgetTab.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\ElidingLabel.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\FloatingDockContainer.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\FloatingDragPreview.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\PushButton.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
-    <QtMoc Include="src\qt_advanced_docking_system\ResizeHandle.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </QtMoc>
     <QtMoc Include="src\DmsTreeView.h">
       <Filter>Header Files</Filter>
     </QtMoc>
@@ -203,15 +74,6 @@
   <ItemGroup>
     <ClInclude Include="src\DmsDetailPages.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\qt_advanced_docking_system\DockComponentsFactory.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClInclude>
-    <ClInclude Include="src\qt_advanced_docking_system\DockingStateReader.h">
-      <Filter>Qt Advanced Docking System</Filter>
-    </ClInclude>
-    <ClInclude Include="src\qt_advanced_docking_system\IconProvider.h">
-      <Filter>Qt Advanced Docking System</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
     <ClInclude Include="src\DmsValueInfo.h">
