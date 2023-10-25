@@ -85,6 +85,31 @@ bool MainWindow::ShowInDetailPage(SharedStr x)
     return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
+void MainWindow::SaveValueInfoImpl(CharPtr filename)
+{
+    auto dmsFileName = ConvertDosFileName(SharedStr(filename));
+    auto expandedFilename = AbstrStorageManager::Expand(m_current_item, dmsFileName);
+    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
+    for (auto& child_object : children())
+    {
+        auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
+        if (!value_info_window_candidate)
+            continue;
+
+        auto htmlSource = value_info_window_candidate->m_browser->toHtml();
+        auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+        buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+        int i = 0;
+    }
+
+
+}
+
+void MainWindow::saveValueInfo()
+{
+    SaveValueInfoImpl("C:/LocalData/test/test_value_info.txt");
+}
+
 DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     : QDialog(parent)
 {
@@ -1556,26 +1581,25 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
 {
     assert(studyObject);
 
-    auto* value_info_window = new QWidget(this);
+    auto* value_info_window = new ValueInfoWindow(this);
     value_info_window->setWindowFlag(Qt::Window, true);
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    auto* value_info_browser = new ValueInfoBrowser(this, studyObject, index, value_info_window);
-    value_info_browser->setWindowFlag(Qt::Window, true);
-    h_layout->addWidget(value_info_browser->back_button.get());
-    h_layout->addWidget(value_info_browser->forward_button.get());
+    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, value_info_window);
+    value_info_window->m_browser->setWindowFlag(Qt::Window, true);
+    h_layout->addWidget(value_info_window->m_browser->back_button.get());
+    h_layout->addWidget(value_info_window->m_browser->forward_button.get());
     v_layout->addLayout(h_layout);
-    v_layout->addWidget(value_info_browser);
+    v_layout->addWidget(value_info_window->m_browser);
 
     value_info_window->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
 
     value_info_window->setLayout(v_layout);
     value_info_window->resize(800, 500);
     value_info_window->show();
-    //value_info_browser->show();
 
-    value_info_browser->restart_updating();
+    value_info_window->m_browser->restart_updating();
 
     return;
 }
@@ -2250,9 +2274,13 @@ void MainWindow::createActions()
     m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_tools_menu->addAction(m_expand_all_action.get());
-    
+
     // debug tools
 #ifdef MG_DEBUG
+    m_save_value_info_pages = std::make_unique<QAction>(tr("Debug: save value info page(s)"));
+    connect(m_save_value_info_pages.get(), &QAction::triggered, this, &MainWindow::saveValueInfo);
+    m_tools_menu->addAction(m_save_value_info_pages.get());
+
     m_debug_reports = std::make_unique<QAction>(tr("Debug: produce internal report(s)"));
     connect(m_debug_reports.get(), &QAction::triggered, this, &MainWindow::debugReports);
     m_tools_menu->addAction(m_debug_reports.get());
