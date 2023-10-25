@@ -39,24 +39,27 @@ namespace py_geodms
 		Item(const TreeItem* item)
 			: m_item(item)
 		{}
-//		Item(Item&&) = default;
-//		Item(const Item&) = default;
 
 		auto find(CharPtr itemPath) const
 		{
+			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
 			auto foundItem = m_item->FindItem(CharPtrRange(itemPath));
 			return Item{ foundItem };
 		}
 		auto name() const
 		{
-			std::string name = m_item->GetName().c_str();
-			return name;
+			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
+			return m_item->GetID().AsStdString();
 		}
 		bool is_data_item() const
 		{
 			return IsDataItem(m_item.get());
 		}
-//	private:
+		std::string expr() const {
+			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
+			return m_item->GetExpr().c_str();
+		}
+
 		SharedPtr<const TreeItem> m_item;
 	};
 
@@ -72,6 +75,7 @@ namespace py_geodms
 
 	DataItem AsDataItem(const Item& item)
 	{
+		MG_USERCHECK(item.is_data_item());
 		return DataItem(::AsDataItem(item.m_item.get()));
 	}
 
@@ -109,15 +113,15 @@ namespace py_geodms
 			if (m_root)
 			{
 				m_root->EnableAutoDelete();
-				MG_CHECK(currSingleConfig == this);
+				MG_CHECK(currSingleConfig == this); // at any point of time, there is only one active Config
 				currSingleConfig = nullptr;
 			}
 		}
 
 		void check_unique()
 		{
-			MG_CHECK(s_currSingleEngine);
-			MG_CHECK(!currSingleConfig);
+			MG_CHECK(s_currSingleEngine); // only Engines can create Configs.
+			MG_USERCHECK2(!currSingleConfig, "Multiple simultaneous configuration not allowed within one process");
 		}
 
 		void init()
@@ -141,7 +145,7 @@ namespace py_geodms
 	{
 		Engine()
 		{
-			MG_CHECK(s_currSingleEngine == nullptr);
+			MG_USERCHECK2(s_currSingleEngine == nullptr, "Engine should only be constructed once");
 			s_currSingleEngine = this;
 
 			TCHAR szPath[MAX_PATH];
@@ -175,6 +179,9 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 		.def("isDataItem", &py_geodms::Item::is_data_item)
 		;
 
+	py::class_<py_geodms::DataItem>(m, "DataItem")
+		;
+
 	py::class_<py_geodms::Config>(m, "Config")
 		.def("getRoot", &py_geodms::Config::get_root)
 		;
@@ -183,6 +190,8 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 		.def("loadConfig", &py_geodms::Engine::load_config)
 		.def("createRoot", &py_geodms::Engine::create_config_root)
 	;
+
+	m.def("AsDataItem", &py_geodms::AsDataItem);
 
 	m.def("version", DMS_GetVersion);
 }
