@@ -208,8 +208,6 @@ granted by an additional written contract for support, assistance and/or develop
 #  define _STLP_DEBUG
 #endif
 
-#include <boost/config.hpp>
-
 #if defined(__SGI_STL_PORT) || defined(_STLPORT_VERSION)
 	#define CC_STL_PORT
 #endif
