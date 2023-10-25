@@ -1,4 +1,8 @@
-#include "ShvDllInterface.h"
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+//#include "ShvDllInterface.h"
 #include "TicInterface.h"
 #include "ClcInterface.h"
 #include "GeoInterface.h"
@@ -40,15 +44,17 @@ namespace py_geodms
 			: m_item(item)
 		{}
 
+		bool IsNull() const { return m_item.is_null(); }
+
 		auto find(CharPtr itemPath) const
 		{
-			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
+			CheckNonNull();
 			auto foundItem = m_item->FindItem(CharPtrRange(itemPath));
 			return Item{ foundItem };
 		}
 		auto name() const
 		{
-			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
+			CheckNonNull();
 			return m_item->GetID().AsStdString();
 		}
 		bool is_data_item() const
@@ -56,11 +62,26 @@ namespace py_geodms
 			return IsDataItem(m_item.get());
 		}
 		std::string expr() const {
+			CheckNonNull();
+			return m_item->GetExpr().AsStdString();
+		}
+
+		Item GetFirstSubItem() const {
+			CheckNonNull();
+			return m_item->GetFirstSubItem();
+		}
+		Item GetNextItem() const {
+			CheckNonNull();
+			return m_item->GetNextItem();
+		}
+
+		void CheckNonNull() const
+		{
 			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
-			return m_item->GetExpr().c_str();
 		}
 
 		SharedPtr<const TreeItem> m_item;
+
 	};
 
 	struct DataItem
@@ -176,7 +197,10 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 	py::class_<py_geodms::Item>(m, "Item")
 		.def("find", &py_geodms::Item::find)
 		.def("name", &py_geodms::Item::name)
+		.def("expr", &py_geodms::Item::expr)
 		.def("isDataItem", &py_geodms::Item::is_data_item)
+		.def("firstSubItem", &py_geodms::Item::GetFirstSubItem)
+		.def("nextItem", &py_geodms::Item::GetNextItem)
 		;
 
 	py::class_<py_geodms::DataItem>(m, "DataItem")
