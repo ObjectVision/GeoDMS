@@ -217,6 +217,10 @@ bool WmCopyData(MSG* copyMsgPtr)
         MainWindow::TheOne()->m_mdi_area->tileSubWindows();
         return true;
 
+    case CommandCode::SaveValueInfo:
+        MainWindow::TheOne()->SaveValueInfoImpl(CharPtr(pcds->lpData));
+        return true;
+
     default:
         return false;
     }
