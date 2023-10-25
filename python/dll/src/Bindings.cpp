@@ -61,6 +61,10 @@ namespace py_geodms
 		{
 			return IsDataItem(m_item.get());
 		}
+		bool is_unit_item() const
+		{
+			return IsUnit(m_item.get());
+		}
 		std::string expr() const {
 			CheckNonNull();
 			return m_item->GetExpr().AsStdString();
@@ -94,10 +98,26 @@ namespace py_geodms
 	};
 
 
+	struct UnitItem
+	{
+		UnitItem(const AbstrUnit* au)
+			: m_au(au)
+		{}
+
+		SharedPtr<const AbstrUnit> m_au;
+	};
+
+
 	DataItem AsDataItem(const Item& item)
 	{
 		MG_USERCHECK(item.is_data_item());
 		return DataItem(::AsDataItem(item.m_item.get()));
+	}
+
+	UnitItem AsUnitItem(const Item& item)
+	{
+		MG_USERCHECK(item.is_unit_item());
+		return UnitItem(::AsUnit(item.m_item.get()));
 	}
 
 	struct Engine;
@@ -195,15 +215,20 @@ namespace py_geodms
 
 PYBIND11_MODULE(GeoDmsPython, m) {
 	py::class_<py_geodms::Item>(m, "Item")
+		.def("isNull", &py_geodms::Item::IsNull)
 		.def("find", &py_geodms::Item::find)
 		.def("name", &py_geodms::Item::name)
 		.def("expr", &py_geodms::Item::expr)
 		.def("isDataItem", &py_geodms::Item::is_data_item)
+		.def("isUnitItem", &py_geodms::Item::is_unit_item)
 		.def("firstSubItem", &py_geodms::Item::GetFirstSubItem)
 		.def("nextItem", &py_geodms::Item::GetNextItem)
 		;
 
 	py::class_<py_geodms::DataItem>(m, "DataItem")
+		;
+
+	py::class_<py_geodms::DataItem>(m, "UnitItem")
 		;
 
 	py::class_<py_geodms::Config>(m, "Config")
