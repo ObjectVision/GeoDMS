@@ -278,7 +278,6 @@ public slots:
     void toggle_eventlog();
     void toggle_toolbar();
     void toggle_currentitembar();
-    void toggle_valueinfo();
 
     void view_calculation_times();
     void view_current_config_filelist();
@@ -369,7 +368,7 @@ public:
         , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
         //    , m_histogramview_action
         , m_process_schemes_action, m_view_calculation_times_action, m_view_current_config_filelist, m_open_root_config_file_action, m_expand_all_action, m_save_value_info_pages
-        , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action, m_toggle_valueinfo_action
+        , m_toggle_treeview_action, m_toggle_detailpage_action, m_toggle_eventlog_action, m_toggle_toolbar_action, m_toggle_currentitembar_action
         , m_gui_options_action, m_advanced_options_action, m_config_options_action
         , m_code_analysis_set_source_action, m_code_analysis_set_target_action, m_code_analysis_add_target_action, m_code_analysis_clr_targets_action
         , m_win_tile_action, m_win_cascade_action, m_win_close_action, m_win_close_all_action, m_win_close_but_this_action

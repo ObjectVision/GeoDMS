@@ -1178,13 +1178,6 @@ void MainWindow::toggle_currentitembar()
     m_current_item_bar_container->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_valueinfo()
-{
-    //bool isVisible = m_value_info_dock->isVisible();
-    //m_value_info_dock->setVisible(!isVisible);
-}
-
-
 void MainWindow::gui_options()
 {
     // Modal
@@ -2203,21 +2196,18 @@ void MainWindow::createActions()
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
-    m_toggle_valueinfo_action      = std::make_unique<QAction>(tr("Toggle ValueInfo area"));
 
     m_toggle_treeview_action->setCheckable(true);
     m_toggle_detailpage_action->setCheckable(true);
     m_toggle_eventlog_action->setCheckable(true);
     m_toggle_toolbar_action->setCheckable(true);
     m_toggle_currentitembar_action->setCheckable(true);
-    m_toggle_valueinfo_action->setCheckable(true);
 
     connect(m_toggle_treeview_action.get(), &QAction::triggered, this, &MainWindow::toggle_treeview);
     connect(m_toggle_detailpage_action.get(), &QAction::triggered, this, &MainWindow::toggle_detailpages);
     connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
     connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
     connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
-    connect(m_toggle_valueinfo_action.get(), &QAction::triggered, this, &MainWindow::toggle_valueinfo);
     m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
     m_toggle_treeview_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
@@ -2228,14 +2218,12 @@ void MainWindow::createActions()
     m_toggle_toolbar_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
     m_toggle_currentitembar_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_valueinfo_action->setShortcut(QKeySequence(tr("Alt+5")));
-    m_toggle_valueinfo_action->setShortcutContext(Qt::ApplicationShortcut);
+
     m_view_menu->addAction(m_toggle_treeview_action.get());
     m_view_menu->addAction(m_toggle_detailpage_action.get());
     m_view_menu->addAction(m_toggle_eventlog_action.get());
     m_view_menu->addAction(m_toggle_toolbar_action.get());
     m_view_menu->addAction(m_toggle_currentitembar_action.get());
-    m_view_menu->addAction(m_toggle_valueinfo_action.get());
     connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
 
     // tools menu
