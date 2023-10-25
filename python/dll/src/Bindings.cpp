@@ -121,12 +121,12 @@ namespace py_geodms
 			init();
 		}
 
-		Config(Config&& rhs)
+		Config(Config&& rhs) noexcept
 			: m_root(std::move(rhs.m_root))
 		{
-			MG_CHECK(currSingleConfig == &rhs);
+			assert(currSingleConfig == &rhs);
 			currSingleConfig = this;
-			MG_CHECK(!rhs.m_root);
+			assert(!rhs.m_root);
 		}
 
 		~Config()
@@ -173,8 +173,8 @@ namespace py_geodms
 			::GetModuleFileName((HINSTANCE)&__ImageBase, szPath, _MAX_PATH);
 			auto dll_path = std::filesystem::path(szPath).remove_filename();
 
-			DMS_Shv_Load();
-			SHV_SetAdminMode(true);
+			DMS_Clc_Load();
+			DMS_Geo_Load();
 			DMS_Appl_SetExeDir(dll_path.string().c_str()); // only call once
 		}
 		~Engine()

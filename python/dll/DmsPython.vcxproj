@@ -46,7 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\Include;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\Include;C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\PC;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -54,8 +54,6 @@
       <StackReserveSize Condition="'$(Platform)'=='x64'">67108864</StackReserveSize>
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Maarten Hilferink\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
       <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
     </Link>
@@ -80,11 +78,14 @@
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
       <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\shv\dll\ShvDLL.vcxproj">
-      <Project>{ba9fd377-1ee3-45aa-8a7b-2ac7be68e989}</Project>
+    <ProjectReference Include="..\..\stg\dll\StgDll.vcxproj">
+      <Project>{f77fad2b-615a-47d7-ae87-a6f996d63c12}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
       <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\sym\dll\DmSym.vcxproj">
+      <Project>{6c8c307f-5fe6-4905-a828-1a8e0ae5003d}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
