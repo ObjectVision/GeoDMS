@@ -80,7 +80,7 @@ del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\gdaldata"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\proj4data"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
-if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" pause
+if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" CHOICE /M "Removed C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion% ?"
 
 "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
 
