@@ -308,9 +308,9 @@ MainWindow::~MainWindow()
 DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
     : QLineEdit(parent)
 {
-    //QRegularExpression rx("^[^0-9<>][a-zA-Z0-9_]+$");
-    //auto rx_validator = new QRegularExpressionValidator(rx, this);
-    //setValidator(rx_validator);
+    QRegularExpression rx("^[^0-9=+\\-|&!?><,.{}();\\]\\[][^=+\\-|&!?><,.{}();\\]\\[]+$");
+    auto rx_validator = new QRegularExpressionValidator(rx, this);
+    setValidator(rx_validator);
     setDmsCompleter();
 }
 
@@ -601,10 +601,14 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
     pin_action->setDisabled(true);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
-    
-    auto test_child = main_window->m_file_menu->childAt(pos);
 
-    connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+
+    auto active_action = main_window->m_file_menu->activeAction();
+    auto dms_recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(active_action);
+    if (!dms_recent_file_entry)
+        return;
+
+    connect(remove_action.get(), &QAction::triggered, dms_recent_file_entry, &DmsRecentFileEntry::onDeleteRecentFileEntry);
     recent_file_context_menu->exec(pos);
 }
 
@@ -1366,10 +1370,21 @@ bool MainWindow::CloseConfig()
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
     std::string cfg_name = cfg.data();
-    auto it = std::find(files.begin(), files.end(), cfg_name.c_str());
-    if (it == files.end())
-        return -1;
-    return it - files.begin();
+    //auto pos = std::find(files.begin(), files.end(), cfg_name) - files.begin();
+    UInt32 pos = 0;
+    for (auto& recent_file : files)
+    {
+        if (recent_file.compare(cfg_name) == 0)
+        {
+            return pos;
+        }
+        pos++;
+    }
+    
+    return -1;
+    //if (pos >= files.size())
+    //    return -1;
+    //return pos;
 }
 
 void MainWindow::cleanRecentFilesThatDoNotExist()
@@ -1693,14 +1708,10 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    //auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
-    //new_recent_file_entry->installEventFilter(new_recent_file_entry);
     for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
     {
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
-
-    //auto test_default_widget = new_recent_file_entry->defaultWidget();
 
     m_recent_file_entries.push_back(new_recent_file_entry);
 

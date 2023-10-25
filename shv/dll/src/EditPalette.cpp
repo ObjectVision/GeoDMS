@@ -286,11 +286,14 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 
 	if (m && m_PaletteControl->GetBreakAttr())
 	{
+		bool hasZeroIssue = m && m_SortedUniqueValueCache.first[0].first <= 0 && m_SortedUniqueValueCache.first.back().first >= 0;
 		SubMenu subMenu(med.m_MenuData, "Classify "+m_ThemeAttr->GetDisplayName()); // SUBMENU
 		med.m_MenuData.push_back( MenuItem(SharedStr("Unique Values"),          make_MembFuncCmd(&EditPaletteControl::ClassifyUniqueValues ), this, (m<=maxK)   ?0:MFS_GRAYED) );
+		med.m_MenuData.push_back(MenuItem(SharedStr("Equal Counts non-zero"), make_MembFuncCmd(&EditPaletteControl::ClassifyEqualCount), this, (m > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Counts"),           make_MembFuncCmd(&EditPaletteControl::ClassifyEqualCount   ), this, (m>1)       ?0:MFS_GRAYED) );
+		med.m_MenuData.push_back(MenuItem(SharedStr("Equal Interval non-zero"), make_MembFuncCmd(&EditPaletteControl::ClassifyNZEqualInterval), this, (m > 1 && k > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("Equal Interval"),         make_MembFuncCmd(&EditPaletteControl::ClassifyEqualInterval), this, (m>1 && k>1)?0:MFS_GRAYED) );
-		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher non-zero"),   make_MembFuncCmd(&EditPaletteControl::ClassifyNZJenksFisher), this, (m > k && k > 1) ? 0 : MFS_GRAYED));
+		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher non-zero"),   make_MembFuncCmd(&EditPaletteControl::ClassifyNZJenksFisher), this, (m > k && k > 1 && hasZeroIssue) ? 0 : MFS_GRAYED));
 		med.m_MenuData.push_back( MenuItem(SharedStr("JenksFisher"),            make_MembFuncCmd(&EditPaletteControl::ClassifyCRJenksFisher), this, (m>k && k>1)?0:MFS_GRAYED) );
 		med.m_MenuData.push_back( MenuItem(SharedStr("Logarithminc Intervals"), make_MembFuncCmd(&EditPaletteControl::ClassifyLogInterval  ), this, (m>1 && k>1 && m_SortedUniqueValueCache.first[0].first >= 0)?0:MFS_GRAYED) );
 	}
@@ -424,6 +427,35 @@ void EditPaletteControl::ClassifyEqualCount()
 	FillRampColors(begin_ptr(ba), end_ptr(ba));
 }
 
+void EditPaletteControl::ClassifyNZEqualCount()
+{
+	UpdateCounts();
+
+	UInt32 k = GetNrRequestedClasses();
+	SizeT  n = GetNrElements();
+	SizeT  m = m_SortedUniqueValueCache.first.size();
+	dms_assert(m > 1);
+	MakeMin(k, m);
+	if (k != GetDomain()->GetCount())
+	{
+		m_PaletteControl->CheckCardinalityChangeRights(true);
+		const_cast<AbstrUnit*>(GetDomain())->SetCount(k);
+	}
+	dms_assert(k <= m); // follows from previous if+assignment
+	dms_assert(m <= n); // #unique value (X) <= #X
+	dms_assert(k <= n); // follows from previous asserts
+
+	AbstrDataItem* breakAttr = const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr());
+	dms_assert(breakAttr);
+	dms_assert(breakAttr->HasInterest());
+
+	auto ba = ::ClassifyNZEqualCount(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+
+	ReLabelRanges();
+	UpdateNrClasses();
+	FillRampColors(begin_ptr(ba), end_ptr(ba));
+}
+
 void EditPaletteControl::ClassifyEqualInterval()
 {
 	UpdateCounts();
@@ -441,6 +473,29 @@ void EditPaletteControl::ClassifyEqualInterval()
 	assert(breakAttr->HasInterest());
 
 	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+
+	ReLabelRanges();
+	UpdateNrClasses();
+	FillRampColors(begin_ptr(ba), end_ptr(ba));
+}
+
+void EditPaletteControl::ClassifyNZEqualInterval()
+{
+	UpdateCounts();
+
+	UInt32 k = GetNrRequestedClasses();
+
+	if (k != GetDomain()->GetCount())
+	{
+		m_PaletteControl->CheckCardinalityChangeRights(true);
+		const_cast<AbstrUnit*>(GetDomain())->SetCount(k);
+	}
+
+	AbstrDataItem* breakAttr = const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr());
+	assert(breakAttr);
+	assert(breakAttr->HasInterest());
+
+	auto ba = ::ClassifyNZEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
 
 	ReLabelRanges();
 	UpdateNrClasses();
