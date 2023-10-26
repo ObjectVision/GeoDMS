@@ -108,8 +108,10 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // 
 class CustomEventFilter : public QAbstractNativeEventFilter
 {
     //    Q_OBJECT
-
 public:
+    CustomEventFilter();
+    ~CustomEventFilter();
+
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 
@@ -244,6 +246,17 @@ bool WmCopyData(MSG* copyMsgPtr)
     return SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
 }
 
+CustomEventFilter::CustomEventFilter()
+{
+    reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Createt CustomEventFilter");
+}
+
+CustomEventFilter::~CustomEventFilter()
+{
+    reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Destroy CustomEventFilter");
+}
+
+
 
 bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
 {
@@ -351,10 +364,10 @@ int main_without_SE_handler(int argc, char *argv[])
         CmdLineSetttings settingsFrame;
         garbage_t geoDmsResources; // destruct resources after app completion
 
-        CustomEventFilter navive_event_filter;
-        DmsMouseForwardBackwardEventFilter mouse_forward_backward_event_filter;
+        auto navive_event_filter_on_heap = std::make_unique<CustomEventFilter>();
+        auto mouse_forward_backward_event_filter_on_heap = std::make_unique<DmsMouseForwardBackwardEventFilter>();
 
-        QApplication dms_app(argc, argv);
+        auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
 
         int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
         QString family = QFontDatabase::applicationFontFamilies(id).at(0);
@@ -366,7 +379,7 @@ int main_without_SE_handler(int argc, char *argv[])
         dms_text_font.setBold(true);
         splash->setFont(dms_text_font);
         
-        auto screen_at_mouse_pos = dms_app.screenAt(QCursor::pos());
+        auto screen_at_mouse_pos = dms_app_on_heap->screenAt(QCursor::pos());
         const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
         assert(splash->rect().top () == 0);
         assert(splash->rect().left() == 0);
@@ -377,14 +390,14 @@ int main_without_SE_handler(int argc, char *argv[])
         splash->show();
 
         splash->showMessage("Initialize GeoDMS");
-        geoDmsResources |= init_geodms(dms_app, settingsFrame); // destruct resources after app completion
-        dms_app.installNativeEventFilter(&navive_event_filter);
+        geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
+        dms_app_on_heap->installNativeEventFilter(navive_event_filter_on_heap.get());
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         splash->showMessage("Initialize GeoDMS Gui");
         MainWindow main_window(settingsFrame);
-        dms_app.setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
-        dms_app.installEventFilter(&mouse_forward_backward_event_filter);
+        dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
+        dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
         
         auto tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
@@ -398,7 +411,7 @@ int main_without_SE_handler(int argc, char *argv[])
         splash.reset();
 
         main_window.showMaximized();
-        auto result = dms_app.exec();
+        auto result = dms_app_on_heap->exec();
 
         if (!tsn.empty() && !result)
         {
