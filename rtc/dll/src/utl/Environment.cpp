@@ -244,7 +244,7 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 
 RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
 {
-	dms_assert(! g_ExeDir.empty());
+	assert(! g_ExeDir.empty());
 	return g_ExeDir;
 }
 
@@ -1124,7 +1124,7 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
+		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
 
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }

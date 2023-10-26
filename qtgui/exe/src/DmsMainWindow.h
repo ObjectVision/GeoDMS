@@ -53,7 +53,7 @@ class DmsEventLog;
 class DmsModel;
 class DmsExportWindow;
 class EventLogModel;
-class ValueInfoBrowser;
+struct ValueInfoBrowser;
 
 class DmsCurrentItemBar : public QLineEdit
 {

@@ -99,10 +99,7 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename)
         auto htmlSource = value_info_window_candidate->m_browser->toHtml();
         auto htmlsourceAsUtf8 = htmlSource.toUtf8();
         buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
-        int i = 0;
     }
-
-
 }
 
 void MainWindow::saveValueInfo()
@@ -655,7 +652,6 @@ bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
 
 bool DmsRecentFileEntry::event(QEvent* e)
 {
-    int i = 0;
     return QAction::event(e);
 }
 

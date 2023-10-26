@@ -76,11 +76,12 @@ using treeitem_lock_map = cs_lock_map<SharedTreeItem>;
 
 bool TreeItem::IsEditable() const
 {
-	if (HasCalculator())
-		if (!mc_Calculator || !mc_Calculator->IsDataBlock())
-			return false;
+	if (!mc_Expr.empty())
+		return false;
+	if (mc_Calculator && !mc_Calculator->IsDataBlock())
+		return false;
 
-	return ((!IsLoadable()) || IsStorable()); 
+	return !IsCurrLoadable() || IsCurrStorable();
 }
 
 bool TreeItem::GetIsInstantiated() const
@@ -1279,6 +1280,26 @@ bool TreeItem::IsStorable() const
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
 	const TreeItem* self = this;
 	while (true) 
+	{
+		if (storageReadOnlyPropDefPtr->GetValue(self))
+			return false;
+		if (self == storageParent)
+			return true;
+		self = self->GetTreeParent();
+		assert(self);
+	}
+}
+
+bool TreeItem::IsCurrStorable() const
+{
+	if (!IsDataItem(this) && !IsUnit(this))
+		return false;
+	const TreeItem* storageParent = GetCurrStorageParent(true);
+	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
+		return false;
+	// see if any of the ancestors up to the storageParent has the storageReadOnly property
+	const TreeItem* self = this;
+	while (true)
 	{
 		if (storageReadOnlyPropDefPtr->GetValue(self))
 			return false;

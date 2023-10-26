@@ -632,7 +632,7 @@ redo:
 
 void TableControl::GoHome(bool shift, bool firstActiveCol)
 {
-	dms_assert(m_Rows.IsDefined() == m_Cols.IsDefined());
+	assert(m_Rows.IsDefined() == m_Cols.IsDefined());
 
 	if (!m_Rows.IsDefined())
 	{
@@ -644,8 +644,6 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 	auto activeCol = FirstActiveCol();
 	if (activeCol < NrEntries())
 	{
-//		if (firstActiveCol)
-//			m_Cols.Go(shift,  activeCol);
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);

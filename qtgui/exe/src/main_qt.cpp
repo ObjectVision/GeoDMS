@@ -248,7 +248,7 @@ bool WmCopyData(MSG* copyMsgPtr)
 
 CustomEventFilter::CustomEventFilter()
 {
-    reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Createt CustomEventFilter");
+     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Createt CustomEventFilter");
 }
 
 CustomEventFilter::~CustomEventFilter()
@@ -434,18 +434,28 @@ int main_without_SE_handler(int argc, char *argv[])
         auto msg = catchException(false);
         std::cout << "error          : " << msg->Why() << std::endl;
         std::cout << "context        : " << msg->Why() << std::endl;
-        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR| MB_SYSTEMMODAL);
+        MessageBoxA(nullptr, msg->GetAsText().c_str(), "GeoDms terminates due to an unexpected uncaught exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
     }
     return 9;
 }
 
+void ProcessRequestedCmdLineFeedback(char* argMsg)
+{
+    auto exceptionText = DoubleUnQuoteMiddle(argMsg);
+    MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminates due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
+}
+
 int main(int argc, char* argv[])
 {
+    if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F'))
+    {
+        ProcessRequestedCmdLineFeedback(argv[1] + 2 );
+        return 0;
+    }
+
     DMS_SE_CALL_BEGIN
 
         return main_without_SE_handler(argc, argv);
 
     DMS_SE_CALL_END
-
-    return GetLastExceptionCode();
 }
