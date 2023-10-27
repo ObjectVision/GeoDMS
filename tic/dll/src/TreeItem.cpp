@@ -2898,7 +2898,7 @@ void TreeItem::DoInvalidate() const
 	// =============== invalidate Parts (of cache items)
 	NotifyStateChange(this, NC2_Invalidated);
 
-	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor());
+	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FR_Data));
 }
 
 void TreeItem::SetDataChanged()

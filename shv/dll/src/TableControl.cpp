@@ -136,9 +136,17 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 
 CrdRect SelChangeInvalidatorBase::GetSelRect() const
 {
+	if (!m_TableControl->m_Cols.IsDefined() && m_TableControl->m_Rows.IsDefined())
+	{
+		if (m_TableControl->NrEntries() > 1)
+			m_TableControl->m_Cols = SelRange{ 1, 1, 1 };
+		else
+			m_TableControl->m_Rows = SelRange();
+	}
+
 	dms_assert(m_TableControl);
 	dms_assert(m_TableControl->m_Rows.IsDefined() == m_TableControl->m_Cols.IsDefined());
-	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined())
+	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined() || !m_TableControl->m_Cols.IsDefined())
 		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
 
 	// topleft corner
