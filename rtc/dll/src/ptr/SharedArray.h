@@ -8,7 +8,7 @@
 #include "ptr/SharedBase.h"
 #include "geo/SequenceTraits.h"
 #include "geo/SizeCalculator.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 
 using shared_array_size_t = std::size_t; // different for Win32 and x64
 

@@ -216,9 +216,19 @@ TokenID Object::GetClsID() const
 return cls->GetID();
 }
 
+TokenStr Object::GetName() const
+{
+	return GetID().GetStr();
+}
+
 bool Object::IsKindOf(const Class* cls) const
 {
 	return GetDynamicClass()->IsDerivedFrom(cls);
+}
+
+TokenStr Object::GetXmlClassName() const
+{ 
+	return GetXmlClassID().GetStr(); 
 }
 
 TokenID Object::GetXmlClassID() const

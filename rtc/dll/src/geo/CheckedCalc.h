@@ -34,6 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <boost/utility/enable_if.hpp>
 
 #include "geo/ElemTraits.h"
+#include "mci/ValueWrap.h"
 
 //----------------------------------------------------------------------
 
@@ -45,6 +46,113 @@ template <> struct mul_type<UInt32> { typedef UInt64 type; };
 template <> struct mul_type<Int8 > { typedef Int16 type; };
 template <> struct mul_type<Int16> { typedef Int32 type; };
 template <> struct mul_type<Int32> { typedef Int64 type; };
+
+//----------------------------------------------------------------------
+
+template <IntegralValue T>
+const ValueClass* NextAddIntegral()
+{
+	constexpr auto nrBits = nrbits_of_v<T>;
+	constexpr bool isSigned = is_signed_v<T>;
+	if constexpr (nrBits < 8)
+	{
+		if constexpr (nrBits == 1)
+			return ValueWrap<UInt2>::GetStaticClass();
+		else if constexpr (nrBits == 2)
+			return ValueWrap<UInt4>::GetStaticClass();
+		else
+		{
+			static_assert(nrBits == 4);
+			return ValueWrap<UInt8>::GetStaticClass();
+		}
+	}
+	else
+	{
+		if constexpr (nrBits <= 16)
+		{
+			if constexpr (nrBits == 8)
+				if constexpr (isSigned)
+					return ValueWrap<Int16>::GetStaticClass();
+				else
+					return ValueWrap<UInt16>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 16);
+				if constexpr (isSigned)
+					return ValueWrap<Int32>::GetStaticClass();
+				else
+					return ValueWrap<UInt32>::GetStaticClass();
+			}
+		}
+		else
+		{
+			if constexpr (nrBits == 32)
+				if constexpr (isSigned)
+					return ValueWrap<Int64>::GetStaticClass();
+				else
+					return ValueWrap<UInt64>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 64);
+				return nullptr;
+			}
+		}
+	}
+}
+
+template <IntegralValue T>
+const ValueClass* NextSubIntegral()
+{
+	constexpr auto nrBits = nrbits_of_v<T>;
+	constexpr bool isSigned = is_signed_v<T>;
+	if constexpr (nrBits < 8)
+	{
+		if constexpr (nrBits == 1)
+			return ValueWrap<UInt2>::GetStaticClass();
+		else if constexpr (nrBits == 2)
+			return ValueWrap<UInt4>::GetStaticClass();
+		else
+		{
+			static_assert(nrBits == 4);
+			return ValueWrap<UInt8>::GetStaticClass();
+		}
+	}
+	else
+	{
+		if constexpr (nrBits <= 16)
+		{
+			if constexpr (nrBits == 8)
+				if constexpr (isSigned)
+					return ValueWrap<Int16>::GetStaticClass();
+				else
+					return ValueWrap<Int8>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 16);
+				if constexpr (isSigned)
+					return ValueWrap<Int32>::GetStaticClass();
+				else
+					return ValueWrap<Int16>::GetStaticClass();
+			}
+		}
+		else
+		{
+			if constexpr (nrBits == 32)
+				if constexpr (isSigned)
+					return ValueWrap<Int64>::GetStaticClass();
+				else
+					return ValueWrap<Int32>::GetStaticClass();
+			else
+			{
+				static_assert(nrBits == 64);
+				if constexpr (isSigned)
+					return nullptr;
+				else
+					return ValueWrap<Int64>::GetStaticClass();
+			}
+		}
+	}
+}
 
 //----------------------------------------------------------------------
 

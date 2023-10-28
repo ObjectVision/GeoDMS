@@ -31,12 +31,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 
-#include "dbg/check.h"
+#include "dbg/Check.h"
 #include "geo/mpf.h"
 #include "geo/Undefined.h"
 #include "mem/FixedAlloc.h"
 #include "ptr/IterCast.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 #include "utl/swap.h"
 
 #include <vector>

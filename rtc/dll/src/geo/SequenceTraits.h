@@ -250,13 +250,13 @@ struct difftype_of_iterator
 template <typename Iter>
 struct ref_type_of_iterator
 {
-	typedef typename Iter::reference type;
+	using type = typename Iter::reference;
 };
 
 template <typename T>
 struct ref_type_of_iterator<T*>
 {
-	typedef T& type;
+	using type = T&;
 };
 
 //=======================================

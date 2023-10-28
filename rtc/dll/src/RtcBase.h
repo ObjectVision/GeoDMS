@@ -72,7 +72,14 @@ struct bit_sequence;
 // C style Interface DLL export support 
 //----------------------------------------------------------------------
 
-#define DMS_CONV __cdecl
+#if defined(_MSC_VER)
+#	define DMS_CONV __cdecl
+#else
+#	define DMS_CONV
+#	undef DMRTC_EXPORTS
+#	define DMRTC_STATIC
+#endif
+
 #if defined(DMRTC_EXPORTS)
 #	define RTC_CALL __declspec(dllexport)
 #else
@@ -296,8 +303,6 @@ struct TileBase;
 using TileRef = SharedPtr < SharedObj >;
 using TileCRef = SharedPtr < const SharedObj >;
 
-#include <boost/mpl/identity.hpp>
-
 //----------------------------------------------------------------------
 // metafunc : pointer_traits
 //----------------------------------------------------------------------
@@ -336,7 +341,7 @@ namespace std
 }
 
 
-extern RTC_CALL bool g_IsTerminating;
+extern bool RTC_CALL g_IsTerminating;
 
 
 #endif // __RTC_CALL_H

@@ -55,16 +55,23 @@ granted by an additional written contract for support, assistance and/or develop
 //inline Float80 QNaN_Value(const Float80*)  { char ldNan[10] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F } return  *(long double*) ldNan }
 
 inline constexpr Void    UndefinedValue(const Void*)    { return Void(); }
+
+#if defined(_MSC_VER)
 inline constexpr UInt64  UndefinedValue(const UInt64*)  { return 0xFFFFFFFFFFFFFFFFui64; }  // 2^64-1 = 4294967295
-inline constexpr UInt32  UndefinedValue(const UInt32*)  { return 0xFFFFFFFF; }  // 2^32-1 = 4294967295
-inline constexpr Int32   UndefinedValue(const long*)    { return 0x80000000; }
+inline constexpr Int64   UndefinedValue(const Int64*) { return 0x8000000000000000i64; }
+inline constexpr Int32   UndefinedValue(const long*) { return 0x80000000; }
 inline constexpr UInt32  UndefinedValue(const unsigned long*) { return 0xFFFFFFFF; }
+#else
+inline constexpr UInt64  UndefinedValue(const UInt64*) { return 0xFFFFFFFFFFFFFFFFul; }  // 2^64-1 = 4294967295
+inline constexpr Int64   UndefinedValue(const Int64*) { return 0x8000000000000000l; }
+#endif
+
+inline constexpr UInt32  UndefinedValue(const UInt32*)  { return 0xFFFFFFFF; }  // 2^32-1 = 4294967295
 inline constexpr UInt16  UndefinedValue(const UInt16*)  { return 0xFFFF; }      // 2^16-1 = 65535
 inline constexpr UInt8   UndefinedValue(const UInt8*)   { return 0xFF; }        // 2^08-1 =  255
 inline constexpr Int8    UndefinedValue(const Int8*)    { return Int8(0x80); }  // 2^07   = -128
 
 inline constexpr Int32   UndefinedValue(const Int32*)   { return 0x80000000; }
-inline constexpr Int64   UndefinedValue(const Int64*)   { return 0x8000000000000000i64; }
 inline constexpr Int16   UndefinedValue(const Int16*)   { return Int16(0x8000); }
 inline constexpr Float32 UndefinedValue(const Float32*) { return std::numeric_limits<Float32>::quiet_NaN(); }
 inline constexpr Float64 UndefinedValue(const Float64*) { return std::numeric_limits<Float64>::quiet_NaN(); }
@@ -80,7 +87,11 @@ template <>           struct has_max_as_null< UInt16> : std::true_type {};
 template <>           struct has_max_as_null< UInt8 > : std::true_type {};
 
 template <typename T> struct has_min_as_null: std::false_type {};
+
+#if defined(_MSC_VER)
 template <>           struct has_min_as_null< long > : std::true_type {};
+#endif //defined(_MSC_VER)
+
 template <>           struct has_min_as_null< Int64> : std::true_type {};
 template <>           struct has_min_as_null< Int32> : std::true_type {};
 template <>           struct has_min_as_null< Int16> : std::true_type {};
@@ -171,8 +182,13 @@ const UInt32 F32_EXP_FLAGS = 0xFF << 23;
 const UInt32 F32_SGN_FLAG = 1 << 31;
 
 // https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+#if defined(_MSC_VER)
 const UInt64 F64_EXP_FLAGS = 0x7FFui64 << 52;
 const UInt64 F64_SGN_FLAG = 1ui64 << 63;
+#else
+const UInt64 F64_EXP_FLAGS = 0x7FFul << 52;
+const UInt64 F64_SGN_FLAG = 1ul << 63;
+#endif
 
 inline bool IsDefined(Float32 v)
 {

@@ -220,7 +220,11 @@ template <typename T> using signed_type_t = typename signed_type<T>::type;
 
 template <typename T> struct unsigned_type            { typedef T     type; };
 template <>           struct unsigned_type<Int32>     { typedef UInt32 type; };
+
+#if defined(_MSC_VER)
 template <>           struct unsigned_type<long>      { typedef unsigned long type; };
+#endif
+
 //template <>         struct unsigned_type<long long> { typedef unsigned long long type; }; equals Int64 == __int64
 template <>           struct unsigned_type<Int64>     { typedef UInt64 type; };
 template <>           struct unsigned_type<Int16>     { typedef UInt16 type; };

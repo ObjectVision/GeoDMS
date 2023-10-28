@@ -8,7 +8,7 @@
 #define __RTC_PTR_SHAREDCHARARRAY_H
 
 #include "geo/BaseBounds.h"
-#include "geo/IterRangeFuncs.h"
+#include "geo/iterrangefuncs.h"
 #include "geo/StringBounds.h"
 #include "geo/Undefined.h"
 #include "ptr/IterCast.h"
@@ -329,7 +329,7 @@ SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
 //RTC_CALL SharedStr SequenceArrayString();
 //RTC_CALL SharedStr IndexedString();
 
-#endif defined(MG_DEBUG_ALLOCATOR)
+#endif //defined(MG_DEBUG_ALLOCATOR)
 
 //----------------------------------------------------------------------
 // StreamableDataTime

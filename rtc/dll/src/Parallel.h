@@ -5,8 +5,8 @@
 
 #include "dbg/Check.h"
 
-#include <concrt.h>
-#include <ppl.h>
+// REMOVE #include <concrt.h>
+// REMOVE #include <ppl.h>
 #include <thread>
 #include <mutex>
 #include <shared_mutex>

@@ -8,7 +8,7 @@
 #define __RTC_SER_FORMATTEDSTREAM_H
 
 #include "ser/BaseStreamBuff.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "ptr/StaticPtr.h"
 #include "utl/instantiate.h"

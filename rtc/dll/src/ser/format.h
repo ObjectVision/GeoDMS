@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include <boost/format.hpp>
-#include "cpc/types.h"
+#include "cpc/Types.h"
 
 //----------------------------------------------------------------------
 // format usage
