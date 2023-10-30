@@ -289,7 +289,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return getTreeItemColor(index);
 
 	case Qt::BackgroundRole:
-		if (ti->WasFailed() && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+		if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
 			                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0)==index)
 		{
 				return QColor(255, 87, 51);
