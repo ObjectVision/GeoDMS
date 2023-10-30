@@ -73,10 +73,12 @@
     <ClInclude Include="src\dbg\Timer.h" />
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\geo\BoostPolygon.h" />
+    <ClInclude Include="src\geo\CharPtrRange.h" />
     <ClInclude Include="src\geo\CheckedCalc.h" />
     <ClInclude Include="src\geo\DataPtrTraits.h" />
     <ClInclude Include="src\geo\heapelem.h" />
     <ClInclude Include="src\geo\IsNotUndef.h" />
+    <ClInclude Include="src\geo\IterTraits.h" />
     <ClInclude Include="src\geo\neighbouriter.h" />
     <ClInclude Include="src\geo\PointIndexBuffer.h" />
     <ClInclude Include="src\geo\Undef_xx.h" />
@@ -165,6 +167,7 @@
     <ClInclude Include="src\ser\ReadValue.h" />
     <ClInclude Include="src\set\DataCompare.h" />
     <ClInclude Include="src\set\IndexCompare.h" />
+    <ClInclude Include="src\throwItemError.h" />
     <ClInclude Include="src\utl\Encodes.h" />
     <ClInclude Include="src\utl\MemGuard.h" />
     <ClInclude Include="src\utl\scoped_exit.h" />

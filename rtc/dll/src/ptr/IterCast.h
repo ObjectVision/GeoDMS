@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "cpc/CompChar.h"
 #include "dbg/Check.h"
-#include "geo/SequenceTraits.h"
+//#include "geo/SequenceTraits.h"
 
 //=======================================
 // conversion of container range to dumb pointers 

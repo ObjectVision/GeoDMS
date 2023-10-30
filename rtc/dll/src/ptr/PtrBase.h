@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 #include "dbg/Check.h"
-#include "geo/SequenceTraits.h"
+//#include "geo/SequenceTraits.h"
 #include "set/BitVector.h"
 
 //  -----------------------------------------------------------------------

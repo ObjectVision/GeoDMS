@@ -7,6 +7,7 @@
 #if !defined(__RTC_GEO_CHARPTRRANGE_H)
 #define __RTC_GEO_CHARPTRRANGE_H
 
+#include "cpc/Types.h"
 #include "geo/iterrange.h"
 
 struct CharPtrRange : IterRange<CharPtr> {

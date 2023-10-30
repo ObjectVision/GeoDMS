@@ -11,6 +11,7 @@
 #include "geo/IterTraits.h"
 #include "geo/StringBounds.h"
 #include "ptr/IterCast.h"
+#include "geo/SequenceTraits.h"
 
 // REMOVE ? #include <xutility>
 

@@ -852,6 +852,9 @@
     <ClInclude Include="src\geo\IsNotUndef.h" />
     <ClInclude Include="src\ASync.h" />
     <ClInclude Include="src\RtcGeneratedVersion.h" />
+    <ClInclude Include="src\throwItemError.h" />
+    <ClInclude Include="src\geo\CharPtrRange.h" />
+    <ClInclude Include="src\geo\IterTraits.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">
