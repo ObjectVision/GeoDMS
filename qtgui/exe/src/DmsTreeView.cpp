@@ -289,8 +289,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return getTreeItemColor(index);
 
 	case Qt::BackgroundRole:
+		if (ti->WasFailed() && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+			                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0)==index)
+		{
+				return QColor(255, 87, 51);
+		}
+
 		if (ti->WasFailed())
 			return QColor(255, 00, 00);
+
 		switch (TreeItem_GetSupplierLevel(ti))
 		{
 		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
