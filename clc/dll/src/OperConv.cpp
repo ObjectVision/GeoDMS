@@ -3,13 +3,21 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
+#if defined(_MSC_VER)
+#pragma hdrstop
+#endif
+
+#include "geo/CheckedCalc.h"
 #include "geo/Conversions.h"
 #include "geo/StringArray.h"
 #include "geo/PointOrder.h"
 #include "geo/GeoSequence.h"
 #include "mci/CompositeCast.h"
+#include "ser/AsString.h"
+#include "ser/StringStream.h"
+#include "ser/SequenceArrayStream.h"
+#include "ser/RangeStream.h"
 #include "set/VectorFunc.h"
 #include "stg/AbstrStorageManager.h"
 #include "utl/Environment.h"

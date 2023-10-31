@@ -29,7 +29,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "geo/BaseBounds.h"
 

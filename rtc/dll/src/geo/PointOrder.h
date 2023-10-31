@@ -21,14 +21,12 @@ template <typename P> struct sequence_traits;
 // various defines
 //----------------------------------------------------------------------
 
-struct colrow_order_tag { enum { col_first = true  }; };
-struct rowcol_order_tag { enum { col_first = false }; };
+struct colrow_order_tag { static constexpr bool col_first = true; };
+struct rowcol_order_tag { static constexpr bool col_first = false; };
 
 template <typename Tag1, typename Tag2> struct must_swap
 {
-	enum { 
-		value = (Tag1::col_first != Tag2::col_first) 
-	};
+	static constexpr bool value = (Tag1::col_first != Tag2::col_first);
 };
 
 #if defined(DMS_POINT_ROWCOL)
@@ -78,7 +76,7 @@ template <> struct reorder_functor<true>
 	}
 };
 
-typedef reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value > shp_reorder_functor;
+using shp_reorder_functor = reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value >;
 
 
 template <typename  F>

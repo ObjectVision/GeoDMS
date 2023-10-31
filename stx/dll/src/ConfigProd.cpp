@@ -610,5 +610,5 @@ void ConfigProd::throwSemanticError(CharPtr msg)
 	while (!curr && i--)
 		curr = m_stackContexts[i];
 
-	Object::throwItemErrorF(curr, "Semantic error %s", msg);
+	throwItemErrorF(curr, "Semantic error %s", msg);
 }

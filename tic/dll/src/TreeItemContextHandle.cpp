@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h" 
+#include "utl/mySPrintF.h" 
 
 //----------------------------------------------------------------------
 // class  : TreeItemContextHandle

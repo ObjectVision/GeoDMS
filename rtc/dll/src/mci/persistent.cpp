@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "PropDefInterface.h"
 
@@ -452,17 +455,17 @@ SharedStr PersistentSharedObj::GetSourceName() const
 		);
 }
 
-void Object::throwItemError(ErrMsgPtr msg)
+void throwItemError(ErrMsgPtr msg)
 {
 	DmsException::throwMsg(msg);
 }
 
-void Object::throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
+void throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
 { 
 	throwItemError(std::make_shared<ErrMsg>( msgStr, self ) ); 
 }
 
-void  Object::throwItemError(const PersistentSharedObj* self, CharPtr msg)
+void throwItemError(const PersistentSharedObj* self, CharPtr msg)
 {
 	throwItemError(self, SharedStr(msg));
 }

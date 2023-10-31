@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "OperAccUniNum.h"
 

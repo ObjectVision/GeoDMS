@@ -168,7 +168,7 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 				if (candidate && IsNewItem(candidate, doneItems))
 					f(candidate);
 			}
-			catch (const concurrency::task_canceled&)
+			catch (const task_canceled&)
 			{
 				throw;
 			}

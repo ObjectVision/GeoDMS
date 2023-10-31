@@ -27,10 +27,17 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 
+#if defined(WIN32)
 #include <windows.h>
+#else
+
+#endif
 
 #include "LockLevels.h"
 #include "Parallel.h"
@@ -57,6 +64,8 @@ dms_thread_id GetThreadID()
 	return sThreadID;
 }
 
+#if defined(WIN32)
+
 void SetPriority()
 {
 	HANDLE currThread = GetCurrentThread();
@@ -65,6 +74,22 @@ void SetPriority()
 		SetThreadPriority(sPriorityThread, THREAD_PRIORITY_NORMAL);
 	sPriorityThread = currThread;
 }
+
+bool IsElevatedThread()
+{
+	return GetThreadPriority(GetCurrentThread()) >= THREAD_PRIORITY_ABOVE_NORMAL;
+}
+
+#else
+
+void SetPriority() {}
+
+bool IsElevatedThread()
+{
+	return false;
+}
+
+#endif
 
 void SetMainThreadID()
 {
@@ -96,11 +121,6 @@ bool IsMetaThread()
 bool NoOtherThreadsStarted()
 {
 	return IsMainThread() && (sThreadID == 1);
-}
-
-bool IsElevatedThread()
-{
-	return GetThreadPriority(GetCurrentThread()) >= THREAD_PRIORITY_ABOVE_NORMAL;
 }
 
 std::vector < std::function<void()>>  s_OperQueue;
@@ -166,9 +186,21 @@ std::atomic<UInt32>& throttle_counter()
 }
 
 
+#if defined(WIN32)
 #include <concrtrm.h>
 
 UInt32 GetNrVCPUs()
 {
 	return concurrency::GetProcessorCount();
 }
+
+#else
+
+UInt32 GetNrVCPUs()
+{
+	auto nrVCPUs = std::thread::hardware_concurrency();
+	if (nrVCPUs < 1)
+		return 1;
+	return nrVCPUs;
+}
+#endif

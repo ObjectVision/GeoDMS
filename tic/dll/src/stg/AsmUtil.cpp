@@ -29,7 +29,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TicPCH.h"
 #pragma hdrstop
 
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
 #include "stg/StorageInterface.h"
 

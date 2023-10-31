@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "dbg/DmsCatch.h"
 #include "xml/XMLOut.h"

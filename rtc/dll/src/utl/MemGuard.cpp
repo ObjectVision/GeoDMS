@@ -1,45 +1,27 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "act/MainThread.h"
 #include "dbg/SeverityType.h"
 #include "mem/FixedAlloc.h"
 #include "utl/MemGuard.h"
 #include "utl/Environment.h"
+
+#if defined(WIN32)
 #include <windows.h>
 #include <psapi.h>
+#endif
 
 using percentage_type = UInt32;
 
+#if defined(WIN32)
 struct memory_info {
 	memory_info() {
 		memStat.dwLength = sizeof(MEMORYSTATUSEX);
@@ -89,8 +71,12 @@ bool IsLowOnFreeRAM() {
 }
 
 std::atomic<SizeT> s_CumulativeMemoryAllocCount = 0;
+
+#endif //defined(WIN32)
+
 void ConsiderMakingFreeSpace(SizeT sz)
 {
+#if defined(WIN32)
 	s_CumulativeMemoryAllocCount += sz;
 	if (s_CumulativeMemoryAllocCount >= 100000000) // only check for clean-up after 100MB of cumulative allocation
 	{
@@ -111,6 +97,7 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			, true);
 		}
 	}
+#endif //defined(WIN32)
 }
 
 const UInt32 minWaitTime   =  100; // milliseconds

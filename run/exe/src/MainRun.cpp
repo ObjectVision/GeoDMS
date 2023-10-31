@@ -13,6 +13,7 @@
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
+#include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"

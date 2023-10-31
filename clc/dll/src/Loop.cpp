@@ -30,7 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ClcPCH.h"
 #pragma hdrstop
 
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 
 #include "AbstrUnit.h"
 #include "CopyTreeContext.h"

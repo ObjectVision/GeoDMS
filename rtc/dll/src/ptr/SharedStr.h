@@ -18,17 +18,50 @@
 #include "ser/format.h"
 
 struct TokenID;
+struct CharPtrRange;
+struct MutableCharPtrRange;
 
 //----------------------------------------------------------------------
 // Section      : String compare functions that override std::lexicographical_compare
 //----------------------------------------------------------------------
+#if !defined(_MSC_VER)
+
+#include <cctype>
+
+inline int strncmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
+{
+	for (; maxCount; ++lhs, ++rhs, --maxCount)
+	{
+		char lhsCh = *lhs, rhsCh = *rhs;
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
+inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
+{
+	for (; maxCount; ++lhs, ++rhs, --maxCount)
+	{
+		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
+#endif
 
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 
-		sz1 = l1-f1, 
-		sz2 = l2-f2;
-	UInt32 szMin = Min<UInt32>(sz1, sz2);
+	auto sz1 = l1-f1, sz2 = l2-f2;
+	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
 		int cmpRes = strncmp(f1, f2,  szMin );
@@ -40,10 +73,8 @@ inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 
 inline bool lex_compare_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 
-		sz1 = l1-f1, 
-		sz2 = l2-f2;
-	UInt32 szMin = Min<UInt32>(sz1, sz2);
+	auto sz1 = l1-f1, sz2 = l2-f2;
+	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
 		int cmpRes = strnicmp(f1, f2,  szMin );
@@ -74,7 +105,6 @@ inline bool lex_compare<CharPtr, CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, Ch
 {
 	return lex_compare_cs(f1, l1, f2, l2);
 }
-
 
 inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
@@ -155,7 +185,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	RTC_CALL bool operator ==(CharPtr b) const;
 	RTC_CALL bool operator !=(CharPtr b) const;
 
-	CharPtrRange AsRange() const  { return has_ptr() ? CharPtrRange(get_ptr()->begin(), get_ptr()->end()-1) : CharPtrRange(); }
+	RTC_CALL CharPtrRange AsRange() const;
 
 	void swap(SharedCharArrayPtr& oth) { WeakPtrWrap::swap(oth); }
 };
@@ -165,7 +195,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 struct WeakStr: WeakPtrWrap<SharedCharArrayPtr>
 {
 	WeakStr(const SharedStr& str);
-	operator CharPtrRange() const { return { begin(), send() }; }
+	RTC_CALL operator CharPtrRange() const;
 };
 
 //----------------------------------------------------------------------
@@ -188,9 +218,9 @@ public:
 	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1) ){ dms_assert(!str[N-1]); }
 	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1)) { dms_assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
-	explicit SharedStr(MutableCharPtrRange range): base_type(SharedCharArray_Create(range.begin(), range.end()) ){}
-	explicit SharedStr(CharPtrRange range)       : base_type(SharedCharArray_Create(range.begin(), range.end()) ){}
-	explicit SharedStr(const Undefined&)         : base_type(SharedCharArray_CreateUndefined() ) {}
+	explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
+	RTC_CALL explicit SharedStr(MutableCharPtrRange range);
+	RTC_CALL explicit SharedStr(CharPtrRange range);
 	RTC_CALL explicit SharedStr(TokenID id);
 	RTC_CALL explicit SharedStr(const struct TokenStr& str);
 	RTC_CALL SharedStr(const SA_ConstReference<char>& range);
@@ -207,7 +237,7 @@ public:
 
 	SharedStr& operator = (const SharedStr&) = default;
 
-	operator CharPtrRange() const { return AsRange(); }
+	RTC_CALL operator CharPtrRange() const;
 
 	RTC_CALL void clear();
 
@@ -230,7 +260,7 @@ public:
 	RTC_CALL void insert(SizeT pos, char ch);
 	RTC_CALL SharedStr replace(CharPtr key, CharPtr val) const;
 
-	MutableCharPtrRange GetAsMutableRange() { MakeUnique(); return MutableCharPtrRange(const_cast<char*>(begin()), const_cast<char*>(send())); }
+	RTC_CALL MutableCharPtrRange GetAsMutableRange();
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz);

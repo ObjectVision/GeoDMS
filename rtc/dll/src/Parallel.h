@@ -5,11 +5,21 @@
 
 #include "dbg/Check.h"
 
-// REMOVE #include <concrt.h>
-// REMOVE #include <ppl.h>
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
+
+#if defined(WIN32)
+
+#include "pplinterface.h"
+using task_canceled = Concurrency::task_canceled;
+
+#else
+
+struct task_canceled : std::exception
+{};
+
+#endif
 
 #define THREAD_LOCAL thread_local
 

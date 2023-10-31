@@ -62,14 +62,14 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	{
 		fast_undefine(begin(), begin() + sz);
 	}
-
+/*
 	OwningPtrSizedArray(const_pointer first, const_pointer last MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: OwningPtrSizedArray(last - first MG_DEBUG_ALLOCATOR_SRC_PARAM)
-		, m_Size(last - first)
 	{
+//		m_Size = last - first;
 		fast_copy(first, last, begin());
 	}
-
+*/
 	OwningPtrSizedArray(OwningPtrSizedArray&& oth) noexcept
 	{
 		swap(oth);

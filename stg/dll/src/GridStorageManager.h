@@ -10,6 +10,8 @@
 #include "StgBase.h"
 #include <optional>
 
+#include "geo/Conversions.h"
+#include "geo/Round.h"
 #include "geo/undef_xx.h"
 #include "mci/ValueClass.h"
 #include "mem/grid.h"

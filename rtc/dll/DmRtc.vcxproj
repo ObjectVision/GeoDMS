@@ -164,6 +164,7 @@
     <ClInclude Include="src\RtcGeneratedVersion.h" />
     <ClInclude Include="src\ser\DebugOutStream.h" />
     <ClInclude Include="src\ser\format.h" />
+    <ClInclude Include="src\ser\FormattingFlags.h" />
     <ClInclude Include="src\ser\ReadValue.h" />
     <ClInclude Include="src\set\DataCompare.h" />
     <ClInclude Include="src\set\IndexCompare.h" />
@@ -332,10 +333,12 @@
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
     <ClCompile Include="src\dbg\DebugStream.cpp" />
+    <ClCompile Include="src\geo\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\ptr\SharedObjBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
+    <ClCompile Include="src\ser\AsString.cpp" />
     <ClCompile Include="src\utl\encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
     <ClCompile Include="src\utl\SourceLocation.cpp" />

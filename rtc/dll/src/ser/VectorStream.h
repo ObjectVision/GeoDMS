@@ -36,6 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/SequenceTraits.h"
 #include "geo/Undefined.h"
 #include "ptr/IterCast.h"
+#include "ser/FormattedStream.h"
+#include "ser/PolyStream.h"
 #include "ser/StreamTraits.h"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"

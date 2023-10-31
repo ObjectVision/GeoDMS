@@ -51,12 +51,14 @@ void setbits(Block& lhs, Block mask, Block values)
 template <typename T>
 struct raw_constructed : std::is_trivially_constructible<T> {};
 
-
 template <typename T, typename U> struct raw_constructed<Pair<T, U>> : std::bool_constant<raw_constructed<T>::value&& raw_constructed<U>::value> {};
 template <bit_size_t N> struct raw_constructed<bit_value<N>> : std::true_type {};
 template <typename T> struct raw_constructed<Couple<T> > : raw_constructed<T> {};
 template <typename T> struct raw_constructed<Point<T> > : raw_constructed<T> {};
 template <typename T> struct raw_constructed<Range<T> > : raw_constructed<T> {};
+
+template <typename T>
+constexpr bool raw_constructed_v = raw_constructed<T>::value;
 
 template <typename T> struct raw_destructed : std::is_trivially_destructible<T> {};
 
@@ -531,7 +533,7 @@ fast_fill(Iter first, Iter last, U value)
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 	static_assert(!is_bitvalue_v<U>);
 	static_assert(!is_bitvalue_v<T>);
 
@@ -606,7 +608,7 @@ template <typename Iter, typename U> inline
 typename std::enable_if< !raw_copyable< typename std::iterator_traits<Iter>::value_type >::value >::type
 raw_fill(Iter first, Iter last, U value)
 {
-	typedef std::iterator_traits<Iter>::value_type T;
+	using T = typename std::iterator_traits<Iter>::value_type;
 
 	std::allocator<T> alloc;
 	for (; first != last; ++first)
@@ -623,7 +625,7 @@ template <typename Iter> inline
 void
 fast_zero(Iter first, Iter last)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 
 #if defined(MG_DEBUG_RANGEFUNCS)
 	static_assert(!is_bitvalue_v<T>);
@@ -674,7 +676,7 @@ fast_zero_obj(T& obj)
 template <typename Iter> inline
 void fast_undefine(Iter first, Iter last)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 	fast_fill(first, last, UNDEFINED_OR_ZERO(T));
 }
 
@@ -699,7 +701,7 @@ template <typename Iter, typename BT> inline
 void
 undefine_if_not(Iter first, Iter last, bit_iterator<1, BT> selIter)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 
 	while (first != last) // && selIter.nr_elem())
 	{
@@ -718,7 +720,7 @@ undefine_if_not(Iter first, Iter last, bit_iterator<1, BT> selIter)
 template <typename Iter> inline
 void raw_construct(Iter first, Iter last)
 {
-	typedef std::iterator_traits<Iter>::value_type T;
+	using T = typename std::iterator_traits<Iter>::value_type;
 
 	for (; first != last; ++first)
 		new (first) T();
@@ -726,28 +728,28 @@ void raw_construct(Iter first, Iter last)
 
 
 template <typename Iter> inline
-typename boost::enable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_init(Iter first, Iter last)
 {
 	fast_zero(first, last);
 }
 
 template <typename Iter> inline
-typename boost::disable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< !raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_init(Iter first, Iter last)
 {
 	raw_construct(first, last);
 }
 
 template <typename Iter> inline
-typename boost::enable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_awake(Iter first, Iter last)
 {
 	// NOP
 }
 
 template <typename Iter> inline
-typename boost::disable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< ! raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_awake(Iter first, Iter last)
 {
 	raw_construct(first, last);

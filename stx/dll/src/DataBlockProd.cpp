@@ -148,7 +148,7 @@ void DataBlockProd::Commit()
 
 void DataBlockProd::throwSemanticError(CharPtr msg)
 {
-	Object::throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
+	throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
 }
 
 // ============================= ConfigProd
@@ -160,7 +160,6 @@ void ConfigProd::DoArrayAssignment()
 {
 	m_nIndexValue++;
 }
-
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 {

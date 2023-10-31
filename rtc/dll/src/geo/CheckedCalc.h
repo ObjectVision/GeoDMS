@@ -1,40 +1,45 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __RTC_GEO_CHECKEDCALC_H
 #define __RTC_GEO_CHECKEDCALC_H
 
-#include <boost/utility/enable_if.hpp>
-
+#include "dbg/Check.h"
 #include "geo/ElemTraits.h"
+#include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
+#include "ser/AsString.h"
+
+// *****************************************************************************
+//						ELEMENTARY BINARY FUNCTORS
+// *****************************************************************************
+
+template <typename T>
+[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, bool suggestAlternative, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
+{
+	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
+	SharedStr acName;
+	if (alternativeValueClass)
+		acName = AsString(alternativeValueClass->GetID());
+
+	auto primaryMsg = mySSPrintF("Numeric overflow when %1% %2% values %3% %4% %5%."
+		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
+	);
+
+	if (!suggestAlternative)
+		throwDmsErrD(primaryMsg.c_str());
+
+	throwDmsErrF("%1%"
+		"\nConsider using %2% if your model deals with overflow as null values%3%%4%."
+		, primaryMsg
+		, alternativeFunc
+		, alternativeValueClass ? " or consider converting the arguments to " : ""
+		, alternativeValueClass ? acName.c_str() : ""
+	);
+}
 
 //----------------------------------------------------------------------
 
@@ -157,7 +162,7 @@ const ValueClass* NextSubIntegral()
 //----------------------------------------------------------------------
 
 template <typename T> 
-typename boost::disable_if<is_signed<T>, T >::type
+typename std::enable_if<! is_signed_v<T>, T >::type
 CheckedAdd(T a, T b)
 {
 	assert(a>=0);
@@ -172,11 +177,16 @@ CheckedAdd(T a, T b)
 template <typename T> T
 CheckedMul(T a,T b, bool suggestAlternative)
 {
-	typename mul_type<T>::type r = a;
-	r *= b;
-	if (r != T(r))
-		throwOverflow("multiplying", a, "and", b, suggestAlternative, "mul_or_null", NextAddIntegral<T>());
-	return r;
+	if constexpr (is_integral_v<T>)
+	{
+		typename mul_type<T>::type r = a;
+		r *= b;
+		if (r != T(r))
+			throwOverflow("multiplying", a, "and", b, suggestAlternative, "mul_or_null", NextAddIntegral<T>());
+		return r;
+	}
+	else
+		return a * b;
 }
 
 template <>
@@ -196,5 +206,45 @@ inline Int64 CheckedMul<Int64>(Int64 a, Int64 b, bool suggestAlternative)
 		throwDmsErrD("Overflow in multiplication");
 	return res;
 }
+
+//----------------------------------------------------------------------
+// Section      : Geometric operators
+//----------------------------------------------------------------------
+
+template <class T> inline
+SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second), false); }
+
+template <class T> inline
+product_type_t<T> Area(const Point<T>& v)
+{
+	return CheckedMul< product_type_t<T>>(v.first, v.second, false);
+}
+
+template <class T> inline
+SizeT
+Cardinality(Range<T> r)
+{
+	return IsDefined(r)
+		? r.empty()
+		? 0
+		: Cardinality(Size(r))
+		: UNDEFINED_VALUE(SizeT);
+}
+
+template <> inline
+SizeT
+Cardinality(Range<Void>) { return 1; }
+
+template <class T> inline
+typename product_type<T>::type
+Area(Range<Point<T> > r)
+{
+	return IsDefined(r)
+		? r.empty()
+		? 0
+		: Area(Size(r))
+		: UNDEFINED_VALUE(typename product_type<T>::type);
+}
+
 
 #endif // __RTC_GEO_CHECKEDCALC_H

@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #define BOOST_PROPERTY_TREE_RAPIDXML_STATIC_POOL_SIZE 8*1024
 

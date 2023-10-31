@@ -7,23 +7,12 @@
 #if !defined(__RTC_SER_FORMATTEDSTREAM_H)
 #define __RTC_SER_FORMATTEDSTREAM_H
 
+#include "ser/FormattingFlags.h"
 #include "ser/BaseStreamBuff.h"
 #include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "ptr/StaticPtr.h"
-#include "utl/instantiate.h"
-
-//----------------------------------------------------------------------
-// FormattingFlags
-//----------------------------------------------------------------------
-
-enum class FormattingFlags {
-	None = 0,
-	ThousandSeparator = 1
-};
-
-inline bool HasThousandSeparator(FormattingFlags ff) { return UInt32(ff) & UInt32(FormattingFlags::ThousandSeparator);  }
-
+#include "utl/Instantiate.h"
 
 // *****************************************************************************
 // Section:     FormattedOutStream

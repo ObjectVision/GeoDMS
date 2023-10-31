@@ -67,7 +67,7 @@ typename std::iterator_traits<typename Container::const_iterator>::pointer  begi
 { 
 #if defined(CC_ITERATOR_CHECKED)
 	if (data.empty())
-		return std::iterator_traits<typename Container::const_iterator>::pointer();
+		return {};
 	return &*data.begin(); 
 #else
 	return data.begin(); // we don't allow Container::iterator to be silently smart 
@@ -78,7 +78,7 @@ typename std::iterator_traits<typename Container::const_iterator>::pointer  end_
 {
 #if defined(CC_ITERATOR_CHECKED)
 	if (data.empty())
-		return std::iterator_traits<typename Container::const_iterator>::pointer();
+		return {};
 	return (&(data.end()[-1]))+1; 
 #else
 	return data.end(); // we don't allow Container::iterator to be silently smart

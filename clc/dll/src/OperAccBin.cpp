@@ -5,6 +5,8 @@
 #include "ClcPCH.h"
 #pragma hdrstop
 
+#include "ser/StringStream.h"
+
 #include "OperAccBin.h"
 
 #include "prototypes.h"

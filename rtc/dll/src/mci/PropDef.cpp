@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "dbg/Debug.h"
 #include "mci/PropDef.h"

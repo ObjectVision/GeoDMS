@@ -28,7 +28,6 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
 #if !defined(__CLC_INDEXASSIGNER_H)
 #define __CLC_INDEXASSIGNER_H 
@@ -36,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "RtcBase.h"
 
 #include "UnitProcessor.h"
+#include "geo/CheckedCalc.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/ValueWrap.h"
@@ -130,8 +130,8 @@ struct IdAssigner : UnitProcessor
 		SizeT i = m_Base, e = m_Base + m_Len;
 
 		typename Unit<E>::range_t range = inviter->GetRange();
-		dms_assert(i <= Cardinality(range));
-		dms_assert(e <= Cardinality(range));
+		assert(i <= Cardinality(range));
+		assert(e <= Cardinality(range));
 		for (; i != e; ++target, ++i) 
 			*target = Range_GetValue_naked(range, i);
 	}

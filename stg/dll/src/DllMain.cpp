@@ -41,6 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 #include "utl/Encodes.h"
+#include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"

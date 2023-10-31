@@ -137,34 +137,6 @@ void do_binary_func(
 	);
 }
 
-// *****************************************************************************
-//						ELEMENTARY BINARY FUNCTORS
-// *****************************************************************************
-
-template <typename T>
-[[noreturn]] void throwOverflow(CharPtr opName, T a, CharPtr preposition, T b, bool suggestAlternative, CharPtr alternativeFunc, const ValueClass* alternativeValueClass)
-{
-	SharedStr vcName = AsString(ValueWrap<T>::GetStaticClass()->GetID());
-	SharedStr acName;
-	if (alternativeValueClass) 
-		acName = AsString(alternativeValueClass->GetID());
-
-	auto primaryMsg = mySSPrintF("Numeric overflow when %1% %2% values %3% %4% %5%."
-		, opName, vcName.c_str(), AsString(a), preposition, AsString(b)
-	);
-
-	if (!suggestAlternative)
-		throwDmsErrD(primaryMsg.c_str());
-
-	throwDmsErrF("%1%"
-		"\nConsider using %2% if your model deals with overflow as null values%3%%4%."
-		, primaryMsg
-		, alternativeFunc
-		, alternativeValueClass ? " or consider converting the arguments to " : ""
-		, alternativeValueClass ? acName.c_str() : ""
-	);
-}
-
 template <typename V >
 struct safe_plus
 {

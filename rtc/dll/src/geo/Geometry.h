@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 #include "geo/PointOrder.h"
+#include "Range.h"
 
 //----------------------------------------------------------------------
 // define 4 PointTypes and related RectTypes

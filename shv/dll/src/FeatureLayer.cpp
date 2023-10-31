@@ -16,6 +16,7 @@
 #include "geo/PointOrder.h"
 #include "geo/CentroidOrMid.h"
 #include "geo/MinMax.h"
+#include "ser/StringStream.h"
 #include "utl/IncrementalLock.h"
 
 #include "AbstrUnit.h"

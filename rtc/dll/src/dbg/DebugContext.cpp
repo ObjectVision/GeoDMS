@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "DbgInterface.h"
 
@@ -38,11 +17,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "ser/DebugOutStream.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "utl/swapper.h"
 #include "Parallel.h"
-
-#include <windows.h>
 
 //----------------------------------------------------------------------
 // class  : TreeItemContextNotification
@@ -141,7 +118,7 @@ CharPtr AbstrMsgGenerator::GetDescription()
 	return "ABSTRACT AbstrContextHandle::GetDescription()";
 }
 
-AbstrContextHandle* AbstrContextHandle::GetPrev() const
+template <> AbstrContextHandle* AbstrContextHandle::GetPrev() const
 {
 	return m_Prev;
 }
@@ -169,7 +146,7 @@ StackHandle<Base>* StackHandle<Base>::GetLast()
 }
 
 
-template StackHandle<AbstrMsgGenerator>;
+template struct StackHandle<AbstrMsgGenerator>;
 
 /********** FixedContextHandle **********/
 
@@ -215,8 +192,8 @@ bool ObjectContextPolicy<Base>::IsFinalContext() const
 	return m_Obj && m_Obj->GetLocation() != nullptr;
 }
 
-template ObjectContextPolicy<MsgGenerator>;
-template ObjectContextPolicy<ContextHandle>;
+template struct ObjectContextPolicy<MsgGenerator>;
+template struct ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
@@ -227,8 +204,6 @@ void ObjectIdContextHandle::GenerateDescription()
 }
 
 /********** CDebugContextHandle  **********/
-
-#include <concrt.h>
 
 namespace { // local defs
 

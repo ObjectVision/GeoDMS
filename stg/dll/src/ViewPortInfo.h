@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 // ViewPortInfo
 // *****************************************************************************
 
+#include "geo/CheckedCalc.h"
 #include "geo/Transform.h"
 #include "geo/Geometry.h"
 

@@ -5,6 +5,7 @@
 #include "ClcPCH.h"
 #pragma hdrstop
 
+#include "geo/CheckedCalc.h"
 #include "mci/CompositeCast.h"
 #include "ptr/InterestHolders.h"
 

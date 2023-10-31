@@ -105,6 +105,9 @@
 //# define _SECURE_SCL 0
 #	pragma warning( disable : 4520) // multiple default constructors specified (1 explicit and 1 by variadic list).
 
+#if !defined(WIN32)
+#	define WIN32
+#endif
 //  boost parameterization
 
 #	define BOOST_FALLTHROUGH [[fallthrough]]
@@ -136,6 +139,7 @@
 #  ifdef CC_COMPILER_NAME
 #    error Second compiler recognized!
 #  endif
+#	define CC_ITERATOR_CHECKED
 #	define CC_BYTEORDER_INTEL
 #	define CC_SHORT_16
 #	define CC_INT_32
@@ -146,6 +150,12 @@
 #	define CC_PROCESSOR_INTEL
 
 #  define CC_COMPILER_NAME "gcc compiler (on Linux)"
+
+#if defined(WIN32)
+#	undef WIN32
+#endif
+
+
 #endif
 
 

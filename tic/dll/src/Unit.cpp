@@ -16,7 +16,7 @@
 #include "ser/RangeStream.h"
 #include "ser/SequenceArrayStream.h"
 #include "utl/IncrementalLock.h"
-#include "utl/MySPrintF.h" 
+#include "utl/mySPrintF.h" 
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"

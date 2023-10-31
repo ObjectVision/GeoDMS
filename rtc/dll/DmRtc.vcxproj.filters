@@ -855,6 +855,7 @@
     <ClInclude Include="src\throwItemError.h" />
     <ClInclude Include="src\geo\CharPtrRange.h" />
     <ClInclude Include="src\geo\IterTraits.h" />
+    <ClInclude Include="src\ser\FormattingFlags.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">
@@ -1002,6 +1003,12 @@
       <Filter>Memory</Filter>
     </ClCompile>
     <ClCompile Include="src\utl\SourceLocation.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ser\AsString.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\Transform.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
   </ItemGroup>

@@ -46,8 +46,8 @@ using dms_thread_id = UInt32;
 // BitValue support
 //----------------------------------------------------------------------
 
-typedef int    bit_size_t;
-typedef UInt32 bit_block_t;
+using bit_size_t = int;
+using bit_block_t = UInt32 ;
 
 template <bit_size_t N> struct bit_value;
 template <bit_size_t N, typename Block> struct bit_reference;

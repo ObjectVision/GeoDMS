@@ -38,18 +38,18 @@ struct IterRange : Couple<Iter>
 	using size_type       = typename sizetype_of_iterator<iterator>::type;
 	using difference_type = typename difftype_of_iterator<iterator>::type;
 
-	IterRange(Iter first, Iter second)   : Couple<Iter>(first, second)  { dms_assert((first == iterator() == (second == iterator()))); }
-	IterRange(Iter first, std::size_t n) : Couple<Iter>(first, first+n) { dms_assert((first == iterator() == (second == iterator()))); }
+	IterRange(Iter first, Iter second)   : Couple<Iter>(first, second)  { assert(((first == iterator()) == (second == iterator()))); }
+	IterRange(Iter first, std::size_t n) : Couple<Iter>(first, first+n) { assert(((first == iterator()) == (second == iterator()))); }
 
 	template <std::size_t N>
-	IterRange(value_type values[N]) : Couple(values, values+ N) { dms_assert((first == iterator() == (second == iterator()))); }
+	IterRange(value_type values[N]) : Couple<Iter>(values, values+ N)   { assert(((first == iterator()) == (second == iterator()))); }
 
 //	special ctor to identify an Undefined sequence (as a NULL string value in SQL)
 	IterRange() {} // value-initialisation
 
 	template <typename CIter>
 		IterRange(const IterRange<CIter>& src)
-			:	Couple(src.begin(), src.end())
+			:	Couple<Iter>(src.begin(), src.end())
 		{}
 
 	template <typename Container>

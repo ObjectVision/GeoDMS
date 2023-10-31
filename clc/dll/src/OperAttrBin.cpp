@@ -7,6 +7,7 @@
 
 #include "mci/CompositeCast.h"
 #include "geo/CheckedCalc.h"
+#include "ser/StringStream.h"
 
 #include "AttrBinStruct.h"
 #include "LispTreeType.h"

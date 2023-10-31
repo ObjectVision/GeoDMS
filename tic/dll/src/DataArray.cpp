@@ -566,7 +566,7 @@ void DataArrayBase<V>::GetAbstrValue(SizeT index, AbstrValue& valueHolder) const
 	GuiReadLock lockHolder;
 	auto iter = GetIndexedIterator(index, lockHolder);
 	if (iter != const_iterator() )
-		debug_cast<ValueWrap<V>*>(&valueHolder)->Set( *iter );
+		debug_cast<ValueWrap<V>*>(&valueHolder)->SetValue( Convert<V>( *iter ) );
 	else
 		debug_cast<ValueWrap<V>*>(&valueHolder)->Clear();
 }

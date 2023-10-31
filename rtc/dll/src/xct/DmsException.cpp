@@ -2,7 +2,10 @@
 // License: GNU GPL 3
 
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "RtcInterface.h"
 
@@ -391,7 +394,7 @@ ErrMsgPtr catchExceptionImpl(bool rethrowCancelation)
 	{
 		return x.AsErrMsg();
 	}
-	catch (const concurrency::task_canceled&)
+	catch (const task_canceled&)
 	{
 		if (rethrowCancelation)
 			throw;

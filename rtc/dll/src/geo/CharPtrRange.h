@@ -25,7 +25,10 @@ struct CharPtrRange : IterRange<CharPtr> {
 	{}
 };
 
-typedef IterRange<char*> MutableCharPtrRange;
+struct MutableCharPtrRange : IterRange<char*>
+{
+	using IterRange<char*>::IterRange;
+};
 
 template <typename Char, typename Traits>
 std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, CharPtrRange x)

@@ -868,7 +868,7 @@ bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeI
 	try {
 		locks.emplace_back(si);
 	}
-	catch (const concurrency::task_canceled&)
+	catch (const task_canceled&)
 	{
 		CancelIfNoInterestOrForced(true);
 		throw;
@@ -1100,7 +1100,7 @@ void OperationContext::safe_run_with_catch() noexcept
 			m_TaskFunc(m_Context);
 		}
 	}
-	catch (const concurrency::task_canceled&)
+	catch (const task_canceled&)
 	{
 		assert(getStatus() == task_status::cancelled); // clean-up was done ?
 	}
@@ -1409,7 +1409,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 				|| resultHolder->WasFailed(FR_Data)
 			);
 		}
-		catch (const concurrency::task_canceled&)
+		catch (const task_canceled&)
 		{
 			dms_assert(m_Status == task_status::cancelled || m_Status == task_status::exception);
 		}
