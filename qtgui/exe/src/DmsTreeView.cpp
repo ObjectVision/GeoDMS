@@ -292,11 +292,11 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
 			                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0)==index)
 		{
-				return QColor(255, 87, 51);
+				return QColor(150, 0, 0);
 		}
 
 		if (ti->WasFailed())
-			return QColor(255, 00, 00);
+			return QColor(255, 0, 0);
 
 		switch (TreeItem_GetSupplierLevel(ti))
 		{
