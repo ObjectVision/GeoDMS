@@ -528,8 +528,8 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setDragEnabled(true);
 	setDragDropMode(QAbstractItemView::DragOnly);
 	setContextMenuPolicy(Qt::CustomContextMenu);
-	//setAttribute(Qt::WA_OpaquePaintEvent);
-	//setAttribute(Qt::WA_ForceUpdatesDisabled);
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
