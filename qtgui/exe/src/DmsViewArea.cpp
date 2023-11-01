@@ -108,6 +108,7 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
         {
             auto mdi_area_tabbar = dynamic_cast<QTabBar*>(*i);
             mdi_area_tabbar->setElideMode(Qt::ElideMiddle);
+            mdi_area_tabbar->setSelectionBehaviorOnRemove(QTabBar::SelectionBehavior::SelectPreviousTab);
             break;
         }
     }
