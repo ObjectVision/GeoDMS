@@ -1571,12 +1571,13 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, Sh
     assert(studyObject);
 
     auto* value_info_window = new ValueInfoWindow(this);
+    
     value_info_window->setWindowFlag(Qt::Window, true);
+    value_info_window->setAttribute(Qt::WA_DeleteOnClose, true);
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, value_info_window);
-    value_info_window->m_browser->setWindowFlag(Qt::Window, true);
+    value_info_window->m_browser = new ValueInfoBrowser(value_info_window, studyObject, index, extraInfo, value_info_window);
     h_layout->addWidget(value_info_window->m_browser->back_button.get());
     h_layout->addWidget(value_info_window->m_browser->forward_button.get());
     v_layout->addLayout(h_layout);
