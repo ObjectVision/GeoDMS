@@ -291,8 +291,15 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		return getTreeItemColor(index);
 
 	case Qt::BackgroundRole:
+		if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+			                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0)==index)
+		{
+				return QColor(150, 0, 0);
+		}
+
 		if (ti->WasFailed())
-			return QColor(255, 00, 00);
+			return QColor(255, 0, 0);
+
 		switch (TreeItem_GetSupplierLevel(ti))
 		{
 		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
@@ -534,8 +541,8 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setDragEnabled(true);
 	setDragDropMode(QAbstractItemView::DragOnly);
 	setContextMenuPolicy(Qt::CustomContextMenu);
-	//setAttribute(Qt::WA_OpaquePaintEvent);
-	//setAttribute(Qt::WA_ForceUpdatesDisabled);
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
@@ -697,9 +704,9 @@ auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
 
 	main_window->m_treeview_dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);
 	main_window->m_treeview_dock->setTitleBarWidget(new QWidget(MainWindow::TheOne()->m_treeview_dock));
-	QPointer<DmsTreeView> dms_eventlog_widget_pointer = new DmsTreeView(MainWindow::TheOne()->m_treeview_dock);
-	main_window->m_treeview_dock->setWidget(dms_eventlog_widget_pointer);
+	QPointer<DmsTreeView> dms_treeview_widget_pointer = new DmsTreeView(MainWindow::TheOne()->m_treeview_dock);
+	main_window->m_treeview_dock->setWidget(dms_treeview_widget_pointer);
 	dms_main_window->addDockWidget(Qt::LeftDockWidgetArea, MainWindow::TheOne()->m_treeview_dock);
 
-    return dms_eventlog_widget_pointer;
+    return dms_treeview_widget_pointer;
 }
