@@ -3,11 +3,14 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SpatialAnalyzer.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
 #include "geo/Point.h"

@@ -28,9 +28,9 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcInterface.h"
 
@@ -85,7 +85,7 @@ FileDescr::~FileDescr()
 #include "ser/MoreStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 auto ReportChangedFiles() -> VectorOutStreamBuff
 {

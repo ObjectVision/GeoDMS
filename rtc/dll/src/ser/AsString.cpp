@@ -4,9 +4,9 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/AsString.h"
 #include "geo/iterrange.h"
@@ -16,6 +16,7 @@
 #include "ser/StringStream.h"
 #include "ser/SequenceArrayStream.h"
 #include "ser/MoreStreamBuff.h"
+#include "utl/mySPrintF.h"
 #include "utl/Quotes.h"
 
 
@@ -77,9 +78,9 @@ void AsString(StringRef& res, const double& value, UInt8 decPos)
 	if (IsDefined(value))
 	{
 		char charBuf[255 + 26];
-		UInt32 n = _snprintf(charBuf, 255 + 26, "%.*G", int(decPos), value);
-		dms_assert(n);
-		res.assign(charBuf, charBuf + n);
+		auto n = snprintf(charBuf, 255 + 26, "%.*G", int(decPos), value);
+		if (n > 0)
+			res.assign(charBuf, charBuf + n);
 	}
 	else
 		res.assign(Undefined());

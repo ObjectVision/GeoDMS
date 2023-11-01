@@ -13,7 +13,7 @@
 #if !defined(__RTC_TYPELISTS_H)
 #define __RTC_TYPELISTS_H
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 #include "cpc/transform.h"
 #include "geo/GeoSequence.h"
 

@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <set>
 
-#include "dbg/check.h"
+#include "dbg/Check.h"
 #include "geo/SequenceArray.h"
 #include "mem/HeapSequenceProvider.h"
 

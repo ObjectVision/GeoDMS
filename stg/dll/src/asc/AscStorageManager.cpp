@@ -3,7 +3,11 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "StoragePCH.h"
+#include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 // *****************************************************************************
 //

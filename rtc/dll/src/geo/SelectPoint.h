@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __RTC_GEO_SELECTPOINT_H
 #define __RTC_GEO_SELECTPOINT_H
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Area.h"
 #include "set/VectorFunc.h"
 #include "geo/CalcWidth.h"

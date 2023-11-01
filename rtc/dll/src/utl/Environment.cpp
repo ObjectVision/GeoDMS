@@ -1,40 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
-
-#include <concrtrm.h>
-#include <agents.h>
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "utl/Environment.h"
 
@@ -49,7 +21,10 @@ granted by an additional written contract for support, assistance and/or develop
 #include "utl/Environment.h"
 #include "LockLevels.h"
 
-#include <concrt.h>
+#include <thread>
+
+#if defined(_MSC_VER)
+
 #include <vector>
 
 #include <windows.h>
@@ -116,13 +91,13 @@ void DmsYield(UInt32 nrMillisecs)
 {
 	SYSTEMTIME currTime, nextTime;
 	GetSystemTime(&currTime);
-	Concurrency::Context::Yield(); // Yield to other contexts (=tasks?) in the current thread or if none available, another OS thread
+	std::this_thread::yield(); // Yield to other contexts (=tasks?) in the current thread or if none available, another OS thread
 	GetSystemTime(&nextTime);
 	UInt32 currMillisecs = currTime.wMilliseconds + currTime.wSecond * 1000 + currTime.wMinute * 60000; dms_assert(currMillisecs < 60 * 60 * 1000);
 	UInt32 nextMillisecs = currTime.wMilliseconds + currTime.wSecond * 1000 + currTime.wMinute * 60000; dms_assert(nextMillisecs < 60 * 60 * 1000);
 	if (nextMillisecs < currMillisecs)
 		nextMillisecs += 60 * 60 * 1000;
-	dms_assert(nextMillisecs >= currMillisecs);
+	assert(nextMillisecs >= currMillisecs);
 	nextMillisecs -= currMillisecs;
 	if (nextMillisecs < nrMillisecs)
 		Wait(nrMillisecs - nextMillisecs);
@@ -519,13 +494,6 @@ RTC_CALL bool HasDynamicROI()
 RTC_CALL bool ShowThousandSeparator()
 {
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
-}
-
-RTC_CALL UInt32 MaxConcurrentTreads()
-{
-	if (!IsMultiThreaded1())
-		return 1;
-	return concurrency::GetProcessorCount();
 }
 
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
@@ -1268,3 +1236,9 @@ namespace PlatformInfo
 		return result;
 	}
 };
+
+#else //defined(_MSC_VER)
+
+// GNU TODO
+
+#endif //defined(_MSC_VER)

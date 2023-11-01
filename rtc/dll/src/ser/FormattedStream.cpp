@@ -12,13 +12,13 @@
 #include <ctype.h>
 
 #include "geo/Conversions.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "geo/Undefined.h"
 #include "ser/FormattedStream.h"
 #include "ser/ReadValue.h"
 #include "ser/StringStream.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
@@ -373,7 +373,7 @@ returnEOF:
 template<typename U>
 int mysnprintf(char* charBuf, UInt32 bufLen, CharPtr formatOut, U value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
 	dms_assert(UInt32(charCount) <= bufLen);
 	return charCount;
 }
@@ -429,17 +429,17 @@ int process_frac(char* charBuf, UInt32 bufLen, int charCount)
 template<>
 int mysnprintf<double>(char* charBuf, UInt32 bufLen, CharPtr formatOut, double value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount )<= bufLen);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
+	assert(UInt32(charCount )<= bufLen);
 	if (HasThousandSeparator(ff))
 		charCount += process_frac(charBuf, bufLen, charCount);
 	return charCount;
 }
 
 template<>
-int mysnprintf<unsigned int>(char* charBuf, UInt32 bufLen, CharPtr formatOut, unsigned int value, FormattingFlags ff)
+int mysnprintf<UInt32>(char* charBuf, UInt32 bufLen, CharPtr formatOut, UInt32 value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
 	dms_assert(UInt32(charCount) <= bufLen);
 	if (HasThousandSeparator(ff))
 		charCount += process_uint(charBuf, charBuf + charCount, bufLen, charCount);
@@ -447,9 +447,9 @@ int mysnprintf<unsigned int>(char* charBuf, UInt32 bufLen, CharPtr formatOut, un
 }
 
 template<>
-int mysnprintf<int>(char* charBuf, UInt32 bufLen, CharPtr formatOut, int value, FormattingFlags ff)
+int mysnprintf<Int32>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int32 value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
 	dms_assert(UInt32(charCount) <= bufLen);
 	if (HasThousandSeparator(ff))
 		charCount += process_int(charBuf, bufLen, charCount);
@@ -457,9 +457,9 @@ int mysnprintf<int>(char* charBuf, UInt32 bufLen, CharPtr formatOut, int value, 
 }
 
 template<>
-int mysnprintf<unsigned __int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, unsigned __int64 value, FormattingFlags ff)
+int mysnprintf<UInt64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, UInt64 value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
 	dms_assert(UInt32(charCount) <= bufLen);
 	if (HasThousandSeparator(ff))
 		charCount += process_uint(charBuf, charBuf + charCount, bufLen, charCount);
@@ -467,9 +467,9 @@ int mysnprintf<unsigned __int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut
 }
 
 template<>
-int mysnprintf<__int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, __int64 value, FormattingFlags ff)
+int mysnprintf<Int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int64 value, FormattingFlags ff)
 {
-	auto charCount = _snprintf(charBuf, bufLen, formatOut, value);
+	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
 	dms_assert(UInt32(charCount) <= bufLen);
 	if (HasThousandSeparator(ff))
 		charCount += process_int(charBuf, bufLen, charCount);
@@ -521,19 +521,19 @@ RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen) \
 			return sizeof(UNDEFINED_VALUE_STRING) <= bufLen; \
 		} \
 	) \
-	int count = _snprintf(buffer, bufLen, FOUT, U(value)); \
+	int count = snprintf(buffer, bufLen, FOUT, U(value)); \
 	return UInt32(count) < bufLen; \
 } \
 			
-DEFINE_FORMATTED_STREAMABLE(UInt32,unsigned int, 13, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int32, int, 14, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt16,unsigned int,  6, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int16, int,  7, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt8, unsigned int,  3, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int8,  int,  4, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt4, unsigned int,  2, "%u", DISABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt32, UInt32, 13, "%u", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int32, Int32, 14, "%d", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt16, UInt32,  6, "%u", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int16, Int32,  7, "%d", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt8, UInt32,  3, "%u", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int8, Int32,  4, "%d", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt4, UInt32,  2, "%u", DISABLE_UNDEF_HANDLING)
 #if defined(DMS_TM_HAS_UINT2)
-DEFINE_FORMATTED_STREAMABLE(UInt2, unsigned int,  1, "%u", DISABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt2, UInt32,  1, "%u", DISABLE_UNDEF_HANDLING)
 #endif
 DEFINE_FORMATTED_STREAMABLE(Float32, double, 20, "%G", ENABLE_UNDEF_HANDLING)
 DEFINE_FORMATTED_STREAMABLE(Float64, double, 35, "%.9G", ENABLE_UNDEF_HANDLING)
@@ -541,8 +541,8 @@ DEFINE_FORMATTED_STREAMABLE(Float64, double, 35, "%.9G", ENABLE_UNDEF_HANDLING)
 DEFINE_FORMATTED_STREAMABLE(Float80, long double, 40, "%.9lG", ENABLE_UNDEF_HANDLING)
 #endif
 #if defined(DMS_TM_HAS_INT64)
-DEFINE_FORMATTED_STREAMABLE(UInt64,unsigned __int64, 30, "%I64u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int64, __int64, 30, "%I64d", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt64, UInt64, 30, "%I64u", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int64, Int64, 30, "%I64d", ENABLE_UNDEF_HANDLING)
 #endif
 
 #include "ser/StreamException.h"
@@ -639,7 +639,7 @@ RTC_CALL bool AsCharArray(Bool value, char* buffer, UInt32 bufLen)
 		?	"True"
 		:	"False";
 
-	int count = _snprintf(buffer, bufLen, "%s", str);
+	int count = snprintf(buffer, bufLen, "%s", str);
 	return UInt32(count) < bufLen;
 }
 
@@ -652,15 +652,14 @@ StreamableDateTime::StreamableDateTime()
 	time(&m_time);
 }
 
+int write_time_str(char* buff, SizeT n, time_t t);
+
 RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDateTime& self)
 {
-	char timeBuff[30];
-	auto errCode = ctime_s(timeBuff, sizeof(timeBuff), &self.m_time);
-	if (errCode == 0)
-	{
-		timeBuff[24] = 0;
+	char timeBuff[60];
+	if (write_time_str(timeBuff, sizeof(timeBuff), self.m_time) > 0)
 		fos << timeBuff;
-	}
+
 	return fos;
 }
 

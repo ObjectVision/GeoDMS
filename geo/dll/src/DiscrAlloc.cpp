@@ -28,13 +28,16 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
-#pragma hdrstop
 
-#include "dbg/Debug.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Pair.h"
 #include "mci/CompositeCast.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "ser/PairStream.h"
 #include "utl/mySPrintF.h"

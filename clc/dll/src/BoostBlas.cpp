@@ -29,7 +29,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ClcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif
 

@@ -6,7 +6,7 @@
 #include "rtcTypeLists.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"

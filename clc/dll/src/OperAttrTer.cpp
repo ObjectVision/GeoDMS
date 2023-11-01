@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "OperAttrTer.h"
 
@@ -206,7 +209,7 @@ struct iif_assign: ternary_assign<T, Bool, T, T>
 	}
 };
 
-#include "geo/Color.h"
+#include "geo/color.h"
 
 template<class T>	
 struct rgb_assign_base : ternary_assign<UInt32, T, T, T>

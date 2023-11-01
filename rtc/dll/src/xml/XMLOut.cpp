@@ -4,15 +4,15 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DmsCatch.h"
 #include "xml/XMLOut.h"
 #include "mci/Class.h"
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "xml/XmlConst.h"
 #include "utl/mySPrintF.h"
 #include "utl/Quotes.h"

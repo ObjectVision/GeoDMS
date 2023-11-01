@@ -6,7 +6,7 @@
 
 #include "DcHandle.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "utl/Environment.h"
 #include "ser/AsString.h"
 #include "utl/Environment.h"

@@ -15,6 +15,7 @@
 template <typename Iter>
 BinaryInpStream& operator >> (BinaryInpStream& ar, IterRange<Iter> seq)
 {
+	using value_type = typename IterRange<Iter>::value_type;
 	typename IterRange<Iter>::size_type len;
 	ar >> len;
 	MG_CHECK(IsDefined(len) || !seq.size())
@@ -29,7 +30,7 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, IterRange<Iter> seq)
 				, seq.size()
 			);
 
-		ReadBinRangeImpl(ar, seq.begin(), seq.end(), STREAMTYPE_TAG(IterRange<Iter>::value_type));
+		ReadBinRangeImpl(ar, seq.begin(), seq.end(), STREAMTYPE_TAG(value_type));
 	}
 	return ar;
 }

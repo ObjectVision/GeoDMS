@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __TEXTCONTROL_H
 
 #include "MovableObject.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 
 class GraphDrawer;
 

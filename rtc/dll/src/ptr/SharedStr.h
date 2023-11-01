@@ -56,6 +56,20 @@ inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
 	}
 }
 
+inline int stricmp(CharPtr lhs, CharPtr rhs)
+{
+	for (; ; ++lhs, ++rhs)
+	{
+		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
 #endif
 
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
@@ -64,7 +78,7 @@ inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
-		int cmpRes = strncmp(f1, f2,  szMin );
+		auto cmpRes = strncmp(f1, f2,  szMin );
 		if (cmpRes < 0) return true;
 		if (cmpRes > 0) return false;
 	}
@@ -77,7 +91,7 @@ inline bool lex_compare_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
-		int cmpRes = strnicmp(f1, f2,  szMin );
+		auto cmpRes = strnicmp(f1, f2,  szMin );
 		if (cmpRes < 0) return true;
 		if (cmpRes > 0) return false;
 	}
@@ -108,7 +122,7 @@ inline bool lex_compare<CharPtr, CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, Ch
 
 inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 size = l1-f1;
+	auto size = l1-f1;
 
 	if (size != l2-f2) return false;
 	if (!size)         return true;
@@ -118,7 +132,7 @@ inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 
 inline bool equal_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 size = l1-f1;
+	auto size = l1-f1;
 
 	if (size != l2-f2) return false;
 	if (!size)         return true;

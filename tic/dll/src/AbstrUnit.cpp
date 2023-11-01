@@ -1,5 +1,12 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "AbstrUnit.h"
 
@@ -891,7 +898,7 @@ IMPL_CLASS(AbstrUnit, 0)
 #include "TicPropDefConst.h"
 
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 
 namespace {
 class FormatPropDef : public PropDef<AbstrUnit, TokenID>

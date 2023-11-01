@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/DynamicPoint.h"
 #include "geo/CheckedCalc.h"
@@ -11,7 +14,7 @@
 #include "mci/CompositeCast.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "ptr/Resource.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 #include "LockLevels.h"
 
 #include "DataArray.h"

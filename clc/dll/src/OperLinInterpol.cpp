@@ -28,9 +28,12 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
-#include "dbg/Debug.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "dbg/debug.h"
 #include "geo/Pair.h"
 #include "mci/CompositeCast.h"
 #include "ptr/OwningPtr.h"

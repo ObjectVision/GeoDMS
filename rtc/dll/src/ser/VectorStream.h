@@ -142,7 +142,7 @@ template <typename OutStream, typename Vector> inline
 void WriteBinRange(OutStream& ar, const Vector& vec)
 {
 	if (!IsDefined(vec))
-		ar << UNDEFINED_VALUE(Vector::size_type);
+		ar << UNDEFINED_VALUE(typename Vector::size_type);
 	else
 	{
 		ar << vec.size();
@@ -196,7 +196,7 @@ void ReadFormattedRange(FormattedInpStream& is, Vector& vec)
 {
 	SizeT len;
 	is >> "{" >> len >> ":";
-	vec.resize(len, Vector::value_type());
+	vec.resize(len, typename Vector::value_type());
 	typename Vector::iterator first = vec.begin();
 	typename Vector::iterator last  = vec.end();
 	while (first != last && !is.Buffer().AtEnd())

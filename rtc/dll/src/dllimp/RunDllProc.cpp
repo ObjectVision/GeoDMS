@@ -4,10 +4,17 @@
 
 #include "RtcPCH.h"
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "RtcInterface.h"
+
 // *****************************************************************************
 // Section:     Exec
 //
 // *****************************************************************************
+
 
 
 #include "dllimp/RunDllProc.h"
@@ -18,6 +25,8 @@
 #include "set/VectorFunc.h"
 
 #include <map>
+
+#if defined(WIN32)
 #include <windows.h>
 
 struct DllHandle 
@@ -69,6 +78,7 @@ private:
 	DllProcCacheType m_DllProcCache;
 	HINSTANCE        m_hDLL;
 };
+
 
 namespace {
 
@@ -181,8 +191,7 @@ RTC_CALL UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, Cha
 	return (*runFunc)(arg1, arg2, arg3);
 }
 
-
-#include "RtcInterface.h"
+#endif //defined(WIN32)
 
 bool g_IsTerminating = false;
 

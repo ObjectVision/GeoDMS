@@ -395,7 +395,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	}
 
 private:
-	friend typename SequenceArrayType;
+	friend struct sequence_array<T>;
 	friend struct SA_Iterator<T>;
 	friend struct sequence_array_index<T>; 
 
@@ -586,8 +586,8 @@ private:
 
 
 	}
-	friend SequenceArrayType;
-	friend struct sequence_array_index<T>; 
+	friend struct sequence_array<T>;
+	friend struct sequence_array_index<T>;
 	friend struct SA_Reference<T>;
 };
 

@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "CounterStacks.h"
 
 #include "act/Actor.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
 #include "utl/swap.h"

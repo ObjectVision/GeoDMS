@@ -10,7 +10,7 @@
 #include "StgBase.h"
 
 #include "act/ActorVisitor.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/AbstrValue.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"

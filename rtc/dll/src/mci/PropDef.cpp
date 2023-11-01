@@ -4,13 +4,13 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "mci/ValueClass.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ser/StringStream.h"

@@ -10,7 +10,7 @@
 
 #include "stg/MemoryMappedDataStorageManager.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "mci/ValueClass.h"
 #include "ser/FileStreamBuff.h"

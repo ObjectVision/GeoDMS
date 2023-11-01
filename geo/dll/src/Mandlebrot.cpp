@@ -28,9 +28,12 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
-#pragma hdrstop
 
-#include "mth/MathLib.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "mth/Mathlib.h"
 
 #include "Param.h"
 #include "UnitClass.h"

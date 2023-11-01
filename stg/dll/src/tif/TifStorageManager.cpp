@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 
 // *****************************************************************************
@@ -44,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/BaseBounds.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "geo/Round.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"

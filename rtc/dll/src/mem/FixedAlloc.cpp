@@ -48,9 +48,9 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcBase.h"
 

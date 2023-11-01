@@ -184,7 +184,7 @@ struct NumericDefinedConverter // throws on undefined values
 	U operator ()(const T& val) const
 	{
 		if (!definedF(val) || !minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckDefFunc definedF;
@@ -200,7 +200,7 @@ struct NumericNonnullConverter // converts undefined values
 	U operator ()(const T& val) const
 	{
 		if (!minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckMinFunc minF;
@@ -217,7 +217,7 @@ struct NumericCheckedConverter // converts undefined values
 		if (!definedF(val))
 			return UNDEFINED_VALUE(U);
 		if (!minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckDefFunc definedF;
@@ -349,7 +349,7 @@ template <typename T, typename ExceptFunc, typename ConvertFunc>
 inline std::vector<T> Convert4(typename sequence_array<T>::const_reference v, const std::vector<T>*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
 { 
 	if (!v.IsDefined())
-		return ExceptFunc().apply<std::vector<T>>(v);
+		return ExceptFunc().template apply<std::vector<T>>(v);
 	return std::vector<T>(v.begin(), v.end()); 
 }
 

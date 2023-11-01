@@ -13,7 +13,7 @@
 
 // ============== Main
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "set/IndexedStrings.h"

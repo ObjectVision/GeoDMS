@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ScrollPort.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"

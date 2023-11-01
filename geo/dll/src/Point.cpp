@@ -3,12 +3,15 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "async.h"
 
 #include "mci/CompositeCast.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 #include "geo/PointOrder.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"

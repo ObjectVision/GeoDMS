@@ -11,7 +11,7 @@
 
 #include "TicBase.h"
 #include "geo/ElemTraits.h"
-#include "utl/instantiate.h"
+#include "utl/Instantiate.h"
 #include "act/ActorEnums.h"
 #include "TreeItemProps.h"
 

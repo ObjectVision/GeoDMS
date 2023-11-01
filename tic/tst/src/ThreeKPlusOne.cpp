@@ -59,7 +59,7 @@ std::ostream& operator << (std::ostream& os, const big_int& rhs)
 
 	while (I != B)
 	{
-		_snprintf(buffer, 20, "%x", *--I);
+		snprintf(buffer, 20, "%x", *--I);
 		os << buffer;
 	}
 	return os;

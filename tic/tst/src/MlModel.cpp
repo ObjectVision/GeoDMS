@@ -1,5 +1,5 @@
 #include "cpc/Types.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/BaseBounds.h"
 #include "ptr/OwningPtrSizedArray.h"
 
@@ -39,7 +39,7 @@ void random_discrete_fill(Iter first, Iter last, UInt32 ub, UInt32 seed)
 
 // ============== RandomFill
 
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 
 template <typename T> inline 
 typename std::enable_if< raw_constructed< T >::value, OwningPtrSizedArray<T> >::type

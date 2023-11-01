@@ -30,7 +30,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__SHV_TEXTEDITCONTROLLER_H)
 #define __SHV_TEXTEDITCONTROLLER_H
 
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "ptr/SharedStr.h"
 #include "xml/XmlTreeOut.h"
 class AbstrTextEditControl;

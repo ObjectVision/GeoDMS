@@ -21,7 +21,7 @@
 #ifndef __XML_XMLOUT_H
 #define __XML_XMLOUT_H
 
-#include "dbg/check.h"
+#include "dbg/Check.h"
 #include "ser/FormattedStream.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"

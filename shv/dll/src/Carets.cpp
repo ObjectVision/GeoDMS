@@ -4,7 +4,7 @@
 
 #include "ShvDllPch.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "geo/PointOrder.h"
 #include "geo/Undefined.h"

@@ -23,7 +23,7 @@ inline bool lex_caseinsensitive_compare(CharPtr f1, CharPtr l1, CharPtr f2, Char
 		return sz2;
 	}
 	dms_assert_without_debugonly_lock(f1 && l1 && f2 && l2 && f1!=l1 && f2!=l2);
-	int cmpRes = _strnicmp(f1, f2, sz_min);
+	int cmpRes = strnicmp(f1, f2, sz_min);
 	return (cmpRes < 0)
 		|| (cmpRes == 0 && sz1 < sz2);
 }

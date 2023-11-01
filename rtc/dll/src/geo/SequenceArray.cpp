@@ -4,9 +4,9 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/SequenceArray.h"
 
@@ -871,81 +871,80 @@ void sequence_array<T>::checkConsecutiveness() const
 #include "geo/Point.h"
 #include "set/Token.h"
 
-template sequence_array<char>;
-template sequence_array<int>;
-template sequence_array<DPoint>;
-template sequence_array<FPoint>;
-//template void sequence_array<TokenID>::Reset(size_type nrSeqs, data_vector_t::size_type expectedDataSize);
+template struct sequence_array<char>;
+template struct sequence_array<DPoint>;
+template struct sequence_array<FPoint>;
+//template struct sequence_array<TokenID>;
 template void sequence_array<TokenID>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last );
 template void sequence_array<TokenID>::Reset(size_type nrSeqs, data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 
-template SA_Reference<char>;
-template SA_Reference<int>;
-template SA_Reference<DPoint>;
-template SA_Reference<FPoint>;
+template struct SA_Reference<char>;
+template struct SA_Reference<DPoint>;
+template struct SA_Reference<FPoint>;
+//template struct SA_Reference<TokenID>;
 template SA_Reference<TokenID>::SA_Reference(SequenceArrayType* container, seq_iterator seqPtr);
-template SA_ConstReference<TokenID>::SA_ConstReference(const SequenceArrayType* sa, const_seq_iterator cSeqPtr);
 
-template SA_ConstReference<FPoint>;
-template SA_ConstReference<char>;
+template struct SA_ConstReference<char>;
+template struct SA_ConstReference<DPoint>;
+template struct SA_ConstReference<FPoint>;
+//template struct SA_ConstReference<TokenID>;
+template SA_ConstReference<TokenID>::SA_ConstReference(const SequenceArrayType* sa, const_seq_iterator cSeqPtr);
 
 #if defined (DMS_TM_HAS_INT_SEQ)
 
-template sequence_array<UInt64>;
-template sequence_array<UInt32>;
-template sequence_array<UInt16>;
-template sequence_array<UInt8>;
 
-template sequence_array<Int64>;
-template sequence_array<Int32>;
-template sequence_array<Int16>;
-template sequence_array<Int8>;
+template struct sequence_array<UInt64>;
+template struct sequence_array<UInt32>;
+template struct sequence_array<UInt16>;
+template struct sequence_array<UInt8>;
 
-template sequence_array<Float64>;
-template sequence_array<Float32>;
+template struct sequence_array<Int64>;
+template struct sequence_array<Int32>;
+template struct sequence_array<Int16>;
+template struct sequence_array<Int8>;
 
-template sequence_array<SPoint>;
-template sequence_array<IPoint>;
-template sequence_array<WPoint>;
-template sequence_array<UPoint>;
+template struct sequence_array<Float64>;
+template struct sequence_array<Float32>;
 
-template SA_Reference<UInt64>;
-template SA_Reference<UInt32>;
-template SA_Reference<UInt16>;
-template SA_Reference<UInt8>;
+template struct sequence_array<SPoint>;
+template struct sequence_array<IPoint>;
+template struct sequence_array<WPoint>;
+template struct sequence_array<UPoint>;
 
-template SA_Reference<Int64>;
-template SA_Reference<Int32>;
-template SA_Reference<Int16>;
-template SA_Reference<Int8>;
+template struct SA_Reference<UInt64>;
+template struct SA_Reference<UInt32>;
+template struct SA_Reference<UInt16>;
+template struct SA_Reference<UInt8>;
 
-template SA_Reference<Float64>;
-template SA_Reference<Float32>;
+template struct SA_Reference<Int64>;
+template struct SA_Reference<Int32>;
+template struct SA_Reference<Int16>;
+template struct SA_Reference<Int8>;
 
-template SA_Reference<SPoint>;
-template SA_Reference<IPoint>;
-template SA_Reference<WPoint>;
-template SA_Reference<UPoint>;
+template struct SA_Reference<Float64>;
+template struct SA_Reference<Float32>;
 
-template SA_ConstReference<UInt64>;
-template SA_ConstReference<UInt32>;
-template SA_ConstReference<UInt16>;
-template SA_ConstReference<UInt8>;
+template struct SA_Reference<SPoint>;
+template struct SA_Reference<IPoint>;
+template struct SA_Reference<WPoint>;
+template struct SA_Reference<UPoint>;
 
-template SA_ConstReference<Int64>;
-template SA_ConstReference<Int32>;
-template SA_ConstReference<Int16>;
-template SA_ConstReference<Int8>;
+template struct SA_ConstReference<UInt64>;
+template struct SA_ConstReference<UInt32>;
+template struct SA_ConstReference<UInt16>;
+template struct SA_ConstReference<UInt8>;
 
-template SA_ConstReference<Float64>;
-template SA_ConstReference<Float32>;
+template struct SA_ConstReference<Int64>;
+template struct SA_ConstReference<Int32>;
+template struct SA_ConstReference<Int16>;
+template struct SA_ConstReference<Int8>;
 
-template SA_ConstReference<SPoint>;
-template SA_ConstReference<IPoint>;
-template SA_ConstReference<WPoint>;
-template SA_ConstReference<UPoint>;
+template struct SA_ConstReference<Float64>;
+template struct SA_ConstReference<Float32>;
 
-template SA_ConstReference<FPoint>;
-template SA_ConstReference<DPoint>;
+template struct SA_ConstReference<SPoint>;
+template struct SA_ConstReference<IPoint>;
+template struct SA_ConstReference<WPoint>;
+template struct SA_ConstReference<UPoint>;
 
 #endif

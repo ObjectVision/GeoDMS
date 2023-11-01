@@ -29,9 +29,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ShvDllPch.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "Cmds.h"
 #include "ViewPort.h"

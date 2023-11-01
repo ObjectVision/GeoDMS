@@ -42,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/debug.h"
 #include "ptr/OwningPtrArray.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 
 template <class T>
 struct OwningPtrReservedArray : private ref_base<T, movable>

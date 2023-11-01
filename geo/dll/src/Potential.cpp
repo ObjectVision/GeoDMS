@@ -4,13 +4,13 @@
 
 #include "GeoPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "Potential.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "xct/DmsException.h"

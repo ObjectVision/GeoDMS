@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __SHV_INDEXCOLLECTOR_H
 
 #include "geo/Point.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/SharedPtr.h"

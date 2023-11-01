@@ -28,9 +28,9 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
@@ -198,7 +198,7 @@ SharedStr GetSessionStartTimeStr()
 
 #include "RtcInterface.h"
 #include "geo/Range.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 
 bool RangeTest()
 {

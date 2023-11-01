@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "SymPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "LispRef.h"
 
@@ -12,7 +15,7 @@
 #include "dbg/SeverityType.h"
 #include "mci/Class.h"
 #include "geo/BaseBounds.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/Conversions.h"
 #include "ptr/PtrBase.h"
 #include "ser/AsString.h"

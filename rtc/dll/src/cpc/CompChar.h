@@ -48,6 +48,7 @@
 #	define CC_BYTEORDER_INTEL
 #	define CC_NO_VTAB_BY_EXPLICIT_INSTANTIATION
 #	define CC_UNWINDING_ADM_PROBLEM
+#	define CC_PRAGMAHDRSTOP
 // for some reasons my Intel C++ 8.0 in MSVC6.0 has _WCHAR_T_DEFINED but no intrinsic wchar_c,
 // so logic as indicated in http://aspn.activestate.com/ASPN/Mail/Message/boost/1614864 fails
 #	define BOOST_NO_INTRINSIC_WCHAR_T
@@ -82,6 +83,7 @@
 #	pragma warning( disable : 4200) // nonstandard extension used : zero-sized array in struct/union
 #	pragma warning( disable : 4355) // use 'this' in base member initializer list without nagging
 
+#	define CC_PRAGMAHDRSTOP
 #	define CC_STL_1300
 #	define CC_ITERATOR_CHECKED
 #	define CC_HAS_OVERRIDE

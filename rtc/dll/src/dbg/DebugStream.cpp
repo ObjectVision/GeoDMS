@@ -4,9 +4,9 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DbgInterface.h"
 #include "Parallel.h"
@@ -18,8 +18,6 @@
 #include "utl/MemGuard.h"
 #include "utl/mySPrintF.h"
 
-#include <vector>
-
 #include "dbg/DmsCatch.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
@@ -29,6 +27,9 @@
 #include "utl/IncrementalLock.h"
 #include "utl/swapper.h"
 #include "xct/DmsException.h"
+
+#include <vector>
+#include <ctime>
 
 /********** MsgCallback Register **********/
 
@@ -429,7 +430,7 @@ namespace { // local defs
 
 		const int bufSize = 66+1-29 + 23;
 		char buf[bufSize];
-		_snprintf(buf, bufSize, "Memory Allocation failed for %I64u bytes", (UInt64)size);
+		snprintf(buf, bufSize, "Memory Allocation failed for %I64u bytes", (UInt64)size);
 
 		reportD(SeverityTypeID::ST_Warning, buf);
 		if (!CoalesceHeap(size, g_MyNewExceptionHandlerCount-1))
@@ -525,12 +526,30 @@ RtcReportLock::~RtcReportLock()
 		DMS_CALL_END
 	}
 }
+
 // *****************************************************************************
 // CDebugLog
 // *****************************************************************************
+
 #include <time.h>
 
-CDebugLog::CDebugLog(WeakStr name) 
+std::mutex s_timeObjectAccess;
+
+int write_time_str(char* buff, SizeT n, time_t t)
+{
+	auto lock = std::lock_guard(s_timeObjectAccess);
+
+	auto tm = std::localtime(&t);
+	return std::strftime(buff, n, "yyyy-mm-dd hh:mm:ss", tm);
+}
+
+int write_now_str(char* buff, SizeT n)
+{
+	auto t = std::time(nullptr);
+	return write_time_str(buff, n, t);
+}
+
+CDebugLog::CDebugLog(WeakStr name)
 	:	m_FileBuff(name, 0, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
 {
 	bool isOpened = m_FileBuff.IsOpen();
@@ -542,11 +561,12 @@ CDebugLog::CDebugLog(WeakStr name)
 		*g_DebugStream << "Unable to open debug output file " << name.c_str();
 	else
 	{
-		// Display operating system-style date and time. 
-		char dateBuff[128], timeBuff[128];
-		_strdate_s( dateBuff, 128 );
-		_strtime_s( timeBuff, 128 );
-		*g_DebugStream << "@@@@@ Logging started for " << name.c_str() << " at " << dateBuff << " - " << timeBuff;
+		// Display date and time. 
+		char buff[128];
+		if (write_now_str(buff, sizeof buff) > 0)
+		{
+			*g_DebugStream << "@@@@@ Logging started for " << name.c_str() << " at " << buff;
+		}
 	}
 }
 
@@ -556,11 +576,12 @@ CDebugLog::~CDebugLog()
 	{
 		DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
 
-		// Display operating system-style date and time. 
-		char dateBuff[128], timeBuff[128];
-		_strdate_s( dateBuff, 128 );
-		_strtime_s( timeBuff, 128 );
-		*g_DebugStream << "@@@@@ Logging ended for " << m_FileBuff.FileName().c_str() << " at " << dateBuff << " - " << timeBuff;
+		// Display date and time. 
+		char buff[128];
+		if (write_now_str(buff, sizeof buff) > 0)
+		{
+			*g_DebugStream << "@@@@@ Logging ended for " << m_FileBuff.FileName().c_str() << " at " << buff;
+		}
 	}
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }

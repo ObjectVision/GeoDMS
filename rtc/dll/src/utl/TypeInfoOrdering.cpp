@@ -29,20 +29,20 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "utl/TypeInfoOrdering.h"
 
 #include <typeinfo>
 
-bool TypeInfoOrdering ::operator () (const type_info* a, const type_info* b) const
+bool TypeInfoOrdering ::operator () (const std::type_info* a, const std::type_info* b) const
 {
 	return 0 != a->before(*b);
 }
 
-RTC_CALL CharPtr GetName(const type_info& ti)
+RTC_CALL CharPtr GetName(const std::type_info& ti)
 {
 	return ti.name();
 }

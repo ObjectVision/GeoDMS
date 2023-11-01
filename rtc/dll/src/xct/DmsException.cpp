@@ -3,26 +3,26 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcInterface.h"
 
 #include "xct/DmsException.h"
 
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
-#include "geo/IterRangeFuncs.h"
+#include "geo/iterrangefuncs.h"
 #include "mci/Object.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ser/DebugOutStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
-#include "utl/MySprintF.h"
+#include "utl/mySPrintF.h"
 #include "xml/XMLOut.h"
 #include "Parallel.h"
 
@@ -466,6 +466,7 @@ ErrMsgPtr GetUnrollingErrorMsgPtr()
 //----------------------------------------------------------------------
 // C structured exception handling (convert WinNT structured exception)
 //----------------------------------------------------------------------
+#if defined(WIN32)
 
 #include <windows.h>
 #define EXCEPTION_BORLAND_ERROR 0x0eedfade
@@ -613,10 +614,13 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	trans_SE2DMSfunc(g_StructuredExceptionCode, g_pExp, true);
 }
 
+#endif //defined(WIN32)
 
 //----------------------------------------------------------------------
 // dms_assertion_failed
 //----------------------------------------------------------------------
+
+#if defined(_MSC_VER)
 
 CppTranslatorContext::CppTranslatorContext(TCppExceptionTranslator trFunc)
 		: m_PrevCppTranslator(SetCppTranslator(trFunc))
@@ -631,6 +635,8 @@ CppTranslatorContext::~CppTranslatorContext()
 	}
 	SetCppTranslator(m_PrevCppTranslator);
 }
+
+#endif //defined(_MSC_VER)
 
 //----------------------------------------------------------------------
 // dms_assertion_failed
@@ -673,18 +679,30 @@ void DebugOnlyLock::CheckNoLocks()
 
 #endif
 
+void debugBreak()
+{
+#if defined(_MSC_VER)
+	__debugbreak();
+#else defined(_MSC_VER)
+	// GNU TODO
+#endif //defined(_MSC_VER)
+
+}
+
 RTC_CALL void dms_check_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 	reportF_without_cancellation_check(SeverityTypeID::ST_MajorTrace, "check failure: %s\n%s(%u)", msg, fileName, line);
+
 #if defined(MG_DEBUG)
-	__debugbreak();
+	debugBreak();
 #endif
+
 }
 
 RTC_CALL void dms_assertion_failed(CharPtr msg, CharPtr fileName, unsigned line)
 {
 #if defined(MG_DEBUG)
-	__debugbreak();
+	debugBreak();
 #endif
 }
 

@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataArray.ipp"
 
@@ -11,7 +14,7 @@
 
 #include <memory>
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/DataPtrTraits.h"
 #include "geo/StringArray.h"

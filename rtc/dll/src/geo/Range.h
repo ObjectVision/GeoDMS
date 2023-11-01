@@ -301,7 +301,7 @@ inline Float64 AsFloat64(Range<T> x )
 }
 
 template <class T> inline
-T Center(Range<T> r) { return (r.first+r.second) / scalar_of<T>::type(2); }
+T Center(Range<T> r) { return (r.first+r.second) / scalar_of_t<T>(2); }
 
 template <class T> inline
 typename unsigned_type<T>::type

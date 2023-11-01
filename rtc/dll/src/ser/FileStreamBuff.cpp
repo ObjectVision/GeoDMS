@@ -28,9 +28,9 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FileStreamBuff.h"
 #include "ser/SafeFileWriter.h"
@@ -52,11 +52,8 @@ FileOutStreamBuff::FileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa
 	,	m_FileName((GetWritePermission(fileName), fileName))
 	,	m_ofstream(
 			ConvertFileName(GetWorkingFileName(sfwa, fileName, mustAppend ? FCM_OpenRwGrowable : FCM_CreateAlways)).c_str()
-		,	
-			std::ios::out
-		|	(isAsciiFile  ? 0 :	std::ios::binary)
-		|   (mustAppend   ? std::ios::app : 0)
-		)
+		,	std::ios_base::openmode(std::ios::out | (isAsciiFile ? 0 : std::ios::binary) | (mustAppend ? std::ios::app : 0)
+		))
 {
 }
 

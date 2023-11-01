@@ -4,9 +4,9 @@
 
 #include "RtcPCH.h"
 
-#if defined(_MSC_VER)
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "act/MainThread.h"
 #include "dbg/SeverityType.h"
@@ -15,8 +15,10 @@
 #include "utl/Environment.h"
 
 #if defined(WIN32)
+
 #include <windows.h>
 #include <psapi.h>
+
 #endif
 
 using percentage_type = UInt32;
@@ -97,7 +99,12 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			, true);
 		}
 	}
+#else //defined(WIN32)
+
+	// GNU TODO
+
 #endif //defined(WIN32)
+
 }
 
 const UInt32 minWaitTime   =  100; // milliseconds
