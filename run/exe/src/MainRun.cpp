@@ -1,4 +1,6 @@
-#include "ShvDllInterface.h"
+//#include "ShvDllInterface.h"
+#include "ClcInterface.h"
+#include "GeoInterface.h"
 #include "TicInterface.h"
 #include "ClcInterface.h"
 #include "GeoInterface.h"
@@ -197,8 +199,8 @@ int main_without_se(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-
-	DMS_Shv_Load();
+	DMS_Geo_Load();
+	DMS_Clc_Load();
 
 	DMS_SetGlobalCppExceptionTranslator(reportMsg);
 

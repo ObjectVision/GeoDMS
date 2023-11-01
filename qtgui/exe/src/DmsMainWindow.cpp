@@ -85,6 +85,28 @@ bool MainWindow::ShowInDetailPage(SharedStr x)
     return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
+void MainWindow::SaveValueInfoImpl(CharPtr filename)
+{
+    auto dmsFileName = ConvertDosFileName(SharedStr(filename));
+    auto expandedFilename = AbstrStorageManager::Expand(m_current_item, dmsFileName);
+    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
+    for (auto& child_object : children())
+    {
+        auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
+        if (!value_info_window_candidate)
+            continue;
+
+        auto htmlSource = value_info_window_candidate->m_browser->toHtml();
+        auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+        buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+    }
+}
+
+void MainWindow::saveValueInfo()
+{
+    SaveValueInfoImpl("C:/LocalData/test/test_value_info.txt");
+}
+
 DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     : QDialog(parent)
 {
@@ -308,9 +330,9 @@ MainWindow::~MainWindow()
 DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
     : QLineEdit(parent)
 {
-    //QRegularExpression rx("^[^0-9<>][a-zA-Z0-9_]+$");
-    //auto rx_validator = new QRegularExpressionValidator(rx, this);
-    //setValidator(rx_validator);
+    QRegularExpression rx("^[^0-9=+\\-|&!?><,.{}();\\]\\[][^=+\\-|&!?><,.{}();\\]\\[]+$");
+    auto rx_validator = new QRegularExpressionValidator(rx, this);
+    setValidator(rx_validator);
     setDmsCompleter();
 }
 
@@ -601,10 +623,14 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
     pin_action->setDisabled(true);
     recent_file_context_menu->addAction(pin_action.get());
     recent_file_context_menu->addAction(remove_action.get());
-    
-    auto test_child = main_window->m_file_menu->childAt(pos);
 
-    connect(remove_action.get(), &QAction::triggered, this, &DmsRecentFileEntry::onDeleteRecentFileEntry);
+
+    auto active_action = main_window->m_file_menu->activeAction();
+    auto dms_recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(active_action);
+    if (!dms_recent_file_entry)
+        return;
+
+    connect(remove_action.get(), &QAction::triggered, dms_recent_file_entry, &DmsRecentFileEntry::onDeleteRecentFileEntry);
     recent_file_context_menu->exec(pos);
 }
 
@@ -626,7 +652,6 @@ bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
 
 bool DmsRecentFileEntry::event(QEvent* e)
 {
-    int i = 0;
     return QAction::event(e);
 }
 
@@ -1149,13 +1174,6 @@ void MainWindow::toggle_currentitembar()
     m_current_item_bar_container->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_valueinfo()
-{
-    //bool isVisible = m_value_info_dock->isVisible();
-    //m_value_info_dock->setVisible(!isVisible);
-}
-
-
 void MainWindow::gui_options()
 {
     // Modal
@@ -1366,10 +1384,21 @@ bool MainWindow::CloseConfig()
 auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
 {
     std::string cfg_name = cfg.data();
-    auto it = std::find(files.begin(), files.end(), cfg_name.c_str());
-    if (it == files.end())
-        return -1;
-    return it - files.begin();
+    //auto pos = std::find(files.begin(), files.end(), cfg_name) - files.begin();
+    UInt32 pos = 0;
+    for (auto& recent_file : files)
+    {
+        if (recent_file.compare(cfg_name) == 0)
+        {
+            return pos;
+        }
+        pos++;
+    }
+    
+    return -1;
+    //if (pos >= files.size())
+    //    return -1;
+    //return pos;
 }
 
 void MainWindow::cleanRecentFilesThatDoNotExist()
@@ -1537,30 +1566,29 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     textWidget->restart_updating();
 }
 
-void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
+void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo)
 {
     assert(studyObject);
 
-    auto* value_info_window = new QWidget(this);
+    auto* value_info_window = new ValueInfoWindow(this);
     value_info_window->setWindowFlag(Qt::Window, true);
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    auto* value_info_browser = new ValueInfoBrowser(this, studyObject, index, value_info_window);
-    value_info_browser->setWindowFlag(Qt::Window, true);
-    h_layout->addWidget(value_info_browser->back_button.get());
-    h_layout->addWidget(value_info_browser->forward_button.get());
+    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, value_info_window);
+    value_info_window->m_browser->setWindowFlag(Qt::Window, true);
+    h_layout->addWidget(value_info_window->m_browser->back_button.get());
+    h_layout->addWidget(value_info_window->m_browser->forward_button.get());
     v_layout->addLayout(h_layout);
-    v_layout->addWidget(value_info_browser);
+    v_layout->addWidget(value_info_window->m_browser);
 
     value_info_window->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
 
     value_info_window->setLayout(v_layout);
     value_info_window->resize(800, 500);
     value_info_window->show();
-    //value_info_browser->show();
 
-    value_info_browser->restart_updating();
+    value_info_window->m_browser->restart_updating();
 
     return;
 }
@@ -1693,14 +1721,10 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    //auto test = new_recent_file_entry->associatedGraphicsWidgets(); //->installEventFilter(new_recent_file_entry);
-    //new_recent_file_entry->installEventFilter(new_recent_file_entry);
     for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
     {
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
-
-    //auto test_default_widget = new_recent_file_entry->defaultWidget();
 
     m_recent_file_entries.push_back(new_recent_file_entry);
 
@@ -1909,13 +1933,13 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
                 return;
 
             if (!origin)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
             auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
             if (!value_info_browser)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
-            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo);
+            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
             return;
         }
@@ -2168,21 +2192,18 @@ void MainWindow::createActions()
     m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
     m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
     m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
-    m_toggle_valueinfo_action      = std::make_unique<QAction>(tr("Toggle ValueInfo area"));
 
     m_toggle_treeview_action->setCheckable(true);
     m_toggle_detailpage_action->setCheckable(true);
     m_toggle_eventlog_action->setCheckable(true);
     m_toggle_toolbar_action->setCheckable(true);
     m_toggle_currentitembar_action->setCheckable(true);
-    m_toggle_valueinfo_action->setCheckable(true);
 
     connect(m_toggle_treeview_action.get(), &QAction::triggered, this, &MainWindow::toggle_treeview);
     connect(m_toggle_detailpage_action.get(), &QAction::triggered, this, &MainWindow::toggle_detailpages);
     connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
     connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
     connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
-    connect(m_toggle_valueinfo_action.get(), &QAction::triggered, this, &MainWindow::toggle_valueinfo);
     m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
     m_toggle_treeview_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
@@ -2193,14 +2214,12 @@ void MainWindow::createActions()
     m_toggle_toolbar_action->setShortcutContext(Qt::ApplicationShortcut);
     m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
     m_toggle_currentitembar_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_valueinfo_action->setShortcut(QKeySequence(tr("Alt+5")));
-    m_toggle_valueinfo_action->setShortcutContext(Qt::ApplicationShortcut);
+
     m_view_menu->addAction(m_toggle_treeview_action.get());
     m_view_menu->addAction(m_toggle_detailpage_action.get());
     m_view_menu->addAction(m_toggle_eventlog_action.get());
     m_view_menu->addAction(m_toggle_toolbar_action.get());
     m_view_menu->addAction(m_toggle_currentitembar_action.get());
-    m_view_menu->addAction(m_toggle_valueinfo_action.get());
     connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
 
     // tools menu
@@ -2239,9 +2258,13 @@ void MainWindow::createActions()
     m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
     connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
     m_tools_menu->addAction(m_expand_all_action.get());
-    
+
     // debug tools
 #ifdef MG_DEBUG
+    m_save_value_info_pages = std::make_unique<QAction>(tr("Debug: save value info page(s)"));
+    connect(m_save_value_info_pages.get(), &QAction::triggered, this, &MainWindow::saveValueInfo);
+    m_tools_menu->addAction(m_save_value_info_pages.get());
+
     m_debug_reports = std::make_unique<QAction>(tr("Debug: produce internal report(s)"));
     connect(m_debug_reports.get(), &QAction::triggered, this, &MainWindow::debugReports);
     m_tools_menu->addAction(m_debug_reports.get());

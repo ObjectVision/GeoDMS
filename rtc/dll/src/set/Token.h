@@ -122,6 +122,8 @@ struct TokenID
 	RTC_CALL TokenStr GetStrEnd() const;
 	RTC_CALL UInt32   GetStrLen() const;
 	RTC_CALL TokenStrRange AsStrRange() const;
+	RTC_CALL SharedStr AsSharedStr() const;
+	RTC_CALL std::string AsStdString() const;
 
 	static CharPtr  GetEmptyStr()    { return s_EmptyStr; }
 	static TokenStr GetEmptyTokenStr() { return TokenID().GetStr(); }

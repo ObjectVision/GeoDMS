@@ -24,6 +24,7 @@ RTC_CALL SharedStr SingleUnQuote(CharPtr str);
 RTC_CALL void DoubleQuote(struct FormattedOutStream& os,CharPtr str);
 RTC_CALL void DoubleQuote(struct FormattedOutStream& os,CharPtr first, CharPtr last);
 inline   void DoubleQuote(struct FormattedOutStream& os, WeakStr str) { DoubleQuote(os, str.cbegin(), str.csend()); }
+RTC_CALL void DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr begin, CharPtr end);
 
 
 RTC_CALL void SingleQuote(struct FormattedOutStream& os,CharPtr str);

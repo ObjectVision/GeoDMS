@@ -23,6 +23,7 @@
 #include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
 #include "utl/mySPrintF.h"
+#include "utl/Quotes.h"
 #include "xml/XMLOut.h"
 #include "Parallel.h"
 
@@ -196,6 +197,10 @@ DmsException::~DmsException()
 static int sd_ThrowItemErrorCount = 0;
 #endif
 
+RTC_CALL const char* DmsException::what() const noexcept
+{
+	return get()->m_Why.c_str();
+}
 
 [[noreturn]] RTC_CALL void DmsException::throwMsg(ErrMsgPtr msg)
 {
@@ -594,8 +599,19 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 
 	if (mustTerminate)
 	{
-		MessageBox(reinterpret_cast<HWND>(GetGlobalMainWindowHandle()), exceptionText.c_str(), "Fatal OS Structured Exception raised", MB_OK);
-		std::terminate();
+		DMS_Terminate();
+
+		MG_CHECK(exceptionText.ssize() < 1000);
+		char msgBuffer[1500];
+		SilentMemoOutStreamBuff smosb(IterRange(msgBuffer, msgBuffer+1500));
+		FormattedOutStream fos(&smosb);
+		fos << "\"" << GetExeDir();
+		fos << "\\GeoDmsGuiQt.exe\" \"/F";
+		DoubleQuoteMiddle(smosb, exceptionText.begin(), exceptionText.end());
+		fos << char(0);
+		
+		StartChildProcess(nullptr, msgBuffer);
+		ExitProcess(GetLastExceptionCode());
 	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"
 	,	(u == EXCEPTION_BORLAND_ERROR) ? "Borland" : "OS"

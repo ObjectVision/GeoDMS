@@ -96,8 +96,10 @@ private:
 namespace 
 {
 	CommonOperGroup cog_EqualInterval("ClassifyEqualInterval", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_NZEqualInterval("ClassifyNonzeroEqualInterval", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_LogInterval("ClassifyLogInterval", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_EqualCount("ClassifyEqualCount", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_NZEqualCount("ClassifyNonzeroEqualCount", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_UniqueValues("ClassifyUniqueValues", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_CRJenksFisher("ClassifyJenksFisher", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_NZJenksFisher("ClassifyNonzeroJenksFisher", oper_policy::dynamic_result_class);
@@ -108,16 +110,18 @@ namespace
 
 		ClassBreakOperators()
 			:	cfoEI(&cog_EqualInterval, ClassifyEqualInterval, DataArray<V>::GetStaticClass())
+			,	cfoNZEI(&cog_NZEqualInterval, ClassifyNZEqualInterval, DataArray<V>::GetStaticClass())
 			,	cfoLI(&cog_LogInterval,   ClassifyLogInterval  , DataArray<V>::GetStaticClass())
 			,	cfoEC(&cog_EqualCount,    ClassifyEqualCount   , DataArray<V>::GetStaticClass())
+			,	cfoNZEC(&cog_NZEqualCount, ClassifyNZEqualCount, DataArray<V>::GetStaticClass())
 			,	cfoUV(&cog_UniqueValues,  ClassifyUniqueValues , DataArray<V>::GetStaticClass())
 			,	cfoNZJF(&cog_NZJenksFisher, ClassifyNZJenksFisher, DataArray<V>::GetStaticClass())
 			,   cfoCRJF(&cog_CRJenksFisher, ClassifyCRJenksFisher, DataArray<V>::GetStaticClass())
 		{}
 
-		ClassifyFixedOperator cfoEI;
+		ClassifyFixedOperator cfoEI, cfoNZEI;
 		ClassifyFixedOperator cfoLI;
-		ClassifyFixedOperator cfoEC;
+		ClassifyFixedOperator cfoEC, cfoNZEC;
 		ClassifyFixedOperator cfoUV;
 		ClassifyFixedOperator cfoNZJF, cfoCRJF;
 	};

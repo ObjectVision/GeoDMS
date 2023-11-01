@@ -33,11 +33,11 @@
 #include "GridLayer.h"
 #include "FeatureLayer.h"
 #include "LayerClass.h"
+#include "Waiter.h"
 
 //----------------------------------------------------------------------
 // section : LayerInfo
 //----------------------------------------------------------------------
-
 
 LayerInfo::LayerInfo(
 	State state, 
@@ -204,7 +204,7 @@ auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 		dms_assert(!SuspendTrigger::DidSuspend());
 		if (IsThisMappable(ti))
 			return ti;
-		ti = ti->GetReferredItem();
+		ti = Waiter::IsWaiting() ? ti->GetCurrRefItem() : ti->GetReferredItem();
 	} while (ti);
 	return nullptr;
 }

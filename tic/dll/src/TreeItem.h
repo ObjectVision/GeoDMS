@@ -236,7 +236,8 @@ public:
 	TIC_CALL bool IsLoadable()      const;
 	TIC_CALL bool IsStorable()      const;
 
-	TIC_CALL bool IsCurrLoadable()      const;
+	TIC_CALL bool IsCurrLoadable()  const;
+	TIC_CALL bool IsCurrStorable()  const;
 
 	bool IsDerivable()     const { return IsLoadable() || HasCalculator() && !HasConfigData(); }
 	TIC_CALL bool HasConfigData() const;
