@@ -88,6 +88,7 @@ public slots:
 	void toggleScrollToBottom();
 	void toggleScrollToBottomDirectly();
 	void toggleFilter(bool toggled);
+	void invalidateOnVisualChange();
 	void onTextChanged(const QString& text);
 	void clearTextFilter();
 
