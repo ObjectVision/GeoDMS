@@ -1566,7 +1566,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     textWidget->restart_updating();
 }
 
-void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
+void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo)
 {
     assert(studyObject);
 
@@ -1575,7 +1575,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index)
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, value_info_window);
+    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, value_info_window);
     value_info_window->m_browser->setWindowFlag(Qt::Window, true);
     h_layout->addWidget(value_info_window->m_browser->back_button.get());
     h_layout->addWidget(value_info_window->m_browser->forward_button.get());
@@ -1933,13 +1933,13 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
                 return;
 
             if (!origin)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
             auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
             if (!value_info_browser)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo);
+                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
-            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo);
+            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
 
             return;
         }

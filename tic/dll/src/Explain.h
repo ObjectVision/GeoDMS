@@ -70,17 +70,4 @@ namespace Explain {
 }
 
 
-//  -----------------------------------------------------------------------
-//  extern "C" interface functions
-//  -----------------------------------------------------------------------
-
-extern "C" {
-
-TIC_CALL void DMS_CONV DMS_ExplainValue_Clear();
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden);
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden);
-
-
-} // extern "C"
-
 #endif //!defined(__TIC_EXPLAIN_H)
