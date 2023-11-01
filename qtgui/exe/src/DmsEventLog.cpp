@@ -545,9 +545,13 @@ void DmsEventLog::invalidateOnVisualChange()
 	setSF(m_eventlog_filter->m_category->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
 	SetRegStatusFlags(dms_reg_status_flags);
 
-	MainWindow::TheOne()->m_eventlog_model->cached_reg_flags = GetRegStatusFlags();
+	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
+	eventlog_model->cached_reg_flags = GetRegStatusFlags();
 
-	m_log->update();
+	auto first_index = eventlog_model->index(0);
+	auto last_index = eventlog_model->index(eventlog_model->m_filtered_indices.size()-1);
+	m_log->model()->dataChanged(first_index, last_index);
+	//m_log->update();
 }
 
 void DmsEventLog::onTextChanged(const QString& text)
