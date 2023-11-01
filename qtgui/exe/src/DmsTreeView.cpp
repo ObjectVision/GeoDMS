@@ -125,8 +125,10 @@ void DmsModel::reset()
 
 QVariant DmsModel::headerData(int /*section*/, Qt::Orientation orientation, int role) const
 {
-	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
-		return data({}, role);
+	//if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
+	//	return data({}, role);
+	if (role == Qt::DisplayRole)
+		return QString("test");
 
 	return QVariant();
 }
@@ -531,12 +533,18 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
+	//header()->setCascadingSectionResizes(true);
+	
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	
 	horizontalScrollBar()->setEnabled(true);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
 	//header()->setStretchLastSection(false);
+	auto test = header();
+	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);
+
+	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
 	setStyleSheet(
 		"QTreeView::branch:has-siblings:!adjoins-item {\n"
@@ -683,6 +691,11 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 		return;
 
 	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
+}
+
+void  DmsTreeView::onHeaderSectionClicked(int index)
+{
+	int i = 0;
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
