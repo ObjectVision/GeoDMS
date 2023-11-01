@@ -1560,7 +1560,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     mdiSubWindow->setWidget(textWidget);
     mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
 
-    SharedStr title = "Statistics of " + tiContext->GetFullName();
+    SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(getIconFromViewstyle(ViewStyle::tvsStatistics));
     m_mdi_area->addSubWindow(mdiSubWindow);
