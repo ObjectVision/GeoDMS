@@ -89,8 +89,9 @@ public:
 	QSize minimumSizeHint() const override;
 	int m_default_size = 200;
 
-private slots:
+public slots:
 	void onDoubleClick(const QModelIndex& index);
+	void onHeaderSectionClicked(int index);
 
 private:
 	std::unique_ptr<QMenu> m_context_menu, m_code_analysis_submenu;
