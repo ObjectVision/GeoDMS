@@ -19,13 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{2D7A02E2-FAF5-4B89-8175-BFE0A4FC97FF}</ProjectGuid>
-    <ProjectName>GeoDmsRun</ProjectName>
+    <ProjectGuid>{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}</ProjectGuid>
+    <ProjectName>GeoDmsPython</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -46,7 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\Include;C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\PC;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -54,15 +54,21 @@
       <StackReserveSize Condition="'$(Platform)'=='x64'">67108864</StackReserveSize>
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\MainRun.cpp" />
+    <ClCompile Include="src\Bindings.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
@@ -86,9 +92,6 @@
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="DebugSettings.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

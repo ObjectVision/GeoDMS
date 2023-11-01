@@ -238,6 +238,7 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 			}
 			CheckPtr(dv, DataView::GetStaticClass(), "SHV_DataView_DispatchMessage");
 			TreeItemContextHandle checkPtr(dv->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_DispatchMessage");
+			Waiter handleMessage(&checkPtr);
 
 			StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 			dv->ResetHWnd(hWnd);
@@ -437,7 +438,7 @@ bool IsMapViewable(const AbstrDataItem* adi)
 	{
 		if (HasMapType(adu))
 			return true;
-		adu = AsUnit( adu->GetSourceItem() );
+		adu = AsUnit( adu->GetCurrSourceItem() );
 	}	while (adu);
 
 	return false;
@@ -476,7 +477,14 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 						g_LastViewStyleFlags |= vsfTableContainer;
 			}
 			if (item->HasSubItems  ()) g_LastViewStyleFlags |= vsfContainer;
-			if (item->HasCalculator()) g_LastViewStyleFlags |= vsfExprEdit;
+			if (Waiter::IsWaiting())
+			{
+				if (item->mc_Calculator) g_LastViewStyleFlags |= vsfExprEdit;
+			}
+			else
+			{
+				if (item->HasCalculator()) g_LastViewStyleFlags |= vsfExprEdit;
+			}
 
 			g_LastQueriedItem = item;
 			g_LastAdminMode   = HasAdminMode();

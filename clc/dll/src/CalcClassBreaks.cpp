@@ -70,8 +70,8 @@ const UInt32 BUFFER_SIZE = 1024;
 
 ValueCountPairContainer GetCountsDirect(const AbstrDataItem* adi, tile_id t, tile_offset index, UInt32 size)
 {
-	dms_assert(size <= BUFFER_SIZE);
-	dms_assert(size > 0);
+	assert(size <= BUFFER_SIZE);
+	assert(size > 0);
 
 	ValueCountPairContainer result;
 
@@ -118,8 +118,8 @@ struct CompareFirst
 {
 	bool operator () (const ValueCountPair& lhs, const ValueCountPair& rhs)
 	{
-		dms_assert(IsDefined(lhs.first));
-		dms_assert(IsDefined(rhs.first));
+		assert(IsDefined(lhs.first));
+		assert(IsDefined(rhs.first));
 
 		return lhs.first < rhs.first;
 	}
@@ -136,7 +136,7 @@ void WeedOutOddPairs(ValueCountPairContainer& vcpc, SizeT maxPairCount)
 		currPair = vcpc.begin(),
 		lastPair = vcpc.end();
 
-	dms_assert(currPair == lastPair || IsDefined(currPair->first));
+	assert(currPair == lastPair || IsDefined(currPair->first));
 
 	ValueCountPairContainer::iterator 
 		donePair = currPair;
@@ -145,10 +145,10 @@ void WeedOutOddPairs(ValueCountPairContainer& vcpc, SizeT maxPairCount)
 		--lastPair;
 	while (currPair != lastPair)
 	{
-		dms_assert(IsDefined(currPair->first) );
+		assert(IsDefined(currPair->first) );
 		*donePair = *currPair;
 		++currPair;
-		dms_assert(currPair != lastPair && IsDefined(currPair->first));
+		assert(currPair != lastPair && IsDefined(currPair->first));
 
 		donePair->second += currPair->second;
 		++donePair;
@@ -221,7 +221,7 @@ ValueCountPairContainer GetTileCounts(const AbstrDataItem* adi, tile_id t, SizeT
 
 ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_id nrTiles, SizeT maxPairCount)
 {
-	dms_assert(nrTiles >= 1); // PRECONDITION
+	assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles==1)
 	{
 		ReadableTileLock tileLock(adi->GetCurrRefObj(), t);
@@ -230,7 +230,7 @@ ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_
 	}
 
 	tile_id m = nrTiles/2;
-	dms_assert(m >= 1);
+	assert(m >= 1);
 
 	std::future<ValueCountPairContainer> firstHalf = throttled_async([adi, t, m, maxPairCount]() {
 		return GetWallCounts(adi, t, m, maxPairCount);
@@ -262,7 +262,7 @@ auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountP
 
 CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 {
-	dms_assert(adi && adi->GetInterestCount());
+	assert(adi && adi->GetInterestCount());
 
 	DataReadLock lck(adi);
 
@@ -289,30 +289,30 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 		faLimits.push_back(0);
 		return;
 	}
-	dms_assert(m > 0);
+	assert(m > 0);
 
 	Range<Float64> valueRange(
 		vcpc[  0].first,
 		vcpc[m-1].first
 	);
-	dms_assert(valueRange.first< valueRange.second); // follows from m>1 and postcondition of UpdateCounts()
-	dms_assert(valueRange.first >= 0); // PRECONDITION
+	assert(valueRange.first< valueRange.second); // follows from m>1 and postcondition of UpdateCounts()
+	assert(valueRange.first >= 0); // PRECONDITION
 
 	if ((valueRange.first==0) && (m>1))
 		valueRange.first = vcpc[1].first;
-	dms_assert((valueRange.first > 0) || (m <= 1));
+	assert((valueRange.first > 0) || (m <= 1));
 
 	UInt32 nReq = k-1; // nr requested breaks
-//	dms_assert(nReq>=1); // follows from PRECONDITION on k.
+//	assert(nReq>=1); // follows from PRECONDITION on k.
 	
 	Float64 fValue = 1;
 	if(valueRange.first > 0)
 	{
-		while (fValue > valueRange.first * 10 ) fValue *= 0.1; dms_assert(fValue <= valueRange.first*10);
-		while (fValue <= valueRange.first)      fValue *= 10;  dms_assert(fValue <= valueRange.first*10);
-		dms_assert(fValue <= valueRange.first*10);
+		while (fValue > valueRange.first * 10 ) fValue *= 0.1; assert(fValue <= valueRange.first*10);
+		while (fValue <= valueRange.first)      fValue *= 10;  assert(fValue <= valueRange.first*10);
+		assert(fValue <= valueRange.first*10);
 	}
-	dms_assert(fValue > valueRange.first);
+	assert(fValue > valueRange.first);
 
 	// determine initial classes based on pow(10), even if this increases nr of classes
 	while (fValue <= valueRange.second)
@@ -320,7 +320,7 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 		faLimits.push_back(fValue);		
 		fValue = fValue *10;
 	}
-	dms_assert(fValue > valueRange.second);
+	assert(fValue > valueRange.second);
 
 	// adjust classes according to demand
 	if (faLimits.size())
@@ -338,7 +338,7 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 	// split in 3
 	while (nCurSplit > 0 && nReq > faLimits.size()+nCurSplit)
 	{
-		dms_assert(nReq > faLimits.size() + 1);
+		assert(nReq > faLimits.size() + 1);
 		if (IsIncluding(valueRange, 0.5 * fValue)) Insert(faLimits, nCurSplit, 0.5 * fValue);
 		if (IsIncluding(valueRange, 0.2 * fValue)) Insert(faLimits, nCurSplit, 0.2 * fValue);
 		--nCurSplit;
@@ -381,7 +381,7 @@ void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, c
 {
 	DataWriteLock breakLock(breakAttr, data.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
 
-	dms_assert(data.size() == breakLock->GetNrFeaturesNow());
+	assert(data.size() == breakLock->GetNrFeaturesNow());
 	breakLock->SetValuesAsFloat64Array(tile_loc(no_tile, 0), data.size(), begin_ptr(data));
 
 	breakLock.Commit();
@@ -390,7 +390,7 @@ void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, c
 break_array ClassifyUniqueValues(const ValueCountPairContainer& vcpc, SizeT k)
 {
 	SizeT m = vcpc.size();
-	dms_assert(m <= vcpc.m_Total);
+	assert(m <= vcpc.m_Total);
 
 	break_array result; result.reserve(k);
 
@@ -410,7 +410,7 @@ break_array ClassifyUniqueValues(const ValueCountPairContainer& vcpc, SizeT k)
 
 break_array ClassifyUniqueValues(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
-	dms_assert(breakAttr);
+	assert(breakAttr);
 
 	auto ba = ClassifyUniqueValues(vcpc, breakAttr->GetAbstrDomainUnit()->GetCount());
 	FillBreakAttrFromArray(breakAttr, ba, abstrValuesRangeData);
@@ -419,10 +419,10 @@ break_array ClassifyUniqueValues(AbstrDataItem* breakAttr, const ValueCountPairC
 
 break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
-	dms_assert(breakAttr);
+	assert(breakAttr);
 
 	DataWriteLock breakObj(breakAttr, vcpc.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
-	dms_assert(breakAttr->GetDataObjLockCount() < 0);
+	assert(breakAttr->GetDataObjLockCount() < 0);
 
 	break_array ba;
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
@@ -432,17 +432,17 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 		SizeT m = vcpc.size();
 		if (m)
 		{
-			dms_assert(m <= vcpc.m_Total);
+			assert(m <= vcpc.m_Total);
 
-			Float64 minValue = m ? vcpc[0].first : 0;
-			Float64 maxValue = m ? vcpc[m - 1].first : 0;
+			Float64 minValue = vcpc[0].first;
+			Float64 maxValue = vcpc[m - 1].first;
 
-			dms_assert(IsDefined(minValue));
-			dms_assert(IsDefined(maxValue));
-			dms_assert(minValue <= maxValue); // follows from m>1 and postcondition of UpdateCounts()
+			assert(IsDefined(minValue));
+			assert(IsDefined(maxValue));
+			assert(minValue <= maxValue); // follows from m>1 and postcondition of UpdateCounts()
 
 			Float64 delta = (k > 1) ? (maxValue - minValue) / (k - 1) : 0;
-			dms_assert(delta >= 0); // follows from previous assertions
+			assert(delta >= 0); // follows from previous assertions
 
 			for (SizeT j = 0; j != k; ++j)
 			{
@@ -459,17 +459,98 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 	return ba;
 }
 
+break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
+{
+	assert(breakAttr);
+	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
+	if (k < 2 || !vcpc.size() || vcpc[0].first > 0)
+		return ClassifyEqualInterval(breakAttr, vcpc, abstrValuesRangeData);
+
+	DataWriteLock breakObj(breakAttr, vcpc.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
+	assert(breakAttr->GetDataObjLockCount() < 0);
+
+	break_array ba;
+	SizeT m = vcpc.size();
+	assert(m);
+
+	assert(m <= vcpc.m_Total);
+	auto mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz; 
+	bool hasNegative = (mz > 0);
+
+	Float64 minValueN = vcpc[0].first; MG_CHECK(minValueN < 0.0); 
+	Float64 maxValueN = vcpc[mz - 1].first;
+
+	assert(IsDefined(minValueN));
+	assert(IsDefined(maxValueN));
+	assert(minValueN <= maxValueN); 
+
+	auto kk = k;
+	bool hasZero = vcpc[mz].first == 0.0 && k > 2; // if k==2 we just treat zero as a positive number
+	if (hasZero)
+	{
+		++mz;
+		--kk;
+	}
+	bool hasPositive = (mz < m);
+
+	Float64 minValueP = hasPositive ? vcpc[mz].first : 0.0;
+	Float64 maxValueP = hasPositive ? vcpc[m - 1].first : 0.0;
+
+	Float64 deltaN = (maxValueN - minValueN);
+	Float64 deltaP = (maxValueP - minValueP);
+
+	SizeT kn = 1;
+	if (minValueN == maxValueN)
+		;
+	else if (minValueP == maxValueP)
+		kn = kk - 1;
+	else
+	{
+		auto minDelta = Max(deltaN, deltaP);
+		for (SizeT ko = 1; ko + 1 != kk; ++ko)
+		{
+			auto currDelta = Max(deltaN / ko, deltaP / (kk - ko));
+			if (currDelta <= minDelta)
+			{
+				kn = ko;
+				minDelta = currDelta;
+			}
+		}
+	}
+	auto kp = kk - kn;
+	if (kn > 1) deltaN /= kn;
+	if (kp > 1) deltaP /= kp;
+
+	while (kn--)
+	{
+		ba.emplace_back(minValueN);
+		minValueN += deltaN;
+	}
+	if (hasZero)
+		ba.emplace_back(0.0);
+	while (kp--)
+	{
+		ba.emplace_back(minValueP);
+		minValueP += deltaP;
+	}
+	for (SizeT j=0; j!= ba.size(); ++j)
+		breakObj->SetValueAsFloat64(j, ba[j]);
+
+	breakObj.Commit();
+	return ba;
+}
+
 break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
 {
-	dms_assert(breakAttr);
+	assert(breakAttr);
 
 	DataWriteLock breakObj(breakAttr, dms_rw_mode::write_only_all, abstrValuesRangeData);
-	dms_assert(breakAttr->GetDataObjLockCount() < 0);
+	assert(breakAttr->GetDataObjLockCount() < 0);
 
 	UInt32 k = breakAttr->GetAbstrDomainUnit()->GetCount();
 	UInt32 m = vcpc.size();
 
-	dms_assert(m<= vcpc.m_Total);
+	assert(m<= vcpc.m_Total);
 
 	break_array faLimits;
 	if (m)
@@ -478,9 +559,9 @@ break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairCo
 
 		UInt32 kk = faLimits.size();
 		MakeMin(kk, k);
-		dms_assert(kk <= k);
+		assert(kk <= k);
 
-		dms_assert(kk > 0);
+		assert(kk > 0);
 
 		SizeT j = 0;
 		for (; j != kk; ++j)
@@ -505,10 +586,10 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 	SizeT  m = vcpc.size();
 
 	UInt32 kk = Min<UInt32>(k,m);
-//	dms_assert(kk>=1); // follows from previous asserts + assignemnt
-	dms_assert(kk<=m); // follows from assignment
-	dms_assert(m<= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
-	dms_assert(kk<= vcpc.m_Total); // follows from previous asserts
+//	assert(kk>=1); // follows from previous asserts + assignemnt
+	assert(kk<=m); // follows from assignment
+	assert(m<= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk<= vcpc.m_Total); // follows from previous asserts
 
 	UInt32 c = 0, cc=0;
 	UInt32 i =0;
@@ -519,22 +600,69 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 	SizeT j =0;
 	for (; j != kk; ++j)
 	{
-		dms_assert(m+j>=kk); // follows from previous dms_assert and positivity of j
+		assert(m+j>=kk); // follows from previous assert and positivity of j
 		UInt32 maxI = m+j-kk; // (m-i) > (kk-j)
-		dms_assert(maxI < m);  // j < kk
+		assert(maxI < m);  // j < kk
 		while (c<cc && i < maxI)
 		{
-			dms_assert(i < m);
+			assert(i < m);
 			c += vcpc[i].second;
 			++i;
 		}
-		dms_assert(i<m);
+		assert(i<m);
 
 		breakValue = vcpc[i].first;
 
 		ba.emplace_back(breakValue);
 		breakObj->SetValueAsFloat64(j, breakValue );
 		cc = c + (vcpc.m_Total -c)/(kk-j);
+	}
+	for (; j != k; ++j)
+		breakObj->SetValueAsFloat64(j, breakValue);
+
+	breakObj.Commit();
+	return ba;
+}
+
+break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData)
+{
+	DataWriteLock breakObj(breakAttr, dms_rw_mode::write_only_all, abstrValuesRangeData);
+
+	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
+
+	SizeT  m = vcpc.size();
+
+	UInt32 kk = Min<UInt32>(k, m);
+	//	assert(kk>=1); // follows from previous asserts + assignemnt
+	assert(kk <= m); // follows from assignment
+	assert(m <= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk <= vcpc.m_Total); // follows from previous asserts
+
+	UInt32 c = 0, cc = 0;
+	UInt32 i = 0;
+
+	Float64 breakValue = UNDEFINED_VALUE(Float64);
+	break_array ba; ba.reserve(kk);
+
+	SizeT j = 0;
+	for (; j != kk; ++j)
+	{
+		assert(m + j >= kk); // follows from previous assert and positivity of j
+		UInt32 maxI = m + j - kk; // (m-i) > (kk-j)
+		assert(maxI < m);  // j < kk
+		while (c < cc && i < maxI && (i==0 || ((vcpc[i-1].first >= 0) == vcpc[i].first > 0)))
+		{
+			assert(i < m);
+			c += vcpc[i].second;
+			++i;
+		}
+		assert(i < m);
+
+		breakValue = vcpc[i].first;
+
+		ba.emplace_back(breakValue);
+		breakObj->SetValueAsFloat64(j, breakValue);
+		cc = c + (vcpc.m_Total - c) / (kk - j);
 	}
 	for (; j != k; ++j)
 		breakObj->SetValueAsFloat64(j, breakValue);
@@ -565,12 +693,12 @@ struct JenksFisher
 		for(SizeT i=0; i!=m_M; ++i)
 		{
 			w   = vcpc[i].second;
-			dms_assert(w > 0);
+			assert(w > 0);
 
 			cw += w; 
-			dms_assert(cw >= w); // no overflow?
+			assert(cw >= w); // no overflow?
 
-			dms_assert(!i || vcpc[i-1].first < vcpc[i].first);
+			assert(!i || vcpc[i-1].first < vcpc[i].first);
 			cwv+= w * vcpc[i].first;
 			m_CumulValues.push_back(ValueCountPair(cwv, cw));
 
@@ -588,8 +716,8 @@ struct JenksFisher
 #endif
 	Float64 GetW(SizeT b, SizeT e)
 	{
-		dms_assert(b<=e);
-		dms_assert(e<m_M);
+		assert(b<=e);
+		assert(e<m_M);
 
 		Float64 res  = m_CumulValues[e].second;
 		if (b)  res -= m_CumulValues[b-1].second;
@@ -598,8 +726,8 @@ struct JenksFisher
 
 	Float64 GetWV(SizeT b, SizeT e)
 	{
-		dms_assert(b<=e);
-		dms_assert(e<m_M);
+		assert(b<=e);
+		assert(e<m_M);
 
 		Float64 res  = m_CumulValues[e].first;
 		if (b)  res -= m_CumulValues[b-1].first;
@@ -618,11 +746,11 @@ struct JenksFisher
 	{
 		DBG_START("JenksFisher", "FindMinBreakIndex", MG_DEBUG_CLASSBREAKS);
 		DBG_TRACE(("i=%d bp=%d ep-%d", i, bp, ep));
-		dms_assert(bp < ep);
-		dms_assert(bp <= i);
-		dms_assert(ep <= i+1);
-		dms_assert(i  <  m_BufSize);
-		dms_assert(ep <= m_BufSize);
+		assert(bp < ep);
+		assert(bp <= i);
+		assert(ep <= i+1);
+		assert(i  <  m_BufSize);
+		assert(ep <= m_BufSize);
 
 		ClassBreakValueType minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 		DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
@@ -634,8 +762,8 @@ struct JenksFisher
 			if (prev_bp--)
 				MakeMax(bp, prev_bp);
 		}
-		dms_assert(bp < ep);
-		dms_assert(bp <= i);
+		assert(bp < ep);
+		assert(bp <= i);
 #endif
 		SizeT foundP = bp;
 		while (++bp < ep)
@@ -658,26 +786,26 @@ struct JenksFisher
 		DBG_START("JenksFisher", "CalcRange", MG_DEBUG_CLASSBREAKS);
 		DBG_TRACE(("bi=%d ei=%d bp=%d ep=%d", bi, ei, bp, ep));
 
-		dms_assert(bi <= ei);
+		assert(bi <= ei);
 
-		dms_assert(ep <= ei);
-		dms_assert(bp <= bi);
+		assert(ep <= ei);
+		assert(bp <= bi);
 
 		if (bi == ei)
 			return;
-		dms_assert(bp < ep);
+		assert(bp < ep);
 
 		SizeT mi = (bi + ei)/2;
 		auto [mp, minSSM] = FindMaxBreakIndex(mi, bp, Min<SizeT>(ep, mi+1));
 
-		dms_assert(bp <= mp);
-		dms_assert(mp <  ep);
-		dms_assert(mp <= mi);
+		assert(bp <= mp);
+		assert(mp <  ep);
+		assert(mp <= mi);
 		
 		CalcRange(bi, mi, bp, Min<SizeT>(mi, mp+1));
 
 #if !defined(MG_ASSUME_CB_INC)
-		dms_assert(m_NrCompletedRows==1 || (mi+1) == m_BufSize|| (mp+1) >= (m_CBPtr-m_BufSize)[mi+1]); // assumption right?
+		assert(m_NrCompletedRows==1 || (mi+1) == m_BufSize|| (mp+1) >= (m_CBPtr-m_BufSize)[mi+1]); // assumption right?
 #endif
 		m_CBPtr[ mi ] = mp;
 		CalcRange(mi+1, ei, mp, ep);
@@ -693,7 +821,7 @@ struct JenksFisher
 			{
 				DBG_TRACE(("m_NrCompletedRows=%d", m_NrCompletedRows));
 
-				dms_assert(std::find(m_PrevSSM.get(), m_PrevSSM.get() + m_BufSize, -9999.0 ) == m_PrevSSM.get() + m_BufSize);
+				assert(std::find(m_PrevSSM.get(), m_PrevSSM.get() + m_BufSize, -9999.0 ) == m_PrevSSM.get() + m_BufSize);
 
 				CalcRange(0, m_BufSize, 0, m_BufSize);
 
@@ -721,17 +849,17 @@ struct JenksFisher
 			SizeT k = m_K;
 			while (--k)
 			{
-				dms_assert(k);
+				assert(k);
 				//			DBG_TRACE(("Break[%d]=vcpc[%d]=%f", k, lastClassBreakIndex+k, Float32(vcpc[lastClassBreakIndex+k].first)));
 				result[k] = vcpc[lastClassBreakIndex + k].first;
-				dms_assert(lastClassBreakIndex < m_BufSize);
+				assert(lastClassBreakIndex < m_BufSize);
 				if (k > 1)
 				{
 					cbPtr -= m_BufSize;
 					lastClassBreakIndex = cbPtr[lastClassBreakIndex];
 				}
 			}
-			dms_assert(cbPtr == m_CB.get());
+			assert(cbPtr == m_CB.get());
 		}
 		else
 			lastSSM = GetSSM(0, m_M-1);
@@ -782,7 +910,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	SizeT firstPositivePos = 0;
 	while (firstPositivePos < vcpc.size() && vcpc[firstPositivePos].first <= 0)
 		++firstPositivePos;
-	dms_assert(firstPositivePos == vcpc.size() || vcpc[firstPositivePos].first > 0);
+	assert(firstPositivePos == vcpc.size() || vcpc[firstPositivePos].first > 0);
 
 	auto positiveValues = ValueCountPairContainer(vcpc.begin() + firstPositivePos, vcpc.end());
 	CountType zeroCount = 0;
@@ -817,13 +945,13 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 	for(;; nrNegativeClasses++)
 	{
 		SizeT nrPositiveClasses = kk - nrNegativeClasses - (hasZeroClass ? 1 : 0);
-		dms_assert(nrPositiveClasses >= 1);
+		assert(nrPositiveClasses >= 1);
 		if (nrPositiveClasses > positiveValues.size())
 			continue;
 		if (nrNegativeClasses > negativeValues.size())
 			break;
 
-		dms_assert(nrPositiveClasses >= 1);
+		assert(nrPositiveClasses >= 1);
 		JenksFisher njf(negativeValues, nrNegativeClasses), pjf(positiveValues, nrPositiveClasses);
 		auto [res1, ssm1] = njf.GetBreaks(negativeValues);
 		auto [res2, ssm2] = pjf.GetBreaks(positiveValues);
@@ -834,7 +962,7 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 			if (hasZeroClass)
 				*resIter++ = 0;
 			resIter = std::copy(res2.begin(), res2.end(), resIter);
-			dms_assert(resIter == result.end());
+			assert(resIter == result.end());
 		}
 		if (nrPositiveClasses == 1)
 			break;

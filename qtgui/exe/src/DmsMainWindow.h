@@ -53,7 +53,7 @@ class DmsEventLog;
 class DmsModel;
 class DmsExportWindow;
 class EventLogModel;
-class ValueInfoBrowser;
+struct ValueInfoBrowser;
 
 class DmsCurrentItemBar : public QLineEdit
 {
@@ -303,7 +303,7 @@ public slots:
     void scheduleUpdateToolbar();
     //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
-    void showValueInfo(const AbstrDataItem* studyObject, SizeT index);
+    void showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo);
     void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
     void setStatusMessage(CharPtr msg);
 

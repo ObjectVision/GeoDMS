@@ -1,0 +1,1 @@
+python C:\dev\geodms\branches\GeoDMS\python\tst\test.py

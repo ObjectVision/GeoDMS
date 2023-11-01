@@ -2,8 +2,8 @@ echo on
 cls
 
 set DMS_VERSION_MAJOR=14
-set DMS_VERSION_MINOR=4
-set DMS_VERSION_PATCH=2
+set DMS_VERSION_MINOR=5
+set DMS_VERSION_PATCH=0
 
 set geodms_rootdir=%cd%
 
@@ -80,7 +80,7 @@ del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\gdaldata"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\proj4data"
 rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
-if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" pause
+if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" CHOICE /M "Removed C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion% ?"
 
 "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
 

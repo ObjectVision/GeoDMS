@@ -15,35 +15,44 @@
 
 #include "UpdatableBrowser.h"
 
+struct StudyObject
+{
+    SharedDataItemInterestPtr study_object;
+    SizeT                     index;
+    SharedStr                 extra_info;
+
+    Explain::context_handle   explain_context;
+};
+
 class StudyObjectHistory
 {
 public:
     StudyObjectHistory();
     ~StudyObjectHistory();
 
-    auto currentContext() -> Explain::CalcExplImpl*;
-    auto currentStudyObject() -> SharedDataItemInterestPtr;
-    auto currentIndex() -> Int64;
+    auto currentContext() -> Explain::CalcExplImpl* const;
+    auto currentStudyObject() -> SharedDataItemInterestPtr const;
+    auto currentIndex() -> Int64 const;
+    auto currentExtraInfo() -> SharedStr const;
 
     bool previous();
     bool next();
-    void insert(SharedDataItemInterestPtr studyObject, SizeT index);
-    auto countPrevious() -> SizeT;
-    auto countNext() -> SizeT;
-    void deleteFromCurrentIndexUpToEnd();
+    void insert(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extra_info);
+    auto nrPreviousStudyObjects() -> SizeT const;
+    auto nrNextStudyObjects() -> SizeT const;
+    void deleteAfterCurrentIndex();
 
+    void ClearGarbage();
 private:
-    std::vector<SharedDataItemInterestPtr> study_objects;
-    std::vector<Explain::context_handle>   explain_contexts;
-    std::vector<SizeT>                     indices;
-    Int64                                  current_index = -1; // current index in history
+    std::vector<StudyObject> study_objects;
 
-    QList<Explain::context_handle>   deleted_contexts; // efficient continuation for inserted context handles with overlapping interest
+    Int64 current_index = -1; // current index in history
+    std::vector<Explain::context_handle> garbage;
 };
 
 struct ValueInfoBrowser : QUpdatableTextBrowser
 {
-    ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, QWidget* window);
+    ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window);
     bool update() override;
     void updateNavigationButtons();
     void updateWindowTitle();
@@ -51,7 +60,7 @@ struct ValueInfoBrowser : QUpdatableTextBrowser
 public slots:
     void nextStudyObject();
     void previousStudyObject();
-    void addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index);
+    void addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo);
     void onAnchorClicked(const QUrl& link);
 
 public:

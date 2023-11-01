@@ -48,13 +48,15 @@ namespace {
 		if (!p)
 			return 0;
 
+		bool isWaiting = Waiter::IsWaiting();
+
 		SuspendTrigger::Resume();
 		ObjectMsgGenerator thisMsgGenerator(ti, "CountSubItems");
 		Waiter showWaitingStatus;
-		if (!p->Is(PS_MetaInfo) && !p->WasFailed())
+		if (!isWaiting && !p->Was(PS_MetaInfo) && !p->WasFailed())
 			showWaitingStatus.start(&thisMsgGenerator);
 
-		auto si = p->GetFirstSubItem(); // update metainfo
+		auto si = isWaiting ? p->_GetFirstSubItem() : p->GetFirstSubItem(); // update metainfo
 		int row = 1;
 		while (si != ti)
 		{
@@ -249,7 +251,7 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
 	
-	if (ti->IsFailed() || ti->WasFailed())
+	if (ti->WasFailed())
 		return QColor(255, 255, 255); // white
 
 	auto co = getColorOption(ti);
@@ -380,8 +382,19 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			return;
 
 		bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
-		if (is_read_only && ti->HasCalculator())
-			return;
+		if (is_read_only)
+		{
+			if (Waiter::IsWaiting())
+			{
+				if (ti->mc_Calculator)
+					return;
+			}
+			else
+			{
+				if (ti->HasCalculator())
+					return;
+			}
+		}
 
 		if (ti->IsDisabledStorage())
 			return;
