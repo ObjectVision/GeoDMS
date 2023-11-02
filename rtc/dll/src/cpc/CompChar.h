@@ -49,6 +49,7 @@
 #	define CC_NO_VTAB_BY_EXPLICIT_INSTANTIATION
 #	define CC_UNWINDING_ADM_PROBLEM
 #	define CC_PRAGMAHDRSTOP
+#	define CC_ASSUME(X) __assume(X)
 // for some reasons my Intel C++ 8.0 in MSVC6.0 has _WCHAR_T_DEFINED but no intrinsic wchar_c,
 // so logic as indicated in http://aspn.activestate.com/ASPN/Mail/Message/boost/1614864 fails
 #	define BOOST_NO_INTRINSIC_WCHAR_T
@@ -84,6 +85,7 @@
 #	pragma warning( disable : 4355) // use 'this' in base member initializer list without nagging
 
 #	define CC_PRAGMAHDRSTOP
+#	define CC_ASSUME(X) __assume(X)
 #	define CC_STL_1300
 #	define CC_ITERATOR_CHECKED
 #	define CC_HAS_OVERRIDE
@@ -124,6 +126,7 @@
 #  ifdef CC_COMPILER_NAME
 #    error Second compiler recognized!
 #  endif
+#	define CC_ASSUME(X) if (!(X)) { __builtin_unreachable(); }
 #	define CC_BYTEORDER_INTEL
 #	define CC_SHORT_16
 #	define CC_INT_32
@@ -141,6 +144,7 @@
 #  ifdef CC_COMPILER_NAME
 #    error Second compiler recognized!
 #  endif
+#	define CC_ASSUME(X) if (!(X)) __builtin_unreachable()
 #	define CC_ITERATOR_CHECKED
 #	define CC_BYTEORDER_INTEL
 #	define CC_SHORT_16
