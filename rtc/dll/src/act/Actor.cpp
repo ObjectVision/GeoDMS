@@ -291,17 +291,17 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 #if defined(MG_DEBUG)
 	MGD_CHECKDATA(!sd_InvalidationProtectCount);
 #endif
-	dms_assert(m_LastChangeTS <= invalidate_ts); // invalidations must have a chronological cause
+	assert(m_LastChangeTS <= invalidate_ts); // invalidations must have a chronological cause
 
 	if	(m_LastChangeTS == invalidate_ts)
 	{
 		//	new invalidation (after Update, Suspend or failure) must have a cause
-		dms_assert(! m_State.IsFailed() ); 
-		dms_assert(m_State.GetProgress() <= PS_MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
+		assert(! m_State.IsFailed() ); 
+		assert(m_State.GetProgress() <= PS_MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
 		return;
 	}
 
-	dms_assert(m_LastChangeTS < invalidate_ts); // implied from above
+	assert(m_LastChangeTS < invalidate_ts); // implied from above
 
 	// don't Update or reCheckIntegrity until next Invalidation
 	ClearFail();
@@ -313,12 +313,12 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 
 	SupplInterestListPtr keepOldInterest = MoveSupplInterest(this);
 	DoInvalidate();       // call-back for specific behaviour, which calls StartSupplInterest();
-	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor());
+	assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
 }
 
 void Actor::SetProgress(ProgressState ps) const // called by SetProgressAt( UpdateMarker::GetActiveTS() );
 {
-	dms_assert(m_LastChangeTS || IsPassor()); // must have gone through DetermineState
+	assert(m_LastChangeTS || IsPassor()); // must have gone through DetermineState
 //	dms_assert(ps >= m_State.GetProgress());  // activated at 21-08-2012, see if it holds, REMOVE COMMENT
 
 	if (ps > m_State.GetProgress())
@@ -552,8 +552,8 @@ void Actor::DoInvalidate () const
 		UpdateLock lock(this, actor_flag_set::AF_ChangingInterest);
 		StartSupplInterest();
 	}
-	dms_assert(!WasFailed(FR_Data));
-	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor());
+	dms_assert(!WasFailed(FR_Data) || !DoesHaveSupplInterest());
+	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
 }
 
 void Actor::UpdateMetaInfo() const
@@ -1144,12 +1144,19 @@ void Actor::StartSupplInterest() const
 		s_SupplTreeInterest.assign ( new SupplTreeInterestType );
 
 	SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
+	assert(!supplInterestListRef);
+
+	dms_assert(!DoesHaveSupplInterest()); // POSTCONDITION
 
 	// nothrow from here
-	supplInterestListRef.init( supplInterestListPtr.release() );
-	m_State.Set(actor_flag_set::AF_SupplInterest);
-	undoTargetCount.release();
-	dms_assert( DoesHaveSupplInterest() ); // POSTCONDITION
+	if (!WasFailed(FR_Data))
+	{
+
+		supplInterestListRef.init(supplInterestListPtr.release());
+		m_State.Set(actor_flag_set::AF_SupplInterest);
+		undoTargetCount.release();
+		dms_assert(DoesHaveSupplInterest()); // POSTCONDITION
+	}
 }
 
 SupplInterestListPtr MoveSupplInterest(const Actor* self)
@@ -1231,7 +1238,7 @@ SupplInterestListPtr::~SupplInterestListPtr()
 
 SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
-	dms_assert(this);
+	assert(this);
 
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 	if (!m_InterestCount)
@@ -1245,7 +1252,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 
 	SharedPtr<const Actor> result = this;
 
-	dms_assert(m_InterestCount);
+	assert(m_InterestCount);
 	++m_InterestCount;
 
 	return std::move(*reinterpret_cast<SharedActorInterestPtr*>(&result));

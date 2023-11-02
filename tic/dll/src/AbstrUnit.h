@@ -139,7 +139,6 @@ public:
 	virtual row_id  GetDimSize(DimType dimNr) const;
 
 // Support for countables
-	virtual bool PrepareRange() const;
 	virtual row_id GetPreparedCount(bool throwOnUndefined = true) const;  // Returns 0 if non-countable unit
 	virtual tile_offset GetPreparedTileCount(tile_id t) const;  // Returns 0 if non-countable unit
 	TIC_CALL void ValidateCount(row_id) const;

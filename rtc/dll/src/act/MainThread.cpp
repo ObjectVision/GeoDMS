@@ -129,6 +129,16 @@ RTC_CALL bool IsProcessingMainThreadOpers()
 	return s_ProcessMainThreadOperLevel != 0;
 }
 
+MainThreadBlocker::MainThreadBlocker()
+{
+	++s_ProcessMainThreadOperLevel;
+}
+
+MainThreadBlocker::~MainThreadBlocker()
+{
+	--s_ProcessMainThreadOperLevel;
+}
+
 void ProcessMainThreadOpers()
 {
 	assert(IsMainThread());

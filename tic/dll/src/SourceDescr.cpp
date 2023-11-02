@@ -233,19 +233,6 @@ namespace { // local defs
 	{
 		VectorOutStreamBuff vout;
 		FormattedOutStream fout(&vout, FormattingFlags::ThousandSeparator);
-		/*fout << "<BODY bgcolor = '#DDD2D0'>";
-		switch (m_SDM) {
-		case SourceDescrMode::Configured: fout << "<h1>Configured Source Descriptions</h1>\n"; break;
-		case SourceDescrMode::ReadOnly:   fout << "<h1>Read Only Storage Managers</h1>\n"; break;
-		case SourceDescrMode::WriteOnly:  fout << "<h1>Non-Read Only Storage Managers</h1>\n"; break;
-		case SourceDescrMode::All:        fout << "<h1>Utilized Storage Managers</h1>\n"; break;
-		}
-		fout << "For item: \n" << ti->GetSourceName() << "\n";
-		if (DMS_Appl_GetExeType() == exe_type::geodms_qt_gui)
-			fout << "(other specs can be obtaint by re-pressing the (S) button in the DetailPage toolbar)";
-		else
-			fout << "(other specs can be selected at View->Source Descr variant)";
-		*/
 
 		SA_Reference<TokenID> sourceSequence = m_SourceSecArray[GetOrCalcSourceSeqIndex(ti, true)];
 		if (IsDefined(sourceSequence))
@@ -255,14 +242,6 @@ namespace { // local defs
 		auto first_error_item = GetFirstErrorItem();
 		if (!first_error_item.empty())
 			fout << first_error_item;
-
-		/*if (m_hasError) {
-			fout << "\nList may be incomplete due to errors.";
-			if (m_FirstErrorItem)
-				fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
-		}*/
-
-		//fout << "</BODY>";
 
 		CharPtr first = vout.GetData();
 		return SharedStr(first, first+vout.CurrPos());
