@@ -543,16 +543,6 @@ bool CountableUnitBase<V>::ContainsUndefined(tile_id t) const
 	return :: ContainsUndefined(this->m_RangeDataPtr->GetTileRange(t));
 }
 
-template <typename V>
-bool RangedUnit<V>::PrepareRange() const
-{
-	if (!this->PrepareDataUsage(DrlType::Suspendible))
-		return false;
-
-	return true; // TODO: substitute out PrepareRange()
-	//return WaitForReadyOrSuspendTrigger(this->GetCurrRangeItem());
-}
-
 template <class V>
 typename Range<V>
 RangedUnit<V>::GetPreparedRange() const

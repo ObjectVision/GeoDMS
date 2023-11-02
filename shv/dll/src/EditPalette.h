@@ -94,7 +94,9 @@ protected: // override GraphicObject virtuals
 
 	void ClassifyUniqueValues ();
 	void ClassifyEqualCount   ();
+	void ClassifyNZEqualCount ();
 	void ClassifyEqualInterval();
+	void ClassifyNZEqualInterval();
 	void ClassifyJenksFisher  (bool separateZero);
 	void ClassifyNZJenksFisher() { ClassifyJenksFisher(true); } // separate out zero
 	void ClassifyCRJenksFisher() { ClassifyJenksFisher(false); } // Continuous Range without special treatment of zero

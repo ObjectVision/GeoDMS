@@ -42,7 +42,7 @@ extern "C" {
 
 SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename);
 SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
+SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString); // TODO: duplicate, remove
 SYNTAX_CALL IStringHandle  DMS_CONV DMS_ProcessADMS                (const TreeItem* context, CharPtr url);
 SYNTAX_CALL bool           DMS_CONV DMS_ProcessPostData            (      TreeItem* context, CharPtr postData, UInt32 dataSize);
 SYNTAX_CALL void           DMS_CONV DMS_Stx_Load();
