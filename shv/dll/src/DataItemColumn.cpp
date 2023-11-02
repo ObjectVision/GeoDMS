@@ -1254,7 +1254,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		}
 	}
 //	Remove DIC
-	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this, (tc->NrEntries() > 1) ? MF_ENABLED : MF_GRAYED);
+	med.m_MenuData.emplace_back(mySSPrintF("&Remove %s", caption.c_str()), make_MembFuncCmd(&DataItemColumn::Remove), this);
 
 //	Ramping
 	SharedPtr<const AbstrDataItem> activeAttr = GetActiveAttr();

@@ -131,11 +131,11 @@ const AbstrDataItem* Theme::GetThemeAttrSource() const
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
 	if (!m_ThemeAttr)
-		return nullptr;
+		return 0;
 	const AbstrDataItem* result = m_ThemeAttr;
 	while (true)
 	{
-		const AbstrDataItem* result2 = debug_cast<const AbstrDataItem*>(result->GetCurrSourceItem());
+		const AbstrDataItem* result2 = debug_cast<const AbstrDataItem*>(result->GetSourceItem());
 		if (!result2)
 			return result;
 		result = result2;

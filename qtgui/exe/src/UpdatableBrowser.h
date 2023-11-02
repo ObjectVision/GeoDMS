@@ -10,7 +10,7 @@
 #include <QTextBrowser.h>
 #include <QTimer.h>
 #include <QMdiSubWindow.h>
-#include "DmsMainWindow.h"
+#include "DmsMainWindow.h";
 
 #include "dbg/DebugContext.h"
 

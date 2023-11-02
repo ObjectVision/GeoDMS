@@ -236,8 +236,7 @@ public:
 	TIC_CALL bool IsLoadable()      const;
 	TIC_CALL bool IsStorable()      const;
 
-	TIC_CALL bool IsCurrLoadable()  const;
-	TIC_CALL bool IsCurrStorable()  const;
+	TIC_CALL bool IsCurrLoadable()      const;
 
 	bool IsDerivable()     const { return IsLoadable() || HasCalculator() && !HasConfigData(); }
 	TIC_CALL bool HasConfigData() const;
@@ -470,6 +469,7 @@ public:
 	mutable AbstrStorageManagerRef m_StorageManager; 
 	mutable rtc::any::Any          m_ReadAssets; friend struct OperationContext;
 
+protected: friend struct CalcDestroyer;
 public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate ConfigTreeItem class
 
 	mutable treeitem_flag_set      m_StatusFlags;

@@ -22,7 +22,6 @@ enum class CommandCode {
 	miHistogramView = 12,
 	CascadeSubWindows = 13,
 	TileSubWindows = 14,
-	SaveValueInfo = 17
 };
 
 

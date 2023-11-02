@@ -222,25 +222,6 @@ RTC_CALL TokenStrRange TokenID::AsStrRange() const
 	};
 }
 
-RTC_CALL SharedStr TokenID::AsSharedStr() const
-{
-	if (!IsDefined(m_ID))
-		return SharedStr(Undefined());
-
-	IndexedString_shared_lock guard{ GetCS() };
-	return SharedStr{(*s_TokenListPtr)[m_ID], s_TokenListPtr->item_end(m_ID)};
-}
-
-RTC_CALL std::string TokenID::AsStdString() const
-{
-	if (!IsDefined(m_ID))
-		return std::string(UNDEFINED_VALUE_STRING, UNDEFINED_VALUE_STRING_LEN);
-
-	IndexedString_shared_lock guard{ GetCS() };
-	return std::string{ (*s_TokenListPtr)[m_ID], s_TokenListPtr->item_size(m_ID) };
-}
-
-
 RTC_CALL CharPtrRange TokenID::str_range_st() const
 {
 	dms_assert(NoOtherThreadsStarted()); // and check that no other thread exists, i.e. only in DllLoad

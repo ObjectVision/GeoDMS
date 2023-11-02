@@ -26,29 +26,23 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#pragma once
+#if !defined(__TIC_CALC_DESTROYER_H)
+#define __TIC_CALC_DESTROYER_H
 
-#if !defined(__STX_INTERFACE_H)
-#define __STX_INTERFACE_H
+#include "ptr/SharedPtr.h"
+class  AbstrCalculator;
+struct TreeItem;
+/* REMOVE
+struct CalcDestroyer
+{
+	CalcDestroyer(const TreeItem* item, bool canDestroyCalc = true);
+	~CalcDestroyer();
 
-#include "StxBase.h"
+	AbstrCalculatorRef m_OldCalculator, m_OldChecker;
+	SharedPtr<const TreeItem>  m_OldRefItem;
+	bool                       m_HasInterest;
+};
 
-SYNTAX_CALL SharedStr ProcessADMS(const TreeItem* context, CharPtr url);
+*/
 
-// External callable functions
-SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename);
-
-extern "C" {
-
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename);
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
-SYNTAX_CALL IStringHandle  DMS_CONV DMS_ProcessADMS                (const TreeItem* context, CharPtr url);
-SYNTAX_CALL bool           DMS_CONV DMS_ProcessPostData            (      TreeItem* context, CharPtr postData, UInt32 dataSize);
-SYNTAX_CALL void           DMS_CONV DMS_Stx_Load();
-
-}
-
-
-
-#endif // __STX_INTERFACE_H
+#endif // __TIC_CALC_DESTROYER_H

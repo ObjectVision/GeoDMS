@@ -140,6 +140,9 @@
     <ClCompile Include="src\TreeItemFlags.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\CalcDestroyer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\Aspect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -339,6 +342,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\treeitemflags.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\calcdestroyer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\aspect.h">

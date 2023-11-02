@@ -53,11 +53,6 @@ void Waiter::end()
 	SetBusy(false);
 }
 
-bool Waiter::IsWaiting()
-{
-	return s_WaiterCount;
-}
-
 
 void register_overlapping_periods_callback(wating_event_callback starting, wating_event_callback ending, void* clientHandle)
 {

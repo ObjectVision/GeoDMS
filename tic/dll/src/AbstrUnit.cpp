@@ -488,16 +488,8 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::BlockIncInterestDetector allowIncInterestsForLabelAccess; // user must choose label wisely; new interest leaks out of this frame.
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
-	if (IsMainThread())
-	{
-		if (!ipHolder->PrepareDataUsage(DrlType::Certain))
-			return SharedStr();
-	}
-	else
-	{
-		if (!IsDataReady(ipHolder.get_ptr()))
-			return SharedStr();
-	}
+	if (!ipHolder->PrepareDataUsage(DrlType::Certain))
+		return SharedStr();
 
 	try {
 		DataReadLock drl(ipHolder);
@@ -675,6 +667,11 @@ void AbstrUnit::OnDomainChange(const DomainChangeInfo* info)
 SizeT AbstrUnit::GetPreparedCount(bool throwOnUndefined) const  // Returns 0 if non-countable unit
 {
 	return GetCount();
+}
+
+bool AbstrUnit::PrepareRange() const  // Returns 0 if non-countable unit
+{
+	return true;
 }
 
 SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit

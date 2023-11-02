@@ -194,6 +194,13 @@ void EventLogModel::refilter()
 	m_filtered_indices.clear();
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
+
+	auto dms_reg_status_flags = GetRegStatusFlags();
+	setSF(eventlog_filter_ptr->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
+	setSF(eventlog_filter_ptr->m_thread   ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
+	setSF(eventlog_filter_ptr->m_category ->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
+	SetRegStatusFlags(dms_reg_status_flags);
 
 	UInt64 index = 0;
 
@@ -389,9 +396,9 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
 	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
 
-	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, this, &DmsEventLog::invalidateOnVisualChange);
-	connect(m_eventlog_filter->m_thread   , &QCheckBox::toggled, this, &DmsEventLog::invalidateOnVisualChange);
-	connect(m_eventlog_filter->m_category , &QCheckBox::toggled, this, &DmsEventLog::invalidateOnVisualChange);
+	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_thread   , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_category , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 
 	m_eventlog_filter->m_opening_new_configuration      ->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnLoad);
 	m_eventlog_filter->m_reopening_current_configuration->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnReLoad);
@@ -535,23 +542,6 @@ void DmsEventLog::toggleFilter(bool toggled)
 	main_window->resizeDocks({ main_window->m_eventlog_dock }, { default_height }, Qt::Vertical);
 
 	m_eventlog_filter->setVisible(toggled);
-}
-
-void DmsEventLog::invalidateOnVisualChange()
-{
-	auto dms_reg_status_flags = GetRegStatusFlags();
-	setSF(m_eventlog_filter->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
-	setSF(m_eventlog_filter->m_thread->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
-	setSF(m_eventlog_filter->m_category->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
-	SetRegStatusFlags(dms_reg_status_flags);
-
-	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
-	eventlog_model->cached_reg_flags = GetRegStatusFlags();
-
-	auto first_index = eventlog_model->index(0);
-	auto last_index = eventlog_model->index(eventlog_model->m_filtered_indices.size()-1);
-	m_log->model()->dataChanged(first_index, last_index);
-	//m_log->update();
 }
 
 void DmsEventLog::onTextChanged(const QString& text)

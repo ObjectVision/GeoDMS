@@ -1233,6 +1233,16 @@ namespace Explain
 	CalcExplImpl g_CalcExplImpl;
 }
 
+extern "C"
+TIC_CALL void DMS_CONV DMS_ExplainValue_Clear()
+{
+	DMS_CALL_BEGIN
+
+		Explain::g_CalcExplImpl.Init(nullptr, 0, nullptr);
+		
+	DMS_CALL_END
+}
+
 #if defined(MG_DEBUG)
 bool ExplainValue_IsClear()
 {
@@ -1240,3 +1250,42 @@ bool ExplainValue_IsClear()
 }
 #endif
 
+extern "C"
+TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
+{
+	DMS_CALL_BEGIN
+
+		return Explain::AttrValueToXML(&Explain::g_CalcExplImpl, studyObject, xmlOutStrPtr, index, extraInfo, bShowHidden);
+
+	DMS_CALL_END
+	return true;
+}
+
+extern "C"
+TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
+	Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden)
+{
+	DMS_CALL_BEGIN
+
+		try {
+
+			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainGridValue");
+
+			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden, &Explain::g_CalcExplImpl);
+
+			ValueWrap<SPoint> value(SPoint(row, col));
+			bool result = expl.MakeExplanationLoc(studyObject, value, extraInfo);
+
+			expl.GetDescr(studyObject);
+
+			return result;
+		}
+		catch (...) {
+			auto result = catchException(true);
+			if (result)	
+				*xmlOutStrPtr << "Error occured during EplainGridValue: " << *result;
+		}
+
+	DMS_CALL_END
+	return true;
+}

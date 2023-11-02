@@ -45,12 +45,5 @@ RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
 RTC_CALL void AddMainThreadOper(std::function<void()>&& func, bool postAlways = false);
 RTC_CALL void ProcessMainThreadOpers();
-RTC_CALL bool IsProcessingMainThreadOpers();
-
-struct MainThreadBlocker
-{
-	RTC_CALL MainThreadBlocker();
-	RTC_CALL ~MainThreadBlocker();
-};
 
 #endif // __RTC_ACT_MAINTHREAD_H

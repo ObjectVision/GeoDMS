@@ -390,7 +390,7 @@ void _DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr str)
 	}
 }
 
-void DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr begin, CharPtr end)
+void _DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
 	CharPtr strBegin = begin;
@@ -420,7 +420,7 @@ inline void _DoubleQuote(OutStreamBuff& buf, CharPtr str)
 inline void _DoubleQuote(OutStreamBuff& buf, CharPtr begin, CharPtr end)
 {
 	buf.WriteByte('\"'); 
-	DoubleQuoteMiddle(buf, begin, end);
+	_DoubleQuoteMiddle(buf, begin, end);
 	buf.WriteByte('\"'); 
 }
 

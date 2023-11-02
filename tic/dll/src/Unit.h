@@ -92,6 +92,7 @@ struct RangedUnit : UnitBase<V>
 	TIC_CALL auto GetCurrSegmInfo() const -> const range_data_t*;
 
 	//	data member access
+	bool PrepareRange() const override;
 	TIC_CALL range_t GetPreparedRange() const;
 	TIC_CALL range_t GetRange() const;
 	TIC_CALL virtual void SetRange(const range_t& range) = 0;

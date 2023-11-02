@@ -156,7 +156,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	RTC_CALL bool operator !=(CharPtr b) const;
 
 	CharPtrRange AsRange() const  { return has_ptr() ? CharPtrRange(get_ptr()->begin(), get_ptr()->end()-1) : CharPtrRange(); }
-	RTC_CALL std::string AsStdString() const;
+
 	void swap(SharedCharArrayPtr& oth) { WeakPtrWrap::swap(oth); }
 };
 

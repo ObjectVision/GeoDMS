@@ -218,6 +218,18 @@ void SetCurrentDir(CharPtr dir)
 	SetCurrentDirectory(dir);
 }
 
+static exe_type s_ExeType = exe_type::unknown_run_or_dephi;
+
+void DMS_Appl_SetExeType(exe_type t)
+{
+	s_ExeType = t;
+}
+
+exe_type DMS_Appl_GetExeType()
+{
+	return s_ExeType;
+}
+
 void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)
 {
 	while (true)
@@ -244,7 +256,7 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 
 RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
 {
-	assert(! g_ExeDir.empty());
+	dms_assert(! g_ExeDir.empty());
 	return g_ExeDir;
 }
 
@@ -1124,7 +1136,7 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 	);  // receives PROCESS_INFORMATION 
 
 	if (!res)
-		throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
+			throwLastSystemError("ExecuteChildProcess(%s, %s) failed", moduleName?moduleName:"NULL", cmdLine);
 
 	return { piProcInfo.hProcess, piProcInfo.hThread };
 }

@@ -111,21 +111,15 @@ struct IndexedStrings : IndexedStringsBase
 
 	CharPtr item(index_type id) const
 	{
-		assert(m_Vec[id].size());
-		assert(!MustZeroTerminate || m_Vec[id].end()[-1] == 0);
+		dms_assert(m_Vec[id].size());
+		dms_assert(!MustZeroTerminate || m_Vec[id].end()[-1] == 0);
 		return &*(m_Vec[id].begin());
 	}
 	CharPtr item_end(index_type id) const
 	{
-		assert(m_Vec[id].size());
-		assert(!MustZeroTerminate || m_Vec[id].end()[-1] == 0);
+		dms_assert(m_Vec[id].size());
+		dms_assert(!MustZeroTerminate || m_Vec[id].end()[-1] == 0);
 		return &(m_Vec[id].end()[MustZeroTerminate ? -1 : 0]);
-	}
-	SizeT item_size(index_type id) const
-	{
-		assert(m_Vec[id].size());
-		assert(!MustZeroTerminate || m_Vec[id].end()[-1] == 0);
-		return m_Vec[id].size() + (MustZeroTerminate ? -1 : 0);
 	}
 	CharPtr operator [](index_type id) const
 	{

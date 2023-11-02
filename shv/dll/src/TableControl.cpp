@@ -136,17 +136,9 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 
 CrdRect SelChangeInvalidatorBase::GetSelRect() const
 {
-	if (!m_TableControl->m_Cols.IsDefined() && m_TableControl->m_Rows.IsDefined())
-	{
-		if (m_TableControl->NrEntries() > 1)
-			m_TableControl->m_Cols = SelRange{ 1, 1, 1 };
-		else
-			m_TableControl->m_Rows = SelRange();
-	}
-
 	dms_assert(m_TableControl);
 	dms_assert(m_TableControl->m_Rows.IsDefined() == m_TableControl->m_Cols.IsDefined());
-	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined() || !m_TableControl->m_Cols.IsDefined())
+	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined())
 		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
 
 	// topleft corner
@@ -640,7 +632,7 @@ redo:
 
 void TableControl::GoHome(bool shift, bool firstActiveCol)
 {
-	assert(m_Rows.IsDefined() == m_Cols.IsDefined());
+	dms_assert(m_Rows.IsDefined() == m_Cols.IsDefined());
 
 	if (!m_Rows.IsDefined())
 	{
@@ -652,6 +644,8 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 	auto activeCol = FirstActiveCol();
 	if (activeCol < NrEntries())
 	{
+//		if (firstActiveCol)
+//			m_Cols.Go(shift,  activeCol);
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);

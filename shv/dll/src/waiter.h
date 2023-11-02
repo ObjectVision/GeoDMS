@@ -24,7 +24,6 @@ struct Waiter {
 
 	SHV_CALL void start(AbstrMsgGenerator* ach);
 	SHV_CALL void end();
-	SHV_CALL static bool IsWaiting(); 
 
 	AbstrMsgGenerator* m_ContextGenerator = nullptr;
 	bool m_is_counted = false;

@@ -26,29 +26,43 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
-#pragma once
+#include "TicPCH.h"
+#pragma hdrstop
 
-#if !defined(__STX_INTERFACE_H)
-#define __STX_INTERFACE_H
+#include "CalcDestroyer.h"
 
-#include "StxBase.h"
-
-SYNTAX_CALL SharedStr ProcessADMS(const TreeItem* context, CharPtr url);
-
-// External callable functions
-SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename);
-
-extern "C" {
-
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromConfiguration(CharPtr sourceFilename);
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
-SYNTAX_CALL TreeItem*      DMS_CONV DMS_CreateTreeFromString       (CharPtr configString);
-SYNTAX_CALL IStringHandle  DMS_CONV DMS_ProcessADMS                (const TreeItem* context, CharPtr url);
-SYNTAX_CALL bool           DMS_CONV DMS_ProcessPostData            (      TreeItem* context, CharPtr postData, UInt32 dataSize);
-SYNTAX_CALL void           DMS_CONV DMS_Stx_Load();
-
+#include "AbstrCalculator.h"
+#include "AbstrDataItem.h"
+/* REMOVE
+CalcDestroyer::CalcDestroyer(const TreeItem* item, bool canDestroyCalc)
+	:	m_OldChecker   (std::move(item->mc_IntegrityChecker))
+	,	m_OldRefItem   (std::move(item->mc_RefItem))
+	,	m_HasInterest  (item->GetInterestCount())
+{
+	if (canDestroyCalc)
+		m_OldCalculator = std::move(item->mc_Calculator);
+	dms_assert(item->mc_Calculator == nullptr || !canDestroyCalc);
+	dms_assert(item->mc_RefItem    == nullptr);
+	if (IsDataItem(item)) // REMOVE, Move to overridden 
+	{
+		item->m_State.Clear(ASF_DataReadableDefined);
+		item->ClearTSF(DSF_ValuesChecked);
+	}
+	
 }
 
+CalcDestroyer::~CalcDestroyer()
+{
+	if (m_HasInterest)
+	{
+		if (m_OldChecker)
+			m_OldChecker->DecInterestCount();
+		if (m_OldCalculator)
+			m_OldCalculator->DecInterestCount();
 
+		if (m_OldRefItem)
+			m_OldRefItem->DecInterestCount();
+	}
+}
 
-#endif // __STX_INTERFACE_H
+*/

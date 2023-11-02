@@ -151,15 +151,6 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 			myCDS.dwData = ULONG_PTR(CommandCode::TileSubWindows);
 			myCDS.cbData = 0;
 			myCDS.lpData = nullptr;
-		}
-		else if (std::strcmp(argv[i], "SaveValueInfo") == 0)
-		{
-			if (argc <= ++i)
-				throw stx_error("path expected after SaveValueInfo");
-			myCDS.dwData = ULONG_PTR(CommandCode::SaveValueInfo);
-			myCDS.cbData = std::strlen(argv[i]) + 1;
-			myCDS.lpData = argv[i];
-			assert(((char*)myCDS.lpData)[myCDS.cbData - 1] == 0);
 
 		}
 		else

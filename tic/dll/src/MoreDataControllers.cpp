@@ -227,6 +227,21 @@ void FuncDC::DoInvalidate() const
 	CancelOperContext();
 	dms_assert(!IsCalculating());
 
+/*
+	if (m_Data && m_Data->IsCacheRoot())
+		for (TreeItem* cacheItem = GetNew(); cacheItem = GetNew()->WalkCurrSubTree(cacheItem); )
+		{
+			dms_assert(cacheItem != GetNew());
+			dms_assert(cacheItem->m_LastChangeTS <= m_LastChangeTS);
+//			cacheItem->SetDcKnown();
+			dms_assert(cacheItem->mc_RefItem == nullptr);
+
+			auto dc = DSM::Curr()->GetSubItemDC(this, cacheItem, false);
+			if (!dc)
+				continue;
+			dc->InvalidateAt(m_LastChangeTS);
+		}
+*/
 	base_type::DoInvalidate();
 
 	dms_assert(!m_Data);										 // dropped by base_type::DoInvalidate
@@ -239,6 +254,7 @@ garbage_t FuncDC::StopInterest () const noexcept
 { 
 	auto garbage = ResetOperContextImplAndStopSupplInterest();
 	garbage |= DataController::StopInterest(); 
+//	garbage |= m_Data->TryCleanupMem();
 	m_State.Clear(DCF_CalcStarted);
 	return garbage;
 }
@@ -254,6 +270,18 @@ oper_arg_policy FuncDC::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) con
 	dms_assert(op);
 	return op->GetArgPolicy(argNr, firstArgValue);
 }
+
+// CalcCacheStorage
+/*  REMOVE
+class CalcCacheStorageManager : public AbstrStorageManager
+{
+	SharedStr m_FilenameBase;
+	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override
+	{
+		MG_CHECK2(false, "NYI");
+	}
+};
+*/
 
 // Postcondition of CalcResult(true):
 //		Null is returned OR calculation has started that will make m_Data have valid data such that it can be accessed (DataReadLock can be set) or become failed

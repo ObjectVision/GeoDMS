@@ -76,8 +76,6 @@ void StorageMetaInfo::OnPreLock()
 	{
 		SharedPtr<const AbstrUnit> adu = CurrRD()->GetAbstrDomainUnit();
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
-		SharedPtr<const AbstrUnit> avu = CurrRD()->GetAbstrValuesUnit();
-		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem());
 	}
 }
 

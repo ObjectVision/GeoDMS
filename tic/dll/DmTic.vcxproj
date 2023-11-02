@@ -56,6 +56,7 @@
   <ItemGroup>
     <ClCompile Include="FileName.cpp" />
     <ClCompile Include="src\Aspect.cpp" />
+    <ClCompile Include="src\CalcDestroyer.cpp" />
     <ClCompile Include="src\DedicatedAttrs.cpp" />
     <ClCompile Include="src\ExprRewrite.cpp" />
     <ClCompile Include="src\ItemLocks.cpp" />
@@ -111,6 +112,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\aspect.h" />
+    <ClInclude Include="src\calcdestroyer.h" />
     <ClInclude Include="src\dedicatedattrs.h" />
     <ClInclude Include="src\Explain.h" />
     <ClInclude Include="src\ExprRewrite.h" />

@@ -35,7 +35,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
-  File ..\bin\Release\${GeoDmsPlatform}\*.pyd
   File ..\res\readme.txt
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
   

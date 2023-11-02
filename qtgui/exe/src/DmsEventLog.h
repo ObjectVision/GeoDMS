@@ -50,11 +50,8 @@ private:
 	bool itemPassesTextFilter(item_t& item);
 	bool itemPassesFilter(item_t& item);
 
-public:
 	std::vector<size_t> m_filtered_indices;
 	std::vector<item_t> m_Items;
-
-private:
 
 	bool has_queued_update = false;
 	size_t last_updated_message_index = 0;
@@ -91,7 +88,6 @@ public slots:
 	void toggleScrollToBottom();
 	void toggleScrollToBottomDirectly();
 	void toggleFilter(bool toggled);
-	void invalidateOnVisualChange();
 	void onTextChanged(const QString& text);
 	void clearTextFilter();
 

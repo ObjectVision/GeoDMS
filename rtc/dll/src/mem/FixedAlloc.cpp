@@ -686,17 +686,26 @@ SizeT CommittedSize()
 	return processInfo.PagefileUsage;
 }
 
+SizeT MaxCommittedSize()
+{
+	PROCESS_MEMORY_COUNTERS processInfo;
+
+	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
+
+	return processInfo.PeakPagefileUsage;
+}
+
 static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
 
-RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
+RTC_CALL auto UpdateAndGetFixedAllocStatus() -> SharedStr
 {
 	s_ReportingRequestPending = false;
 
-	//	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "ReportFixedAllocStatus");
 
 	FreeStackAllocSummary cumulBytes;
 	const auto& fsaa = GetFreeStackAllocatorArray();
-	for (int i = 0; i != fsaa.size(); ++i)
+	for (int i=0; i!=fsaa.size(); ++i)
 		cumulBytes = cumulBytes + fsaa[i].ReportStatus();
 
 	std::get<4>(cumulBytes) = CommittedSize();
@@ -706,11 +715,7 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 	MakeMax(std::get<2>(maxCumulBytes), std::get<2>(cumulBytes));
 	MakeMax(std::get<3>(maxCumulBytes), std::get<3>(cumulBytes));
 	MakeMax(std::get<4>(maxCumulBytes), std::get<4>(cumulBytes));
-	return cumulBytes;
-}
 
-RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
-{
 	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
@@ -720,27 +725,11 @@ RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> Sh
 	);
 }
 
-RTC_CALL auto GetMemoryStatus() -> SharedStr
-{
-	PROCESS_MEMORY_COUNTERS processInfo;
-
-	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
-
-	return mySSPrintF("%d[MB] committed of peak %d[MB]"
-		, processInfo.PagefileUsage >> 20
-		, processInfo.PeakPagefileUsage >> 20
-	);
-}
-
-static UInt8 reportThrottler = 0;
 void ReportFixedAllocStatus()
 {
-	auto cumulBytes = UpdateFixedAllocStatus();
-	if (++reportThrottler == 0) // only report every 2^8 other time
-	{
-		auto reportStr = GetFixedAllocStatus(cumulBytes);
-		reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
-	}
+	auto reportStr = UpdateAndGetFixedAllocStatus();
+
+	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
 }
 
 RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr

@@ -15,32 +15,27 @@
 StudyObjectHistory::StudyObjectHistory() {}
 StudyObjectHistory::~StudyObjectHistory() {}
 
-auto StudyObjectHistory::currentContext() -> Explain::CalcExplImpl* const
+auto StudyObjectHistory::currentContext() -> Explain::CalcExplImpl*
 {
-    return study_objects.at(current_index).explain_context.get();
+    return explain_contexts.at(current_index).get();
 }
 
-auto StudyObjectHistory::currentStudyObject() -> SharedDataItemInterestPtr const
+auto StudyObjectHistory::currentStudyObject() -> SharedDataItemInterestPtr
 {
-    return study_objects.at(current_index).study_object;
+    return study_objects.at(current_index);
 }
 
-auto StudyObjectHistory::currentIndex() -> Int64 const
+auto StudyObjectHistory::currentIndex() -> Int64
 {
-    return study_objects.at(current_index).index;
+    return indices.at(current_index);
 }
 
-auto StudyObjectHistory::currentExtraInfo() -> SharedStr const
-{
-    return study_objects.at(current_index).extra_info;
-}
-
-auto StudyObjectHistory::nrPreviousStudyObjects() -> SizeT const
+auto StudyObjectHistory::countPrevious() -> SizeT
 {
     return current_index;
 }
 
-auto StudyObjectHistory::nrNextStudyObjects() -> SizeT const
+auto StudyObjectHistory::countNext() -> SizeT
 {
     SizeT number_of_studyobjects = study_objects.size();
     return number_of_studyobjects - (current_index+1);
@@ -48,7 +43,7 @@ auto StudyObjectHistory::nrNextStudyObjects() -> SizeT const
 
 bool StudyObjectHistory::previous()
 {
-    if (!nrPreviousStudyObjects())
+    if (!countPrevious())
         return false;
 
     current_index--;
@@ -57,43 +52,36 @@ bool StudyObjectHistory::previous()
 
 bool StudyObjectHistory::next()
 {
-    if (!nrNextStudyObjects())
+    if (!countNext())
         return false;
 
     current_index++;
     return true;
 }
 
-void StudyObjectHistory::deleteAfterCurrentIndex()
+void StudyObjectHistory::deleteFromCurrentIndexUpToEnd()
 {
-    assert(current_index < study_objects.size() || current_index == -1);
-    while (study_objects.size() > current_index+1)
-    {
-        garbage.emplace_back(std::move(study_objects.back().explain_context));
-        study_objects.pop_back();
-    }
-    assert(current_index + 1 == study_objects.size());
+    if (!countNext())
+        return;
+
+    study_objects.erase(study_objects.begin()+ current_index +1, study_objects.end());
+    explain_contexts.erase(explain_contexts.begin() + current_index + 1, explain_contexts.end());
+    indices.erase(indices.begin() + current_index + 1, indices.end());
 }
 
-void StudyObjectHistory::ClearGarbage()
+void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT index)
 {
-    garbage.clear();
-}
-
-void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo)
-{
-    auto newContext = Explain::CreateContext();
-    deleteAfterCurrentIndex();
-
-    study_objects.emplace_back(studyObject, index, extraInfo, std::move(newContext));
+    deleteFromCurrentIndexUpToEnd();
+    study_objects.push_back(studyObject);
+    explain_contexts.push_back(std::move(Explain::CreateContext()));
+    indices.push_back(index);
     current_index++;
-    assert(current_index + 1 == study_objects.size());
 }
 
-ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window)
+ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, QWidget* window)
     : QUpdatableTextBrowser(parent)
 {
-    m_history.insert(studyObject, index, extraInfo);
+    m_history.insert(studyObject, index);
 
     setOpenLinks(false);
     setOpenExternalLinks(false);
@@ -121,20 +109,19 @@ bool ValueInfoBrowser::update()
     auto xmlOut = OutStream_HTM(&outStreamBuff, "html", nullptr);
     SuspendTrigger::Resume();
 
-    bool done = Explain::AttrValueToXML(m_history.currentContext(), m_history.currentStudyObject(), &xmlOut, m_history.currentIndex(), m_history.currentExtraInfo().c_str(), true); // m_Context.get(), m_StudyObject, & xmlOut, m_Index, "", true);
+    bool done = Explain::AttrValueToXML(m_history.currentContext(), m_history.currentStudyObject(), &xmlOut, m_history.currentIndex(), "", true); // m_Context.get(), m_StudyObject, & xmlOut, m_Index, "", true);
     outStreamBuff.WriteByte(char(0));
 
     setText(outStreamBuff.GetData());
 
     // clean-up;
-    m_history.ClearGarbage();
     return done;
 }
 
 void ValueInfoBrowser::updateNavigationButtons()
 {
-    back_button->setEnabled(m_history.nrPreviousStudyObjects());
-    forward_button->setEnabled(m_history.nrNextStudyObjects());
+    back_button->setEnabled(m_history.countPrevious());
+    forward_button->setEnabled(m_history.countNext());
 }
 
 void ValueInfoBrowser::updateWindowTitle()
@@ -162,9 +149,9 @@ void ValueInfoBrowser::previousStudyObject()
     updateWindowTitle();
 }
 
-void ValueInfoBrowser::addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo)
+void ValueInfoBrowser::addStudyObject(SharedDataItemInterestPtr studyObject, SizeT index)
 {
-    m_history.insert(studyObject, index, extraInfo);
+    m_history.insert(studyObject, index);
     restart_updating();
     updateNavigationButtons();
     updateWindowTitle();

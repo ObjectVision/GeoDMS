@@ -76,12 +76,11 @@ using treeitem_lock_map = cs_lock_map<SharedTreeItem>;
 
 bool TreeItem::IsEditable() const
 {
-	if (!mc_Expr.empty())
-		return false;
-	if (mc_Calculator && !mc_Calculator->IsDataBlock())
-		return false;
+	if (HasCalculator())
+		if (!mc_Calculator || !mc_Calculator->IsDataBlock())
+			return false;
 
-	return !IsCurrLoadable() || IsCurrStorable();
+	return ((!IsLoadable()) || IsStorable()); 
 }
 
 bool TreeItem::GetIsInstantiated() const
@@ -713,7 +712,7 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 
 		if (mc_DC)
 		{
-			MG_DEBUGCODE(auto dcIC = mc_DC->GetInterestCount());
+			MG_DEBUGCODE(UInt32 dcIC = mc_DC->GetInterestCount());
 			dbg_assert(dcIC >= 1);
 			oldDC = std::move(mc_DC);
 			dms_assert(!mc_DC);
@@ -722,10 +721,10 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 		}
 		if (mc_RefItem)
 		{
-			MG_DEBUGCODE(auto refIC = mc_RefItem->GetInterestCount());
+			MG_DEBUGCODE(UInt32 refIC = mc_RefItem->GetInterestCount());
 			dbg_assert(refIC >= 1);
 			oldRefItem = std::move(mc_RefItem);
-			assert(!mc_RefItem);
+			dms_assert(!mc_RefItem);
 			oldRefItem->DecInterestCount();
 			dbg_assert(oldRefItem->GetInterestCount() == refIC);
 		}
@@ -1280,26 +1279,6 @@ bool TreeItem::IsStorable() const
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
 	const TreeItem* self = this;
 	while (true) 
-	{
-		if (storageReadOnlyPropDefPtr->GetValue(self))
-			return false;
-		if (self == storageParent)
-			return true;
-		self = self->GetTreeParent();
-		assert(self);
-	}
-}
-
-bool TreeItem::IsCurrStorable() const
-{
-	if (!IsDataItem(this) && !IsUnit(this))
-		return false;
-	const TreeItem* storageParent = GetCurrStorageParent(true);
-	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
-		return false;
-	// see if any of the ancestors up to the storageParent has the storageReadOnly property
-	const TreeItem* self = this;
-	while (true)
 	{
 		if (storageReadOnlyPropDefPtr->GetValue(self))
 			return false;
@@ -2868,6 +2847,8 @@ void TreeItem::DoInvalidate() const
 
 	SetReferredItem(nullptr);
 
+//	CalcDestroyer destroyer(this, !GetTSF(TSF_InheritedRef)  && (!HasConfigData() || !IsDataItem(this)) && (!mc_Calculator || !mc_Calculator->IsDataBlock()));
+
 	if (IsCacheItem())
 		const_cast<TreeItem*>(this)->DropValue();
 
@@ -2898,7 +2879,7 @@ void TreeItem::DoInvalidate() const
 	// =============== invalidate Parts (of cache items)
 	NotifyStateChange(this, NC2_Invalidated);
 
-	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FR_Data));
+	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor());
 }
 
 void TreeItem::SetDataChanged()
@@ -3347,7 +3328,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		auto avu = AbstrValuesUnit( AsDataItem(this) );
 		if (avu && !avu->IsCacheItem())
 		{
-			if (!avu->PrepareDataUsage(drlFlags))
+			if (!avu->PrepareDataUsage(drlFlags) || !avu->PrepareRange())
 			{
 				if (!SuspendTrigger::DidSuspend())
 					Fail(avu);

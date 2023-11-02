@@ -710,7 +710,7 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < PS_Committed && 
 			return NC2_DataReady;
 		
-//		self->DetermineState();
+		self->DetermineState();
 		switch (treeitem_progress_state)//self->m_State.GetProgress())
 		{
 			case PS_Validated: return NC2_Validated;

@@ -4,7 +4,6 @@
 
 #include "DmsExport.h"
 #include "DmsMainWindow.h"
-#include "DmsTreeView.h"
 #include "ExportInfo.h"
 #include "utl/Environment.h"
 #include "Parallel.h"
@@ -728,14 +727,7 @@ void DmsExportWindow::exportActiveTabInfoOrCloseAfterExport()
     m_export_button->setText("Exporting...");
     //m_export_button->setDisabled(true);
     m_cancel_button->setDisabled(true);
-
-
-    {
-        MainWindow::TheOne()->m_treeview->setUpdatesEnabled(false);
-        MainThreadBlocker blockThis;
-        m_export_button->repaint();
-        MainWindow::TheOne()->m_treeview->setUpdatesEnabled(true);
-    }
+    m_export_button->repaint();
 
     try {
         exportImpl();
