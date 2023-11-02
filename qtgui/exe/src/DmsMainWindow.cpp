@@ -636,7 +636,6 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
 
 bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
 {
-    auto main_window = MainWindow::TheOne();
     if (event->type() == QEvent::MouseButtonPress) 
     {
         auto mouse_event = dynamic_cast<QMouseEvent*>(event);
@@ -1556,7 +1555,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     mdiSubWindow->setWidget(textWidget);
     mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
 
-    SharedStr title = "Statistics of " + tiContext->GetFullName();
+    SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(getIconFromViewstyle(ViewStyle::tvsStatistics));
     m_mdi_area->addSubWindow(mdiSubWindow);
@@ -1571,12 +1570,13 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, Sh
     assert(studyObject);
 
     auto* value_info_window = new ValueInfoWindow(this);
+    
     value_info_window->setWindowFlag(Qt::Window, true);
+    value_info_window->setAttribute(Qt::WA_DeleteOnClose, true);
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     QHBoxLayout* h_layout = new QHBoxLayout(this);
 
-    value_info_window->m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, value_info_window);
-    value_info_window->m_browser->setWindowFlag(Qt::Window, true);
+    value_info_window->m_browser = new ValueInfoBrowser(value_info_window, studyObject, index, extraInfo, value_info_window);
     h_layout->addWidget(value_info_window->m_browser->back_button.get());
     h_layout->addWidget(value_info_window->m_browser->forward_button.get());
     v_layout->addLayout(h_layout);
