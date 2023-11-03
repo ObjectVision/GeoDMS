@@ -1126,7 +1126,7 @@ void Actor::StartSupplInterest() const
 {
 	assert(IsMetaThread());
 
-	if (IsPassor())
+	if (IsPassor() || WasFailed(FR_Data))
 		return;
 
 	assert(!DoesHaveSupplInterest() ); // PRECONDITION
@@ -1135,7 +1135,7 @@ void Actor::StartSupplInterest() const
 	//UpdateSupplMetaInfo();
 	SupplInterestListPtr supplInterestListPtr = GetSupplInterest(); // can throw
 
-	dms_assert(!IsPassor()); // follows from previous if.
+	assert(!IsPassor()); // follows from previous if.
 	IncRemainingTargetCount(this); // can throw
 	auto undoTargetCount = make_releasable_scoped_exit([this]() { DecRemainingTargetCount(this); });
 
@@ -1146,7 +1146,7 @@ void Actor::StartSupplInterest() const
 	SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
 	assert(!supplInterestListRef);
 
-	dms_assert(!DoesHaveSupplInterest()); // POSTCONDITION
+	assert(!DoesHaveSupplInterest()); // POSTCONDITION
 
 	// nothrow from here
 	if (!WasFailed(FR_Data))
@@ -1155,7 +1155,7 @@ void Actor::StartSupplInterest() const
 		supplInterestListRef.init(supplInterestListPtr.release());
 		m_State.Set(actor_flag_set::AF_SupplInterest);
 		undoTargetCount.release();
-		dms_assert(DoesHaveSupplInterest()); // POSTCONDITION
+		assert(DoesHaveSupplInterest()); // POSTCONDITION
 	}
 }
 
