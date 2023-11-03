@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ResourceIndexCache.h"
 
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #include<utility>
 

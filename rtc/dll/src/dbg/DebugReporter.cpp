@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mem/FixedAlloc.h"
 
@@ -41,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/SeverityType.h"
 #include "ptr/StaticPtr.h"
 #include "ptr/OwningPtr.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 
 #include "ser/FormattedStream.h"
 

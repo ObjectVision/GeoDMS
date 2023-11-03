@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications.
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV.
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_SET_RANGEFUNCS_H)
@@ -33,7 +9,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/DebugCast.h"
 #include "geo/ElemTraits.h"
-#include "geo/SequenceTraits.h"
+#include "geo/IterTraits.h"
+//REMOVE #include "geo/SequenceTraits.h"
 #include "utl/swap.h"
 
 #define MG_DEBUG_RANGEFUNCS
@@ -74,12 +51,14 @@ void setbits(Block& lhs, Block mask, Block values)
 template <typename T>
 struct raw_constructed : std::is_trivially_constructible<T> {};
 
-
 template <typename T, typename U> struct raw_constructed<Pair<T, U>> : std::bool_constant<raw_constructed<T>::value&& raw_constructed<U>::value> {};
 template <bit_size_t N> struct raw_constructed<bit_value<N>> : std::true_type {};
 template <typename T> struct raw_constructed<Couple<T> > : raw_constructed<T> {};
 template <typename T> struct raw_constructed<Point<T> > : raw_constructed<T> {};
 template <typename T> struct raw_constructed<Range<T> > : raw_constructed<T> {};
+
+template <typename T>
+constexpr bool raw_constructed_v = raw_constructed<T>::value;
 
 template <typename T> struct raw_destructed : std::is_trivially_destructible<T> {};
 
@@ -147,7 +126,6 @@ Iter2 swap_range_backward(Iter1 first, Iter1 last, Iter2 otherRange)
 		omni::swap(*--last, *--otherRange);
 	return otherRange;
 }
-
 
 
 //----------------------------------------------------------------------
@@ -555,7 +533,7 @@ fast_fill(Iter first, Iter last, U value)
 {
 
 #if defined(MG_DEBUG_RANGEFUNCS)
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 	static_assert(!is_bitvalue_v<U>);
 	static_assert(!is_bitvalue_v<T>);
 
@@ -630,7 +608,7 @@ template <typename Iter, typename U> inline
 typename std::enable_if< !raw_copyable< typename std::iterator_traits<Iter>::value_type >::value >::type
 raw_fill(Iter first, Iter last, U value)
 {
-	typedef std::iterator_traits<Iter>::value_type T;
+	using T = typename std::iterator_traits<Iter>::value_type;
 
 	std::allocator<T> alloc;
 	for (; first != last; ++first)
@@ -647,7 +625,7 @@ template <typename Iter> inline
 void
 fast_zero(Iter first, Iter last)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 
 #if defined(MG_DEBUG_RANGEFUNCS)
 	static_assert(!is_bitvalue_v<T>);
@@ -698,7 +676,7 @@ fast_zero_obj(T& obj)
 template <typename Iter> inline
 void fast_undefine(Iter first, Iter last)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 	fast_fill(first, last, UNDEFINED_OR_ZERO(T));
 }
 
@@ -723,7 +701,7 @@ template <typename Iter, typename BT> inline
 void
 undefine_if_not(Iter first, Iter last, bit_iterator<1, BT> selIter)
 {
-	typedef std::iterator_traits< Iter>::value_type  T;
+	using T = typename std::iterator_traits< Iter>::value_type;
 
 	while (first != last) // && selIter.nr_elem())
 	{
@@ -742,7 +720,7 @@ undefine_if_not(Iter first, Iter last, bit_iterator<1, BT> selIter)
 template <typename Iter> inline
 void raw_construct(Iter first, Iter last)
 {
-	typedef std::iterator_traits<Iter>::value_type T;
+	using T = typename std::iterator_traits<Iter>::value_type;
 
 	for (; first != last; ++first)
 		new (first) T();
@@ -750,28 +728,28 @@ void raw_construct(Iter first, Iter last)
 
 
 template <typename Iter> inline
-typename boost::enable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_init(Iter first, Iter last)
 {
 	fast_zero(first, last);
 }
 
 template <typename Iter> inline
-typename boost::disable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< !raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_init(Iter first, Iter last)
 {
 	raw_construct(first, last);
 }
 
 template <typename Iter> inline
-typename boost::enable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_awake(Iter first, Iter last)
 {
 	// NOP
 }
 
 template <typename Iter> inline
-typename boost::disable_if< raw_constructed< typename std::iterator_traits<Iter>::value_type > >::type
+typename std::enable_if< ! raw_constructed_v< typename std::iterator_traits<Iter>::value_type > >::type
 raw_awake(Iter first, Iter last)
 {
 	raw_construct(first, last);

@@ -33,7 +33,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ser/FormattedStream.h"
 #include "dbg/SeverityType.h"
-#include <concrt.h>
+
+//#include <concrt.h>
 
 struct DebugOutStream : FormattedOutStream, leveled_critical_section
 {

@@ -31,12 +31,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 
-#include "dbg/check.h"
+#include "dbg/Check.h"
 #include "geo/mpf.h"
 #include "geo/Undefined.h"
 #include "mem/FixedAlloc.h"
 #include "ptr/IterCast.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 #include "utl/swap.h"
 
 #include <vector>
@@ -54,9 +54,9 @@ template <typename Block, bit_size_t NrBits>                         struct calc
 template <typename Block, bit_size_t NrUsedBits> struct calc_bit_mask: calc_bit_mask_impl<Block, 8*sizeof(Block), NrUsedBits> {};
 
 template <bit_size_t N> struct unit_block {};
-template <> struct unit_block<1>: boost::integral_constant<bit_size_t, 0xFFFFFFFF> {};
-template <> struct unit_block<2>: boost::integral_constant<bit_size_t, 0x55555555> {};
-template <> struct unit_block<4>: boost::integral_constant<bit_size_t, 0x11111111> {};
+template <> struct unit_block<1>: boost::integral_constant<bit_block_t, 0xFFFFFFFF> {};
+template <> struct unit_block<2>: boost::integral_constant<bit_block_t, 0x55555555> {};
+template <> struct unit_block<4>: boost::integral_constant<bit_block_t, 0x11111111> {};
 
 template <bit_size_t N, typename Block>
 struct bit_info

@@ -27,14 +27,17 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 #include "RtcVersion.h"
 #include "RtcInterface.h"
 
@@ -195,7 +198,7 @@ SharedStr GetSessionStartTimeStr()
 
 #include "RtcInterface.h"
 #include "geo/Range.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 
 bool RangeTest()
 {

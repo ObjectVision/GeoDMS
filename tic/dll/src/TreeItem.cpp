@@ -1,5 +1,8 @@
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -22,7 +25,7 @@
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "utl/SplitPath.h"
 #include "utl/scoped_exit.h"
 #include "utl/Swapper.h"

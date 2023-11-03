@@ -3,13 +3,17 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+#if defined(CC_PRAGMAHDRSTOP)
+
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+#include "ShvDllPCH.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
 #include "geo/RangeIndex.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 
 #include "AbstrUnit.h"
 #include "DataArray.h"

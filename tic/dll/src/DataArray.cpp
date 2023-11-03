@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataArray.ipp"
 
@@ -11,7 +14,7 @@
 
 #include <memory>
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/DataPtrTraits.h"
 #include "geo/StringArray.h"
@@ -566,7 +569,7 @@ void DataArrayBase<V>::GetAbstrValue(SizeT index, AbstrValue& valueHolder) const
 	GuiReadLock lockHolder;
 	auto iter = GetIndexedIterator(index, lockHolder);
 	if (iter != const_iterator() )
-		debug_cast<ValueWrap<V>*>(&valueHolder)->Set( *iter );
+		debug_cast<ValueWrap<V>*>(&valueHolder)->SetValue( Convert<V>( *iter ) );
 	else
 		debug_cast<ValueWrap<V>*>(&valueHolder)->Clear();
 }

@@ -1,7 +1,7 @@
 #include "SystemTest.h"
 
 #include "dbg/Check.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 
 // ============== Main
 

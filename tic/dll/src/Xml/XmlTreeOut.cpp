@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "xml/XmlTreeOut.h"
 
@@ -11,6 +14,7 @@
 #include "act/TriggerOperator.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
+#include "ser/AsString.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"

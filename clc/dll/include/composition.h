@@ -73,7 +73,7 @@ struct c2vp_block_func_provider {
 	block_func m_BlockFunc;
 
 	c2vp_block_func_provider(TBinaryFunc& bf, typename TBinaryFunc::arg2_cref v)
-		: m_BlockFunc(bf.m_BlockFunc, v* unit_block< nrbits_of_v<typename TBinaryFunc::arg1_type> >::value)
+		: m_BlockFunc(bf.m_BlockFunc, v * unit_block< nrbits_of_v<typename TBinaryFunc::arg1_type> >::value)
 	{}
 };
 

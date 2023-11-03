@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mci/CompositeCast.h"
 
@@ -138,7 +141,7 @@ struct RampLinearFunc
 	Float64 m_FirstV, m_LastV;
 };
 
-#include "geo/Color.h"
+#include "geo/color.h"
 
 struct RampRgbFunc
 {

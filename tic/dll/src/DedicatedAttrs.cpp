@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DedicatedAttrs.h"
 
@@ -168,7 +171,7 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 				if (candidate && IsNewItem(candidate, doneItems))
 					f(candidate);
 			}
-			catch (const concurrency::task_canceled&)
+			catch (const task_canceled&)
 			{
 				throw;
 			}

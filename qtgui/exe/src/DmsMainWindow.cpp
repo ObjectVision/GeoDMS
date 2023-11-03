@@ -8,7 +8,7 @@
 
 #include "act/MainThread.h"
 #include "dbg/Check.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"

@@ -20,6 +20,7 @@
 
 
 #include <vector>
+#include <map>
 
 #if defined(DM_SHV_EXPORTS)
 #	define SHV_CALL __declspec(dllexport)
@@ -125,16 +126,16 @@ typedef void (DMS_CONV *CreateViewActionFunc)(
 	bool			mustOpenDetailsPage
 );
 
-typedef std::pair<const AbstrDataItem*, const IndexCollector*> sel_caret_key;
-typedef std::map<sel_caret_key, std::weak_ptr<SelCaret>>       sel_caret_map;
-typedef Pair<CrdTransformation, IRect>                         grid_coord_key;
-typedef std::map<grid_coord_key, std::weak_ptr<GridCoord>>     grid_coord_map;
+using sel_caret_key  = std::pair<const AbstrDataItem*, const IndexCollector*>;
+using sel_caret_map  = std::map<sel_caret_key, std::weak_ptr<SelCaret>>;
+using grid_coord_key = Pair<CrdTransformation, IRect>;
+using grid_coord_map = std::map<grid_coord_key, std::weak_ptr<GridCoord>>;
 
-typedef std::shared_ptr<GridCoord> GridCoordPtr;
-typedef std::shared_ptr<SelCaret>  SelCaretPtr;
+using GridCoordPtr = std::shared_ptr<GridCoord>;
+using SelCaretPtr = std::shared_ptr<SelCaret>;
  
-typedef std::shared_ptr<const GridCoord> GridCoordCPtr;
-typedef std::shared_ptr<const SelCaret>  SelCaretCPtr;
+using GridCoordCPtr = std::shared_ptr<const GridCoord>;
+using SelCaretCPtr = std::shared_ptr<const SelCaret>;
 
 extern CreateViewActionFunc g_ViewActionFunc;
 

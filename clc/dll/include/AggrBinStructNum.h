@@ -7,7 +7,7 @@
 #if !defined(__CLC_AGGRBINSTRUCTNUM_H)
 #define __CLC_AGGRBINSTRUCTNUM_H
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 
 #include "AggrUniStructNum.h"
 #include "DataCheckMode.h"

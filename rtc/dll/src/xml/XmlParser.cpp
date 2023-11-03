@@ -27,12 +27,15 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <ctype.h>
 
-#include "Xml/XmlParser.h"
-#include "Xml/XmlConst.h"
+#include "xml/XmlParser.h"
+#include "xml/XmlConst.h"
 #include "dbg/debug.h"
 
 // *****************************************************************************

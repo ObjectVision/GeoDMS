@@ -16,6 +16,7 @@
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
+#include "xct/DmsException.h"
 #include "xct/ErrMsg.h"
 
 #include "stg/AbstrStorageManager.h"

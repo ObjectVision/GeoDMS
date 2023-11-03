@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "LispTreeType.h"
 
@@ -38,6 +41,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueClass.h"
 #include "mci/ValueComposition.h"
 #include "ser/AsString.h"
+#include "xct/DmsException.h"
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"

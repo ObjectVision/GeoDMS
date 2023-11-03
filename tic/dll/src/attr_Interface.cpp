@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "TicInterface.h"
 
@@ -56,7 +59,7 @@ DMS_AnyDataItem_GetValueAsCharArray(
 		return self->GetRefObj()->AsCharArray(index, clientBuffer, clientBufferLen, lockHolder, FormattingFlags::None);
 
 	DMS_CALL_END
-	_snprintf(clientBuffer, clientBufferLen, "<err>");
+	snprintf(clientBuffer, clientBufferLen, "<err>");
 	return false;
 }
 

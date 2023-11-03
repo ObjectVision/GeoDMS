@@ -27,11 +27,20 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcInterface.h"
+
+#if defined(WIN32)
+
 #include <windows.h>
 #include "timezoneapi.h"
+
+#endif //defined(WIN32)
+
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -42,18 +51,6 @@ granted by an additional written contract for support, assistance and/or develop
 //*****************************************************************
 //**********         FileDescr Interface                 **********
 //*****************************************************************
-
-/*
-struct CompareFD
-{
-	bool operator()(const FileDescr* a, FileDescr* b) const
-	{
-		dms_assert(a);
-		dms_assert(b);
-		return a->GetFileName() < b->GetFileName();
-	}
-};
-*/
 
 using FileDescrSet = std::vector<FileDescr*>;
 static FileDescrSet s_FDS;
@@ -88,7 +85,7 @@ FileDescr::~FileDescr()
 #include "ser/MoreStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 auto ReportChangedFiles() -> VectorOutStreamBuff
 {

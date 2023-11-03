@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/InvalidationBlock.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Conversions.h"
 #include "geo/IsInside.h"
 #include "geo/Point.h"

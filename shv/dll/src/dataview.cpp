@@ -9,7 +9,7 @@
 #include "act/ActorVisitor.h"
 #include "act/Updatemark.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"

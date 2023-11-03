@@ -35,11 +35,14 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StoragePch.h"
 #include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "AsciiImp.h"
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 #include "act/Actor.h"
 #include "act/TriggerOperator.h"
 #include "dbg/Check.h"

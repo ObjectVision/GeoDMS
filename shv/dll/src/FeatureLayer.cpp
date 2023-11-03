@@ -6,7 +6,7 @@
 #include "rtcTypeLists.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
@@ -16,6 +16,7 @@
 #include "geo/PointOrder.h"
 #include "geo/CentroidOrMid.h"
 #include "geo/MinMax.h"
+#include "ser/StringStream.h"
 #include "utl/IncrementalLock.h"
 
 #include "AbstrUnit.h"

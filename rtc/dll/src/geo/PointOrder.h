@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __RTC_GEO_POINTORDER_H
@@ -45,14 +21,12 @@ template <typename P> struct sequence_traits;
 // various defines
 //----------------------------------------------------------------------
 
-struct colrow_order_tag { enum { col_first = true  }; };
-struct rowcol_order_tag { enum { col_first = false }; };
+struct colrow_order_tag { static constexpr bool col_first = true; };
+struct rowcol_order_tag { static constexpr bool col_first = false; };
 
 template <typename Tag1, typename Tag2> struct must_swap
 {
-	enum { 
-		value = (Tag1::col_first != Tag2::col_first) 
-	};
+	static constexpr bool value = (Tag1::col_first != Tag2::col_first);
 };
 
 #if defined(DMS_POINT_ROWCOL)
@@ -102,7 +76,7 @@ template <> struct reorder_functor<true>
 	}
 };
 
-typedef reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value > shp_reorder_functor;
+using shp_reorder_functor = reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value >;
 
 
 template <typename  F>

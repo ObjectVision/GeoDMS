@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <set/VectorFunc.h>
 #include "geo/StringBounds.h"
 #include "geo/GeoSequence.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/SequenceArray.h"
 #include "ptr/LifetimeProtector.h"
 

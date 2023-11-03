@@ -147,8 +147,8 @@ struct ObjectContextPolicy : Base
 	RTC_CALL bool IsFinalContext() const override final;
 
 protected:
-	CharPtr m_Role;
 	const Object* m_Obj;
+	CharPtr m_Role;
 };
 
 using ObjectContextHandleBase = ObjectContextPolicy<ContextHandle>;

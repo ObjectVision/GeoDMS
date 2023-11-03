@@ -52,7 +52,7 @@ public:
 	
 	// property access
 	cref_type Get() const    { return m_Value;  }
-	template <typename U> void Set(U&& value) { m_Value = Convert<T>(std::forward<U>(value)); }
+	void SetValue(T value) { m_Value = value; }
 	void Clear() { m_Value = UNDEFINED_OR_ZERO(T); }
 
 	// override virtuals fo AbstrValue

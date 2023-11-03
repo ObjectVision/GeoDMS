@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #include "DataArray.h"
 

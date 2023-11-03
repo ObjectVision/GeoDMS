@@ -27,12 +27,15 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "SymPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "parser.h"
 
 #include "dbg/debug.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "ser/AsString.h"
 #include "ser/StringStream.h"
 

@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
@@ -110,6 +113,13 @@ bool SharedCharArrayPtr::operator < (CharPtr b) const
 	return strnicmp(begin(), b, sz) < 0;
 }
 
+CharPtrRange SharedCharArrayPtr::AsRange() const
+{ 
+	if (!has_ptr())
+		return {};
+	return CharPtrRange(get_ptr()->begin(), get_ptr()->end() - 1);
+}
+
 bool SharedCharArrayPtr::operator ==(CharPtr b) const
 { 
 	if (!IsDefined())
@@ -152,6 +162,13 @@ std::string SharedCharArrayPtr::AsStdString() const
 	return std::string(ptr->begin(), ptr->size() - 1);
 }
 
+//============================= WeakStr
+
+RTC_CALL WeakStr::operator CharPtrRange() const
+{
+	return { begin(), send() };
+}
+
 //============================= SharedStr mfuncs
 
 #include "geo/SequenceArray.h"
@@ -164,6 +181,15 @@ SharedStr::SharedStr() noexcept
 SharedStr::SharedStr(const SA_ConstReference<char>& range)
 	:	base_type(SharedCharArray_Create(range.begin(), range.end()) )
 {}
+
+SharedStr::SharedStr(MutableCharPtrRange range)
+	: base_type(SharedCharArray_Create(range.begin(), range.end())) 
+{}
+
+SharedStr::SharedStr(CharPtrRange range) 
+	: base_type(SharedCharArray_Create(range.begin(), range.end())) 
+{}
+
 
 SharedStr::SharedStr(TokenID id)
 	:	base_type(SharedCharArray_Create(id)) 
@@ -187,6 +213,12 @@ void SharedStr::MakeUnique()
 	if (has_ptr() && get_ptr()->GetRefCount() > 1)
 		assign(SharedCharArray_Create(cbegin(), csend()));
 	dms_assert(!has_ptr() || get_ptr()->GetRefCount() == 1 || !ssize());
+}
+
+MutableCharPtrRange SharedStr::GetAsMutableRange() 
+{ 
+	MakeUnique(); 
+	return MutableCharPtrRange(const_cast<char*>(begin()), const_cast<char*>(send())); 
 }
 
 void SharedStr::resize(SizeT sz)
@@ -280,6 +312,11 @@ RTC_CALL SharedStr SharedStr::replace(CharPtr key, CharPtr val) const
 	*r = char(0);
 	dms_assert(++r == sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
 	return result;
+}
+
+SharedStr::operator CharPtrRange() const
+{ 
+	return AsRange(); 
 }
 
 void SharedStr::clear() 

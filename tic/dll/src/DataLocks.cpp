@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataLocks.h"
 
@@ -11,7 +14,7 @@
 
 #include "act/ActorLock.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClassID.h"

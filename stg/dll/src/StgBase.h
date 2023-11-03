@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "stg/AbstrStorageManager.h"
 
 #include <set>
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #ifdef DMSTGDLL_EXPORTS
 #	define STGDLL_CALL __declspec(dllexport)

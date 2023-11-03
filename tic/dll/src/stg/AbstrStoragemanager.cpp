@@ -3,7 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <iostream> // DEBUG
 
@@ -16,7 +19,7 @@
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/UpdateMark.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ptr/InterestHolders.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
@@ -970,7 +973,7 @@ StorageWriteHandle::StorageWriteHandle(StorageMetaInfoPtr&& smi)
 //
 // *****************************************************************************
 
-#include "Xml/PropWriter.h"
+#include "xml/PropWriter.h"
 
 void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem* contents)
 {

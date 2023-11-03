@@ -73,10 +73,12 @@
     <ClInclude Include="src\dbg\Timer.h" />
     <ClInclude Include="src\dbg\UnitTesting.h" />
     <ClInclude Include="src\geo\BoostPolygon.h" />
+    <ClInclude Include="src\geo\CharPtrRange.h" />
     <ClInclude Include="src\geo\CheckedCalc.h" />
     <ClInclude Include="src\geo\DataPtrTraits.h" />
     <ClInclude Include="src\geo\heapelem.h" />
     <ClInclude Include="src\geo\IsNotUndef.h" />
+    <ClInclude Include="src\geo\IterTraits.h" />
     <ClInclude Include="src\geo\neighbouriter.h" />
     <ClInclude Include="src\geo\PointIndexBuffer.h" />
     <ClInclude Include="src\geo\Undef_xx.h" />
@@ -162,9 +164,11 @@
     <ClInclude Include="src\RtcGeneratedVersion.h" />
     <ClInclude Include="src\ser\DebugOutStream.h" />
     <ClInclude Include="src\ser\format.h" />
+    <ClInclude Include="src\ser\FormattingFlags.h" />
     <ClInclude Include="src\ser\ReadValue.h" />
     <ClInclude Include="src\set\DataCompare.h" />
     <ClInclude Include="src\set\IndexCompare.h" />
+    <ClInclude Include="src\throwItemError.h" />
     <ClInclude Include="src\utl\Encodes.h" />
     <ClInclude Include="src\utl\MemGuard.h" />
     <ClInclude Include="src\utl\scoped_exit.h" />
@@ -324,16 +328,17 @@
     <ClInclude Include="src\mem\ManagedAllocData.ipp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FileName.cpp" />
     <ClCompile Include="src\act\ActorEnums.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
     <ClCompile Include="src\dbg\DebugStream.cpp" />
+    <ClCompile Include="src\geo\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
     <ClCompile Include="src\ptr\SharedObjBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
+    <ClCompile Include="src\ser\AsString.cpp" />
     <ClCompile Include="src\utl\encodes.cpp" />
     <ClCompile Include="src\utl\MemGuard.cpp" />
     <ClCompile Include="src\utl\SourceLocation.cpp" />

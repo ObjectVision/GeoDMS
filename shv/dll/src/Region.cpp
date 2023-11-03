@@ -2,7 +2,7 @@
 
 #include "Region.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dllimp/RunDllProc.h"
 #include "geo/geometry.h"
 #include "ser/AsString.h"
