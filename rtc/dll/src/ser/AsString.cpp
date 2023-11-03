@@ -31,12 +31,30 @@ void StringRef_resize_uninitialized(StringRef& res, SizeT n)
 
 Char* begin_ptr(StringRef& res)
 {
+	if (!res.IsDefined())
+		return {};
 	return &*res.begin();
 }
 
 CharPtr begin_ptr(StringCRef& res)
 {
+	if (!res.IsDefined())
+		return {};
 	return &*res.begin();
+}
+
+Char* end_ptr(StringRef& res)
+{
+	if (!res.IsDefined())
+		return {};
+	return &*res.end();
+}
+
+CharPtr end_ptr(StringCRef& res)
+{
+	if (!res.IsDefined())
+		return {};
+	return &*res.end();
 }
 
 SizeT StrLen(const StringCRef& x, SizeT maxLen)

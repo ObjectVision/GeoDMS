@@ -180,6 +180,8 @@ RTC_CALL void WriteDataString(FormattedOutStream& out, const StringCRef& v);
 RTC_CALL void StringRef_resize_uninitialized(StringRef& res, SizeT n);
 RTC_CALL Char*   begin_ptr(StringRef& res);
 RTC_CALL CharPtr begin_ptr(StringCRef& res);
+RTC_CALL Char* end_ptr(StringRef& res);
+RTC_CALL CharPtr end_ptr(StringCRef& res);
 
 template <typename T>
 inline void AsString(StringRef& res, const T& v)
