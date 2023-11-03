@@ -192,9 +192,6 @@
     <ClCompile Include="src\Wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AbstrBoundingBoxCache.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\AspectGroup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -434,13 +431,7 @@
     <ClInclude Include="src\GeoTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\BoundingBoxCache.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\AspectGroup.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\abstrboundingboxcache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\fontrole.h">

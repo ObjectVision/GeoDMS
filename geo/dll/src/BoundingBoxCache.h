@@ -1,11 +1,10 @@
-#ifndef __SHV_BOUNDINGBOXCACHE_H
-#define __SHV_BOUNDINGBOXCACHE_H
+#ifndef __GEO_BOUNDINGBOXCACHE_H
+#define __GEO_BOUNDINGBOXCACHE_H
 
 #include "LockLevels.h"
 
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
-//#include "FeatureLayer.h"
 
 extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
 extern leveled_critical_section cs_BB;
@@ -230,4 +229,4 @@ GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, We
 	return debug_cast<const PointBoundingBoxCache<ScalarType>*>(bbCache);
 }
 
-#endif // __SHV_BOUNDINGBOXCACHE_H
+#endif // __GEO_BOUNDINGBOXCACHE_H

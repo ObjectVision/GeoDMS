@@ -59,7 +59,6 @@
   <ItemGroup>
     <ClCompile Include="src\ActivationInfo.cpp" />
     <ClCompile Include="src\AspectGroup.cpp" />
-    <ClCompile Include="src\AbstrBoundingBoxCache.cpp" />
     <ClCompile Include="src\CaretOperators.cpp" />
     <ClCompile Include="src\Carets.cpp" />
     <ClCompile Include="src\ClipBoard.cpp" />
@@ -123,13 +122,11 @@
     <ClCompile Include="src\Wrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\abstrboundingboxcache.h" />
     <ClInclude Include="src\AbstrCaret.h" />
     <ClInclude Include="src\AbstrCmd.h" />
     <ClInclude Include="src\AbstrController.h" />
     <ClInclude Include="src\ActivationInfo.h" />
     <ClInclude Include="src\AspectGroup.h" />
-    <ClInclude Include="src\BoundingBoxCache.h" />
     <ClInclude Include="src\CaretOperators.h" />
     <ClInclude Include="src\Carets.h" />
     <ClInclude Include="src\changelock.h" />

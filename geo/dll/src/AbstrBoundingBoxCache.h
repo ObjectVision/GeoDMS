@@ -6,8 +6,8 @@
 #pragma once
 #endif
 
-#ifndef __SHV_ABSTRBOUNDINGBOXCACHE_H
-#define __SHV_ABSTRBOUNDINGBOXCACHE_H
+#ifndef __GEO_ABSTRBOUNDINGBOXCACHE_H
+#define __GEO_ABSTRBOUNDINGBOXCACHE_H
 
 #include "RtcBase.h"
 #include "ptr/SharedObj.h"
@@ -39,4 +39,4 @@ protected:
 	bool m_HasBeenRegistered = false;
 };
 
-#endif // __SHV_ABSTRBOUNDINGBOXCACHE_H
+#endif // __GEO_ABSTRBOUNDINGBOXCACHE_H
