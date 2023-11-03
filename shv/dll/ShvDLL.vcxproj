@@ -98,7 +98,6 @@
     <ClCompile Include="src\MovableObject.cpp" />
     <ClCompile Include="src\PaletteControl.cpp" />
     <ClCompile Include="src\PenIndexCache.cpp" />
-    <ClCompile Include="src\Poly2GridOper.cpp" />
     <ClCompile Include="src\Region.cpp" />
     <ClCompile Include="src\RegionTower.cpp" />
     <ClCompile Include="src\ScalableObject.cpp" />
@@ -231,13 +230,12 @@
       <Project>{c0c75a4b-dd01-4272-8fb5-3a242da125ba}</Project>
     </ProjectReference>
   </ItemGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="AfterBuild">
     <ItemGroup>
-        <dms_ttf_file Include="..\..\res\fonts\dms.ttf"/>
+      <dms_ttf_file Include="..\..\res\fonts\dms.ttf" />
     </ItemGroup>
     <Copy SourceFiles="@(dms_ttf_file)" DestinationFolder="$(TargetDir)misc\fonts\" SkipUnchangedFiles="true" />
   </Target>

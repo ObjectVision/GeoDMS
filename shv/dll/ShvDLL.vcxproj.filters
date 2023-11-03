@@ -192,9 +192,6 @@
     <ClCompile Include="src\Wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Poly2GridOper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\AbstrBoundingBoxCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -469,10 +466,5 @@
     <ResourceCompile Include="res\DmShv32.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="..\..\res\fonts\dms.ttf">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
   </ItemGroup>
 </Project>

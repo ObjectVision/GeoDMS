@@ -269,5 +269,39 @@ protected:
 	DECL_RTTI(SHV_CALL, LayerClass);
 };
 
+//----------------------------------------------------------------------
+// AbstrBoundingBoxCache
+//----------------------------------------------------------------------
+
+template <typename ScalarType>
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const PointBoundingBoxCache<ScalarType>*
+GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceBoundingBoxCache(const FeatureLayer* layer)
+{
+	dms_assert(IsMetaThread());
+	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const PointBoundingBoxCache<ScalarType>*
+GetPointBoundingBoxCache(const FeatureLayer* layer)
+{
+	dms_assert(IsMetaThread());
+	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
 #endif // __SHV_FEATURELAYER_H
 

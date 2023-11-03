@@ -5,7 +5,7 @@
 
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
-#include "FeatureLayer.h"
+//#include "FeatureLayer.h"
 
 extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
 extern leveled_critical_section cs_BB;
@@ -228,36 +228,6 @@ GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, We
 	}
 	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
 	return debug_cast<const PointBoundingBoxCache<ScalarType>*>(bbCache);
-}
-
-template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceBoundingBoxCache(const FeatureLayer* layer)
-{
-	dms_assert(IsMetaThread());
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointBoundingBoxCache(const FeatureLayer* layer)
-{
-	assert(IsMetaThread());
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
 }
 
 #endif // __SHV_BOUNDINGBOXCACHE_H
