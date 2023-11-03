@@ -3,11 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
-#if defined(CC_PRAGMAHDRSTOP)
 
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
-#include "ShvDllPCH.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
