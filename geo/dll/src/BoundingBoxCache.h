@@ -6,8 +6,8 @@
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
 
-extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
-extern leveled_critical_section cs_BB;
+GEO_CALL extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
+GEO_CALL extern leveled_critical_section cs_BB;
 
 //----------------------------------------------------------------------
 // class  : BoundingBoxCache
@@ -76,7 +76,6 @@ struct PointBoundingBoxCache : AbstrBoundingBoxCache
 
 	std::vector<BoxData> m_BoxData;
 };
-
 
 template <typename F>
 struct SequenceBoundingBoxCache : AbstrBoundingBoxCache

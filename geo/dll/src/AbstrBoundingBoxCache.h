@@ -10,6 +10,8 @@
 #define __GEO_ABSTRBOUNDINGBOXCACHE_H
 
 #include "RtcBase.h"
+#include "GeoBase.h"
+
 #include "ptr/SharedObj.h"
 class AbstrDataObject;
 
@@ -20,17 +22,17 @@ class AbstrDataObject;
 struct AbstrBoundingBoxCache : SharedObj
 {
 protected:
-	AbstrBoundingBoxCache(const AbstrDataObject* featureData);
-	virtual ~AbstrBoundingBoxCache();
+	GEO_CALL AbstrBoundingBoxCache(const AbstrDataObject* featureData);
+	GEO_CALL virtual ~AbstrBoundingBoxCache();
 
 public:
 	void Register() { m_HasBeenRegistered = true; }
 
 	virtual DRect GetTileBounds(tile_id t) const = 0;
 	virtual DRect GetBlockBounds(tile_id t, tile_offset blockNr) const = 0;
-	virtual DRect GetBounds(tile_id t, tile_offset featureID) const;
+	GEO_CALL virtual DRect GetBounds(tile_id t, tile_offset featureID) const;
 
-	DRect GetBounds(SizeT featureID) const;
+	GEO_CALL DRect GetBounds(SizeT featureID) const;
 
 	static const UInt32 c_BlockSize = 256;
 

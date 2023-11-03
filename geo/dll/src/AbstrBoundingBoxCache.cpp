@@ -43,3 +43,5 @@ DRect AbstrBoundingBoxCache::GetBounds(SizeT featureID) const
 
 
 
+
+

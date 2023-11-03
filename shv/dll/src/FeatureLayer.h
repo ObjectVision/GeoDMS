@@ -273,6 +273,8 @@ protected:
 // AbstrBoundingBoxCache
 //----------------------------------------------------------------------
 
+#include "BoundingBoxCache.h"
+
 template <typename ScalarType>
 const SequenceBoundingBoxCache<ScalarType>*
 GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)

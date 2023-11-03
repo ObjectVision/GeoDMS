@@ -7,7 +7,9 @@
 //      are changed infrequently
 //
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_TICBASE_H)
 #define __TIC_TICBASE_H
