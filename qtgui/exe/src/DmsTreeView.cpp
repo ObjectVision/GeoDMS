@@ -546,6 +546,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
+	header()->setSectionsMovable(false);
 	//header()->setCascadingSectionResizes(true);
 	
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
