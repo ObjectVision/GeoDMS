@@ -74,22 +74,12 @@ set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtoo
 CHOICE /M  "Signing OK? Ready to run installation?"
 if ErrorLevel 2 goto afterNSIS
 
-del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\gdaldata"
-del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\proj4data"
-del /s /q "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
-rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\gdaldata"
-rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%\proj4data"
-rmdir "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%"
-if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" CHOICE /M "Removed C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion% ?"
+if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" CHOICE /M "Removed "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" or accept testing with an overwritten folder ?"
 
 "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
 
 del filelist%GeoDmsVersion%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.txt
-
-fc filelist8031.txt filelist%GeoDmsVersion%.txt
-if %ErrorLevel% == 1 pause
-
 
 cd ..\tst\batch
 Call unit.bat %GeoDmsVersion% off
