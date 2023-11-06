@@ -1,14 +1,13 @@
-#ifndef __SHV_BOUNDINGBOXCACHE_H
-#define __SHV_BOUNDINGBOXCACHE_H
+#ifndef __GEO_BOUNDINGBOXCACHE_H
+#define __GEO_BOUNDINGBOXCACHE_H
 
 #include "LockLevels.h"
 
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
-#include "FeatureLayer.h"
 
-extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
-extern leveled_critical_section cs_BB;
+GEO_CALL extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
+GEO_CALL extern leveled_critical_section cs_BB;
 
 //----------------------------------------------------------------------
 // class  : BoundingBoxCache
@@ -77,7 +76,6 @@ struct PointBoundingBoxCache : AbstrBoundingBoxCache
 
 	std::vector<BoxData> m_BoxData;
 };
-
 
 template <typename F>
 struct SequenceBoundingBoxCache : AbstrBoundingBoxCache
@@ -230,34 +228,4 @@ GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, We
 	return debug_cast<const PointBoundingBoxCache<ScalarType>*>(bbCache);
 }
 
-template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
-{
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceBoundingBoxCache(const FeatureLayer* layer)
-{
-	dms_assert(IsMetaThread());
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointBoundingBoxCache(const FeatureLayer* layer)
-{
-	dms_assert(IsMetaThread());
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
-}
-
-#endif // __SHV_BOUNDINGBOXCACHE_H
+#endif // __GEO_BOUNDINGBOXCACHE_H

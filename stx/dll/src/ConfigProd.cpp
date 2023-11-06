@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ConfigFileName.h"
 #include "ConfigProd.h"
@@ -610,5 +613,5 @@ void ConfigProd::throwSemanticError(CharPtr msg)
 	while (!curr && i--)
 		curr = m_stackContexts[i];
 
-	Object::throwItemErrorF(curr, "Semantic error %s", msg);
+	throwItemErrorF(curr, "Semantic error %s", msg);
 }

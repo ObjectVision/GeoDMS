@@ -27,11 +27,14 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataBlockProd.h"
 
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "mci/ValueClass.h"

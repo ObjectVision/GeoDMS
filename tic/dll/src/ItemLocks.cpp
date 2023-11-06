@@ -1,5 +1,12 @@
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <assert.h>
 #include "act/ActorLock.h"
@@ -165,8 +172,6 @@ namespace treeitem_production_task
 
 
 namespace cs_lock {
-	concurrency::event ce_LoadCompleted;
-
 	// only works for reader_writer_lock, caller must call ReadFree
 	void ReadLock(const TreeItem* key);
 	bool TryReadLock(const TreeItem* key);

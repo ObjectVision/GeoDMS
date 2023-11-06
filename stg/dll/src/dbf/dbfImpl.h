@@ -38,7 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "stdio.h"	// m_FP
 
 #include "geo/BaseBounds.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "ptr/SharedStr.h"
 #include "utl/Instantiate.h"
 

@@ -7,7 +7,9 @@
 //      are changed infrequently
 //
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_TICBASE_H)
 #define __TIC_TICBASE_H
@@ -36,7 +38,7 @@ class AbstrDataItem;
 class AbstrDataObject;
 struct AbstrTileRangeData;
 
-typedef AbstrDataItem AbstrParam;
+using AbstrParam = AbstrDataItem;
 
 template <typename V> class Unit;
 
@@ -93,15 +95,14 @@ struct DataController;
 using DataControllerRef = SharedPtr<const DataController>;
 using FutureData = InterestPtr<DataControllerRef>;
 
-typedef TileCRef                                      GuiReadLock;
-typedef Point<GuiReadLock>                            GuiReadLockPair;
+using GuiReadLock = TileCRef;
+using GuiReadLockPair = Point<GuiReadLock>;
 
-typedef void (*TStateChangeNotificationFunc)(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode);
-typedef bool (*TSupplCallbackFunc)(ClientHandle clientHandle, const TreeItem* supplier);
-
+using TStateChangeNotificationFunc = void (*)(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode);
+using TSupplCallbackFunc = bool (*)(ClientHandle clientHandle, const TreeItem* supplier);
 
 template <typename T> struct OwningPtrSizedArray;
-typedef OwningPtrSizedArray<Byte> BlobBuffer;
+using BlobBuffer = OwningPtrSizedArray<Byte>;
 
 namespace Explain {
 	struct Context;
@@ -122,7 +123,7 @@ class Operator;
 using ArgSeqType = std::vector<const TreeItem*>;
 struct  TreeItemDualRef;
 
-typedef SharedPtr<const AbstrUnit> ConstUnitRef;
+using ConstUnitRef = SharedPtr<const AbstrUnit>;
 class Operator;
 
 using arg_index = UInt32;

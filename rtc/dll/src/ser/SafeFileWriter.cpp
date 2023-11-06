@@ -29,7 +29,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "SafeFileWriter.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugContext.h"
 #include "utl/mySPrintF.h"
 #include "utl/Environment.h"

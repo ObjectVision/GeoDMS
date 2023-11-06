@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mth/BigInt.h"
 #include "ptr/IterCast.h"
@@ -209,14 +212,33 @@ UInt operator >> (const UInt& a, UInt32 shift)
 //                         (U)Int64 functions
 /******************************************************************************/
 
+#if defined(WIN32)
+
 #include <windows.h>
 
-RTC_CALL UInt64 RTC_UInt32xUInt32toUInt64(UInt32 a, UInt32 b) // calls UInt32x32To64
-{
-	return UInt32x32To64(a, b);
-}
+	RTC_CALL UInt64 RTC_UInt32xUInt32toUInt64(UInt32 a, UInt32 b) // calls UInt32x32To64
+	{
+		return UInt32x32To64(a, b);
+	}
 
-RTC_CALL Int64 RTC_Int32xInt32toInt64(Int32 a, Int32 b) // calls Int32x32To64
-{
-	return Int32x32To64(a, b);
-}
+	RTC_CALL Int64 RTC_Int32xInt32toInt64(Int32 a, Int32 b) // calls Int32x32To64
+	{
+		return Int32x32To64(a, b);
+	}
+
+#else //defined(WIN32)
+
+	// GNU TODO: optimize
+
+	RTC_CALL UInt64 RTC_UInt32xUInt32toUInt64(UInt32 a, UInt32 b) // calls UInt32x32To64
+	{
+		return UInt64(a) * UInt64(b);
+	}
+
+	RTC_CALL Int64 RTC_Int32xInt32toInt64(Int32 a, Int32 b) // calls Int32x32To64
+	{
+		return Int64(a) * Int64(b);
+	}
+
+
+#endif //defined(WIN32)

@@ -10,8 +10,8 @@
 
 inline bool lex_caseinsensitive_compare(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	dms_assert_without_debugonly_lock(f1 &&  l1 || f1 == l1);
-	dms_assert_without_debugonly_lock(f2 &&  l2 || f2 == l2);
+	assert(f1 &&  l1 || f1 == l1);
+	assert(f2 &&  l2 || f2 == l2);
 
 	SizeT 
 		sz1 = l1-f1, 
@@ -19,11 +19,11 @@ inline bool lex_caseinsensitive_compare(CharPtr f1, CharPtr l1, CharPtr f2, Char
 	SizeT sz_min = Min<SizeT>(sz1, sz2);
 	if (!sz_min)
 	{
-		dms_assert_without_debugonly_lock(f1 == l1 || f2 == l2);
+		assert(f1 == l1 || f2 == l2);
 		return sz2;
 	}
-	dms_assert_without_debugonly_lock(f1 && l1 && f2 && l2 && f1!=l1 && f2!=l2);
-	int cmpRes = _strnicmp(f1, f2, sz_min);
+	assert(f1 && l1 && f2 && l2 && f1!=l1 && f2!=l2);
+	int cmpRes = strnicmp(f1, f2, sz_min);
 	return (cmpRes < 0)
 		|| (cmpRes == 0 && sz1 < sz2);
 }

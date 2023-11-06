@@ -47,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/StringStream.h"
 #include "ser/VectorStream.h"
 #include "geo/StringBounds.h"
-#include "utl/instantiate.h"
+#include "utl/Instantiate.h"
 
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
@@ -252,7 +252,7 @@ IMPL_RTTI_METACLASS(ValueClass, "VALUE", nullptr);
 template <typename T, typename F>
 struct get_field_type
 {
-	typedef ValueWrap<F> type;
+	using type = ValueWrap<F>;
 };
 
 template <typename T>
@@ -263,6 +263,8 @@ struct get_field_type<T, T>
 		static ValueClass* GetStaticClass() { return nullptr; }
 	};
 };
+
+template <typename T, typename F> using get_field_type_t = typename get_field_type<T, F>::type;
 
 template <bool IsNumeric, typename T>
 struct GetExtremesAsFloat64
@@ -315,7 +317,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 				CreateFunc<ValueWrap<T> >, inviterFunc, GetTokenID_st(GetScriptName<T>() ), GetTypeID<T>(),
 				Int32(is_binary_streamable<T>::value ? sizeof(T)      : -1),
 				Int32(is_binary_streamable<T>::value ? nrbits_of_v<T> :  -1),
-				dimension_of<field_of<T>::type>::value,
+				dimension_of<field_of_t<T>>::value,
 				is_numeric_v<T>,
 				is_integral<T>::value,
 				is_signed<T>::value,
@@ -324,9 +326,9 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 				is_numeric_v<T> ? ::AsFloat64(s_UndefinedValue):0.0,
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MaxValue(),
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MinValue(),
-				get_field_type<T, field_of <T>::type>::type::GetStaticClass(),
-				get_field_type<T, scalar_of<T>::type>::type::GetStaticClass(),
-				get_field_type<T, cardinality_type<T>::type>::type::GetStaticClass()
+				get_field_type_t<T, field_of_t<T>>::GetStaticClass(),
+				get_field_type_t<T, scalar_of_t<T>>::GetStaticClass(),
+				get_field_type_t<T, cardinality_type_t<T>>::GetStaticClass()
 			)
 		);
 	}

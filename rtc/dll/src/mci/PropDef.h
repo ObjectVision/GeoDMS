@@ -165,10 +165,10 @@ public:
 	void GetAbstrValue(const Object* self, AbstrValue* value) const override
 	{
 		const ItemType* item = debug_cast<const ItemType*>(self);
-		dms_assert(item);
+		assert(item);
 		ValueWrap<PropType>* propValue = debug_cast<ValueWrap<PropType>*>(value);
-		dms_assert(propValue);
-		propValue->Set( typename ValueWrap<PropType>::value_type( GetValue(item) ) );
+		assert(propValue);
+		propValue->SetValue( GetValue(item) );
 	}
 	void SetAbstrValue(Object* self, const AbstrValue* value) override
 	{

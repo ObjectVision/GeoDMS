@@ -27,11 +27,14 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 
-#include "dbg/check.h"
+#include "dbg/Check.h"
 #include "geo/BaseBounds.h"
 
 #include <math.h>

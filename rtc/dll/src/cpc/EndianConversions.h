@@ -50,7 +50,7 @@ template<unsigned N> inline void byte_reverse_n(void* t)
 	);
 };
 
-#if defined(CC_PROCESSOR_INTEL) && (CC_POCESSOR_MINVERSION >= 80486) && !defined(DMS_64)
+#if defined(CC_PROCESSOR_INTEL) && !defined(DMS_64)
 
 template<> inline void byte_reverse_n<4>(void* t)
 {

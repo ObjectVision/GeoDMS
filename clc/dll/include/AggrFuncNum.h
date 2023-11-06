@@ -125,6 +125,9 @@ struct unary_assign_min : unary_assign<T, T>
 
 	void operator()(typename unary_assign_min::assignee_ref assignee, typename unary_assign_min::arg1_cref arg) const
 	{ 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
 		MakeLowerBound(assignee, arg);
 	}
 };
@@ -138,6 +141,9 @@ struct unary_assign_max : unary_assign<T, U>
 
 	void operator()(typename unary_assign_max::assignee_ref assignee, typename unary_assign_max::arg1_cref arg) const
 	{ 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
 		MakeUpperBound(assignee, arg);
 	}
 };

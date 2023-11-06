@@ -509,7 +509,7 @@ FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point);
 // section : RGBQUAD
 //----------------------------------------------------------------------
 
-#include "geo/Color.h"
+#include "geo/color.h"
 
 template<typename ExceptFunc, typename ConvertFunc>
 inline RGBQUAD Convert4(DmsColor dmsColor, const RGBQUAD*, const ExceptFunc*, const ConvertFunc*)

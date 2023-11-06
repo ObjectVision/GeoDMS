@@ -3,10 +3,14 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mci/CompositeCast.h"
 #include "geo/CheckedCalc.h"
+#include "ser/StringStream.h"
 
 #include "AttrBinStruct.h"
 #include "LispTreeType.h"

@@ -34,7 +34,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "FilePtrHandle.h"
 
 #include "dbg/Check.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/PointOrder.h"
 #include "geo/Range.h"
 #include "geo/BaseBounds.h"

@@ -7,14 +7,13 @@
 #if !defined(__RTC_GEO_RANGE_H)
 #define __RTC_GEO_RANGE_H
 
-#include "rtcBase.h"
+#include "RtcBase.h"
 
 #include "dbg/Check.h"
 
-
 #include "geo/BaseBounds.h"
 #include "geo/Point.h"
-#include "geo/Conversions.h"
+#include "geo/ElemTraits.h"
 
 template <class T>
 std::enable_if_t<is_integral_v<field_of_t<T> >>
@@ -302,37 +301,11 @@ inline Float64 AsFloat64(Range<T> x )
 }
 
 template <class T> inline
-T Center(Range<T> r) { return (r.first+r.second) / scalar_of<T>::type(2); }
+T Center(Range<T> r) { return (r.first+r.second) / scalar_of_t<T>(2); }
 
 template <class T> inline
 typename unsigned_type<T>::type
 Size(Range<T> r) { return r.second - r.first; }
-
-template <class T> inline
-SizeT
-Cardinality(Range<T> r)
-{ 
-	return IsDefined(r) 
-		?	r.empty()
-			?	0
-			:	Cardinality(Size(r)) 
-		:	UNDEFINED_VALUE(SizeT); 
-}
-
-template <> inline
-SizeT
-Cardinality(Range<Void> ) { return 1; }
-
-template <class T> inline
-typename product_type<T>::type
-Area(Range<Point<T> > r)
-{ 
-	return IsDefined(r) 
-		?	r.empty()
-			?	0
-			:	Area(Size(r) ) 
-		:	UNDEFINED_VALUE(product_type<T>::type); 
-}
 
 template <class T> inline
 Range<T> Inflate(Range<T> r, T p) { return Range<T>(r.first-p, r.second+p); }

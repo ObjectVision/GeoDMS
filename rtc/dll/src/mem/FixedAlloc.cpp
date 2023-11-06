@@ -47,7 +47,10 @@
 */
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcBase.h"
 
@@ -63,7 +66,10 @@
 
 #include <memory>
 
+#if defined(WIN32)
 #define MG_CACHE_ALLOC
+#endif //defined(WIN32)
+
 //#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE
 
@@ -602,8 +608,10 @@ void* AllocateFromStock_impl(size_t objectSize)
 
 	SizeT qWordCount = ((objectSize + (sizeof(UInt64) - 1)) & ~(sizeof(UInt64) - 1)) / sizeof(UInt64);
 
+#if defined(MG_CACHE_ALLOC)
 	if (i >= FIRST_PAGE_INDEX)
 		WaitForAvailableMemory(qWordCount * sizeof(UInt64));
+#endif //defined(MG_CACHE_ALLOC)
 
 	auto result = s_QWordArrayAllocator.allocate(qWordCount);
 	MG_CHECK(result);
@@ -618,12 +626,14 @@ void* AllocateFromStock(size_t objectSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	auto result = AllocateFromStock_impl(objectSize);
 
 #if defined(MG_CACHE_ALLOC)
+
 #if defined(MG_DEBUG_ALLOCATOR)
 	RegisterAlloc(result, objectSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 #endif //defined(MG_DEBUG_ALLOCATOR)
-#endif //defined(MG_CACHE_ALLOC)
 
 	ConsiderReporting();
+
+#endif //defined(MG_CACHE_ALLOC)
 
 	return result;
 }
@@ -670,12 +680,13 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 // Reporting
 //----------------------------------------------------------------------
 
+#if defined(MG_CACHE_ALLOC)
+
 #include "utl/mySPrintF.h"
 #include <Psapi.h>
 
 std::atomic<bool> s_ReportingRequestPending = false;
 std::atomic<bool> s_BlockNewAllocations = false;
-
 
 SizeT CommittedSize()
 {
@@ -763,6 +774,8 @@ void ReportFixedAllocFinalSummary()
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
 
 }
+
+#endif //defined(MG_CACHE_ALLOC)
 
 //----------------------------------------------------------------------
 // clean-up

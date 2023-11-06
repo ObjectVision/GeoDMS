@@ -1,5 +1,8 @@
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ppltasks.h"
 
@@ -8,7 +11,7 @@
 #include "act/ActorLock.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "geo/PointOrder.h"
 #include "ptr/SharedBase.h"

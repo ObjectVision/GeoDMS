@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Theme.h"
 
 #include "act/ActorVisitor.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/ValueClass.h"
 
 #include "AbstrDataItem.h"

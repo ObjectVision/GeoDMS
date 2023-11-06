@@ -40,7 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "ser/StringStream.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 
 #include "LispList.h"
 

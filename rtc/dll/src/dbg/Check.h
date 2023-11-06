@@ -111,7 +111,7 @@ private:
 
 #define dms_is_debuglocked false
 #define dms_check_not_debugonly { }
-#define dms_assert_without_debugonly_lock(EXPR) __assume(bool(EXPR))
+#define dms_assert_without_debugonly_lock(EXPR) CC_ASSUME(bool(EXPR))
 #define dms_assert(EXPR) dms_assert_without_debugonly_lock(EXPR)
 #define dbg_assert(EXPR)
 #define lfs_assert(EXPR)

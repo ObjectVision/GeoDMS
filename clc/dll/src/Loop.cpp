@@ -28,9 +28,12 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
-#include "utl/MySPrintF.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "utl/mySPrintF.h"
 
 #include "AbstrUnit.h"
 #include "CopyTreeContext.h"

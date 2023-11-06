@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/Check.h"
 #include "geo/BaseBounds.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 
 #include <algorithm>
 

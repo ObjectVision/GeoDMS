@@ -22,3 +22,4 @@ todo*.txt
 /XE2/DMS/GeoDmsGuiDelphi.identcache
 /XE2/DMS/GeoDmsGuiDelphi.res
 /msbuild_linux/obj
+/rtc/dll/obj

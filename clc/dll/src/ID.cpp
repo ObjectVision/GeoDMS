@@ -3,8 +3,12 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "geo/CheckedCalc.h"
 #include "mci/CompositeCast.h"
 #include "ptr/InterestHolders.h"
 

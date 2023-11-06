@@ -29,6 +29,8 @@ RTC_CALL void catchAndProcessException();
 
 #	if defined(_MSC_VER)
 
+#include "excpt.h"
+
 		// functions defined in DmsException.cpp
 
 		RTC_CALL TCppExceptionTranslator SetCppTranslator(TCppExceptionTranslator trFunc); 
@@ -47,21 +49,24 @@ RTC_CALL void catchAndProcessException();
 		};
 
 #		define DMS_EH_CONTEXT CppTranslatorContext tc;
+#		define DMS_SE_CALL_BEGIN     __try {
+#		define DMS_SE_CALL_END     } __except(signalHandling(GetExceptionCode(), GetExceptionInformation(), true)) { call_HaltOnSE(); }
+
+#		define DMS_SE_CALLBACK_BEGIN __try { 
+#		define DMS_SE_CALLBACK_END } __except( signalHandling(GetExceptionCode(), GetExceptionInformation(), false) ) { call_trans_SE2DMSfunc(); }
+
 #	else
+
 #		define DMS_EH_CONTEXT
+#		define DMS_SE_CALL_BEGIN
+#		define DMS_SE_CALL_END
+
+#		define DMS_SE_CALLBACK_BEGIN
+#		define DMS_SE_CALLBACK_END
 #	endif	
-
-#include "excpt.h"
-
-#	define DMS_SE_CALL_BEGIN     __try {
-#	define DMS_SE_CALL_END     } __except(signalHandling(GetExceptionCode(), GetExceptionInformation(), true)) { call_HaltOnSE(); }
-
-#	define DMS_SE_CALLBACK_BEGIN __try { 
-#	define DMS_SE_CALLBACK_END } __except( signalHandling(GetExceptionCode(), GetExceptionInformation(), false) ) { call_trans_SE2DMSfunc(); }
 
 #	define DMS_CALL_BEGIN try { DMS_EH_CONTEXT
 #	define DMS_CALL_END } catch (...) { catchAndProcessException(); }
 #	define DMS_CALL_END_NOTHROW } catch (...) { catchAndReportException(); }
-
 
 #endif // __DBG_DMSCATCH_H

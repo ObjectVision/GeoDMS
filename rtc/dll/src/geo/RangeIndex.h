@@ -17,7 +17,7 @@ inline bool AssertIsOrdinalType(const ord_type_tag*) { return true; }
 template <class V>
 inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 {
-	dbg_assert(AssertIsOrdinalType(TYPEID(elem_traits<V>)));
+	static_assert(is_integral_v<V>);
 
 	dms_assert(IsDefined(range));           // caller must provide a definedrange
 	dms_assert(IsIncluding(range, loc));    // caller must shield out-of-range
@@ -32,7 +32,7 @@ inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 template <class V>
 inline SizeT Range_GetIndex_naked_zbase(V upperBound, V loc)
 {
-	dbg_assert(AssertIsOrdinalType(TYPEID(elem_traits<V>)));
+	static_assert(is_integral_v<V>);
 
 	dms_assert(IsDefined(upperBound));           // caller must provide a definedrange
 	dms_assert(loc < upperBound);    // caller must shield out-of-range
@@ -52,7 +52,7 @@ inline auto Range_GetValue_naked_zbase(V upperBound, SizeT index) -> V
 template <class V>
 inline V Range_GetValue_naked(const Range<V>& range, SizeT index)
 {
-	dbg_assert(AssertIsOrdinalType(TYPEID(elem_traits<V>)));
+	static_assert(is_integral_v<V>);
 
 	dms_assert(IsDefined(range));        // caller must provide a definedrange
 	dms_assert(index < Cardinality(range)); // caller must shield out of range

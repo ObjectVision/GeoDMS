@@ -40,7 +40,7 @@ struct CharPtrCaseInsensitiveCompare
 {
 	bool operator()(CharPtr a, CharPtr b) const 
 	{
-		return _stricmp(a, b) < 0;
+		return stricmp(a, b) < 0;
 	}
 };
 

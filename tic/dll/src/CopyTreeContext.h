@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "utl/IncrementalLock.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ptr/SharedPtr.h"

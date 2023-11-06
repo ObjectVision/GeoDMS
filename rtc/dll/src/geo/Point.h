@@ -7,7 +7,6 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/CheckedCalc.h"
 #include "geo/Couple.h"
 #include "geo/ElemTraits.h"
 
@@ -314,21 +313,6 @@ operator /(const Point<T>& a, const Point<U>& b)
 	return Point<T>(a.first / b.first, a.second / b.second);
 }
 
-
-//----------------------------------------------------------------------
-// Section      : Geometric operators
-//----------------------------------------------------------------------
-
-
-template <class T> inline
-	SizeT Cardinality(const Point<T>& v) { return CheckedMul<SizeT>(Cardinality(v.first), Cardinality(v.second), false); }
-
-template <class T> inline
-typename product_type<T>::type
-Area(const Point<T>& v) 
-{ 
-	return v.first * v.second; 
-}
 
 //----------------------------------------------------------------------
 // Section      : Distance Measures

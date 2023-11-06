@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "act/Actor.h"
 #include "act/InterestRetainContext.h"
@@ -39,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/QuickContainers.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "LockLevels.h"
 
 #include "RtcInterface.h"

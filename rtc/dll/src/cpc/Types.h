@@ -40,8 +40,9 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "cpc/CompChar.h"
-#include "RtcTypeModel.h"
+#include "CompChar.h"
+#include <rtctypemodel.h>
+#include <stdint.h>
 
 #define TYPEID(T) ((const T*)nullptr)
 
@@ -70,16 +71,6 @@ struct                 Void {}; // fix problem with const Void& in some instanti
 #	error "Unable to define 16 bit integers."
 #endif
 
-#if defined(CC_INT_32)
-	typedef int             Int32;
-	typedef unsigned int    UInt32;
-#elif defined(CC_LONG_32)
-	typedef long            Int32;
-	typedef unsigned long   UInt32;
-#else
-#	error "Unable to define 32 bit integers."
-#endif
-
 #if defined(CC_FLOAT_32)
 	typedef float				Float32;
 #else
@@ -103,8 +94,29 @@ struct                 Void {}; // fix problem with const Void& in some instanti
 #endif
 
 // Some Useful types that can be modified here
-typedef unsigned __int64 UInt64;
-typedef          __int64 Int64;
+#if defined(__GNUC__)
+	using UInt64 = uint64_t;
+	using Int64 = int64_t;
+	using UInt32 = uint32_t;
+	using Int32 = int32_t;
+
+#elif defined(_MSC_VER)
+	using UInt64 = unsigned __int64;
+	using Int64 = __int64;
+
+#if defined(CC_INT_32)
+	using Int32 = int;
+	using UInt32 = unsigned int;
+#elif defined(CC_LONG_32)
+	typedef long            Int32;
+	typedef unsigned long   UInt32;
+#else
+#	error "Unable to define 32 bit integers."
+#endif
+
+#else
+#	error "Unable to define integers."
+#endif
 
 typedef UInt8       DimType;
 typedef char        Char;
@@ -183,8 +195,6 @@ namespace dms {
 //----------------------------------------------------------------------
 // Memory model
 //----------------------------------------------------------------------
-
-#include "RtcTypeModel.h"
 
 typedef UInt64 SizeT;
 typedef Int64  DiffT;

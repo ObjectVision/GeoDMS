@@ -4,7 +4,6 @@
 
 
 #include "ClcPCH.h"
-#pragma hdrstop
 
 #if !defined(__CLC_RLOOKUP_H)
 #define __CLC_RLOOKUP_H 

@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 /*
@@ -60,8 +36,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcBase.h"
 
-#include "set/token.h"
-#include "ptr/SharedStr.h"
+//#include "set/Token.h"
+
 struct ErrMsg;
 struct SourceLocation;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
@@ -173,26 +149,14 @@ public:
 	RTC_CALL virtual void XML_Dump(OutStreamBase* xmlOutStr) const;
 	RTC_CALL virtual void XML_DumpData(OutStreamBase* xmlOutStr) const;
 
-	TokenStr GetXmlClassName() const { return GetXmlClassID().GetStr(); }
+	RTC_CALL TokenStr GetXmlClassName() const;
 	RTC_CALL virtual TokenID GetXmlClassID() const;
 
 	// NON VIRTUAL ROUTINES BASED ON THE ABOVE INTERFACE
-	TokenStr GetName() const { return GetID().GetStr(); }
+	RTC_CALL TokenStr GetName() const;
 	RTC_CALL bool    IsKindOf(const Class* cls) const;
 	RTC_CALL TokenStr GetClsName() const; // Warning: GetClsName is already a #defined symbol in WINUSER.H
 	RTC_CALL TokenID GetClsID() const;
-
-public:
-	//	====================== Why here, TODO G8 move to separate header
-	[[noreturn]] static RTC_CALL void throwItemError(ErrMsgPtr msgPtr);
-
-	[[noreturn]] static RTC_CALL void throwItemError(const PersistentSharedObj* self, WeakStr msgStr);
-	[[noreturn]] static RTC_CALL void throwItemError(const PersistentSharedObj* self, CharPtr msg);
-
-	template<typename ...Args>
-	[[noreturn]] static void throwItemErrorF(const PersistentSharedObj* self, CharPtr msg, Args&&... args) {
-		throwItemError(self, mgFormat2SharedStr(msg, std::forward<Args>(args)...));
-	}
 
 	DECL_ABSTR(RTC_CALL, Class);
 };

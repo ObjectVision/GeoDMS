@@ -17,6 +17,7 @@
 #define __RTC_PTR_SHAREDOBJBASE_H
 
 #include "RtcBase.h"
+#include "dbg/Check.h"
 
 #include <atomic>
 
@@ -88,7 +89,7 @@ protected:
 
    ~SharedBase() { assert(!IsOwned()); }
 
-	SharedBase& operator =(const SharedBase& ) {} // DONT COPY m_RefCount
+	SharedBase& operator =(const SharedBase&) = delete; // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;
 
 	ref_count_t GetCount() const noexcept { return m_RefCount; }

@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__CLC_AGGRUNISTRUCTSTRING_H)
 #define __CLC_AGGRUNISTRUCTSTRING_H
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ser/SequenceArrayStream.h"
 #include "ser/MoreStreamBuff.h"
 

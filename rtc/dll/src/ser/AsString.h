@@ -1,20 +1,27 @@
 // Copyright (C) 2023 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
-#pragma once
+
+//#pragma once
 
 #ifndef __SER_ASSTRING_H
-#define __SER_ASSTRING_H
 
+#include "RtcBase.h"
 
-#include "geo/IterRange.h"
 #include "ptr/SharedStr.h"
+#include "ser/FormattingFlags.h"
 #include "ser/FormattedStream.h"
+#include "ser/MoreStreamBuff.h"
+#include "utl/Quotes.h"
+
+/*
+#include "geo/iterrange.h"
 #include "ser/PointStream.h"
 #include "ser/StringStream.h"
 #include "ser/SequenceArrayStream.h"
-#include "ser/MoreStreamBuff.h"
-#include "utl/Quotes.h"
+//*/
+
+#define __SER_ASSTRING_H
 
 //----------------------------------------------------------------------
 // AsString
@@ -49,10 +56,10 @@ inline SharedStr AsDataStr(const SharedStr&  v) { return AsDataStr(typesafe_cast
 
 template <typename T>
 inline void WriteDataString(FormattedOutStream& out, const T& v) { out << v;    }
-inline void WriteDataString(FormattedOutStream& out, Bool     v) { out << (v ? "true" : "false");   }
-inline void WriteDataString(FormattedOutStream& out, WeakStr  v) { DoubleQuote(out, v.begin(), v.send()); }
-inline void WriteDataString(FormattedOutStream& out, CharPtr  v) { DoubleQuote(out, v); }
-inline void WriteDataString(FormattedOutStream& out, const SharedStr& v) { WriteDataString(out, typesafe_cast<WeakStr>(v)); }
+RTC_CALL void WriteDataString(FormattedOutStream& out, Bool     v);
+RTC_CALL void WriteDataString(FormattedOutStream& out, WeakStr  v);
+RTC_CALL void WriteDataString(FormattedOutStream& out, CharPtr  v);
+RTC_CALL void WriteDataString(FormattedOutStream& out, const SharedStr& v);
 
 template <typename T> 
 inline   SharedStr AsRgbStr(const T& v) { return AsDataStr(v); }
@@ -115,27 +122,7 @@ inline bool AsCharArray(const SharedStr& value, char* buffer, SizeT bufLen, Form
 	return AsCharArray(typesafe_cast<WeakStr>(value), buffer, bufLen, ff); 
 }
 
-inline bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags)
-{
-	SizeT size;
-	CharPtr valueBegin;
-	if (!value.IsDefined())
-	{
-		size = UNDEFINED_VALUE_STRING_LEN;
-		valueBegin = UNDEFINED_VALUE_STRING;
-	}
-	else
-	{
-		size = value.size();
-		valueBegin = value.begin();
-	}
-	buffer = fast_copy(valueBegin, valueBegin + Min<SizeT>(size, bufLen), buffer);
-	if (size >= bufLen)
-		return false;
-	*buffer = char(0);
-	return true;
-}
-
+RTC_CALL bool AsCharArray(SA_ConstReference<char> value, char* buffer, SizeT bufLen, FormattingFlags);
 
 template <class T>
 inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlags ff)
@@ -149,7 +136,7 @@ inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlag
 inline SizeT AsCharArraySize(CharPtr value, streamsize_t maxLen, FormattingFlags) { return StrLen(value, maxLen); }
 inline SizeT AsCharArraySize(WeakStr value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
 inline SizeT AsCharArraySize(const SharedStr& value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.ssize()); }
-inline SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags) { return Min<streamsize_t>(maxLen, value.size()); }
+RTC_CALL SizeT AsCharArraySize(SA_ConstReference<char> value, streamsize_t maxLen, FormattingFlags);
 
 //----------------------------------------------------------------------
 // Section : IString, used for returning string-handles to ClientAppl
@@ -185,43 +172,31 @@ private:
 // Section      : various StringRef functions
 //----------------------------------------------------------------------
 
-inline   SharedStr AsString(const StringCRef& v) { return v.IsDefined() ? SharedStr(begin_ptr(v), end_ptr(v)) : SharedStr(Undefined()); }
+RTC_CALL SharedStr AsString(const StringCRef& v);
 RTC_CALL SharedStr AsDataStr(const StringCRef& v);
 RTC_CALL void WriteDataString(FormattedOutStream& out, const StringCRef& v);
+
+
+RTC_CALL void StringRef_resize_uninitialized(StringRef& res, SizeT n);
+RTC_CALL Char*   begin_ptr(StringRef& res);
+RTC_CALL CharPtr begin_ptr(StringCRef& res);
+RTC_CALL Char* end_ptr(StringRef& res);
+RTC_CALL CharPtr end_ptr(StringCRef& res);
 
 template <typename T>
 inline void AsString(StringRef& res, const T& v)
 {
 	SizeT n = AsCharArraySize(v, -1, FormattingFlags::None);
-	dms_assert(n);
-	res.resize_uninitialized(n);
-	AsCharArray(v, &*res.begin(), n, FormattingFlags::None);
+	assert(n);
+	StringRef_resize_uninitialized(res, n);
+	AsCharArray(v, begin_ptr(res), n, FormattingFlags::None);
 }
 
 
-inline SizeT StrLen(const StringCRef& x, SizeT maxLen)
-{
-	MakeMin(maxLen, x.size());
-	return StrLen(x.begin(), maxLen);
-}
+RTC_CALL SizeT StrLen(const StringCRef& x, SizeT maxLen);
 
-
-
-inline void AsString(StringRef& res, const double& value, UInt8 decPos)
-{
-	if (IsDefined(value))
-	{
-		char charBuf[255 + 26];
-		UInt32 n = _snprintf(charBuf, 255 + 26, "%.*G", int(decPos), value);
-		dms_assert(n);
-		res.assign(charBuf, charBuf + n);
-	}
-	else
-		res.assign(Undefined());
-}
-
+RTC_CALL void AsString(StringRef& res, const double& value, UInt8 decPos);
 RTC_CALL void AsHex(StringRef& res, UInt32 v);
 RTC_CALL void AsHex(StringRef& res, StringCRef v);
-
 
 #endif // __SER_ASSTRING_H

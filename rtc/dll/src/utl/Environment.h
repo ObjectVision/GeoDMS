@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __RTC_UTL_ENVIRONMENT_H
 
 #include "cpc/Types.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "ptr/OwningPtrArray.h"
 
 //  -----------------------------------------------------------------------

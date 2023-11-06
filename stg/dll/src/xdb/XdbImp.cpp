@@ -35,7 +35,10 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StoragePch.h"
 #include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "XdbImp.h"
 
@@ -44,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/Conversions.h"
 #include "geo/Undefined.h"
 #include "ser/FormattedStream.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
 

@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataBlockTask.h"
 
@@ -148,7 +151,7 @@ void DataBlockProd::Commit()
 
 void DataBlockProd::throwSemanticError(CharPtr msg)
 {
-	Object::throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
+	throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
 }
 
 // ============================= ConfigProd
@@ -160,7 +163,6 @@ void ConfigProd::DoArrayAssignment()
 {
 	m_nIndexValue++;
 }
-
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 {

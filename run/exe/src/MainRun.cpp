@@ -7,7 +7,7 @@
 #include "StxInterface.h"
 #include "RtcInterface.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "ptr/AutoDeletePtr.h"
@@ -15,6 +15,7 @@
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
+#include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
