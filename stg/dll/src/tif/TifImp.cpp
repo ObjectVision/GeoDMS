@@ -217,63 +217,51 @@ bool TifImp::HasColorTable() const
 
 const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 {
-	uint16* sample_format = nullptr;
-	uint16* bits_per_sample = nullptr;
-	uint16* samples_per_pixel = nullptr;
-	TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sample_format);
-	TIFFGetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
-	TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel);
-
-	if (!sample_format)
+	uint16 sample_format = 0;
+	uint16 bits_per_sample = 0;
+	uint16 samples_per_pixel = 0;
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sample_format))
 		return ValueClassID::VT_Unknown;
 
-	if (!bits_per_sample)
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bits_per_sample))
 		return ValueClassID::VT_Unknown;
 
-	if (!samples_per_pixel)
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel))
 		return ValueClassID::VT_Unknown;
 
-	UInt32 total_number_of_bits = *bits_per_sample * *samples_per_pixel;
+	UInt32 total_number_of_bits = bits_per_sample * samples_per_pixel;
 
-	switch (*sample_format)
+	switch (sample_format)
 	{
 	case SAMPLEFORMAT_UINT:
 	{
 		switch (total_number_of_bits)
 		{
-		case 8:
-		{
-
+		case 8:  return ValueClassID::VT_UInt8;
+		case 16: return ValueClassID::VT_UInt16;
+		case 32: return ValueClassID::VT_UInt32;
+		case 64: return ValueClassID::VT_UInt64;
 		}
-		case 16:
+	}
+	case SAMPLEFORMAT_INT:
+	{
+		switch (total_number_of_bits)
 		{
-
+		case 8:  return ValueClassID::VT_Int8;
+		case 16: return ValueClassID::VT_Int16;
+		case 32: return ValueClassID::VT_Int32;
+		case 64: return ValueClassID::VT_Int64;
 		}
-		case 32:
+	}
+	case SAMPLEFORMAT_IEEEFP:
+	{
+		switch (total_number_of_bits)
 		{
-
-		}
-		case 64:
-		{
-
-		}
+		case 32: return ValueClassID::VT_Float32;
+		case 64: return ValueClassID::VT_Float64;
 		}
 	}
 	}
-
-	/*
-	
-		Byte	8-bit unsigned integer
-		Short	16-bit unsigned integer
-		Long	32-bit unsigned integer
-		SByte	!8-bit signed integer
-		SShort	!16-bit signed integer
-		SLong	!32-bit signed integer
-		SRational	!64-bit signed fraction
-		Float	!32-bit IEEE floating point
-		Double	!64-bit IEEE floating point
-	*/
-
 
 	return ValueClassID::VT_Unknown;
 }
