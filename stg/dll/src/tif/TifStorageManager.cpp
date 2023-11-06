@@ -349,14 +349,14 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName));
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
 
-	if (!gridData || !paletteData)
-		storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
+	//if (!gridData || !paletteData)
+	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 
 	// Compare value type of tiff with value type of griddata / palettedata
-	const AbstrDataObject* ado = gridData ? gridData->GetRefObj() : paletteData->GetRefObj();
+	/*const AbstrDataObject* ado = gridData ? gridData->GetRefObj() : paletteData->GetRefObj();
 	const ValueClass* value_class_ado  = ado->GetValuesType();
-	const ValueClass* value_class_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
+	auto value_class_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();*/
 
 	ReadProjection(curr, projectionFileName); // TODO: affine transformation, not projection
 }
