@@ -315,7 +315,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 	{
 		auto font = QApplication::font();
 		auto font_metrics = QFontMetrics(font);
-		int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str());
+		int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str()) + 50;
 		int pixels_high = font_metrics.height();
 		return QSize(pixels_wide, pixels_high);
 	}
@@ -546,16 +546,15 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_ForceUpdatesDisabled);
 	header()->hide();
-	header()->setSectionsMovable(false);
+	//header()->setSectionsMovable(false);
 	//header()->setCascadingSectionResizes(true);
 	
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	
 	horizontalScrollBar()->setEnabled(true);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
-	//header()->setStretchLastSection(false);
-	auto test = header();
+	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	header()->setStretchLastSection(false);
 	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);
 
 	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
