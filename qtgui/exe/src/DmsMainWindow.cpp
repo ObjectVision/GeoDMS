@@ -1009,7 +1009,10 @@ bool MainWindow::event(QEvent* event)
                 {
                     auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
                     m_file_changed_window->setFileChangedMessage(changed_files);
-                    m_file_changed_window->show();
+                    QTimer::singleShot(0, this, [=]()
+                        {
+                            m_file_changed_window->show();
+                        });
                 }
             });
     }

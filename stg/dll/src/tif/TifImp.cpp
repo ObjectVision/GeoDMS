@@ -55,6 +55,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/BitVector.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
+#include "mci/ValueClassId.h"
 
 #include <tiff.h> // See http://www.libtiff.org/man/TIFFGetField.3t.html for TIFFTAG specification
 #include <tiffio.h> 
@@ -212,6 +213,57 @@ bool TifImp::HasColorTable() const
 	return
 		(GetNrBitsPerPixel() <= MAX_BITS_PAL)
 		&& (TIFFGetField(m_TiffHandle, TIFFTAG_COLORMAP, &rcmap, &gcmap, &bcmap));
+}
+
+const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
+{
+	uint16 sample_format = 0;
+	uint16 bits_per_sample = 0;
+	uint16 samples_per_pixel = 0;
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sample_format))
+		return ValueClassID::VT_Unknown;
+
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_BITSPERSAMPLE, &bits_per_sample))
+		return ValueClassID::VT_Unknown;
+
+	if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel))
+		return ValueClassID::VT_Unknown;
+
+	UInt32 total_number_of_bits = bits_per_sample * samples_per_pixel;
+
+	switch (sample_format)
+	{
+	case SAMPLEFORMAT_UINT:
+	{
+		switch (total_number_of_bits)
+		{
+		case 8:  return ValueClassID::VT_UInt8;
+		case 16: return ValueClassID::VT_UInt16;
+		case 32: return ValueClassID::VT_UInt32;
+		case 64: return ValueClassID::VT_UInt64;
+		}
+	}
+	case SAMPLEFORMAT_INT:
+	{
+		switch (total_number_of_bits)
+		{
+		case 8:  return ValueClassID::VT_Int8;
+		case 16: return ValueClassID::VT_Int16;
+		case 32: return ValueClassID::VT_Int32;
+		case 64: return ValueClassID::VT_Int64;
+		}
+	}
+	case SAMPLEFORMAT_IEEEFP:
+	{
+		switch (total_number_of_bits)
+		{
+		case 32: return ValueClassID::VT_Float32;
+		case 64: return ValueClassID::VT_Float64;
+		}
+	}
+	}
+
+	return ValueClassID::VT_Unknown;
 }
 
 void TifImp::GetColor(PALETTE_SIZE index, UByte &r, UByte &g, UByte &b) const

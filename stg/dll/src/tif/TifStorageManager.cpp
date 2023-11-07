@@ -146,6 +146,18 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 	dms_assert(IsOpen());
 	dms_assert(m_pImp->IsOpen());
 
+	// Check if values
+
+	auto value_class_ado = borrowedReadResultHolder->GetValueClass();
+	auto value_class_id_ado = borrowedReadResultHolder->GetValueClass()->GetValueClassID();
+	auto value_class_id_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
+	auto tiff_type_value_class = ValueClass::FindByValueClassID(value_class_id_tiff);
+	if (value_class_ado->GetBitSize() != tiff_type_value_class->GetBitSize())
+		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'.", AsString(borrowedReadResultHolder->GetValueClass()->GetID()), tiff_type_value_class ? AsString(tiff_type_value_class->GetID()) : SharedStr(""));
+
+	if (value_class_id_ado != value_class_id_tiff)
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s.", AsString(borrowedReadResultHolder->GetValueClass()->GetID()), tiff_type_value_class ? AsString(tiff_type_value_class->GetID()) : SharedStr(""), adi->GetFullName());
+
 	if (adi->GetID() == PALETTE_DATA_ID)
 		return ReadPalette(*m_pImp, borrowedReadResultHolder);
 
@@ -349,9 +361,14 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName));
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
 
+	//if (!gridData || !paletteData)
+	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 
-	ReadProjection(curr, projectionFileName);
+	// Compare value type of tiff with value type of griddata / palettedata
+
+
+	ReadProjection(curr, projectionFileName); // TODO: affine transformation, not projection
 }
 
 // Register

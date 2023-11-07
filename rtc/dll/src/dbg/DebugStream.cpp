@@ -540,7 +540,7 @@ int write_time_str(char* buff, SizeT n, time_t t)
 	auto lock = std::lock_guard(s_timeObjectAccess);
 
 	auto tm = std::localtime(&t);
-	return std::strftime(buff, n, "yyyy-mm-dd hh:mm:ss", tm);
+	return std::strftime(buff, n, "%Y-%m-%d %H:%M:%S", tm);
 }
 
 int write_now_str(char* buff, SizeT n)
