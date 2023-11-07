@@ -23,3 +23,4 @@ todo*.txt
 /XE2/DMS/GeoDmsGuiDelphi.res
 /msbuild_linux/obj
 /rtc/dll/obj
+/rtc/dll/obj/x64/Debug
