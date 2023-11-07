@@ -369,11 +369,16 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 }
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
-    : QTextBrowser(parent)
+    : QUpdatableTextBrowser(parent)
 {
     setOpenLinks(false);
     setOpenExternalLinks(false);
     connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
+}
+
+bool DmsDetailPages::update()
+{
+    return true;
 }
 
 QSize DmsDetailPages::sizeHint() const

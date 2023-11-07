@@ -1,6 +1,7 @@
 #include <QPointer>
 #include <qtextbrowser>
 #include <QAbstractButton>
+#include "UpdatableBrowser.h"
 
 #include "ptr/SharedStr.h"
 #include "ptr/InterestHolders.h"
@@ -22,11 +23,12 @@ enum ActiveDetailPage
 
 //auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage;
 
-class DmsDetailPages : public QTextBrowser
+class DmsDetailPages : public QUpdatableTextBrowser
 {
 
 public:
 	DmsDetailPages(QWidget* parent = nullptr);
+	bool update() override;
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
 	auto activeDetailPageFromName(CharPtrRange sName)->ActiveDetailPage;
