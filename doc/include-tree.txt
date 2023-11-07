@@ -1,0 +1,71 @@
+
+CharPtrRange
+	cpc/Types.h
+	*	CompChar
+	*	rtctypemodel
+	*	stdint
+	geo/Iterrange
+		geo/Couple
+			#include "dbg/Check.h"
+				#include "RtcBase.h"
+				*+	#include "cpc/CompChar.h"
+				*+	#include "cpc/Types.h"
+					#include <vector>
+				#include "ser/format.h"
+					#include <boost/format.hpp>
+				+	#include "cpc/Types.h"
+			*	#include "dbg/SeverityType.h"
+				#include <assert.h>
+			#include "geo/ElemTraits.h"
+			+	#include "RtcBase.h"
+				#include <type_trait>
+			#include "geo/Undefined.h"
+				#include <string_view>
+			+	#include "cpc/Types.h"
+			+	#include "geo/ElemTraits.h"
+				#include <limits>
+			#include "utl/swap.h"
+			+	#include "cpc/Types.h"
+				#include <algorithm>
+				#include <boost/mpl/assert.hpp>
+*		geo/IterTraits
+		ptr/IterCast
+		+*	#include "cpc/CompChar.h"
+		+	#include "dbg/Check.h"
+			//#include "geo/SequenceTraits.h"
+==>		geo/SequenceTraits	
+=====>		#include "geo/Geometry.h"
+			+	#include "RtcBase.h"
+++++=======>	#include "geo/PointOrder.h"
+				+	#include "geo/ElemTraits.h"
+===============>	#include "geo/Point.h"
+????===============>	#include "geo/CheckedCalc.h"
+							#include <boost/utility/enable_if.hpp>
+						+	#include "geo/ElemTraits.h"
+++++===================>	#include "mci/ValueWrap.h"
+							+	#include "dbg/Check.h"
+								#include "mci/AbstrValue.h"
+									#include "mci/Object.h"
+									+	#include "RtcBase.h"
+										//#include "set/Token.h"
+								#include "geo/BitValue.h"
+								+	#include "RtcBase.h"
+									#include "geo/mpf.h"
+									+	#include "RtcBase.h"
+										#include <type_traits>
+								+	#include "geo/ElemTraits.h"
+								+	#include "geo/Undefined.h"
+								+	#include "dbg/Check.h"
+							+	#include "geo/SequenceTraits.h"
+===========================>	#include "geo/SequenceArray.h"
+								+	#include "dbg/Check.h"
+===============================>	#include "geo/IndexRange.h"
+									#include "geo/SequenceTraits.h"
+									#include "ptr/WeakPtr.h"
+									#include "ptr/OwningPtrSizedArray.h"
+									#include "set/Token.h"
+					+	#include "geo/Couple.h"
+					+	#include "geo/ElemTraits.h"
+					?	#include "geo/BaseBounds.h"
+			#include "geo/BitValue.h"
+			//#include "set/BitVector.h"
