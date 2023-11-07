@@ -150,6 +150,7 @@
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
     <ClCompile Include="src\TestScript.cpp" />
+    <ClCompile Include="src\UpdatableBrowser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />

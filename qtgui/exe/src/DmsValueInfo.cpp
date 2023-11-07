@@ -94,7 +94,7 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
     : QUpdatableTextBrowser(parent)
 {
     m_history.insert(studyObject, index, extraInfo);
-
+    setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_VALUEINFO);
     setOpenLinks(false);
     setOpenExternalLinks(false);
     setWordWrapMode(QTextOption::NoWrap);

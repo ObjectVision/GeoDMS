@@ -373,6 +373,7 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 {
     setOpenLinks(false);
     setOpenExternalLinks(false);
+    setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
     connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
 }
 

@@ -79,6 +79,18 @@ enum class ButtonType
     MODAL
 };
 
+enum DmsHelperWindowType 
+{
+    HW_UNKNOWN,
+    HW_VALUEINFO,
+    HW_DETAILPAGES,
+    HW_TREEVIEW,
+    HW_EVENTLOG,
+    HW_CURRENTITEMBAR,
+    HW_TOOLBAR,
+    HW_STATISTICS
+};
+
 struct ToolbarButtonData
 {
     std::vector<QString> text;
