@@ -746,7 +746,8 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     {
         SuspendTrigger::Resume();
         dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
-        setIcon(QIcon(m_data.icons[m_state]));
+        if (m_state < m_data.icons.size())
+            setIcon(QIcon(m_data.icons[m_state]));
     }
     catch (...)
     {
