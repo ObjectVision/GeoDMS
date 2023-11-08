@@ -396,7 +396,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_eventlog_filter->m_opening_new_configuration      ->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnLoad);
 	m_eventlog_filter->m_reopening_current_configuration->setChecked(dms_reg_status_flags & RSF_EventLog_ClearOnReLoad);
 
-	connect(m_eventlog_filter->m_opening_new_configuration      , &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
+	connect(m_eventlog_filter->m_opening_new_configuration, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
 	connect(m_eventlog_filter->m_reopening_current_configuration, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::writeSettingsOnToggle);
 
 	// eventlog
@@ -424,6 +424,10 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	vertical_layout->setContentsMargins(0, 0, 0, 0);
 	setLayout(vertical_layout);
 	toggleFilter(false);
+
+	// click events
+	connect(m_log.get(), &QListView::clicked, this, &DmsEventLog::onItemClicked);
+	//clicked(const QModelIndex& index)
 }
 
 void DmsEventLog::copySelectedEventlogLinesToClipboard()
@@ -572,6 +576,14 @@ void DmsEventLog::clearTextFilter()
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 	MainWindow::TheOne()->m_eventlog_model->refilter();
+}
+
+void DmsEventLog::onItemClicked(const QModelIndex& index)
+{
+	auto row = index.row();
+	const MsgData& item_data = MainWindow::TheOne()->m_eventlog_model->dataFiltered(row);
+
+
 }
 
 QSize DmsEventLog::sizeHint() const

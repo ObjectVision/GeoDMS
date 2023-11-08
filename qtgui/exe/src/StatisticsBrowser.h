@@ -17,6 +17,7 @@ struct StatisticsBrowser : QUpdatableTextBrowser
     StatisticsBrowser(QWidget* parent = nullptr)
         : QUpdatableTextBrowser(parent)
     {
+        setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_STATISTICS);
         connect(this, &StatisticsBrowser::anchorClicked, this, &StatisticsBrowser::onAnchorClicked);
     }
 

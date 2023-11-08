@@ -10,49 +10,50 @@
 #include <QTextBrowser.h>
 #include <QTimer.h>
 #include <QMdiSubWindow.h>
+#include <QShortCut>
+#include <QCheckBox>
+#include <QVBoxLayout>
+#include <QLineEdit>
+#include "qtextdocument.h"
+
 #include "DmsMainWindow.h"
-
 #include "dbg/DebugContext.h"
-
 #include "waiter.h"
+
+class FindTextWindow : public QWidget
+{
+public:
+    FindTextWindow(QWidget* parent);
+    void findInText(bool backwards = false);
+
+public slots:
+    void nextClicked(bool checked = false);
+    void previousClicked(bool checked = false);
+
+    QLineEdit* find_text = nullptr;
+    QCheckBox* match_whole_word = nullptr;
+    QCheckBox* match_case = nullptr;
+    QPushButton* previous = nullptr;
+    QPushButton* next = nullptr;
+};
 
 struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
 {
-    QUpdatableTextBrowser(QWidget* parent)
-        : QTextBrowser(parent)
-    {
-        setOpenLinks(false);
-        setOpenExternalLinks(false);
-    }
+    QUpdatableTextBrowser(QWidget* parent);
+    void restart_updating();
+    void GenerateDescription() override;
 
-    void restart_updating()
-    {
-        m_Waiter.start(this);
-        QPointer<QUpdatableTextBrowser> self = this;
-        QTimer::singleShot(0, [self]()
-            {
-                if (self)
-                {
-                    if (!self->update())
-                        self->restart_updating();
-                    else
-                        self->m_Waiter.end();
-                }
-            }
-        );
-    }
-    void GenerateDescription() override
-    {
-        auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
-        if (!pw)
-            return;
-        SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
-    }
+public slots:
+    void openFindWindow();
+
 
 protected:
     Waiter m_Waiter;
-
     virtual bool update() = 0;
+
+private:
+    QShortcut* find_shortcut = nullptr;
+    FindTextWindow* find_window = nullptr;
 };
 
 #endif //!defined(DMS_QT_UPDATABLE_BROWSER_H)

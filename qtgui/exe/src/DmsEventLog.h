@@ -32,6 +32,7 @@ public:
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
 	void addText(MsgData&& msgData);
+	auto dataFiltered(int row) const -> const EventLogModel::item_t&;
 
 	QByteArray m_TextFilterAsByteArray;
 	UInt32 cached_reg_flags = GetRegStatusFlags();
@@ -44,7 +45,6 @@ public slots:
 	void updateOnNewMessages();
 
 private:
-	auto dataFiltered(int row) const -> const EventLogModel::item_t&;
 	bool itemPassesTypeFilter(item_t& item);
 	bool itemPassesCategoryFilter(item_t& item);
 	bool itemPassesTextFilter(item_t& item);
@@ -94,6 +94,7 @@ public slots:
 	void invalidateOnVisualChange();
 	void onTextChanged(const QString& text);
 	void clearTextFilter();
+	void onItemClicked(const QModelIndex& index);
 
 private:
 	bool isScrolledToBottom();

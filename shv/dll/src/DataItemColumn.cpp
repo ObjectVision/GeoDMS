@@ -993,7 +993,12 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 	reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext %.80s", searchText);
 	auto aa = this->GetActiveAttr();
 	DataReadLock lock(aa);
-	visit<typelists::fields>(GetActiveTextAttr()->GetAbstrValuesUnit(),
+	auto active_text_attr = GetActiveTextAttr();
+	if (!active_text_attr)
+		return reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value %.80s, no active text attribute found.", searchText);
+	
+	auto vu = active_text_attr->GetAbstrValuesUnit();
+	visit<typelists::fields>(vu,
 		[searchText = std::move(searchText), aa, tc, this] <typename value_type> (const Unit<value_type>*) 
 		{
 			auto searchValue = ThrowingConvert<value_type>(searchText);
