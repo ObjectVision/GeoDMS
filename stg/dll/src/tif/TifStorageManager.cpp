@@ -137,29 +137,20 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 
 bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
+	assert(smi);
+	assert(borrowedReadResultHolder);
+
 	const TreeItem* storageHolder = smi->StorageHolder();
-	AbstrDataItem*   adi = smi->CurrWD();
+	AbstrDataItem*  adi = smi->CurrWD();
 
-	dms_assert(storageHolder);
-	dms_assert(adi);
+	assert(storageHolder);
+	assert(adi);
 
-	dms_assert(IsOpen());
-	dms_assert(m_pImp->IsOpen());
-
-	// Check if values
-
-	auto value_class_ado = borrowedReadResultHolder->GetValueClass();
-	auto value_class_id_ado = borrowedReadResultHolder->GetValueClass()->GetValueClassID();
-	auto value_class_id_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
-	auto tiff_type_value_class = ValueClass::FindByValueClassID(value_class_id_tiff);
-	if (value_class_ado->GetBitSize() != tiff_type_value_class->GetBitSize())
-		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'.", AsString(borrowedReadResultHolder->GetValueClass()->GetID()), tiff_type_value_class ? AsString(tiff_type_value_class->GetID()) : SharedStr(""));
-
-	if (value_class_id_ado != value_class_id_tiff)
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s.", AsString(borrowedReadResultHolder->GetValueClass()->GetID()), tiff_type_value_class ? AsString(tiff_type_value_class->GetID()) : SharedStr(""), adi->GetFullName());
+	assert(IsOpen());
+	assert(m_pImp->IsOpen());
 
 	if (adi->GetID() == PALETTE_DATA_ID)
-		return ReadPalette(*m_pImp, borrowedReadResultHolder);
+		return ReadPalette(borrowedReadResultHolder);
 
 	// Collect zoom info
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
@@ -168,40 +159,72 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 	vpi.SetWritability(adi);
 
 	if (vpi.GetCountColor() != -1)
-		ReadGridCounts(*m_pImp, vpi, borrowedReadResultHolder, t);
+		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t);
 	else
-		ReadGridData  (*m_pImp, vpi, borrowedReadResultHolder, t);
+		ReadGridData  (vpi, adi, borrowedReadResultHolder, t);
 	return true;
 }
 
-void TiffSM::ReadGridCounts(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridCounts", true);
+	assert(m_pImp);
+	assert(adi);
+	assert(ado);
 
-	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
+	Grid::ReadGridCounts(*m_pImp, vpi, ado, t, GetNameStr().c_str());
 }
 
-void TiffSM::ReadGridData(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridData", false);
-	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
+	assert(m_pImp);
+	assert(adi);
+	assert(ado);
+
+	// Check if values match with tiff raster value elements
+	auto vc_ado = ado->GetValueClass();
+	assert(vc_ado);
+
+	auto vcid_ado = vc_ado->GetValueClassID();
+
+	auto vcid_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
+	auto vc_tiff = ValueClass::FindByValueClassID(vcid_tiff);
+	if (!vc_tiff)
+		adi->throwItemErrorF("Uknown tiff pixel value type");
+	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
+		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'."
+			, AsString(vc_ado->GetID())
+			, AsString(vc_tiff->GetID())
+		);
+
+	if (vcid_ado != vcid_tiff)
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s."
+			, AsString(vc_ado->GetID())
+			, AsString(vc_tiff->GetID())
+			, adi->GetFullName()
+		);
+
+
+	Grid::ReadGridData(*m_pImp, vpi, ado, t, GetNameStr().c_str());
 }
 
-bool TiffSM::ReadPalette(const TifImp& imp, AbstrDataObject* ado)
+bool TiffSM::ReadPalette(AbstrDataObject* ado)
 {
 	DBG_START("TiffSM", "ReadPalette", true);
-
-	dms_assert(ado);
-	UInt32 nrElems = ado->GetTiledRangeData()->GetRangeSize();
-	UInt32 nrColors = (imp.HasColorTable())
-		?	Min<UInt32>(UInt32(imp.GetClrImportant()), nrElems)
+	assert(m_pImp);
+	assert(ado);
+	
+	auto nrElems = ado->GetTiledRangeData()->GetRangeSize();
+	auto nrColors = (m_pImp->HasColorTable())
+		?	Min<SizeT>(m_pImp->GetClrImportant(), nrElems)
 		:	0;
 
-	UInt32 i;
+	SizeT i;
 	for (i=0; i!=nrColors; ++i)
-		ado->SetValueAsUInt32(i, imp.GetColor( i ) ); 
+		ado->SetValueAsUInt32(i, m_pImp->GetColor( i ) );
 
-	dms_assert(i <=nrElems);
+	assert(i <= nrElems);
 	// Beyond Eof?
 	for (; i != nrElems; ++i)
 		ado->SetValueAsUInt32(i, 0 ); 

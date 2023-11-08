@@ -258,6 +258,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		else
 		{
 			DataWriteLock readResultHolder(this);
+			assert(readResultHolder.get_ptr());
 
 			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
 				[sm, smi, this, &readResultHolder](tile_id t)->void

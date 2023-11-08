@@ -237,6 +237,9 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 	{
 		switch (total_number_of_bits)
 		{
+		case 1:  return ValueClassID::VT_Bool;
+		case 2:  return ValueClassID::VT_UInt2;
+		case 4:  return ValueClassID::VT_UInt4;
 		case 8:  return ValueClassID::VT_UInt8;
 		case 16: return ValueClassID::VT_UInt16;
 		case 32: return ValueClassID::VT_UInt32;
