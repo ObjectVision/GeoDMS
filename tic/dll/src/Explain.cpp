@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2023 Object Vision b.v. 
+﻿// Copyright (C) 1998-2023 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
