@@ -65,6 +65,7 @@
 #include "TreeItemProps.h"
 #include "TreeItemContextHandle.h"
 #include "UsingCache.h"
+#include "stg/MemoryMappeddataStorageManager.h"
 
 #include <stdarg.h>
 #include <future>
@@ -3312,15 +3313,15 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 
 	dms_assert(!IsTemplate()); // formation of FuncDC's should prevent args to be calculated that fail to meet this precondition
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides SuspendTrigger::GetLastResult
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides SuspendTrigger::GetLastResult
 
-	dms_assert(!(UInt32(drlType) &  UInt32(DrlType::Certain)) || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
+	assert(!(UInt32(drlType) &  UInt32(DrlType::Certain)) || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
 
 	// Checks State against suppliers if any changes occured after m_LastCheckedTS and Invalidates if any changes occured in any supplier
 
 	UpdateMarker::ChangeSourceLock changeStamp(this, "PrepareDataUsage");
 
-	dms_assert(IsPassor() || HasConfigData() || (m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)); // reset by DetermineState when supplier was invalidated
+	assert(IsPassor() || HasConfigData() || (m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)); // reset by DetermineState when supplier was invalidated
 
 	const TreeItem* refItem = nullptr;
 
@@ -3330,9 +3331,9 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		if (!WaitForReadyOrSuspendTrigger(this))
 			goto suspended_or_failed;
 
-		dms_assert(!SuspendTrigger::DidSuspend());
-		dms_assert(!WasFailed(FR_Data));
-		dms_assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(GetCurrUltimateItem()));
+		assert(!SuspendTrigger::DidSuspend());
+		assert(!WasFailed(FR_Data));
+		assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(GetCurrUltimateItem()));
 		goto data_ready;
 	}
 
@@ -3355,6 +3356,27 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				if (!SuspendTrigger::DidSuspend())
 					Fail(avu);
 				return false;
+			}
+		}
+		if (!IsCacheItem())
+		{
+			if (auto sp = GetCurrStorageParent(true))
+			{
+				auto sm = sp->GetStorageManager();
+				assert(sm);
+				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+				{
+					auto fsn = sm->GetNameStr();
+					auto rn = GetRelativeName(sp);
+
+					auto fn = DelimitedConcat(fsn, rn);
+					auto fh = OpenFileData(AsDataItem(this), fn, mmd->GetSFWA());
+					if (fh)
+					{
+						AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+						return true;
+					}
+				}
 			}
 		}
 	}

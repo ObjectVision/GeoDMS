@@ -101,9 +101,9 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 
 	dms_assert(!item->InTemplate());
 
-	dbg_assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMetaThread());
+	assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMetaThread());
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
 
 	// From here we grant lock
 	{
@@ -119,7 +119,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 			return;
 		}
 	}
-	dms_assert(CheckDataReady(item));
+	assert(CheckDataReady(item));
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::ctor") sg_ActorLockMap, item);
 
@@ -214,12 +214,11 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi)
 	:	DataReadLock((Update(adi), adi))
 {}
 
-auto CreateFileData(AbstrDataItem* adi, bool mustClear) -> std::unique_ptr<AbstrDataObject>
+auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear) -> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
 	bool isTmp = !isPersistent;
 
-	SharedStr filename = adi->m_FileName;
 	assert(!filename.empty());
 	auto sfwa = DSM::GetSafeFileWriterArray();
 	if (!sfwa)
@@ -261,23 +260,26 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
-	if (adi->m_FileName.empty())
-		if (auto sp = adi->GetCurrStorageParent(true))
+	auto configItem = SharedPtr<const AbstrDataItem>((adi->m_BackRef) ? AsDataItem(adi->m_BackRef) : adi);
+	if (!configItem->IsCacheItem())
+	{
+		if (auto sp = configItem->GetCurrStorageParent(true))
 		{
 			auto sm = sp->GetStorageManager();
 			assert(sm);
 			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 			{
 				auto fsn = sm->GetNameStr();
-				auto rn = sp->GetRelativeName(adi);
-				
-				adi->m_FileName = DelimitedConcat(fsn, rn);
+				auto rn = configItem->GetRelativeName(sp);
+
+				auto fn = DelimitedConcat(fsn, rn);
+				reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+				goto afterReset;
 			}
 		}
-	if (!adi->m_FileName.empty())
-		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
-	else
-		reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
+	}
+
+	reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
 /*
 	if (abstrValuesRangeData)
 	{
@@ -291,7 +293,10 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 				tileFunctor->InitValueRangeData(dynamic_cast<const range_or_void_data<T>*>(abstrValuesRangeData));
 		});
 	}
-*/		
+*/	
+
+afterReset:
+
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)
 		CopyData(adi->GetRefObj(), get());

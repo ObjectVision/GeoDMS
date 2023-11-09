@@ -148,7 +148,7 @@ private:
 public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;
 	mutable std::atomic<Int32>               m_DataLockCount = 0; // -1 = WriteLock; positive: nr Of Read Locks on Data
-	SharedStr                                m_FileName;
+//REMOVE	SharedStr                                m_FileName;
 
 	friend struct DataReadLock;
 	friend struct DataReadLockAtom; 

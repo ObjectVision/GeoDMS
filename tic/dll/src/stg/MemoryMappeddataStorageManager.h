@@ -18,6 +18,7 @@
 #include "stg/AsmUtil.h"
 #include "stg/AbstrStorageManager.h"
 struct StorageClass;
+struct SafeFileWriterArray;
 
 /*
  *	MmdStorageManager
@@ -33,6 +34,8 @@ public:
 //	TIC_CALL ~MmdStorageManager();
 
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
+
+	auto GetSFWA() const->SafeFileWriterArray*;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -51,6 +54,7 @@ protected:
 //	void DoCloseStorage (bool mustCommit) const override;
 
 	mutable FileHandle m_MmdLockFile;
+	mutable std::unique_ptr<SafeFileWriterArray> m_SFWA;
 
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;

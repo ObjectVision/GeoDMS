@@ -69,22 +69,21 @@ const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
 const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
+//REMOVE const TreeItemStatusFlags TSF_HasMemoryStorageManager     = 0x01000000; // unallocated bit
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
-const UnitItemStatusFlags USF_HasSpatialReference         = 0x01000000;
-const UnitItemStatusFlags USF_HasConfigRange              = 0x02000000;
+const UnitItemStatusFlags USF_HasSpatialReference         = 0x02000000;
+const UnitItemStatusFlags USF_HasConfigRange              = 0x04000000;
 
 // REMOVE, TODO: CONSIDER STORING THE FOLLOWING PER TILE
-const int DCM2DSF_SHIFT = 24;
+const int DCM2DSF_SHIFT = 25;
 const int DCM_MASK = 0x03U;
-const DataItemStatusFlags DSF_HasUndefinedValues     = 0x01000000;
-const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x02000000;
-const DataItemStatusFlags DSF_ValuesChecked          = 0x04000000;
+const DataItemStatusFlags DSF_HasUndefinedValues     = 0x02000000;
+const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x04000000;
+const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
 
 const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 3;
 const int VC_MASK = 0x03U;
-const DataItemStatusFlags DSF_VC_Range               = 0x08000000; // VC_Range   << VC2DSF_SHIFT
-const DataItemStatusFlags DSF_VC_Sequence            = 0x10000000; // VC_Sequence<< VC2DSF_SHIFT
 
 struct treeitem_flag_set : flag_set
 {

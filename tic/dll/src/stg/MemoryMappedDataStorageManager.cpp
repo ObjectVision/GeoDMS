@@ -45,6 +45,14 @@ SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 	return DelimitedConcat(GetNameStr().c_str(), MakeDataFileName(name).c_str());
 }
 
+auto MmdStorageManager::GetSFWA() const->SafeFileWriterArray*
+{
+	assert(IsMainThread());
+	if (!m_SFWA)
+		m_SFWA = std::make_unique<SafeFileWriterArray>();
+	return m_SFWA.get();
+}
+
 FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock deze file vanaf hier.
