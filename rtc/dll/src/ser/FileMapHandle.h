@@ -47,12 +47,16 @@ MG_DEBUG_DATA_CODE(
 )
 
 };
+struct MappedFileHandle : FileHandle
+{
+	dms::filesize_t m_AllocatedSize;
+};
 
-struct FileMapHandle : FileHandle
+struct FileMapHandle
 {
 	RTC_CALL FileMapHandle();
 	RTC_CALL ~FileMapHandle();
-
+/*
 	void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
 	{
 		dms_assert(!IsMapped());
@@ -66,27 +70,31 @@ struct FileMapHandle : FileHandle
 		dms_assert(m_ViewData == nullptr); // only non-zero when file is open
 		FileHandle::OpenForRead(fileName, sfwa, throwOnError, doRetry);
 	}
+*/
 
-	RTC_CALL void realloc(dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa);
+	RTC_CALL void realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa);
 
 	bool IsMapped() const { return m_hFileMap; }
-	bool IsUsable() const { return IsMapped() || (GetFileSize() == 0); }
+//	bool IsUsable() const { return IsMapped() || (GetFileSize() == 0); }
 
 	RTC_CALL void CloseFMH();
 	RTC_CALL void Drop (WeakStr fileName);
 	RTC_CALL void Unmap();
 	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
 
-	char*   DataBegin()       { dms_assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData); }
-	char*   DataEnd  ()       { dms_assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData) + GetFileSize(); }
-	CharPtr DataBegin() const { dms_assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
-	CharPtr DataEnd  () const { dms_assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData) + GetFileSize(); }
+	char*   DataBegin()       { assert(IsMapped()); return reinterpret_cast<char*  >(m_ViewData); }
+	char*   DataEnd  ()       { assert(IsMapped()); return reinterpret_cast<char*  >(m_ViewData) + GetViewSize(); }
+	CharPtr DataBegin() const { assert(IsMapped()); return reinterpret_cast<CharPtr>(m_ViewData); }
+	CharPtr DataEnd  () const { assert(IsMapped()); return reinterpret_cast<CharPtr>(m_ViewData) + GetViewSize(); }
+
+	dms::filesize_t GetViewSize() { return m_ViewSize;  }
 
 private:
 	void CloseView(bool drop);
 
-	HANDLE      m_hFileMap;
-	void*       m_ViewData;
+	HANDLE           m_hFileMap;
+	dms::filesize_t  m_ViewOffset = 0, m_ViewSize = 0;
+	void*            m_ViewData = nullptr;
 };
 
 struct MappedConstFileMapHandle : FileMapHandle

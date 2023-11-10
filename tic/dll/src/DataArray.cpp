@@ -935,7 +935,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, dms_rw_mode rwMode, SharedStr
 	MG_CHECK(adi->GetAbstrValuesUnit());
 
 	SharedPtr<const AbstrTileRangeData> currTRD = adi->GetAbstrDomainUnit()->GetTiledRangeData();
-	dms_assert(currTRD);
+	assert(currTRD);
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
 	switch (adi->GetValueComposition())

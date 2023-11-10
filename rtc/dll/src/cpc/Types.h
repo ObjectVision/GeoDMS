@@ -186,9 +186,9 @@ typedef void* HANDLE;
 #include <utility>
 
 namespace dms {
-	typedef _W64 std::ptrdiff_t diff_type;
-	typedef _W64 std::size_t size_type;
-	typedef std::size_t filesize_t;
+	using diff_type  = std::ptrdiff_t;
+	using size_type  = std::size_t;
+	using filesize_t = std::size_t;
 }
 
 
@@ -196,8 +196,8 @@ namespace dms {
 // Memory model
 //----------------------------------------------------------------------
 
-typedef UInt64 SizeT;
-typedef Int64  DiffT;
-typedef UInt32 TokenT;
+using SizeT = UInt64;
+using DiffT = Int64;
+using TokenT = UInt32;
 
 #endif // __CPC_TYPES_H

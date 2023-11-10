@@ -295,9 +295,9 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	, m_IsTmp(isTmp)
 {
 	this->m_TileRangeData = trd;
-	dms_assert(!m_CacheFileName.empty());
+	assert(!m_CacheFileName.empty());
 
-	dms_assert(rwMode <= dms_rw_mode::write_only_all);
+	assert(rwMode <= dms_rw_mode::write_only_all);
 
 	dms_assert(trd);
 	tile_id tn = trd->GetNrTiles();

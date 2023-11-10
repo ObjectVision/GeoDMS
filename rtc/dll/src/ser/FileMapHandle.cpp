@@ -196,10 +196,11 @@ FileMapHandle::~FileMapHandle()
 
 //  -----------------------------------------------------------------------
 
-void FileMapHandle::realloc(dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa)
+void FileMapHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa)
 {
-	dms_assert(IsOpen());
-	dms_assert(IsUsable());
+
+	assert(IsOpen());
+	assert(IsUsable());
 	MGD_CHECKDATA(IsWritable(m_FCM) );
 
 	dms_rw_mode rwMode = (m_FileSize) ? dms_rw_mode::read_write : dms_rw_mode::write_only_all;
