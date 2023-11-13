@@ -41,7 +41,7 @@ DWORD GetCreationDisposition(FileCreationMode fcm)
 
 HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool isTmp, bool doRetry, bool deleteOnClose)
 {
-	dms_assert(IsWritable(fcm));
+	assert(IsWritable(fcm));
 	GetWritePermission(fileName);
 	HANDLE fileHandle;
 	UInt32 retryCounter = 0;
@@ -59,7 +59,7 @@ HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool is
 			|	(deleteOnClose ? FILE_FLAG_DELETE_ON_CLOSE : 0)
 			,	NULL                                  // handle to template file
 			);
-		dms_assert(fileHandle);
+		assert(fileHandle);
 	}	while ((fileHandle == INVALID_HANDLE_VALUE) && ManageSystemError(retryCounter, "CreateFileHandleForRwView(%s)", fileName.c_str(), true, doRetry));
 	return fileHandle;
 }
@@ -77,7 +77,7 @@ FileHandle::FileHandle()
 
 FileHandle::~FileHandle()
 {
-	dms_assert(!IsOpen());
+	assert(!IsOpen());
 	// REMOVE IF ASSERTION IS PROVEN
 	if (IsOpen())
 		CloseFile(); 
@@ -85,9 +85,9 @@ FileHandle::~FileHandle()
 
 void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool doRetry, bool deleteOnClose)
 {
-	dms_assert(!IsOpen());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
-	dms_assert(rwMode >= dms_rw_mode::read_write);
+	assert(!IsOpen());
+	assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode >= dms_rw_mode::read_write);
 	m_IsTmp     = isTmp;
 	bool readData  = (rwMode < dms_rw_mode::write_only_mustzero);
 
@@ -100,8 +100,8 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 		,	doRetry
 		,	deleteOnClose
 		); // returns a valid handle or throws a system error
-	dms_assert(IsOpen());
-	dms_assert(m_hFile != INVALID_HANDLE_VALUE);
+	assert(IsOpen());
+	assert(m_hFile != INVALID_HANDLE_VALUE);
 	MG_DEBUG_DATA_CODE( m_FCM = fcm; )
 
 	if (IsDefined(requiredNrBytes))
@@ -113,14 +113,14 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 			ReadFileSize(fileName.c_str());
 		else
 			m_FileSize = 0;
-	dms_assert(m_FileSize != UNDEFINED_FILE_SIZE);
+	assert(m_FileSize != UNDEFINED_FILE_SIZE);
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 	// returns with valid m_hFileMap or throws a system error
 }
 
 void FileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry, bool mayBeEmpty)
 {
-	dms_assert(!IsOpen());
+	assert(!IsOpen());
 
 	HANDLE fileHandle;
 	UInt32 retryCounter = 0;
@@ -145,14 +145,14 @@ void FileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool t
 
 	if (fileHandle == INVALID_HANDLE_VALUE)
 	{
-		dms_assert(!throwOnError);
+		assert(!throwOnError);
 		fileHandle = NULL;
 	}
 
 	m_hFile = fileHandle;
-	dms_assert(m_hFile != INVALID_HANDLE_VALUE);
+	assert(m_hFile != INVALID_HANDLE_VALUE);
 
-	dms_assert(IsOpen() || !throwOnError);
+	assert(IsOpen() || !throwOnError);
 	MG_DEBUG_DATA_CODE( m_FCM = FCM_OpenReadOnly; )
 
 	if (IsOpen())
@@ -165,8 +165,8 @@ void FileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool t
 
 void FileHandle::CloseFile()
 {
-	dms_assert(m_hFile);
-	dms_assert(m_hFile != INVALID_HANDLE_VALUE);
+	assert(m_hFile);
+	assert(m_hFile != INVALID_HANDLE_VALUE);
 	CloseHandle(m_hFile);
 	m_hFile = NULL;
 	// m_FileSize = UNDEFINED_FILE_SIZE;
@@ -179,19 +179,6 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 		throwSystemError(GetLastError(), "GetFileSize(%S)", handleName);
 	m_FileSize = fileSize.QuadPart;
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
-}
-
-//  -----------------------------------------------------------------------
-
-FileMapHandle::FileMapHandle()
-	:	m_hFileMap(0)
-	,	m_ViewData(0)
-{
-}
-
-FileMapHandle::~FileMapHandle()
-{
-	CloseFMH();
 }
 
 //  -----------------------------------------------------------------------
@@ -218,13 +205,13 @@ void FileMapHandle::CloseFMH()
 {
 	if (IsOpen())
 	{
-		dms_assert(!IsMapped()); // Lock should be removed before closing
+		assert(!IsMapped()); // Lock should be removed before closing
 		if (IsMapped())
 			CloseView(false); // REMOVE if assert if proven
 		CloseFile();
 	}
-	dms_assert(!IsMapped());
-	dms_assert(!m_hFile);
+	assert(!IsMapped());
+	assert(!m_hFile);
 }
 
 struct WinHandle
@@ -241,8 +228,8 @@ struct WinHandle
 
 void FileHandle::DropFile(WeakStr fileName)
 {
-//	dms_assert(IsOpen());
-	dms_assert(m_hFile != INVALID_HANDLE_VALUE);
+//	assert(IsOpen());
+	assert(m_hFile != INVALID_HANDLE_VALUE);
 
 	if (IsOpen())
 		CloseFile();
@@ -251,28 +238,28 @@ void FileHandle::DropFile(WeakStr fileName)
 //	FileHandle hnd(ReOpenFile(m_hFile, GENERIC_DELETE, SHARE_ALL, FILE_FLAG_DELETE_ON_CLOSE));
 	KillFileOrDir(fileName); // file was opened with SHARE_DELETE?
 
-	dms_assert(!IsOpen());
+	assert(!IsOpen());
 	dbg_assert(!IsFileOrDirAccessible(fileName));
 }
 
 void FileMapHandle::Drop(WeakStr fileName)
 {
-//	dms_assert(IsOpen());
-	dms_assert(m_hFile != INVALID_HANDLE_VALUE);
+//	assert(IsOpen());
+	assert(m_hFile != INVALID_HANDLE_VALUE);
 
 	CloseView(true);
 
 	DropFile(fileName);
 //	ReOpenFile only valid for Vista
-	dms_assert(!IsMapped());
+	assert(!IsMapped());
 }
 
 void FileMapHandle::Unmap()
 {
-	dms_assert(IsUsable());
+	assert(IsUsable());
 	if (IsOpen())
 		CloseView(false);
-	dms_assert(!IsMapped());
+	assert(!IsMapped());
 }
 
 inline DWORD HiDWORD(UInt64 qWord) { return qWord >> 32; }
@@ -295,18 +282,18 @@ void FileMapHandle::Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArra
 			OpenForRead(fileName, sfwa, true, true);
 	}
 #endif
-	dms_assert(IsOpen());
+	assert(IsOpen());
 
-	dms_assert(!IsMapped());
-	dms_assert(IsUsable() == (m_FileSize == 0)); // m_FileSize == 0 implies IsUsable
+	assert(!IsMapped());
+	assert(IsUsable() == (m_FileSize == 0)); // m_FileSize == 0 implies IsUsable
 
-	dms_assert( m_FileSize != UNDEFINED_FILE_SIZE);
+	assert( m_FileSize != UNDEFINED_FILE_SIZE);
 
 	if (IsMapped())
 		return;
 
-	dms_assert(m_hFileMap == NULL);
-	dms_assert(m_ViewData == NULL); 
+	assert(m_hFileMap == NULL);
+	assert(m_ViewData == NULL); 
 	if (!m_FileSize)
 		return;
 
@@ -347,8 +334,8 @@ void FileMapHandle::CloseView(bool drop)
 {
 	if (!m_hFile)
 	{
-		dms_assert(!m_ViewData);
-		dms_assert(!m_hFileMap);
+		assert(!m_ViewData);
+		assert(!m_hFileMap);
 		return;
 	}
 

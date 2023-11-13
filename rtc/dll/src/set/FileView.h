@@ -29,13 +29,13 @@ struct file_view_base : FileMapHandle
 
 	SizeT filed_size() const
 	{
-		dms_assert(!IsUsable() || begin() + m_NrElems == end());
+		assert(!IsUsable() || begin() + m_NrElems == end());
 		return m_NrElems;
 	}
 	SizeT filed_capacity() const
 	{
-		SizeT cap = capacity_calculator<T>().Byte2Size(GetFileSize());
-		dms_assert(filed_size() <= cap);
+		SizeT cap = capacity_calculator<T>().Byte2Size(GetViewSize());
+		assert(GetViewSize() <= cap);
 		return cap;
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
