@@ -1,0 +1,1 @@
+Works as [[select_with_attr_by_cond]] but also produces an org_rel attribute that relates the produced subset to the domain of the provided condition attribute.

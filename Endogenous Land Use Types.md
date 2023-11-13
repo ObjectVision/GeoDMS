@@ -1,0 +1,1 @@
+Endogenous [[Land Use Types]] are [[land use]] classes that are allocated by the GeoDMS based on an [[allocation]] mechanism
