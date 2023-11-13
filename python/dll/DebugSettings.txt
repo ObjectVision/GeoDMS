@@ -1,3 +1,0 @@
-"c:\dev\geodms\tst\operator\cfg\operator.dms"  /results/tests_log
-"C:\dev\geodms\tst\Storage\cfg\regression.dms" /Tiff/Palette/Write
-"E:\prj\pbl\vesta\VestaDV.git\runs\Run4Combi_2016_Referentie.dms"  /RunContext/GenerateAll
