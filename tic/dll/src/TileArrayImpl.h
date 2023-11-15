@@ -304,27 +304,28 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 	files_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 
-	for (tile_id t = 0; t != tn; ++t)
+	assert(!this->m_CacheFileName.empty());
+	SharedStr fullFileName = m_CacheFileName; // +getFileNameExtension(fullFileName.c_str());
+
+	if (rwMode <= dms_rw_mode::read_only)
 	{
-		dms_assert(!this->m_CacheFileName.empty());
-		SharedStr fullFileName = m_CacheFileName;
-		if (tn > 1)
-
-			fullFileName = getFileNameBase(fullFileName.c_str()) + TileSuffix(t) + getFileNameExtension(fullFileName.c_str());
-
-		MGD_CHECKDATA(!seqs[t]->IsLocked());
-
-		if (rwMode <= dms_rw_mode::read_only)
-			seqs[t]->Reset(new mappable_const_sequence<typename elem_of<V>::type>(fullFileName));
-		else
-			seqs[t]->Reset(new mappable_sequence<typename elem_of<V>::type>(fullFileName));
-
-		seqs[t]->Open(trd->GetTileSize(t), rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-
-
-		MGD_CHECKDATA(!seqs[t]->IsLocked());
+		auto cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa);
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			seqs[t]->Reset(new mappable_const_sequence<typename elem_of<V>::type>(cmfh));
+			MGD_CHECKDATA(!seqs[t]->IsLocked());
+		}
 	}
-
+	else
+	{
+		auto fmh = std::make_shared<MappedFileHandle>();
+		fmh->OpenRw(m_CacheFileName, sfwa, 0, rwMode, isTmp);
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			seqs[t]->Reset(new mappable_sequence<typename elem_of<V>::type>(fmh));
+			MGD_CHECKDATA(!seqs[t]->IsLocked());
+		}
+	}
 	m_Files = std::move(seqs);
 }
 

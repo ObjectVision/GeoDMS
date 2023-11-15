@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_SET_FILEVIEW_H)
 #define __RTC_SET_FILEVIEW_H
@@ -17,7 +19,7 @@
 //----------------------------------------------------------------------
 
 template <typename T>
-struct file_view_base : FileMapHandle
+struct file_view_base : FileViewHandle
 {
 	typedef typename sequence_traits<T>::pointer         iterator;
 	typedef typename sequence_traits<T>::const_pointer   const_iterator;
@@ -40,6 +42,7 @@ struct file_view_base : FileMapHandle
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
 
+	/*
 	void CloseFVB()
 	{
 		FileMapHandle::CloseFMH();
@@ -51,6 +54,7 @@ struct file_view_base : FileMapHandle
 		FileMapHandle::Drop(fileName);
 		m_NrElems = 0;
 	}
+	*/
 
 protected:
 	file_view_base() : m_NrElems( 0 ) {}
@@ -150,17 +154,16 @@ struct rw_file_view : file_view_base<T>
 		file_view_base<T>::CloseFVB();
 	}
 
-	void reserve(SizeT nrElem, WeakStr handleName, SafeFileWriterArray* sfwa)
+	void reserve(SizeT nrElem)
 	{
-		dms_assert(nrElem <= this->max_size());
-		this->realloc(nrElem * sizeof(T), handleName, sfwa );
+		assert(nrElem <= this->max_size());
+		this->realloc(nrElem * sizeof(T));
 	}
 
 	void resize(SizeT newNrElems)
 	{
 		if (newNrElems > this->filed_capacity())
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
-//		m_FileSize = size_calculator<T>().nr_bytes(newNrElems);
 		m_NrElems = newNrElems;
 	}
 

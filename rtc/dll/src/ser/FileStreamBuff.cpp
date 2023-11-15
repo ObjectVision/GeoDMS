@@ -130,9 +130,11 @@ bool FileInpStreamBuff::IsOpen() const
 
 MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnOpenError, bool doRetry)
 	:	m_FileName(fileName)
-	,	m_FileView(fileName, sfwa, throwOnOpenError, doRetry)
-	,	m_Curr(IsOpen() ? m_FileView.DataBegin() : 0)
 {
+	auto cmfh = std::make_shared<ConstMappedFileHandle>(fileName, sfwa, throwOnOpenError, doRetry);
+	m_FileView = FileViewHandle(cmfh, cmfh->GetFileSize());
+	if (IsOpen())
+		m_Curr = m_FileView.DataBegin();
 }
 
 
@@ -165,7 +167,7 @@ WeakStr MappedFileInpStreamBuff::FileName()
 
 bool MappedFileInpStreamBuff::IsOpen() const
 {
-	return m_FileView.IsOpen();
+	return m_FileView.IsUsable();
 }
 
 /********** MappedFileOutStreamBuff Implementation **********/
@@ -173,11 +175,9 @@ bool MappedFileInpStreamBuff::IsOpen() const
 MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, streamsize_t nrBytes)
 	:	m_FileName(fileName)
 {
-	m_FileView.OpenRw(fileName, sfwa, nrBytes, dms_rw_mode::write_only_all, false);
-
-	dms_assert(m_FileView.IsOpen());
-	if (m_FileView.IsOpen())
-		m_FileView.Map(dms_rw_mode::write_only_all, fileName, sfwa);
+	auto mfh = std::make_shared<MappedFileHandle>();
+	mfh->OpenRw(fileName, sfwa, nrBytes, dms_rw_mode::write_only_all, false);
+	m_FileView = FileViewHandle(mfh, nrBytes);
 
 	dms_assert(nrBytes);
 	m_Curr = m_FileView.DataBegin();
@@ -186,10 +186,7 @@ MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, SafeFileWrite
 }
 
 MappedFileOutStreamBuff::~MappedFileOutStreamBuff()
-{
-	if (m_FileView.IsMapped())
-		m_FileView.Unmap();
-}
+{}
 
 void MappedFileOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 {
@@ -198,7 +195,7 @@ void MappedFileOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 		throwErrorF("MappedFileOutStream", "Cannot write %s bytes to %s after pos %s since it has size %s",
 			AsString(size).c_str(), m_FileName.c_str(), 
 			AsString(m_Curr - m_FileView.DataBegin()).c_str(), 
-			AsString(m_FileView.GetFileSize()).c_str()
+			AsString(m_FileView.GetViewSize()).c_str()
 		);
 	memcpy(m_Curr, data, size);
 	m_Curr += size;

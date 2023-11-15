@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #if !defined(__RTC_MEM_ABSTRSEQUENCEPROVIDER_H)
 #define __RTC_MEM_ABSTRSEQUENCEPROVIDER_H
@@ -40,7 +19,7 @@ struct SafeFileWriterArray;
 //----------------------------------------------------------------------
 // interfaces to abstr_sequence_provider
 //----------------------------------------------------------------------
- typedef UInt32 SaSizeT;
+using SaSizeT = UInt32;
 
 template <typename V>
 class abstr_sequence_provider : private boost::noncopyable
@@ -64,16 +43,16 @@ public:
 	virtual SizeT Capacity(const alloc_t& seq) const = 0;
 
 	virtual bool CanWrite() const = 0;
-	virtual bool IsOpen()   const = 0;
+//	virtual bool IsOpen()   const = 0;
 	virtual bool IsHeapAllocated() const { return false; }
 
 	virtual abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const = 0;
 	virtual void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { throwIllegalAbstract(MG_POS, "Open"); }
-	virtual void Close(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Close"); }
+//	virtual void Close(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Close"); }
 	virtual void Lock(alloc_t& seq, dms_rw_mode rwMode) { }
 	virtual void UnLock(alloc_t& seq) { }
-	virtual void Drop(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Drop"); }
-	virtual WeakStr GetFileName() const { throwIllegalAbstract(MG_POS, "GetFileName"); }
+//	virtual void Drop(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Drop"); }
+	virtual SharedStr GetFileName() const { throwIllegalAbstract(MG_POS, "GetFileName"); }
 
 	// the following lower case named functions require IsOpen() and Lock()
 	virtual void SetSize(alloc_t& seq, SizeT newSize) = 0;

@@ -2,18 +2,16 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
 #if !defined(__RTC_MEM_MAPPEDSEQUENCEPROVIDER_H)
 #define __RTC_MEM_MAPPEDSEQUENCEPROVIDER_H
 
 #include "mem/AbstrSequenceProvider.h"
 #include "ser/SafeFileWriter.h"
 #include "set/FileView.h"
-
-
-struct map_file
-{
-
-};
 
 //----------------------------------------------------------------------
 // allocators for vectors
@@ -23,14 +21,10 @@ template <typename V>
 class mappable_sequence : public abstr_sequence_provider<V>
 {
 public:
-	mappable_sequence(WeakStr fileName)
-		:	m_FileName(fileName)
+	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh)
+		: m_FileView(mfh)
 	{}
 
-	~mappable_sequence()
-	{
-		dms_assert(!IsOpen());
-	}
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 //	override abstr_sequence_provider
 	void Destroy() override { delete this; }
@@ -41,7 +35,7 @@ public:
 	void reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 
 		Check(seq); 
-		m_FileView.reserve(newSize, m_FileName, m_SFWA); 
+		m_FileView.reserve(newSize); 
 		GetSeq(seq); 
 		Check(seq); 
 	}
@@ -73,15 +67,17 @@ public:
 	}
 	void cut(alloc_t& seq, SizeT newSize) override { dms_assert(newSize <= seq.size());  destroy_range(seq.begin() + newSize, seq.end()); SetSize(seq, newSize);  }
 	void clear  (alloc_t& seq) override  { cut(seq, 0); }
-	void free   (alloc_t& seq) override  { if (IsOpen()) Drop(seq); } 
+	void free(alloc_t& seq) override { m_FileView = rw_file_view<V>(); }
 
 	bool CanWrite() const override { return true; }
 
-	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
+//	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
+
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
-		return new mappable_sequence< IndexRange<SizeT> >(m_FileName + SEQ_SUFFIX);
+		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile());
 	}
+	/*
 
 	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 
@@ -95,22 +91,19 @@ public:
 		dms_assert( IsOpen());
 		dms_assert(!m_FileView.IsMapped());
 	}
-	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.Map(rwMode, m_FileName, m_SFWA); dms_assert(  m_FileView.IsUsable() ); GetSeq(seq);}
+	*/
+
+	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.Map(rwMode != dms_rw_mode::read_only); dms_assert(  m_FileView.IsUsable() ); GetSeq(seq);}
 	void UnLock(alloc_t& seq)                     override 
 	{ 
 		m_FileView.resize(seq.size()); 
-
-#if defined(DMS_CLOSING_UNMAP)
-		m_FileView.SetFileSize( size_calculator<V>().nr_bytes(seq.size()) );
-#endif
 		m_FileView.Unmap();
-		dms_assert( !m_FileView.IsMapped() );
 		seq = alloc_t();
 	}
-	void Close (alloc_t& seq)                     override { m_FileView.CloseWFV();                      dms_assert( !m_FileView.IsOpen  () ); seq = alloc_t();}
-	void Drop  (alloc_t& seq)                     override { m_FileView.Drop(m_FileName);                dms_assert( !m_FileView.IsOpen  () ); seq = alloc_t();}
+//	void Close (alloc_t& seq)                     override { m_FileView.CloseWFV();                      dms_assert( !m_FileView.IsOpen  () ); seq = alloc_t();}
+//	void Drop  (alloc_t& seq)                     override { m_FileView.Drop(m_FileName);                dms_assert( !m_FileView.IsOpen  () ); seq = alloc_t();}
 
-	WeakStr GetFileName() const override { return m_FileName; }
+	SharedStr GetFileName() const override { return m_FileView.GetMappedFile()->GetFileName(); }
 
 private:
 	void Grow(alloc_t& seq, SizeT newSize)
@@ -124,16 +117,15 @@ private:
 	}
 	void Check(alloc_t& seq)
 	{
-		dms_assert(m_FileView.IsUsable());
-		dms_assert(m_FileView.begin() == seq.begin());
-		dms_assert(m_FileView.end  () == seq.end  ());
-		dms_assert(m_FileView.filed_size()     == seq.size());
-		dms_assert(m_FileView.filed_size()     <= m_FileView.filed_capacity());
-		dms_assert(m_FileView.filed_capacity() == seq.capacity());
+		assert(m_FileView.IsUsable());
+		assert(m_FileView.begin() == seq.begin());
+		assert(m_FileView.end  () == seq.end  ());
+		assert(m_FileView.filed_size()     == seq.size());
+		assert(m_FileView.filed_size()     <= m_FileView.filed_capacity());
+		assert(m_FileView.filed_capacity() == seq.capacity());
 	}
 private:
 	rw_file_view<V>      m_FileView;
-	SharedStr            m_FileName;
 	SafeFileWriterArray* m_SFWA = nullptr;
 };
 
@@ -148,8 +140,8 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 {
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 
-	mappable_const_sequence(WeakStr fileName)
-		: m_FileName(fileName)
+	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh)
+		: m_FileView(cmfh)
 	{}
 
 	~mappable_const_sequence()
@@ -172,7 +164,7 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 
 	bool CanWrite() const override { return false; }
 
-	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
+//	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
 		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileName + SEQ_SUFFIX);
@@ -194,10 +186,10 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 	}
 	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { dms_assert(rwMode == dms_rw_mode::read_only); m_FileView.Map(rwMode, m_FileName, m_SFWA); dms_assert( m_FileView.IsUsable()); GetSeq(seq); }
 	void UnLock(alloc_t& seq)                     override { m_FileView.Unmap();                        dms_assert(!m_FileView.IsMapped()); seq = alloc_t(); }
-	void Close (alloc_t& seq)                     override { m_FileView.CloseFVB();                     dms_assert(!m_FileView.IsOpen());   seq = alloc_t(); }
-	void Drop  (alloc_t& seq)                     override { m_FileView.Drop (m_FileName);              dms_assert(!m_FileView.IsOpen());   seq = alloc_t(); }
+//	void Close (alloc_t& seq)                     override { m_FileView.CloseFVB();                     dms_assert(!m_FileView.IsOpen());   seq = alloc_t(); }
+//	void Drop  (alloc_t& seq)                     override { m_FileView.Drop (m_FileName);              dms_assert(!m_FileView.IsOpen());   seq = alloc_t(); }
 
-	WeakStr GetFileName() const override { return m_FileName; }
+	SharedStr GetFileName() const override { return m_FileView->GetFileName(); }
 
 private:
 	void GetSeq(alloc_t& seq)

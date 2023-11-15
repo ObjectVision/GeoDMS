@@ -394,6 +394,7 @@ void sequence_array<T>::clear()
 
 // sequence_array access control
 
+/*
 template <typename T>
 void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
@@ -410,6 +411,7 @@ void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isT
 	}
 	m_ActualDataSize = 0; // init when first lock is set
 }
+*/
 
 template <typename T>
 void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation

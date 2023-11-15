@@ -100,10 +100,10 @@ public:
 	RTC_CALL bool IsOpen() const;
 
 protected:
-	SharedStr                m_FileName;
+	SharedStr         m_FileName;
 private:
-	MappedConstFileMapHandle m_FileView;
-	mutable CharPtr          m_Curr;
+	FileViewHandle    m_FileView;
+	mutable CharPtr   m_Curr = nullptr;
 };
 
 /********** MappedFileOutStreamBuff Interface **********/
@@ -124,7 +124,7 @@ public:
 private:
 	SharedStr                 m_FileName;
 	char*                     m_Curr;
-	FileMapHandle             m_FileView;
+	FileViewHandle            m_FileView;
 };
 
 #endif // __RTC_SER_FILESTREAMBUFF_H

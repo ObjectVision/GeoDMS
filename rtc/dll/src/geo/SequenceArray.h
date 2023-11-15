@@ -751,7 +751,7 @@ public:
 	// sequence_array access control
 	//=======================================
 
-	bool IsOpen()          const { return m_Indices.IsOpen         () && m_Values.IsOpen    (); }
+//	bool IsOpen()          const { return m_Indices.IsOpen         () && m_Values.IsOpen    (); }
 #if defined(MG_DEBUG_DATA)
 	bool IsLocked()        const { return m_Indices.IsLocked() && m_Values.IsLocked  (); }
 #endif
@@ -762,9 +762,9 @@ public:
 	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Lock  (dms_rw_mode rwMode);
 
-	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
+//	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
 	void UnLock() { m_Indices.UnLock(); m_Values.UnLock(); }
-	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
+//	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
 	RTC_CALL void Reset (abstr_sequence_provider<T>* pr = nullptr);

@@ -23,6 +23,12 @@
 MG_DEBUGCODE(
 	const UInt64 sd_MaxFileSize = 0x4000000000; // 40 x 4Gb = 160Gb
 )
+
+inline DWORD HiDWORD(UInt64 qWord) { return qWord >> 32; }
+inline DWORD LoDWORD(UInt64 qWord) { return qWord; } // truncate
+inline DWORD HiDWORD(UInt32 dWord) { return 0; }
+inline DWORD LoDWORD(UInt32 dWord) { return dWord; }
+
 //  -----------------------------------------------------------------------
 
 DWORD GetCreationDisposition(FileCreationMode fcm)
@@ -67,6 +73,13 @@ HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool is
 
 //  -----------------------------------------------------------------------
 
+WinHandle::~WinHandle()
+{
+	CloseHandle(m_Hnd);
+}
+
+//  -----------------------------------------------------------------------
+
 FileHandle::FileHandle()
 	:	m_hFile   (NULL)
 	,	m_FileSize(UNDEFINED_FILE_SIZE)
@@ -92,14 +105,17 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 	bool readData  = (rwMode < dms_rw_mode::write_only_mustzero);
 
 	FileCreationMode fcm = readData ? FCM_OpenRwGrowable : FCM_CreateAlways;
-	m_hFile = 
+	m_hFile = WinHandle(
 		CreateFileHandleForRwView(
 			GetWorkingFileName(sfwa, fileName, fcm)
 		,	fcm
 		,	isTmp
 		,	doRetry
 		,	deleteOnClose
-		); // returns a valid handle or throws a system error
+		)
+	); // returns a valid handle or throws a system error
+	m_FileName = fileName;
+
 	assert(IsOpen());
 	assert(m_hFile != INVALID_HANDLE_VALUE);
 	MG_DEBUG_DATA_CODE( m_FCM = fcm; )
@@ -150,6 +166,7 @@ void FileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool t
 	}
 
 	m_hFile = fileHandle;
+	m_FileName = fileName;
 	assert(m_hFile != INVALID_HANDLE_VALUE);
 
 	assert(IsOpen() || !throwOnError);
@@ -183,9 +200,112 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 
 //  -----------------------------------------------------------------------
 
-void FileMapHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa)
+void MappedFileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
 {
+	FileHandle::OpenRw(fileName, sfwa, requiredNrBytes, rwMode, isTmp);
 
+	WinHandle fileMapping =
+		CreateFileMapping(
+			m_hFile,                           // Current file handle. 
+			nullptr,                           // Default security. 
+			PAGE_READWRITE,
+			HiDWORD(m_FileSize),               // high-order DWORD of size
+			LoDWORD(m_FileSize),               // low-order DWORD of size
+			nullptr                            // Name of mapping object. 
+		);
+	if (fileMapping == nullptr)
+		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
+
+	m_hFileMapping = std::move(fileMapping);
+}
+
+void MappedFileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry)
+{
+	FileHandle::OpenForRead(fileName, sfwa, throwOnError, doRetry);
+
+	WinHandle fileMapping =
+		CreateFileMapping(
+			m_hFile,                           // Current file handle. 
+			nullptr,                           // Default security. 
+			PAGE_READONLY,
+			HiDWORD(m_FileSize),               // high-order DWORD of size
+			LoDWORD(m_FileSize),               // low-order DWORD of size
+			nullptr                            // Name of mapping object. 
+		);
+	if (fileMapping == nullptr)
+		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
+
+	m_hFileMapping = std::move(fileMapping);
+}
+
+//  -----------------------------------------------------------------------
+
+FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize)
+	: m_MappedFile(mfh)
+{
+	m_ViewOffset = mfh->m_AllocatedSize;
+	mfh->m_AllocatedSize += viewSize;
+	if (mfh->m_AllocatedSize > mfh->GetFileSize())
+		mfh->SetFileSize(mfh->m_AllocatedSize);
+
+	m_ViewSize = viewSize;
+//	Map(false);
+}
+
+FileViewHandle::FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
+	:	m_MappedFile(cmfh)
+{
+	m_ViewOffset = viewOffset;
+	m_ViewSize = viewSize;
+	MakeMin(m_ViewOffset, cmfh->GetFileSize());
+	MakeMin(m_ViewSize, cmfh->GetFileSize() - m_ViewOffset);
+
+//	Map(true);
+}
+
+void FileViewHandle::operator =(FileViewHandle&& rhs)
+{
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
+	std::swap(m_ViewOffset, rhs.m_ViewOffset);
+	std::swap(m_ViewSize, rhs.m_ViewSize);
+	std::swap(m_ViewData, rhs.m_ViewData);
+}
+
+void FileViewHandle::Map(bool alsoWrite)
+{
+	MG_CHECK(m_MappedFile); // precondition
+
+	if (m_ViewData)
+		return;
+
+	while (true) {
+		m_ViewData =
+			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
+				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
+				HiDWORD(m_ViewOffset),
+				LoDWORD(m_ViewOffset),
+				m_ViewSize
+			);
+		if (m_ViewData)
+			break;
+
+		DWORD lastErr = GetLastError();
+		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(m_ViewSize))
+			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)m_ViewSize);
+	};
+}
+
+void FileViewHandle::CloseView()
+{
+	if (!m_ViewData)
+		return;
+	UnmapViewOfFile(m_ViewData); 
+	m_ViewData = nullptr; 
+}
+
+/*
+void MappedFileHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa)
+{
 	assert(IsOpen());
 	assert(IsUsable());
 	MGD_CHECKDATA(IsWritable(m_FCM) );
@@ -201,7 +321,7 @@ void FileMapHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBytes
 	// returns with valid m_hFileMap, m_ViewData and m_FileSize or throws a system error
 }
 
-void FileMapHandle::CloseFMH()
+void MappedFileHandle::CloseFMH()
 {
 	if (IsOpen())
 	{
@@ -213,18 +333,6 @@ void FileMapHandle::CloseFMH()
 	assert(!IsMapped());
 	assert(!m_hFile);
 }
-
-struct WinHandle
-{
-	WinHandle(HANDLE hnd)
-		:	m_Hnd(hnd)
-	{}
-	~WinHandle()
-	{
-		CloseHandle(m_Hnd);
-	}
-	HANDLE m_Hnd;
-};
 
 void FileHandle::DropFile(WeakStr fileName)
 {
@@ -254,20 +362,18 @@ void FileMapHandle::Drop(WeakStr fileName)
 	assert(!IsMapped());
 }
 
-void FileMapHandle::Unmap()
+void FileViewHandle::Unmap()
 {
 	assert(IsUsable());
 	if (IsOpen())
 		CloseView(false);
 	assert(!IsMapped());
 }
-
-inline DWORD HiDWORD(UInt64 qWord) { return qWord >> 32; }
-inline DWORD HiDWORD(UInt32 dWord) { return 0; }
-
+*/
 //  -----------------------------------------------------------------------
 
-void FileMapHandle::Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa)
+/*
+void FileViewHandle::Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa)
 {
 	bool alsoWrite = rwMode > dms_rw_mode::read_only;
 
@@ -311,26 +417,11 @@ void FileMapHandle::Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArra
 	if (fileMap.m_Hnd == NULL) 
 		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
 
-	while (true) {
-		m_ViewData = 
-			MapViewOfFile(fileMap.m_Hnd,       // Handle to mapping object. 
-				alsoWrite ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ,
-				0,                             // high-order DWORD of offset
-				0,                             // low-order DWORD of offset
-				m_FileSize                     // Map entire file. 
-			);
-		if (m_ViewData)
-			break;
-
-		DWORD lastErr = GetLastError();
-		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(m_FileSize))
-			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
-	};
 
 	m_hFileMap = fileMap.m_Hnd; fileMap.m_Hnd = 0;
 }
 
-void FileMapHandle::CloseView(bool drop)
+void FileViewHandle::CloseView(bool drop)
 {
 	if (!m_hFile)
 	{
@@ -358,6 +449,15 @@ void FileMapHandle::CloseView(bool drop)
 	CloseFile();
 #endif
 }
+*/
+//  -----------------------------------------------------------------------
+/*
+ConstFileViewHandle::ConstFileViewHandle(ConstMappedFileHandle& mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
+{
+	if (cmfh.IsOpen())
+		Map(dms_rw_mode::read_only, fileName);
+}
+*/
 
 #else //defined(WIN32)
 

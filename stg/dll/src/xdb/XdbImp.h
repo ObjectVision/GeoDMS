@@ -94,7 +94,7 @@ public:
 	
 private:
 
-	FileMapHandle  m_FHD;					// .dat file
+	FileViewHandle  m_FHD;					// .dat file
 	SharedStr m_FileName;					// .xdb file name
 	SharedStr m_DatFileName;				// .dat file name
 	CharPtr   m_DatExtension;               // .dat could be .txt or .kml or .xyz
