@@ -286,7 +286,11 @@ void EventLogModel::updateOnNewMessages()
 
 void EventLogModel::addText(MsgData&& msgData)
 {
-	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto mainWindow = MainWindow::TheOne();
+	if (!mainWindow)
+		return;
+
+	auto eventlog = mainWindow->m_eventlog.get();
 
 	eventlog->m_clear->setEnabled(true);
 	m_Items.emplace_back(std::move(msgData));
@@ -603,7 +607,14 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 	}
 
 	assert(IsMainThread());
-	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
+	if (g_IsTerminating)
+		return;
+
+	auto mainWindow = MainWindow::TheOne();
+	if (!mainWindow)
+		return;
+
+	auto* eventlog_model = mainWindow->m_eventlog_model.get(); assert(eventlog_model);
 	eventlog_model->addText(MsgData(*msgData));
 }
 

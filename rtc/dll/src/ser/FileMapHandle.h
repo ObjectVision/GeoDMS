@@ -75,13 +75,10 @@ protected:
 	dms::filesize_t  m_FileSize = UNDEFINED_FILE_SIZE;
 	SharedStr        m_FileName;
 
-	bool m_IsTmp : 1 = false;
-
-MG_DEBUG_DATA_CODE(
+	bool m_IsTmp           : 1 = false;
 	FileCreationMode m_FCM : 3 = FCM_Undefined;
-)
-
 };
+
 struct MappedFileHandle : FileHandle
 {
 	dms::filesize_t m_AllocatedSize = 0;
@@ -127,9 +124,9 @@ struct FileViewHandle
 //	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
 
 	char*   DataBegin()       { assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData); }
-	char*   DataEnd  ()       { assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData) + GetViewSize(); }
+	char*   DataEnd  ()       { return DataBegin() + GetViewSize(); }
 	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
-	CharPtr DataEnd  () const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData) + GetViewSize(); }
+	CharPtr DataEnd() const { return DataBegin() + GetViewSize(); }
 
 	dms::filesize_t GetViewOffset() const { return m_ViewSpec.first; }
 	dms::filesize_t GetViewSize() const { return m_ViewSpec.second; }
@@ -164,8 +161,8 @@ struct ConstFileViewHandle
 	void Unmap() { CloseView(); }
 	//	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
 
-	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewSpec.first); }
-	CharPtr DataEnd() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewSpec.first) + GetViewSize(); }
+	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
+	CharPtr DataEnd() const { return DataBegin() + GetViewSize(); }
 
 	dms::filesize_t GetViewOffset() const { return m_ViewSpec.first; }
 	dms::filesize_t GetViewSize() const { return m_ViewSpec.second; }

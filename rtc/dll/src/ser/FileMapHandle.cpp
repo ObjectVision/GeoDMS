@@ -75,6 +75,8 @@ HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool is
 
 WinHandle::~WinHandle()
 {
+	if (m_Hnd == nullptr)
+		return;
 	CloseHandle(m_Hnd);
 }
 
@@ -82,7 +84,7 @@ WinHandle::~WinHandle()
 
 FileHandle::~FileHandle()
 {
-	assert(!IsOpen());
+//	assert(!IsOpen());
 	// REMOVE IF ASSERTION IS PROVEN
 	if (IsOpen())
 		CloseFile(); 
@@ -176,8 +178,7 @@ void FileHandle::CloseFile()
 {
 	assert(m_hFile);
 	assert(m_hFile != INVALID_HANDLE_VALUE);
-	CloseHandle(m_hFile);
-	m_hFile = NULL;
+	m_hFile = WinHandle();
 	// m_FileSize = UNDEFINED_FILE_SIZE;
 }
 
