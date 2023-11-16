@@ -97,8 +97,6 @@ struct MappedFileHandle : FileHandle
 
 struct ConstMappedFileHandle : MappedFileHandle
 {
-	dms::filesize_t m_AllocatedSize;
-
 	ConstMappedFileHandle(WeakStr fileName, SafeFileWriterArray* sfwa = nullptr, bool throwOnError = true, bool doRetry = false)
 	{
 		OpenForRead(fileName, sfwa, throwOnError, doRetry);
