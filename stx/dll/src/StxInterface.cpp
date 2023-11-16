@@ -254,8 +254,11 @@ SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	SharedStr localUrl = SharedStr(url);
 	SharedStr result;
-	MappedConstFileMapHandle file(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
-	CharPtr fileCurr = file.DataBegin(), fileEnd = file.DataEnd();
+	auto cmfh = std::make_shared<ConstMappedFileHandle>(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
+	auto fileView = ConstFileViewHandle(cmfh);
+	fileView.Map();
+
+	CharPtr fileCurr = fileView.DataBegin(), fileEnd = fileView.DataEnd();
 	while (true) {
 		CharPtr markerPos = Search(CharPtrRange(fileCurr, fileEnd), "<%"); // TODO: Parse Expr instead of Search
 		result += CharPtrRange(fileCurr, markerPos);

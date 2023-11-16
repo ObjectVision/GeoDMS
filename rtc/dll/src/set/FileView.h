@@ -18,26 +18,26 @@
 // Section      : file_view_base
 //----------------------------------------------------------------------
 
-template <typename T>
-struct file_view_base : FileViewHandle
+template <typename T, typename FVH>
+struct file_view_base : FVH
 {
-	typedef typename sequence_traits<T>::pointer         iterator;
-	typedef typename sequence_traits<T>::const_pointer   const_iterator;
-	typedef typename sequence_traits<T>::reference       reference;
-	typedef typename sequence_traits<T>::const_reference const_reference;
+	using const_iterator = typename sequence_traits<T>::const_pointer;
+	using const_reference = typename sequence_traits<T>::const_reference;
 
-	const_iterator begin() const { return iter_creator<T>()( DataBegin(), 0 ); }
-	const_iterator end()   const { return iter_creator<T>()( DataBegin(), m_NrElems); }
+	using FVH::FVH; // inherit ctors
+
+	const_iterator begin() const { return iter_creator<T>()(this->DataBegin(), 0 ); }
+	const_iterator end()   const { return iter_creator<T>()(this->DataBegin(), m_NrElems); }
 
 	SizeT filed_size() const
 	{
-		assert(!IsUsable() || begin() + m_NrElems == end());
+		assert(!this->IsUsable() || begin() + m_NrElems == end());
 		return m_NrElems;
 	}
 	SizeT filed_capacity() const
 	{
-		SizeT cap = capacity_calculator<T>().Byte2Size(GetViewSize());
-		assert(GetViewSize() <= cap);
+		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewSize());
+		assert(this->GetViewSize() <= cap);
 		return cap;
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
@@ -68,16 +68,20 @@ protected:
 const SizeT useExistingSize = UNDEFINED_VALUE(SizeT);
 
 template <typename T>
-struct const_file_view : file_view_base<T>
+struct const_file_view : file_view_base<T, ConstFileViewHandle>
 {
-	using base_type = file_view_base<T>;
+	using base_type = file_view_base<T, ConstFileViewHandle>;
+	using typename base_type::const_iterator;
+	using typename base_type::const_reference;
+	using file_view_base<T, ConstFileViewHandle>::file_view_base; // inherit ctors
 
+/*
 	const_file_view() {}
 	const_file_view(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems = useExistingSize, bool throwOnError = true )
 	{
 		Open(fileName, sfwa, nrElems, throwOnError);
 	}
-
+*/
 	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, bool throwOnError = true )
 	{
 		this->OpenForRead(fileName, sfwa, throwOnError, true);
@@ -104,18 +108,26 @@ struct const_file_view : file_view_base<T>
 //----------------------------------------------------------------------
 
 template <typename T>
-struct rw_file_view : file_view_base<T>
+struct rw_file_view : file_view_base<T, FileViewHandle>
 {
-	using base_type = file_view_base<T>;
+	using base_type = file_view_base<T, FileViewHandle>;
 
 	//	somehow the following is neccesary for ProdConfig.cpp to avoid confusion with std:iterator
 	//	maybe somewhere there is a using std:: ??
-	using typename base_type::iterator;
 	using typename base_type::const_iterator;
-	using typename base_type::reference;
 	using typename base_type::const_reference;
+
+	using iterator = typename sequence_traits<T>::pointer;
+	using reference = typename sequence_traits<T>::reference;
+
 	using base_type::DataBegin;
 	using base_type::m_NrElems;
+
+	using file_view_base<T, FileViewHandle>::file_view_base; // inherit ctors
+
+//	rw_file_view(std::shared_ptr<MappedFileHandle> mfh)
+//		: file_view_base<T>(std::move(mfh))
+//	{}
 
 	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
 	{
@@ -157,6 +169,7 @@ struct rw_file_view : file_view_base<T>
 	void reserve(SizeT nrElem)
 	{
 		assert(nrElem <= this->max_size());
+		MG_CHECK(nrElem < SizeT(-1) / sizeof(T));
 		this->realloc(nrElem * sizeof(T));
 	}
 

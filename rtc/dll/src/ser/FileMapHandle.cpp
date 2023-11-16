@@ -80,14 +80,6 @@ WinHandle::~WinHandle()
 
 //  -----------------------------------------------------------------------
 
-FileHandle::FileHandle()
-	:	m_hFile   (NULL)
-	,	m_FileSize(UNDEFINED_FILE_SIZE)
-	,	m_IsTmp    (false)
-{
-	MG_DEBUG_DATA_CODE( m_FCM = FCM_Undefined; )
-}
-
 FileHandle::~FileHandle()
 {
 	assert(!IsOpen());
@@ -198,6 +190,16 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 }
 
+FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
+{
+	auto fs = m_AllocatedSize;
+	m_AllocatedSize += vs;
+	if (m_AllocatedSize > GetFileSize())
+		SetFileSize(m_AllocatedSize);
+
+	return {fs, vs};
+}
+
 //  -----------------------------------------------------------------------
 
 void MappedFileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
@@ -243,22 +245,17 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, 
 FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize)
 	: m_MappedFile(mfh)
 {
-	m_ViewOffset = mfh->m_AllocatedSize;
-	mfh->m_AllocatedSize += viewSize;
-	if (mfh->m_AllocatedSize > mfh->GetFileSize())
-		mfh->SetFileSize(mfh->m_AllocatedSize);
-
-	m_ViewSize = viewSize;
+	m_ViewSpec = mfh->alloc(viewSize);
 //	Map(false);
 }
 
-FileViewHandle::FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
+ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
 	:	m_MappedFile(cmfh)
 {
-	m_ViewOffset = viewOffset;
-	m_ViewSize = viewSize;
-	MakeMin(m_ViewOffset, cmfh->GetFileSize());
-	MakeMin(m_ViewSize, cmfh->GetFileSize() - m_ViewOffset);
+	m_ViewSpec = { viewOffset, viewSize };
+
+	MakeMin(m_ViewSpec.first, cmfh->GetFileSize());
+	MakeMin(m_ViewSpec.second, cmfh->GetFileSize() - m_ViewSpec.first);
 
 //	Map(true);
 }
@@ -266,8 +263,14 @@ FileViewHandle::FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms:
 void FileViewHandle::operator =(FileViewHandle&& rhs)
 {
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
-	std::swap(m_ViewOffset, rhs.m_ViewOffset);
-	std::swap(m_ViewSize, rhs.m_ViewSize);
+	std::swap(m_ViewSpec, rhs.m_ViewSpec);
+	std::swap(m_ViewData, rhs.m_ViewData);
+}
+
+void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs)
+{
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
+	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
 }
 
@@ -282,16 +285,16 @@ void FileViewHandle::Map(bool alsoWrite)
 		m_ViewData =
 			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
 				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
-				HiDWORD(m_ViewOffset),
-				LoDWORD(m_ViewOffset),
-				m_ViewSize
+				HiDWORD(GetViewOffset()),
+				LoDWORD(GetViewOffset()),
+				GetViewSize()
 			);
 		if (m_ViewData)
 			break;
 
 		DWORD lastErr = GetLastError();
-		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(m_ViewSize))
-			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)m_ViewSize);
+		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
+			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
 	};
 }
 
@@ -303,13 +306,44 @@ void FileViewHandle::CloseView()
 	m_ViewData = nullptr; 
 }
 
-/*
-void MappedFileHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa)
+void ConstFileViewHandle::Map()
 {
-	assert(IsOpen());
-	assert(IsUsable());
-	MGD_CHECKDATA(IsWritable(m_FCM) );
+	MG_CHECK(m_MappedFile); // precondition
 
+	if (m_ViewData)
+		return;
+
+	while (true) {
+		m_ViewData =
+			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
+				FILE_MAP_READ,
+				HiDWORD(GetViewOffset()),
+				LoDWORD(GetViewOffset()),
+				GetViewSize()
+			);
+		if (m_ViewData)
+			break;
+
+		DWORD lastErr = GetLastError();
+		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
+			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
+	};
+}
+
+void ConstFileViewHandle::CloseView()
+{
+	if (!m_ViewData)
+		return;
+	UnmapViewOfFile(m_ViewData);
+	m_ViewData = nullptr;
+}
+
+void FileViewHandle::realloc(dms::filesize_t requiredNrBytes)
+{
+	assert(IsUsable());
+//	MGD_CHECKDATA(IsWritable(m_FCM) );
+	m_ViewSpec = m_MappedFile->alloc(requiredNrBytes);
+/*
 	dms_rw_mode rwMode = (m_FileSize) ? dms_rw_mode::read_write : dms_rw_mode::write_only_all;
 
 	if( requiredNrBytes == m_FileSize)
@@ -319,7 +353,10 @@ void MappedFileHandle::realloc(FileHandle& storage, dms::filesize_t requiredNrBy
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 	Map(rwMode, fileName, sfwa);
 	// returns with valid m_hFileMap, m_ViewData and m_FileSize or throws a system error
+*/
 }
+
+/*
 
 void MappedFileHandle::CloseFMH()
 {

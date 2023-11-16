@@ -121,8 +121,8 @@ bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode file
 
 	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
 	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
-	m_FHD = FileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, sfwa, true, false));
-	m_FHD.Map(false);
+	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, sfwa, true, false));
+	m_FHD.Map();
 
 	// Read header info
 	return (!saveColInfo) || ReadHeader();
@@ -357,7 +357,7 @@ void XdbImp::Close()
 	nRecPos = 0;
 
 	// close all
-	m_FHD = FileViewHandle();
+	m_FHD = ConstFileViewHandle();
 }
 
 
@@ -396,7 +396,7 @@ CharPtr XdbImp::ColName(column_index i) const
 XdbImp::recno_t XdbImp::NrOfRows() const
 {
 	if (nrows == -1)
-		const_cast<XdbImp*>(this)->nrows = ThrowingConvert<XdbImp::recno_t>((m_FHD.GetFileSize() -headersize) / RecSize());
+		const_cast<XdbImp*>(this)->nrows = ThrowingConvert<XdbImp::recno_t>((m_FHD.GetViewSize() -headersize) / RecSize());
 	return nrows;
 };
 

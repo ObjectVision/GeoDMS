@@ -38,7 +38,7 @@ struct WinHandle
 	WinHandle(const WinHandle& rhs) = delete;
 	void operator = (const WinHandle&) = delete;
 
-	~WinHandle(); // CloseHandle(m_Hnd)
+	RTC_CALL ~WinHandle(); // CloseHandle(m_Hnd)
 
 	operator HANDLE() const { return m_Hnd; }
 
@@ -48,10 +48,12 @@ private:
 
 //  -----------------------------------------------------------------------
 
+using FileChunckSpec = std::pair<dms::filesize_t, dms::filesize_t>;
 
 struct FileHandle
 {
-	RTC_CALL FileHandle();
+	FileHandle() = default;
+
 	RTC_CALL ~FileHandle();
 
 	RTC_CALL void OpenRw (WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool retry = true, bool deleteOnClose = false);
@@ -69,23 +71,25 @@ struct FileHandle
 protected:
 	void ReadFileSize(CharPtr handleName);
 
-	WinHandle        m_hFile;
-	dms::filesize_t  m_FileSize;
+	WinHandle        m_hFile = nullptr;
+	dms::filesize_t  m_FileSize = UNDEFINED_FILE_SIZE;
 	SharedStr        m_FileName;
 
-	bool m_IsTmp    : 1;
+	bool m_IsTmp : 1 = false;
 
 MG_DEBUG_DATA_CODE(
-	FileCreationMode m_FCM : 3;
+	FileCreationMode m_FCM : 3 = FCM_Undefined;
 )
 
 };
 struct MappedFileHandle : FileHandle
 {
-	dms::filesize_t m_AllocatedSize;
+	dms::filesize_t m_AllocatedSize = 0;
 
-	void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
-	void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry);
+	RTC_CALL void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
+	RTC_CALL void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry);
+
+	RTC_CALL FileChunckSpec alloc(dms::filesize_t vs);
 
 	WinHandle m_hFileMapping;
 };
@@ -105,18 +109,18 @@ struct ConstMappedFileHandle : MappedFileHandle
 struct FileViewHandle
 {
 	FileViewHandle() = default;
-	FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize);
-	FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
+//	FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
 	FileViewHandle(FileViewHandle&& rhs) { operator =(std::move(rhs)); }
+	RTC_CALL FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize);
 
 
 	~FileViewHandle() { CloseView(); }
-	void operator = (FileViewHandle&& rhs);
+	RTC_CALL void operator = (FileViewHandle&& rhs);
 
-//	RTC_CALL void realloc(FileHandle& storage, dms::filesize_t requiredNrBytes, WeakStr fileName, SafeFileWriterArray* sfwa);
+	RTC_CALL void realloc(dms::filesize_t requiredNrBytes);
 
 //	bool IsMapped() const { return m_hFileMap; }
-	bool IsUsable() const { return m_ViewData != nullptr || m_ViewSize == 0; }
+	bool IsUsable() const { return m_ViewData != nullptr || GetViewSize() == 0; }
 
 //	RTC_CALL void CloseFMH();
 //	RTC_CALL void Drop (WeakStr fileName);
@@ -129,7 +133,8 @@ struct FileViewHandle
 	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
 	CharPtr DataEnd  () const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData) + GetViewSize(); }
 
-	dms::filesize_t GetViewSize() const { return m_ViewSize;  }
+	dms::filesize_t GetViewOffset() const { return m_ViewSpec.first; }
+	dms::filesize_t GetViewSize() const { return m_ViewSpec.second; }
 
 //	auto GetFileName() const -> SharedStr { return m_MappedFile->GetFileName(); }
 	auto GetMappedFile() const { return m_MappedFile; }
@@ -137,28 +142,47 @@ struct FileViewHandle
 protected:
 	std::shared_ptr< MappedFileHandle> m_MappedFile;
 
-	void CloseView();
+	RTC_CALL void CloseView();
 
-	dms::filesize_t  m_ViewOffset = 0, m_ViewSize = 0;
-	void*            m_ViewData = nullptr;
+	FileChunckSpec m_ViewSpec = { 0, 0 };
+	void*          m_ViewData = nullptr;
 };
 
-/*
 struct ConstFileViewHandle
 {
-	ConstFileViewHandle(ConstMappedFileHandle& cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize);
-	~ConstFileViewHandle()
-	{
-		CloseView();
-	}
+	ConstFileViewHandle() = default;
+	ConstFileViewHandle(ConstFileViewHandle&& rhs) { operator =(std::move(rhs)); }
+	RTC_CALL ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
+
+	~ConstFileViewHandle() { CloseView(); }
+	RTC_CALL void operator = (ConstFileViewHandle&& rhs);
+
+	//	bool IsMapped() const { return m_hFileMap; }
+	bool IsUsable() const { return m_ViewData != nullptr || GetViewSize() == 0; }
+
+	//	RTC_CALL void CloseFMH();
+	//	RTC_CALL void Drop (WeakStr fileName);
+	RTC_CALL void Map();
+	void Unmap() { CloseView(); }
+	//	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
+
+	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewSpec.first); }
+	CharPtr DataEnd() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewSpec.first) + GetViewSize(); }
+
+	dms::filesize_t GetViewOffset() const { return m_ViewSpec.first; }
+	dms::filesize_t GetViewSize() const { return m_ViewSpec.second; }
+
+	//	auto GetFileName() const -> SharedStr { return m_MappedFile->GetFileName(); }
+	auto GetMappedFile() const { return m_MappedFile; }
 
 protected:
-	void CloseView();
+	std::shared_ptr< ConstMappedFileHandle> m_MappedFile;
 
-	dms::filesize_t  m_ViewOffset = 0, m_ViewSize = 0;
+	RTC_CALL void CloseView();
+
+	FileChunckSpec m_ViewSpec = { 0, 0 };
 	void* m_ViewData = nullptr;
 };
-*/
 
 //  -----------------------------------------------------------------------
 

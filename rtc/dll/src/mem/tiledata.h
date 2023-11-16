@@ -74,7 +74,6 @@ template <typename V> struct mapped_file : TileBase
 		: m_Info(info)
 	{
 		dms_assert(info);
-		dms_assert(info->IsOpen());
 		dbg_assert(!info->IsLocked());
 		info->Lock(rwMode);
 		dbg_assert(!info->IsLocked());

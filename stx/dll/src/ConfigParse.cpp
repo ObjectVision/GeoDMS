@@ -302,7 +302,8 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 {
 	AuthErrorDisplayLock recursionLock;
 
-	auto fv = FileViewHandle(std::make_shared<ConstMappedFileHandle>(fileName, nullptr, true, false)); // SFWA
+	auto fv = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(SharedStr(fileName), nullptr, true, false)); // SFWA
+	fv.Map();
 	try {
 
 		parse_info_t info
