@@ -206,14 +206,17 @@ FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 void MappedFileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
 {
 	FileHandle::OpenRw(fileName, sfwa, requiredNrBytes, rwMode, isTmp);
-
+	if (m_FileSize == 0)
+	{
+		m_hFileMapping = WinHandle();
+		return;
+	}
 	WinHandle fileMapping =
 		CreateFileMapping(
 			m_hFile,                           // Current file handle. 
 			nullptr,                           // Default security. 
 			PAGE_READWRITE,
-			HiDWORD(m_FileSize),               // high-order DWORD of size
-			LoDWORD(m_FileSize),               // low-order DWORD of size
+			HiDWORD(m_FileSize), LoDWORD(m_FileSize), 
 			nullptr                            // Name of mapping object. 
 		);
 	if (fileMapping == nullptr)
@@ -231,8 +234,7 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, 
 			m_hFile,                           // Current file handle. 
 			nullptr,                           // Default security. 
 			PAGE_READONLY,
-			HiDWORD(m_FileSize),               // high-order DWORD of size
-			LoDWORD(m_FileSize),               // low-order DWORD of size
+			HiDWORD(m_FileSize), LoDWORD(m_FileSize),
 			nullptr                            // Name of mapping object. 
 		);
 	if (fileMapping == nullptr)
