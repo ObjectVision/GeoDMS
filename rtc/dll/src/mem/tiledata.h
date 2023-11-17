@@ -33,7 +33,6 @@ struct tile : sequence_traits<V>::tile_container_type, TileBase // TODO G8: repl
 	using TileBase::TileBase;
 };
 
-
 template <typename V> struct mapped_file;
 template <typename V>
 struct file : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: replace by OwningArrayPtr
@@ -42,7 +41,7 @@ struct file : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: replace 
 
 	// Open(tile_offset nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa)
 
-	std::shared_ptr<mapped_file<V>> get(dms_rw_mode rwMode)
+	std::shared_ptr<mapped_file<V>> get(dms_rw_mode rwMode) const
 	{
 		std::lock_guard guard(cs_file);
 //		dms_assert(this->IsOpen());
@@ -54,29 +53,23 @@ struct file : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: replace 
 		}
 		return result;
 	}
-/* REMOVE
-	~file()
-	{
-		this->Close();
-	}
-	*/
 
-	std::mutex cs_file;
-	std::weak_ptr<mapped_file<V>> m_OpenFile;
+	mutable std::mutex cs_file;
+	mutable std::weak_ptr<mapped_file<V>> m_OpenFile;
 };
 
 template <typename V> struct mapped_file : TileBase
 { 
-	SharedPtr< file<V>  > m_Info;
-//	bool                  m_IsTmp = false;
+	SharedPtr<const file<V>> m_Info;
+//	bool               m_IsTmp = false;
 
-	mapped_file(file<V>* info, dms_rw_mode rwMode)
+	mapped_file(const file<V>* info, dms_rw_mode rwMode)
 		: m_Info(info)
 	{
-		dms_assert(info);
+		assert(info);
 		dbg_assert(!info->IsLocked());
 		info->Lock(rwMode);
-		dbg_assert(!info->IsLocked());
+		dbg_assert(info->IsLocked());
 	}
 	~mapped_file()
 	{
@@ -89,5 +82,6 @@ template <typename V> struct mapped_file : TileBase
 		m_Info->UnLock();
 	}
 };
+
 
 #endif // __RTC_MEM_TILEDATA_H

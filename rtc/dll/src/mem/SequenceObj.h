@@ -172,18 +172,18 @@ public:
 
 	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 //	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
-	void Lock  (dms_rw_mode rwMode) { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
-	void UnLock() { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
+	void Lock  (dms_rw_mode rwMode) const { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
+	void UnLock() const { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
 //	void Drop  () { MGD_CHECKDATA(!IsLocked() && m_Provider); m_Provider->Drop  (m_Data); dms_assert(Empty()); }
 	WeakStr GetFileName() const { return m_Provider->GetFileName(); }
 
 private:
 	sequence_obj(const sequence_obj<V>&);
 
-	alloc_data<V>                m_Data;
 	DestroyablePtr< provider_t > m_Provider;
+	mutable alloc_data<V>        m_Data;
 #if defined(MG_DEBUG_DATA)
-	bool md_IsLocked = false;
+	mutable bool md_IsLocked = false;
 public:
 	bool IsLocked() const { return md_IsLocked; }
 #endif

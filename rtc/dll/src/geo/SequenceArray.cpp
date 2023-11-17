@@ -414,11 +414,11 @@ void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isT
 */
 
 template <typename T>
-void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
+void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 { 
 	assert(rwMode >= dms_rw_mode::read_only); // no undefined nor check_only
 
-	SeqLock<seq_vector_t> lock(m_Indices, dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_mustzero); // may throw without any rolbackhere
+	SeqLock<const seq_vector_t> lock(m_Indices, dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_mustzero); // may throw without any rolbackhere
 	m_Values.Lock(dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_all);                            // may throw with rollback managed by lock
 	if (dms_must_keep(rwMode))
 	{
@@ -431,7 +431,7 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
 	else
 	{
 		m_ActualDataSize = 0;
-		m_Values.clear();
+//		m_Values.clear();
 	}
 	lock.release();
 
@@ -879,6 +879,7 @@ template struct sequence_array<FPoint>;
 //template struct sequence_array<TokenID>;
 template void sequence_array<TokenID>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last );
 template void sequence_array<TokenID>::Reset(size_type nrSeqs, data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
+template void sequence_array<TokenID>::Lock(enum dms_rw_mode) const;
 
 template struct SA_Reference<char>;
 template struct SA_Reference<DPoint>;

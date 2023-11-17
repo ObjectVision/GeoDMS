@@ -2,8 +2,6 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#pragma once
-
 /***************************************************************************
 
 sequence_array<T> is (nearly) compatible with std::vector<std::vector<T> >
@@ -95,7 +93,10 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 - generalization to sequece_array arrays (3 levels deep) or higher dimensions.
 
 */
+
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__GEO_SEQUENCE_ARRAY_H)
 #define __GEO_SEQUENCE_ARRAY_H
@@ -759,11 +760,11 @@ public:
 	bool IsAssigned()      const { return m_Indices.IsAssigned     (); }
 	bool IsHeapAllocated() const { return m_Indices.IsHeapAllocated() && m_Values.IsHeapAllocated(); }
 
-	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
-	RTC_CALL void Lock  (dms_rw_mode rwMode);
+//	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
+	RTC_CALL void Lock  (dms_rw_mode rwMode) const;
 
 //	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }
-	void UnLock() { m_Indices.UnLock(); m_Values.UnLock(); }
+	void UnLock() const { m_Indices.UnLock(); m_Values.UnLock(); }
 //	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
@@ -864,7 +865,7 @@ protected:
 #endif
 	seq_vector_t   m_Indices;            // for identifying allocated sequences
 	data_vector_t  m_Values;             // for sequential storage of sequences of T (the memory pool)
-	data_size_type m_ActualDataSize = 0; // no of elements in allocated sequences (not abandoned elements)
+	mutable data_size_type m_ActualDataSize = 0; // no of elements in allocated sequences (not abandoned elements)
 
 	friend struct SA_ConstReference<T>;
 	friend struct SA_Reference<T>;
