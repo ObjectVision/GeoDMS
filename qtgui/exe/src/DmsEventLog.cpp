@@ -582,8 +582,19 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 {
 	auto row = index.row();
 	const MsgData& item_data = MainWindow::TheOne()->m_eventlog_model->dataFiltered(row);
+	int i = 0;
 
+	auto log_item_message_view = std::string_view(item_data.m_Txt);
+	auto link_start_index = log_item_message_view.find_first_of('[[', 0);
+	if (link_start_index == std::string::npos)
+		return;
+	
+	auto link_end_index = log_item_message_view.find_first_of(']]', link_start_index);
+	if (link_end_index == std::string::npos)
+		return;
 
+	auto link = log_item_message_view.substr(link_start_index+2, link_end_index-(link_start_index+2));
+	MainWindow::TheOne()->m_current_item_bar->setPath(link.data());
 }
 
 QSize DmsEventLog::sizeHint() const
