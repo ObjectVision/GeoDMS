@@ -21,8 +21,8 @@ template <typename V>
 class mappable_sequence : public abstr_sequence_provider<V>
 {
 public:
-	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh)
-		: m_FileView(mfh, 0)
+	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh, SizeT nrElem)
+		: m_FileView(mfh, nrElem * sizeof(V))
 	{}
 
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
@@ -75,7 +75,7 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
-		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile());
+		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), 0);
 	}
 	/*
 
@@ -140,8 +140,8 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 {
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 
-	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh)
-		: m_FileView(cmfh)
+	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh, SizeT nrElem)
+		: m_FileView(cmfh, nrElem * sizeof(V))
 	{}
 
 	~mappable_const_sequence()
@@ -165,7 +165,7 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 //	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
-		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileView.GetMappedFile());
+		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileView.GetMappedFile(), m_FileView.SequenceMemPageAllocTable());
 	}
 /*
 	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override

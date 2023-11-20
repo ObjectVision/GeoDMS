@@ -308,7 +308,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		auto cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa);
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_const_sequence<elem_of_t<V>>(cmfh));
+			seqs[t].Reset(new mappable_const_sequence<elem_of_t<V>>(cmfh, trd->GetTileSize(t)));
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}
@@ -318,7 +318,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		fmh->OpenRw(m_CacheFileName, sfwa, MinimalNrMemPages<V>(trd) * MEM_PAGE_SIZE, rwMode, isTmp);
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_sequence<elem_of_t<V>>(fmh));
+			seqs[t].Reset(new mappable_sequence<elem_of_t<V>>(fmh, trd->GetTileSize(t)));
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}
