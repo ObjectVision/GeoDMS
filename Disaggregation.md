@@ -14,7 +14,7 @@ Quantitative modelling of attribute values can often be considered as some sort 
 
 <!-- -->
 
--   can be done using *s*<sub>*i*</sub> as proxy values. Then $z_i := \\sum\\limits_{r} Z_r \* {{s_i \* q_i^r} \\over {\\sum\\limits_{j}  s_j \* q_j^r}}$;
+-   can be done using *s*<sub>*i*</sub> as proxy values. Then $z_i := \sum_{\lim_{r}} Z_r \* {{s_i \* q_i^r} \\over {\sum_{\lim_{j}}  s_j \* q_j^r}}$;
     which distributes *Z*<sub>*r*</sub> proportional to
     *s*<sub>*i*</sub>. The pp is guaranteed to match if:
     -   all *q*<sub>*i*</sub><sup>*r*</sup> are discrete (thus each *i* relates to a single aggregate) and 
